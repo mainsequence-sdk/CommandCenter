@@ -6,6 +6,7 @@ import { AppShell } from "@/app/layout/AppShell";
 import { AppPage } from "@/features/apps/AppPage";
 import { AppRedirect } from "@/features/apps/AppRedirect";
 import { LegacyDashboardRedirect } from "@/features/apps/LegacyDashboardRedirect";
+import { LegacyMainSequenceWorkbenchRedirect } from "@/features/apps/LegacyMainSequenceWorkbenchRedirect";
 import { LegacyWorkspaceRedirect } from "@/features/apps/LegacyWorkspaceRedirect";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { LoginPageV2 } from "@/features/auth/LoginPageV2";
@@ -14,7 +15,7 @@ import { NotFoundPage } from "@/features/misc/NotFoundPage";
 import { TeamsPage } from "@/features/teams/TeamsPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
 import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
-import { MainSequenceClusterDetailPage } from "../../extensions/main_sequence/features/clusters/MainSequenceClusterDetailPage";
+import { MainSequenceClusterDetailPage } from "../../extensions/main_sequence/extensions/workbench/features/clusters/MainSequenceClusterDetailPage";
 
 export const router = createBrowserRouter([
   {
@@ -80,6 +81,14 @@ export const router = createBrowserRouter([
       {
         path: "workspace/:workspaceId",
         element: <LegacyWorkspaceRedirect />,
+      },
+      {
+        path: "main_sequence",
+        element: <LegacyMainSequenceWorkbenchRedirect />,
+      },
+      {
+        path: "main_sequence/:surfaceId",
+        element: <LegacyMainSequenceWorkbenchRedirect />,
       },
       {
         path: ":appId",

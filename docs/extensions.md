@@ -106,7 +106,8 @@ Current examples:
 - `src/extensions/lightweight-charts/index.ts`
 - `src/extensions/flow-lab/index.ts`
 - `extensions/research-suite/index.ts`
-- `extensions/main_sequence/index.ts`
+- `extensions/main_sequence/extensions/workbench/index.ts`
+- `extensions/main_sequence/extensions/markets/index.ts`
 
 ## Adding a widget
 

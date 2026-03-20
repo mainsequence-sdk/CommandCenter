@@ -1,18 +1,17 @@
-# Main Sequence Extension
+# Main Sequence Namespace
 
-This extension contains the Main Sequence application surfaces and the supporting API, hooks, and reusable UI used by those surfaces.
+This directory is a namespace for multiple Main Sequence extensions plus the shared domain code they reuse.
 
 ## Structure
 
-- `api/`: typed REST client helpers and response models for Main Sequence endpoints.
-- `components/`: shared extension-specific UI pieces reused across multiple features.
-- `features/`: feature-owned screens and larger workflows grouped by domain.
-- `widgets/`: extension-local widgets registered with the core widget platform.
-- `hooks/`: reusable extension hooks that are not tied to a single screen.
-- `index.ts`: extension registration and surface wiring.
+- `common/`: shared Main Sequence API helpers, reusable UI, hooks, and shared assets.
+- `extensions/workbench/`: the Main Sequence Workbench app extension.
+- `extensions/markets/`: the Main Sequence Markets app extension.
+- `extensions/`: nested extension entrypoints loaded by the shell registry.
 
 ## Maintenance Notes
 
-- Keep reusable pieces in `components/` only when they are used by more than one feature or are intended to be shared.
-- Keep feature-specific components inside their feature folder, even if they are large.
+- Keep reusable pieces in `common/` only when they are used by more than one nested extension.
+- Keep feature-specific components inside the owning nested extension, even if they are large.
+- Do not import from one nested extension into another nested extension.
 - When adding a new folder here, include a `README.md` for that folder.

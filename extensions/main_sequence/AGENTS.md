@@ -5,6 +5,7 @@ This `AGENTS.md` applies to everything under `extensions/main_sequence/`.
 ## Start With The Local Docs
 
 - Read [README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/README.md) before making structural changes in this app.
+- Read the nearest nested-extension or `common/` README before changing ownership boundaries.
 - Read the nearest feature `README.md` before changing a screen or adding a new flow.
 - Treat the local README files as the first source of truth for module ownership, entrypoints, and maintenance boundaries.
 - When you add a new feature folder or change ownership of a feature, update its local `README.md` in the same change.
@@ -21,7 +22,7 @@ This `AGENTS.md` applies to everything under `extensions/main_sequence/`.
 
 ## List View Standards
 
-- Reuse the shared registry building blocks in `components/` whenever possible:
+- Reuse the shared registry building blocks in `common/components/` whenever possible:
   - `MainSequenceRegistrySearch.tsx`
   - `MainSequenceRegistryPagination.tsx`
   - `registryTable.ts`
@@ -35,15 +36,15 @@ This `AGENTS.md` applies to everything under `extensions/main_sequence/`.
 - Keep detail views consistent across objects.
 - The detail header should come from the backend summary contract whenever the backend exposes it.
 - Prefer object summary endpoints that follow the same summary request shape already used in this app, such as `/summary/` responses or equivalent summary payloads.
-- Render summary-backed headers through `MainSequenceEntitySummaryCard.tsx` so badges, inline fields, highlight fields, and stats stay consistent across objects.
+- Render summary-backed headers through `MainSequenceEntitySummaryCard.tsx` from `common/components/` so badges, inline fields, highlight fields, and stats stay consistent across objects.
 - If a summary endpoint is not available yet, use a small fallback summary built from the list row, but keep the structure aligned with `EntitySummaryHeader` so it can be replaced cleanly later.
 - Detail navigation should use the backend’s stable object identifier for that feature, which may be an integer id or a UUID.
 
 ## Feature Boundaries
 
-- Keep feature-specific code inside its feature folder under `features/`.
-- Move code into `components/` only when it is reused across features or clearly meant to become a shared app building block.
-- Keep API transport logic, typed payloads, and endpoint helpers in `api/index.ts`. Page components should not call `fetch` directly.
+- Keep feature-specific code inside its feature folder under the owning nested extension's `features/`.
+- Move code into `common/components/`, `common/hooks/`, or `common/api/` only when it is reused across nested extensions or clearly meant to become a shared Main Sequence building block.
+- Keep API transport logic, typed payloads, and endpoint helpers in `common/api/index.ts`. Page components should not call `fetch` directly.
 - If a feature has object-specific tabs, dialogs, or editors, keep them in that feature folder unless they become broadly reusable.
 
 ## Consistency Rules

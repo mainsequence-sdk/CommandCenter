@@ -67,7 +67,7 @@ notificationSources: [
 ],
 ```
 
-Current Main Sequence registration: `extensions/main_sequence/index.ts`
+Current Main Sequence Workbench registration: `extensions/main_sequence/extensions/workbench/index.ts`
 
 ## Aggregation
 

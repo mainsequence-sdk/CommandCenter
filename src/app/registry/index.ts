@@ -1,8 +1,14 @@
 import type { AppExtension, AppRegistry } from "@/app/registry/types";
 import type { AppSurfaceEntry } from "@/apps/types";
 
-const internalModules = import.meta.glob("../../extensions/*/index.ts", { eager: true });
-const externalModules = import.meta.glob("../../../extensions/*/index.ts", { eager: true });
+const internalModules = import.meta.glob(
+  ["../../extensions/*/index.ts", "../../extensions/*/extensions/*/index.ts"],
+  { eager: true },
+);
+const externalModules = import.meta.glob(
+  ["../../../extensions/*/index.ts", "../../../extensions/*/extensions/*/index.ts"],
+  { eager: true },
+);
 const modules = { ...internalModules, ...externalModules };
 
 function uniqueById<T extends { id: string }>(items: T[]) {

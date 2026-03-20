@@ -25,11 +25,11 @@ import {
   manageTeamMembers,
   type TeamMemberRecord,
 } from "./api";
-import { MainSequencePermissionsTab } from "../../../extensions/main_sequence/components/MainSequencePermissionsTab";
-import { MainSequenceRegistrySearch } from "../../../extensions/main_sequence/components/MainSequenceRegistrySearch";
-import { MainSequenceSelectionCheckbox } from "../../../extensions/main_sequence/components/MainSequenceSelectionCheckbox";
-import { getRegistryTableCellClassName } from "../../../extensions/main_sequence/components/registryTable";
-import { useRegistrySelection } from "../../../extensions/main_sequence/hooks/useRegistrySelection";
+import { MainSequencePermissionsTab } from "../../../extensions/main_sequence/common/components/MainSequencePermissionsTab";
+import { MainSequenceRegistrySearch } from "../../../extensions/main_sequence/common/components/MainSequenceRegistrySearch";
+import { MainSequenceSelectionCheckbox } from "../../../extensions/main_sequence/common/components/MainSequenceSelectionCheckbox";
+import { getRegistryTableCellClassName } from "../../../extensions/main_sequence/common/components/registryTable";
+import { useRegistrySelection } from "../../../extensions/main_sequence/common/hooks/useRegistrySelection";
 
 function formatTeamError(error: unknown) {
   return error instanceof Error ? error.message : "The team request failed.";
