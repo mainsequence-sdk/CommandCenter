@@ -1,0 +1,24 @@
+{
+  "id": "notifications",
+  "title": "Notifications",
+  "description": "Notifications are aggregated per app. Each app registers one or more notification sources, and the",
+  "source": "@site/../docs/notifications.md",
+  "sourceDirName": ".",
+  "slug": "/notifications",
+  "permalink": "/docs/notifications",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/notifications.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Extensions",
+    "permalink": "/docs/extensions"
+  },
+  "next": {
+    "title": "RBAC Assignment Matrix",
+    "permalink": "/docs/rbac-assignment-matrix"
+  }
+}

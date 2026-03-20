@@ -1,0 +1,20 @@
+{
+  "id": "README",
+  "title": "Documentation",
+  "description": "Main Sequence Command Center is the foundation for teams that want to launch branded market",
+  "source": "@site/../docs/README.md",
+  "sourceDirName": ".",
+  "slug": "/",
+  "permalink": "/docs/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "next": {
+    "title": "Architecture",
+    "permalink": "/docs/architecture"
+  }
+}

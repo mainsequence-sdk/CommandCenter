@@ -1,0 +1,24 @@
+{
+  "id": "dashboard-layouts",
+  "title": "Dashboard Layouts",
+  "description": "Overview",
+  "source": "@site/../docs/dashboard-layouts.md",
+  "sourceDirName": ".",
+  "slug": "/dashboard-layouts",
+  "permalink": "/docs/dashboard-layouts",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/dashboard-layouts.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Core Widgets",
+    "permalink": "/docs/core-widgets"
+  },
+  "next": {
+    "title": "Extensions",
+    "permalink": "/docs/extensions"
+  }
+}

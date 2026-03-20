@@ -1,0 +1,85 @@
+# Main Sequence Command Center configuration
+
+app:
+  name: Main Sequence Command Center
+  short_name: Main Sequence
+  notifications_refresh_interval_ms: 300000
+
+branding:
+  logo_lightmode: logo_lightmode.png
+  logo_darkmode: logo_darkmode.png
+  logo_mark: logo_mark.png
+  logo_alt: Main Sequence
+  monogram: MS
+
+auth:
+  base_url: http://127.0.0.1:8000
+  identifier_label: Email
+  identifier_placeholder: admin@example.com
+  jwt:
+    token_url: /auth/jwt-token/token/
+    refresh_url: /auth/jwt-token/token/refresh/
+    request_fields:
+      identifier: email
+      password: password
+      refresh: refresh
+    response_fields:
+      access_token: access
+      refresh_token: refresh
+      token_type: token_type
+    claim_mapping:
+      user_id: sub
+      name: name
+      email: email
+      team: team
+      role: role
+      permissions: permissions
+      date_joined: date_joined
+      is_active: is_active
+      last_login: last_login
+      mfa_enabled: mfa_enabled
+      organization_teams: organization_teams
+    user_details:
+      url: /user/api/user/get_user_details/
+      response_mapping:
+        user_id: id
+        name: name
+        email: email
+        team: team
+        role: role
+        permissions: permissions
+        groups: groups
+        date_joined: date_joined
+        is_active: is_active
+        last_login: last_login
+        mfa_enabled: mfa_enabled
+        organization_teams: organization_teams
+      role_groups:
+        admin: Organization Admin
+        trader:
+        analyst:
+        viewer:
+
+main_sequence:
+  endpoint: /orm/api/pods/
+  permissions:
+    candidate_users_suffix: candidate-users/
+    can_view_suffix: can-view/
+    can_edit_suffix: can-edit/
+    add_to_view_suffix: add-to-view/
+    add_to_edit_suffix: add-to-edit/
+    remove_from_view_suffix: remove-from-view/
+    remove_from_edit_suffix: remove-from-edit/
+    add_team_to_view_suffix: add-team-to-view/
+    add_team_to_edit_suffix: add-team-to-edit/
+    remove_team_from_view_suffix: remove-team-from-view/
+    remove_team_from_edit_suffix: remove-team-from-edit/
+
+notifications:
+  list_url: /user/api/notifications/
+  detail_url: /user/api/notifications/{id}/
+  mark_read_url: /user/api/notifications/{id}/mark-read/
+  dismiss_url: /user/api/notifications/{id}/dismiss/
+  mark_all_read_url: /user/api/notifications/mark-all-read/
+  dismiss_all_url: /user/api/notifications/dismiss-all/
+  type: UR

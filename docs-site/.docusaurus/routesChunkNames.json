@@ -1,0 +1,63 @@
+{
+  "/docs/-1c7": {
+    "__comp": "5e95c892",
+    "__context": {
+      "plugin": "aba21aa0"
+    }
+  },
+  "/docs/-6c4": {
+    "__comp": "a7bd4aaa",
+    "__props": "11b43341"
+  },
+  "/docs/-d56": {
+    "__comp": "a94703ab"
+  },
+  "/docs/apps-and-surfaces-7ef": {
+    "__comp": "17896441",
+    "content": "659b4f2c"
+  },
+  "/docs/architecture-0e9": {
+    "__comp": "17896441",
+    "content": "23c664e3"
+  },
+  "/docs/backend-and-auth-55f": {
+    "__comp": "17896441",
+    "content": "383f4ad8"
+  },
+  "/docs/configuration-193": {
+    "__comp": "17896441",
+    "content": "2bbf879d"
+  },
+  "/docs/core-widgets-c30": {
+    "__comp": "17896441",
+    "content": "9ef43f0e"
+  },
+  "/docs/dashboard-layouts-6a5": {
+    "__comp": "17896441",
+    "content": "40c60018"
+  },
+  "/docs/extensions-b84": {
+    "__comp": "17896441",
+    "content": "3b5e5b84"
+  },
+  "/docs/internationalization-246": {
+    "__comp": "17896441",
+    "content": "d505d09c"
+  },
+  "/docs/notifications-38f": {
+    "__comp": "17896441",
+    "content": "a96ec439"
+  },
+  "/docs/rbac-assignment-matrix-bb0": {
+    "__comp": "17896441",
+    "content": "ae6eefca"
+  },
+  "/docs/theming-4c1": {
+    "__comp": "17896441",
+    "content": "5a0f8180"
+  },
+  "/docs/-597": {
+    "__comp": "17896441",
+    "content": "608d6ba6"
+  }
+}

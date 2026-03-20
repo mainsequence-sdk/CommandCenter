@@ -1,0 +1,101 @@
+:root {
+  --ifm-color-primary: #d5bc85;
+  --ifm-color-primary-dark: #c9ab66;
+  --ifm-color-primary-darker: #c3a158;
+  --ifm-color-primary-darkest: #a68436;
+  --ifm-color-primary-light: #ddcda2;
+  --ifm-color-primary-lighter: #e1d6b0;
+  --ifm-color-primary-lightest: #ece3ca;
+  --ifm-background-color: #09101a;
+  --ifm-background-surface-color: #101926;
+  --ifm-navbar-background-color: rgba(9, 16, 26, 0.92);
+  --ifm-footer-background-color: #08111b;
+  --ifm-font-color-base: #e8edf6;
+  --ifm-heading-color: #f6f8fc;
+  --ifm-link-color: #f1d490;
+  --ifm-code-background: rgba(255, 255, 255, 0.06);
+  --ifm-toc-border-color: rgba(255, 255, 255, 0.08);
+  --ifm-menu-color-background-active: rgba(213, 188, 133, 0.14);
+  --ifm-menu-color-background-hover: rgba(255, 255, 255, 0.05);
+  --ifm-menu-color: #c8d2e3;
+  --ifm-menu-color-active: #fff3d5;
+  --ifm-card-background-color: rgba(255, 255, 255, 0.02);
+  --ifm-global-radius: 14px;
+  --ifm-global-shadow-lw: 0 18px 40px rgba(0, 0, 0, 0.25);
+  --ifm-font-family-base: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --ifm-font-family-monospace: "IBM Plex Mono", "SFMono-Regular", monospace;
+}
+
+[data-theme="light"] {
+  --ifm-background-color: #f7f7f4;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-navbar-background-color: rgba(247, 247, 244, 0.95);
+  --ifm-footer-background-color: #101926;
+  --ifm-font-color-base: #1e2a38;
+  --ifm-heading-color: #0d1723;
+  --ifm-link-color: #7f6228;
+  --ifm-code-background: rgba(11, 16, 23, 0.06);
+  --ifm-toc-border-color: rgba(11, 16, 23, 0.1);
+  --ifm-menu-color-background-active: rgba(127, 98, 40, 0.1);
+  --ifm-menu-color-background-hover: rgba(11, 16, 23, 0.04);
+  --ifm-menu-color: #42546b;
+  --ifm-menu-color-active: #5d4313;
+  --ifm-card-background-color: #ffffff;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+body {
+  background-image:
+    radial-gradient(circle at top left, rgba(213, 188, 133, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 25%);
+}
+
+.navbar {
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.theme-doc-markdown {
+  font-size: 0.98rem;
+}
+
+.theme-doc-markdown h1,
+.theme-doc-markdown h2,
+.theme-doc-markdown h3,
+.theme-doc-markdown h4 {
+  letter-spacing: -0.02em;
+}
+
+.theme-doc-markdown pre,
+.theme-doc-markdown table,
+.pagination-nav__link,
+.card {
+  box-shadow: var(--ifm-global-shadow-lw);
+}
+
+.theme-doc-markdown table {
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.theme-doc-markdown blockquote {
+  border-left-width: 4px;
+  border-left-color: var(--ifm-color-primary);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0 14px 14px 0;
+}

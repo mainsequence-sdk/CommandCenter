@@ -1,0 +1,24 @@
+{
+  "id": "apps-and-surfaces",
+  "title": "Apps and Surfaces",
+  "description": "Overview",
+  "source": "@site/../docs/apps-and-surfaces.md",
+  "sourceDirName": ".",
+  "slug": "/apps-and-surfaces",
+  "permalink": "/docs/apps-and-surfaces",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/apps-and-surfaces.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Internationalization",
+    "permalink": "/docs/internationalization"
+  },
+  "next": {
+    "title": "Core Widgets",
+    "permalink": "/docs/core-widgets"
+  }
+}

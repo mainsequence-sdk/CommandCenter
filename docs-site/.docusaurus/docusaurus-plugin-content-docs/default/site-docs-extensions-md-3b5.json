@@ -1,0 +1,24 @@
+{
+  "id": "extensions",
+  "title": "Extensions",
+  "description": "Purpose",
+  "source": "@site/../docs/extensions.md",
+  "sourceDirName": ".",
+  "slug": "/extensions",
+  "permalink": "/docs/extensions",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/extensions.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Dashboard Layouts",
+    "permalink": "/docs/dashboard-layouts"
+  },
+  "next": {
+    "title": "Notifications",
+    "permalink": "/docs/notifications"
+  }
+}

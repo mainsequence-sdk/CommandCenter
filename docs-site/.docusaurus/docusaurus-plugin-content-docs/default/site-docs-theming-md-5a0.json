@@ -1,0 +1,24 @@
+{
+  "id": "theming",
+  "title": "Theming",
+  "description": "Model",
+  "source": "@site/../docs/theming.md",
+  "sourceDirName": ".",
+  "slug": "/theming",
+  "permalink": "/docs/theming",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/theming.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Backend and Auth Integration",
+    "permalink": "/docs/backend-and-auth"
+  },
+  "next": {
+    "title": "Internationalization",
+    "permalink": "/docs/internationalization"
+  }
+}

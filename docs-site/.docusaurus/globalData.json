@@ -1,0 +1,88 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/docs/",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/docs/",
+          "mainDocId": "README",
+          "docs": [
+            {
+              "id": "apps-and-surfaces",
+              "path": "/docs/apps-and-surfaces",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "architecture",
+              "path": "/docs/architecture",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "backend-and-auth",
+              "path": "/docs/backend-and-auth",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "configuration",
+              "path": "/docs/configuration",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "core-widgets",
+              "path": "/docs/core-widgets",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "dashboard-layouts",
+              "path": "/docs/dashboard-layouts",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "extensions",
+              "path": "/docs/extensions",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "internationalization",
+              "path": "/docs/internationalization",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "notifications",
+              "path": "/docs/notifications",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rbac-assignment-matrix",
+              "path": "/docs/rbac-assignment-matrix",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "README",
+              "path": "/docs/",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "theming",
+              "path": "/docs/theming",
+              "sidebar": "docsSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "docsSidebar": {
+              "link": {
+                "path": "/docs/",
+                "label": "README"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

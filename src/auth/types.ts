@@ -1,0 +1,51 @@
+export const builtinAppRoles = ["viewer", "analyst", "trader", "admin"] as const;
+
+export type BuiltinAppRole = (typeof builtinAppRoles)[number];
+export type AppRole = string;
+
+export type Permission =
+  | "dashboard:view"
+  | "widget.catalog:view"
+  | "theme:manage"
+  | "rbac:view"
+  | "marketdata:read"
+  | "portfolio:read"
+  | "news:read"
+  | "orders:read"
+  | "orders:submit";
+
+export interface OrganizationTeam {
+  id: number;
+  name: string;
+  description: string;
+  is_active: boolean;
+}
+
+export interface AppUser {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string;
+  team: string;
+  role: AppRole;
+  permissions: Permission[];
+  groups?: string[];
+  dateJoined?: string;
+  isActive?: boolean;
+  lastLogin?: string;
+  mfaEnabled?: boolean;
+  organizationTeams?: OrganizationTeam[];
+}
+
+export interface Session {
+  token: string;
+  tokenType?: string;
+  expiresAt?: number;
+  user: AppUser;
+}
+
+export interface LoginInput {
+  identifier: string;
+  password: string;
+  role?: BuiltinAppRole;
+}
