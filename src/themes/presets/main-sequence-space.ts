@@ -6,6 +6,8 @@ export const mainSequenceSpaceTheme: ThemePreset = {
   description: "Deep-space Main Sequence variant with stellar white glare and blue gravity glow.",
   source: "core",
   mode: "dark",
+  tightness: "tight",
+  surfaceHierarchy: "soft",
   tokens: {
     background: "#020409",
     foreground: "#F8FBFF",

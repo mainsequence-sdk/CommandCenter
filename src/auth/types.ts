@@ -1,18 +1,9 @@
-export const builtinAppRoles = ["viewer", "analyst", "trader", "admin"] as const;
+export const builtinAppRoles = ["user", "admin"] as const;
 
 export type BuiltinAppRole = (typeof builtinAppRoles)[number];
 export type AppRole = string;
 
-export type Permission =
-  | "dashboard:view"
-  | "widget.catalog:view"
-  | "theme:manage"
-  | "rbac:view"
-  | "marketdata:read"
-  | "portfolio:read"
-  | "news:read"
-  | "orders:read"
-  | "orders:submit";
+export type Permission = string;
 
 export interface OrganizationTeam {
   id: number;

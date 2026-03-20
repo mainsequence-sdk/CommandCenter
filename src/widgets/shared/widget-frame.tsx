@@ -4,16 +4,19 @@ import { GripHorizontal, Lock } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { WidgetSettingsTrigger } from "@/widgets/shared/widget-settings";
 import type { WidgetDefinition } from "@/widgets/types";
 
 export function WidgetFrame({
   widget,
   instance,
+  onOpenSettings,
   style,
   children,
 }: {
   widget: WidgetDefinition;
   instance: { title?: string };
+  onOpenSettings?: () => void;
   style?: CSSProperties;
   children: ReactNode;
 }) {
@@ -34,7 +37,15 @@ export function WidgetFrame({
             </span>
           </div>
         </div>
-        <GripHorizontal className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="flex items-center gap-2">
+          {onOpenSettings ? (
+            <WidgetSettingsTrigger
+              widgetTitle={instance.title ?? widget.title}
+              onClick={onOpenSettings}
+            />
+          ) : null}
+          <GripHorizontal className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        </div>
       </header>
       <div className="min-h-0 flex-1 p-4">{children}</div>
     </section>

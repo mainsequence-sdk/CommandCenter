@@ -10,12 +10,16 @@ export interface DashboardTimeRangeConfig {
   enabled?: boolean;
   defaultRange?: DashboardTimeRangeKey;
   options?: DashboardTimeRangeKey[];
+  selectedRange?: DashboardTimeRangeKey | "custom";
+  customStartMs?: number;
+  customEndMs?: number;
 }
 
 export interface DashboardRefreshConfig {
   enabled?: boolean;
   defaultIntervalMs?: number | null;
   intervals?: Array<number | null>;
+  selectedIntervalMs?: number | null;
 }
 
 export interface DashboardActionsConfig {
@@ -29,6 +33,13 @@ export interface DashboardControlsConfig {
   timeRange?: DashboardTimeRangeConfig;
   refresh?: DashboardRefreshConfig;
   actions?: DashboardActionsConfig;
+}
+
+export interface DashboardControlsState {
+  timeRangeKey: DashboardTimeRangeKey | "custom";
+  rangeStartMs: number;
+  rangeEndMs: number;
+  refreshIntervalMs: number | null;
 }
 
 export interface DashboardWidgetSpan {

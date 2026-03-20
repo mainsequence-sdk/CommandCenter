@@ -4,16 +4,22 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 export default [
   {
     path: '/docs/',
-    component: ComponentCreator('/docs/', '1c7'),
+    component: ComponentCreator('/docs/', 'e24'),
     routes: [
       {
         path: '/docs/',
-        component: ComponentCreator('/docs/', '6c4'),
+        component: ComponentCreator('/docs/', '51e'),
         routes: [
           {
             path: '/docs/',
-            component: ComponentCreator('/docs/', 'd56'),
+            component: ComponentCreator('/docs/', '6ae'),
             routes: [
+              {
+                path: '/docs/access-rbac-app',
+                component: ComponentCreator('/docs/access-rbac-app', 'f1f'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
               {
                 path: '/docs/apps-and-surfaces',
                 component: ComponentCreator('/docs/apps-and-surfaces', '7ef'),

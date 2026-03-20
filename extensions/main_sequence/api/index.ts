@@ -38,6 +38,425 @@ export interface DynamicTableDataSourceOption {
   related_resource_class_type: string;
 }
 
+export interface ProjectDataSourceListRelatedResource {
+  id: number | null;
+  label: string;
+  class_type: string;
+  status: string;
+}
+
+export interface ProjectDataSourceListRow {
+  id: number;
+  display_name: string;
+  is_default_data_source: boolean;
+  related_resource: ProjectDataSourceListRelatedResource | null;
+  creation_date: string | null;
+  creation_date_display: string;
+}
+
+export interface ProjectDataSourceListPagination {
+  page: number;
+  page_size: number;
+  total_pages: number;
+  total_items: number;
+  has_next: boolean;
+  has_previous: boolean;
+  start_index: number;
+  end_index: number;
+}
+
+export interface ProjectDataSourceListResponse {
+  search: string;
+  rows: ProjectDataSourceListRow[];
+  pagination: ProjectDataSourceListPagination;
+}
+
+export interface ProjectDataSourceBulkDeleteInput {
+  ids?: number[];
+  selectAll?: boolean;
+  search?: string;
+}
+
+export interface ProjectDataSourceBulkDeleteResponse {
+  detail: string;
+  deleted_count: number;
+}
+
+export interface ProjectDataSourceEditorEntity {
+  id: number;
+  type: string;
+  title: string;
+}
+
+export interface ProjectDataSourceEditorField {
+  key: "display_name" | "related_resource" | "is_default_data_source";
+  label: string;
+  editor: "text" | "remote_select" | "checkbox";
+  required: boolean;
+  value: string | number | boolean | null;
+  display_value?: string;
+  choices_path?: string;
+}
+
+export interface ProjectDataSourceEditorActions {
+  submit: {
+    method: "POST" | "PATCH";
+    path: string;
+  };
+  cancel_path: string;
+  delete?: {
+    method: "POST";
+    path: string;
+    redirect_path: string;
+  };
+}
+
+export interface ProjectDataSourceEditorPayload {
+  mode: "create" | "edit";
+  entity: ProjectDataSourceEditorEntity | null;
+  fields: ProjectDataSourceEditorField[];
+  actions: ProjectDataSourceEditorActions;
+}
+
+export interface ProjectDataSourceRelatedResourceOption {
+  id: number;
+  label: string;
+  class_type: string;
+  status: string;
+}
+
+export interface ProjectDataSourceEditorInput {
+  display_name: string;
+  related_resource: number;
+  is_default_data_source: boolean;
+}
+
+export interface ProjectDataSourceEditorWriteResponse {
+  detail: string;
+  id: number;
+  display_name: string;
+  redirect_path: string;
+}
+
+export interface ProjectDataSourceDeleteResponse {
+  detail: string;
+  id: number;
+  redirect_path: string;
+}
+
+export interface PhysicalDataSourceListRow {
+  id: number;
+  display_name: string;
+  source_logo: string;
+  class_type: string;
+  class_type_label: string;
+  status: string;
+  status_label: string;
+  status_tone: "success" | "warning" | "danger" | "neutral" | "info";
+  creation_date: string | null;
+  creation_date_display: string;
+}
+
+export interface PhysicalDataSourceListPagination {
+  page: number;
+  page_size: number;
+  total_pages: number;
+  total_items: number;
+  has_next: boolean;
+  has_previous: boolean;
+  start_index: number;
+  end_index: number;
+}
+
+export interface PhysicalDataSourceListResponse {
+  search: string;
+  class_type: string;
+  rows: PhysicalDataSourceListRow[];
+  pagination: PhysicalDataSourceListPagination;
+}
+
+export interface PhysicalDataSourceBulkDeleteInput {
+  ids?: number[];
+  selectAll?: boolean;
+  search?: string;
+  classType?: string;
+}
+
+export interface PhysicalDataSourceBulkDeleteResponse {
+  detail: string;
+  deleted_count: number;
+}
+
+export interface PhysicalDataSourceEditorField {
+  key:
+    | "display_name"
+    | "file_path"
+    | "database_user"
+    | "password"
+    | "host"
+    | "port"
+    | "database_name"
+    | "description"
+    | "tags"
+    | "internal_code"
+    | "class_type"
+    | "status";
+  label: string;
+  editor: "text" | "password" | "number" | "textarea";
+  required: boolean;
+  value?: string | number | boolean | null;
+  read_only?: boolean;
+  placeholder?: string;
+  help_text?: string;
+}
+
+export interface PhysicalDataSourceEditorActions {
+  submit: {
+    method: "POST" | "PATCH";
+    path: string;
+  };
+  delete?: {
+    method: "POST";
+    path: string;
+    redirect_path: string;
+  };
+  cancel_path: string;
+}
+
+export interface PhysicalDataSourceEditorPayload {
+  mode: "create" | "edit";
+  entity?: {
+    id: number;
+    type: string;
+    title: string;
+  } | null;
+  title: string;
+  source_type?: "duck_db" | "timescale_db" | "timescale_db_gcp_cloud" | "";
+  source_type_label?: string;
+  fields: PhysicalDataSourceEditorField[];
+  actions: PhysicalDataSourceEditorActions;
+}
+
+export interface PhysicalDataSourceEditorCreateInput {
+  source_type: "duck_db" | "timescale_db" | "timescale_db_gcp_cloud";
+  display_name?: string;
+  file_path?: string;
+  database_user?: string;
+  password?: string;
+  host?: string;
+  port?: number;
+  database_name?: string;
+  description?: string;
+  tags?: string;
+}
+
+export interface PhysicalDataSourceEditorUpdateInput {
+  display_name?: string;
+  description?: string;
+  internal_code?: string;
+}
+
+export interface PhysicalDataSourceEditorWriteResponse {
+  detail: string;
+  id: number;
+  display_name: string;
+  redirect_path: string;
+}
+
+export interface PhysicalDataSourceDeleteResponse {
+  detail: string;
+  id: number;
+  redirect_path: string;
+}
+
+export interface ClusterListRow {
+  id: number;
+  uuid: string;
+  cluster_name: string;
+}
+
+export interface ClusterListPagination {
+  page: number;
+  page_size: number;
+  total_pages: number;
+  total_items: number;
+  has_next: boolean;
+  has_previous: boolean;
+  start_index: number;
+  end_index: number;
+}
+
+export interface ClusterListResponse {
+  search: string;
+  rows: ClusterListRow[];
+  pagination: ClusterListPagination;
+}
+
+export type ClusterDetailTabId =
+  | "node_pools"
+  | "nodes"
+  | "namespaces"
+  | "pods"
+  | "deployments"
+  | "services"
+  | "storage"
+  | "knative";
+
+export interface ClusterDetailEntity {
+  id: number;
+  uuid: string;
+  cluster_name: string;
+  cluster_description?: string | null;
+  [key: string]: unknown;
+}
+
+export interface ClusterDetailStatus {
+  status: string;
+  color?: string | null;
+}
+
+export interface ClusterDetailStatItem {
+  key?: string | null;
+  label?: string | null;
+  title?: string | null;
+  name?: string | null;
+  display?: string | number | null;
+  value?: string | number | null;
+  info?: string | null;
+  description?: string | null;
+  tone?: string | null;
+}
+
+export interface ClusterDetailTabDefinition {
+  id?: string | null;
+  key?: string | null;
+  slug?: string | null;
+  value?: string | null;
+  label?: string | null;
+  title?: string | null;
+  name?: string | null;
+  count?: string | number | null;
+}
+
+export interface ClusterDetailSummary {
+  cluster: ClusterDetailEntity;
+  cluster_status: ClusterDetailStatus;
+  cloud_provider_label?: string | null;
+  location?: string | null;
+  cluster_configuration_name?: string | null;
+  allow_to_run_jupyter_hub?: boolean;
+  allow_to_run_data_sources?: boolean;
+  is_auto_pilot_cluster?: boolean;
+  stats_items: ClusterDetailStatItem[];
+  tabs: ClusterDetailTabDefinition[];
+  summary_warning?: string | null;
+  [key: string]: unknown;
+}
+
+export interface ClusterNodePoolRow {
+  name: string;
+  status?: string | null;
+  version?: string | null;
+  machine_type?: string | null;
+  disk_size_gb?: number | string | null;
+  spot?: boolean | null;
+  nodes?: number | string | null;
+  pods?: number | string | null;
+  min_nodes?: number | string | null;
+  max_nodes?: number | string | null;
+  image_type?: string | null;
+  auto_upgrade?: boolean | null;
+  auto_repair?: boolean | null;
+}
+
+export interface ClusterNodeRow {
+  name: string;
+  status?: string | null;
+  node_pool?: string | null;
+  machine_type?: string | null;
+  zone?: string | null;
+  version?: string | null;
+  cpu_allocatable?: number | string | null;
+  memory_allocatable_gib?: number | string | null;
+  ephemeral_storage_gib?: number | string | null;
+  pod_cidr?: string | null;
+  age?: string | null;
+}
+
+export interface ClusterNamespaceRow {
+  name: string;
+  status?: string | null;
+  pods?: number | string | null;
+  deployments?: number | string | null;
+  services?: number | string | null;
+  pvcs?: number | string | null;
+  knative_services?: number | string | null;
+  age?: string | null;
+}
+
+export interface ClusterPodRow {
+  name: string;
+  namespace?: string | null;
+  status?: string | null;
+  node_pool?: string | null;
+  node?: string | null;
+  pod_ip?: string | null;
+  host_ip?: string | null;
+  qos_class?: string | null;
+  restarts?: number | string | null;
+  owner_kind?: string | null;
+  owner_name?: string | null;
+  age?: string | null;
+}
+
+export interface ClusterDeploymentRow {
+  name: string;
+  namespace?: string | null;
+  ready?: string | number | null;
+  up_to_date?: string | number | null;
+  available?: string | number | null;
+  strategy?: string | null;
+  age?: string | null;
+}
+
+export interface ClusterServiceRow {
+  name: string;
+  namespace?: string | null;
+  type?: string | null;
+  cluster_ip?: string | null;
+  external_ip?: string | null;
+  ports?: unknown;
+  age?: string | null;
+}
+
+export interface ClusterStorageRow {
+  kind?: string | null;
+  name: string;
+  namespace?: string | null;
+  status?: string | null;
+  storage_class?: string | null;
+  size_gib?: string | number | null;
+  volume?: string | null;
+  access_modes?: unknown;
+  age?: string | null;
+}
+
+export interface ClusterKnativeRow {
+  name: string;
+  namespace?: string | null;
+  ready?: string | null;
+  url?: string | null;
+  latest_created_revision?: string | null;
+  latest_ready_revision?: string | null;
+  age?: string | null;
+}
+
+export interface ClusterScaleResponse {
+  detail?: string;
+  message?: string;
+  confirmation?: string;
+}
+
 export interface ProjectSummary {
   id: number;
   project_name: string;
@@ -72,6 +491,117 @@ export interface CreateSecretInput {
 
 export interface CreatedSecretRecord {
   name: string;
+}
+
+export interface BucketRecord {
+  id: number;
+  name: string;
+}
+
+export interface CreateBucketInput {
+  name: string;
+}
+
+export interface BucketBulkDeleteInput {
+  ids?: number[];
+  selectAll?: boolean;
+  currentUrl?: string;
+  search?: string;
+  name?: string;
+  nameIn?: string;
+}
+
+export interface BucketBulkDeleteResponse {
+  detail: string;
+  deleted_count: number;
+}
+
+export type BucketSummaryHeader = EntitySummaryHeader;
+
+export interface BucketBrowseBreadcrumb {
+  name: string;
+  prefix: string;
+}
+
+export interface BucketBrowseFolder {
+  name: string;
+  prefix: string;
+  row_id: string;
+  count_files: number;
+  count_subfolders: number;
+}
+
+export interface BucketBrowseFile {
+  id: number;
+  name: string;
+  display_name: string;
+  created_by_pod?: string;
+  created_by_resource_name?: string;
+  creation_date?: string | null;
+  creation_date_display?: string;
+  size_bytes: number;
+  size_display: string;
+  content_url?: string;
+}
+
+export interface BucketBrowseStats {
+  artifact_count: number;
+  folder_count: number;
+  file_count: number;
+  bucket_size_bytes: number;
+  bucket_size_display: string;
+}
+
+export interface BucketBrowsePagination {
+  page: number;
+  page_size: number;
+  total_pages: number;
+  total_items: number;
+  has_next: boolean;
+  has_previous: boolean;
+  start_index: number;
+  end_index: number;
+}
+
+export interface BucketBrowseResponse {
+  bucket_id: number;
+  bucket_name: string;
+  current_prefix: string;
+  search: string;
+  sort: string;
+  dir: "asc" | "desc";
+  breadcrumbs: BucketBrowseBreadcrumb[];
+  stats: BucketBrowseStats;
+  folders: BucketBrowseFolder[];
+  files: BucketBrowseFile[];
+  pagination: BucketBrowsePagination;
+}
+
+export interface CreateBucketFolderInput {
+  prefix: string;
+  name: string;
+}
+
+export interface CreateBucketFolderResponse {
+  detail: string;
+  bucket_id: number;
+  prefix: string;
+  marker_artifact_id: number;
+}
+
+export interface UploadBucketArtifactInput {
+  file: File;
+  prefix: string;
+  filename: string;
+}
+
+export interface UploadBucketArtifactResponse {
+  id: number;
+  name: string;
+  bucket_id: number;
+  size_bytes: number;
+  size_display: string;
+  content_url: string;
 }
 
 export interface DataNodeSummary {
@@ -117,6 +647,59 @@ export interface DataNodeDetail extends DataNodeSummary {
   sourcetableconfiguration: DataNodeSourceTableConfiguration | null;
 }
 
+export interface DataNodeRemoteDataRequest {
+  start_date: number;
+  end_date: number;
+  columns: string[];
+  unique_identifier_list?: string[];
+  unique_identifier_range_map?: Record<string, [number, number]>;
+  great_or_equal?: boolean;
+  less_or_equal?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export type DataNodeRemoteDataRow = Record<string, unknown>;
+export type DataNodeLastObservation = DataNodeRemoteDataRow | null;
+
+export interface DynamicTableBulkActionItemResult {
+  dynamic_table_metadata_id: number;
+  storage_hash: string;
+  ok: boolean;
+  detail?: string;
+}
+
+export interface DynamicTableBulkActionResponse {
+  ok: boolean;
+  action: string;
+  requested_ids: number[];
+  requested_count: number;
+  select_all: boolean;
+  matched_count: number;
+  success_count: number;
+  failed_count: number;
+  results: DynamicTableBulkActionItemResult[];
+}
+
+export interface DynamicTableBulkDeleteInput {
+  selectedIds: number[];
+  fullDeleteSelected?: boolean;
+  fullDeleteDownstreamTables?: boolean;
+  deleteWithNoTable?: boolean;
+  overrideProtection?: boolean;
+}
+
+export interface DynamicTableBulkDeleteResponse {
+  ok: boolean;
+  requested_ids: number[];
+  requested_count: number;
+  select_all: boolean;
+  matched_count: number;
+  selected_deleted: number;
+  downstream_deleted: number;
+  missing_table_deleted: number;
+}
+
 export interface LocalTimeSerieRunConfiguration {
   local_time_serie_update_details: number;
   retry_on_error: boolean;
@@ -125,6 +708,15 @@ export interface LocalTimeSerieRunConfiguration {
   required_gpus: string | number | null;
   execution_time_out_seconds: number | null;
   update_schedule: unknown;
+}
+
+export interface LocalTimeSerieRunConfigurationInput {
+  retry_on_error?: boolean;
+  seconds_wait_on_retry?: number | null;
+  required_cpus?: string | number | null;
+  required_gpus?: string | number | null;
+  execution_time_out_seconds?: number | null;
+  update_schedule?: unknown;
 }
 
 export interface LocalTimeSerieUpdateDetails {
@@ -151,6 +743,61 @@ export interface LocalTimeSerieRecord {
   data_node_storage: DataNodeDetail | DataNodeSummary | null;
   run_configuration: LocalTimeSerieRunConfiguration | null;
   open_for_everyone: boolean;
+}
+
+export interface LocalTimeSerieHistoricalUpdateRecord {
+  id: number;
+  related_table: number;
+  update_time_start: string | null;
+  update_time_end: string | null;
+  error_on_update: boolean;
+  trace_id: string | null;
+  updated_by_user: number | null;
+}
+
+export interface LocalTimeSerieDependencyGraphEdge {
+  source: string | number;
+  target: string | number;
+}
+
+export interface LocalTimeSerieDependencyGraphNode {
+  id: string | number;
+  update_hash?: string;
+  card_title?: string;
+  card_subtitle?: string;
+  depth?: number;
+  color?: string;
+  background_color?: string;
+  icon?: string;
+  badges?: string[];
+  properties?: Record<string, unknown>;
+  parent?: string;
+}
+
+export interface LocalTimeSerieDependencyGraphGroup {
+  group?: string;
+  classes?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface LocalTimeSerieDependencyGraphResponse {
+  nodes: LocalTimeSerieDependencyGraphNode[];
+  edges: LocalTimeSerieDependencyGraphEdge[];
+  groups: LocalTimeSerieDependencyGraphGroup[];
+}
+
+export interface LocalTimeSerieLogsGridRow {
+  timestamp?: string | null;
+  level?: string | null;
+  event?: string | null;
+  detail?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+
+export interface LocalTimeSerieLogsGridResponse {
+  rows: LocalTimeSerieLogsGridRow[];
+  columnDefs: Array<Record<string, unknown>>;
+  detailColumnDefs: Array<Record<string, unknown>>;
 }
 
 export interface DataNodePolicyConfigBase {
@@ -315,6 +962,7 @@ export interface ResourceUsageChartPoint {
 
 export interface EntitySummaryExtra {
   resource_usage_chart_data?: ResourceUsageChartPoint[];
+  generated_search_document?: string;
 }
 
 export interface EntitySummaryHeader {
@@ -324,10 +972,12 @@ export interface EntitySummaryHeader {
   highlight_fields: SummaryField[];
   stats: SummaryStat[];
   extra?: EntitySummaryExtra;
+  extras?: EntitySummaryExtra;
 }
 
 export type ProjectSummaryHeader = EntitySummaryHeader;
 export type DataNodeSummaryHeader = EntitySummaryHeader;
+export type LocalTimeSerieSummaryHeader = EntitySummaryHeader;
 export interface ResourceReleaseSummaryHeader extends EntitySummaryHeader {
   readme?: ResourceReleaseReadmeSummary;
 }
@@ -882,7 +1532,7 @@ async function requestJson<T>(
       headers.set("Accept", "application/json");
     }
 
-    if (init?.body && !headers.has("Content-Type")) {
+    if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
 
@@ -929,6 +1579,22 @@ async function requestJson<T>(
   return payload as T;
 }
 
+function isEntitySummaryHeaderPayload(payload: unknown): payload is EntitySummaryHeader {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+
+  return (
+    !!candidate.entity &&
+    Array.isArray(candidate.badges) &&
+    Array.isArray(candidate.inline_fields) &&
+    Array.isArray(candidate.highlight_fields) &&
+    Array.isArray(candidate.stats)
+  );
+}
+
 export async function listProjects({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
@@ -949,6 +1615,397 @@ export async function listProjects({
     ...page,
     results: [...page.results].sort((left, right) => right.id - left.id),
   };
+}
+
+export function listProjectDataSources({
+  page = 1,
+  pageSize = mainSequenceRegistryPageSize,
+  search,
+}: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+} = {}) {
+  return requestJson<ProjectDataSourceListResponse>(
+    dynamicTableDataSourceEndpoint,
+    "",
+    undefined,
+    {
+      response_format: "project_data_sources_list",
+      search: search?.trim() || undefined,
+      page,
+      page_size: pageSize,
+    },
+  );
+}
+
+export function bulkDeleteProjectDataSources(input: ProjectDataSourceBulkDeleteInput) {
+  return requestJson<ProjectDataSourceBulkDeleteResponse>(
+    dynamicTableDataSourceEndpoint,
+    "bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ids: input.ids,
+        select_all: input.selectAll ?? false,
+        search: input.search?.trim() || undefined,
+      }),
+    },
+  );
+}
+
+export function fetchProjectDataSourceEditorConfig() {
+  return requestJson<ProjectDataSourceEditorPayload>(
+    dynamicTableDataSourceEndpoint,
+    "editor-config/",
+  );
+}
+
+export function fetchProjectDataSourceEditor(projectDataSourceId: number) {
+  return requestJson<ProjectDataSourceEditorPayload>(
+    dynamicTableDataSourceEndpoint,
+    `${projectDataSourceId}/`,
+    undefined,
+    { response_format: "editor" },
+  );
+}
+
+export function listProjectDataSourceRelatedResourceOptions(query?: string) {
+  return requestJson<ProjectDataSourceRelatedResourceOption[]>(
+    dynamicTableDataSourceEndpoint,
+    "related-resource-options/",
+    undefined,
+    { q: query?.trim() || undefined },
+  );
+}
+
+export function createProjectDataSourceEditor(input: ProjectDataSourceEditorInput) {
+  return requestJson<ProjectDataSourceEditorWriteResponse>(
+    dynamicTableDataSourceEndpoint,
+    "",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { request_format: "editor" },
+  );
+}
+
+export function updateProjectDataSourceEditor(
+  projectDataSourceId: number,
+  input: Partial<ProjectDataSourceEditorInput>,
+) {
+  return requestJson<ProjectDataSourceEditorWriteResponse>(
+    dynamicTableDataSourceEndpoint,
+    `${projectDataSourceId}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+    { request_format: "editor" },
+  );
+}
+
+export function deleteProjectDataSourceEditor(projectDataSourceId: number) {
+  return requestJson<ProjectDataSourceDeleteResponse>(
+    dynamicTableDataSourceEndpoint,
+    `${projectDataSourceId}/delete/`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
+}
+
+export function listPhysicalDataSources({
+  page = 1,
+  pageSize = mainSequenceRegistryPageSize,
+  search,
+  classType,
+}: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  classType?: string;
+} = {}) {
+  return requestJson<PhysicalDataSourceListResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    "data_source/",
+    undefined,
+    {
+      response_format: "physical_data_sources_list",
+      search: search?.trim() || undefined,
+      class_type: classType?.trim() || undefined,
+      page,
+      page_size: pageSize,
+    },
+  );
+}
+
+export function bulkDeletePhysicalDataSources(input: PhysicalDataSourceBulkDeleteInput) {
+  return requestJson<PhysicalDataSourceBulkDeleteResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    "data_source/bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ids: input.ids,
+        select_all: input.selectAll ?? false,
+        search: input.search?.trim() || undefined,
+        class_type: input.classType?.trim() || undefined,
+      }),
+    },
+  );
+}
+
+export function fetchPhysicalDataSourceEditorConfig(
+  sourceType: "duck_db" | "timescale_db" | "timescale_db_gcp_cloud",
+) {
+  return requestJson<PhysicalDataSourceEditorPayload>(
+    commandCenterConfig.mainSequence.endpoint,
+    "data_source/editor-config/",
+    undefined,
+    { source_type: sourceType },
+  );
+}
+
+export function fetchPhysicalDataSourceEditor(physicalDataSourceId: number) {
+  return requestJson<PhysicalDataSourceEditorPayload>(
+    commandCenterConfig.mainSequence.endpoint,
+    `data_source/${physicalDataSourceId}/`,
+    undefined,
+    { response_format: "editor" },
+  );
+}
+
+export function createPhysicalDataSourceEditor(input: PhysicalDataSourceEditorCreateInput) {
+  return requestJson<PhysicalDataSourceEditorWriteResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    "data_source/",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { request_format: "editor" },
+  );
+}
+
+export function updatePhysicalDataSourceEditor(
+  physicalDataSourceId: number,
+  input: PhysicalDataSourceEditorUpdateInput,
+) {
+  return requestJson<PhysicalDataSourceEditorWriteResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `data_source/${physicalDataSourceId}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+    { request_format: "editor" },
+  );
+}
+
+export function deletePhysicalDataSourceEditor(physicalDataSourceId: number) {
+  return requestJson<PhysicalDataSourceDeleteResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `data_source/${physicalDataSourceId}/delete/`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
+}
+
+export function listClusters({
+  page = 1,
+  pageSize = mainSequenceRegistryPageSize,
+  search,
+}: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+} = {}) {
+  return requestJson<ClusterListResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    "cluster/",
+    undefined,
+    {
+      response_format: "clusters_list",
+      search: search?.trim() || undefined,
+      page,
+      page_size: pageSize,
+    },
+  );
+}
+
+export function fetchClusterDetail(clusterId: number) {
+  return requestJson<ClusterDetailSummary>(
+    commandCenterConfig.mainSequence.endpoint,
+    `cluster/${clusterId}/`,
+    undefined,
+    { response_format: "cluster_detail" },
+  );
+}
+
+export async function listClusterNodePools(clusterId: number) {
+  const payload = await requestJson<
+    PaginatedResponse<ClusterNodePoolRow> | ClusterNodePoolRow[]
+  >(commandCenterConfig.mainSequence.endpoint, `cluster/${clusterId}/node-pools/`);
+
+  return normalizeListResponse(payload);
+}
+
+export async function listClusterNodes(
+  clusterId: number,
+  {
+    nodePool,
+  }: {
+    nodePool?: string;
+  } = {},
+) {
+  const payload = await requestJson<PaginatedResponse<ClusterNodeRow> | ClusterNodeRow[]>(
+    commandCenterConfig.mainSequence.endpoint,
+    `cluster/${clusterId}/nodes/`,
+    undefined,
+    {
+      node_pool: nodePool?.trim() || undefined,
+    },
+  );
+
+  return normalizeListResponse(payload);
+}
+
+export async function listClusterNamespaces(clusterId: number) {
+  const payload = await requestJson<
+    PaginatedResponse<ClusterNamespaceRow> | ClusterNamespaceRow[]
+  >(commandCenterConfig.mainSequence.endpoint, `cluster/${clusterId}/namespaces/`);
+
+  return normalizeListResponse(payload);
+}
+
+export async function listClusterPods(
+  clusterId: number,
+  {
+    namespace,
+    nodePool,
+  }: {
+    namespace?: string;
+    nodePool?: string;
+  } = {},
+) {
+  const payload = await requestJson<PaginatedResponse<ClusterPodRow> | ClusterPodRow[]>(
+    commandCenterConfig.mainSequence.endpoint,
+    `cluster/${clusterId}/pods/`,
+    undefined,
+    {
+      namespace: namespace?.trim() || undefined,
+      node_pool: nodePool?.trim() || undefined,
+    },
+  );
+
+  return normalizeListResponse(payload);
+}
+
+export async function listClusterDeployments(
+  clusterId: number,
+  {
+    namespace,
+  }: {
+    namespace?: string;
+  } = {},
+) {
+  const payload = await requestJson<
+    PaginatedResponse<ClusterDeploymentRow> | ClusterDeploymentRow[]
+  >(
+    commandCenterConfig.mainSequence.endpoint,
+    `cluster/${clusterId}/deployments/`,
+    undefined,
+    {
+      namespace: namespace?.trim() || undefined,
+    },
+  );
+
+  return normalizeListResponse(payload);
+}
+
+export async function listClusterServices(
+  clusterId: number,
+  {
+    namespace,
+  }: {
+    namespace?: string;
+  } = {},
+) {
+  const payload = await requestJson<PaginatedResponse<ClusterServiceRow> | ClusterServiceRow[]>(
+    commandCenterConfig.mainSequence.endpoint,
+    `cluster/${clusterId}/services/`,
+    undefined,
+    {
+      namespace: namespace?.trim() || undefined,
+    },
+  );
+
+  return normalizeListResponse(payload);
+}
+
+export async function listClusterStorage(
+  clusterId: number,
+  {
+    namespace,
+  }: {
+    namespace?: string;
+  } = {},
+) {
+  const payload = await requestJson<PaginatedResponse<ClusterStorageRow> | ClusterStorageRow[]>(
+    commandCenterConfig.mainSequence.endpoint,
+    `cluster/${clusterId}/storage/`,
+    undefined,
+    {
+      namespace: namespace?.trim() || undefined,
+    },
+  );
+
+  return normalizeListResponse(payload);
+}
+
+export async function listClusterKnative(
+  clusterId: number,
+  {
+    namespace,
+  }: {
+    namespace?: string;
+  } = {},
+) {
+  const payload = await requestJson<PaginatedResponse<ClusterKnativeRow> | ClusterKnativeRow[]>(
+    commandCenterConfig.mainSequence.endpoint,
+    `cluster/${clusterId}/knative/`,
+    undefined,
+    {
+      namespace: namespace?.trim() || undefined,
+    },
+  );
+
+  return normalizeListResponse(payload);
+}
+
+export function scaleCluster(
+  clusterId: number,
+  {
+    desiredNodeCount,
+  }: {
+    desiredNodeCount: number;
+  },
+) {
+  return requestJson<ClusterScaleResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `cluster/${clusterId}/scale/`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        desired_node_count: desiredNodeCount,
+      }),
+    },
+  );
 }
 
 export async function listConstants({
@@ -1029,18 +2086,152 @@ export function createSecret(input: CreateSecretInput) {
   });
 }
 
-export async function listDataNodes({
+export async function listBuckets({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
+  search,
+  name,
+  nameIn,
 }: {
   limit?: number;
   offset?: number;
+  search?: string;
+  name?: string;
+  nameIn?: string;
+} = {}) {
+  const payload = await requestJson<PaginatedResponse<BucketRecord> | BucketRecord[]>(
+    commandCenterConfig.mainSequence.endpoint,
+    "bucket/",
+    undefined,
+    {
+      limit,
+      offset,
+      search: search?.trim() || undefined,
+      name: name?.trim() || undefined,
+      "name__in": nameIn?.trim() || undefined,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function createBucket(input: CreateBucketInput) {
+  return requestJson<BucketRecord>(commandCenterConfig.mainSequence.endpoint, "bucket/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchBucketSummary(bucketId: number) {
+  return requestJson<BucketSummaryHeader>(
+    commandCenterConfig.mainSequence.endpoint,
+    `bucket/${bucketId}/summary/`,
+  );
+}
+
+export function fetchBucketBrowse(
+  bucketId: number,
+  {
+    prefix,
+    search,
+    sort,
+    dir,
+    page,
+  }: {
+    prefix?: string;
+    search?: string;
+    sort?: string;
+    dir?: "asc" | "desc";
+    page?: number;
+  } = {},
+) {
+  return requestJson<BucketBrowseResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `bucket/${bucketId}/browse/`,
+    undefined,
+    {
+      prefix: prefix || undefined,
+      search: search?.trim() || undefined,
+      sort: sort || undefined,
+      dir: dir || undefined,
+      page,
+    },
+  );
+}
+
+export function createBucketFolder(bucketId: number, input: CreateBucketFolderInput) {
+  return requestJson<CreateBucketFolderResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `bucket/${bucketId}/create-folder/`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function uploadBucketArtifact(bucketId: number, input: UploadBucketArtifactInput) {
+  const formData = new FormData();
+  formData.append("file", input.file);
+  formData.append("prefix", input.prefix);
+  formData.append("filename", input.filename);
+
+  return requestJson<UploadBucketArtifactResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `bucket/${bucketId}/upload-artifact/`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+}
+
+export function deleteBucket(bucketId: number) {
+  return requestJson<null>(commandCenterConfig.mainSequence.endpoint, `bucket/${bucketId}/`, {
+    method: "DELETE",
+  });
+}
+
+export function bulkDeleteBuckets(input: BucketBulkDeleteInput) {
+  return requestJson<BucketBulkDeleteResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    "bucket/bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ids: input.ids,
+        select_all: input.selectAll ?? false,
+        current_url: input.currentUrl,
+        search: input.search,
+        name: input.name,
+        name__in: input.nameIn,
+      }),
+    },
+  );
+}
+
+export async function listDataNodes({
+  limit = mainSequenceRegistryPageSize,
+  light = false,
+  offset = 0,
+  q,
+}: {
+  limit?: number;
+  light?: boolean;
+  offset?: number;
+  q?: string;
 } = {}) {
   const payload = await requestJson<PaginatedResponse<DataNodeSummary> | DataNodeSummary[]>(
     dynamicTableMetadataEndpoint,
     "",
     undefined,
-    { limit, offset, ordering: "storage_hash_id" },
+    {
+      limit,
+      light,
+      offset,
+      ordering: "storage_hash_id",
+      q: q?.trim() || undefined,
+    },
   );
 
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -1070,6 +2261,73 @@ export async function listLocalTimeSeries(
     ...page,
     results: [...page.results].sort((left, right) => right.id - left.id),
   };
+}
+
+export async function listProjectLocalTimeSeries(
+  projectId: number,
+  {
+    limit = mainSequenceRegistryPageSize,
+    offset = 0,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  const payload = await requestJson<
+    PaginatedResponse<LocalTimeSerieRecord> | LocalTimeSerieRecord[]
+  >(localTimeSerieEndpoint, "", undefined, {
+    limit,
+    offset,
+    "project__id": projectId,
+  });
+
+  const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
+
+  return {
+    ...page,
+    results: [...page.results].sort((left, right) => right.id - left.id),
+  };
+}
+
+async function postDynamicTableBulkAction<T>(
+  path: string,
+  body: Record<string, unknown>,
+) {
+  return requestJson<T>(dynamicTableMetadataEndpoint, path, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function bulkSetDataNodeNextUpdateFromLastIndexValue(selectedIds: number[]) {
+  return postDynamicTableBulkAction<DynamicTableBulkActionResponse>(
+    "bulk-set-next-update-from-last-index-value/",
+    { selected_ids: selectedIds },
+  );
+}
+
+export function bulkSetDataNodeIndexStatsFromTable(selectedIds: number[]) {
+  return postDynamicTableBulkAction<DynamicTableBulkActionResponse>(
+    "bulk-set-index-stats-from-table/",
+    { selected_ids: selectedIds },
+  );
+}
+
+export function bulkRefreshDataNodeTableSearchIndex(selectedIds: number[]) {
+  return postDynamicTableBulkAction<DynamicTableBulkActionResponse>(
+    "bulk-refresh-table-search-index/",
+    { selected_ids: selectedIds },
+  );
+}
+
+export function bulkDeleteDataNodes(input: DynamicTableBulkDeleteInput) {
+  return postDynamicTableBulkAction<DynamicTableBulkDeleteResponse>("bulk-delete/", {
+    selected_ids: input.selectedIds,
+    full_delete_selected: input.fullDeleteSelected ?? false,
+    full_delete_downstream_tables: input.fullDeleteDownstreamTables ?? false,
+    delete_with_no_table: input.deleteWithNoTable ?? false,
+    override_protection: input.overrideProtection ?? false,
+  });
 }
 
 export async function fetchProjectFormOptions(): Promise<ProjectFormOptions> {
@@ -1599,6 +2857,183 @@ export function fetchDataNodeDetail(dataNodeId: number) {
   return requestJson<DataNodeDetail>(
     dynamicTableMetadataEndpoint,
     `${dataNodeId}/`,
+  );
+}
+
+function isDataNodeRemoteDataRow(value: unknown): value is DataNodeRemoteDataRow {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeDataNodeRemoteDataRows(payload: unknown) {
+  if (Array.isArray(payload)) {
+    return payload.filter(isDataNodeRemoteDataRow);
+  }
+
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+
+    for (const key of ["results", "rows", "data", "items"]) {
+      const candidate = record[key];
+
+      if (Array.isArray(candidate)) {
+        return candidate.filter(isDataNodeRemoteDataRow);
+      }
+    }
+  }
+
+  return [];
+}
+
+function normalizeDataNodeLastObservation(payload: unknown): DataNodeLastObservation {
+  if (isDataNodeRemoteDataRow(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.find(isDataNodeRemoteDataRow) ?? null;
+  }
+
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+
+    for (const key of ["last_observation", "observation", "row", "result", "data"]) {
+      const candidate = record[key];
+
+      if (isDataNodeRemoteDataRow(candidate)) {
+        return candidate;
+      }
+
+      if (Array.isArray(candidate)) {
+        return candidate.find(isDataNodeRemoteDataRow) ?? null;
+      }
+    }
+  }
+
+  return null;
+}
+
+export async function fetchDataNodeLastObservation(dataNodeId: number) {
+  const payload = await requestJson<unknown>(
+    dynamicTableMetadataEndpoint,
+    `${dataNodeId}/get_last_observation/`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
+
+  return normalizeDataNodeLastObservation(payload);
+}
+
+export async function fetchDataNodeDataBetweenDatesFromRemote(
+  dataNodeId: number,
+  input: DataNodeRemoteDataRequest,
+) {
+  const payload = await requestJson<unknown>(
+    dynamicTableMetadataEndpoint,
+    `${dataNodeId}/get_data_between_dates_from_remote/`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+
+  return normalizeDataNodeRemoteDataRows(payload);
+}
+
+export function fetchLocalTimeSerieSummary(localTimeSerieId: number) {
+  async function requestStructuredSummary(search: Record<string, QueryValue>) {
+    try {
+      return await requestJson<unknown>(
+        localTimeSerieEndpoint,
+        `${localTimeSerieId}/summary/`,
+        undefined,
+        search,
+      );
+    } catch (error) {
+      if (error instanceof MainSequenceApiError && error.status === 404) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
+  return (async () => {
+    const responseFormatPayload = await requestStructuredSummary({ response_format: "structured" });
+
+    if (isEntitySummaryHeaderPayload(responseFormatPayload)) {
+      return responseFormatPayload;
+    }
+
+    const formatPayload = await requestStructuredSummary({ format: "structured" });
+
+    if (isEntitySummaryHeaderPayload(formatPayload)) {
+      return formatPayload;
+    }
+
+    return null;
+  })();
+}
+
+export function fetchLocalTimeSerieDetail(localTimeSerieId: number) {
+  return requestJson<LocalTimeSerieRecord>(
+    localTimeSerieEndpoint,
+    `${localTimeSerieId}/`,
+  );
+}
+
+export function fetchLocalTimeSerieRunConfiguration(localTimeSerieId: number) {
+  return requestJson<LocalTimeSerieRunConfiguration>(
+    localTimeSerieEndpoint,
+    `${localTimeSerieId}/run-configuration/`,
+  );
+}
+
+export function updateLocalTimeSerieRunConfiguration(
+  localTimeSerieId: number,
+  input: LocalTimeSerieRunConfigurationInput,
+) {
+  return requestJson<LocalTimeSerieRunConfiguration>(
+    localTimeSerieEndpoint,
+    `${localTimeSerieId}/run-configuration/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function fetchLocalTimeSerieDependencyGraph(
+  localTimeSerieId: number,
+  direction: "downstream" | "upstream",
+) {
+  return requestJson<LocalTimeSerieDependencyGraphResponse>(
+    localTimeSerieEndpoint,
+    `${localTimeSerieId}/dependencies-graph/`,
+    undefined,
+    { direction },
+  );
+}
+
+export function listLocalTimeSerieHistoricalUpdates(
+  localTimeSerieId: number,
+  limit = 100,
+) {
+  return requestJson<LocalTimeSerieHistoricalUpdateRecord[]>(
+    localTimeSerieEndpoint,
+    `${localTimeSerieId}/historical-updates/`,
+    undefined,
+    { limit },
+  );
+}
+
+export function fetchLocalTimeSerieLogs(localTimeSerieId: number, level?: string) {
+  return requestJson<LocalTimeSerieLogsGridResponse>(
+    localTimeSerieEndpoint,
+    `${localTimeSerieId}/logs/`,
+    undefined,
+    level ? { level } : undefined,
   );
 }
 

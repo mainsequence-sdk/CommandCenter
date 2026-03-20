@@ -23,6 +23,8 @@ export function buildThemeSnippet({
   description,
   source,
   mode,
+  tightness,
+  surfaceHierarchy,
   tokens,
 }: ThemePreset) {
   const tokenLines = Object.entries(tokens)
@@ -37,7 +39,7 @@ export function buildThemeSnippet({
     description,
   )},\n  source: ${JSON.stringify(source)},\n  mode: ${JSON.stringify(
     mode,
-  )},\n  tokens: {\n${tokenLines}\n  },\n};`;
+  )},\n  tightness: ${JSON.stringify(tightness)},\n  surfaceHierarchy: ${JSON.stringify(surfaceHierarchy)},\n  tokens: {\n${tokenLines}\n  },\n};`;
 }
 
 export function buildCustomPreset(

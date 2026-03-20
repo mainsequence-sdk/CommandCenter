@@ -6,6 +6,8 @@ export const sapphireTheme: ThemePreset = {
   description: "Cool dark blue palette for market monitoring.",
   source: "core",
   mode: "dark",
+  tightness: "relaxed",
+  surfaceHierarchy: "soft",
   tokens: {
     background: "#07101B",
     foreground: "#E8F1FF",

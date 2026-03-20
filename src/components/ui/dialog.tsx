@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 interface DialogProps {
   children: ReactNode;
   className?: string;
+  closeOnBackdropClick?: boolean;
   contentClassName?: string;
   description?: string;
   headerClassName?: string;
@@ -19,6 +20,7 @@ interface DialogProps {
 export function Dialog({
   children,
   className,
+  closeOnBackdropClick = false,
   contentClassName,
   description,
   headerClassName,
@@ -54,12 +56,16 @@ export function Dialog({
 
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-5">
-      <button
-        type="button"
-        className="absolute inset-0 bg-background/70 backdrop-blur-md"
-        aria-label="Close dialog"
-        onClick={onClose}
-      />
+      {closeOnBackdropClick ? (
+        <button
+          type="button"
+          className="absolute inset-0 bg-background/70 backdrop-blur-md"
+          aria-label="Close dialog"
+          onClick={onClose}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-background/70 backdrop-blur-md" aria-hidden="true" />
+      )}
       <div
         className={cn(
           "relative z-10 flex w-full max-w-[min(1120px,calc(100vw-24px))] flex-col overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(155deg,color-mix(in_srgb,var(--card)_92%,var(--background)_8%)_0%,color-mix(in_srgb,var(--card)_96%,var(--background)_4%)_46%,color-mix(in_srgb,var(--background)_94%,var(--card)_6%)_100%)] text-card-foreground shadow-[0_32px_120px_rgba(0,0,0,0.34)] backdrop-blur-2xl",

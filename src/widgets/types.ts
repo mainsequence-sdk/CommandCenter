@@ -16,6 +16,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   requiredPermissions?: string[];
   tags?: string[];
   exampleProps?: TProps;
+  settingsComponent?: ComponentType<WidgetSettingsComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;
 }
 
@@ -23,4 +24,15 @@ export interface WidgetComponentProps<TProps extends Record<string, unknown> = R
   widget: WidgetDefinition<TProps>;
   props: TProps;
   instanceTitle?: string;
+}
+
+export interface WidgetSettingsComponentProps<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  widget: WidgetDefinition<TProps>;
+  draftProps: TProps;
+  onDraftPropsChange: (props: TProps) => void;
+  instanceTitle: string;
+  onInstanceTitleChange: (title: string) => void;
+  editable: boolean;
 }

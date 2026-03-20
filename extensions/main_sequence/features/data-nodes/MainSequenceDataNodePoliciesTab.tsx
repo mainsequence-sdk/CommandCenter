@@ -198,7 +198,7 @@ function CompressionPolicyCard({
   const config = policyState?.config as DataNodeCompressionPolicyConfig | null | undefined;
 
   return (
-    <Card className="border border-border/70 bg-background/24">
+    <Card variant="nested">
       <CardHeader className="border-b border-border/70 pb-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -366,7 +366,7 @@ function RetentionPolicyCard({
   const config = policyState?.config as DataNodeRetentionPolicyConfig | null | undefined;
 
   return (
-    <Card className="border border-border/70 bg-background/24">
+    <Card variant="nested">
       <CardHeader className="border-b border-border/70 pb-4">
         <div className="flex items-start justify-between gap-3">
           <div>

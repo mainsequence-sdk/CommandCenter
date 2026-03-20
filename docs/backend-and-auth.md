@@ -50,7 +50,7 @@ The current recommendation is:
 
 By default, the login surface uses a JWT-based auth flow: it posts credentials to the configured token endpoint, then fetches user details and stores the resolved session locally.
 
-For local development only, `VITE_BYPASS_AUTH=true` switches the login surface back to a mock role picker that bypasses backend auth entirely.
+For local development only, `VITE_BYPASS_AUTH=true` switches the login surface back to a mock access-class picker that bypasses backend auth entirely.
 
 The UI integration boundary stays the same:
 
@@ -99,9 +99,7 @@ auth:
         groups: groups
       role_groups:
         admin: Organization Admin
-        trader:
-        analyst:
-        viewer:
+        user:
 ```
 
 Important behavior:
@@ -112,12 +110,12 @@ Important behavior:
 - request field names are configurable so you can send `username` instead of `email` if needed
 - response field paths support dotted lookups such as `data.access`
 - RBAC fields can be read from either the token payload, the token response payload, or the user-details payload
-- built-in shell roles can be derived from backend groups; with the default config, membership in `Organization Admin` maps to `admin`
-- if `permissions` is missing but `role` matches a built-in shell role, the frontend falls back to the built-in permission matrix
+- built-in shell access classes are derived from backend RBAC group mappings; with the default config, membership in `Organization Admin` maps to `admin`
+- if `permissions` is missing, the frontend falls back to the built-in `admin` / `user` permission matrix
 
 ## Authorization model
 
-Role permission sets are defined in `src/auth/permissions.ts`. They currently demonstrate how the UI can enforce access rules for:
+Permission sets are defined in `src/auth/permissions.ts`. The current built-in model only distinguishes `admin` and `user`, and demonstrates how the UI can enforce access rules for:
 
 - dashboards
 - widget catalog access
@@ -134,7 +132,7 @@ When wiring the shell to your backend:
 - point `auth.jwt.token_url` and `auth.jwt.refresh_url` at your backend
 - point `auth.jwt.user_details.url` at an authenticated user profile endpoint
 - map the credential field names your backend expects
-- map group names into shell roles if your backend RBAC model is group-based
+- map RBAC group names into shell access classes if your backend model is group-based
 - hydrate permissions from the backend token claims, token response payload, or user-details payload
 - treat frontend permissions as UX hints plus navigation rules
 - keep server authorization authoritative

@@ -257,7 +257,7 @@ Routes, dashboards, and widgets declare `requiredPermissions`. The frontend uses
 1. Create an `AppDefinition`.
 2. Choose its icon, default home surface, and permissions.
 3. Add one or more surfaces to it.
-4. Register the app in an extension entrypoint under `src/extensions/*/index.ts` or `extensions/*/index.ts`.
+4. Register the app in an extension entrypoint under `src/extensions/*/index.ts` or `extensions/*/index.ts`, and keep the app pages/tools under that same extension tree.
 
 ### Add a dashboard surface
 
@@ -301,7 +301,7 @@ export interface AppExtension {
 }
 ```
 
-See `src/extensions/flow-lab/index.ts` for the bundled example extension and `extensions/research-suite/index.ts` for a repo-root independent app module.
+See `src/extensions/flow-lab/index.ts` for the bundled example extension, `src/extensions/core/apps/access-rbac/` for a bundled app implementation, and `extensions/research-suite/index.ts` for a repo-root independent app module.
 
 Optional vendor integrations live in their own extensions, for example `src/extensions/ag-grid/index.ts` and `src/extensions/lightweight-charts/index.ts`.
 

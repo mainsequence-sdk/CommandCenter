@@ -3,7 +3,6 @@ import { Navigate, createBrowserRouter } from "react-router-dom";
 import { PermissionRoute } from "@/app/guards/PermissionRoute";
 import { ProtectedRoute } from "@/app/guards/ProtectedRoute";
 import { AppShell } from "@/app/layout/AppShell";
-import { AccessPage } from "@/features/access/AccessPage";
 import { AppPage } from "@/features/apps/AppPage";
 import { AppRedirect } from "@/features/apps/AppRedirect";
 import { LegacyDashboardRedirect } from "@/features/apps/LegacyDashboardRedirect";
@@ -15,6 +14,7 @@ import { NotFoundPage } from "@/features/misc/NotFoundPage";
 import { TeamsPage } from "@/features/teams/TeamsPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
 import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
+import { MainSequenceClusterDetailPage } from "../../extensions/main_sequence/features/clusters/MainSequenceClusterDetailPage";
 
 export const router = createBrowserRouter([
   {
@@ -65,7 +65,7 @@ export const router = createBrowserRouter([
         path: "access",
         element: (
           <PermissionRoute anyOf={["rbac:view"]}>
-            <AccessPage />
+            <Navigate to="/app/access-rbac/overview" replace />
           </PermissionRoute>
         ),
       },
@@ -88,6 +88,24 @@ export const router = createBrowserRouter([
       {
         path: ":appId/:surfaceId",
         element: <AppPage />,
+      },
+    ],
+  },
+  {
+    path: "/clusters/:clusterId",
+    element: (
+      <ProtectedRoute>
+        <AppShell />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: (
+          <PermissionRoute anyOf={["main_sequence.operations:view"]}>
+            <MainSequenceClusterDetailPage />
+          </PermissionRoute>
+        ),
       },
     ],
   },

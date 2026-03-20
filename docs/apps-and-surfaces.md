@@ -66,8 +66,9 @@ The shell uses two navigation layers on the left:
 Once an app is selected, surface switching moves into the topbar.
 
 - the current app name in the topbar opens an app details modal
-- the adjacent topbar selector lists accessible dashboards, pages, and tools
-- the left contextual app panel exposes the selected app's surfaces with kind labels
+- the adjacent topbar selector lists accessible surfaces grouped into sections
+- the left contextual app panel exposes the selected app's surfaces inside those same sections
+- surfaces without an explicit section fall back to kind-based groups such as `Pages` and `Tools`
 - surfaces are filtered by both app and surface permissions
 - hidden surfaces are excluded from normal navigation flow
 - the main content area stays focused on the active surface instead of repeating app metadata
@@ -86,6 +87,15 @@ This gives users both discovery paths:
 
 - browse structurally through the left rail, on-demand contextual app panel, and topbar selector
 - jump directly through search
+
+### Favorites
+
+Surface navigation also supports user-level favorites.
+
+- any view in an app surface menu can be starred
+- those favorites are stored at the shell level and reused across the platform
+- the topbar exposes a quick favorites menu for fast jumps across apps
+- favorites are still filtered by access, so inaccessible views do not appear
 
 ### User menu
 
@@ -115,11 +125,21 @@ export interface AppDefinition {
   description: string;
   source: string;
   icon: AppIcon;
+  navigationPlacement?: "primary" | "admin-menu";
+  topNavigationStyle?: "selector" | "hidden";
   requiredPermissions?: string[];
   defaultSurfaceId: string;
   surfaces: AppSurfaceDefinition[];
 }
 ```
+
+Use `navigationPlacement: "admin-menu"` for admin-only applications that should stay out of the
+primary left rail while still behaving like first-class apps. `Access & RBAC` is the core example
+of that pattern.
+
+Use `topNavigationStyle: "hidden"` when an app manages its own surface navigation inside the page
+itself and should not expose a surface switcher in the global topbar. `Access & RBAC` now uses
+that pattern.
 
 And each surface declares its UX intent:
 
@@ -129,6 +149,39 @@ type AppSurfaceDefinition =
   | { kind: "page"; component: ComponentType; ... }
   | { kind: "tool"; component: ComponentType; ... };
 ```
+
+Surfaces can also declare an optional navigation section when the app needs grouped in-app menus:
+
+```ts
+const workspaceSection = {
+  id: "workspace",
+  label: "Workspace",
+  order: 10,
+};
+
+const mainSequenceApp: AppDefinition = {
+  ...,
+  surfaces: [
+    {
+      id: "projects",
+      title: "Projects",
+      kind: "page",
+      navigationSection: workspaceSection,
+      component: ProjectsPage,
+    },
+    {
+      id: "constants",
+      title: "Constants",
+      kind: "page",
+      navigationSection: workspaceSection,
+      component: ConstantsPage,
+    },
+  ],
+};
+```
+
+This keeps the grouping logic in the platform contract instead of baking one-off section headers
+into individual app navigation components.
 
 ## Routing
 

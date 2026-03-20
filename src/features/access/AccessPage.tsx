@@ -111,22 +111,22 @@ export function AccessPage() {
         {
           id: "ameer-uak",
           email: "ameer.uak@gmail.com",
-          roleLabel: "Analyst",
+          roleLabel: "User",
         },
         {
           id: "fatih-da1994",
           email: "fatih.da1994@gmail.com",
-          roleLabel: "Viewer",
+          roleLabel: "User",
         },
         {
           id: "joselo-main-sequence",
           email: "joselo@main-sequence.io",
-          roleLabel: "Trader",
+          roleLabel: "User",
         },
         {
           id: "info-main-sequence",
           email: "l@main-sequence.io",
-          roleLabel: "Support",
+          roleLabel: "User",
         },
       ] as Array<RbacAssignableUser | null>).filter(
         (user): user is RbacAssignableUser => user !== null,
@@ -214,25 +214,29 @@ export function AccessPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Role matrix</CardTitle>
+            <CardTitle>Access class matrix</CardTitle>
             <CardDescription>
-              Built-in shell roles stay visible here as a reference matrix, but the live session can now also come from configured JWT claims.
+              The current shell only keeps two built-in access classes: Admin and User. The live
+              session can still arrive through configured JWT claims or explicit backend
+              permissions.
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full min-w-[560px] border-separate border-spacing-y-2 text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  <th className="pb-2">Permission</th>
+                  <th className="py-[var(--table-standard-header-padding-y)]">Permission</th>
                   {roles.map((role) => (
-                    <th key={role} className="pb-2">{ROLE_LABELS[role]}</th>
+                    <th key={role} className="py-[var(--table-standard-header-padding-y)]">
+                      {ROLE_LABELS[role]}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {ALL_PERMISSIONS.map((permission) => (
                   <tr key={permission}>
-                    <td className="rounded-l-[calc(var(--radius)-6px)] border border-r-0 border-border/70 bg-background/45 px-4 py-3 font-mono text-xs text-foreground">
+                    <td className="rounded-l-[calc(var(--radius)-6px)] border border-r-0 border-border/70 bg-background/45 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-xs text-foreground">
                       {permission}
                     </td>
                     {roles.map((role, index) => {
@@ -241,7 +245,7 @@ export function AccessPage() {
                       return (
                         <td
                           key={role}
-                          className={`border border-border/70 bg-background/45 px-4 py-3 ${
+                          className={`border border-border/70 bg-background/45 px-4 py-[var(--table-standard-cell-padding-y)] ${
                             index === roles.length - 1
                               ? "rounded-r-[calc(var(--radius)-6px)]"
                               : "border-l-0"

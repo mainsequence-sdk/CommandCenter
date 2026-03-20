@@ -19,49 +19,60 @@ export function MarkdownContent({
   openLinksInNewTab = true,
 }: MarkdownContentProps) {
   return (
-    <div className={cn("min-w-0 text-sm text-foreground", className)}>
+    <div
+      className={cn("min-w-0 text-foreground", className)}
+      style={{ fontSize: "var(--font-size-body-sm)" }}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ className: headingClassName, ...props }) => (
             <h1
               className={cn(
-                "mt-8 mb-4 text-3xl font-semibold tracking-tight first:mt-0",
+                "mt-8 mb-4 font-semibold tracking-tight first:mt-0",
                 headingClassName,
               )}
+              style={{ fontSize: "var(--font-size-markdown-h1)" }}
               {...props}
             />
           ),
           h2: ({ className: headingClassName, ...props }) => (
             <h2
               className={cn(
-                "mt-8 mb-3 border-b border-border/70 pb-2 text-2xl font-semibold tracking-tight first:mt-0",
+                "mt-8 mb-3 border-b border-border/70 pb-2 font-semibold tracking-tight first:mt-0",
                 headingClassName,
               )}
+              style={{ fontSize: "var(--font-size-markdown-h2)" }}
               {...props}
             />
           ),
           h3: ({ className: headingClassName, ...props }) => (
             <h3
               className={cn(
-                "mt-6 mb-3 text-xl font-semibold tracking-tight first:mt-0",
+                "mt-6 mb-3 font-semibold tracking-tight first:mt-0",
                 headingClassName,
               )}
+              style={{ fontSize: "var(--font-size-markdown-h3)" }}
               {...props}
             />
           ),
           h4: ({ className: headingClassName, ...props }) => (
             <h4
               className={cn(
-                "mt-5 mb-2 text-base font-semibold tracking-tight first:mt-0",
+                "mt-5 mb-2 font-semibold tracking-tight first:mt-0",
                 headingClassName,
               )}
+              style={{ fontSize: "var(--font-size-markdown-h4)" }}
               {...props}
             />
           ),
           p: ({ className: paragraphClassName, ...props }) => (
             <p
               className={cn("my-4 leading-7 text-foreground/90 first:mt-0 last:mb-0", paragraphClassName)}
+              style={{
+                fontSize: "var(--font-size-body)",
+                lineHeight: "var(--line-height-body)",
+              }}
               {...props}
             />
           ),
@@ -94,7 +105,14 @@ export function MarkdownContent({
             />
           ),
           li: ({ className: itemClassName, ...props }) => (
-            <li className={cn("pl-1 leading-7 text-foreground/90", itemClassName)} {...props} />
+            <li
+              className={cn("pl-1 text-foreground/90", itemClassName)}
+              style={{
+                fontSize: "var(--font-size-body)",
+                lineHeight: "var(--line-height-body)",
+              }}
+              {...props}
+            />
           ),
           blockquote: ({ className: blockquoteClassName, ...props }) => (
             <blockquote
@@ -111,7 +129,8 @@ export function MarkdownContent({
           table: ({ className: tableClassName, ...props }) => (
             <div className="my-6 overflow-x-auto rounded-[calc(var(--radius)-8px)] border border-border/70">
               <table
-                className={cn("w-full border-collapse text-left text-sm", tableClassName)}
+                className={cn("w-full border-collapse text-left", tableClassName)}
+                style={{ fontSize: "var(--table-font-size)" }}
                 {...props}
               />
             </div>
@@ -122,16 +141,17 @@ export function MarkdownContent({
           th: ({ className: cellClassName, ...props }) => (
             <th
               className={cn(
-                "border-b border-border/70 px-4 py-3 font-semibold text-foreground",
+                "border-b border-border/70 px-4 py-[var(--table-standard-header-padding-y)] font-semibold text-foreground",
                 cellClassName,
               )}
+              style={{ fontSize: "var(--table-meta-font-size)" }}
               {...props}
             />
           ),
           td: ({ className: cellClassName, ...props }) => (
             <td
               className={cn(
-                "border-t border-border/60 px-4 py-3 align-top text-foreground/90",
+                "border-t border-border/60 px-4 py-[var(--table-standard-cell-padding-y)] align-top text-foreground/90",
                 cellClassName,
               )}
               {...props}

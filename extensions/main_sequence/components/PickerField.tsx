@@ -20,6 +20,8 @@ interface PickerFieldProps {
   emptyMessage?: string;
   searchPlaceholder?: string;
   searchable?: boolean;
+  searchValue?: string;
+  onSearchValueChange?: (value: string) => void;
   disabled?: boolean;
   loading?: boolean;
 }
@@ -44,20 +46,33 @@ export function PickerField({
   emptyMessage = "No options available.",
   searchPlaceholder = "Search options",
   searchable,
+  searchValue,
+  onSearchValueChange,
   disabled = false,
   loading = false,
 }: PickerFieldProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const previousValueRef = useRef(value);
   const [open, setOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
+  const [internalSearchValue, setInternalSearchValue] = useState("");
   const selectedOption = options.find((option) => option.value === value);
-  const normalizedQuery = searchValue.trim().toLowerCase();
+  const effectiveSearchValue = searchValue ?? internalSearchValue;
+  const normalizedQuery = effectiveSearchValue.trim().toLowerCase();
   const filteredOptions = options.filter((option) => matchesSearch(option, normalizedQuery));
   const showSearch = searchable ?? options.length >= 7;
 
+  function updateSearchValue(nextValue: string) {
+    if (onSearchValueChange) {
+      onSearchValueChange(nextValue);
+      return;
+    }
+
+    setInternalSearchValue(nextValue);
+  }
+
   useEffect(() => {
     if (!open) {
-      setSearchValue("");
+      updateSearchValue("");
       return undefined;
     }
 
@@ -83,6 +98,14 @@ export function PickerField({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (open && previousValueRef.current !== value) {
+      setOpen(false);
+    }
+
+    previousValueRef.current = value;
+  }, [open, value]);
 
   return (
     <div ref={rootRef} className="relative">
@@ -138,8 +161,8 @@ export function PickerField({
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   autoFocus
-                  value={searchValue}
-                  onChange={(event) => setSearchValue(event.target.value)}
+                  value={effectiveSearchValue}
+                  onChange={(event) => updateSearchValue(event.target.value)}
                   placeholder={searchPlaceholder}
                   className="h-10 border-border/70 bg-background/55 pl-9"
                 />

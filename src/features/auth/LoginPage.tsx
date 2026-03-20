@@ -200,7 +200,7 @@ export function LoginPage() {
 
                 {isBypassAuth ? (
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-foreground">Role</label>
+                    <label className="text-sm font-medium text-foreground">Access class</label>
                     <select
                       value={role}
                       onChange={(event) => setRole(event.target.value as BuiltinAppRole)}

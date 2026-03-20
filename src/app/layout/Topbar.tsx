@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { Command, Search, ShieldCheck } from "lucide-react";
+import { Rows3, Search, ShieldCheck } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -9,11 +9,13 @@ import { getAppById, getAppSurfaceById } from "@/app/registry";
 import {
   getAccessibleAdminMenuApps,
   getAccessibleApps,
-  getAccessiblePrimaryApps,
+  getFavoriteSurfaceEntries,
   getAccessibleSurfaceEntries,
   getAccessibleSurfaces,
   getAppPath,
   getDefaultSurface,
+  getSurfaceFavoriteId,
+  getSurfaceNavigationGroups,
   getSurfacePath,
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
@@ -26,8 +28,10 @@ import { useShellStore } from "@/stores/shell-store";
 import { AdminMenu } from "./AdminMenu";
 import { AppSurfaceSelector } from "./AppSurfaceSelector";
 import { AppDetailsDialog } from "./AppDetailsDialog";
+import { FavoriteSurfacesMenu } from "./FavoriteSurfacesMenu";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { SettingsDialog } from "./SettingsDialog";
+import { ThemeMenu } from "./ThemeMenu";
 
 export function Topbar() {
   const { t } = useTranslation();
@@ -42,22 +46,25 @@ export function Topbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchPaletteMode, setSearchPaletteMode] = useState(false);
   const [searchPanelStyle, setSearchPanelStyle] = useState<CSSProperties>();
+  const searchShortcutHint =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+      ? "⌘K"
+      : "Ctrl K";
 
   const user = useAuthStore((state) => state.session?.user);
   const permissions = user?.permissions ?? [];
   const commandValue = useShellStore((state) => state.commandValue);
+  const favoriteSurfaceIds = useShellStore((state) => state.favoriteSurfaceIds);
   const setCommandValue = useShellStore((state) => state.setCommandValue);
+  const toggleSurfaceFavorite = useShellStore((state) => state.toggleSurfaceFavorite);
+  const workspaceCanvasMenuHidden = useShellStore((state) => state.workspaceCanvasMenuHidden);
+  const setWorkspaceCanvasMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
   const isAdmin = user?.role === "admin";
-  const accessExplorerAllowed = hasAnyPermission(permissions, ["rbac:view"]);
 
   const accessibleApps = getAccessibleApps(permissions);
-  const searchableApps = getAccessiblePrimaryApps(permissions);
-  const searchableAppIds = new Set(searchableApps.map((app) => app.id));
   const adminMenuApps = getAccessibleAdminMenuApps(permissions);
   const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
-  const searchableSurfaces = accessibleSurfaces.filter((surface) =>
-    searchableAppIds.has(surface.appId),
-  );
+  const favoriteSurfaces = getFavoriteSurfaceEntries(permissions, favoriteSurfaceIds);
   const currentApp = params.appId ? getAppById(params.appId) : undefined;
   const currentSurface =
     currentApp && params.surfaceId ? getAppSurfaceById(currentApp.id, params.surfaceId) : undefined;
@@ -66,6 +73,7 @@ export function Topbar() {
   const currentAppSurfaces = currentAppVisible
     ? getAccessibleSurfaces(currentAppVisible, permissions)
     : [];
+  const currentAppSurfaceGroups = getSurfaceNavigationGroups(currentAppSurfaces);
   const currentDefaultSurface = currentAppVisible
     ? getDefaultSurface(currentAppVisible, permissions)
     : undefined;
@@ -75,31 +83,20 @@ export function Topbar() {
     currentAppSurfaces.some((surface) => surface.id === currentSurface.id)
       ? currentSurface
       : undefined;
+  const showWorkspaceCanvasMenuRestore =
+    params.appId === "workspace-studio" &&
+    params.surfaceId === "canvas" &&
+    workspaceCanvasMenuHidden;
   const selectedSurfaceId = currentSurfaceVisible?.id ?? currentDefaultSurface?.id ?? "";
-  const surfaceGroups = [
-    {
-      label: "Dashboards",
-      surfaces: currentAppSurfaces.filter((surface) => surface.kind === "dashboard"),
-    },
-    {
-      label: "Pages",
-      surfaces: currentAppSurfaces.filter((surface) => surface.kind === "page"),
-    },
-    {
-      label: "Tools",
-      surfaces: currentAppSurfaces.filter((surface) => surface.kind === "tool"),
-    },
-  ].filter((group) => group.surfaces.length > 0);
-
   const normalizedQuery = commandValue.trim().toLowerCase();
   const searchItems = [
-    ...searchableApps.map((app) => ({
+    ...accessibleApps.map((app) => ({
       title: app.title,
       subtitle: t("searchResults.openAppSubtitle"),
       to: getAppPath(app.id),
       visible: true,
     })),
-    ...searchableSurfaces.map((surface) => ({
+    ...accessibleSurfaces.map((surface) => ({
       title: `${surface.appTitle} / ${surface.navLabel ?? surface.title}`,
       subtitle:
         surface.kind === "tool"
@@ -115,12 +112,6 @@ export function Topbar() {
       subtitle: t("searchResults.widgetCatalogSubtitle"),
       to: "/app/widgets",
       visible: hasAnyPermission(permissions, ["widget.catalog:view"]),
-    },
-    {
-      title: t("searchResults.accessControlTitle"),
-      subtitle: t("searchResults.accessControlSubtitle"),
-      to: "/app/access",
-      visible: hasAnyPermission(permissions, ["rbac:view"]),
     },
   ].filter((item) => item.visible ?? true);
 
@@ -140,17 +131,6 @@ export function Topbar() {
         navigate(getAppPath(app.id));
       },
     })),
-    ...(accessExplorerAllowed
-      ? [
-          {
-            icon: ShieldCheck,
-            label: t("searchResults.accessControlTitle"),
-            onSelect: () => {
-              navigate("/app/access");
-            },
-          },
-        ]
-      : []),
   ];
 
   useEffect(() => {
@@ -268,14 +248,36 @@ export function Topbar() {
               </span>
               <span className="truncate">{currentAppVisible.title}</span>
             </Button>
-            {currentAppSurfaces.length ? (
+            {currentAppSurfaces.length && currentAppVisible.topNavigationStyle !== "hidden" ? (
               <AppSurfaceSelector
+                appId={currentAppVisible.id}
+                favoriteSurfaceIds={favoriteSurfaceIds}
                 value={selectedSurfaceId}
-                groups={surfaceGroups}
+                groups={currentAppSurfaceGroups}
+                onToggleFavorite={toggleSurfaceFavorite}
                 onSelect={(surfaceId) => {
                   navigate(getAppPath(currentAppVisible.id, surfaceId));
                 }}
               />
+            ) : null}
+            {showWorkspaceCanvasMenuRestore ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Show dashboard menu"
+                title="Show dashboard menu"
+                className="relative h-9 w-9 px-0 text-topbar-foreground"
+                onClick={() => {
+                  setWorkspaceCanvasMenuHidden(false);
+                }}
+              >
+                <span className="absolute inset-0 rounded-full border border-primary/28 bg-primary/8 animate-[pulse_2.2s_ease-in-out_infinite]" />
+                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary/90 animate-pulse" />
+                <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card/72 text-topbar-foreground shadow-sm">
+                  <Rows3 className="h-4 w-4" />
+                </span>
+              </Button>
             ) : null}
           </div>
         ) : null}
@@ -298,8 +300,16 @@ export function Topbar() {
               setSearchOpen(searchPaletteMode || nextValue.trim().length > 0);
             }}
             placeholder={t("topbar.searchPlaceholder")}
-            className="pl-9"
+            className="pl-9 pr-16"
+            title={t("topbar.searchShortcutTitle")}
           />
+          <span
+            className="pointer-events-none absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center rounded-md border border-border/70 bg-muted/55 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            title={t("topbar.searchShortcutTitle")}
+            aria-hidden="true"
+          >
+            {searchShortcutHint}
+          </span>
           {showSearchPanel && typeof document !== "undefined"
             ? createPortal(
                 <div
@@ -361,23 +371,17 @@ export function Topbar() {
           {env.useMockData ? t("topbar.dataModeMock") : t("topbar.dataModeLive")}
         </Badge>
 
-        <button
-          type="button"
-          className="rounded-md border border-border/80 bg-card/70 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50"
-          title={t("topbar.searchShortcutTitle")}
-          aria-label={t("topbar.searchShortcutTitle")}
-          onClick={() => {
-            setSearchPaletteMode(true);
-            setSearchOpen(true);
-            searchRef.current?.focus();
-            searchRef.current?.select();
+        <FavoriteSurfacesMenu
+          items={favoriteSurfaces}
+          onSelect={(path) => {
+            navigate(path);
           }}
-        >
-          <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded border border-border bg-muted/70 text-[10px] text-foreground">
-            <Command className="h-2.5 w-2.5" />
-          </span>
-          K
-        </button>
+          onToggleFavorite={(appId, surfaceId) => {
+            toggleSurfaceFavorite(getSurfaceFavoriteId(appId, surfaceId));
+          }}
+        />
+
+        <ThemeMenu />
 
         <NotificationsMenu />
 

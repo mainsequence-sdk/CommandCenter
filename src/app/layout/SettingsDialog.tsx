@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 
-import { CircleUserRound, Info, Settings2 } from "lucide-react";
+import { CircleUserRound, Info, Settings2, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
+import { fetchCurrentAuthGroups } from "@/auth/api";
 import { getRoleLabel } from "@/auth/permissions";
 import { env } from "@/config/env";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
@@ -23,7 +24,19 @@ interface SettingsDialogProps {
   user?: AppUser;
 }
 
-type SettingsSectionId = "general" | "account" | "about";
+type SettingsSectionId = "general" | "account" | "auth" | "about";
+
+function resolveSettingsUrl(baseUrl: string, path: string) {
+  if (!path) {
+    return baseUrl;
+  }
+
+  try {
+    return new URL(path, baseUrl).toString();
+  } catch {
+    return path;
+  }
+}
 
 function SettingsRow({
   label,
@@ -106,9 +119,12 @@ export function SettingsDialog({
   user,
 }: SettingsDialogProps) {
   const { i18n, t } = useTranslation();
-  const { app } = useCommandCenterConfig();
+  const { app, auth } = useCommandCenterConfig();
   const { availableThemes, resetOverrides, setThemeById, themeId } = useTheme();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
+  const [currentGroups, setCurrentGroups] = useState<string[] | null>(null);
+  const [currentGroupsError, setCurrentGroupsError] = useState<string | null>(null);
+  const [currentGroupsLoading, setCurrentGroupsLoading] = useState(false);
 
   const title =
     mode === "admin" ? t("settingsDialog.adminTitle") : t("settingsDialog.userTitle");
@@ -140,17 +156,58 @@ export function SettingsDialog({
     user?.groups && user.groups.length > 0
       ? user.groups.join(", ")
       : t("common.unavailable");
-  const navItems = [
+  const authTokenUrl = resolveSettingsUrl(auth.baseUrl, auth.jwt.tokenUrl);
+  const authRefreshUrl = resolveSettingsUrl(auth.baseUrl, auth.jwt.refreshUrl);
+  const authUserDetailsUrl = resolveSettingsUrl(auth.baseUrl, auth.jwt.userDetails.url);
+  const authGroupsUrl = resolveSettingsUrl(auth.baseUrl, auth.jwt.userDetails.groupsUrl);
+  const authAdminGroupValue =
+    auth.jwt.userDetails.roleGroups.admin || t("common.unavailable");
+  const authUserGroupValue =
+    auth.jwt.userDetails.roleGroups.user || t("settingsDialog.authUserFallback");
+  const navItems: Array<{
+    id: SettingsSectionId;
+    label: string;
+    icon: typeof Settings2;
+  }> = [
     { id: "general" as const, label: t("settingsDialog.generalNav"), icon: Settings2 },
     { id: "account" as const, label: t("settingsDialog.accountTitle"), icon: CircleUserRound },
+    ...(mode === "admin"
+      ? [
+          {
+            id: "auth" as const,
+            label: t("settingsDialog.authNav"),
+            icon: ShieldCheck,
+          },
+        ]
+      : []),
     { id: "about" as const, label: t("settingsDialog.aboutNav"), icon: Info },
   ];
 
   useEffect(() => {
     if (open) {
       setActiveSection("general");
+      setCurrentGroups(null);
+      setCurrentGroupsError(null);
+      setCurrentGroupsLoading(false);
     }
   }, [open, mode]);
+
+  async function handleLoadCurrentGroups() {
+    setCurrentGroupsLoading(true);
+    setCurrentGroupsError(null);
+
+    try {
+      const groups = await fetchCurrentAuthGroups();
+      setCurrentGroups(groups);
+    } catch (error) {
+      setCurrentGroupsError(
+        error instanceof Error ? error.message : t("settingsDialog.authCurrentGroupsError"),
+      );
+      setCurrentGroups(null);
+    } finally {
+      setCurrentGroupsLoading(false);
+    }
+  }
 
   return (
     <Dialog
@@ -268,6 +325,121 @@ export function SettingsDialog({
               <SettingsRow
                 label={t("settingsDialog.groups")}
                 value={groupsValue}
+              />
+            </SettingsSection>
+          ) : null}
+
+          {mode === "admin" && activeSection === "auth" ? (
+            <SettingsSection
+              title={t("settingsDialog.authTitle")}
+              description={t("settingsDialog.authDescription")}
+            >
+              <SettingsRow
+                label={t("settingsDialog.authRoleGroupMapping")}
+                description={t("settingsDialog.authRoleGroupMappingHelp")}
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    auth.jwt.user_details.role_groups
+                  </span>
+                }
+              />
+              <SettingsRow
+                label={t("settingsDialog.authAdminGroup")}
+                description={t("settingsDialog.authAdminGroupHelp")}
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    {authAdminGroupValue}
+                  </span>
+                }
+              />
+              <SettingsRow
+                label={t("settingsDialog.authUserGroup")}
+                description={t("settingsDialog.authUserGroupHelp")}
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    {authUserGroupValue}
+                  </span>
+                }
+              />
+              <SettingsRow
+                label={t("settingsDialog.authBaseUrl")}
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    {auth.baseUrl}
+                  </span>
+                }
+              />
+              <SettingsRow
+                label={t("settingsDialog.authTokenUrl")}
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    {authTokenUrl}
+                  </span>
+                }
+              />
+              <SettingsRow
+                label={t("settingsDialog.authRefreshUrl")}
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    {authRefreshUrl}
+                  </span>
+                }
+              />
+              <SettingsRow
+                label={t("settingsDialog.authUserDetailsUrl")}
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    {authUserDetailsUrl}
+                  </span>
+                }
+              />
+              <SettingsRow
+                label={t("settingsDialog.authGroupsUrl")}
+                description={t("settingsDialog.authGroupsUrlHelp")}
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    {authGroupsUrl}
+                  </span>
+                }
+              />
+              <SettingsRow
+                label={t("settingsDialog.authCurrentGroups")}
+                description={t("settingsDialog.authCurrentGroupsHelp")}
+                value={
+                  <div className="flex max-w-[420px] flex-col items-end gap-2 text-right">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={currentGroupsLoading}
+                      onClick={() => {
+                        void handleLoadCurrentGroups();
+                      }}
+                    >
+                      {currentGroupsLoading
+                        ? t("settingsDialog.authLoadingCurrentGroups")
+                        : t("settingsDialog.authShowCurrentGroups")}
+                    </Button>
+                    {currentGroupsError ? (
+                      <div className="text-xs text-danger">{currentGroupsError}</div>
+                    ) : null}
+                    {currentGroups ? (
+                      currentGroups.length > 0 ? (
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {currentGroups.map((group) => (
+                            <Badge key={group} variant="primary">
+                              {group}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          {t("settingsDialog.authNoCurrentGroups")}
+                        </div>
+                      )
+                    ) : null}
+                  </div>
+                }
               />
             </SettingsSection>
           ) : null}

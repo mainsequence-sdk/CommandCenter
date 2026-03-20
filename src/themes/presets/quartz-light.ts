@@ -6,6 +6,8 @@ export const quartzLightTheme: ThemePreset = {
   description: "Clean Main Sequence light mode for admin or analyst workflows.",
   source: "core",
   mode: "light",
+  tightness: "tight",
+  surfaceHierarchy: "flat",
   tokens: {
     background: "#F5F7FB",
     foreground: "#152238",

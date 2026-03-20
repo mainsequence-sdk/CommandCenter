@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import type {
   DashboardActionsConfig,
   DashboardControlsConfig,
+  DashboardControlsState,
   DashboardRefreshConfig,
   DashboardTimeRangeConfig,
   DashboardTimeRangeKey,
@@ -46,11 +47,19 @@ interface ResolvedDashboardControlsConfig {
     enabled: boolean;
     defaultRange: DashboardTimeRangeKey;
     options: DashboardTimeRangeKey[];
+    initialState: {
+      key: DashboardTimeRangeKey | "custom";
+      startMs: number;
+      endMs: number;
+      startDate: string;
+      endDate: string;
+    };
   };
   refresh: {
     enabled: boolean;
     defaultIntervalMs: number | null;
     intervals: Array<number | null>;
+    initialIntervalMs: number | null;
   };
   actions: {
     enabled: boolean;
@@ -74,6 +83,7 @@ interface DashboardControlsContextValue {
   refreshNow: () => Promise<void>;
   isRefreshing: boolean;
   lastRefreshedAt: number | null;
+  refreshProgress: number;
   kioskMode: boolean;
   setKioskMode: (value: boolean) => void;
   toggleKioskMode: () => void;
@@ -89,7 +99,7 @@ const defaultTimeRangeOptions: Record<DashboardTimeRangeKey, DashboardTimeRangeO
   "90d": { key: "90d", label: "Last 90 days", durationMs: 90 * 24 * 60 * 60 * 1000 },
 };
 
-const defaultRefreshIntervals: Array<number | null> = [null, 5000, 15000, 30000, 60000, 300000];
+const defaultRefreshIntervals: Array<number | null> = [null, 10000, 15000, 30000, 60000];
 const defaultDashboardControlsContextValue: DashboardControlsContextValue = {
   timeRange: defaultTimeRangeOptions["30d"],
   timeRangeKey: "30d",
@@ -105,6 +115,7 @@ const defaultDashboardControlsContextValue: DashboardControlsContextValue = {
   refreshNow: async () => undefined,
   isRefreshing: false,
   lastRefreshedAt: null,
+  refreshProgress: 0,
   kioskMode: false,
   setKioskMode: () => undefined,
   toggleKioskMode: () => undefined,
@@ -123,8 +134,12 @@ function normalizeTimeRangeOptions(config?: DashboardTimeRangeConfig) {
 
 function normalizeRefreshIntervals(config?: DashboardRefreshConfig) {
   const intervals = config?.intervals ?? defaultRefreshIntervals;
-  const normalized = intervals.filter(
-    (value): value is number | null => value === null || (typeof value === "number" && value > 0),
+  const normalized = Array.from(
+    new Set(
+      intervals.filter(
+        (value): value is number | null => value === null || (typeof value === "number" && value > 0),
+      ),
+    ),
   );
 
   return normalized.length ? normalized : defaultRefreshIntervals;
@@ -138,24 +153,88 @@ function resolveActionsConfig(config?: DashboardActionsConfig) {
   };
 }
 
+function resolveInitialTimeRangeState(
+  config: DashboardTimeRangeConfig | undefined,
+  defaultRange: DashboardTimeRangeKey,
+  options: DashboardTimeRangeKey[],
+) {
+  if (
+    config?.selectedRange === "custom" &&
+    typeof config.customStartMs === "number" &&
+    typeof config.customEndMs === "number" &&
+    Number.isFinite(config.customStartMs) &&
+    Number.isFinite(config.customEndMs) &&
+    config.customStartMs <= config.customEndMs
+  ) {
+    return {
+      key: "custom" as const,
+      startMs: config.customStartMs,
+      endMs: config.customEndMs,
+      startDate: toDateInputValue(new Date(config.customStartMs)),
+      endDate: toDateInputValue(new Date(config.customEndMs)),
+    };
+  }
+
+  const selectedRange =
+    config?.selectedRange && config.selectedRange !== "custom" && options.includes(config.selectedRange)
+      ? config.selectedRange
+      : defaultRange;
+  const resolvedRange = resolvePresetRange(selectedRange);
+
+  return {
+    key: selectedRange,
+    startMs: resolvedRange.startMs,
+    endMs: resolvedRange.endMs,
+    startDate: resolvedRange.startDate,
+    endDate: resolvedRange.endDate,
+  };
+}
+
 function resolveControlsConfig(controls?: DashboardControlsConfig): ResolvedDashboardControlsConfig {
   const timeRangeOptions = normalizeTimeRangeOptions(controls?.timeRange);
   const refreshIntervals = normalizeRefreshIntervals(controls?.refresh);
   const defaultRange = controls?.timeRange?.defaultRange;
   const defaultIntervalMs = controls?.refresh?.defaultIntervalMs ?? null;
   const actions = resolveActionsConfig(controls?.actions);
+  const resolvedDefaultRange =
+    defaultRange && timeRangeOptions.includes(defaultRange) ? defaultRange : timeRangeOptions[0]!;
+  const selectedIntervalMs = controls?.refresh?.selectedIntervalMs;
+  const initialIntervalMs =
+    selectedIntervalMs === null
+      ? null
+      : (typeof selectedIntervalMs === "number" && selectedIntervalMs > 0
+        ? selectedIntervalMs
+        : undefined);
 
   return {
     enabled: controls?.enabled !== false,
     timeRange: {
       enabled: controls?.timeRange?.enabled !== false,
-      defaultRange: defaultRange && timeRangeOptions.includes(defaultRange) ? defaultRange : timeRangeOptions[0]!,
+      defaultRange: resolvedDefaultRange,
       options: timeRangeOptions,
+      initialState: resolveInitialTimeRangeState(
+        controls?.timeRange,
+        resolvedDefaultRange,
+        timeRangeOptions,
+      ),
     },
     refresh: {
       enabled: controls?.refresh?.enabled !== false,
-      defaultIntervalMs: refreshIntervals.includes(defaultIntervalMs) ? defaultIntervalMs : refreshIntervals[0]!,
+      defaultIntervalMs:
+        defaultIntervalMs === null
+          ? (refreshIntervals.includes(null) ? null : refreshIntervals[0]!)
+          : (typeof defaultIntervalMs === "number" && defaultIntervalMs > 0
+            ? defaultIntervalMs
+            : refreshIntervals[0]!),
       intervals: refreshIntervals,
+      initialIntervalMs:
+        initialIntervalMs !== undefined
+          ? initialIntervalMs
+          : (defaultIntervalMs === null
+            ? (refreshIntervals.includes(null) ? null : refreshIntervals[0]!)
+            : (typeof defaultIntervalMs === "number" && defaultIntervalMs > 0
+              ? defaultIntervalMs
+              : refreshIntervals[0]!)),
     },
     actions,
   };
@@ -166,7 +245,7 @@ function formatRefreshInterval(value: number | null) {
     return "Off";
   }
 
-  if (value < 60000) {
+  if (value < 120000) {
     return `${Math.round(value / 1000)}s`;
   }
 
@@ -227,7 +306,17 @@ function parseRefreshQueryValue(value: string | null, allowedIntervals: Array<nu
 
   const parsed = Number(value);
 
-  return Number.isFinite(parsed) && allowedIntervals.includes(parsed) ? parsed : undefined;
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  const rounded = Math.round(parsed);
+
+  return allowedIntervals.includes(rounded) || rounded > 0 ? rounded : undefined;
+}
+
+function isCustomRefreshInterval(value: number | null, intervals: Array<number | null>) {
+  return value !== null && !intervals.includes(value);
 }
 
 function buildDashboardShareUrl({
@@ -474,12 +563,33 @@ function RefreshSelector({
   isRefreshing: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [customSeconds, setCustomSeconds] = useState("");
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const customSelected = isCustomRefreshInterval(value, intervals);
+
+  useEffect(() => {
+    if (!customSelected || value === null) {
+      return;
+    }
+
+    setCustomSeconds(String(Math.max(1, Math.round(value / 1000))));
+  }, [customSelected, value]);
 
   useMenuDismiss(open, [rootRef, menuRef], () => {
     setOpen(false);
   });
+
+  function applyCustomInterval() {
+    const parsedSeconds = Number(customSeconds);
+
+    if (!Number.isFinite(parsedSeconds) || parsedSeconds <= 0) {
+      return;
+    }
+
+    setOpen(false);
+    onSelectInterval(Math.round(parsedSeconds * 1000));
+  }
 
   return (
     <div ref={rootRef} className="relative">
@@ -516,7 +626,7 @@ function RefreshSelector({
       {open ? (
         <div
           ref={menuRef}
-          className="absolute right-0 top-full z-20 mt-2 w-[184px] overflow-hidden rounded-[calc(var(--radius)+2px)] border border-border/80 bg-card/96 p-1.5 shadow-[var(--shadow-panel)] backdrop-blur"
+          className="absolute right-0 top-full z-20 mt-2 w-[220px] overflow-hidden rounded-[calc(var(--radius)+2px)] border border-border/80 bg-card/96 p-1.5 shadow-[var(--shadow-panel)] backdrop-blur"
           role="menu"
         >
           <div className="px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -549,6 +659,35 @@ function RefreshSelector({
               );
             })}
           </div>
+          <form
+            className="mt-2 border-t border-border/70 px-2 pt-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              applyCustomInterval();
+            }}
+          >
+            <div className="flex items-center justify-between gap-3 pb-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              <span>Custom</span>
+              {customSelected && value !== null ? <span>{formatRefreshInterval(value)}</span> : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min="1"
+                step="1"
+                placeholder="Seconds"
+                value={customSeconds}
+                className="h-8"
+                onChange={(event) => {
+                  setCustomSeconds(event.target.value);
+                }}
+              />
+              <Button type="submit" size="sm" className="h-8 px-3">
+                Apply
+              </Button>
+            </div>
+          </form>
         </div>
       ) : null}
     </div>
@@ -729,9 +868,11 @@ function DashboardViewMenu({
 export function DashboardControlsProvider({
   children,
   controls,
+  onStateChange,
 }: {
   children: ReactNode;
   controls?: DashboardControlsConfig;
+  onStateChange?: (state: DashboardControlsState) => void;
 }) {
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -741,25 +882,27 @@ export function DashboardControlsProvider({
   const setKioskMode = useShellStore((state) => state.setKioskMode);
   const toggleKioskMode = useShellStore((state) => state.toggleKioskMode);
   const [timeRangeKey, setTimeRangeKeyState] = useState<DashboardTimeRangeKey | "custom">(
-    resolvedConfig.timeRange.defaultRange,
+    resolvedConfig.timeRange.initialState.key,
   );
   const [rangeStartMs, setRangeStartMs] = useState<number>(
-    resolvePresetRange(resolvedConfig.timeRange.defaultRange).startMs,
+    resolvedConfig.timeRange.initialState.startMs,
   );
   const [rangeEndMs, setRangeEndMs] = useState<number>(
-    resolvePresetRange(resolvedConfig.timeRange.defaultRange).endMs,
+    resolvedConfig.timeRange.initialState.endMs,
   );
   const [rangeStartDate, setRangeStartDate] = useState<string>(
-    resolvePresetRange(resolvedConfig.timeRange.defaultRange).startDate,
+    resolvedConfig.timeRange.initialState.startDate,
   );
   const [rangeEndDate, setRangeEndDate] = useState<string>(
-    resolvePresetRange(resolvedConfig.timeRange.defaultRange).endDate,
+    resolvedConfig.timeRange.initialState.endDate,
   );
   const [refreshIntervalMs, setRefreshIntervalMs] = useState<number | null>(
-    resolvedConfig.refresh.defaultIntervalMs,
+    resolvedConfig.refresh.initialIntervalMs,
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
+  const [refreshCycleStartedAt, setRefreshCycleStartedAt] = useState<number | null>(null);
+  const [refreshProgress, setRefreshProgress] = useState(0);
 
   useEffect(() => {
     if (timeRangeKey !== "custom" && !resolvedConfig.timeRange.options.includes(timeRangeKey)) {
@@ -773,10 +916,27 @@ export function DashboardControlsProvider({
   }, [resolvedConfig.timeRange.defaultRange, resolvedConfig.timeRange.options, timeRangeKey]);
 
   useEffect(() => {
+    if (
+      refreshIntervalMs !== null &&
+      typeof refreshIntervalMs === "number" &&
+      refreshIntervalMs > 0
+    ) {
+      return;
+    }
+
     if (!resolvedConfig.refresh.intervals.includes(refreshIntervalMs)) {
       setRefreshIntervalMs(resolvedConfig.refresh.defaultIntervalMs);
     }
   }, [refreshIntervalMs, resolvedConfig.refresh.defaultIntervalMs, resolvedConfig.refresh.intervals]);
+
+  useEffect(() => {
+    onStateChange?.({
+      timeRangeKey,
+      rangeStartMs,
+      rangeEndMs,
+      refreshIntervalMs,
+    });
+  }, [onStateChange, rangeEndMs, rangeStartMs, refreshIntervalMs, timeRangeKey]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -840,10 +1000,19 @@ export function DashboardControlsProvider({
 
   useEffect(() => {
     if (!resolvedConfig.refresh.enabled || refreshIntervalMs === null) {
+      setRefreshCycleStartedAt(null);
+      setRefreshProgress(0);
       return undefined;
     }
 
+    const cycleStartedAt = Date.now();
+    setRefreshCycleStartedAt(cycleStartedAt);
+    setRefreshProgress(0);
+
     const timerId = window.setInterval(() => {
+      const nextCycleStartedAt = Date.now();
+      setRefreshCycleStartedAt(nextCycleStartedAt);
+      setRefreshProgress(0);
       void refreshNow();
     }, refreshIntervalMs);
 
@@ -852,9 +1021,38 @@ export function DashboardControlsProvider({
     };
   }, [refreshIntervalMs, resolvedConfig.refresh.enabled]);
 
+  useEffect(() => {
+    if (!resolvedConfig.refresh.enabled || refreshIntervalMs === null || refreshCycleStartedAt === null) {
+      setRefreshProgress(0);
+      return undefined;
+    }
+
+    const activeRefreshIntervalMs = refreshIntervalMs;
+    const activeRefreshCycleStartedAt = refreshCycleStartedAt;
+
+    function updateRefreshProgress() {
+      const elapsed = Date.now() - activeRefreshCycleStartedAt;
+      setRefreshProgress(Math.max(0, Math.min(1, elapsed / activeRefreshIntervalMs)));
+    }
+
+    updateRefreshProgress();
+
+    const timerId = window.setInterval(updateRefreshProgress, 120);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [refreshCycleStartedAt, refreshIntervalMs, resolvedConfig.refresh.enabled]);
+
   async function refreshNow() {
     if (refreshLockRef.current) {
       return;
+    }
+
+    if (resolvedConfig.refresh.enabled && refreshIntervalMs !== null) {
+      const cycleStartedAt = Date.now();
+      setRefreshCycleStartedAt(cycleStartedAt);
+      setRefreshProgress(0);
     }
 
     refreshLockRef.current = true;
@@ -919,6 +1117,7 @@ export function DashboardControlsProvider({
       refreshNow,
       isRefreshing,
       lastRefreshedAt,
+      refreshProgress,
       kioskMode,
       setKioskMode,
       toggleKioskMode,
@@ -927,6 +1126,7 @@ export function DashboardControlsProvider({
       isRefreshing,
       kioskMode,
       lastRefreshedAt,
+      refreshProgress,
       rangeEndDate,
       rangeEndMs,
       rangeStartDate,
@@ -948,6 +1148,27 @@ export function DashboardControlsProvider({
 
 export function useDashboardControls() {
   return useContext(DashboardControlsContext);
+}
+
+export function DashboardRefreshProgressLine({ className }: { className?: string }) {
+  const { refreshIntervalMs, refreshProgress } = useDashboardControls();
+
+  return (
+    <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-50 h-px overflow-hidden", className)}>
+      <div className="absolute inset-0 bg-border/60" />
+      {refreshIntervalMs !== null ? (
+        <div
+          className="absolute inset-y-0 left-0 origin-left"
+          style={{
+            width: "100%",
+            transform: `scaleX(${refreshProgress})`,
+            backgroundImage:
+              "linear-gradient(90deg, color-mix(in srgb, var(--primary) 88%, transparent) 0%, color-mix(in srgb, var(--accent) 84%, transparent) 58%, color-mix(in srgb, var(--foreground) 62%, transparent) 100%)",
+          }}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 export function DashboardDataControls({

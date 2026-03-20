@@ -28,6 +28,7 @@ VITE_BYPASS_AUTH=true
 app:
   name: Main Sequence Command Center
   short_name: Main Sequence
+  notifications_refresh_interval_ms: 300000
 
 branding:
   logo_lightmode: logo_lightmode.png
@@ -80,15 +81,29 @@ auth:
         organization_teams: organization_teams
       role_groups:
         admin: Organization Admin
-        trader:
-        analyst:
-        viewer:
+        user:
+
+access_rbac:
+  users:
+    list_url: /user/api/user/
+  groups:
+    list_url: /user/api/user/get_rbac_groups/
+
+notifications:
+  list_url: /user/api/notifications/
+  detail_url: /user/api/notifications/{id}/
+  mark_read_url: /user/api/notifications/{id}/mark-read/
+  dismiss_url: /user/api/notifications/{id}/dismiss/
+  mark_all_read_url: /user/api/notifications/mark-all-read/
+  dismiss_all_url: /user/api/notifications/dismiss-all/
+  type: UR
 ```
 
 ## Fields
 
 - `app.name`: full product name used by the app
 - `app.short_name`: shorter product name for compact UI copy
+- `app.notifications_refresh_interval_ms`: notification polling interval in milliseconds. Defaults to `300000` (5 minutes) when the key is omitted.
 - `branding.logo_lightmode`: logo file to use on light themes
 - `branding.logo_darkmode`: logo file to use on dark themes
 - `branding.logo_mark`: compact mark used in the sidebar and other small brand surfaces
@@ -104,7 +119,16 @@ auth:
 - `auth.jwt.claim_mapping.*`: token-claim or response-field paths used to build the frontend session and RBAC permissions
 - `auth.jwt.user_details.url`: authenticated endpoint fetched immediately after successful login and refresh
 - `auth.jwt.user_details.response_mapping.*`: field paths used to map the user-details payload into the frontend session user
-- `auth.jwt.user_details.role_groups.*`: comma-separated group names that map backend groups into built-in shell roles
+- `auth.jwt.user_details.role_groups.*`: comma-separated group names that map backend groups into the built-in `admin` / `user` access classes
+- `access_rbac.users.list_url`: authenticated endpoint used by the Access & RBAC app user inspector to search the user directory
+- `access_rbac.groups.list_url`: authenticated endpoint used by the Access & RBAC policy studio to load assignable RBAC groups
+- `notifications.list_url`: endpoint used to fetch the notification feed
+- `notifications.detail_url`: endpoint used to fetch a single notification body
+- `notifications.mark_read_url`: endpoint used to mark one notification as read
+- `notifications.dismiss_url`: endpoint used to dismiss one notification
+- `notifications.mark_all_read_url`: endpoint used to mark the full feed as read
+- `notifications.dismiss_all_url`: endpoint used to dismiss the full feed
+- `notifications.type`: backend notification type code forwarded with each source definition
 
 Additional optional user attributes supported by both claim mapping and user-details mapping:
 
@@ -126,7 +150,10 @@ The application:
 - fetches configured user details after JWT login succeeds
 - revalidates persisted JWT sessions against the configured user-details endpoint before granting access
 - maps configured token claims and user-details fields into the frontend session user
-- derives built-in shell roles from configured backend groups
+- derives built-in shell access classes from configured backend groups
+- queries the configured Access & RBAC users endpoint when an admin searches the user directory
+- queries the configured Access & RBAC groups endpoint when an admin assigns RBAC groups to shell policies
+- refreshes the notifications feed using `app.notifications_refresh_interval_ms`
 - uses user initials for account surfaces when no user-specific avatar is provided
 
 ## Notes

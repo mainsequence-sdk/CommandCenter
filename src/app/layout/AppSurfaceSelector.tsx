@@ -9,17 +9,21 @@ import {
 
 import { Check, ChevronDown } from "lucide-react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
-import type { AppSurfaceDefinition } from "@/apps/types";
+import type {
+  AppSurfaceDefinition,
+  AppSurfaceNavigationGroup,
+} from "@/apps/types";
+import { getSurfaceFavoriteId, isSurfaceFavorited } from "@/apps/utils";
 import { cn } from "@/lib/utils";
-
-interface SurfaceGroup {
-  label: string;
-  surfaces: AppSurfaceDefinition[];
-}
+import { SurfaceFavoriteButton } from "./SurfaceFavoriteButton";
 
 interface AppSurfaceSelectorProps {
-  groups: SurfaceGroup[];
+  appId: string;
+  favoriteSurfaceIds: string[];
+  groups: AppSurfaceNavigationGroup[];
+  onToggleFavorite: (favoriteId: string) => void;
   value: string;
   onSelect: (surfaceId: string) => void;
 }
@@ -29,10 +33,14 @@ function getSurfaceLabel(surface: AppSurfaceDefinition) {
 }
 
 export function AppSurfaceSelector({
+  appId,
+  favoriteSurfaceIds,
   groups,
+  onToggleFavorite,
   value,
   onSelect,
 }: AppSurfaceSelectorProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [portalStyle, setPortalStyle] = useState<CSSProperties>();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -130,7 +138,7 @@ export function AppSurfaceSelector({
     >
       {groups.map((group, index) => (
         <div
-          key={group.label}
+          key={group.id}
           className={cn(index > 0 && "mt-2 border-t border-border/70 pt-2")}
         >
           <div className="px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -139,32 +147,47 @@ export function AppSurfaceSelector({
           <div className="mt-1 flex flex-col gap-1">
             {group.surfaces.map((surface) => {
               const isActive = surface.id === value;
+              const favoriteId = getSurfaceFavoriteId(appId, surface.id);
+              const isFavorite = isSurfaceFavorited(favoriteSurfaceIds, appId, surface.id);
 
               return (
-                <button
+                <div
                   key={surface.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={isActive}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-[calc(var(--radius)-6px)] px-3 py-2.5 text-left transition-colors hover:bg-muted/45",
+                    "flex items-center gap-2 rounded-[calc(var(--radius)-6px)] pl-3 pr-1 transition-colors hover:bg-muted/45",
                     isActive && "bg-primary/14 text-topbar-foreground",
                   )}
-                  onClick={() => {
-                    setOpen(false);
-                    onSelect(surface.id);
-                  }}
                 >
-                  <span className="flex h-4 w-4 shrink-0 items-center justify-center text-primary">
-                    {isActive ? <Check className="h-4 w-4" /> : null}
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={isActive}
+                    className="flex min-w-0 flex-1 items-center gap-3 py-2.5 text-left"
+                    onClick={() => {
+                      setOpen(false);
+                      onSelect(surface.id);
+                    }}
+                  >
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center text-primary">
+                      {isActive ? <Check className="h-4 w-4" /> : null}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {getSurfaceLabel(surface)}
+                    </span>
+                    <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                      {surface.kind}
+                    </span>
+                  </button>
+                  <SurfaceFavoriteButton
+                    favorite={isFavorite}
+                    onToggle={() => onToggleFavorite(favoriteId)}
+                  />
+                  <span className="sr-only">
+                    {isFavorite
+                      ? t("common.removeFromFavorites")
+                      : t("common.addToFavorites")}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {getSurfaceLabel(surface)}
-                  </span>
-                  <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    {surface.kind}
-                  </span>
-                </button>
+                </div>
               );
             })}
           </div>

@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { LogOut, Palette, Settings, type LucideProps } from "lucide-react";
+import { LogOut, Settings, type LucideProps } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -29,13 +29,10 @@ interface UserMenuProps {
   name: string;
   onOpenSettings?: () => void;
   onLogout: () => void;
-  onThemeAction?: () => void;
   placement?: "bottom" | "right";
   role?: string;
   settingsLabel?: string;
   team?: string;
-  themeLabel?: string;
-  themeValue?: string;
   triggerContent?: ReactNode;
   triggerClassName?: string;
   triggerLabel?: string;
@@ -51,13 +48,10 @@ export function UserMenu({
   name,
   onOpenSettings,
   onLogout,
-  onThemeAction,
   placement = "bottom",
   role,
   settingsLabel,
   team,
-  themeLabel,
-  themeValue,
   triggerContent,
   triggerClassName,
   triggerLabel,
@@ -200,24 +194,6 @@ export function UserMenu({
           </button>
         );
       })}
-
-      {onThemeAction ? (
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 rounded-[calc(var(--radius)-6px)] px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
-          role="menuitem"
-          onClick={() => {
-            setOpen(false);
-            onThemeAction();
-          }}
-        >
-          <Palette className="h-4 w-4 text-muted-foreground" />
-          <span className="flex-1 text-left">{themeLabel ?? "Theme"}</span>
-          {themeValue ? (
-            <span className="text-xs text-muted-foreground">{themeValue}</span>
-          ) : null}
-        </button>
-      ) : null}
 
       {onOpenSettings ? (
         <button

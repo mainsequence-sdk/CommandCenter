@@ -1,5 +1,6 @@
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import type {
+  DashboardControlsState,
   DashboardDefinition,
   DashboardWidgetInstance,
   DashboardWidgetLegacyLayout,
@@ -21,7 +22,7 @@ const LEGACY_WORKSPACE_ROW_HEIGHT = 78;
 const LEGACY_WORKSPACE_GAP = 8;
 
 const DEFAULT_TIME_RANGE_OPTIONS = ["15m", "1h", "6h", "24h", "7d", "30d", "90d"] as const;
-const DEFAULT_REFRESH_INTERVALS = [null, 30_000, 60_000, 300_000] as const;
+const DEFAULT_REFRESH_INTERVALS = [null, 10_000, 15_000, 30_000, 60_000] as const;
 
 export interface UserDashboardCollection {
   version: number;
@@ -436,6 +437,75 @@ export function setDashboardWidgetGeometry(
           x: geometry.x ?? widget.position?.x,
           y: geometry.y ?? widget.position?.y,
         },
+      };
+    }),
+  });
+}
+
+export function updateDashboardControlsState(
+  dashboard: DashboardDefinition,
+  state: DashboardControlsState,
+) {
+  const nextControls = {
+    enabled: dashboard.controls?.enabled ?? true,
+    timeRange: {
+      enabled: dashboard.controls?.timeRange?.enabled ?? true,
+      defaultRange: dashboard.controls?.timeRange?.defaultRange ?? "24h",
+      options: dashboard.controls?.timeRange?.options ?? [...DEFAULT_TIME_RANGE_OPTIONS],
+      selectedRange: state.timeRangeKey,
+      customStartMs: state.timeRangeKey === "custom" ? state.rangeStartMs : undefined,
+      customEndMs: state.timeRangeKey === "custom" ? state.rangeEndMs : undefined,
+    },
+    refresh: {
+      enabled: dashboard.controls?.refresh?.enabled ?? true,
+      defaultIntervalMs: dashboard.controls?.refresh?.defaultIntervalMs ?? 60_000,
+      intervals: dashboard.controls?.refresh?.intervals ?? [...DEFAULT_REFRESH_INTERVALS],
+      selectedIntervalMs: state.refreshIntervalMs,
+    },
+    actions: {
+      enabled: dashboard.controls?.actions?.enabled ?? true,
+      share: dashboard.controls?.actions?.share ?? false,
+      view: dashboard.controls?.actions?.view ?? true,
+    },
+  };
+
+  if (
+    JSON.stringify(nextControls) === JSON.stringify(dashboard.controls ?? null)
+  ) {
+    return dashboard;
+  }
+
+  return {
+    ...dashboard,
+    controls: nextControls,
+  };
+}
+
+export function updateDashboardWidgetSettings(
+  dashboard: DashboardDefinition,
+  instanceId: string,
+  settings: {
+    title?: string;
+    props?: Record<string, unknown>;
+  },
+) {
+  return materializeDashboardLayout({
+    ...dashboard,
+    widgets: dashboard.widgets.map((widget) => {
+      if (widget.id !== instanceId) {
+        return widget;
+      }
+
+      return {
+        ...widget,
+        title:
+          "title" in settings
+            ? (settings.title?.trim() ? settings.title.trim() : undefined)
+            : widget.title,
+        props:
+          "props" in settings
+            ? cloneJson(settings.props ?? {})
+            : widget.props,
       };
     }),
   });

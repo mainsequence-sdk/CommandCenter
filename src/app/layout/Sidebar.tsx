@@ -14,7 +14,6 @@ import { Avatar } from "@/components/ui/avatar";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
-import { useTheme } from "@/themes/ThemeProvider";
 import { SettingsDialog } from "./SettingsDialog";
 import { UserMenu } from "./UserMenu";
 
@@ -96,7 +95,6 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { app } = useCommandCenterConfig();
-  const { activeTheme, cycleTheme } = useTheme();
   const user = useAuthStore((state) => state.session?.user);
   const logout = useAuthStore((state) => state.logout);
   const sidebarCollapsed = useShellStore((state) => state.sidebarCollapsed);
@@ -250,6 +248,7 @@ export function Sidebar() {
             </div>
           </div>
         ) : null}
+
       </nav>
 
       <div className="mt-auto shrink-0 px-2 pb-3 pt-2">
@@ -277,9 +276,6 @@ export function Sidebar() {
                 setUserSettingsOpen(true);
               }}
               menuActions={userMenuActions}
-              onThemeAction={cycleTheme}
-              themeLabel={t("topbar.cycleTheme")}
-              themeValue={activeTheme.label}
               onLogout={() => {
                 logout();
                 navigate("/login");
@@ -332,9 +328,6 @@ export function Sidebar() {
                   setUserSettingsOpen(true);
                 }}
                 menuActions={userMenuActions}
-                onThemeAction={cycleTheme}
-                themeLabel={t("topbar.cycleTheme")}
-                themeValue={activeTheme.label}
                 onLogout={() => {
                   logout();
                   navigate("/login");

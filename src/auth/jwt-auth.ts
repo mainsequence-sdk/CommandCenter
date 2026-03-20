@@ -6,7 +6,7 @@ import {
   type Permission,
   type Session,
 } from "@/auth/types";
-import { getPermissionsForRole } from "@/auth/permissions";
+import { getPermissionsForRole, normalizeBuiltinRole } from "@/auth/permissions";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 
@@ -467,7 +467,7 @@ function resolveRoleFromGroups(groups: string[], fallbackRole: string) {
   const normalizedGroups = new Set(groups.map((group) => group.toLowerCase()));
   const roleGroups = commandCenterConfig.auth.jwt.userDetails.roleGroups;
 
-  for (const role of ["admin", "trader", "analyst", "viewer"] as const) {
+  for (const role of ["admin", "user"] as const) {
     const configuredGroups = normalizeConfiguredGroupList(roleGroups[role]);
 
     if (
@@ -513,7 +513,7 @@ function buildUserProfile(
       resolveMappedValue(claimMapping.role, tokenSources),
     "user",
   );
-  const role = resolveRoleFromGroups(groups, fallbackRole);
+  const role = normalizeBuiltinRole(resolveRoleFromGroups(groups, fallbackRole)) ?? "user";
   const permissions = normalizePermissions(
     (userDetails && resolveMappedValue(userDetailsMapping.permissions, [userDetails])) ??
       resolveMappedValue(claimMapping.permissions, tokenSources),
@@ -636,7 +636,7 @@ function parseStoredSession(value: unknown): Session | null {
       email: readString(value.user.email),
       avatarUrl: readString(value.user.avatarUrl) || undefined,
       team: readString(value.user.team, "Unknown"),
-      role: readString(value.user.role, "user"),
+      role: normalizeBuiltinRole(readString(value.user.role, "user")) ?? "user",
       permissions,
       groups: normalizeGroupNames(value.user.groups),
       dateJoined: readString(value.user.dateJoined) || undefined,

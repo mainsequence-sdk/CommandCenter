@@ -6,6 +6,7 @@ import { AgGridProvider, AgGridReact } from "ag-grid-react";
 
 import { fetchPositions, type PositionRow } from "@/data/api";
 import { formatCurrency, formatNumber, formatSignedCurrency } from "@/lib/format";
+import { getThemeTightnessMetrics } from "@/themes/tightness";
 import { useTheme } from "@/themes/ThemeProvider";
 import { createAgGridTerminalTheme } from "@/widgets/extensions/ag-grid/grid-theme";
 import type { WidgetComponentProps } from "@/widgets/types";
@@ -15,12 +16,19 @@ type Props = WidgetComponentProps<Record<string, unknown>>;
 const agGridModules = [AllCommunityModule];
 
 export function PositionsTableWidget({}: Props) {
-  const { resolvedTokens } = useTheme();
+  const { resolvedTokens, tightness } = useTheme();
+  const tightnessMetrics = useMemo(
+    () => getThemeTightnessMetrics(tightness),
+    [tightness],
+  );
   const query = useQuery({
     queryKey: ["positions"],
     queryFn: fetchPositions,
   });
-  const theme = useMemo(() => createAgGridTerminalTheme(resolvedTokens), [resolvedTokens]);
+  const theme = useMemo(
+    () => createAgGridTerminalTheme(resolvedTokens, tightnessMetrics.table),
+    [resolvedTokens, tightnessMetrics],
+  );
 
   const columnDefs = useMemo<ColDef<PositionRow>[]>(
     () => [
@@ -91,8 +99,8 @@ export function PositionsTableWidget({}: Props) {
           animateRows
           pagination={false}
           suppressMovableColumns
-          rowHeight={38}
-          headerHeight={38}
+          rowHeight={tightnessMetrics.table.agGridRowHeight}
+          headerHeight={tightnessMetrics.table.agGridHeaderHeight}
         />
       </div>
     </AgGridProvider>

@@ -398,7 +398,7 @@ export function TeamsPage() {
                   <thead>
                     <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                       {canManageTeamCrud ? (
-                        <th className="w-12 px-3 pb-2">
+                        <th className="w-12 px-3 py-[var(--table-standard-header-padding-y)]">
                           <MainSequenceSelectionCheckbox
                             ariaLabel="Select all teams"
                             checked={teamSelection.allSelected}
@@ -407,10 +407,10 @@ export function TeamsPage() {
                           />
                         </th>
                       ) : null}
-                      <th className="px-4 pb-2">Team</th>
-                      <th className="px-4 pb-2">Description</th>
-                      <th className="px-4 pb-2">Members</th>
-                      <th className="px-4 pb-2">Status</th>
+                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">Team</th>
+                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">Description</th>
+                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">Members</th>
+                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -605,19 +605,21 @@ export function TeamsPage() {
                   {!teamMembersQuery.isLoading && !teamMembersQuery.isError && (teamMembersQuery.data?.length ?? 0) > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[680px] border-separate border-spacing-y-2 text-sm">
-                        <thead>
-                          <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                            {canManageTeamCrud ? <th className="w-12 px-3 pb-2" /> : null}
-                            <th className="px-4 pb-2">Name</th>
-                            <th className="px-4 pb-2">Email</th>
-                            <th className="px-4 pb-2">Username</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {teamMembersQuery.data?.map((member) => (
-                            <tr key={member.id}>
+                          <thead>
+                            <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                               {canManageTeamCrud ? (
-                                <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-3 py-3">
+                                <th className="w-12 px-3 py-[var(--table-standard-header-padding-y)]" />
+                              ) : null}
+                              <th className="px-4 py-[var(--table-standard-header-padding-y)]">Name</th>
+                              <th className="px-4 py-[var(--table-standard-header-padding-y)]">Email</th>
+                              <th className="px-4 py-[var(--table-standard-header-padding-y)]">Username</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {teamMembersQuery.data?.map((member) => (
+                              <tr key={member.id}>
+                              {canManageTeamCrud ? (
+                                <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-3 py-[var(--table-standard-cell-padding-y)]">
                                   <input
                                     type="checkbox"
                                     checked={selectedMemberIds.includes(member.id)}
@@ -627,13 +629,13 @@ export function TeamsPage() {
                                   />
                                 </td>
                               ) : null}
-                              <td className={`${canManageTeamCrud ? "border-r-0" : "rounded-l-[calc(var(--radius)-2px)]"} border border-border/70 bg-background/24 px-4 py-3 text-foreground`}>
+                              <td className={`${canManageTeamCrud ? "border-r-0" : "rounded-l-[calc(var(--radius)-2px)]"} border border-border/70 bg-background/24 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground`}>
                                 {getTeamMemberName(member)}
                               </td>
-                              <td className="border border-border/70 bg-background/24 px-4 py-3 text-foreground">
+                              <td className="border border-border/70 bg-background/24 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                 {member.email}
                               </td>
-                              <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-4 py-3 text-foreground">
+                              <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                 {member.username || "Not set"}
                               </td>
                             </tr>
@@ -704,16 +706,16 @@ export function TeamsPage() {
                         <table className="w-full min-w-[680px] border-separate border-spacing-y-2 text-sm">
                           <thead>
                             <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                              <th className="w-12 px-3 pb-2" />
-                              <th className="px-4 pb-2">Name</th>
-                              <th className="px-4 pb-2">Email</th>
-                              <th className="px-4 pb-2">Username</th>
+                              <th className="w-12 px-3 py-[var(--table-standard-header-padding-y)]" />
+                              <th className="px-4 py-[var(--table-standard-header-padding-y)]">Name</th>
+                              <th className="px-4 py-[var(--table-standard-header-padding-y)]">Email</th>
+                              <th className="px-4 py-[var(--table-standard-header-padding-y)]">Username</th>
                             </tr>
                           </thead>
                           <tbody>
                             {teamCandidateMembersQuery.data?.map((member) => (
                               <tr key={member.id}>
-                                <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-3 py-3">
+                                <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-3 py-[var(--table-standard-cell-padding-y)]">
                                   <input
                                     type="checkbox"
                                     checked={selectedCandidateIds.includes(member.id)}
@@ -722,13 +724,13 @@ export function TeamsPage() {
                                     }
                                   />
                                 </td>
-                                <td className="border border-border/70 bg-background/24 px-4 py-3 text-foreground">
+                                <td className="border border-border/70 bg-background/24 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                   {getTeamMemberName(member)}
                                 </td>
-                                <td className="border border-border/70 bg-background/24 px-4 py-3 text-foreground">
+                                <td className="border border-border/70 bg-background/24 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                   {member.email}
                                 </td>
-                                <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-4 py-3 text-foreground">
+                                <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                   {member.username || "Not set"}
                                 </td>
                               </tr>

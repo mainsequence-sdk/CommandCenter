@@ -154,7 +154,7 @@ function SummaryHighlightField({
   const buttonClassName = `${valueClassName} mt-1.5 inline-flex max-w-full items-center gap-1.5 text-left text-sm font-medium underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary`;
 
   return (
-    <div className="min-w-[148px] max-w-full flex-none rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-3 py-2.5">
+    <div className="min-w-[148px] max-w-full flex-none rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-[var(--summary-highlight-card-padding-x)] py-[var(--summary-highlight-card-padding-y)]">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
           {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
@@ -172,7 +172,7 @@ function SummaryHighlightField({
       </div>
 
       {field.kind === "badges" && Array.isArray(field.value) ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-[var(--summary-highlight-value-margin-top)] flex flex-wrap gap-1.5">
           {field.value.length > 0 ? (
             field.value.map((badgeValue, index) => (
               <Badge key={`${field.key}-${index}`} variant={summaryToneToBadgeVariant(field.tone)}>
@@ -189,10 +189,18 @@ function SummaryHighlightField({
           <ArrowUpRight className="h-3.5 w-3.5" />
         </button>
       ) : (
-        <div className={`${valueClassName} mt-1.5 truncate text-sm font-medium`}>{value}</div>
+        <div
+          className={`${valueClassName} mt-[var(--summary-highlight-value-margin-top)] truncate text-sm font-medium`}
+        >
+          {value}
+        </div>
       )}
 
-      {field.meta ? <div className="mt-0.5 truncate text-xs text-muted-foreground">{field.meta}</div> : null}
+      {field.meta ? (
+        <div className="mt-[var(--summary-highlight-meta-margin-top)] truncate text-xs text-muted-foreground">
+          {field.meta}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -280,7 +288,7 @@ export function MainSequenceEntitySummaryCard({
           </div>
 
           {summary.highlight_fields.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2.5">
+            <div className="mt-3 flex flex-wrap gap-[var(--summary-highlight-gap)]">
               {summary.highlight_fields.map((field) => (
                 <SummaryHighlightField
                   key={field.key}
@@ -296,13 +304,16 @@ export function MainSequenceEntitySummaryCard({
         {summary.stats.length > 0 ? (
           <CardContent className="pt-4">
             <div className="mt-4">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-[var(--summary-stat-grid-gap)] md:grid-cols-2 xl:grid-cols-4">
                 {summary.stats.map((item) => (
                   <div
                     key={item.key}
-                    className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3"
+                    className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-[var(--summary-stat-card-padding-x)] py-[var(--summary-stat-card-padding-y)]"
                   >
-                    <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                    <div
+                      className="flex items-center justify-between gap-3 uppercase tracking-[0.16em] text-muted-foreground"
+                      style={{ fontSize: "var(--summary-stat-label-size)" }}
+                    >
                       <span>{item.label}</span>
                       <SummaryEditButton
                         item={item}
@@ -311,17 +322,26 @@ export function MainSequenceEntitySummaryCard({
                     </div>
                     <div
                       className={cn(
-                        "mt-3 text-2xl font-semibold tracking-tight text-foreground",
+                        "mt-[var(--summary-stat-value-margin-top)] font-semibold tracking-tight text-foreground",
                         item.edit?.enabled &&
                           item.edit.editor === "toggle" &&
                           item.value === true &&
                           "text-warning",
                       )}
+                      style={{ fontSize: "var(--summary-stat-value-size)" }}
                     >
                       {item.display}
                     </div>
                     {item.info ? (
-                      <div className="mt-2 text-xs leading-5 text-muted-foreground">{item.info}</div>
+                      <div
+                        className="mt-[var(--summary-stat-info-margin-top)] text-muted-foreground"
+                        style={{
+                          fontSize: "var(--summary-stat-info-size)",
+                          lineHeight: "var(--line-height-body)",
+                        }}
+                      >
+                        {item.info}
+                      </div>
                     ) : null}
                   </div>
                 ))}

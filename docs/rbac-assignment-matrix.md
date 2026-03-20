@@ -121,7 +121,7 @@ const scopes: RbacAssignmentScope[] = [
 
 const users = [
   { id: 1, email: "jose@main-sequence.io", roleLabel: "Org Admin" },
-  { id: 2, email: "ameer.uak@gmail.com", roleLabel: "Analyst" },
+  { id: 2, email: "ameer.uak@gmail.com", roleLabel: "User" },
 ];
 
 const teams = [

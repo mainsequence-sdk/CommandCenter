@@ -36,12 +36,19 @@ export type ThemeTokenKey = (typeof themeTokenKeys)[number];
 
 export type ThemeTokens = Record<ThemeTokenKey, string>;
 
+export const themeTightnessOptions = ["relaxed", "default", "tight"] as const;
+export type ThemeTightness = (typeof themeTightnessOptions)[number];
+export const themeSurfaceHierarchyOptions = ["framed", "soft", "flat"] as const;
+export type ThemeSurfaceHierarchy = (typeof themeSurfaceHierarchyOptions)[number];
+
 export interface ThemePreset {
   id: string;
   label: string;
   description: string;
   source: string;
   mode: "light" | "dark";
+  tightness: ThemeTightness;
+  surfaceHierarchy: ThemeSurfaceHierarchy;
   tokens: ThemeTokens;
 }
 
@@ -83,3 +90,39 @@ export const themeTokenMetadata: Array<{
   { key: "chart-grid", label: "Chart Grid", group: "Status", kind: "color" },
   { key: "radius", label: "Radius", group: "Layout", kind: "text" },
 ];
+
+export const themeTightnessMetadata: Record<
+  ThemeTightness,
+  { label: string; description: string }
+> = {
+  relaxed: {
+    label: "Relaxed",
+    description: "Current shipped baseline density.",
+  },
+  default: {
+    label: "Standard",
+    description: "One step tighter than the current relaxed baseline.",
+  },
+  tight: {
+    label: "Tight",
+    description: "The densest option for table-heavy analyst and operator workflows.",
+  },
+};
+
+export const themeSurfaceHierarchyMetadata: Record<
+  ThemeSurfaceHierarchy,
+  { label: string; description: string }
+> = {
+  framed: {
+    label: "Framed",
+    description: "Nested cards keep a visible panel edge for strong separation.",
+  },
+  soft: {
+    label: "Soft",
+    description: "Nested cards stay quiet with lighter borders and no panel shadow.",
+  },
+  flat: {
+    label: "Flat",
+    description: "Nested cards collapse into the parent surface and rely on spacing instead of chrome.",
+  },
+};

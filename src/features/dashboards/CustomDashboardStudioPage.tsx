@@ -12,10 +12,9 @@ import {
 } from "react";
 
 import {
+  ChevronUp,
   GripHorizontal,
   LayoutTemplate,
-  Maximize2,
-  Minimize2,
   MoveDiagonal2,
   Pencil,
   Plus,
@@ -36,9 +35,11 @@ import { Input } from "@/components/ui/input";
 import {
   DashboardControlsProvider,
   DashboardDataControls,
+  DashboardRefreshProgressLine,
 } from "@/dashboards/DashboardControls";
 import type { DashboardWidgetPlacement, ResolvedDashboardWidgetLayout } from "@/dashboards/types";
 import { cn, titleCase } from "@/lib/utils";
+import { useShellStore } from "@/stores/shell-store";
 import type { WidgetDefinition } from "@/widgets/types";
 import {
   appendCatalogWidget,
@@ -47,8 +48,14 @@ import {
   placeCatalogWidget,
   removeDashboardWidget,
   setDashboardWidgetGeometry,
+  updateDashboardControlsState,
+  updateDashboardWidgetSettings,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
+import {
+  WidgetSettingsDialog,
+  WidgetSettingsTrigger,
+} from "@/widgets/shared/widget-settings";
 
 interface CatalogDragPayload {
   widgetId: string;
@@ -207,12 +214,11 @@ function BuilderWidgetCard({
   style,
   widget,
   widgetProps,
-  expanded,
   onRemove,
   onSelect,
   onStartDrag,
   onStartResize,
-  onToggleExpanded,
+  onOpenSettings,
 }: {
   instanceId: string;
   instanceTitle?: string;
@@ -222,12 +228,11 @@ function BuilderWidgetCard({
   style?: CSSProperties;
   widget: WidgetDefinition;
   widgetProps: Record<string, unknown>;
-  expanded: boolean;
   onRemove: (instanceId: string) => void;
   onSelect: (instanceId: string) => void;
   onStartDrag: (event: ReactPointerEvent<HTMLElement>) => void;
   onStartResize: (event: ReactPointerEvent<HTMLElement>) => void;
-  onToggleExpanded: (instanceId: string) => void;
+  onOpenSettings: (instanceId: string) => void;
 }) {
   const Component = widget.component as ComponentType<{
     widget: typeof widget;
@@ -241,10 +246,10 @@ function BuilderWidgetCard({
     <section
       style={style}
       className={cn(
-        "group relative z-10 flex min-h-0 flex-col overflow-hidden rounded-[20px] border bg-[rgba(7,12,22,0.9)] text-card-foreground shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-xl transition-colors",
+        "group relative z-10 flex min-h-0 flex-col overflow-hidden rounded-[20px] border bg-card/92 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl transition-colors",
         selected && editable
           ? "border-primary/70 ring-2 ring-primary/30"
-          : "border-white/8 hover:border-white/14",
+          : "border-border/70 hover:border-border",
       )}
       onPointerDownCapture={() => {
         if (editable) {
@@ -255,7 +260,7 @@ function BuilderWidgetCard({
       {editable ? (
         <button
           type="button"
-          className="absolute top-3 left-1/2 z-20 flex h-8 -translate-x-1/2 cursor-grab items-center gap-1.5 rounded-full border border-white/12 bg-[rgba(7,12,22,0.96)] px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground shadow-[0_10px_26px_rgba(0,0,0,0.28)] transition-colors hover:border-white/20 hover:bg-[rgba(10,16,30,0.98)] hover:text-foreground active:cursor-grabbing"
+          className="absolute top-3 left-1/2 z-20 flex h-8 -translate-x-1/2 cursor-grab items-center gap-1.5 rounded-full border border-border/70 bg-background/88 px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground shadow-[var(--shadow-panel)] transition-colors hover:border-border hover:bg-muted/55 hover:text-foreground active:cursor-grabbing"
           aria-label={`Drag ${title}`}
           onPointerDown={(event) => {
             event.stopPropagation();
@@ -269,7 +274,7 @@ function BuilderWidgetCard({
 
       <header
         className={cn(
-          "flex items-center justify-between gap-3 border-b border-white/8 px-3 py-2.5",
+          "flex items-center justify-between gap-3 border-b border-border/70 px-3 py-2.5",
           editable ? "cursor-grab pt-12 active:cursor-grabbing" : undefined,
         )}
         onPointerDown={(event) => {
@@ -290,23 +295,19 @@ function BuilderWidgetCard({
           <div className="truncate text-sm font-medium text-card-foreground">{title}</div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground"
-            aria-label={expanded ? `Collapse ${title}` : `Expand ${title}`}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleExpanded(instanceId);
-            }}
-          >
-            {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-          </button>
-
-          {editable ? (
+        {editable ? (
+          <div className="flex items-center gap-1">
+            <WidgetSettingsTrigger
+              widgetTitle={title}
+              className="h-7 w-7 rounded-md border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenSettings(instanceId);
+              }}
+            />
             <button
               type="button"
               className="flex h-7 w-7 items-center justify-center rounded-md border border-danger/30 bg-danger/8 text-danger transition-colors hover:bg-danger/16"
@@ -321,18 +322,18 @@ function BuilderWidgetCard({
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </header>
 
       <div className="min-h-0 flex-1 p-3">
         <Component widget={widget} instanceTitle={instanceTitle} props={widgetProps} />
       </div>
 
-      {selected && editable && !expanded ? (
+      {selected && editable ? (
         <button
           type="button"
-          className="absolute right-3 bottom-3 flex h-8 w-8 cursor-se-resize items-center justify-center rounded-full border border-primary/40 bg-[rgba(8,16,30,0.92)] text-primary shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition-colors hover:bg-[rgba(12,22,40,0.96)]"
+          className="absolute right-3 bottom-3 flex h-8 w-8 cursor-se-resize items-center justify-center rounded-full border border-primary/40 bg-background/88 text-primary shadow-[var(--shadow-panel)] transition-colors hover:bg-muted/55"
           aria-label={`Resize ${title}`}
           onPointerDown={(event) => {
             event.stopPropagation();
@@ -367,9 +368,11 @@ export function CustomDashboardStudioPage() {
   const [activeInteraction, setActiveInteraction] = useState<ActiveInteraction | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [expandedInstanceId, setExpandedInstanceId] = useState<string | null>(null);
+  const [settingsInstanceId, setSettingsInstanceId] = useState<string | null>(null);
   const [measuredGridMetrics, setMeasuredGridMetrics] = useState<GridMetrics | null>(null);
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
+  const dashboardMenuHidden = useShellStore((state) => state.workspaceCanvasMenuHidden);
+  const setDashboardMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
 
   const allowedWidgets = useMemo(
     () =>
@@ -417,10 +420,14 @@ export function CustomDashboardStudioPage() {
     [editMode, resolvedDashboard, selectedInstanceId],
   );
 
-  const expandedWidget = useMemo(
+  const settingsWidget = useMemo(
     () =>
-      resolvedDashboard?.widgets.find((widget) => widget.id === expandedInstanceId) ?? null,
-    [expandedInstanceId, resolvedDashboard],
+      resolvedDashboard?.widgets.find((widget) => widget.id === settingsInstanceId) ?? null,
+    [resolvedDashboard, settingsInstanceId],
+  );
+  const settingsWidgetDefinition = useMemo(
+    () => (settingsWidget ? getWidgetById(settingsWidget.widgetId) : null),
+    [settingsWidget],
   );
 
   useEffect(() => {
@@ -441,7 +448,7 @@ export function CustomDashboardStudioPage() {
     setActiveCatalogDrag(null);
     setHoveredPlacement(null);
     setActiveInteraction(null);
-    setExpandedInstanceId(null);
+    setSettingsInstanceId(null);
     setEditMode(false);
   }, [selectedDashboard?.id]);
 
@@ -487,12 +494,12 @@ export function CustomDashboardStudioPage() {
     }
 
     if (
-      expandedInstanceId &&
-      !resolvedDashboard?.widgets.some((widget) => widget.id === expandedInstanceId)
+      settingsInstanceId &&
+      !resolvedDashboard?.widgets.some((widget) => widget.id === settingsInstanceId)
     ) {
-      setExpandedInstanceId(null);
+      setSettingsInstanceId(null);
     }
-  }, [expandedInstanceId, resolvedDashboard, selectedInstanceId]);
+  }, [resolvedDashboard, selectedInstanceId, settingsInstanceId]);
 
   const selectedBounds = useMemo(
     () =>
@@ -768,11 +775,18 @@ export function CustomDashboardStudioPage() {
   }
 
   return (
-    <DashboardControlsProvider key={selectedDashboard.id} controls={selectedDashboard.controls}>
+    <DashboardControlsProvider
+      key={selectedDashboard.id}
+      controls={selectedDashboard.controls}
+      onStateChange={(state) => {
+        updateSelectedWorkspace((dashboard) => updateDashboardControlsState(dashboard, state));
+      }}
+    >
       <div
         className="relative h-full min-h-full overflow-hidden"
         style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
       >
+        <DashboardRefreshProgressLine />
         <div
           className="pointer-events-none absolute inset-0"
           style={{ backgroundImage: "var(--workspace-canvas-background)" }}
@@ -782,65 +796,80 @@ export function CustomDashboardStudioPage() {
           style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
         />
 
-        <div className="pointer-events-none absolute top-4 left-4 right-4 z-40">
-          <div className="pointer-events-auto">
-            <DashboardDataControls
-              controls={selectedDashboard.controls}
-              leftActions={
-                <>
-                  <WorkspaceToolbarButton
-                    active={editMode}
-                    title="Edit workspace"
-                    onClick={handleEditAction}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </WorkspaceToolbarButton>
-                  {editMode ? (
+        {!dashboardMenuHidden ? (
+          <div className="pointer-events-none absolute top-2 left-4 right-4 z-40">
+            <div className="pointer-events-auto">
+              <DashboardDataControls
+                controls={selectedDashboard.controls}
+                leftActions={
+                  <>
                     <WorkspaceToolbarButton
-                      active={dirty}
-                      title="Save workspace"
-                      onClick={handleSaveAction}
-                      disabled={!dirty}
-                      className={!dirty ? "opacity-50" : undefined}
+                      active={editMode}
+                      title="Edit workspace"
+                      onClick={handleEditAction}
                     >
-                      {dirty ? (
-                        <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-warning" />
-                      ) : null}
-                      <Save className="h-3.5 w-3.5" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </WorkspaceToolbarButton>
-                  ) : null}
-                  <WorkspaceToolbarButton
-                    active={libraryOpen}
-                    title="Components"
-                    onClick={() => {
-                      if (!editMode) {
-                        setEditMode(true);
-                        setLibraryOpen(true);
-                        return;
-                      }
+                    {editMode ? (
+                      <WorkspaceToolbarButton
+                        active={dirty}
+                        title="Save workspace"
+                        onClick={handleSaveAction}
+                        disabled={!dirty}
+                        className={!dirty ? "opacity-50" : undefined}
+                      >
+                        {dirty ? (
+                          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-warning" />
+                        ) : null}
+                        <Save className="h-3.5 w-3.5" />
+                      </WorkspaceToolbarButton>
+                    ) : null}
+                    <WorkspaceToolbarButton
+                      active={libraryOpen}
+                      title="Components"
+                      onClick={() => {
+                        if (!editMode) {
+                          setEditMode(true);
+                          setLibraryOpen(true);
+                          return;
+                        }
 
-                      setLibraryOpen((current) => !current);
-                    }}
-                  >
-                    <LayoutTemplate className="h-3.5 w-3.5" />
-                  </WorkspaceToolbarButton>
-                  <WorkspaceToolbarButton
-                    title="Workspace settings"
-                    onClick={() => {
-                      navigate(
-                        `${getAppPath("workspace-studio", "settings")}?workspace=${encodeURIComponent(selectedDashboard.id)}`,
-                      );
-                    }}
-                  >
-                    <Settings2 className="h-3.5 w-3.5" />
-                  </WorkspaceToolbarButton>
-                </>
-              }
-            />
+                        setLibraryOpen((current) => !current);
+                      }}
+                    >
+                      <LayoutTemplate className="h-3.5 w-3.5" />
+                    </WorkspaceToolbarButton>
+                    <WorkspaceToolbarButton
+                      title="Workspace settings"
+                      onClick={() => {
+                        navigate(
+                          `${getAppPath("workspace-studio", "settings")}?workspace=${encodeURIComponent(selectedDashboard.id)}`,
+                        );
+                      }}
+                    >
+                      <Settings2 className="h-3.5 w-3.5" />
+                    </WorkspaceToolbarButton>
+                    <WorkspaceToolbarButton
+                      title="Hide dashboard menu"
+                      onClick={() => {
+                        setDashboardMenuHidden(true);
+                      }}
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </WorkspaceToolbarButton>
+                  </>
+                }
+              />
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        <div className="absolute inset-0 overflow-auto px-4 pt-16 pb-4">
+        <div
+          className={cn(
+            "absolute inset-0 overflow-auto px-4 pb-4 transition-[padding] duration-200",
+            dashboardMenuHidden ? "pt-3" : "pt-12",
+          )}
+        >
           <div
             className="relative min-h-full"
             onPointerDown={(event) => {
@@ -890,7 +919,7 @@ export function CustomDashboardStudioPage() {
                   gridRow: "1 / span 6",
                 }}
               >
-                <div className="rounded-full border border-white/10 bg-[rgba(7,12,22,0.84)] px-4 py-2 text-xs uppercase tracking-[0.2em] text-muted-foreground shadow-[0_14px_40px_rgba(0,0,0,0.3)] backdrop-blur-xl">
+                <div className="rounded-full border border-border/70 bg-card/82 px-4 py-2 text-xs uppercase tracking-[0.2em] text-muted-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl">
                   Use the toolbar to add components
                 </div>
               </div>
@@ -922,13 +951,11 @@ export function CustomDashboardStudioPage() {
                   style={layoutToStyle(instance.layout)}
                   widget={widget}
                   widgetProps={instance.props ?? {}}
-                  expanded={expandedInstanceId === instance.id}
                   onRemove={(instanceId) => {
                     updateSelectedWorkspace((dashboard) =>
                       removeDashboardWidget(dashboard, instanceId),
                     );
                     setSelectedInstanceId((current) => (current === instanceId ? null : current));
-                    setExpandedInstanceId((current) => (current === instanceId ? null : current));
                   }}
                   onSelect={(instanceId) => {
                     setSelectedInstanceId(instanceId);
@@ -939,9 +966,9 @@ export function CustomDashboardStudioPage() {
                   onStartResize={(event) => {
                     startInteraction("resize", instance.id, instance.layout, event);
                   }}
-                  onToggleExpanded={(instanceId) => {
-                    setExpandedInstanceId((current) => (current === instanceId ? null : instanceId));
-                    setLibraryOpen(false);
+                  onOpenSettings={(instanceId) => {
+                    setSelectedInstanceId(instanceId);
+                    setSettingsInstanceId(instanceId);
                   }}
                 />
               );
@@ -964,12 +991,13 @@ export function CustomDashboardStudioPage() {
 
         <aside
           className={cn(
-            "absolute top-16 left-4 bottom-4 z-30 w-[320px] max-w-[calc(100%-2rem)] overflow-hidden rounded-[24px] border border-white/10 bg-[rgba(7,12,22,0.92)] shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-xl transition-transform duration-200",
+            "absolute left-4 bottom-4 z-30 w-[320px] max-w-[calc(100%-2rem)] overflow-hidden rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform] duration-200",
+            dashboardMenuHidden ? "top-4" : "top-12",
             libraryOpen ? "translate-x-0" : "-translate-x-[calc(100%+24px)]",
           )}
         >
           <div className="flex h-full flex-col">
-            <div className="flex items-start justify-between gap-3 border-b border-white/8 px-4 py-4">
+            <div className="flex items-start justify-between gap-3 border-b border-border/70 px-4 py-4">
               <div>
                 <div className="text-sm font-semibold text-foreground">Components</div>
                 <div className="mt-1 text-sm text-muted-foreground">
@@ -978,7 +1006,7 @@ export function CustomDashboardStudioPage() {
               </div>
               <button
                 type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
                 aria-label="Close components"
                 onClick={() => {
                   setLibraryOpen(false);
@@ -988,11 +1016,11 @@ export function CustomDashboardStudioPage() {
               </button>
             </div>
 
-            <div className="border-b border-white/8 px-4 py-4">
+            <div className="border-b border-border/70 px-4 py-4">
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  className="border-white/10 bg-white/[0.04] pl-9"
+                  className="border-border/70 bg-background/45 pl-9"
                   value={catalogQuery}
                   onChange={(event) => {
                     setCatalogQuery(event.target.value);
@@ -1008,7 +1036,7 @@ export function CustomDashboardStudioPage() {
                   <div
                     key={widget.id}
                     className={cn(
-                      "rounded-[18px] border border-white/8 bg-white/[0.03] p-3 transition-colors",
+                      "rounded-[18px] border border-border/70 bg-background/35 p-3 transition-colors hover:bg-background/55",
                       editMode ? "cursor-grab active:cursor-grabbing" : undefined,
                     )}
                     onPointerDown={(event) => {
@@ -1057,7 +1085,7 @@ export function CustomDashboardStudioPage() {
                 ))}
 
                 {filteredWidgets.length === 0 ? (
-                  <div className="rounded-[18px] border border-dashed border-white/10 bg-white/[0.03] p-5 text-center text-sm text-muted-foreground">
+                  <div className="rounded-[18px] border border-dashed border-border/70 bg-background/35 p-5 text-center text-sm text-muted-foreground">
                     No components match the current search.
                   </div>
                 ) : null}
@@ -1066,44 +1094,25 @@ export function CustomDashboardStudioPage() {
           </div>
         </aside>
 
-        {expandedWidget ? (
-          <div
-            className="absolute inset-0 z-50 bg-[rgba(2,6,17,0.68)] backdrop-blur-sm"
-            onClick={() => {
-              setExpandedInstanceId(null);
+        {settingsWidget && settingsWidgetDefinition ? (
+          <WidgetSettingsDialog
+            open
+            widget={settingsWidgetDefinition}
+            instance={settingsWidget}
+            persistenceNote="Changes apply to this workspace immediately. Save workspace only if you want to keep them in local browser storage."
+            onClose={() => {
+              setSettingsInstanceId(null);
             }}
-          >
-            <div className="absolute inset-4" onClick={(event) => event.stopPropagation()}>
-              {(() => {
-                const expandedWidgetDefinition = getWidgetById(expandedWidget.widgetId);
-
-                if (!expandedWidgetDefinition) {
-                  return null;
-                }
-
-                return (
-                  <BuilderWidgetCard
-                    instanceId={expandedWidget.id}
-                    instanceTitle={expandedWidget.title}
-                    layout={expandedWidget.layout}
-                    selected={false}
-                    editable={false}
-                    expanded
-                    style={{ height: "100%" }}
-                    widget={expandedWidgetDefinition}
-                    widgetProps={expandedWidget.props ?? {}}
-                    onRemove={() => {}}
-                    onSelect={() => {}}
-                    onStartDrag={() => {}}
-                    onStartResize={() => {}}
-                    onToggleExpanded={() => {
-                      setExpandedInstanceId(null);
-                    }}
-                  />
-                );
-              })()}
-            </div>
-          </div>
+            onSave={({ title, props }) => {
+              setEditMode(true);
+              updateSelectedWorkspace((dashboard) =>
+                updateDashboardWidgetSettings(dashboard, settingsWidget.id, {
+                  title,
+                  props,
+                }),
+              );
+            }}
+          />
         ) : null}
 
         {activeCatalogDrag ? (
@@ -1114,7 +1123,7 @@ export function CustomDashboardStudioPage() {
               top: activeCatalogDrag.clientY + 14,
             }}
           >
-            <div className="rounded-[16px] border border-primary/30 bg-[rgba(7,12,22,0.92)] px-3 py-2 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+            <div className="rounded-[16px] border border-primary/30 bg-card/92 px-3 py-2 shadow-[var(--shadow-panel)] backdrop-blur-xl">
               <div className="text-xs font-medium text-foreground">
                 {widgetMap.get(activeCatalogDrag.widgetId)?.title ?? "Component"}
               </div>

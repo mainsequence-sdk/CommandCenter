@@ -11,6 +11,11 @@
           "mainDocId": "README",
           "docs": [
             {
+              "id": "access-rbac-app",
+              "path": "/docs/access-rbac-app",
+              "sidebar": "docsSidebar"
+            },
+            {
               "id": "apps-and-surfaces",
               "path": "/docs/apps-and-surfaces",
               "sidebar": "docsSidebar"

@@ -16,4 +16,5 @@ export default {
   "a96ec439": [() => import(/* webpackChunkName: "a96ec439" */ "@site/../docs/notifications.md"), "@site/../docs/notifications.md", require.resolveWeak("@site/../docs/notifications.md")],
   "aba21aa0": [() => import(/* webpackChunkName: "aba21aa0" */ "@generated/docusaurus-plugin-content-docs/default/__plugin.json"), "@generated/docusaurus-plugin-content-docs/default/__plugin.json", require.resolveWeak("@generated/docusaurus-plugin-content-docs/default/__plugin.json")],
   "ae6eefca": [() => import(/* webpackChunkName: "ae6eefca" */ "@site/../docs/rbac-assignment-matrix.md"), "@site/../docs/rbac-assignment-matrix.md", require.resolveWeak("@site/../docs/rbac-assignment-matrix.md")],
+  "d424c00a": [() => import(/* webpackChunkName: "d424c00a" */ "@site/../docs/access-rbac-app.md"), "@site/../docs/access-rbac-app.md", require.resolveWeak("@site/../docs/access-rbac-app.md")],
   "d505d09c": [() => import(/* webpackChunkName: "d505d09c" */ "@site/../docs/internationalization.md"), "@site/../docs/internationalization.md", require.resolveWeak("@site/../docs/internationalization.md")],};

@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Clock3, Loader2, Workflow } from "lucide-react";
+import { Activity, ArrowUpRight, Clock3, Loader2, Workflow } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,10 @@ import {
 } from "../../api";
 import { MainSequenceRegistryPagination } from "../../components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../components/MainSequenceRegistrySearch";
+import {
+  MainSequenceDataNodeLocalUpdateDetail,
+  type LocalUpdateDetailTabId,
+} from "./MainSequenceDataNodeLocalUpdateDetail";
 
 function formatDateTime(value?: string | null) {
   if (!value) {
@@ -104,8 +108,20 @@ function getSchedulerValue(localTimeSerie: LocalTimeSerieRecord) {
 
 export function MainSequenceDataNodeLocalTimeSeriesTab({
   dataNodeId,
+  onCloseLocalUpdateDetail,
+  onOpenDataNodeDetail,
+  onOpenLocalUpdateDetail,
+  onSelectLocalUpdateTab,
+  selectedLocalUpdateId,
+  selectedLocalUpdateTabId,
 }: {
   dataNodeId: number;
+  onCloseLocalUpdateDetail: () => void;
+  onOpenDataNodeDetail: (dataNodeId: number) => void;
+  onOpenLocalUpdateDetail: (localUpdateId: number) => void;
+  onSelectLocalUpdateTab: (tabId: LocalUpdateDetailTabId) => void;
+  selectedLocalUpdateId: number | null;
+  selectedLocalUpdateTabId: string | null;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
@@ -163,6 +179,26 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
         .includes(needle);
     });
   }, [deferredFilterValue, localTimeSeriesQuery.data?.results]);
+  const selectedLocalTimeSerieFromList = useMemo(
+    () =>
+      (localTimeSeriesQuery.data?.results ?? []).find(
+        (localTimeSerie) => localTimeSerie.id === selectedLocalUpdateId,
+      ) ?? null,
+    [localTimeSeriesQuery.data?.results, selectedLocalUpdateId],
+  );
+
+  if (selectedLocalUpdateId) {
+    return (
+      <MainSequenceDataNodeLocalUpdateDetail
+        initialLocalTimeSerie={selectedLocalTimeSerieFromList}
+        localTimeSerieId={selectedLocalUpdateId}
+        onClose={onCloseLocalUpdateDetail}
+        onOpenDataNodeDetail={onOpenDataNodeDetail}
+        onSelectTab={onSelectLocalUpdateTab}
+        selectedTabId={selectedLocalUpdateTabId}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -218,7 +254,7 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
       {!localTimeSeriesQuery.isLoading &&
       !localTimeSeriesQuery.isError &&
       filteredLocalTimeSeries.length > 0 ? (
-        <Card className="border border-border/70 bg-background/24">
+        <Card variant="nested">
           <CardContent className="pt-5">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1180px] border-separate border-spacing-y-2 text-sm">
@@ -247,9 +283,19 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
                       <tr key={localTimeSerie.id}>
                         <td className="rounded-l-[18px] border border-border/70 bg-background/40 px-4 py-3">
                           <div className="min-w-0">
-                            <div className="font-medium text-foreground">{localTimeSerie.update_hash}</div>
+                            <button
+                              type="button"
+                              className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
+                              onClick={() => onOpenLocalUpdateDetail(localTimeSerie.id)}
+                              title={`Open ${localTimeSerie.update_hash}`}
+                            >
+                              <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
+                                {localTimeSerie.update_hash}
+                              </span>
+                              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
+                            </button>
                             <div className="mt-1 text-xs text-muted-foreground">
-                              LocalTimeSerie ID {localTimeSerie.id}
+                              Data node update ID {localTimeSerie.id}
                             </div>
                           </div>
                         </td>

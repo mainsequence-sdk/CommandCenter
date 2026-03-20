@@ -23,7 +23,7 @@ const sidebars = {
       type: "category",
       label: "Platform Capabilities",
       collapsed: false,
-      items: ["notifications", "rbac-assignment-matrix"],
+      items: ["notifications", "rbac-assignment-matrix", "access-rbac-app"],
     },
   ],
 };

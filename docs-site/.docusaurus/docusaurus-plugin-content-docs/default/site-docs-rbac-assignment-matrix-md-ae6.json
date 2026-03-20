@@ -16,5 +16,9 @@
   "previous": {
     "title": "Notifications",
     "permalink": "/docs/notifications"
+  },
+  "next": {
+    "title": "Access & RBAC App",
+    "permalink": "/docs/access-rbac-app"
   }
 }

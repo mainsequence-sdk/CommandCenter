@@ -24,7 +24,7 @@ export async function loginWithRole({
       id: `user-${selectedRole}`,
       name,
       email: normalizedEmail,
-      team: selectedRole === "admin" ? "Platform" : "Desk Ops",
+      team: selectedRole === "admin" ? "Platform" : "Workspace",
       role: selectedRole,
       permissions: ROLE_PERMISSIONS[selectedRole],
       groups: [ROLE_LABELS[selectedRole]],
@@ -35,11 +35,11 @@ export async function loginWithRole({
       organizationTeams: [
         {
           id: selectedRole === "admin" ? 1 : 4,
-          name: selectedRole === "admin" ? "Platform" : "Desk Ops",
+          name: selectedRole === "admin" ? "Platform" : "Workspace",
           description:
             selectedRole === "admin"
               ? "Platform administration team"
-              : "Operations and execution support team",
+              : "General non-admin workspace users",
           is_active: true,
         },
       ],

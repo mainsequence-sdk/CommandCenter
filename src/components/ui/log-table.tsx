@@ -397,7 +397,7 @@ export function LogTable({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="border-b border-border/70 px-3 py-2 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                    className="border-b border-border/70 px-3 py-[var(--table-compact-header-padding-y)] text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
                   >
                     {header.isPlaceholder
                       ? null
@@ -435,7 +435,10 @@ export function LogTable({
                       }}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="border-b border-border/50 px-3 py-2 align-top">
+                        <td
+                          key={cell.id}
+                          className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top"
+                        >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}
@@ -445,7 +448,7 @@ export function LogTable({
                       <tr className="bg-background/45">
                         <td
                           colSpan={visibleColumnCount}
-                          className="border-b border-border/50 px-3 py-3"
+                          className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)]"
                         >
                           <div
                             className="min-w-0 rounded-[calc(var(--radius)-6px)] border border-border/60 bg-card/70 p-3"

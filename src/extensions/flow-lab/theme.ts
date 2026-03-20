@@ -6,6 +6,8 @@ export const neonMintTheme: ThemePreset = {
   description: "High-contrast extension theme for execution and orderflow work.",
   source: "flow-lab",
   mode: "dark",
+  tightness: "relaxed",
+  surfaceHierarchy: "soft",
   tokens: {
     background: "#07110E",
     foreground: "#E7FFF7",

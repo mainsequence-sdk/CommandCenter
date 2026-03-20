@@ -3,6 +3,9 @@
 Notifications are aggregated per app. Each app registers one or more notification sources, and the
 topbar refresh joins the results from every registered source into a single feed.
 
+The polling interval comes from `config/command-center.yaml` at `app.notifications_refresh_interval_ms`.
+If that key is omitted, the runtime falls back to `300000` milliseconds (5 minutes).
+
 ## Contract
 
 Backend payloads must match the visible notification serializer contract used by the UI:
@@ -85,3 +88,6 @@ The bell menu renders the merged feed and routes per-item actions back to the so
 that notification.
 
 Menu UI: `src/app/layout/NotificationsMenu.tsx`
+
+The menu query uses `commandCenterConfig.app.notificationsRefreshIntervalMs` as its
+`refetchInterval`, so changing the YAML value changes how often notifications refresh.

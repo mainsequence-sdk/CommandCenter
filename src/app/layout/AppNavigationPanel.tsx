@@ -1,20 +1,27 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
-import type { AppDefinition, AppSurfaceDefinition } from "@/apps/types";
-import { getAppPath } from "@/apps/utils";
+import type { AppDefinition, AppSurfaceNavigationGroup } from "@/apps/types";
+import { getAppPath, getSurfaceFavoriteId, isSurfaceFavorited } from "@/apps/utils";
 import { cn } from "@/lib/utils";
+import { SurfaceFavoriteButton } from "./SurfaceFavoriteButton";
 
 interface AppNavigationPanelProps {
   app: AppDefinition;
-  surfaces: AppSurfaceDefinition[];
+  groups: AppSurfaceNavigationGroup[];
+  favoriteSurfaceIds: string[];
   onSelectSurface: () => void;
+  onToggleFavorite: (favoriteId: string) => void;
 }
 
 export function AppNavigationPanel({
   app,
-  surfaces,
+  groups,
+  favoriteSurfaceIds,
   onSelectSurface,
+  onToggleFavorite,
 }: AppNavigationPanelProps) {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const activeSurfaceId = location.pathname.split("/").filter(Boolean)[2];
@@ -31,39 +38,61 @@ export function AppNavigationPanel({
       </div>
 
       <nav className="mt-1.5 flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {surfaces.map((surface, index) => {
-          const isActive = activeSurfaceId === surface.id;
-          const isLast = index === surfaces.length - 1;
+        {groups.map((group, groupIndex) => (
+          <section
+            key={group.id}
+            className={cn(groupIndex > 0 && "mt-3 border-t border-border/60 pt-3")}
+          >
+            <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              {group.label}
+            </div>
+            <div className="space-y-0.5">
+              {group.surfaces.map((surface) => {
+                const isActive = activeSurfaceId === surface.id;
+                const favoriteId = getSurfaceFavoriteId(app.id, surface.id);
+                const isFavorite = isSurfaceFavorited(favoriteSurfaceIds, app.id, surface.id);
 
-          return (
-            <button
-              key={surface.id}
-              type="button"
-              onClick={() => {
-                navigate(getAppPath(app.id, surface.id));
-                onSelectSurface();
-              }}
-              className={
-                cn(
-                  "group relative block w-full rounded-[calc(var(--radius)-8px)] px-2 py-1.5 text-left text-sidebar-foreground/72 transition-colors hover:bg-sidebar-foreground/[0.04] hover:text-foreground",
-                  isActive && "bg-sidebar-foreground/[0.06] text-foreground",
-                )
-              }
-            >
-              <div className="flex min-h-8 items-center gap-2">
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-                  {surface.navLabel ?? surface.title}
-                </span>
-                <span className="shrink-0 text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-                  {surface.kind}
-                </span>
-              </div>
-              {!isLast ? (
-                <span className="pointer-events-none absolute bottom-0 left-2 right-2 h-px bg-border/55" />
-              ) : null}
-            </button>
-          );
-        })}
+                return (
+                  <div
+                    key={surface.id}
+                    className={cn(
+                      "group flex items-center gap-1 rounded-[calc(var(--radius)-8px)] pr-1 text-sidebar-foreground/72 transition-colors hover:bg-sidebar-foreground/[0.04] hover:text-foreground",
+                      isActive && "bg-sidebar-foreground/[0.06] text-foreground",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate(getAppPath(app.id, surface.id));
+                        onSelectSurface();
+                      }}
+                      className="min-w-0 flex-1 px-2 py-1.5 text-left"
+                    >
+                      <div className="flex min-h-8 items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                          {surface.navLabel ?? surface.title}
+                        </span>
+                        <span className="shrink-0 text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+                          {surface.kind}
+                        </span>
+                      </div>
+                    </button>
+                    <SurfaceFavoriteButton
+                      favorite={isFavorite}
+                      onToggle={() => onToggleFavorite(favoriteId)}
+                      className="mt-0.5"
+                    />
+                    <span className="sr-only">
+                      {isFavorite
+                        ? t("common.removeFromFavorites")
+                        : t("common.addToFavorites")}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </nav>
     </aside>
   );

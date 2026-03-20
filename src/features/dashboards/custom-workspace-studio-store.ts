@@ -56,9 +56,15 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
   },
   updateDraftCollection(updater) {
     set((current) => ({
-      draftCollection: ensureUserDashboardCollectionSelection(
-        updater(cloneDashboardCollection(current.draftCollection)),
-      ),
+      draftCollection: (() => {
+        const nextDraftCollection = ensureUserDashboardCollectionSelection(
+          updater(cloneDashboardCollection(current.draftCollection)),
+        );
+
+        return JSON.stringify(nextDraftCollection) === JSON.stringify(current.draftCollection)
+          ? current.draftCollection
+          : nextDraftCollection;
+      })(),
     }));
   },
   resetDraftCollection() {

@@ -36,6 +36,7 @@ import {
 import { MainSequenceEntitySummaryCard } from "../../components/MainSequenceEntitySummaryCard";
 import { MainSequenceRegistryPagination } from "../../components/MainSequenceRegistryPagination";
 import { MainSequenceProjectCodeTab } from "./MainSequenceProjectCodeTab";
+import { MainSequenceProjectDataNodeUpdatesTab } from "./MainSequenceProjectDataNodeUpdatesTab";
 import { MainSequenceProjectImagesTab } from "./MainSequenceProjectImagesTab";
 import { MainSequenceProjectJobsTab } from "./MainSequenceProjectJobsTab";
 import { MainSequenceProjectResourceReleasesTab } from "./MainSequenceProjectResourceReleasesTab";
@@ -60,6 +61,8 @@ const legacyTabParam = "tab";
 const mainSequenceJobIdParam = "msJobId";
 const mainSequenceJobRunIdParam = "msJobRunId";
 const mainSequenceResourceReleaseIdParam = "msResourceReleaseId";
+const mainSequenceLocalUpdateIdParam = "msLocalUpdateId";
+const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
 
 type ProjectDeleteRequest = {
   projects: ProjectSummary[];
@@ -232,6 +235,8 @@ export function MainSequenceProjectsPage() {
   const selectedResourceReleaseId = Number(
     searchParams.get(mainSequenceResourceReleaseIdParam) ?? "",
   );
+  const selectedLocalUpdateId = Number(searchParams.get(mainSequenceLocalUpdateIdParam) ?? "");
+  const selectedLocalUpdateTabId = searchParams.get(mainSequenceLocalUpdateTabParam);
   const activeTabId =
     searchParams.get(mainSequenceTabParam) ??
     searchParams.get(legacyTabParam) ??
@@ -241,8 +246,10 @@ export function MainSequenceProjectsPage() {
   const isJobRunDetailOpen = Number.isFinite(selectedJobRunId) && selectedJobRunId > 0;
   const isResourceReleaseDetailOpen =
     Number.isFinite(selectedResourceReleaseId) && selectedResourceReleaseId > 0;
+  const isLocalUpdateDetailOpen =
+    Number.isFinite(selectedLocalUpdateId) && selectedLocalUpdateId > 0;
   const activeTab =
-    projectDetailTabs.find((tab) => tab.id === activeTabId) ??
+    projectDetailTabs.find((tab) => tab.id === (isLocalUpdateDetailOpen ? "data-node-updates" : activeTabId)) ??
     projectDetailTabs.find((tab) => tab.id === defaultProjectDetailTabId) ??
     projectDetailTabs[0];
 
@@ -490,6 +497,8 @@ export function MainSequenceProjectsPage() {
       nextParams.delete(mainSequenceJobIdParam);
       nextParams.delete(mainSequenceJobRunIdParam);
       nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.delete(mainSequenceLocalUpdateIdParam);
+      nextParams.delete(mainSequenceLocalUpdateTabParam);
       nextParams.set(mainSequenceProjectIdParam, String(projectId));
       nextParams.set(mainSequenceTabParam, defaultProjectDetailTabId);
     });
@@ -502,6 +511,8 @@ export function MainSequenceProjectsPage() {
       nextParams.delete(mainSequenceJobIdParam);
       nextParams.delete(mainSequenceJobRunIdParam);
       nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.delete(mainSequenceLocalUpdateIdParam);
+      nextParams.delete(mainSequenceLocalUpdateTabParam);
       nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
     });
@@ -522,6 +533,11 @@ export function MainSequenceProjectsPage() {
       if (tabId !== "resource-releases") {
         nextParams.delete(mainSequenceResourceReleaseIdParam);
       }
+
+      if (tabId !== "data-node-updates") {
+        nextParams.delete(mainSequenceLocalUpdateIdParam);
+        nextParams.delete(mainSequenceLocalUpdateTabParam);
+      }
     });
   }
 
@@ -534,6 +550,8 @@ export function MainSequenceProjectsPage() {
       nextParams.set(mainSequenceJobIdParam, String(jobId));
       nextParams.delete(mainSequenceJobRunIdParam);
       nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.delete(mainSequenceLocalUpdateIdParam);
+      nextParams.delete(mainSequenceLocalUpdateTabParam);
     });
   }
 
@@ -553,6 +571,8 @@ export function MainSequenceProjectsPage() {
       nextParams.set(mainSequenceJobIdParam, String(selectedJobId));
       nextParams.set(mainSequenceJobRunIdParam, String(jobRunId));
       nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.delete(mainSequenceLocalUpdateIdParam);
+      nextParams.delete(mainSequenceLocalUpdateTabParam);
     });
   }
 
@@ -571,6 +591,8 @@ export function MainSequenceProjectsPage() {
       nextParams.delete(mainSequenceJobIdParam);
       nextParams.delete(mainSequenceJobRunIdParam);
       nextParams.set(mainSequenceResourceReleaseIdParam, String(resourceReleaseId));
+      nextParams.delete(mainSequenceLocalUpdateIdParam);
+      nextParams.delete(mainSequenceLocalUpdateTabParam);
     });
   }
 
@@ -578,6 +600,40 @@ export function MainSequenceProjectsPage() {
     navigateWithProjectSearch((nextParams) => {
       nextParams.delete(mainSequenceResourceReleaseIdParam);
     });
+  }
+
+  function openProjectLocalUpdateDetail(localUpdateId: number) {
+    navigateWithProjectSearch((nextParams) => {
+      nextParams.delete(legacyProjectIdParam);
+      nextParams.delete(legacyTabParam);
+      nextParams.set(mainSequenceProjectIdParam, String(selectedProjectId));
+      nextParams.set(mainSequenceTabParam, "data-node-updates");
+      nextParams.delete(mainSequenceJobIdParam);
+      nextParams.delete(mainSequenceJobRunIdParam);
+      nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.set(mainSequenceLocalUpdateIdParam, String(localUpdateId));
+      nextParams.delete(mainSequenceLocalUpdateTabParam);
+    });
+  }
+
+  function closeProjectLocalUpdateDetail() {
+    navigateWithProjectSearch((nextParams) => {
+      nextParams.delete(mainSequenceLocalUpdateIdParam);
+      nextParams.delete(mainSequenceLocalUpdateTabParam);
+    });
+  }
+
+  function selectProjectLocalUpdateTab(tabId: string) {
+    navigateWithProjectSearch((nextParams) => {
+      nextParams.set(mainSequenceLocalUpdateTabParam, tabId);
+    });
+  }
+
+  function openDataNodeDetailFromProject(dataNodeId: number) {
+    const nextParams = new URLSearchParams();
+    nextParams.set("msDataNodeId", String(dataNodeId));
+    nextParams.set("msDataNodeTab", "details");
+    navigate(`/app/main_sequence/data-nodes?${nextParams.toString()}`);
   }
 
   return (
@@ -705,6 +761,16 @@ export function MainSequenceProjectsPage() {
                       selectedResourceReleaseId={
                         isResourceReleaseDetailOpen ? selectedResourceReleaseId : null
                       }
+                    />
+                  ) : activeTab.id === "data-node-updates" && selectedProjectId > 0 ? (
+                    <MainSequenceProjectDataNodeUpdatesTab
+                      onCloseLocalUpdateDetail={closeProjectLocalUpdateDetail}
+                      onOpenDataNodeDetail={openDataNodeDetailFromProject}
+                      onOpenLocalUpdateDetail={openProjectLocalUpdateDetail}
+                      onSelectLocalUpdateTab={selectProjectLocalUpdateTab}
+                      projectId={selectedProjectId}
+                      selectedLocalUpdateId={isLocalUpdateDetailOpen ? selectedLocalUpdateId : null}
+                      selectedLocalUpdateTabId={selectedLocalUpdateTabId}
                     />
                   ) : (
                     <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/18 px-5 py-12">

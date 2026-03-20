@@ -6,7 +6,11 @@ import { getAppById, getAppSurfaceById } from "@/app/registry";
 import { AppNavigationPanel } from "@/app/layout/AppNavigationPanel";
 import { Sidebar } from "@/app/layout/Sidebar";
 import { Topbar } from "@/app/layout/Topbar";
-import { getAccessibleApps, getAccessibleSurfaces } from "@/apps/utils";
+import {
+  getAccessibleApps,
+  getAccessibleSurfaces,
+  getSurfaceNavigationGroups,
+} from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import { terminalSocket } from "@/data/terminal-socket";
 import { cn } from "@/lib/utils";
@@ -21,18 +25,21 @@ export function AppShell() {
   const closeAppPanel = useShellStore((state) => state.closeAppPanel);
   const kioskMode = useShellStore((state) => state.kioskMode);
   const setKioskMode = useShellStore((state) => state.setKioskMode);
+  const favoriteSurfaceIds = useShellStore((state) => state.favoriteSurfaceIds);
+  const toggleSurfaceFavorite = useShellStore((state) => state.toggleSurfaceFavorite);
   const accessibleApps = getAccessibleApps(permissions);
   const panelApp =
     appPanelAppId && accessibleApps.some((candidate) => candidate.id === appPanelAppId)
       ? getAppById(appPanelAppId)
       : undefined;
   const panelAppSurfaces = panelApp ? getAccessibleSurfaces(panelApp, permissions) : [];
+  const panelAppSurfaceGroups = getSurfaceNavigationGroups(panelAppSurfaces);
   const routeSegments = location.pathname.split("/").filter(Boolean);
   const routeApp = routeSegments[1] ? getAppById(routeSegments[1]) : undefined;
   const routeSurface =
     routeApp && routeSegments[2] ? getAppSurfaceById(routeApp.id, routeSegments[2]) : undefined;
   const fullBleedSurface = Boolean(routeSurface?.fullBleed) && !kioskMode;
-  const showAppPanel = !kioskMode && Boolean(panelApp && panelAppSurfaces.length > 0);
+  const showAppPanel = !kioskMode && Boolean(panelApp && panelAppSurfaceGroups.length > 0);
   const sidebarWidth = kioskMode ? 0 : sidebarCollapsed ? 52 : 248;
   const routePathKey = location.pathname;
 
@@ -125,8 +132,10 @@ export function AppShell() {
         >
           <AppNavigationPanel
             app={panelApp}
-            surfaces={panelAppSurfaces}
+            groups={panelAppSurfaceGroups}
+            favoriteSurfaceIds={favoriteSurfaceIds}
             onSelectSurface={closeAppPanel}
+            onToggleFavorite={toggleSurfaceFavorite}
           />
         </div>
       ) : null}

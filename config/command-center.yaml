@@ -41,6 +41,7 @@ auth:
       organization_teams: organization_teams
     user_details:
       url: /user/api/user/get_user_details/
+      groups_url: /user/api/user/get_rbac_groups/
       response_mapping:
         user_id: id
         name: name
@@ -56,9 +57,13 @@ auth:
         organization_teams: organization_teams
       role_groups:
         admin: Organization Admin
-        trader:
-        analyst:
-        viewer:
+        user: ""
+
+access_rbac:
+  users:
+    list_url: /user/api/user/
+  groups:
+    list_url: /user/api/user/get_rbac_groups/
 
 main_sequence:
   endpoint: /orm/api/pods/

@@ -1,8 +1,20 @@
-import { LayoutDashboard, LayoutTemplate, PanelsTopLeft, Shield, ShieldCheck } from "lucide-react";
+import {
+  KeyRound,
+  LayoutDashboard,
+  LayoutTemplate,
+  PanelsTopLeft,
+  Shield,
+  ShieldCheck,
+} from "lucide-react";
 
 import type { AppExtension } from "@/app/registry/types";
 import type { AppDefinition } from "@/apps/types";
 import type { DashboardDefinition } from "@/dashboards/types";
+import { AccessRbacAssignmentsPage } from "@/extensions/core/apps/access-rbac/AccessRbacAssignmentsPage";
+import { AccessRbacCoveragePage } from "@/extensions/core/apps/access-rbac/AccessRbacCoveragePage";
+import { AccessRbacInspectorPage } from "@/extensions/core/apps/access-rbac/AccessRbacInspectorPage";
+import { AccessRbacOverviewPage } from "@/extensions/core/apps/access-rbac/AccessRbacOverviewPage";
+import { AccessRbacPoliciesPage } from "@/extensions/core/apps/access-rbac/AccessRbacPoliciesPage";
 import { CustomDashboardStudioPage } from "@/features/dashboards/CustomDashboardStudioPage";
 import { CustomWorkspaceSettingsPage } from "@/features/dashboards/CustomWorkspaceSettingsPage";
 import { MarketBriefApp } from "@/features/applications/MarketBriefApp";
@@ -365,6 +377,89 @@ const adminApp: AppDefinition = {
   ],
 };
 
+const accessInformationSection = {
+  id: "information",
+  label: "Concept & Help",
+  description: "Reference surfaces that explain the current governance model.",
+  order: 40,
+};
+
+const accessInspectionSection = {
+  id: "inspection",
+  label: "User access inspection",
+  description: "Inspect effective access for specific users.",
+  order: 30,
+};
+
+const accessRbacApp: AppDefinition = {
+  id: "access-rbac",
+  title: "Access & RBAC",
+  description: "Administrative application for policy review, assignments, and entitlement coverage.",
+  source: "core",
+  icon: KeyRound,
+  navigationPlacement: "admin-menu",
+  topNavigationStyle: "hidden",
+  requiredPermissions: ["rbac:view"],
+  defaultSurfaceId: "overview",
+  surfaces: [
+    {
+      id: "overview",
+      title: "Overview",
+      navLabel: "Overview",
+      description: "Governance model, role layers, and how resource assignments fit into the platform.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: accessInformationSection,
+      component: AccessRbacOverviewPage,
+    },
+    {
+      id: "policies",
+      title: "Policy model",
+      navLabel: "Policies",
+      description: "Built-in role matrix and platform permission contract.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: accessInformationSection,
+      component: AccessRbacPoliciesPage,
+    },
+    {
+      id: "assignments",
+      title: "Main Sequence object access",
+      navLabel: "Main Sequence access",
+      description: "Reference how Main Sequence object-level access is assigned to users and teams.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: accessInformationSection,
+      component: AccessRbacAssignmentsPage,
+    },
+    {
+      id: "coverage",
+      title: "Coverage",
+      navLabel: "Coverage",
+      description: "Inspect how current permissions resolve across apps, surfaces, widgets, and utilities.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: accessInformationSection,
+      component: AccessRbacCoveragePage,
+    },
+    {
+      id: "user-inspector",
+      title: "User access inspector",
+      navLabel: "Inspector",
+      description: "Search users and inspect their effective shell access.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: accessInspectionSection,
+      component: AccessRbacInspectorPage,
+    },
+  ],
+};
+
 const adminPanelApp: AppDefinition = {
   id: "admin-panel",
   title: "Admin Panel",
@@ -400,7 +495,7 @@ const coreExtension: AppExtension = {
     distributionLabWidget,
     scenarioConesWidget,
   ],
-  apps: [marketsApp, executionApp, workspaceStudioApp, adminApp, adminPanelApp],
+  apps: [marketsApp, executionApp, workspaceStudioApp, adminApp, accessRbacApp, adminPanelApp],
   themes: [
     mainSequenceSpaceTheme,
     mainSequenceTheme,

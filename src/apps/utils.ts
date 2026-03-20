@@ -5,6 +5,8 @@ import type {
   AppNavigationPlacement,
   AppSurfaceDefinition,
   AppSurfaceEntry,
+  AppSurfaceNavigationGroup,
+  AppSurfaceNavigationSection,
 } from "@/apps/types";
 
 export function getAppPath(appId: string, surfaceId?: string) {
@@ -86,4 +88,96 @@ export function getAccessibleSurfaceEntries(permissions: string[]) {
 
 export function getSurfacePath(surface: AppSurfaceEntry) {
   return getAppPath(surface.appId, surface.id);
+}
+
+export function getSurfaceFavoriteId(appId: string, surfaceId: string) {
+  return `${appId}::${surfaceId}`;
+}
+
+export function isSurfaceFavorited(
+  favoriteSurfaceIds: string[],
+  appId: string,
+  surfaceId: string,
+) {
+  return favoriteSurfaceIds.includes(getSurfaceFavoriteId(appId, surfaceId));
+}
+
+export function getFavoriteSurfaceEntries(
+  permissions: string[],
+  favoriteSurfaceIds: string[],
+) {
+  const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
+  const accessibleSurfaceMap = new Map(
+    accessibleSurfaces.map((surface) => [getSurfaceFavoriteId(surface.appId, surface.id), surface]),
+  );
+
+  return favoriteSurfaceIds
+    .map((favoriteId) => accessibleSurfaceMap.get(favoriteId))
+    .filter((surface): surface is AppSurfaceEntry => Boolean(surface));
+}
+
+const fallbackSurfaceSections: Record<
+  AppSurfaceDefinition["kind"],
+  AppSurfaceNavigationSection
+> = {
+  dashboard: {
+    id: "dashboards",
+    label: "Dashboards",
+    order: 900,
+  },
+  page: {
+    id: "pages",
+    label: "Pages",
+    order: 910,
+  },
+  tool: {
+    id: "tools",
+    label: "Tools",
+    order: 920,
+  },
+};
+
+export function getSurfaceNavigationGroups(
+  surfaces: AppSurfaceDefinition[],
+): AppSurfaceNavigationGroup[] {
+  const groups = new Map<
+    string,
+    AppSurfaceNavigationGroup & { order: number; firstIndex: number }
+  >();
+
+  surfaces.forEach((surface, index) => {
+    const section = surface.navigationSection ?? fallbackSurfaceSections[surface.kind];
+    const existingGroup = groups.get(section.id);
+
+    if (existingGroup) {
+      existingGroup.surfaces.push(surface);
+      existingGroup.firstIndex = Math.min(existingGroup.firstIndex, index);
+      existingGroup.order = Math.min(existingGroup.order, section.order ?? index);
+      return;
+    }
+
+    groups.set(section.id, {
+      id: section.id,
+      label: section.label,
+      description: section.description,
+      surfaces: [surface],
+      firstIndex: index,
+      order: section.order ?? index,
+    });
+  });
+
+  return Array.from(groups.values())
+    .sort((left, right) => {
+      if (left.order !== right.order) {
+        return left.order - right.order;
+      }
+
+      return left.firstIndex - right.firstIndex;
+    })
+    .map(({ id, label, description, surfaces: groupedSurfaces }) => ({
+      id,
+      label,
+      description,
+      surfaces: groupedSurfaces,
+    }));
 }

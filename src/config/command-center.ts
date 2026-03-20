@@ -33,6 +33,7 @@ export interface CommandCenterAuthConfig {
     };
     userDetails: {
       url: string;
+      groupsUrl: string;
       responseMapping: {
         userId: string;
         name: string;
@@ -49,9 +50,7 @@ export interface CommandCenterAuthConfig {
       };
       roleGroups: {
         admin: string;
-        trader: string;
-        analyst: string;
-        viewer: string;
+        user: string;
       };
     };
   };
@@ -71,6 +70,14 @@ export interface CommandCenterConfig {
     monogram: string;
   };
   auth: CommandCenterAuthConfig;
+  accessRbac: {
+    users: {
+      listUrl: string;
+    };
+    groups: {
+      listUrl: string;
+    };
+  };
   mainSequence: {
     endpoint: string;
     permissions: {
@@ -147,6 +154,7 @@ interface DefaultCommandCenterConfig {
       };
       user_details: {
         url: string;
+        groups_url: string;
         response_mapping: {
           user_id: string;
           name: string;
@@ -163,11 +171,17 @@ interface DefaultCommandCenterConfig {
         };
         role_groups: {
           admin: string;
-          trader: string;
-          analyst: string;
-          viewer: string;
+          user: string;
         };
       };
+    };
+  };
+  access_rbac: {
+    users: {
+      list_url: string;
+    };
+    groups: {
+      list_url: string;
     };
   };
   main_sequence: {
@@ -247,6 +261,7 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
       },
       user_details: {
         url: "/user/api/user/get_user_details/",
+        groups_url: "/user/api/user/get_user_details/",
         response_mapping: {
           user_id: "id",
           name: "name",
@@ -263,11 +278,17 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
         },
         role_groups: {
           admin: "Organization Admin",
-          trader: "",
-          analyst: "",
-          viewer: "",
+          user: "",
         },
       },
+    },
+  },
+  access_rbac: {
+    users: {
+      list_url: "/user/api/user/",
+    },
+    groups: {
+      list_url: "/user/api/user/get_rbac_groups/",
     },
   },
   main_sequence: {
@@ -398,6 +419,7 @@ const parsedConfig = parseSimpleYaml(rawCommandCenterConfig) as Record<string, u
 const parsedApp = getNestedObject(parsedConfig, "app");
 const parsedBranding = getNestedObject(parsedConfig, "branding");
 const parsedAuth = getNestedObject(parsedConfig, "auth");
+const parsedAccessRbac = getNestedObject(parsedConfig, "access_rbac");
 const parsedMainSequence = getNestedObject(parsedConfig, "main_sequence");
 const parsedNotifications = getNestedObject(parsedConfig, "notifications");
 const parsedAuthJwt = getNestedObject(parsedAuth, "jwt");
@@ -407,6 +429,8 @@ const parsedAuthClaimMapping = getNestedObject(parsedAuthJwt, "claim_mapping");
 const parsedAuthUserDetails = getNestedObject(parsedAuthJwt, "user_details");
 const parsedAuthUserDetailsMapping = getNestedObject(parsedAuthUserDetails, "response_mapping");
 const parsedAuthUserDetailsRoleGroups = getNestedObject(parsedAuthUserDetails, "role_groups");
+const parsedAccessRbacUsers = getNestedObject(parsedAccessRbac, "users");
+const parsedAccessRbacGroups = getNestedObject(parsedAccessRbac, "groups");
 const parsedMainSequencePermissions = getNestedObject(parsedMainSequence, "permissions");
 
 const logoLightmodeFile = readString(
@@ -537,6 +561,10 @@ export const commandCenterConfig: CommandCenterConfig = {
           parsedAuthUserDetails.url,
           defaultRawConfig.auth.jwt.user_details.url,
         ),
+        groupsUrl: readString(
+          parsedAuthUserDetails.groups_url,
+          defaultRawConfig.auth.jwt.user_details.groups_url,
+        ),
         responseMapping: {
           userId: readString(
             parsedAuthUserDetailsMapping.user_id,
@@ -592,20 +620,26 @@ export const commandCenterConfig: CommandCenterConfig = {
             parsedAuthUserDetailsRoleGroups.admin,
             defaultRawConfig.auth.jwt.user_details.role_groups.admin,
           ),
-          trader: readString(
-            parsedAuthUserDetailsRoleGroups.trader,
-            defaultRawConfig.auth.jwt.user_details.role_groups.trader,
-          ),
-          analyst: readString(
-            parsedAuthUserDetailsRoleGroups.analyst,
-            defaultRawConfig.auth.jwt.user_details.role_groups.analyst,
-          ),
-          viewer: readString(
-            parsedAuthUserDetailsRoleGroups.viewer,
-            defaultRawConfig.auth.jwt.user_details.role_groups.viewer,
+          user: readString(
+            parsedAuthUserDetailsRoleGroups.user,
+            defaultRawConfig.auth.jwt.user_details.role_groups.user,
           ),
         },
       },
+    },
+  },
+  accessRbac: {
+    users: {
+      listUrl: readString(
+        parsedAccessRbacUsers.list_url,
+        defaultRawConfig.access_rbac.users.list_url,
+      ),
+    },
+    groups: {
+      listUrl: readString(
+        parsedAccessRbacGroups.list_url,
+        defaultRawConfig.access_rbac.groups.list_url,
+      ),
     },
   },
   mainSequence: {

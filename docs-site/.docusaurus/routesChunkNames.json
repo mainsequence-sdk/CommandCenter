@@ -1,16 +1,20 @@
 {
-  "/docs/-1c7": {
+  "/docs/-e24": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "aba21aa0"
     }
   },
-  "/docs/-6c4": {
+  "/docs/-51e": {
     "__comp": "a7bd4aaa",
     "__props": "11b43341"
   },
-  "/docs/-d56": {
+  "/docs/-6ae": {
     "__comp": "a94703ab"
+  },
+  "/docs/access-rbac-app-f1f": {
+    "__comp": "17896441",
+    "content": "d424c00a"
   },
   "/docs/apps-and-surfaces-7ef": {
     "__comp": "17896441",

@@ -4,6 +4,8 @@ export const resources = {
       common: {
         unavailable: "Unavailable",
         unknownUser: "Unknown user",
+        addToFavorites: "Add to favorites",
+        removeFromFavorites: "Remove from favorites",
       },
       navigation: {
         apps: "Apps",
@@ -25,14 +27,18 @@ export const resources = {
         signOut: "Sign out",
       },
       topbar: {
-        searchPlaceholder: "Search apps, surfaces, actions, symbols...",
+        searchPlaceholder: "Search apps, pages, tools, and utility surfaces...",
         matchingResults: "Matching Results",
         suggestedSearch: "Suggested Search",
         mockedResultsDescription:
-          "Search across app homes, dashboard surfaces, pages, tools, and utility actions.",
-        quickEntryDescription: "Jump across apps, surfaces, widgets, and utility actions.",
+          "Search across app homes, dashboard surfaces, pages, tools, and utility destinations.",
+        quickEntryDescription: "Jump across apps, pages, tools, widgets, and utility destinations.",
         noMatchingResults: "No matching results",
-        noMatchingResultsSubtitle: "Try an app name, surface title, or action keyword.",
+        noMatchingResultsSubtitle: "Try an app name, page title, tool title, or utility keyword.",
+        favoritesTitle: "Favorites",
+        openFavorites: "Open favorite views",
+        noFavorites: "No favorite views yet",
+        noFavoritesSubtitle: "Star a page, tool, or dashboard from a views menu to pin it here.",
         cycleTheme: "Cycle theme",
         openThemeStudio: "Open theme studio",
         searchShortcutTitle: "Open search with Command+K or Control+K",
@@ -47,7 +53,7 @@ export const resources = {
         notificationSearchReadyTitle: "Command search is ready",
         notificationSearchReadySubtitle: "Use Command+K or Control+K to jump across apps.",
         notificationAdminReadyTitle: "Admin surfaces available",
-        notificationAdminReadySubtitle: "Access Control and Admin Panel are ready.",
+        notificationAdminReadySubtitle: "Access & RBAC and Admin Panel are ready.",
         notificationUserReadyTitle: "User settings available",
         notificationUserReadySubtitle: "Open the left user menu to manage your preferences.",
       },
@@ -60,8 +66,8 @@ export const resources = {
         widgetCatalogSubtitle: "Browse reusable core and extension widgets.",
         themeStudioTitle: "Theme Studio",
         themeStudioSubtitle: "Adjust presets, tokens, and shell branding.",
-        accessControlTitle: "Access Control",
-        accessControlSubtitle: "Review roles, permissions, and shell access surfaces.",
+        accessControlTitle: "Access & RBAC",
+        accessControlSubtitle: "Review policies, assignments, and shell access coverage.",
         marketOverviewTitle: "Market Overview",
         marketOverviewSubtitle: "Jump back into the main market dashboard snapshot.",
       },
@@ -72,10 +78,14 @@ export const resources = {
           "Shell configuration, environment visibility, and operator preferences.",
         userDescription: "Personal preferences and command center display options.",
         generalNav: "General",
+        authNav: "Auth",
         generalDescription: "Theme, language, and immediate shell defaults.",
         webUiTitle: "WebUI Settings",
         accountTitle: "Account",
         accountDescription: "Current session identity and access profile.",
+        authTitle: "Auth",
+        authDescription:
+          "JWT endpoints and the RBAC group mapping that resolves backend roles into the shell Admin and User application groups.",
         aboutNav: "About",
         aboutDescription: "Product context and runtime details for this command center.",
         appearanceTitle: "Appearance",
@@ -94,6 +104,29 @@ export const resources = {
         liveData: "Live Data",
         api: "API",
         websocket: "Websocket",
+        authBaseUrl: "Base URL",
+        authTokenUrl: "Token endpoint",
+        authRefreshUrl: "Refresh endpoint",
+        authUserDetailsUrl: "User details endpoint",
+        authGroupsUrl: "Groups endpoint",
+        authGroupsUrlHelp:
+          "This endpoint is queried on demand to show the current RBAC groups returned for the signed-in session.",
+        authRoleGroupMapping: "Platform access mapping",
+        authRoleGroupMappingHelp:
+          "This config key maps backend RBAC groups into the shell Admin and User application groups.",
+        authAdminGroup: "Admin RBAC group",
+        authAdminGroupHelp: "If this backend RBAC group is present, the shell resolves the user as Admin.",
+        authUserGroup: "User application group",
+        authUserGroupHelp:
+          "This mapping is the non-admin fallback the shell uses when no admin RBAC group matches.",
+        authUserFallback: "Fallback for all other authenticated users",
+        authCurrentGroups: "Current RBAC groups",
+        authCurrentGroupsHelp:
+          "Request the configured groups endpoint and show the backend RBAC groups for the current session.",
+        authShowCurrentGroups: "Show current groups",
+        authLoadingCurrentGroups: "Loading groups...",
+        authNoCurrentGroups: "No groups were returned for this session.",
+        authCurrentGroupsError: "Unable to load current groups.",
         product: "Product",
         currentTheme: "Current Theme",
         currentLanguage: "Current Language",
@@ -117,6 +150,8 @@ export const resources = {
       common: {
         unavailable: "No disponible",
         unknownUser: "Usuario desconocido",
+        addToFavorites: "Añadir a favoritos",
+        removeFromFavorites: "Quitar de favoritos",
       },
       navigation: {
         apps: "Apps",
@@ -138,15 +173,20 @@ export const resources = {
         signOut: "Cerrar sesión",
       },
       topbar: {
-        searchPlaceholder: "Buscar apps, superficies, acciones, símbolos...",
+        searchPlaceholder: "Buscar apps, páginas, herramientas y destinos utilitarios...",
         matchingResults: "Resultados coincidentes",
         suggestedSearch: "Búsqueda sugerida",
         mockedResultsDescription:
-          "Busca entre inicios de app, paneles, páginas, herramientas y acciones del shell.",
-        quickEntryDescription: "Salta entre apps, superficies, widgets y acciones del shell.",
+          "Busca entre inicios de app, paneles, páginas, herramientas y destinos utilitarios.",
+        quickEntryDescription: "Salta entre apps, páginas, herramientas, widgets y destinos utilitarios.",
         noMatchingResults: "No hay resultados coincidentes",
         noMatchingResultsSubtitle:
-          "Prueba con un nombre de app, una superficie o una palabra clave de acción.",
+          "Prueba con un nombre de app, una página, una herramienta o una palabra clave utilitaria.",
+        favoritesTitle: "Favoritos",
+        openFavorites: "Abrir vistas favoritas",
+        noFavorites: "Aún no hay vistas favoritas",
+        noFavoritesSubtitle:
+          "Marca una página, herramienta o dashboard desde un menú de vistas para fijarlo aquí.",
         cycleTheme: "Cambiar tema",
         openThemeStudio: "Abrir estudio de temas",
         searchShortcutTitle: "Abrir búsqueda con Command+K o Control+K",
@@ -163,7 +203,7 @@ export const resources = {
           "Usa Command+K o Control+K para saltar entre apps y superficies.",
         notificationAdminReadyTitle: "Superficies de admin disponibles",
         notificationAdminReadySubtitle:
-          "Control de acceso y panel de administración ya están listos.",
+          "Access & RBAC y panel de administración ya están listos.",
         notificationUserReadyTitle: "Configuración de usuario disponible",
         notificationUserReadySubtitle:
           "Abre el menú de usuario izquierdo para gestionar tus preferencias.",
@@ -177,8 +217,8 @@ export const resources = {
         widgetCatalogSubtitle: "Explora widgets reutilizables del núcleo y extensiones.",
         themeStudioTitle: "Estudio de Temas",
         themeStudioSubtitle: "Ajusta presets, tokens y branding del shell.",
-        accessControlTitle: "Control de Acceso",
-        accessControlSubtitle: "Revisa roles, permisos y superficies de acceso del shell.",
+        accessControlTitle: "Access & RBAC",
+        accessControlSubtitle: "Revisa políticas, asignaciones y cobertura de acceso del shell.",
         marketOverviewTitle: "Resumen de Mercado",
         marketOverviewSubtitle: "Volver a la vista principal del mercado.",
       },
@@ -188,12 +228,41 @@ export const resources = {
         adminDescription:
           "Configuración del shell, visibilidad del entorno y preferencias del operador.",
         userDescription: "Preferencias personales y opciones de visualización del command center.",
+        generalNav: "General",
+        authNav: "Auth",
         accountTitle: "Cuenta",
         accountDescription: "Identidad de la sesión actual y perfil de acceso.",
+        authTitle: "Auth",
+        authDescription:
+          "Endpoints JWT y el mapeo de grupos RBAC que resuelve roles del backend en los grupos de aplicación Admin y User del shell.",
         appearanceTitle: "Apariencia",
         appearanceDescription: "Elige el tema activo y el idioma para esta sesión.",
         themePreset: "Tema",
         language: "Idioma",
+        authBaseUrl: "URL base",
+        authTokenUrl: "Endpoint de token",
+        authRefreshUrl: "Endpoint de refresh",
+        authUserDetailsUrl: "Endpoint de detalles de usuario",
+        authGroupsUrl: "Endpoint de grupos",
+        authGroupsUrlHelp:
+          "Este endpoint se consulta bajo demanda para mostrar los grupos RBAC actuales devueltos para la sesión activa.",
+        authRoleGroupMapping: "Mapeo de acceso de plataforma",
+        authRoleGroupMappingHelp:
+          "Esta clave de configuración mapea grupos RBAC del backend a los grupos de aplicación Admin y User del shell.",
+        authAdminGroup: "Grupo RBAC de Admin",
+        authAdminGroupHelp:
+          "Si este grupo RBAC del backend está presente, el shell resuelve al usuario como Admin.",
+        authUserGroup: "Grupo de aplicación User",
+        authUserGroupHelp:
+          "Este mapeo es el fallback no admin que usa el shell cuando no coincide ningún grupo RBAC de admin.",
+        authUserFallback: "Fallback para todos los demás usuarios autenticados",
+        authCurrentGroups: "Grupos RBAC actuales",
+        authCurrentGroupsHelp:
+          "Consulta el endpoint configurado de grupos y muestra los grupos RBAC del backend para la sesión actual.",
+        authShowCurrentGroups: "Mostrar grupos actuales",
+        authLoadingCurrentGroups: "Cargando grupos...",
+        authNoCurrentGroups: "No se devolvieron grupos para esta sesión.",
+        authCurrentGroupsError: "No se pudieron cargar los grupos actuales.",
         resetThemeOverrides: "Restablecer ajustes del tema",
         environmentTitle: "Entorno",
         environmentDescription: "Contexto operativo de la sesión actual del command center.",
@@ -221,6 +290,8 @@ export const resources = {
       common: {
         unavailable: "Nicht verfügbar",
         unknownUser: "Unbekannter Benutzer",
+        addToFavorites: "Zu Favoriten hinzufügen",
+        removeFromFavorites: "Aus Favoriten entfernen",
       },
       navigation: {
         apps: "Apps",
@@ -242,15 +313,20 @@ export const resources = {
         signOut: "Abmelden",
       },
       topbar: {
-        searchPlaceholder: "Apps, Flächen, Aktionen, Symbole suchen...",
+        searchPlaceholder: "Apps, Seiten, Tools und Utility-Ziele suchen...",
         matchingResults: "Passende Ergebnisse",
         suggestedSearch: "Vorgeschlagene Suche",
         mockedResultsDescription:
-          "Suche über App-Startflächen, Dashboards, Seiten, Tools und Shell-Aktionen.",
-        quickEntryDescription: "Schnelle Sprünge zwischen Apps, Flächen, Widgets und Aktionen.",
+          "Suche über App-Startflächen, Dashboards, Seiten, Tools und Utility-Ziele.",
+        quickEntryDescription: "Schnelle Sprünge zwischen Apps, Seiten, Tools, Widgets und Utility-Zielen.",
         noMatchingResults: "Keine passenden Ergebnisse",
         noMatchingResultsSubtitle:
-          "Versuche einen App-Namen, einen Flächentitel oder ein Aktions-Stichwort.",
+          "Versuche einen App-Namen, Seitentitel, Tooltitel oder Utility-Begriff.",
+        favoritesTitle: "Favoriten",
+        openFavorites: "Favorisierte Ansichten öffnen",
+        noFavorites: "Noch keine Favoritenansichten",
+        noFavoritesSubtitle:
+          "Markiere eine Seite, ein Tool oder Dashboard in einem Ansichten-Menü, um es hier anzupinnen.",
         cycleTheme: "Thema wechseln",
         openThemeStudio: "Theme Studio öffnen",
         searchShortcutTitle: "Suche mit Command+K oder Control+K öffnen",
@@ -266,7 +342,7 @@ export const resources = {
         notificationSearchReadySubtitle:
           "Nutze Command+K oder Control+K, um zwischen Apps und Flächen zu springen.",
         notificationAdminReadyTitle: "Admin-Flächen verfügbar",
-        notificationAdminReadySubtitle: "Zugriffskontrolle und Admin Panel sind bereit.",
+        notificationAdminReadySubtitle: "Access & RBAC und Admin Panel sind bereit.",
         notificationUserReadyTitle: "Benutzereinstellungen verfügbar",
         notificationUserReadySubtitle:
           "Öffne das linke Benutzermenü, um deine Präferenzen zu verwalten.",
@@ -280,8 +356,8 @@ export const resources = {
         widgetCatalogSubtitle: "Wiederverwendbare Kern- und Erweiterungs-Widgets durchsuchen.",
         themeStudioTitle: "Theme Studio",
         themeStudioSubtitle: "Presets, Tokens und Shell-Branding anpassen.",
-        accessControlTitle: "Zugriffskontrolle",
-        accessControlSubtitle: "Rollen, Berechtigungen und Shell-Zugriffsflächen prüfen.",
+        accessControlTitle: "Access & RBAC",
+        accessControlSubtitle: "Richtlinien, Zuweisungen und Shell-Zugriffsabdeckung prüfen.",
         marketOverviewTitle: "Marktüberblick",
         marketOverviewSubtitle: "Zur Hauptansicht des Markt-Dashboards springen.",
       },
@@ -291,12 +367,41 @@ export const resources = {
         adminDescription:
           "Shell-Konfiguration, Umgebungs-Sichtbarkeit und Operator-Präferenzen.",
         userDescription: "Persönliche Präferenzen und Anzeigeoptionen des Command Centers.",
+        generalNav: "Allgemein",
+        authNav: "Auth",
         accountTitle: "Konto",
         accountDescription: "Identität der aktuellen Sitzung und Zugriffsprofil.",
+        authTitle: "Auth",
+        authDescription:
+          "JWT-Endpunkte und die RBAC-Gruppenabbildung, die Backend-Rollen in die Shell-Anwendungsgruppen Admin und User auflöst.",
         appearanceTitle: "Darstellung",
         appearanceDescription: "Aktives Shell-Thema und Sprache für diese Sitzung auswählen.",
         themePreset: "Theme-Preset",
         language: "Sprache",
+        authBaseUrl: "Basis-URL",
+        authTokenUrl: "Token-Endpunkt",
+        authRefreshUrl: "Refresh-Endpunkt",
+        authUserDetailsUrl: "Benutzerdetails-Endpunkt",
+        authGroupsUrl: "Gruppen-Endpunkt",
+        authGroupsUrlHelp:
+          "Dieser Endpunkt wird bei Bedarf abgefragt, um die aktuellen RBAC-Gruppen der aktiven Sitzung anzuzeigen.",
+        authRoleGroupMapping: "Plattform-Zugriffsabbildung",
+        authRoleGroupMappingHelp:
+          "Dieser Konfigurationsschlüssel ordnet Backend-RBAC-Gruppen den Shell-Anwendungsgruppen Admin und User zu.",
+        authAdminGroup: "Admin-RBAC-Gruppe",
+        authAdminGroupHelp:
+          "Wenn diese Backend-RBAC-Gruppe vorhanden ist, löst die Shell den Benutzer als Admin auf.",
+        authUserGroup: "User-Anwendungsgruppe",
+        authUserGroupHelp:
+          "Diese Abbildung ist der Nicht-Admin-Fallback, den die Shell nutzt, wenn keine Admin-RBAC-Gruppe passt.",
+        authUserFallback: "Fallback für alle anderen authentifizierten Benutzer",
+        authCurrentGroups: "Aktuelle RBAC-Gruppen",
+        authCurrentGroupsHelp:
+          "Ruft den konfigurierten Gruppen-Endpunkt ab und zeigt die Backend-RBAC-Gruppen der aktuellen Sitzung an.",
+        authShowCurrentGroups: "Aktuelle Gruppen anzeigen",
+        authLoadingCurrentGroups: "Gruppen werden geladen...",
+        authNoCurrentGroups: "Für diese Sitzung wurden keine Gruppen zurückgegeben.",
+        authCurrentGroupsError: "Aktuelle Gruppen konnten nicht geladen werden.",
         resetThemeOverrides: "Theme-Anpassungen zurücksetzen",
         environmentTitle: "Umgebung",
         environmentDescription: "Operativer Kontext der aktuellen Command-Center-Sitzung.",
@@ -324,6 +429,8 @@ export const resources = {
       common: {
         unavailable: "Indisponible",
         unknownUser: "Utilisateur inconnu",
+        addToFavorites: "Ajouter aux favoris",
+        removeFromFavorites: "Retirer des favoris",
       },
       navigation: {
         apps: "Apps",
@@ -345,16 +452,21 @@ export const resources = {
         signOut: "Se déconnecter",
       },
       topbar: {
-        searchPlaceholder: "Rechercher des apps, surfaces, actions, symboles...",
+        searchPlaceholder: "Rechercher des apps, pages, outils et destinations utilitaires...",
         matchingResults: "Résultats correspondants",
         suggestedSearch: "Recherche suggérée",
         mockedResultsDescription:
-          "Rechercher parmi les homes d'app, tableaux de bord, pages, outils et actions du shell.",
+          "Rechercher parmi les homes d'app, tableaux de bord, pages, outils et destinations utilitaires.",
         quickEntryDescription:
-          "Navigation rapide entre apps, surfaces, widgets et actions utilitaires.",
+          "Navigation rapide entre apps, pages, outils, widgets et destinations utilitaires.",
         noMatchingResults: "Aucun résultat correspondant",
         noMatchingResultsSubtitle:
-          "Essayez un nom d'app, un titre de surface ou un mot-clé d'action.",
+          "Essayez un nom d'app, un titre de page, un titre d'outil ou un mot-clé utilitaire.",
+        favoritesTitle: "Favoris",
+        openFavorites: "Ouvrir les vues favorites",
+        noFavorites: "Aucune vue favorite pour le moment",
+        noFavoritesSubtitle:
+          "Ajoutez une page, un outil ou un tableau de bord aux favoris depuis un menu de vues pour l'épingler ici.",
         cycleTheme: "Changer de thème",
         openThemeStudio: "Ouvrir le studio de thèmes",
         searchShortcutTitle: "Ouvrir la recherche avec Command+K ou Control+K",
@@ -371,7 +483,7 @@ export const resources = {
           "Utilisez Command+K ou Control+K pour naviguer entre apps et surfaces.",
         notificationAdminReadyTitle: "Surfaces admin disponibles",
         notificationAdminReadySubtitle:
-          "Le contrôle d’accès et le panneau d’administration sont prêts.",
+          "Access & RBAC et le panneau d’administration sont prêts.",
         notificationUserReadyTitle: "Paramètres utilisateur disponibles",
         notificationUserReadySubtitle:
           "Ouvrez le menu utilisateur de gauche pour gérer vos préférences.",
@@ -386,8 +498,9 @@ export const resources = {
           "Parcourir les widgets réutilisables du cœur et des extensions.",
         themeStudioTitle: "Studio de thèmes",
         themeStudioSubtitle: "Ajuster les presets, tokens et le branding du shell.",
-        accessControlTitle: "Contrôle d’accès",
-        accessControlSubtitle: "Examiner rôles, permissions et surfaces d’accès du shell.",
+        accessControlTitle: "Access & RBAC",
+        accessControlSubtitle:
+          "Examiner les politiques, affectations et la couverture d’accès du shell.",
         marketOverviewTitle: "Vue marché",
         marketOverviewSubtitle: "Revenir à l’aperçu principal du marché.",
       },
@@ -397,12 +510,41 @@ export const resources = {
         adminDescription:
           "Configuration du shell, visibilité de l’environnement et préférences opérateur.",
         userDescription: "Préférences personnelles et options d’affichage du command center.",
+        generalNav: "Général",
+        authNav: "Auth",
         accountTitle: "Compte",
         accountDescription: "Identité de la session actuelle et profil d’accès.",
+        authTitle: "Auth",
+        authDescription:
+          "Endpoints JWT et mappage des groupes RBAC qui résolvent les rôles backend vers les groupes d’application Admin et User du shell.",
         appearanceTitle: "Apparence",
         appearanceDescription: "Choisissez le thème actif et la langue pour cette session.",
         themePreset: "Préréglage de thème",
         language: "Langue",
+        authBaseUrl: "URL de base",
+        authTokenUrl: "Endpoint token",
+        authRefreshUrl: "Endpoint refresh",
+        authUserDetailsUrl: "Endpoint détails utilisateur",
+        authGroupsUrl: "Endpoint groupes",
+        authGroupsUrlHelp:
+          "Cet endpoint est interrogé à la demande pour afficher les groupes RBAC actuels renvoyés pour la session active.",
+        authRoleGroupMapping: "Mappage d’accès plateforme",
+        authRoleGroupMappingHelp:
+          "Cette clé de configuration mappe les groupes RBAC backend vers les groupes d’application Admin et User du shell.",
+        authAdminGroup: "Groupe RBAC Admin",
+        authAdminGroupHelp:
+          "Si ce groupe RBAC backend est présent, le shell résout l’utilisateur comme Admin.",
+        authUserGroup: "Groupe d’application User",
+        authUserGroupHelp:
+          "Ce mappage est le fallback non admin utilisé par le shell quand aucun groupe RBAC admin ne correspond.",
+        authUserFallback: "Fallback pour tous les autres utilisateurs authentifiés",
+        authCurrentGroups: "Groupes RBAC actuels",
+        authCurrentGroupsHelp:
+          "Interroge l’endpoint de groupes configuré et affiche les groupes RBAC backend de la session actuelle.",
+        authShowCurrentGroups: "Afficher les groupes actuels",
+        authLoadingCurrentGroups: "Chargement des groupes...",
+        authNoCurrentGroups: "Aucun groupe n’a été renvoyé pour cette session.",
+        authCurrentGroupsError: "Impossible de charger les groupes actuels.",
         resetThemeOverrides: "Réinitialiser les surcharges du thème",
         environmentTitle: "Environnement",
         environmentDescription: "Contexte opérationnel de la session actuelle du command center.",
@@ -430,6 +572,8 @@ export const resources = {
       common: {
         unavailable: "Non disponibile",
         unknownUser: "Utente sconosciuto",
+        addToFavorites: "Aggiungi ai preferiti",
+        removeFromFavorites: "Rimuovi dai preferiti",
       },
       navigation: {
         apps: "App",
@@ -451,15 +595,20 @@ export const resources = {
         signOut: "Esci",
       },
       topbar: {
-        searchPlaceholder: "Cerca app, superfici, azioni, simboli...",
+        searchPlaceholder: "Cerca app, pagine, strumenti e destinazioni utilitarie...",
         matchingResults: "Risultati corrispondenti",
         suggestedSearch: "Ricerca suggerita",
         mockedResultsDescription:
-          "Cerca tra home delle app, dashboard, pagine, strumenti e azioni della shell.",
-        quickEntryDescription: "Salta tra app, superfici, widget e azioni utilitarie.",
+          "Cerca tra home delle app, dashboard, pagine, strumenti e destinazioni utilitarie.",
+        quickEntryDescription: "Salta tra app, pagine, strumenti, widget e destinazioni utilitarie.",
         noMatchingResults: "Nessun risultato corrispondente",
         noMatchingResultsSubtitle:
-          "Prova con un nome app, un titolo di superficie o una parola chiave di azione.",
+          "Prova con un nome app, un titolo di pagina, uno strumento o una parola chiave utilitaria.",
+        favoritesTitle: "Preferiti",
+        openFavorites: "Apri viste preferite",
+        noFavorites: "Nessuna vista preferita per ora",
+        noFavoritesSubtitle:
+          "Aggiungi una pagina, uno strumento o una dashboard ai preferiti da un menu viste per fissarla qui.",
         cycleTheme: "Cambia tema",
         openThemeStudio: "Apri studio temi",
         searchShortcutTitle: "Apri la ricerca con Command+K o Control+K",
@@ -476,7 +625,7 @@ export const resources = {
           "Usa Command+K o Control+K per saltare tra app e superfici.",
         notificationAdminReadyTitle: "Superfici admin disponibili",
         notificationAdminReadySubtitle:
-          "Controllo accessi e pannello admin sono pronti.",
+          "Access & RBAC e pannello admin sono pronti.",
         notificationUserReadyTitle: "Impostazioni utente disponibili",
         notificationUserReadySubtitle:
           "Apri il menu utente a sinistra per gestire le tue preferenze.",
@@ -490,8 +639,9 @@ export const resources = {
         widgetCatalogSubtitle: "Esplora widget riutilizzabili core ed estensioni.",
         themeStudioTitle: "Studio Temi",
         themeStudioSubtitle: "Regola preset, token e branding della shell.",
-        accessControlTitle: "Controllo Accessi",
-        accessControlSubtitle: "Controlla ruoli, permessi e superfici di accesso della shell.",
+        accessControlTitle: "Access & RBAC",
+        accessControlSubtitle:
+          "Controlla policy, assegnazioni e copertura di accesso della shell.",
         marketOverviewTitle: "Panoramica Mercato",
         marketOverviewSubtitle: "Torna alla dashboard principale del mercato.",
       },
@@ -501,12 +651,41 @@ export const resources = {
         adminDescription:
           "Configurazione della shell, visibilità dell'ambiente e preferenze operative.",
         userDescription: "Preferenze personali e opzioni di visualizzazione del command center.",
+        generalNav: "Generale",
+        authNav: "Auth",
         accountTitle: "Account",
         accountDescription: "Identità della sessione corrente e profilo di accesso.",
+        authTitle: "Auth",
+        authDescription:
+          "Endpoint JWT e mappatura dei gruppi RBAC che risolve i ruoli backend nei gruppi applicativi Admin e User della shell.",
         appearanceTitle: "Aspetto",
         appearanceDescription: "Scegli il tema attivo e la lingua per questa sessione.",
         themePreset: "Preset tema",
         language: "Lingua",
+        authBaseUrl: "URL base",
+        authTokenUrl: "Endpoint token",
+        authRefreshUrl: "Endpoint refresh",
+        authUserDetailsUrl: "Endpoint dettagli utente",
+        authGroupsUrl: "Endpoint gruppi",
+        authGroupsUrlHelp:
+          "Questo endpoint viene interrogato su richiesta per mostrare i gruppi RBAC correnti restituiti per la sessione attiva.",
+        authRoleGroupMapping: "Mappatura accesso piattaforma",
+        authRoleGroupMappingHelp:
+          "Questa chiave di configurazione mappa i gruppi RBAC backend nei gruppi applicativi Admin e User della shell.",
+        authAdminGroup: "Gruppo RBAC Admin",
+        authAdminGroupHelp:
+          "Se questo gruppo RBAC backend è presente, la shell risolve l'utente come Admin.",
+        authUserGroup: "Gruppo applicativo User",
+        authUserGroupHelp:
+          "Questa mappatura è il fallback non admin che la shell usa quando nessun gruppo RBAC admin corrisponde.",
+        authUserFallback: "Fallback per tutti gli altri utenti autenticati",
+        authCurrentGroups: "Gruppi RBAC correnti",
+        authCurrentGroupsHelp:
+          "Interroga l'endpoint gruppi configurato e mostra i gruppi RBAC backend per la sessione corrente.",
+        authShowCurrentGroups: "Mostra gruppi correnti",
+        authLoadingCurrentGroups: "Caricamento gruppi...",
+        authNoCurrentGroups: "Nessun gruppo restituito per questa sessione.",
+        authCurrentGroupsError: "Impossibile caricare i gruppi correnti.",
         resetThemeOverrides: "Reimposta override tema",
         environmentTitle: "Ambiente",
         environmentDescription: "Contesto operativo della sessione corrente del command center.",

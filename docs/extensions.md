@@ -35,6 +35,12 @@ That means each extension should have a single `index.ts` entrypoint.
 
 Repo-root extensions can still import shared runtime APIs, app contracts, widgets, UI primitives, and data adapters through the `@/` alias. This keeps the shell reusable while allowing product modules to live outside `src/`.
 
+Bundled extension-owned pages and tools should also live under their owning extension tree instead
+of a generic `src/features/` folder. A core example is:
+
+- `src/extensions/core/index.ts`
+- `src/extensions/core/apps/access-rbac/`
+
 ## Public gallery
 
 Command Center also exposes a public npm-backed extension discovery route at:
@@ -152,7 +158,14 @@ const executionApp: AppDefinition = {
 };
 ```
 
-If the app should live outside the shell source tree, put the extension under `extensions/<your-app>/` and keep its page or tool components next to the extension entrypoint. The repo-root example is:
+Keep app pages and tools next to the extension that owns them.
+
+Bundled example:
+
+- `src/extensions/core/index.ts`
+- `src/extensions/core/apps/access-rbac/AccessRbacOverviewPage.tsx`
+
+Repo-root example:
 
 - `extensions/research-suite/index.ts`
 - `extensions/research-suite/ResearchBriefingPage.tsx`
