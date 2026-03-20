@@ -13,14 +13,15 @@ product surface that feels deliberate, fast, and deeply customized to your own d
 2. [Apps and Surfaces](./apps-and-surfaces.md)
 3. [Core Widgets](./core-widgets.md)
 4. [Dashboard Layouts](./dashboard-layouts.md)
-5. [Configuration](./configuration.md)
-6. [Internationalization](./internationalization.md)
-7. [Extensions](./extensions.md)
-8. [Theming](./theming.md)
-9. [Backend and Auth Integration](./backend-and-auth.md)
-10. [Notifications](./notifications.md)
-11. [RBAC Assignment Matrix](./rbac-assignment-matrix.md)
-12. [Access & RBAC App](./access-rbac-app.md)
+5. [Workspaces](./workspaces.md)
+6. [Configuration](./configuration.md)
+7. [Internationalization](./internationalization.md)
+8. [Extensions](./extensions.md)
+9. [Theming](./theming.md)
+10. [Backend and Auth Integration](./backend-and-auth.md)
+11. [Notifications](./notifications.md)
+12. [RBAC Assignment Matrix](./rbac-assignment-matrix.md)
+13. [Access & RBAC App](./access-rbac-app.md)
 
 ## Why it exists
 
@@ -49,9 +50,8 @@ The current repository ships with these extensions:
 - `core`: base widgets, apps, surfaces, and themes
 - `ag-grid`: optional data-grid widget integration
 - `lightweight-charts`: optional market chart integration
-- `flow-lab`: example product extension showing how third-party modules compose with the shell
-- `research-suite`: repo-root extension showing how an independent app module lives outside `src/`
-- `main_sequence`: repo-root app scaffold for building a new independent product module
+- `flow-lab`: bundled extension that contributes a custom widget and theme to demo surfaces
+- `main_sequence`: repo-root product namespace with separate Workbench and Markets extensions
 
 ## Local development
 

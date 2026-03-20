@@ -75,6 +75,43 @@ export function AppShell() {
   }, [kioskMode, routeSurface?.kind, setKioskMode]);
 
   useEffect(() => {
+    if (!showAppPanel) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as HTMLElement | null;
+
+      if (!target) {
+        return;
+      }
+
+      if (
+        target.closest("[data-app-navigation-panel]") ||
+        target.closest("[data-shell-sidebar]")
+      ) {
+        return;
+      }
+
+      closeAppPanel();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeAppPanel();
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeAppPanel, showAppPanel]);
+
+  useEffect(() => {
     if (!kioskMode) {
       return undefined;
     }

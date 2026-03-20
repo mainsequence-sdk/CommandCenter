@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Rows3, Search, ShieldCheck } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -25,10 +25,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { env } from "@/config/env";
 import { useShellStore } from "@/stores/shell-store";
+import { useCustomWorkspaceStudioStore } from "@/features/dashboards/custom-workspace-studio-store";
+import {
+  getFavoriteWorkspaceEntries,
+  isWorkspaceFavoriteId,
+} from "@/features/dashboards/workspace-favorites";
 import { AdminMenu } from "./AdminMenu";
 import { AppSurfaceSelector } from "./AppSurfaceSelector";
 import { AppDetailsDialog } from "./AppDetailsDialog";
-import { FavoriteSurfacesMenu } from "./FavoriteSurfacesMenu";
+import { FavoriteSurfacesMenu, type FavoriteMenuItem } from "./FavoriteSurfacesMenu";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { SettingsDialog } from "./SettingsDialog";
 import { ThemeMenu } from "./ThemeMenu";
@@ -55,16 +60,47 @@ export function Topbar() {
   const permissions = user?.permissions ?? [];
   const commandValue = useShellStore((state) => state.commandValue);
   const favoriteSurfaceIds = useShellStore((state) => state.favoriteSurfaceIds);
+  const favoriteWorkspaceIds = useShellStore((state) => state.favoriteWorkspaceIds);
   const setCommandValue = useShellStore((state) => state.setCommandValue);
   const toggleSurfaceFavorite = useShellStore((state) => state.toggleSurfaceFavorite);
+  const toggleWorkspaceFavorite = useShellStore((state) => state.toggleWorkspaceFavorite);
   const workspaceCanvasMenuHidden = useShellStore((state) => state.workspaceCanvasMenuHidden);
   const setWorkspaceCanvasMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
+  const initializeWorkspaceStudio = useCustomWorkspaceStudioStore((state) => state.initialize);
+  const workspaceDraftCollection = useCustomWorkspaceStudioStore((state) => state.draftCollection);
   const isAdmin = user?.role === "admin";
 
   const accessibleApps = getAccessibleApps(permissions);
   const adminMenuApps = getAccessibleAdminMenuApps(permissions);
   const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
   const favoriteSurfaces = getFavoriteSurfaceEntries(permissions, favoriteSurfaceIds);
+  const favoriteWorkspaces = getFavoriteWorkspaceEntries(
+    workspaceDraftCollection.dashboards,
+    favoriteWorkspaceIds,
+  );
+  const favoriteMenuItems = useMemo<FavoriteMenuItem[]>(
+    () => [
+      ...favoriteWorkspaces.map((workspace) => ({
+        id: workspace.id,
+        favoriteId: workspace.favoriteId,
+        groupId: workspace.appId,
+        groupLabel: workspace.appTitle,
+        title: workspace.title,
+        kindLabel: workspace.kindLabel,
+        path: workspace.path,
+      })),
+      ...favoriteSurfaces.map((surface) => ({
+        id: surface.id,
+        favoriteId: getSurfaceFavoriteId(surface.appId, surface.id),
+        groupId: surface.appId,
+        groupLabel: surface.appTitle,
+        title: surface.navLabel ?? surface.title,
+        kindLabel: surface.kind,
+        path: getSurfacePath(surface),
+      })),
+    ],
+    [favoriteSurfaces, favoriteWorkspaces],
+  );
   const currentApp = params.appId ? getAppById(params.appId) : undefined;
   const currentSurface =
     currentApp && params.surfaceId ? getAppSurfaceById(currentApp.id, params.surfaceId) : undefined;
@@ -85,7 +121,9 @@ export function Topbar() {
       : undefined;
   const showWorkspaceCanvasMenuRestore =
     params.appId === "workspace-studio" &&
-    params.surfaceId === "canvas" &&
+    params.surfaceId === "workspaces" &&
+    Boolean(new URLSearchParams(location.search).get("workspace")) &&
+    new URLSearchParams(location.search).get("view") !== "settings" &&
     workspaceCanvasMenuHidden;
   const selectedSurfaceId = currentSurfaceVisible?.id ?? currentDefaultSurface?.id ?? "";
   const normalizedQuery = commandValue.trim().toLowerCase();
@@ -98,12 +136,7 @@ export function Topbar() {
     })),
     ...accessibleSurfaces.map((surface) => ({
       title: `${surface.appTitle} / ${surface.navLabel ?? surface.title}`,
-      subtitle:
-        surface.kind === "tool"
-          ? t("searchResults.openToolSubtitle")
-          : surface.kind === "page"
-            ? t("searchResults.openPageSubtitle")
-            : t("searchResults.openDashboardSubtitle"),
+      subtitle: t("searchResults.openSurfaceSubtitle"),
       to: getSurfacePath(surface),
       visible: true,
     })),
@@ -132,6 +165,10 @@ export function Topbar() {
       },
     })),
   ];
+
+  useEffect(() => {
+    initializeWorkspaceStudio(user?.id ?? null);
+  }, [initializeWorkspaceStudio, user?.id]);
 
   useEffect(() => {
     function focusSearch() {
@@ -372,12 +409,17 @@ export function Topbar() {
         </Badge>
 
         <FavoriteSurfacesMenu
-          items={favoriteSurfaces}
+          items={favoriteMenuItems}
           onSelect={(path) => {
             navigate(path);
           }}
-          onToggleFavorite={(appId, surfaceId) => {
-            toggleSurfaceFavorite(getSurfaceFavoriteId(appId, surfaceId));
+          onToggleFavorite={(favoriteId) => {
+            if (isWorkspaceFavoriteId(favoriteId)) {
+              toggleWorkspaceFavorite(favoriteId);
+              return;
+            }
+
+            toggleSurfaceFavorite(favoriteId);
           }}
         />
 

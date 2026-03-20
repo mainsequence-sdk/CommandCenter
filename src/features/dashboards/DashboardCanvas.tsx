@@ -140,6 +140,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                 widget: typeof widget;
                 instanceTitle?: string;
                 props: Record<string, unknown>;
+                runtimeState?: Record<string, unknown>;
               }>;
 
               return (
@@ -156,6 +157,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                     widget={widget}
                     instanceTitle={instance.title}
                     props={instance.props ?? {}}
+                    runtimeState={instance.runtimeState}
                   />
                 </WidgetFrame>
               );

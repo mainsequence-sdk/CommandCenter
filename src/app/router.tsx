@@ -6,15 +6,18 @@ import { AppShell } from "@/app/layout/AppShell";
 import { AppPage } from "@/features/apps/AppPage";
 import { AppRedirect } from "@/features/apps/AppRedirect";
 import { LegacyDashboardRedirect } from "@/features/apps/LegacyDashboardRedirect";
+import { LegacyDemoRedirect } from "@/features/apps/LegacyDemoRedirect";
 import { LegacyMainSequenceWorkbenchRedirect } from "@/features/apps/LegacyMainSequenceWorkbenchRedirect";
 import { LegacyWorkspaceRedirect } from "@/features/apps/LegacyWorkspaceRedirect";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { LoginPageV2 } from "@/features/auth/LoginPageV2";
 import { ExtensionsGalleryPage } from "@/features/extensions/ExtensionsGalleryPage";
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
-import { TeamsPage } from "@/features/teams/TeamsPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
 import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
+import { MainSequenceAssetCategoryDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-categories/MainSequenceAssetCategoryDetailPage";
+import { MainSequenceAssetTranslationTableDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-translation-tables/MainSequenceAssetTranslationTableDetailPage";
+import { MainSequenceExecutionVenueDetailPage } from "../../extensions/main_sequence/extensions/markets/features/execution-venues/MainSequenceExecutionVenueDetailPage";
 import { MainSequenceClusterDetailPage } from "../../extensions/main_sequence/extensions/workbench/features/clusters/MainSequenceClusterDetailPage";
 
 export const router = createBrowserRouter([
@@ -71,8 +74,28 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "admin-panel",
+        element: (
+          <PermissionRoute anyOf={["rbac:view"]}>
+            <Navigate to="/app/admin/event-stream" replace />
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: "admin-panel/:surfaceId",
+        element: (
+          <PermissionRoute anyOf={["rbac:view"]}>
+            <Navigate to="/app/admin/event-stream" replace />
+          </PermissionRoute>
+        ),
+      },
+      {
         path: "teams",
-        element: <TeamsPage />,
+        element: (
+          <PermissionRoute anyOf={["rbac:view"]}>
+            <Navigate to="/app/access-rbac/teams" replace />
+          </PermissionRoute>
+        ),
       },
       {
         path: "dashboard/:dashboardId",
@@ -89,6 +112,38 @@ export const router = createBrowserRouter([
       {
         path: "main_sequence/:surfaceId",
         element: <LegacyMainSequenceWorkbenchRedirect />,
+      },
+      {
+        path: "markets",
+        element: <LegacyDemoRedirect />,
+      },
+      {
+        path: "markets/:surfaceId",
+        element: <LegacyDemoRedirect />,
+      },
+      {
+        path: "main_sequence_markets/asset-categories/:categoryId",
+        element: (
+          <PermissionRoute anyOf={["marketdata:read"]}>
+            <MainSequenceAssetCategoryDetailPage />
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: "main_sequence_markets/asset-translation-tables/:tableId",
+        element: (
+          <PermissionRoute anyOf={["marketdata:read"]}>
+            <MainSequenceAssetTranslationTableDetailPage />
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: "main_sequence_markets/execution-venues/:venueId",
+        element: (
+          <PermissionRoute anyOf={["marketdata:read"]}>
+            <MainSequenceExecutionVenueDetailPage />
+          </PermissionRoute>
+        ),
       },
       {
         path: ":appId",

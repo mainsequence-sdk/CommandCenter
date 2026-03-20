@@ -2,8 +2,6 @@ import {
   KeyRound,
   LayoutDashboard,
   LayoutTemplate,
-  PanelsTopLeft,
-  Shield,
   ShieldCheck,
 } from "lucide-react";
 
@@ -15,10 +13,14 @@ import { AccessRbacCoveragePage } from "@/extensions/core/apps/access-rbac/Acces
 import { AccessRbacInspectorPage } from "@/extensions/core/apps/access-rbac/AccessRbacInspectorPage";
 import { AccessRbacOverviewPage } from "@/extensions/core/apps/access-rbac/AccessRbacOverviewPage";
 import { AccessRbacPoliciesPage } from "@/extensions/core/apps/access-rbac/AccessRbacPoliciesPage";
-import { CustomDashboardStudioPage } from "@/features/dashboards/CustomDashboardStudioPage";
-import { CustomWorkspaceSettingsPage } from "@/features/dashboards/CustomWorkspaceSettingsPage";
+import { AccessRbacTeamsPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamsPage";
+import { AdminActivePlansPage } from "@/extensions/core/apps/admin/AdminActivePlansPage";
+import { AdminConsolePage } from "@/extensions/core/apps/admin/AdminConsolePage";
+import { AdminEventStreamPage } from "@/extensions/core/apps/admin/AdminEventStreamPage";
+import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/AdminGithubOrganizationsPage";
+import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
+import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
 import { MarketBriefApp } from "@/features/applications/MarketBriefApp";
-import { AdminPanelPage } from "@/features/admin/AdminPanelPage";
 import { grandpaTheme } from "@/themes/presets/grandpa";
 import { graphiteTheme } from "@/themes/presets/graphite";
 import { mainSequenceTheme } from "@/themes/presets/main-sequence";
@@ -35,9 +37,9 @@ import { scenarioConesWidget } from "@/widgets/core/scenario-cones/definition";
 
 const overviewDashboard: DashboardDefinition = {
   id: "overview",
-  title: "Market Overview",
-  description: "Default monitoring dashboard using only core widgets and theme primitives.",
-  category: "Market",
+  title: "Demo Overview",
+  description: "Default demo dashboard using only shared widgets and theme primitives.",
+  category: "Demo",
   source: "core",
   requiredPermissions: ["dashboard:view"],
   widgets: [
@@ -78,8 +80,8 @@ const overviewDashboard: DashboardDefinition = {
 const crossAssetDashboard: DashboardDefinition = {
   id: "cross-asset",
   title: "Cross-Asset",
-  description: "Secondary market dashboard focused on macro pulse and desk-level cross-asset signals.",
-  category: "Market",
+  description: "Secondary demo dashboard focused on macro pulse and cross-asset signals.",
+  category: "Demo",
   source: "core",
   requiredPermissions: ["dashboard:view"],
   widgets: [
@@ -117,148 +119,56 @@ const crossAssetDashboard: DashboardDefinition = {
   ],
 };
 
-const signalAtlasDashboard: DashboardDefinition = {
-  id: "signal-atlas",
-  title: "Signal Atlas",
-  description:
-    "Quant showcase surface with causal transmission, lead-lag heatmaps, distribution diagnostics, and scenario cones.",
-  category: "Quant",
+const orderflowLabDashboard: DashboardDefinition = {
+  id: "orderflow-lab",
+  title: "Flow Lab",
+  description: "Experimental demo dashboard that mixes extension-owned widgets into the core app.",
+  category: "Demo",
   source: "core",
-  requiredPermissions: ["dashboard:view"],
-  grid: {
-    columns: 12,
-    rowHeight: 46,
-    gap: 16,
+  requiredPermissions: ["orders:read"],
+  controls: {
+    enabled: false,
   },
   widgets: [
     {
-      id: "atlas-causal",
-      widgetId: "causal-graph",
-      title: "Causal Transmission Graph",
-      layout: { cols: 7, rows: 8 },
-      position: { x: 0, y: 0 },
-    },
-    {
-      id: "atlas-heatmap",
-      widgetId: "factor-heatmap",
-      title: "Lead / Lag Heatmap",
-      layout: { cols: 5, rows: 8 },
-      position: { x: 7, y: 0 },
-    },
-    {
-      id: "atlas-distribution",
-      widgetId: "distribution-lab",
-      title: "Distribution Lab",
-      layout: { cols: 6, rows: 6 },
-      position: { x: 0, y: 8 },
-    },
-    {
-      id: "atlas-scenarios",
-      widgetId: "scenario-cones",
-      title: "Scenario Cones",
-      layout: { cols: 6, rows: 6 },
-      position: { x: 6, y: 8 },
-    },
-  ],
-};
-
-const tradingDeskDashboard: DashboardDefinition = {
-  id: "trading-desk",
-  title: "Trading Desk",
-  description: "Execution-focused core dashboard without vendor-specific widgets.",
-  category: "Execution",
-  source: "core",
-  requiredPermissions: ["orders:read"],
-  widgets: [
-    {
-      id: "desk-kpis",
-      widgetId: "market-kpis",
-      title: "Execution KPIs",
+      id: "flow-chart",
+      widgetId: "price-chart",
+      title: "TSLA - Micro Structure",
       props: { symbol: "TSLA" },
-      layout: { cols: 4, rows: 4 },
+      layout: { cols: 8, rows: 5 },
       position: { x: 0 },
     },
     {
-      id: "desk-activity",
-      widgetId: "activity-feed",
-      title: "Desk Activity",
-      props: { limit: 6 },
+      id: "flow-orderbook",
+      widgetId: "order-book",
+      title: "Level II Snapshot",
+      props: { symbol: "TSLA" },
       layout: { cols: 4, rows: 5 },
-      position: { x: 4 },
+      position: { x: 8 },
     },
     {
-      id: "desk-news",
-      widgetId: "news-feed",
-      title: "Catalyst Watch",
+      id: "flow-positions",
+      widgetId: "positions-table",
+      title: "Strategy Book",
+      props: {},
+      layout: { cols: 8, rows: 6 },
+      position: { x: 0 },
+    },
+    {
+      id: "flow-activity",
+      widgetId: "activity-feed",
+      title: "Routing Events",
       props: { limit: 6 },
       layout: { cols: 4, rows: 6 },
       position: { x: 8 },
     },
-    {
-      id: "desk-activity-secondary",
-      widgetId: "activity-feed",
-      title: "Ops Stream",
-      props: { limit: 4 },
-      layout: { cols: 6, rows: 5 },
-      position: { x: 0 },
-    },
-    {
-      id: "desk-news-secondary",
-      widgetId: "news-feed",
-      title: "Macro Tape",
-      props: { limit: 4 },
-      layout: { cols: 6, rows: 4 },
-      position: { x: 6 },
-    },
   ],
 };
 
-const adminConsoleDashboard: DashboardDefinition = {
-  id: "admin-console",
-  title: "Admin Console",
-  description: "Operational view for platform owners and compliance admins.",
-  category: "Operations",
-  source: "core",
-  requiredPermissions: ["rbac:view"],
-  widgets: [
-    {
-      id: "admin-kpis",
-      widgetId: "market-kpis",
-      title: "Platform KPIs",
-      props: { symbol: "NVDA" },
-      layout: { cols: 4, rows: 4 },
-      position: { x: 0 },
-    },
-    {
-      id: "admin-activity",
-      widgetId: "activity-feed",
-      title: "Platform Events",
-      props: { limit: 7 },
-      layout: { cols: 4, rows: 5 },
-      position: { x: 4 },
-    },
-    {
-      id: "admin-news",
-      widgetId: "news-feed",
-      title: "External Signals",
-      props: { limit: 5 },
-      layout: { cols: 4, rows: 5 },
-      position: { x: 8 },
-    },
-    {
-      id: "admin-kpis-secondary",
-      widgetId: "market-kpis",
-      title: "Reference Metrics",
-      props: { symbol: "AAPL" },
-      layout: { cols: 12, rows: 4 },
-    },
-  ],
-};
-
-const marketsApp: AppDefinition = {
-  id: "markets",
-  title: "Markets",
-  description: "Market monitoring, briefing, and high-level context surfaces.",
+const demoApp: AppDefinition = {
+  id: "demo",
+  title: "Demo",
+  description: "Demo dashboards, briefing surfaces, and extension-backed shell examples.",
   source: "core",
   icon: LayoutDashboard,
   requiredPermissions: ["dashboard:view"],
@@ -268,7 +178,7 @@ const marketsApp: AppDefinition = {
       id: "overview",
       title: "Overview",
       navLabel: "Overview",
-      description: "Summary dashboard for market monitoring and desk awareness.",
+      description: "Summary dashboard for the default demo monitoring surface.",
       kind: "dashboard",
       requiredPermissions: ["dashboard:view"],
       dashboard: overviewDashboard,
@@ -277,25 +187,25 @@ const marketsApp: AppDefinition = {
       id: "cross-asset",
       title: "Cross-Asset",
       navLabel: "Cross-Asset",
-      description: "Secondary market dashboard for macro pulse and cross-asset monitoring.",
+      description: "Secondary demo dashboard for macro pulse and cross-asset monitoring.",
       kind: "dashboard",
       requiredPermissions: ["dashboard:view"],
       dashboard: crossAssetDashboard,
     },
     {
-      id: "signal-atlas",
-      title: "Signal Atlas",
-      navLabel: "Atlas",
-      description: "Showcase quant dashboard with causal graph, distributions, heatmaps, and scenario cones.",
+      id: "orderflow-lab",
+      title: "Flow Lab",
+      navLabel: "Flow Lab",
+      description: "Extension-backed demo dashboard with charting, book, positions, and routing events.",
       kind: "dashboard",
-      requiredPermissions: ["dashboard:view"],
-      dashboard: signalAtlasDashboard,
+      requiredPermissions: ["orders:read"],
+      dashboard: orderflowLabDashboard,
     },
     {
       id: "market-brief",
-      title: "Market Brief",
+      title: "Demo Brief",
       navLabel: "Brief",
-      description: "Narrative pre-open briefing with catalysts, notes, and operator context.",
+      description: "Narrative demo briefing with catalysts, notes, and operator context.",
       kind: "page",
       requiredPermissions: ["dashboard:view"],
       component: MarketBriefApp,
@@ -303,54 +213,25 @@ const marketsApp: AppDefinition = {
   ],
 };
 
-const executionApp: AppDefinition = {
-  id: "execution",
-  title: "Execution",
-  description: "Desk-facing execution monitoring and workflow surfaces.",
-  source: "core",
-  icon: PanelsTopLeft,
-  requiredPermissions: ["orders:read"],
-  defaultSurfaceId: "trading-desk",
-  surfaces: [
-    {
-      id: "trading-desk",
-      title: "Trading Desk",
-      navLabel: "Desk",
-      description: "Execution-focused monitoring dashboard for desk operators.",
-      kind: "dashboard",
-      requiredPermissions: ["orders:read"],
-      dashboard: tradingDeskDashboard,
-    },
-  ],
-};
-
 const workspaceStudioApp: AppDefinition = {
   id: "workspace-studio",
-  title: "Custom Workspace",
+  title: "Workspaces",
   description: "User-scoped workspace builder with local development persistence.",
   source: "core",
   icon: LayoutTemplate,
+  topNavigationStyle: "hidden",
   requiredPermissions: ["dashboard:view"],
-  defaultSurfaceId: "canvas",
+  defaultSurfaceId: "workspaces",
   surfaces: [
     {
-      id: "canvas",
-      title: "Workspace Canvas",
-      navLabel: "Canvas",
-      description: "Build, arrange and save a custom workspace in browser local storage.",
+      id: "workspaces",
+      title: "Workspaces",
+      navLabel: "Workspaces",
+      description: "List, open, and manage workspaces stored in browser local storage.",
       kind: "page",
       fullBleed: true,
       requiredPermissions: ["dashboard:view"],
-      component: CustomDashboardStudioPage,
-    },
-    {
-      id: "settings",
-      title: "Workspace Settings",
-      navLabel: "Settings",
-      description: "Dynamic configuration page for the selected custom workspace.",
-      kind: "page",
-      requiredPermissions: ["dashboard:view"],
-      component: CustomWorkspaceSettingsPage,
+      component: WorkspacesPage,
     },
   ],
 };
@@ -358,21 +239,93 @@ const workspaceStudioApp: AppDefinition = {
 const adminApp: AppDefinition = {
   id: "admin",
   title: "Admin",
-  description: "Platform operations, controls, and compliance-facing surfaces.",
+  description: "Platform operations, controls, audit visibility, and compliance-facing surfaces.",
   source: "core",
   icon: ShieldCheck,
   navigationPlacement: "admin-menu",
+  topNavigationStyle: "hidden",
   requiredPermissions: ["rbac:view"],
-  defaultSurfaceId: "admin-console",
+  defaultSurfaceId: "event-stream",
   surfaces: [
+    {
+      id: "event-stream",
+      title: "Event Stream",
+      navLabel: "Event Stream",
+      description: "Recent control-plane events, scheduler retries, and audit activity.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: {
+        id: "operations",
+        label: "Operations",
+        description: "Operational surfaces for platform owners and compliance admins.",
+        order: 30,
+      },
+      component: AdminEventStreamPage,
+    },
     {
       id: "admin-console",
       title: "Admin Console",
       navLabel: "Console",
       description: "Operational dashboard for platform owners and compliance admins.",
-      kind: "dashboard",
+      kind: "page",
+      fullBleed: true,
       requiredPermissions: ["rbac:view"],
-      dashboard: adminConsoleDashboard,
+      navigationSection: {
+        id: "operations",
+        label: "Operations",
+        description: "Operational surfaces for platform owners and compliance admins.",
+        order: 30,
+      },
+      component: AdminConsolePage,
+    },
+    {
+      id: "organization-users",
+      title: "Organization Users",
+      navLabel: "Directory",
+      description: "Browse organization-scoped users from the shared user endpoint.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: {
+        id: "organization-users",
+        label: "Organization Users",
+        description: "Directory surfaces backed by organization-scoped user data.",
+        order: 40,
+      },
+      component: AdminOrganizationUsersPage,
+    },
+    {
+      id: "active-plans",
+      title: "Active Plans",
+      navLabel: "Active Plans",
+      description: "Reserved surface for organization plan inventory and assignments.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: {
+        id: "organization-users",
+        label: "Organization Users",
+        description: "Directory surfaces backed by organization-scoped user data.",
+        order: 40,
+      },
+      component: AdminActivePlansPage,
+    },
+    {
+      id: "github-organizations",
+      title: "GitHub Organizations",
+      navLabel: "GitHub Orgs",
+      description: "Reserved surface for GitHub organization management.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: {
+        id: "organization-users",
+        label: "Organization Users",
+        description: "Directory surfaces backed by organization-scoped user data.",
+        order: 40,
+      },
+      component: AdminGithubOrganizationsPage,
     },
   ],
 };
@@ -389,6 +342,13 @@ const accessInspectionSection = {
   label: "User access inspection",
   description: "Inspect effective access for specific users.",
   order: 30,
+};
+
+const accessTeamsSection = {
+  id: "teams",
+  label: "Teams",
+  description: "Organization team management and sharing.",
+  order: 35,
 };
 
 const accessRbacApp: AppDefinition = {
@@ -457,27 +417,16 @@ const accessRbacApp: AppDefinition = {
       navigationSection: accessInspectionSection,
       component: AccessRbacInspectorPage,
     },
-  ],
-};
-
-const adminPanelApp: AppDefinition = {
-  id: "admin-panel",
-  title: "Admin Panel",
-  description: "Reserved admin application shell for future operational tooling.",
-  source: "core",
-  icon: Shield,
-  navigationPlacement: "admin-menu",
-  requiredPermissions: ["rbac:view"],
-  defaultSurfaceId: "panel",
-  surfaces: [
     {
-      id: "panel",
-      title: "Admin Panel",
-      navLabel: "Panel",
-      description: "Empty admin application surface reserved for future implementation.",
+      id: "teams",
+      title: "Teams",
+      navLabel: "Registry",
+      description: "Manage organization teams, memberships, and team sharing.",
       kind: "page",
+      fullBleed: true,
       requiredPermissions: ["rbac:view"],
-      component: AdminPanelPage,
+      navigationSection: accessTeamsSection,
+      component: AccessRbacTeamsPage,
     },
   ],
 };
@@ -495,7 +444,7 @@ const coreExtension: AppExtension = {
     distributionLabWidget,
     scenarioConesWidget,
   ],
-  apps: [marketsApp, executionApp, workspaceStudioApp, adminApp, accessRbacApp, adminPanelApp],
+  apps: [demoApp, workspaceStudioApp, adminApp, accessRbacApp],
   themes: [
     mainSequenceSpaceTheme,
     mainSequenceTheme,

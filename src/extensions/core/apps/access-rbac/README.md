@@ -7,6 +7,7 @@ Keep the full app implementation in this folder:
 - page surfaces
 - shared RBAC surface layout
 - user directory adapter for the inspector
+- teams management surface that belongs with Access & RBAC
 
 Registration stays in:
 

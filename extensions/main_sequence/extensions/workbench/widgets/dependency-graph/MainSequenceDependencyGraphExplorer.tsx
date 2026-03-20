@@ -32,8 +32,18 @@ interface MainSequenceDependencyGraphExplorerProps {
   direction: MainSequenceDependencyGraphDirection;
   error: string | null;
   isLoading: boolean;
+  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   payload: LocalTimeSerieDependencyGraphResponse | undefined;
+  runtimeState?: MainSequenceDependencyGraphRuntimeState;
   variant?: "card" | "widget";
+}
+
+export interface MainSequenceDependencyGraphRuntimeState extends Record<string, unknown> {
+  minimapVisible?: boolean;
+  panX?: number;
+  panY?: number;
+  selectedNodeId?: string | null;
+  zoom?: number;
 }
 
 interface PointerPanState {
@@ -224,22 +234,71 @@ function buildLocalUpdateUrl(properties: Record<string, unknown> | undefined) {
   return `/app/main_sequence_workbench/data-nodes?${search.toString()}`;
 }
 
+function sanitizeDependencyGraphRuntimeState(
+  runtimeState: MainSequenceDependencyGraphRuntimeState | undefined,
+) {
+  if (!runtimeState) {
+    return null;
+  }
+
+  return {
+    zoom:
+      typeof runtimeState.zoom === "number" && Number.isFinite(runtimeState.zoom)
+        ? clamp(
+            runtimeState.zoom,
+            dependencyGraphConfig.minZoom,
+            dependencyGraphConfig.maxZoom,
+          )
+        : 1,
+    panX:
+      typeof runtimeState.panX === "number" && Number.isFinite(runtimeState.panX)
+        ? runtimeState.panX
+        : 0,
+    panY:
+      typeof runtimeState.panY === "number" && Number.isFinite(runtimeState.panY)
+        ? runtimeState.panY
+        : 0,
+    selectedNodeId:
+      typeof runtimeState.selectedNodeId === "string"
+        ? runtimeState.selectedNodeId
+        : null,
+    minimapVisible: runtimeState.minimapVisible === true,
+  };
+}
+
 export function MainSequenceDependencyGraphExplorer({
   direction,
   error,
   isLoading,
+  onRuntimeStateChange,
   payload,
+  runtimeState,
   variant = "card",
 }: MainSequenceDependencyGraphExplorerProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const hydratedRuntimeState = useMemo(
+    () => sanitizeDependencyGraphRuntimeState(runtimeState),
+    [runtimeState],
+  );
+  const hydratedRuntimeStateKey = useMemo(
+    () => JSON.stringify(hydratedRuntimeState ?? null),
+    [hydratedRuntimeState],
+  );
+  const lastHydratedStateKeyRef = useRef<string | null>(hydratedRuntimeStateKey);
+  const lastReportedStateKeyRef = useRef<string | null>(null);
+  const runtimeStateEnabledRef = useRef(Boolean(hydratedRuntimeState));
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [panX, setPanX] = useState(0);
-  const [panY, setPanY] = useState(0);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(() => hydratedRuntimeState?.zoom ?? 1);
+  const [panX, setPanX] = useState(() => hydratedRuntimeState?.panX ?? 0);
+  const [panY, setPanY] = useState(() => hydratedRuntimeState?.panY ?? 0);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(
+    () => hydratedRuntimeState?.selectedNodeId ?? null,
+  );
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [minimapVisible, setMinimapVisible] = useState(false);
+  const [minimapVisible, setMinimapVisible] = useState(
+    () => hydratedRuntimeState?.minimapVisible ?? false,
+  );
   const [pointerPan, setPointerPan] = useState<PointerPanState | null>(null);
   const [minimapDrag, setMinimapDrag] = useState<MinimapDragState | null>(null);
   const fittedLayoutKeyRef = useRef<string | null>(null);
@@ -270,6 +329,20 @@ export function MainSequenceDependencyGraphExplorer({
   const visibleWorldRect = useMemo(
     () => getVisibleWorldRect(viewport, panX, panY, zoom),
     [panX, panY, viewport, zoom],
+  );
+  const persistentRuntimeState = useMemo<MainSequenceDependencyGraphRuntimeState>(
+    () => ({
+      zoom: Number(zoom.toFixed(4)),
+      panX: Number(panX.toFixed(2)),
+      panY: Number(panY.toFixed(2)),
+      selectedNodeId,
+      minimapVisible,
+    }),
+    [minimapVisible, panX, panY, selectedNodeId, zoom],
+  );
+  const persistentRuntimeStateKey = useMemo(
+    () => JSON.stringify(persistentRuntimeState),
+    [persistentRuntimeState],
   );
 
   useEffect(() => {
@@ -306,6 +379,33 @@ export function MainSequenceDependencyGraphExplorer({
   }, [layoutKey]);
 
   useEffect(() => {
+    if (hydratedRuntimeStateKey === lastReportedStateKeyRef.current) {
+      lastHydratedStateKeyRef.current = hydratedRuntimeStateKey;
+      return;
+    }
+
+    if (hydratedRuntimeStateKey === lastHydratedStateKeyRef.current) {
+      return;
+    }
+
+    lastHydratedStateKeyRef.current = hydratedRuntimeStateKey;
+    runtimeStateEnabledRef.current = Boolean(hydratedRuntimeState);
+    setHoveredNodeId(null);
+    setSelectedNodeId(hydratedRuntimeState?.selectedNodeId ?? null);
+    setMinimapVisible(hydratedRuntimeState?.minimapVisible ?? false);
+
+    if (hydratedRuntimeState) {
+      setZoom(hydratedRuntimeState.zoom);
+      setPanX(hydratedRuntimeState.panX);
+      setPanY(hydratedRuntimeState.panY);
+      fittedLayoutKeyRef.current = layoutKey;
+      return;
+    }
+
+    fittedLayoutKeyRef.current = null;
+  }, [hydratedRuntimeState, hydratedRuntimeStateKey, layoutKey]);
+
+  useEffect(() => {
     if (!layout || viewport.width <= 0 || viewport.height <= 0) {
       return;
     }
@@ -320,6 +420,27 @@ export function MainSequenceDependencyGraphExplorer({
     setPanY(nextTransform.panY);
     fittedLayoutKeyRef.current = layoutKey;
   }, [layout, layoutKey, viewport]);
+
+  useEffect(() => {
+    if (!onRuntimeStateChange || !runtimeStateEnabledRef.current) {
+      return undefined;
+    }
+
+    if (persistentRuntimeStateKey === lastHydratedStateKeyRef.current) {
+      lastReportedStateKeyRef.current = persistentRuntimeStateKey;
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      lastReportedStateKeyRef.current = persistentRuntimeStateKey;
+      lastHydratedStateKeyRef.current = persistentRuntimeStateKey;
+      onRuntimeStateChange(persistentRuntimeState);
+    }, 120);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [onRuntimeStateChange, persistentRuntimeState, persistentRuntimeStateKey]);
 
   useEffect(() => {
     if (!pointerPan) {
@@ -443,6 +564,7 @@ export function MainSequenceDependencyGraphExplorer({
       return;
     }
 
+    runtimeStateEnabledRef.current = true;
     const nextTransform = getFitTransform(layout.bounds, viewport);
     setZoom(nextTransform.zoom);
     setPanX(nextTransform.panX);
@@ -455,6 +577,7 @@ export function MainSequenceDependencyGraphExplorer({
     }
 
     event.preventDefault();
+    runtimeStateEnabledRef.current = true;
 
     const rect = event.currentTarget.getBoundingClientRect();
     const cursorX = event.clientX - rect.left;
@@ -484,6 +607,7 @@ export function MainSequenceDependencyGraphExplorer({
       return;
     }
 
+    runtimeStateEnabledRef.current = true;
     setPointerPan({
       pointerId: event.pointerId,
       originPanX: panX,
@@ -498,6 +622,7 @@ export function MainSequenceDependencyGraphExplorer({
       return;
     }
 
+    runtimeStateEnabledRef.current = true;
     const rect = event.currentTarget.getBoundingClientRect();
     const relativeX = event.clientX - rect.left;
     const relativeY = event.clientY - rect.top;
@@ -582,7 +707,10 @@ export function MainSequenceDependencyGraphExplorer({
           <Button
             variant={minimapVisible ? "default" : "outline"}
             size="sm"
-            onClick={() => setMinimapVisible((currentValue) => !currentValue)}
+            onClick={() => {
+              runtimeStateEnabledRef.current = true;
+              setMinimapVisible((currentValue) => !currentValue);
+            }}
             disabled={!layout || isLoading || Boolean(error)}
           >
             Minimap
@@ -596,6 +724,7 @@ export function MainSequenceDependencyGraphExplorer({
             max={dependencyGraphConfig.maxZoom * 100}
             value={Math.round(zoom * 100)}
             onChange={(event) => {
+              runtimeStateEnabledRef.current = true;
               const nextZoom = clamp(
                 Number(event.target.value) / 100,
                 dependencyGraphConfig.minZoom,
@@ -749,7 +878,10 @@ export function MainSequenceDependencyGraphExplorer({
                     key={node.id}
                     type="button"
                     data-graph-node
-                    onClick={() => setSelectedNodeId(node.id)}
+                    onClick={() => {
+                      runtimeStateEnabledRef.current = true;
+                      setSelectedNodeId(node.id);
+                    }}
                     onMouseEnter={() => setHoveredNodeId(node.id)}
                     onMouseLeave={() => setHoveredNodeId((currentValue) => (currentValue === node.id ? null : currentValue))}
                     className="absolute text-left"
@@ -861,7 +993,14 @@ export function MainSequenceDependencyGraphExplorer({
                       {selectedNode.subtitle || "Node details"}
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedNodeId(null)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      runtimeStateEnabledRef.current = true;
+                      setSelectedNodeId(null);
+                    }}
+                  >
                     Close
                   </Button>
                 </div>

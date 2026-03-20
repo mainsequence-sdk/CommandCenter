@@ -33,9 +33,9 @@ export function MarketBriefApp() {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Desk brief</CardTitle>
+            <CardTitle>Demo brief</CardTitle>
             <CardDescription>
-              Curated summary surface for operators who want context before opening a full
+              Curated summary surface for users who want context before opening a larger demo
               dashboard.
             </CardDescription>
           </CardHeader>
@@ -78,7 +78,7 @@ export function MarketBriefApp() {
             {[
               "Review overnight risk alerts before the open.",
               "Confirm routing limits and restricted-symbol controls.",
-              "Scan catalyst tape before switching into execution dashboards.",
+              "Scan catalyst tape before switching into the Flow Lab surface.",
             ].map((item) => (
               <div
                 key={item}

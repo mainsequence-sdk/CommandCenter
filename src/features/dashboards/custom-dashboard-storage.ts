@@ -10,6 +10,8 @@ import type { WidgetDefinition } from "@/widgets/types";
 
 const STORAGE_PREFIX = "main-sequence.custom-dashboards";
 const STORAGE_VERSION = 4;
+const WORKSPACE_SNAPSHOT_SCHEMA = "mainsequence.workspace";
+const WORKSPACE_SNAPSHOT_VERSION = 1;
 const DEFAULT_WORKSPACE_COLUMNS = 96;
 const DEFAULT_WORKSPACE_ROW_HEIGHT = 18;
 const DEFAULT_WORKSPACE_GAP = 2;
@@ -29,6 +31,19 @@ export interface UserDashboardCollection {
   dashboards: DashboardDefinition[];
   selectedDashboardId: string | null;
   savedAt: string | null;
+}
+
+export interface WorkspaceSnapshot {
+  schema: typeof WORKSPACE_SNAPSHOT_SCHEMA;
+  version: typeof WORKSPACE_SNAPSHOT_VERSION;
+  exportedAt: string;
+  workspace: DashboardDefinition;
+}
+
+export interface ParsedWorkspaceSnapshot {
+  error: string | null;
+  snapshot: WorkspaceSnapshot | null;
+  sourceFormat: "snapshot" | "raw" | null;
 }
 
 function canUseLocalStorage() {
@@ -51,6 +66,34 @@ function createId(prefix: string) {
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && !Array.isArray(value) && typeof value === "object";
+}
+
+function normalizeWorkspaceLabels(labels: string[] | undefined) {
+  if (!Array.isArray(labels)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      labels
+        .map((label) => label.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 12);
+}
+
+function normalizeWidgetRuntimeState(
+  runtimeState: Record<string, unknown> | undefined,
+) {
+  if (!isPlainRecord(runtimeState)) {
+    return undefined;
+  }
+
+  return cloneJson(runtimeState);
 }
 
 function isLegacyLayout(
@@ -153,14 +196,22 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
   const rowScale = resolveWorkspaceRowScale(rawRowHeight);
   const widgets = Array.isArray(dashboard.widgets)
     ? dashboard.widgets.map((instance) =>
-        scaleWidgetForFineGrid(instance, columnScale, rowScale),
+        scaleWidgetForFineGrid(
+          {
+            ...instance,
+            runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
+          },
+          columnScale,
+          rowScale,
+        ),
       )
     : [];
 
   return materializeDashboardLayout({
     ...dashboard,
     title: dashboard.title || "Untitled workspace",
-    description: dashboard.description || "User-scoped custom workspace stored in local browser storage.",
+    description: dashboard.description || "User-scoped workspace stored in local browser storage.",
+    labels: normalizeWorkspaceLabels(dashboard.labels),
     category: dashboard.category || "Custom",
     source: dashboard.source || "local-dev",
     widgets,
@@ -224,7 +275,8 @@ export function createBlankDashboard(title = "My Workspace"): DashboardDefinitio
   return sanitizeDashboard({
     id: createId("custom-dashboard"),
     title,
-    description: "User-scoped custom workspace stored in temporary local browser storage for development.",
+    description: "User-scoped workspace stored in temporary local browser storage for development.",
+    labels: [],
     category: "Custom",
     source: "local-dev",
     grid: {
@@ -313,6 +365,10 @@ export function saveUserDashboardCollection(
   }
 
   return normalized;
+}
+
+function looksLikeDashboardDefinition(value: unknown): value is DashboardDefinition {
+  return isPlainRecord(value) && Array.isArray(value.widgets);
 }
 
 function buildWidgetInstance(
@@ -481,6 +537,41 @@ export function updateDashboardControlsState(
   };
 }
 
+export function updateDashboardWidgetRuntimeState(
+  dashboard: DashboardDefinition,
+  instanceId: string,
+  runtimeState: Record<string, unknown> | undefined,
+) {
+  const nextRuntimeState = normalizeWidgetRuntimeState(runtimeState);
+  let changed = false;
+
+  const nextWidgets = dashboard.widgets.map((widget) => {
+    if (widget.id !== instanceId) {
+      return widget;
+    }
+
+    if (
+      JSON.stringify(widget.runtimeState ?? null) === JSON.stringify(nextRuntimeState ?? null)
+    ) {
+      return widget;
+    }
+
+    changed = true;
+
+    return {
+      ...widget,
+      runtimeState: nextRuntimeState,
+    };
+  });
+
+  return changed
+    ? {
+        ...dashboard,
+        widgets: nextWidgets,
+      }
+    : dashboard;
+}
+
 export function updateDashboardWidgetSettings(
   dashboard: DashboardDefinition,
   instanceId: string,
@@ -516,4 +607,93 @@ export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId
     ...dashboard,
     widgets: dashboard.widgets.filter((widget) => widget.id !== instanceId),
   });
+}
+
+export function createWorkspaceSnapshot(
+  dashboard: DashboardDefinition,
+): WorkspaceSnapshot {
+  return {
+    schema: WORKSPACE_SNAPSHOT_SCHEMA,
+    version: WORKSPACE_SNAPSHOT_VERSION,
+    exportedAt: new Date().toISOString(),
+    workspace: sanitizeDashboard(cloneJson(dashboard)),
+  };
+}
+
+export function stringifyWorkspaceSnapshot(dashboard: DashboardDefinition) {
+  return JSON.stringify(createWorkspaceSnapshot(dashboard), null, 2);
+}
+
+export function parseWorkspaceSnapshot(rawValue: string): ParsedWorkspaceSnapshot {
+  const trimmed = rawValue.trim();
+
+  if (!trimmed) {
+    return {
+      error: "Paste a workspace JSON payload first.",
+      snapshot: null,
+      sourceFormat: null,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+
+    if (
+      isPlainRecord(parsed) &&
+      parsed.schema === WORKSPACE_SNAPSHOT_SCHEMA &&
+      parsed.version === WORKSPACE_SNAPSHOT_VERSION &&
+      looksLikeDashboardDefinition(parsed.workspace)
+    ) {
+      return {
+        error: null,
+        snapshot: {
+          schema: WORKSPACE_SNAPSHOT_SCHEMA,
+          version: WORKSPACE_SNAPSHOT_VERSION,
+          exportedAt:
+            typeof parsed.exportedAt === "string"
+              ? parsed.exportedAt
+              : new Date().toISOString(),
+          workspace: sanitizeDashboard(parsed.workspace),
+        },
+        sourceFormat: "snapshot",
+      };
+    }
+
+    if (looksLikeDashboardDefinition(parsed)) {
+      return {
+        error: null,
+        snapshot: {
+          schema: WORKSPACE_SNAPSHOT_SCHEMA,
+          version: WORKSPACE_SNAPSHOT_VERSION,
+          exportedAt: new Date().toISOString(),
+          workspace: sanitizeDashboard(parsed),
+        },
+        sourceFormat: "raw",
+      };
+    }
+
+    return {
+      error: "JSON does not match the workspace snapshot format.",
+      snapshot: null,
+      sourceFormat: null,
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Invalid JSON.",
+      snapshot: null,
+      sourceFormat: null,
+    };
+  }
+}
+
+export function restoreWorkspaceFromSnapshot(
+  snapshot: WorkspaceSnapshot,
+  options?: {
+    workspaceId?: string;
+  },
+) {
+  return {
+    ...sanitizeDashboard(cloneJson(snapshot.workspace)),
+    id: options?.workspaceId ?? createId("custom-dashboard"),
+  };
 }

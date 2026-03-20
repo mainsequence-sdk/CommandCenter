@@ -7,6 +7,10 @@ const dynamicTableDataSourceEndpoint = "/orm/api/ts_manager/dynamic_table_data_s
 const dynamicTableMetadataEndpoint = "/orm/api/ts_manager/dynamic_table/";
 const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
+const assetEndpoint = "/orm/api/assets/asset/";
+const assetCategoryEndpoint = "/orm/api/assets/asset-category/";
+const executionVenueEndpoint = "/orm/api/assets/execution_venue/";
+const assetTranslationTableEndpoint = "/orm/api/assets/asset-translation-tables/";
 export const mainSequenceRegistryPageSize = 25;
 
 interface PaginatedResponse<T> {
@@ -23,6 +27,23 @@ export interface OffsetPaginatedList<T> {
   limit: number;
   offset: number;
   results: T[];
+}
+
+export interface FrontendListPagination {
+  page: number;
+  page_size: number;
+  total_pages: number;
+  total_items: number;
+  has_next: boolean;
+  has_previous: boolean;
+  start_index: number;
+  end_index: number;
+}
+
+export interface FrontendRowsResponse<T> {
+  search: string;
+  rows: T[];
+  pagination: FrontendListPagination;
 }
 
 export interface DynamicTableDataSourceOption {
@@ -267,6 +288,311 @@ export interface PhysicalDataSourceDeleteResponse {
   detail: string;
   id: number;
   redirect_path: string;
+}
+
+export interface AssetListRow {
+  id: number;
+  unique_identifier: string | null;
+  figi: string | null;
+  name: string | null;
+  ticker: string | null;
+  exchange_code: string | null;
+  security_market_sector: string | null;
+  security_type: string | null;
+  is_custom_by_organization: boolean;
+}
+
+export interface AssetBulkDeleteInput {
+  ids: number[];
+}
+
+export interface AssetBulkDeleteResponse {
+  detail: string;
+  deleted_count?: number;
+}
+
+export interface AssetCategoryListRow {
+  id: number;
+  unique_identifier: string;
+  display_name: string;
+  description: string;
+  number_of_assets: number;
+}
+
+export interface AssetCategoryListResponse extends FrontendRowsResponse<AssetCategoryListRow> {}
+
+export interface AssetCategoryDetailSelectedCategory {
+  id: number;
+  text: string;
+  sub_text: string;
+}
+
+export interface AssetCategoryDetailField {
+  name: string;
+  label: string;
+  value_type: "text" | "number" | "boolean";
+  value: string | number | boolean | null;
+}
+
+export interface AssetCategoryDetailActions {
+  can_edit: boolean;
+  can_delete: boolean;
+  update_endpoint: string;
+  delete_endpoint: string;
+}
+
+export interface AssetCategoryDetailAssetsListConfig {
+  list_endpoint: string;
+  query_endpoint: string;
+  response_format: string;
+  default_filters: Record<string, QueryValue>;
+}
+
+export interface AssetCategoryDetailResponse {
+  id: number;
+  title: string;
+  selected_category: AssetCategoryDetailSelectedCategory;
+  details: AssetCategoryDetailField[];
+  actions: AssetCategoryDetailActions;
+  assets_list: AssetCategoryDetailAssetsListConfig;
+}
+
+export interface AssetCategoryRecord {
+  id: number;
+  unique_identifier: string;
+  display_name: string;
+  description: string;
+  assets: number[];
+}
+
+export interface CreateAssetCategoryInput {
+  display_name: string;
+  description?: string;
+  unique_identifier?: string;
+  assets?: number[];
+}
+
+export interface UpdateAssetCategoryInput {
+  display_name?: string;
+  description?: string;
+  assets?: number[];
+}
+
+export interface AssetCategoryBulkDeleteInput {
+  ids?: number[];
+  selectAll?: boolean;
+  currentUrl?: string;
+  search?: string;
+  displayName?: string;
+  displayNameContains?: string;
+  uniqueIdentifier?: string;
+  uniqueIdentifierContains?: string;
+  description?: string;
+  descriptionContains?: string;
+  organizationOwnerUid?: string;
+}
+
+export interface AssetCategoryBulkDeleteResponse {
+  detail: string;
+  deleted_count: number;
+}
+
+export interface ExecutionVenueListRow {
+  id: number;
+  symbol: string;
+  name: string;
+}
+
+export interface ExecutionVenueRecord extends ExecutionVenueListRow {}
+
+export interface CreateExecutionVenueInput {
+  symbol: string;
+  name: string;
+}
+
+export interface UpdateExecutionVenueInput {
+  symbol: string;
+  name: string;
+}
+
+export interface AssetTranslationTableListRow {
+  id: number;
+  unique_identifier: string;
+  rules_number: number;
+  creation_date: string | null;
+}
+
+export interface AssetTranslationTableListResponse
+  extends FrontendRowsResponse<AssetTranslationTableListRow> {}
+
+export interface AssetTranslationTableRecord {
+  id: number;
+  unique_identifier: string;
+}
+
+export interface CreateAssetTranslationTableInput {
+  unique_identifier: string;
+}
+
+export interface UpdateAssetTranslationTableInput {
+  unique_identifier: string;
+}
+
+export interface AssetTranslationTableBulkDeleteInput {
+  ids?: number[];
+  selectAll?: boolean;
+  search?: string;
+}
+
+export interface AssetTranslationTableBulkDeleteResponse {
+  detail: string;
+  deleted_count: number;
+}
+
+export interface AssetTranslationTableDetailSelectedTable {
+  id: number;
+  text: string;
+  sub_text: string;
+}
+
+export interface AssetTranslationTableDetailField {
+  name: string;
+  label: string;
+  value_type: "text" | "number" | "boolean" | "datetime";
+  value: string | number | boolean | null;
+}
+
+export interface AssetTranslationTableDetailActions {
+  can_edit: boolean;
+  can_delete: boolean;
+  update_endpoint: string;
+  delete_endpoint: string;
+}
+
+export interface AssetTranslationTableRulesListConfig {
+  list_endpoint: string;
+  response_format: string;
+  create_endpoint: string;
+}
+
+export interface AssetTranslationTableDetailResponse {
+  id: number;
+  title: string;
+  selected_table: AssetTranslationTableDetailSelectedTable;
+  details: AssetTranslationTableDetailField[];
+  actions: AssetTranslationTableDetailActions;
+  rules_list: AssetTranslationTableRulesListConfig;
+}
+
+export interface AssetTranslationTableRuleListRow {
+  id: number;
+  security_type: string | null;
+  security_market_sector: string | null;
+  markets_time_serie_unique_identifier: string;
+  target_exchange_code: string | null;
+  default_column_name: string | null;
+  creation_date: string | null;
+  detail_endpoint: string;
+  update_endpoint: string;
+  delete_endpoint: string;
+}
+
+export interface AssetTranslationTableRuleListResponse
+  extends FrontendRowsResponse<AssetTranslationTableRuleListRow> {}
+
+export interface AssetTranslationTableRuleInput {
+  asset_filter: {
+    security_type?: string;
+    security_market_sector?: string;
+  };
+  markets_time_serie_unique_identifier: string;
+  target_exchange_code?: string;
+  default_column_name?: string;
+}
+
+export interface AssetTranslationTableRuleDeleteResponse {
+  detail: string;
+  deleted_rule?: boolean;
+  detached_only?: boolean;
+}
+
+export interface AssetDetailField {
+  key?: string | null;
+  label: string;
+  value: unknown;
+  value_type?: string | null;
+  meta?: string | null;
+  description?: string | null;
+}
+
+export interface AssetTradingViewAlert {
+  id?: string | number | null;
+  title?: string | null;
+  label?: string | null;
+  name?: string | null;
+  message?: string | null;
+  description?: string | null;
+  condition?: string | null;
+  severity?: string | null;
+  [key: string]: unknown;
+}
+
+export interface AssetTradingViewConfig {
+  enabled: boolean;
+  symbol?: string | null;
+  alerts?: Array<AssetTradingViewAlert | string> | null;
+}
+
+export interface AssetOrderFormConfig {
+  order_types?: string[] | null;
+  default_order_type?: string | null;
+}
+
+export interface AssetDetailResponse {
+  id: number;
+  name?: string | null;
+  ticker?: string | null;
+  unique_identifier?: string | null;
+  figi?: string | null;
+  exchange_code?: string | null;
+  security_market_sector?: string | null;
+  security_type?: string | null;
+  is_custom_by_organization?: boolean;
+  details?: AssetDetailField[] | null;
+  trading_view?: AssetTradingViewConfig | null;
+  order_form?: AssetOrderFormConfig | null;
+  [key: string]: unknown;
+}
+
+export interface AssetOrderFormFieldChoice {
+  value: string | number | boolean;
+  label: string;
+  description?: string;
+}
+
+export interface AssetOrderFormField {
+  key?: string | null;
+  name?: string | null;
+  label?: string | null;
+  editor?: string | null;
+  type?: string | null;
+  required?: boolean;
+  value?: unknown;
+  placeholder?: string | null;
+  help_text?: string | null;
+  description?: string | null;
+  read_only?: boolean;
+  choices?:
+    | Array<AssetOrderFormFieldChoice | string | number | boolean>
+    | null;
+  options?:
+    | Array<AssetOrderFormFieldChoice | string | number | boolean>
+    | null;
+  [key: string]: unknown;
+}
+
+export interface AssetOrderFormFieldsResponse {
+  fields?: AssetOrderFormField[] | null;
 }
 
 export interface ClusterListRow {
@@ -1286,6 +1612,50 @@ export interface ProjectFormOptions {
 }
 
 type QueryValue = string | number | boolean | null | undefined;
+
+export interface AssetListFilters {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  limit?: number;
+  offset?: number;
+  categoryId?: number;
+  ticker?: string;
+  name?: string;
+  exchangeCode?: string;
+  isCustomByOrganization?: boolean;
+  currentSnapshotFilters?: Record<string, QueryValue>;
+}
+
+export interface AssetCategoryListFilters {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ExecutionVenueListFilters {
+  search?: string;
+  limit?: number;
+  offset?: number;
+  symbol?: string;
+  symbolIn?: string[];
+  name?: string;
+  nameIn?: string[];
+  nameContains?: string;
+}
+
+export interface AssetTranslationTableListFilters {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  usePostQuery?: boolean;
+}
+
+export interface AssetTranslationTableRuleListFilters {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
 export type ShareableAccessLevel = "view" | "edit";
 export type ShareablePrincipalType = "user" | "team";
 
@@ -1373,6 +1743,71 @@ function normalizeOffsetPaginatedResponse<T>(
     limit,
     offset,
     results: payload.results,
+  };
+}
+
+function buildFrontendListPagination(totalItems: number, limit: number, offset: number): FrontendListPagination {
+  const safePageSize = Math.max(1, limit);
+  const safeOffset = Math.max(0, offset);
+  const page = Math.floor(safeOffset / safePageSize) + 1;
+  const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
+  const hasPrevious = safeOffset > 0;
+  const hasNext = safeOffset + safePageSize < totalItems;
+  const startIndex = totalItems === 0 ? 0 : safeOffset + 1;
+  const endIndex = totalItems === 0 ? 0 : Math.min(totalItems, safeOffset + safePageSize);
+
+  return {
+    page,
+    page_size: safePageSize,
+    total_pages: totalPages,
+    total_items: totalItems,
+    has_next: hasNext,
+    has_previous: hasPrevious,
+    start_index: startIndex,
+    end_index: endIndex,
+  };
+}
+
+function normalizeFrontendRowsResponse<T>(
+  payload: FrontendRowsResponse<T> | PaginatedResponse<T> | T[],
+  {
+    search,
+    limit,
+    offset,
+  }: {
+    search?: string;
+    limit: number;
+    offset: number;
+  },
+): FrontendRowsResponse<T> {
+  if (!Array.isArray(payload) && "rows" in payload && Array.isArray(payload.rows)) {
+    return {
+      search:
+        "search" in payload && typeof payload.search === "string"
+          ? payload.search
+          : search?.trim() || "",
+      rows: payload.rows,
+      pagination:
+        "pagination" in payload && payload.pagination
+          ? payload.pagination
+          : buildFrontendListPagination(payload.rows.length, limit, offset),
+    };
+  }
+
+  if (!Array.isArray(payload) && "results" in payload && Array.isArray(payload.results)) {
+    return {
+      search: search?.trim() || "",
+      rows: payload.results,
+      pagination: buildFrontendListPagination(payload.count, limit, offset),
+    };
+  }
+
+  const rows = Array.isArray(payload) ? payload : [];
+
+  return {
+    search: search?.trim() || "",
+    rows,
+    pagination: buildFrontendListPagination(rows.length, limit, offset),
   };
 }
 
@@ -1595,6 +2030,120 @@ function isEntitySummaryHeaderPayload(payload: unknown): payload is EntitySummar
   );
 }
 
+function buildAssetCategorySearchFilterValue(categoryId?: number) {
+  return typeof categoryId === "number" && Number.isFinite(categoryId) && categoryId > 0
+    ? categoryId
+    : undefined;
+}
+
+function buildAssetCategoryBodyFilterValue(categoryId?: number) {
+  return typeof categoryId === "number" && Number.isFinite(categoryId) && categoryId > 0
+    ? categoryId
+    : undefined;
+}
+
+function buildAssetListSearch(filters: AssetListFilters, includeResponseFormat = true) {
+  return {
+    ...(includeResponseFormat ? { response_format: "frontend_list" } : {}),
+    search: filters.search?.trim() || undefined,
+    limit: filters.limit,
+    offset: filters.offset,
+    categories__id: buildAssetCategorySearchFilterValue(filters.categoryId),
+    ticker: filters.ticker?.trim() || undefined,
+    name: filters.name?.trim() || undefined,
+    exchange_code: filters.exchangeCode?.trim() || undefined,
+    is_custom_by_organization: filters.isCustomByOrganization,
+    ...(filters.currentSnapshotFilters ?? {}),
+  } satisfies Record<string, QueryValue>;
+}
+
+function shouldUseAssetQuery(filters: AssetListFilters) {
+  return Boolean(
+    filters.ticker?.trim() ||
+      filters.name?.trim() ||
+      filters.exchangeCode?.trim() ||
+      Object.keys(filters.currentSnapshotFilters ?? {}).length > 0,
+  );
+}
+
+function buildAssetQueryBody(filters: AssetListFilters) {
+  return {
+    search: filters.search?.trim() || undefined,
+    limit: filters.limit,
+    offset: filters.offset,
+    categories__id: buildAssetCategoryBodyFilterValue(filters.categoryId),
+    ticker: filters.ticker?.trim() || undefined,
+    name: filters.name?.trim() || undefined,
+    exchange_code: filters.exchangeCode?.trim() || undefined,
+    is_custom_by_organization: filters.isCustomByOrganization,
+    ...(filters.currentSnapshotFilters ?? {}),
+  };
+}
+
+function buildAssetCategoryListSearch(
+  filters: AssetCategoryListFilters,
+  includeResponseFormat = true,
+) {
+  return {
+    ...(includeResponseFormat ? { response_format: "frontend_list" } : {}),
+    search: filters.search?.trim() || undefined,
+    limit: filters.limit,
+    offset: filters.offset,
+  } satisfies Record<string, QueryValue>;
+}
+
+function buildDelimitedSearchValue(values?: string[]) {
+  const normalizedValues =
+    values?.map((value) => value.trim()).filter((value) => value.length > 0) ?? [];
+
+  return normalizedValues.length > 0 ? normalizedValues.join(",") : undefined;
+}
+
+function buildExecutionVenueListSearch(filters: ExecutionVenueListFilters) {
+  return {
+    search: filters.search?.trim() || undefined,
+    limit: filters.limit,
+    offset: filters.offset,
+    symbol: filters.symbol?.trim() || undefined,
+    symbol__in: buildDelimitedSearchValue(filters.symbolIn),
+    name: filters.name?.trim() || undefined,
+    name__in: buildDelimitedSearchValue(filters.nameIn),
+    name__contains: filters.nameContains?.trim() || undefined,
+  } satisfies Record<string, QueryValue>;
+}
+
+function buildAssetTranslationTableListSearch(
+  filters: AssetTranslationTableListFilters,
+  includeResponseFormat = true,
+) {
+  return {
+    ...(includeResponseFormat ? { response_format: "frontend_list" } : {}),
+    search: filters.search?.trim() || undefined,
+    page: filters.page,
+    page_size: filters.pageSize,
+  } satisfies Record<string, QueryValue>;
+}
+
+function buildAssetTranslationTableQueryBody(filters: AssetTranslationTableListFilters) {
+  return {
+    search: filters.search?.trim() || undefined,
+    page: filters.page,
+    page_size: filters.pageSize,
+  };
+}
+
+function buildAssetTranslationTableRulesListSearch(
+  filters: AssetTranslationTableRuleListFilters,
+  includeResponseFormat = true,
+) {
+  return {
+    ...(includeResponseFormat ? { response_format: "frontend_list" } : {}),
+    search: filters.search?.trim() || undefined,
+    page: filters.page,
+    page_size: filters.pageSize,
+  } satisfies Record<string, QueryValue>;
+}
+
 export async function listProjects({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
@@ -1615,6 +2164,465 @@ export async function listProjects({
     ...page,
     results: [...page.results].sort((left, right) => right.id - left.id),
   };
+}
+
+export async function listAssets({
+  search,
+  page = 1,
+  pageSize = mainSequenceRegistryPageSize,
+  limit = pageSize,
+  offset = (page - 1) * pageSize,
+  categoryId,
+  ticker,
+  name,
+  exchangeCode,
+  isCustomByOrganization,
+  currentSnapshotFilters,
+}: AssetListFilters = {}) {
+  const filters = {
+    search,
+    page,
+    pageSize,
+    limit,
+    offset,
+    categoryId,
+    ticker,
+    name,
+    exchangeCode,
+    isCustomByOrganization,
+    currentSnapshotFilters,
+  } satisfies AssetListFilters;
+
+  if (shouldUseAssetQuery(filters)) {
+    const payload = await requestJson<PaginatedResponse<AssetListRow> | AssetListRow[]>(
+      assetEndpoint,
+      "query/",
+      {
+        method: "POST",
+        body: JSON.stringify(buildAssetQueryBody(filters)),
+      },
+      { response_format: "frontend_list" },
+    );
+
+    return normalizeOffsetPaginatedResponse(payload, limit, offset);
+  }
+
+  const payload = await requestJson<PaginatedResponse<AssetListRow> | AssetListRow[]>(
+    assetEndpoint,
+    "",
+    undefined,
+    buildAssetListSearch(filters),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchAssetSummary({
+  search,
+  page = 1,
+  pageSize = mainSequenceRegistryPageSize,
+  limit = pageSize,
+  offset = (page - 1) * pageSize,
+  categoryId,
+  ticker,
+  name,
+  exchangeCode,
+  isCustomByOrganization,
+  currentSnapshotFilters,
+}: AssetListFilters = {}) {
+  return requestJson<EntitySummaryHeader>(
+    assetEndpoint,
+    "summary/",
+    undefined,
+    buildAssetListSearch(
+      {
+        search,
+        page,
+        pageSize,
+        limit,
+        offset,
+        categoryId,
+        ticker,
+        name,
+        exchangeCode,
+        isCustomByOrganization,
+        currentSnapshotFilters,
+      },
+      false,
+    ),
+  );
+}
+
+export function bulkDeleteAssets(input: AssetBulkDeleteInput) {
+  return requestJson<AssetBulkDeleteResponse>(
+    assetEndpoint,
+    "bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ids: input.ids,
+      }),
+    },
+  );
+}
+
+export async function listAssetCategories({
+  search,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: AssetCategoryListFilters = {}) {
+  const filters = {
+    search,
+    limit,
+    offset,
+  } satisfies AssetCategoryListFilters;
+
+  const payload = await requestJson<
+    AssetCategoryListResponse | PaginatedResponse<AssetCategoryListRow> | AssetCategoryListRow[]
+  >(
+    assetCategoryEndpoint,
+    "",
+    undefined,
+    buildAssetCategoryListSearch(filters),
+  );
+
+  return normalizeFrontendRowsResponse(payload, {
+    search,
+    limit,
+    offset,
+  });
+}
+
+export function fetchAssetCategoryDetail(assetCategoryId: number) {
+  return requestJson<AssetCategoryDetailResponse>(
+    assetCategoryEndpoint,
+    `${assetCategoryId}/`,
+    undefined,
+    { response_format: "frontend_detail" },
+  );
+}
+
+export function createAssetCategory(input: CreateAssetCategoryInput) {
+  return requestJson<AssetCategoryRecord>(assetCategoryEndpoint, "", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateAssetCategory(assetCategoryId: number, input: UpdateAssetCategoryInput) {
+  return requestJson<AssetCategoryRecord>(
+    assetCategoryEndpoint,
+    `${assetCategoryId}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function deleteAssetCategory(assetCategoryId: number) {
+  return requestJson<Record<string, unknown> | null>(
+    assetCategoryEndpoint,
+    `${assetCategoryId}/`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function bulkDeleteAssetCategories(input: AssetCategoryBulkDeleteInput) {
+  return requestJson<AssetCategoryBulkDeleteResponse>(
+    assetCategoryEndpoint,
+    "bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ids: input.ids,
+        select_all: input.selectAll,
+        current_url: input.currentUrl,
+        search: input.search,
+        display_name: input.displayName,
+        display_name__contains: input.displayNameContains,
+        unique_identifier: input.uniqueIdentifier,
+        unique_identifier__contains: input.uniqueIdentifierContains,
+        description: input.description,
+        description__contains: input.descriptionContains,
+        organization_owner__uid: input.organizationOwnerUid,
+      }),
+    },
+  );
+}
+
+export async function listExecutionVenues({
+  search,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+  symbol,
+  symbolIn,
+  name,
+  nameIn,
+  nameContains,
+}: ExecutionVenueListFilters = {}) {
+  const filters = {
+    search,
+    limit,
+    offset,
+    symbol,
+    symbolIn,
+    name,
+    nameIn,
+    nameContains,
+  } satisfies ExecutionVenueListFilters;
+
+  const payload = await requestJson<PaginatedResponse<ExecutionVenueListRow> | ExecutionVenueListRow[]>(
+    executionVenueEndpoint,
+    "",
+    undefined,
+    buildExecutionVenueListSearch(filters),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchExecutionVenueDetail(executionVenueId: number) {
+  return requestJson<ExecutionVenueRecord>(executionVenueEndpoint, `${executionVenueId}/`);
+}
+
+export function createExecutionVenue(input: CreateExecutionVenueInput) {
+  return requestJson<ExecutionVenueRecord>(executionVenueEndpoint, "", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateExecutionVenue(
+  executionVenueId: number,
+  input: UpdateExecutionVenueInput,
+) {
+  return requestJson<ExecutionVenueRecord>(
+    executionVenueEndpoint,
+    `${executionVenueId}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function deleteExecutionVenue(executionVenueId: number) {
+  return requestJson<Record<string, unknown> | null>(
+    executionVenueEndpoint,
+    `${executionVenueId}/`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export async function listAssetTranslationTables({
+  search,
+  page = 1,
+  pageSize = 40,
+  usePostQuery = false,
+}: AssetTranslationTableListFilters = {}) {
+  const filters = {
+    search,
+    page,
+    pageSize,
+    usePostQuery,
+  } satisfies AssetTranslationTableListFilters;
+  const offset = Math.max(0, (page - 1) * pageSize);
+
+  const payload = usePostQuery
+    ? await requestJson<
+        | AssetTranslationTableListResponse
+        | PaginatedResponse<AssetTranslationTableListRow>
+        | AssetTranslationTableListRow[]
+      >(
+        assetTranslationTableEndpoint,
+        "query/",
+        {
+          method: "POST",
+          body: JSON.stringify(buildAssetTranslationTableQueryBody(filters)),
+        },
+        { response_format: "frontend_list" },
+      )
+    : await requestJson<
+        | AssetTranslationTableListResponse
+        | PaginatedResponse<AssetTranslationTableListRow>
+        | AssetTranslationTableListRow[]
+      >(
+        assetTranslationTableEndpoint,
+        "",
+        undefined,
+        buildAssetTranslationTableListSearch(filters),
+      );
+
+  return normalizeFrontendRowsResponse(payload, {
+    search,
+    limit: pageSize,
+    offset,
+  });
+}
+
+export function createAssetTranslationTable(input: CreateAssetTranslationTableInput) {
+  return requestJson<AssetTranslationTableRecord>(assetTranslationTableEndpoint, "", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function bulkDeleteAssetTranslationTables(input: AssetTranslationTableBulkDeleteInput) {
+  return requestJson<AssetTranslationTableBulkDeleteResponse>(
+    assetTranslationTableEndpoint,
+    "bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ids: input.ids,
+        select_all: input.selectAll,
+        search: input.search?.trim() || undefined,
+      }),
+    },
+  );
+}
+
+export function fetchAssetTranslationTableDetail(assetTranslationTableId: number) {
+  return requestJson<AssetTranslationTableDetailResponse>(
+    assetTranslationTableEndpoint,
+    `${assetTranslationTableId}/`,
+    undefined,
+    { response_format: "frontend_detail" },
+  );
+}
+
+export function updateAssetTranslationTable(
+  assetTranslationTableId: number,
+  input: UpdateAssetTranslationTableInput,
+) {
+  return requestJson<AssetTranslationTableRecord>(
+    assetTranslationTableEndpoint,
+    `${assetTranslationTableId}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function deleteAssetTranslationTable(assetTranslationTableId: number) {
+  return requestJson<Record<string, unknown> | null>(
+    assetTranslationTableEndpoint,
+    `${assetTranslationTableId}/`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export async function listAssetTranslationTableRules(
+  assetTranslationTableId: number,
+  {
+    search,
+    page = 1,
+    pageSize = 20,
+  }: AssetTranslationTableRuleListFilters = {},
+) {
+  const filters = {
+    search,
+    page,
+    pageSize,
+  } satisfies AssetTranslationTableRuleListFilters;
+
+  const payload = await requestJson<
+    | AssetTranslationTableRuleListResponse
+    | PaginatedResponse<AssetTranslationTableRuleListRow>
+    | AssetTranslationTableRuleListRow[]
+  >(
+    assetTranslationTableEndpoint,
+    `${assetTranslationTableId}/rules/`,
+    undefined,
+    buildAssetTranslationTableRulesListSearch(filters),
+  );
+
+  return normalizeFrontendRowsResponse(payload, {
+    search,
+    limit: pageSize,
+    offset: Math.max(0, (page - 1) * pageSize),
+  });
+}
+
+export function createAssetTranslationTableRule(
+  assetTranslationTableId: number,
+  input: AssetTranslationTableRuleInput,
+) {
+  return requestJson<AssetTranslationTableRuleListRow>(
+    assetTranslationTableEndpoint,
+    `${assetTranslationTableId}/rules/`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function updateAssetTranslationTableRule(
+  assetTranslationTableId: number,
+  ruleId: number,
+  input: AssetTranslationTableRuleInput,
+) {
+  return requestJson<AssetTranslationTableRuleListRow>(
+    assetTranslationTableEndpoint,
+    `${assetTranslationTableId}/rules/${ruleId}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function deleteAssetTranslationTableRule(assetTranslationTableId: number, ruleId: number) {
+  return requestJson<AssetTranslationTableRuleDeleteResponse>(
+    assetTranslationTableEndpoint,
+    `${assetTranslationTableId}/rules/${ruleId}/`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function fetchAssetDetail(assetId: number) {
+  return requestJson<AssetDetailResponse>(
+    assetEndpoint,
+    `${assetId}/`,
+    undefined,
+    { response_format: "frontend_detail" },
+  );
+}
+
+function normalizeAssetOrderFormFields(
+  payload: AssetOrderFormFieldsResponse | AssetOrderFormField[] | null,
+) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (payload && Array.isArray(payload.fields)) {
+    return payload.fields;
+  }
+
+  return [];
+}
+
+export async function fetchAssetOrderFormFields(assetId: number, orderType: string) {
+  const payload = await requestJson<AssetOrderFormFieldsResponse | AssetOrderFormField[]>(
+    assetEndpoint,
+    `${assetId}/order-form-fields/`,
+    undefined,
+    { order_type: orderType },
+  );
+
+  return normalizeAssetOrderFormFields(payload);
 }
 
 export function listProjectDataSources({

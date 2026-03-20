@@ -59,9 +59,8 @@ What it is good for:
 
 Where it is used now:
 
-- `Markets / Overview`
-- `Markets / Cross-Asset`
-- `Execution / Trading Desk`
+- `Demo / Overview`
+- `Demo / Cross-Asset`
 - `Admin / Admin Console`
 
 Why it matters:
@@ -91,9 +90,8 @@ What it is good for:
 
 Where it is used now:
 
-- `Markets / Overview`
-- `Markets / Cross-Asset`
-- `Execution / Trading Desk`
+- `Demo / Overview`
+- `Demo / Cross-Asset`
 - `Admin / Admin Console`
 
 Why it matters:
@@ -124,9 +122,9 @@ What it is good for:
 
 Where it is used now:
 
-- `Markets / Overview`
-- `Markets / Cross-Asset`
-- `Execution / Trading Desk`
+- `Demo / Overview`
+- `Demo / Cross-Asset`
+- `Demo / Flow Lab`
 - `Admin / Admin Console`
 
 Why it matters:
@@ -155,13 +153,12 @@ What it is good for:
 
 Where it is used now:
 
-- `Markets / Signal Atlas`
+- Not currently mounted in a shipped dashboard.
 
 Why it matters:
 
-This widget shows that the platform is not limited to plain cards and lists. It is the proof point
-that a richer, more differentiated analytical surface can still live inside the same shell and
-registry model.
+This widget shows that the platform is not limited to plain cards and lists. It remains available
+through the widget registry for richer analytical surfaces even when it is not mounted by default.
 
 ### Factor Heatmap
 
@@ -184,12 +181,12 @@ What it is good for:
 
 Where it is used now:
 
-- `Markets / Signal Atlas`
+- Not currently mounted in a shipped dashboard.
 
 Why it matters:
 
 It gives the platform a high-information surface that complements narrative dashboards and summary
-cards. Teams can use it as a template for other dense grid-based analytical widgets.
+cards. Teams can still use it as a template for other dense grid-based analytical widgets.
 
 ### Distribution Lab
 
@@ -212,12 +209,12 @@ What it is good for:
 
 Where it is used now:
 
-- `Markets / Signal Atlas`
+- Not currently mounted in a shipped dashboard.
 
 Why it matters:
 
-This widget brings a more research-heavy visual language into the platform and proves the shell can
-host more nuanced analytical views without changing the core dashboard model.
+This widget brings a more research-heavy visual language into the platform and remains available
+for future demo or product-specific dashboards without changing the core dashboard model.
 
 ### Scenario Cones
 
@@ -240,23 +237,24 @@ What it is good for:
 
 Where it is used now:
 
-- `Markets / Signal Atlas`
+- Not currently mounted in a shipped dashboard.
 
 Why it matters:
 
 It gives the platform a reusable forward-looking visual pattern, not just historical and current
-state panels.
+state panels, even when it is not mounted in the default demo app.
 
 ## Current platform composition
 
 The core extension currently uses the widget set in four ways:
 
 1. `Market KPIs`, `News Feed`, and `Activity Feed` establish the default operating language for
-   market, execution, and admin dashboards.
-2. `Causal Graph`, `Factor Heatmap`, `Distribution Lab`, and `Scenario Cones` power the richer
-   quant showcase surface in `Markets / Signal Atlas`.
-3. Repetition across dashboards proves widgets are meant to be reused, not handcrafted per screen.
-4. Optional extension widgets can sit beside these core widgets without changing the contract.
+   demo and admin dashboards.
+2. `Activity Feed` also appears inside `Demo / Flow Lab`, proving extension widgets and core
+   widgets can coexist in the same app.
+3. `Causal Graph`, `Factor Heatmap`, `Distribution Lab`, and `Scenario Cones` remain available in
+   the widget registry even though they are not mounted in a shipped dashboard right now.
+4. Repetition across dashboards proves widgets are meant to be reused, not handcrafted per screen.
 
 ## When to build a new widget instead of reusing core
 

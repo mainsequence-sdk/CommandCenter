@@ -90,12 +90,13 @@ This gives users both discovery paths:
 
 ### Favorites
 
-Surface navigation also supports user-level favorites.
+The shell supports user-level favorites for both app surfaces and selected workspace instances.
 
 - any view in an app surface menu can be starred
+- specific `Workspaces` instances can also be starred from the workspace index
 - those favorites are stored at the shell level and reused across the platform
-- the topbar exposes a quick favorites menu for fast jumps across apps
-- favorites are still filtered by access, so inaccessible views do not appear
+- the topbar exposes a quick favorites menu for fast jumps across apps and saved workspaces
+- surface favorites are still filtered by access, and stale workspace favorites are dropped if the workspace no longer exists locally
 
 ### User menu
 

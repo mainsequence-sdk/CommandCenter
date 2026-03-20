@@ -27,11 +27,20 @@ export interface AppExtension {
 The app registry loads extensions from both locations:
 
 ```ts
-const internalModules = import.meta.glob("../../extensions/*/index.ts", { eager: true });
-const externalModules = import.meta.glob("../../../extensions/*/index.ts", { eager: true });
+const internalModules = import.meta.glob(
+  ["../../extensions/*/index.ts", "../../extensions/*/extensions/*/index.ts"],
+  { eager: true },
+);
+const externalModules = import.meta.glob(
+  ["../../../extensions/*/index.ts", "../../../extensions/*/extensions/*/index.ts"],
+  { eager: true },
+);
 ```
 
-That means each extension should have a single `index.ts` entrypoint.
+That means each loadable extension module should have a single `index.ts` entrypoint. Repo-root
+product namespaces can also expose multiple nested extensions, for example
+`extensions/main_sequence/extensions/workbench/index.ts` and
+`extensions/main_sequence/extensions/markets/index.ts`.
 
 Repo-root extensions can still import shared runtime APIs, app contracts, widgets, UI primitives, and data adapters through the `@/` alias. This keeps the shell reusable while allowing product modules to live outside `src/`.
 
@@ -105,7 +114,6 @@ Current examples:
 - `src/extensions/ag-grid/index.ts`
 - `src/extensions/lightweight-charts/index.ts`
 - `src/extensions/flow-lab/index.ts`
-- `extensions/research-suite/index.ts`
 - `extensions/main_sequence/extensions/workbench/index.ts`
 - `extensions/main_sequence/extensions/markets/index.ts`
 
@@ -147,11 +155,11 @@ Use an app when:
 Example:
 
 ```ts
-const executionApp: AppDefinition = {
-  id: "execution",
-  title: "Execution",
-  description: "Desk-facing execution monitoring and workflow surfaces.",
-  source: "flow-lab",
+const tradeOpsApp: AppDefinition = {
+  id: "trade-ops",
+  title: "Trade Ops",
+  description: "Desk-facing monitoring and workflow surfaces.",
+  source: "acme-trading",
   icon: PanelsTopLeft,
   requiredPermissions: ["orders:read"],
   defaultSurfaceId: "desk",
@@ -168,9 +176,8 @@ Bundled example:
 
 Repo-root example:
 
-- `extensions/research-suite/index.ts`
-- `extensions/research-suite/ResearchBriefingPage.tsx`
-- `extensions/research-suite/ScenarioLabTool.tsx`
+- `extensions/main_sequence/extensions/workbench/index.ts`
+- `extensions/main_sequence/extensions/workbench/app.ts`
 
 ## Adding a dashboard surface
 
@@ -188,8 +195,8 @@ Recommended authoring style:
 const deskDashboard: DashboardDefinition = {
   id: "desk",
   title: "Desk",
-  description: "Execution monitoring surface.",
-  source: "flow-lab",
+  description: "Trade monitoring surface.",
+  source: "acme-trading",
   widgets: [
     {
       id: "desk-chart",
@@ -210,18 +217,18 @@ const deskDashboard: DashboardDefinition = {
   ],
 };
 
-const executionApp: AppDefinition = {
-  id: "execution",
-  title: "Execution",
-  description: "Desk-facing execution monitoring and workflow surfaces.",
-  source: "flow-lab",
+const tradeOpsApp: AppDefinition = {
+  id: "trade-ops",
+  title: "Trade Ops",
+  description: "Desk-facing monitoring and workflow surfaces.",
+  source: "acme-trading",
   icon: PanelsTopLeft,
   defaultSurfaceId: "desk",
   surfaces: [
     {
       id: "desk",
       title: "Desk",
-      description: "Execution monitoring surface.",
+      description: "Trade monitoring surface.",
       kind: "dashboard",
       dashboard: deskDashboard,
     },
@@ -244,21 +251,21 @@ Use them when:
 Example:
 
 ```ts
-const executionApp: AppDefinition = {
-  id: "execution",
-  title: "Execution",
-  description: "Desk-facing execution monitoring and workflow surfaces.",
-  source: "flow-lab",
+const tradeOpsApp: AppDefinition = {
+  id: "trade-ops",
+  title: "Trade Ops",
+  description: "Desk-facing monitoring and workflow surfaces.",
+  source: "acme-trading",
   icon: PanelsTopLeft,
-  defaultSurfaceId: "execution-console",
+  defaultSurfaceId: "trade-console",
   surfaces: [
     {
-      id: "execution-console",
-      title: "Execution Console",
+      id: "trade-console",
+      title: "Trade Console",
       description: "Operator-first application surface.",
       kind: "tool",
       requiredPermissions: ["orders:read"],
-      component: ExecutionConsoleApp,
+      component: TradeConsoleApp,
     },
   ],
 };

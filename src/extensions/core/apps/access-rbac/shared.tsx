@@ -253,12 +253,9 @@ export function AccessRbacSurfaceLayout({
                               navigate(getAppPath("access-rbac", surface.id));
                             }}
                           >
-                            <div className="flex min-h-8 items-center gap-2">
+                            <div className="flex min-h-8 items-center">
                               <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                                 {surface.navLabel ?? surface.title}
-                              </span>
-                              <span className="shrink-0 text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-                                {surface.kind}
                               </span>
                             </div>
                           </button>

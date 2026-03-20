@@ -14,6 +14,7 @@ import {
 import type {
   MainSequenceDependencyGraphDirection,
 } from "../../widgets/dependency-graph/graphLayout";
+import type { MainSequenceDependencyGraphRuntimeState } from "../../widgets/dependency-graph/MainSequenceDependencyGraphExplorer";
 
 function directionLabel(direction: MainSequenceDependencyGraphDirection) {
   return direction === "downstream" ? "Downstream graph" : "Upstream graph";
@@ -23,11 +24,15 @@ export function MainSequenceLocalUpdateDependencyGraph({
   direction,
   enabled = true,
   localTimeSerieId,
+  runtimeState,
+  onRuntimeStateChange,
   variant = "card",
 }: {
   direction: MainSequenceDependencyGraphDirection;
   enabled?: boolean;
   localTimeSerieId: number;
+  runtimeState?: MainSequenceDependencyGraphRuntimeState;
+  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   variant?: "card" | "widget";
 }) {
   const graphQuery = useQuery({
@@ -63,6 +68,8 @@ export function MainSequenceLocalUpdateDependencyGraph({
           payload={payload}
           isLoading={graphQuery.isLoading}
           error={error}
+          runtimeState={runtimeState}
+          onRuntimeStateChange={onRuntimeStateChange}
           variant="widget"
         />
       </div>
@@ -94,6 +101,8 @@ export function MainSequenceLocalUpdateDependencyGraph({
           payload={payload}
           isLoading={graphQuery.isLoading}
           error={error}
+          runtimeState={runtimeState}
+          onRuntimeStateChange={onRuntimeStateChange}
           variant="card"
         />
       </CardContent>

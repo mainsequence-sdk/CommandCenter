@@ -14,16 +14,19 @@ This directory contains the Command Center widget platform, including the shared
 
 - A `WidgetDefinition` is the reusable widget type: metadata, render component, and optional typed settings UI.
 - A dashboard or app mounts widget instances. Each instance has its own `title` and `props`.
+- Widget instances can also carry optional `runtimeState` when the widget needs to persist view-level state separately from props.
 - Widget settings are instance-scoped, not global to the widget definition. Two surfaces can use the same widget definition with different props.
 - App-owned surfaces can use preconfigured widget instances so users consume the widget without needing to configure it.
 - Custom dashboard and workspace flows are the place where instance settings are intended to be user-editable.
 - The shared settings modal supports title overrides and raw JSON prop editing for any widget instance.
 - Static dashboard surfaces currently keep widget settings changes only for the current page session.
 - The custom workspace studio writes widget settings into the workspace draft, and those changes persist once the user saves the workspace.
+- Stateful widgets can report runtime state back through `WidgetComponentProps.onRuntimeStateChange` so Workspaces JSON snapshots can round-trip view state such as zoom, pan, or selected node context.
 
 ## Maintenance notes
 
 - Prefer wiring new widget-level configuration through the shared settings modal before adding page-specific controls.
+- Use `runtimeState` only for ephemeral view state that should round-trip with a workspace; keep durable configuration in widget `props`.
 - If a widget needs a richer configuration experience, provide `settingsComponent` on its `WidgetDefinition` instead of forking the modal shell.
 - Be explicit about whether a surface is rendering a preconfigured widget instance or a user-configurable widget instance.
 - Keep widget module documentation close to the implementation when adding new widget folders.

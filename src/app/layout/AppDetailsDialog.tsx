@@ -64,7 +64,6 @@ export function AppDetailsDialog({
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">{app.description}</div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge variant="neutral">app</Badge>
                   <Badge variant="neutral">{app.source}</Badge>
                   <Badge variant="neutral">{surfaces.length} surfaces</Badge>
                 </div>
@@ -92,7 +91,6 @@ export function AppDetailsDialog({
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="neutral">{surface.kind}</Badge>
                       {surface.id === defaultSurface?.id ? (
                         <Badge variant="primary">home</Badge>
                       ) : null}
@@ -105,7 +103,6 @@ export function AppDetailsDialog({
         </section>
 
         <aside className="space-y-4">
-          <DetailBlock label="Type" value="app" />
           <DetailBlock label="Shows In" value="Left rail, topbar surface selector, global search" />
           <DetailBlock label="Home Route" value={getAppPath(app.id)} mono />
           <DetailBlock

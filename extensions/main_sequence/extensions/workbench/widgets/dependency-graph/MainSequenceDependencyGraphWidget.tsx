@@ -12,6 +12,8 @@ export interface MainSequenceDependencyGraphWidgetProps extends Record<string, u
 
 export function MainSequenceDependencyGraphWidget({
   props,
+  runtimeState,
+  onRuntimeStateChange,
 }: WidgetComponentProps<MainSequenceDependencyGraphWidgetProps>) {
   const direction = props.direction === "upstream" ? "upstream" : "downstream";
   const localTimeSerieId = Number(props.localTimeSerieId ?? 0);
@@ -37,6 +39,8 @@ export function MainSequenceDependencyGraphWidget({
     <MainSequenceLocalUpdateDependencyGraph
       direction={direction}
       localTimeSerieId={localTimeSerieId}
+      runtimeState={runtimeState}
+      onRuntimeStateChange={onRuntimeStateChange}
       variant="widget"
     />
   );

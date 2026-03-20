@@ -11,7 +11,7 @@ export type MainSequenceRegistryBulkAction = {
   label: string;
   icon?: LucideIcon;
   onSelect: () => void;
-  tone?: "default" | "danger";
+  tone?: "default" | "primary" | "warning" | "danger";
 };
 
 function defaultSelectionSummary(selectionCount: number) {
@@ -117,7 +117,13 @@ export function MainSequenceRegistrySearch({
                           type="button"
                           className={cn(
                             "flex w-full items-center gap-2 rounded-[calc(var(--radius)-10px)] px-3 py-2 text-left text-sm transition-colors hover:bg-background/60",
-                            action.tone === "danger" ? "text-danger hover:bg-danger/10" : "text-foreground",
+                            action.tone === "danger"
+                              ? "text-danger hover:bg-danger/10"
+                              : action.tone === "primary"
+                                ? "text-primary hover:bg-primary/10"
+                              : action.tone === "warning"
+                                ? "text-warning hover:bg-warning/10"
+                                : "text-foreground",
                           )}
                           onClick={() => {
                             setActionsOpen(false);

@@ -174,9 +174,6 @@ export function AppSurfaceSelector({
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">
                       {getSurfaceLabel(surface)}
                     </span>
-                    <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                      {surface.kind}
-                    </span>
                   </button>
                   <SurfaceFavoriteButton
                     favorite={isFavorite}

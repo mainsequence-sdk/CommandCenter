@@ -28,6 +28,7 @@ export function AppNavigationPanel({
 
   return (
     <aside
+      data-app-navigation-panel
       data-theme-chrome="sidebar"
       className="relative z-[91] flex h-screen max-h-screen w-[208px] shrink-0 flex-col border-r border-border/70 bg-sidebar/96 px-2 pt-1.5 pb-2 shadow-[var(--shadow-panel)] backdrop-blur"
     >
@@ -68,12 +69,9 @@ export function AppNavigationPanel({
                       }}
                       className="min-w-0 flex-1 px-2 py-1.5 text-left"
                     >
-                      <div className="flex min-h-8 items-center gap-2">
+                      <div className="flex min-h-8 items-center">
                         <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                           {surface.navLabel ?? surface.title}
-                        </span>
-                        <span className="shrink-0 text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-                          {surface.kind}
                         </span>
                       </div>
                     </button>

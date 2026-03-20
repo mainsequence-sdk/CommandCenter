@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toaster";
+import { cn } from "@/lib/utils";
 
 import {
   createTeam,
@@ -62,7 +63,7 @@ function formatTeamDeleteLabel(count: number) {
   return count === 1 ? "Delete selected team" : "Delete selected teams";
 }
 
-export function TeamsPage() {
+export function TeamsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const sessionGroups = useAuthStore((state) => state.session?.user.groups ?? []);
@@ -261,6 +262,7 @@ export function TeamsPage() {
   );
   const deleteConfirmationWord =
     selectedTeamsForDeletion.length === 1 ? "DELETE TEAM" : "DELETE TEAMS";
+  const showRegistryDescriptionColumn = !embedded;
   const teamBulkActions = useMemo(
     () => [
       {
@@ -291,12 +293,14 @@ export function TeamsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="Users"
-        title="Teams"
-        description="Create teams and manage team membership for your organization."
-        actions={<Badge variant="neutral">{`${teamsQuery.data?.length ?? 0} teams`}</Badge>}
-      />
+      {!embedded ? (
+        <PageHeader
+          eyebrow="Users"
+          title="Teams"
+          description="Create teams and manage team membership for your organization."
+          actions={<Badge variant="neutral">{`${teamsQuery.data?.length ?? 0} teams`}</Badge>}
+        />
+      ) : null}
 
       <Card>
         <CardHeader className="border-b border-border/70">
@@ -305,7 +309,7 @@ export function TeamsPage() {
             Teams are reusable principals for sharing. Team membership and access to the team object are separate permission paths.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 p-5 md:grid-cols-2">
+        <CardContent className={cn("grid gap-3 p-5", embedded ? "xl:grid-cols-2" : "md:grid-cols-2")}>
           {teamBehaviorHighlights.map((highlight) => (
             <div
               key={highlight}
@@ -317,8 +321,15 @@ export function TeamsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-        <Card>
+      <div
+        className={cn(
+          "grid gap-6",
+          embedded
+            ? "xl:grid-cols-[minmax(320px,360px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(340px,400px)_minmax(0,1fr)]"
+            : "xl:grid-cols-[0.92fr_1.08fr]",
+        )}
+      >
+        <Card className={cn(embedded && "self-start")}>
           <CardHeader className="border-b border-border/70">
             <div className="space-y-4">
               <div>
@@ -394,7 +405,12 @@ export function TeamsPage() {
 
             {!teamsQuery.isLoading && !teamsQuery.isError && (teamsQuery.data?.length ?? 0) > 0 ? (
               <div className="overflow-x-auto px-4 py-4">
-                <table className="w-full min-w-[720px] border-separate border-spacing-y-2 text-sm">
+                <table
+                  className={cn(
+                    "w-full border-separate border-spacing-y-2 text-sm",
+                    embedded ? "min-w-[560px]" : "min-w-[720px]",
+                  )}
+                >
                   <thead>
                     <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                       {canManageTeamCrud ? (
@@ -408,7 +424,9 @@ export function TeamsPage() {
                         </th>
                       ) : null}
                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">Team</th>
-                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">Description</th>
+                      {showRegistryDescriptionColumn ? (
+                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">Description</th>
+                      ) : null}
                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">Members</th>
                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">Status</th>
                     </tr>
@@ -431,7 +449,12 @@ export function TeamsPage() {
                               />
                             </td>
                           ) : null}
-                          <td className={getRegistryTableCellClassName(active, canManageTeamCrud ? "middle" : "left")}>
+                          <td
+                            className={getRegistryTableCellClassName(
+                              active,
+                              canManageTeamCrud ? "middle" : "left",
+                            )}
+                          >
                             <button
                               type="button"
                               className="font-medium text-foreground transition-colors hover:text-primary"
@@ -440,11 +463,13 @@ export function TeamsPage() {
                               {team.name}
                             </button>
                           </td>
-                          <td className={getRegistryTableCellClassName(active)}>
-                            <span className="text-muted-foreground">
-                              {team.description?.trim() || "No description"}
-                            </span>
-                          </td>
+                          {showRegistryDescriptionColumn ? (
+                            <td className={getRegistryTableCellClassName(active)}>
+                              <span className="text-muted-foreground">
+                                {team.description?.trim() || "No description"}
+                              </span>
+                            </td>
+                          ) : null}
                           <td className={getRegistryTableCellClassName(active)}>
                             {team.member_count}
                           </td>

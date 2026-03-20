@@ -153,6 +153,7 @@ export function Sidebar() {
 
   return (
     <aside
+      data-shell-sidebar
       data-theme-chrome="sidebar"
       className={cn(
         "relative z-20 flex h-screen max-h-screen flex-col overflow-x-visible overflow-y-hidden border-r border-border/70 bg-sidebar/98 backdrop-blur",

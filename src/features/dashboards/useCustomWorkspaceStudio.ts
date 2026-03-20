@@ -30,20 +30,22 @@ export function useCustomWorkspaceStudio() {
 
   const selectedDashboard = useMemo(
     () =>
-      draftCollection.dashboards.find((dashboard) => dashboard.id === requestedWorkspaceId) ??
-      draftCollection.dashboards[0],
+      requestedWorkspaceId
+        ? (draftCollection.dashboards.find((dashboard) => dashboard.id === requestedWorkspaceId) ?? null)
+        : null,
     [draftCollection, requestedWorkspaceId],
   );
 
   useEffect(() => {
-    if (!selectedDashboard?.id || requestedWorkspaceId === selectedDashboard.id) {
+    if (!requestedWorkspaceId || selectedDashboard || draftCollection.dashboards.length === 0) {
       return;
     }
 
     const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("workspace", selectedDashboard.id);
+    nextParams.delete("workspace");
+    nextParams.delete("view");
     setSearchParams(nextParams, { replace: true });
-  }, [requestedWorkspaceId, searchParams, selectedDashboard?.id, setSearchParams]);
+  }, [draftCollection.dashboards.length, requestedWorkspaceId, searchParams, selectedDashboard, setSearchParams]);
 
   const resolvedDashboard = useMemo(
     () => (selectedDashboard ? resolveDashboardLayout(selectedDashboard) : null),
@@ -55,9 +57,16 @@ export function useCustomWorkspaceStudio() {
     [draftCollection, savedCollection],
   );
 
-  function setSelectedWorkspaceId(workspaceId: string) {
+  function setSelectedWorkspaceId(workspaceId: string | null) {
     const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("workspace", workspaceId);
+
+    if (workspaceId) {
+      nextParams.set("workspace", workspaceId);
+    } else {
+      nextParams.delete("workspace");
+      nextParams.delete("view");
+    }
+
     setSearchParams(nextParams);
   }
 
@@ -85,6 +94,7 @@ export function useCustomWorkspaceStudio() {
 
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("workspace", nextDashboard.id);
+    nextParams.delete("view");
     setSearchParams(nextParams);
 
     return nextDashboard;
@@ -117,6 +127,7 @@ export function useCustomWorkspaceStudio() {
     selectedDashboard,
     resolvedDashboard,
     dirty,
+    requestedWorkspaceId,
     setSelectedWorkspaceId,
     updateDraftCollection,
     updateSelectedWorkspace,

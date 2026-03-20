@@ -49,6 +49,7 @@ import {
   removeDashboardWidget,
   setDashboardWidgetGeometry,
   updateDashboardControlsState,
+  updateDashboardWidgetRuntimeState,
   updateDashboardWidgetSettings,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
@@ -214,7 +215,9 @@ function BuilderWidgetCard({
   style,
   widget,
   widgetProps,
+  widgetRuntimeState,
   onRemove,
+  onRuntimeStateChange,
   onSelect,
   onStartDrag,
   onStartResize,
@@ -228,7 +231,12 @@ function BuilderWidgetCard({
   style?: CSSProperties;
   widget: WidgetDefinition;
   widgetProps: Record<string, unknown>;
+  widgetRuntimeState?: Record<string, unknown>;
   onRemove: (instanceId: string) => void;
+  onRuntimeStateChange: (
+    instanceId: string,
+    runtimeState: Record<string, unknown> | undefined,
+  ) => void;
   onSelect: (instanceId: string) => void;
   onStartDrag: (event: ReactPointerEvent<HTMLElement>) => void;
   onStartResize: (event: ReactPointerEvent<HTMLElement>) => void;
@@ -238,6 +246,8 @@ function BuilderWidgetCard({
     widget: typeof widget;
     instanceTitle?: string;
     props: Record<string, unknown>;
+    runtimeState?: Record<string, unknown>;
+    onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   }>;
 
   const title = instanceTitle ?? widget.title;
@@ -327,7 +337,15 @@ function BuilderWidgetCard({
       </header>
 
       <div className="min-h-0 flex-1 p-3">
-        <Component widget={widget} instanceTitle={instanceTitle} props={widgetProps} />
+        <Component
+          widget={widget}
+          instanceTitle={instanceTitle}
+          props={widgetProps}
+          runtimeState={widgetRuntimeState}
+          onRuntimeStateChange={(state) => {
+            onRuntimeStateChange(instanceId, state);
+          }}
+        />
       </div>
 
       {selected && editable ? (
@@ -762,10 +780,19 @@ export function CustomDashboardStudioPage() {
     saveWorkspaceDraft();
   }
 
+  function handleWidgetRuntimeStateChange(
+    instanceId: string,
+    runtimeState: Record<string, unknown> | undefined,
+  ) {
+    updateSelectedWorkspace((dashboard) =>
+      updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+    );
+  }
+
   if (!user) {
     return (
       <div className="rounded-[var(--radius)] border border-border/80 bg-card/80 p-8 text-sm text-muted-foreground">
-        Resolve a user session before opening the custom workspace studio.
+        Resolve a user session before opening Workspaces.
       </div>
     );
   }
@@ -842,11 +869,11 @@ export function CustomDashboardStudioPage() {
                     <WorkspaceToolbarButton
                       title="Workspace settings"
                       onClick={() => {
-                        navigate(
-                          `${getAppPath("workspace-studio", "settings")}?workspace=${encodeURIComponent(selectedDashboard.id)}`,
-                        );
-                      }}
-                    >
+                      navigate(
+                        `${getAppPath("workspace-studio", "workspaces")}?workspace=${encodeURIComponent(selectedDashboard.id)}&view=settings`,
+                      );
+                    }}
+                  >
                       <Settings2 className="h-3.5 w-3.5" />
                     </WorkspaceToolbarButton>
                     <WorkspaceToolbarButton
@@ -951,12 +978,14 @@ export function CustomDashboardStudioPage() {
                   style={layoutToStyle(instance.layout)}
                   widget={widget}
                   widgetProps={instance.props ?? {}}
+                  widgetRuntimeState={instance.runtimeState}
                   onRemove={(instanceId) => {
                     updateSelectedWorkspace((dashboard) =>
                       removeDashboardWidget(dashboard, instanceId),
                     );
                     setSelectedInstanceId((current) => (current === instanceId ? null : current));
                   }}
+                  onRuntimeStateChange={handleWidgetRuntimeStateChange}
                   onSelect={(instanceId) => {
                     setSelectedInstanceId(instanceId);
                   }}

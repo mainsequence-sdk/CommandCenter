@@ -11,6 +11,7 @@ interface ShellState {
   kioskMode: boolean;
   workspaceCanvasMenuHidden: boolean;
   favoriteSurfaceIds: string[];
+  favoriteWorkspaceIds: string[];
   setLiveState: (value: LiveState) => void;
   setCommandValue: (value: string) => void;
   setSidebarCollapsed: (value: boolean) => void;
@@ -19,6 +20,8 @@ interface ShellState {
   setWorkspaceCanvasMenuHidden: (value: boolean) => void;
   setSurfaceFavorite: (favoriteId: string, value: boolean) => void;
   toggleSurfaceFavorite: (favoriteId: string) => void;
+  setWorkspaceFavorite: (favoriteId: string, value: boolean) => void;
+  toggleWorkspaceFavorite: (favoriteId: string) => void;
   openAppPanel: (appId: string) => void;
   closeAppPanel: () => void;
   toggleAppPanel: (appId: string) => void;
@@ -38,6 +41,7 @@ export const useShellStore = create<ShellState>()(
       kioskMode: false,
       workspaceCanvasMenuHidden: false,
       favoriteSurfaceIds: [],
+      favoriteWorkspaceIds: [],
       setLiveState(value) {
         set({ liveState: value });
       },
@@ -80,6 +84,30 @@ export const useShellStore = create<ShellState>()(
             : [...state.favoriteSurfaceIds, favoriteId],
         }));
       },
+      setWorkspaceFavorite(favoriteId, value) {
+        set((state) => {
+          const alreadyFavorite = state.favoriteWorkspaceIds.includes(favoriteId);
+
+          if (value && !alreadyFavorite) {
+            return { favoriteWorkspaceIds: [...state.favoriteWorkspaceIds, favoriteId] };
+          }
+
+          if (!value && alreadyFavorite) {
+            return {
+              favoriteWorkspaceIds: state.favoriteWorkspaceIds.filter((entry) => entry !== favoriteId),
+            };
+          }
+
+          return state;
+        });
+      },
+      toggleWorkspaceFavorite(favoriteId) {
+        set((state) => ({
+          favoriteWorkspaceIds: state.favoriteWorkspaceIds.includes(favoriteId)
+            ? state.favoriteWorkspaceIds.filter((entry) => entry !== favoriteId)
+            : [...state.favoriteWorkspaceIds, favoriteId],
+        }));
+      },
       openAppPanel(appId) {
         set({ appPanelAppId: appId });
       },
@@ -109,6 +137,7 @@ export const useShellStore = create<ShellState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         favoriteSurfaceIds: state.favoriteSurfaceIds,
+        favoriteWorkspaceIds: state.favoriteWorkspaceIds,
       }),
     },
   ),

@@ -32,17 +32,19 @@ A standalone admin app gives you:
 
 ## Surface model
 
-The shipped `Access & RBAC` app is organized into five surfaces:
+The shipped `Access & RBAC` app is organized into six surfaces:
 
 - `Overview`: governance model only
 - `Policies`: shell policy studio with local save plus fetched RBAC-group assignment
 - `Main Sequence access`: reference page for Main Sequence object-level user and team assignments
 - `Coverage`: effective shell access across apps, surfaces, widgets, and utilities
 - `User access inspector`: lookup and inspect one user at a time
+- `Teams`: organization team registry, membership management, and sharing
 
-Those surfaces are grouped into two sections:
+Those surfaces are grouped into three sections:
 
 - `User access inspection`
+- `Teams`
 - `Concept & Help`
 
 That grouping is declared in the app registry, not hardcoded in the navigation UI.
@@ -62,6 +64,12 @@ const inspectionSection = {
   id: "inspection",
   label: "User access inspection",
   order: 30,
+};
+
+const teamsSection = {
+  id: "teams",
+  label: "Teams",
+  order: 35,
 };
 
 const accessRbacApp: AppDefinition = {
@@ -96,6 +104,13 @@ const accessRbacApp: AppDefinition = {
       navigationSection: inspectionSection,
       component: AccessRbacInspectorPage,
     },
+    {
+      id: "teams",
+      title: "Teams",
+      kind: "page",
+      navigationSection: teamsSection,
+      component: AccessRbacTeamsPage,
+    },
   ],
 };
 ```
@@ -109,6 +124,12 @@ The legacy `/app/access` route can stay alive as a redirect to the app surface:
 ```
 
 That keeps old links working while the platform converges on the app-and-surfaces model.
+
+The legacy `/app/teams` route can also redirect into the RBAC app:
+
+```ts
+<Navigate to="/app/access-rbac/teams" replace />
+```
 
 ## Reusable control layer
 

@@ -11,15 +11,23 @@ import { Star } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
-import type { AppSurfaceEntry } from "@/apps/types";
-import { getSurfacePath } from "@/apps/utils";
 import { cn } from "@/lib/utils";
 import { SurfaceFavoriteButton } from "./SurfaceFavoriteButton";
 
+export interface FavoriteMenuItem {
+  id: string;
+  favoriteId: string;
+  groupId: string;
+  groupLabel: string;
+  title: string;
+  kindLabel: string;
+  path: string;
+}
+
 interface FavoriteSurfacesMenuProps {
-  items: AppSurfaceEntry[];
+  items: FavoriteMenuItem[];
   onSelect: (path: string) => void;
-  onToggleFavorite: (appId: string, surfaceId: string) => void;
+  onToggleFavorite: (favoriteId: string) => void;
 }
 
 export function FavoriteSurfacesMenu({
@@ -34,19 +42,22 @@ export function FavoriteSurfacesMenu({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const groupedItems = useMemo(() => {
-    const groups = new Map<string, { appId: string; label: string; items: AppSurfaceEntry[] }>();
+    const groups = new Map<
+      string,
+      { id: string; label: string; items: FavoriteMenuItem[] }
+    >();
 
     items.forEach((item) => {
-      const existingGroup = groups.get(item.appId);
+      const existingGroup = groups.get(item.groupId);
 
       if (existingGroup) {
         existingGroup.items.push(item);
         return;
       }
 
-      groups.set(item.appId, {
-        appId: item.appId,
-        label: item.appTitle,
+      groups.set(item.groupId, {
+        id: item.groupId,
+        label: item.groupLabel,
         items: [item],
       });
     });
@@ -160,7 +171,7 @@ export function FavoriteSurfacesMenu({
               {groupedItems.length ? (
                 groupedItems.map((group, index) => (
                   <section
-                    key={group.appId}
+                    key={group.id}
                     className={cn(index > 0 && "mt-2 border-t border-border/70 pt-2")}
                   >
                     <div className="px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -169,7 +180,7 @@ export function FavoriteSurfacesMenu({
                     <div className="mt-1 flex flex-col gap-1">
                       {group.items.map((item) => (
                         <div
-                          key={`${item.appId}:${item.id}`}
+                          key={item.favoriteId}
                           className="flex items-center gap-2 rounded-[calc(var(--radius)-6px)] pl-3 pr-1 transition-colors hover:bg-muted/45"
                         >
                           <button
@@ -178,19 +189,19 @@ export function FavoriteSurfacesMenu({
                             className="flex min-w-0 flex-1 items-center gap-3 py-2.5 text-left"
                             onClick={() => {
                               setOpen(false);
-                              onSelect(getSurfacePath(item));
+                              onSelect(item.path);
                             }}
                           >
                             <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                              {item.navLabel ?? item.title}
+                              {item.title}
                             </span>
                             <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                              {item.kind}
+                              {item.kindLabel}
                             </span>
                           </button>
                           <SurfaceFavoriteButton
                             favorite
-                            onToggle={() => onToggleFavorite(item.appId, item.id)}
+                            onToggle={() => onToggleFavorite(item.favoriteId)}
                           />
                         </div>
                       ))}

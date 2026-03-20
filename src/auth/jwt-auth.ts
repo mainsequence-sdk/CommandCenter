@@ -43,6 +43,18 @@ function readString(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+function readStringish(value: unknown, fallback = "") {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return fallback;
+}
+
 function readNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -547,6 +559,17 @@ function buildUserProfile(
     (userDetails && resolveMappedValue(userDetailsMapping.email, [userDetails])) ??
       resolveMappedValue(claimMapping.email, tokenSources),
   );
+  const plan = readString(
+    (userDetails &&
+      (resolveMappedValue("plan", [userDetails]) ??
+        resolveMappedValue("active_plan_type", [userDetails]) ??
+        resolveMappedValue("organization_plan", [userDetails]) ??
+        resolveMappedValue("subscription_plan", [userDetails]))) ??
+      resolveMappedValue("plan", tokenSources) ??
+      resolveMappedValue("active_plan_type", tokenSources) ??
+      resolveMappedValue("organization_plan", tokenSources) ??
+      resolveMappedValue("subscription_plan", tokenSources),
+  );
   const name = readString(
     (userDetails && resolveMappedValue(userDetailsMapping.name, [userDetails])) ??
       resolveMappedValue(claimMapping.name, tokenSources),
@@ -557,7 +580,7 @@ function buildUserProfile(
       resolveMappedValue(claimMapping.team, tokenSources),
     "Unknown",
   );
-  const id = readString(
+  const id = readStringish(
     (userDetails && resolveMappedValue(userDetailsMapping.userId, [userDetails])) ??
       resolveMappedValue(claimMapping.userId, tokenSources),
     email || role || "user",
@@ -567,6 +590,7 @@ function buildUserProfile(
     id,
     name,
     email,
+    plan: plan || undefined,
     team,
     role,
     permissions:
@@ -631,10 +655,11 @@ function parseStoredSession(value: unknown): Session | null {
     tokenType: readString(value.tokenType, "Bearer"),
     expiresAt: readNumber(value.expiresAt),
     user: {
-      id: readString(value.user.id),
+      id: readStringish(value.user.id),
       name: readString(value.user.name, "User"),
       email: readString(value.user.email),
       avatarUrl: readString(value.user.avatarUrl) || undefined,
+      plan: readString(value.user.plan) || undefined,
       team: readString(value.user.team, "Unknown"),
       role: normalizeBuiltinRole(readString(value.user.role, "user")) ?? "user",
       permissions,

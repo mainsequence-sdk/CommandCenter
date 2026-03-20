@@ -128,7 +128,6 @@ Runtime data mode is controlled separately through Vite env vars:
 ```text
 extensions/
   main_sequence/      repo-root new app scaffold
-  research-suite/     repo-root independent app extension example
 src/
   app/
     guards/             route + permission guards
@@ -142,7 +141,7 @@ src/
     core/               built-in widgets, apps, surfaces, themes
     ag-grid/            optional grid integration
     lightweight-charts/ optional chart integration
-    flow-lab/           bundled example extension
+    flow-lab/           bundled widget/theme extension
   features/
     applications/       custom page/tool surfaces rendered inside apps
     apps/               app routing, home redirects, legacy redirects
@@ -183,8 +182,8 @@ Dashboards stay explicit and versionable. The current repo does not depend on pe
 ```ts
 export const overviewDashboard: DashboardDefinition = {
   id: "overview",
-  title: "Market Overview",
-  description: "Default monitoring dashboard built from core widgets only.",
+  title: "Demo Overview",
+  description: "Default demo dashboard built from core widgets only.",
   source: "core",
   requiredPermissions: ["dashboard:view"],
   widgets: [
@@ -301,7 +300,7 @@ export interface AppExtension {
 }
 ```
 
-See `src/extensions/flow-lab/index.ts` for the bundled example extension, `src/extensions/core/apps/access-rbac/` for a bundled app implementation, and `extensions/research-suite/index.ts` for a repo-root independent app module.
+See `src/extensions/flow-lab/index.ts` for the bundled example extension and `src/extensions/core/apps/access-rbac/` for a bundled app implementation.
 
 Optional vendor integrations live in their own extensions, for example `src/extensions/ag-grid/index.ts` and `src/extensions/lightweight-charts/index.ts`.
 

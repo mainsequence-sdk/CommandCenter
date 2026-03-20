@@ -24,6 +24,8 @@ export interface WidgetComponentProps<TProps extends Record<string, unknown> = R
   widget: WidgetDefinition<TProps>;
   props: TProps;
   instanceTitle?: string;
+  runtimeState?: Record<string, unknown>;
+  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
 }
 
 export interface WidgetSettingsComponentProps<

@@ -3,7 +3,8 @@ import { Activity, AlertTriangle, CheckCircle2, DatabaseZap } from "lucide-react
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogTable, type LogTableEntry } from "@/components/ui/log-table";
-import { PageHeader } from "@/components/ui/page-header";
+
+import { AdminSurfaceLayout } from "./shared";
 
 const mockAdminLogs: LogTableEntry[] = [
   {
@@ -128,28 +129,24 @@ const operationalSignals = [
     value: "8 / 8",
     detail: "No degraded nodes after the last rollout.",
     icon: CheckCircle2,
-    tone: "success" as const,
   },
   {
     label: "Retry queue",
     value: "3 jobs",
     detail: "Two scheduler retries and one manual replay are pending.",
     icon: AlertTriangle,
-    tone: "warning" as const,
   },
   {
     label: "Audit throughput",
     value: "126 events",
     detail: "Policy and access changes captured in the last hour.",
     icon: Activity,
-    tone: "primary" as const,
   },
   {
     label: "Storage sync",
     value: "14 ms p95",
     detail: "Registry metadata reads remain inside the target budget.",
     icon: DatabaseZap,
-    tone: "secondary" as const,
   },
 ];
 
@@ -169,15 +166,12 @@ function getStatusBadgeVariant(status: string | null | undefined) {
   }
 }
 
-export function AdminPanelPage() {
+export function AdminEventStreamPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Operations"
-        title="Admin event stream"
-        description="Recent control-plane events, scheduler retries, and audit activity."
-      />
-
+    <AdminSurfaceLayout
+      title="Admin event stream"
+      description="Recent control-plane events, scheduler retries, and audit activity."
+    >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {operationalSignals.map((signal) => {
           const Icon = signal.icon;
@@ -221,6 +215,6 @@ export function AdminPanelPage() {
           />
         </CardContent>
       </Card>
-    </div>
+    </AdminSurfaceLayout>
   );
 }

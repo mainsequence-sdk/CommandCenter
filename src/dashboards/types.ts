@@ -66,6 +66,7 @@ export interface DashboardWidgetInstance {
   widgetId: string;
   title?: string;
   props?: Record<string, unknown>;
+  runtimeState?: Record<string, unknown>;
   layout: DashboardWidgetLayout;
   position?: DashboardWidgetPlacement;
   requiredPermissions?: string[];
@@ -75,6 +76,7 @@ export interface DashboardDefinition {
   id: string;
   title: string;
   description: string;
+  labels?: string[];
   category?: string;
   source: string;
   requiredPermissions?: string[];

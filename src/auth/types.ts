@@ -17,6 +17,7 @@ export interface AppUser {
   name: string;
   email: string;
   avatarUrl?: string;
+  plan?: string;
   team: string;
   role: AppRole;
   permissions: Permission[];

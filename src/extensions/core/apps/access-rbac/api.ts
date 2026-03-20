@@ -13,12 +13,31 @@ interface PaginatedResponse<T> {
   results: T[];
 }
 
+export interface AccessRbacUsersPage {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: AppUser[];
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 function readString(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function readStringish(value: unknown, fallback = "") {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return fallback;
 }
 
 function readBoolean(value: unknown) {
@@ -132,6 +151,25 @@ function normalizeGroupNames(value: unknown) {
 
 function normalizeOrganizationTeams(value: unknown): OrganizationTeam[] | undefined {
   let rawValue = value;
+
+  if (Array.isArray(rawValue) && rawValue.every((entry) => typeof entry === "string")) {
+    return rawValue.flatMap<OrganizationTeam>((entry, index) => {
+      const name = entry.trim();
+
+      if (!name) {
+        return [];
+      }
+
+      return [
+        {
+          id: index + 1,
+          name,
+          description: "",
+          is_active: true,
+        },
+      ];
+    });
+  }
 
   if (typeof rawValue === "string" && rawValue.trim()) {
     try {
@@ -312,6 +350,12 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
   const email = readString(
     readPathValue(record, mapping.email) ?? readPathValue(record, "email"),
   );
+  const plan = readString(
+    readPathValue(record, "plan") ??
+      readPathValue(record, "active_plan_type") ??
+      readPathValue(record, "organization_plan") ??
+      readPathValue(record, "subscription_plan"),
+  );
   const name = readString(
     readPathValue(record, mapping.name) ?? readPathValue(record, "name"),
     deriveName(email, role),
@@ -322,12 +366,13 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
       (isRecord(readPathValue(record, "team")) ? readString((readPathValue(record, "team") as Record<string, unknown>).name) : ""),
     "Unknown",
   );
-  const id = readString(
+  const id = readStringish(
     readPathValue(record, mapping.userId) ?? readPathValue(record, "id"),
     email || name || "user",
   );
   const organizationTeams = normalizeOrganizationTeams(
     readPathValue(record, mapping.organizationTeams) ??
+      readPathValue(record, "teams") ??
       readPathValue(record, "organization_teams") ??
       readPathValue(record, "organizationTeams"),
   );
@@ -336,6 +381,7 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
     id,
     name,
     email,
+    plan: plan || undefined,
     team,
     role,
     permissions: permissions.length ? permissions : getPermissionsForRole(role),
@@ -363,15 +409,58 @@ export async function listAccessRbacUsers({
   limit?: number;
   search?: string;
 } = {}) {
-  const payload = await requestAccessRbacJson<PaginatedResponse<Record<string, unknown>> | Record<string, unknown>[]>(
+  const response = await listAccessRbacUsersPage({
+    limit,
+    search,
+  });
+
+  return response.results;
+}
+
+export async function listAccessRbacUsersPage({
+  limit = 25,
+  offset,
+  search,
+  excludePodUsers,
+  frontEndList,
+  includeExtra,
+}: {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  excludePodUsers?: boolean;
+  frontEndList?: boolean;
+  includeExtra?: string[];
+} = {}): Promise<AccessRbacUsersPage> {
+  const payload = await requestAccessRbacJson<
+    PaginatedResponse<Record<string, unknown>> | Record<string, unknown>[]
+  >(
     commandCenterConfig.accessRbac.users.listUrl,
     {
       limit,
+      offset,
       search,
+      exclude_pod_users: excludePodUsers,
+      front_end_list: frontEndList,
+      include_extra: includeExtra?.join(","),
     },
   );
 
-  return normalizeListPayload(payload).map((record) => normalizeUserRecord(record));
+  if (Array.isArray(payload)) {
+    return {
+      count: payload.length,
+      next: null,
+      previous: null,
+      results: payload.map((record) => normalizeUserRecord(record)),
+    };
+  }
+
+  return {
+    count: payload.count,
+    next: payload.next,
+    previous: payload.previous,
+    results: payload.results.map((record) => normalizeUserRecord(record)),
+  };
 }
 
 export async function listAccessRbacGroups() {

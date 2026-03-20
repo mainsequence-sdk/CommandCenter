@@ -113,8 +113,6 @@ That is why `AG Grid` and `Lightweight Charts` now live in:
 - `src/extensions/ag-grid/`
 - `src/extensions/lightweight-charts/`
 
-The repo also includes a repo-root extension example at `extensions/research-suite/` to show how an app can live outside `src/` and still plug into the same runtime contract.
-
 The core extension remains library-agnostic and uses only core widgets.
 
 ## Routing and permissions
