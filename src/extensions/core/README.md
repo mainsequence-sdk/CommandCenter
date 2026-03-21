@@ -19,7 +19,7 @@ This extension owns the built-in registry entries that ship with Command Center 
 
 - Core widgets are defined under `src/widgets/core/`.
 - Some core dashboards intentionally compose extension-owned widgets, such as the `Demo / Flow Lab`
-  surface using the `flow-lab` order-book widget.
+  surface using the `flow-lab` `order-book` and `strategy-book` widgets.
 
 ## Maintenance Notes
 

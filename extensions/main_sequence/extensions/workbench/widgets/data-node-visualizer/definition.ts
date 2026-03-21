@@ -1,6 +1,7 @@
 import type { WidgetDefinition } from "@/widgets/types";
 
 import {
+  MainSequenceDataNodeVisualizerHeaderActions,
   MainSequenceDataNodeVisualizerWidget,
 } from "./MainSequenceDataNodeVisualizerWidget";
 import {
@@ -24,6 +25,14 @@ export const mainSequenceDataNodeVisualizerWidget: WidgetDefinition<MainSequence
     dateRangeMode: "dashboard",
     displayMode: "chart",
   },
+  mockProps: {
+    dataNodeId: 1084,
+    provider: "tradingview",
+    chartType: "line",
+    dateRangeMode: "dashboard",
+    displayMode: "chart",
+  },
+  headerActions: MainSequenceDataNodeVisualizerHeaderActions,
   settingsComponent: MainSequenceDataNodeVisualizerWidgetSettings,
   component: MainSequenceDataNodeVisualizerWidget,
 };

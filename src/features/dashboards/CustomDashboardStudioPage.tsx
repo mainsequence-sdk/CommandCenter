@@ -12,8 +12,9 @@ import {
 } from "react";
 
 import {
+  Clock3,
   ChevronUp,
-  GripHorizontal,
+  GripVertical,
   LayoutTemplate,
   MoveDiagonal2,
   Pencil,
@@ -21,6 +22,7 @@ import {
   Save,
   Search,
   Settings2,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -32,6 +34,7 @@ import { hasAllPermissions } from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   DashboardControlsProvider,
   DashboardDataControls,
@@ -40,7 +43,12 @@ import {
 import type { DashboardWidgetPlacement, ResolvedDashboardWidgetLayout } from "@/dashboards/types";
 import { cn, titleCase } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
-import type { WidgetDefinition } from "@/widgets/types";
+import {
+  resolveWidgetHeaderVisibility,
+  widgetShellClassName,
+  widgetShellHeaderClassName,
+} from "@/widgets/shared/chrome";
+import type { WidgetDefinition, WidgetHeaderActionsProps } from "@/widgets/types";
 import {
   appendCatalogWidget,
   CUSTOM_WORKSPACE_COLUMN_SCALE,
@@ -54,9 +62,15 @@ import {
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import {
+  loadWidgetCatalogPreferences,
+  pushRecentWidgetId,
+  saveWidgetCatalogPreferences,
+} from "./widget-catalog-preferences";
+import {
   WidgetSettingsDialog,
   WidgetSettingsTrigger,
 } from "@/widgets/shared/widget-settings";
+import { WidgetExplorerTrigger } from "@/widgets/shared/widget-explorer-trigger";
 
 interface CatalogDragPayload {
   widgetId: string;
@@ -76,6 +90,15 @@ interface ActiveInteraction {
   anchorOffsetX: number;
   anchorOffsetY: number;
   initialLayout: ResolvedDashboardWidgetLayout;
+}
+
+type CatalogScope = "browse" | "favorites" | "recent";
+
+interface CatalogSection {
+  id: string;
+  title: string;
+  description?: string;
+  widgets: WidgetDefinition[];
 }
 
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
@@ -206,6 +229,201 @@ function WorkspaceToolbarButton({
   );
 }
 
+function getWidgetCatalogSearchScore(widget: WidgetDefinition, rawQuery: string) {
+  const query = rawQuery.trim().toLowerCase();
+
+  if (!query) {
+    return 0;
+  }
+
+  const terms = query.split(/\s+/).filter(Boolean);
+  const title = widget.title.toLowerCase();
+  const description = widget.description.toLowerCase();
+  const category = widget.category.toLowerCase();
+  const kind = widget.kind.toLowerCase();
+  const source = widget.source.toLowerCase();
+  const tags = widget.tags?.join(" ").toLowerCase() ?? "";
+
+  let score = 0;
+
+  for (const term of terms) {
+    let termScore = 0;
+
+    if (title === term) {
+      termScore = Math.max(termScore, 140);
+    } else if (title.startsWith(term)) {
+      termScore = Math.max(termScore, 100);
+    } else if (title.includes(term)) {
+      termScore = Math.max(termScore, 70);
+    }
+
+    if (tags.includes(term)) {
+      termScore = Math.max(termScore, 50);
+    }
+
+    if (category.includes(term) || kind.includes(term) || source.includes(term)) {
+      termScore = Math.max(termScore, 35);
+    }
+
+    if (description.includes(term)) {
+      termScore = Math.max(termScore, 20);
+    }
+
+    if (termScore === 0) {
+      return -1;
+    }
+
+    score += termScore;
+  }
+
+  return score;
+}
+
+function CatalogScopeButton({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.16em] transition-colors",
+        active
+          ? "border-primary/40 bg-primary/10 text-primary"
+          : "border-border/70 bg-background/35 text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+      )}
+      onClick={onClick}
+    >
+      <span>{label}</span>
+      <span
+        className={cn(
+          "rounded-full px-1.5 py-0.5 text-[10px] tracking-[0.12em]",
+          active ? "bg-primary/14 text-primary" : "bg-muted/70 text-muted-foreground",
+        )}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
+function CatalogSectionHeader({
+  title,
+  count,
+  description,
+}: {
+  title: string;
+  count: number;
+  description?: string;
+}) {
+  return (
+    <div className="mb-2 flex items-end justify-between gap-3">
+      <div className="min-w-0">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">
+          {title}
+        </div>
+        {description ? (
+          <div className="mt-1 text-xs text-muted-foreground">{description}</div>
+        ) : null}
+      </div>
+      <Badge variant="neutral" className="shrink-0 px-2 py-0.5 text-[10px] tracking-[0.12em]">
+        {count}
+      </Badge>
+    </div>
+  );
+}
+
+function CatalogWidgetRow({
+  editable,
+  favorite,
+  onAdd,
+  onPointerDown,
+  onToggleFavorite,
+  widget,
+}: {
+  editable: boolean;
+  favorite: boolean;
+  onAdd: () => void;
+  onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onToggleFavorite: () => void;
+  widget: WidgetDefinition;
+}) {
+  const sizeLabel = `${widget.defaultSize.w * CUSTOM_WORKSPACE_COLUMN_SCALE} x ${
+    widget.defaultSize.h * CUSTOM_WORKSPACE_ROW_SCALE
+  }`;
+
+  return (
+    <div
+      className={cn(
+        "rounded-[18px] border border-border/70 bg-background/35 px-3 py-3 transition-colors hover:bg-background/55",
+        editable ? "cursor-grab active:cursor-grabbing" : undefined,
+      )}
+      onPointerDown={onPointerDown}
+    >
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          className={cn(
+            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors",
+            favorite
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/70 bg-background/35 text-muted-foreground hover:text-foreground",
+          )}
+          aria-label={favorite ? `Remove ${widget.title} from favorites` : `Favorite ${widget.title}`}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleFavorite();
+          }}
+        >
+          <Star className={cn("h-4 w-4", favorite ? "fill-current" : undefined)} />
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {editable ? <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
+            <div className="min-w-0 truncate text-sm font-medium text-foreground">{widget.title}</div>
+            <Badge variant="neutral" className="shrink-0 px-2 py-0.5 text-[10px] tracking-[0.12em]">
+              {titleCase(widget.kind)}
+            </Badge>
+          </div>
+          <div className="mt-1 truncate text-xs text-muted-foreground">{widget.description}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span>{widget.category}</span>
+            <span>{titleCase(widget.source)}</span>
+            <span>{sizeLabel}</span>
+          </div>
+        </div>
+
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAdd();
+          }}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function BuilderWidgetCard({
   instanceId,
   instanceTitle,
@@ -213,6 +431,7 @@ function BuilderWidgetCard({
   selected,
   editable,
   style,
+  headerActions,
   widget,
   widgetProps,
   widgetRuntimeState,
@@ -229,6 +448,7 @@ function BuilderWidgetCard({
   selected: boolean;
   editable: boolean;
   style?: CSSProperties;
+  headerActions?: ReactNode;
   widget: WidgetDefinition;
   widgetProps: Record<string, unknown>;
   widgetRuntimeState?: Record<string, unknown>;
@@ -251,11 +471,14 @@ function BuilderWidgetCard({
   }>;
 
   const title = instanceTitle ?? widget.title;
+  const headerVisible = editable || resolveWidgetHeaderVisibility(widgetProps);
 
   return (
     <section
+      data-widget-shell="default"
       style={style}
       className={cn(
+        widgetShellClassName,
         "group relative z-10 flex min-h-0 flex-col overflow-hidden rounded-[20px] border bg-card/92 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl transition-colors",
         selected && editable
           ? "border-primary/70 ring-2 ring-primary/30"
@@ -267,76 +490,104 @@ function BuilderWidgetCard({
         }
       }}
     >
-      {editable ? (
-        <button
-          type="button"
-          className="absolute top-3 left-1/2 z-20 flex h-8 -translate-x-1/2 cursor-grab items-center gap-1.5 rounded-full border border-border/70 bg-background/88 px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground shadow-[var(--shadow-panel)] transition-colors hover:border-border hover:bg-muted/55 hover:text-foreground active:cursor-grabbing"
-          aria-label={`Drag ${title}`}
+      {headerVisible ? (
+      <header
+        data-widget-shell-header=""
+        className={cn(
+          widgetShellHeaderClassName,
+          "flex items-center justify-between gap-3 border-b border-border/70 px-3 py-2.5",
+          editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
+        )}
           onPointerDown={(event) => {
-            event.stopPropagation();
+            if (!editable) {
+              return;
+            }
+
+            const target = event.target as HTMLElement;
+
+            if (target.closest("button, a, input, textarea, select, [data-no-widget-drag='true']")) {
+              return;
+            }
+
             onStartDrag(event);
           }}
         >
-          <GripHorizontal className="h-3.5 w-3.5" />
-          Move
-        </button>
-      ) : null}
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium text-card-foreground">{title}</div>
+          </div>
 
-      <header
-        className={cn(
-          "flex items-center justify-between gap-3 border-b border-border/70 px-3 py-2.5",
-          editable ? "cursor-grab pt-12 active:cursor-grabbing" : undefined,
-        )}
-        onPointerDown={(event) => {
-          if (!editable) {
-            return;
-          }
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            {headerActions ? (
+              <div className="flex items-center gap-2" data-no-widget-drag="true">
+                {headerActions}
+              </div>
+            ) : null}
 
-          const target = event.target as HTMLElement;
-
-          if (target.closest("button")) {
-            return;
-          }
-
-          onStartDrag(event);
-        }}
-      >
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-card-foreground">{title}</div>
-        </div>
-
-        {editable ? (
-          <div className="flex items-center gap-1">
-            <WidgetSettingsTrigger
+            <WidgetExplorerTrigger
+              widgetId={widget.id}
               widgetTitle={title}
               className="h-7 w-7 rounded-md border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              data-no-widget-drag="true"
               onPointerDown={(event) => {
                 event.stopPropagation();
               }}
               onClick={(event) => {
                 event.stopPropagation();
-                onOpenSettings(instanceId);
               }}
             />
-            <button
-              type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-danger/30 bg-danger/8 text-danger transition-colors hover:bg-danger/16"
-              aria-label={`Remove ${title}`}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                event.stopPropagation();
-                onRemove(instanceId);
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : null}
-      </header>
 
-      <div className="min-h-0 flex-1 p-3">
+            <div
+              className={cn(
+                "flex items-center gap-1 transition-opacity",
+                !editable
+                  ? "pointer-events-none opacity-0"
+                  : selected
+                    ? "opacity-100"
+                    : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
+              )}
+            >
+              <WidgetSettingsTrigger
+                widgetTitle={title}
+                className="h-7 w-7 rounded-md border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                data-no-widget-drag="true"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenSettings(instanceId);
+                }}
+                tabIndex={editable ? 0 : -1}
+                aria-hidden={!editable}
+              />
+              <button
+                type="button"
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-danger/30 bg-danger/8 text-danger transition-colors hover:bg-danger/16"
+                aria-label={`Remove ${title}`}
+                data-no-widget-drag="true"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemove(instanceId);
+                }}
+                tabIndex={editable ? 0 : -1}
+                aria-hidden={!editable}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </header>
+      ) : null}
+
+      <div
+        className={cn(
+          "min-h-0 flex-1",
+          editable ? "pointer-events-none select-none" : undefined,
+        )}
+      >
         <Component
           widget={widget}
           instanceTitle={instanceTitle}
@@ -374,11 +625,19 @@ export function CustomDashboardStudioPage() {
     selectedDashboard,
     resolvedDashboard,
     dirty,
+    persistenceMode,
     updateSelectedWorkspace,
     saveWorkspaceDraft,
   } = useCustomWorkspaceStudio();
+  const backendMode = persistenceMode === "backend";
   const updateSelectedWorkspaceRef = useRef<typeof updateSelectedWorkspace | null>(null);
   const [catalogQuery, setCatalogQuery] = useState("");
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("all");
+  const [catalogKindFilter, setCatalogKindFilter] = useState<WidgetDefinition["kind"] | "all">("all");
+  const [catalogSourceFilter, setCatalogSourceFilter] = useState("all");
+  const [catalogScope, setCatalogScope] = useState<CatalogScope>("browse");
+  const [favoriteWidgetIds, setFavoriteWidgetIds] = useState<string[]>([]);
+  const [recentWidgetIds, setRecentWidgetIds] = useState<string[]>([]);
   const [catalogDragPayload, setCatalogDragPayload] = useState<CatalogDragPayload | null>(null);
   const [activeCatalogDrag, setActiveCatalogDrag] = useState<ActiveCatalogDrag | null>(null);
   const [hoveredPlacement, setHoveredPlacement] = useState<DashboardWidgetPlacement | null>(null);
@@ -391,6 +650,7 @@ export function CustomDashboardStudioPage() {
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
   const dashboardMenuHidden = useShellStore((state) => state.workspaceCanvasMenuHidden);
   const setDashboardMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
+  const catalogPreferencesUserId = user?.id ?? null;
 
   const allowedWidgets = useMemo(
     () =>
@@ -403,32 +663,246 @@ export function CustomDashboardStudioPage() {
     () => new Map(allowedWidgets.map((widget) => [widget.id, widget])),
     [allowedWidgets],
   );
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(new Set(allowedWidgets.map((widget) => widget.category))).sort((left, right) =>
+        left.localeCompare(right),
+      ),
+    [allowedWidgets],
+  );
+  const kindOptions = useMemo(
+    () =>
+      Array.from(new Set(allowedWidgets.map((widget) => widget.kind))).sort((left, right) =>
+        left.localeCompare(right),
+      ),
+    [allowedWidgets],
+  );
+  const sourceOptions = useMemo(
+    () =>
+      Array.from(new Set(allowedWidgets.map((widget) => widget.source))).sort((left, right) =>
+        left.localeCompare(right),
+      ),
+    [allowedWidgets],
+  );
+  const favoriteWidgetSet = useMemo(() => new Set(favoriteWidgetIds), [favoriteWidgetIds]);
+  const recentWidgetIndexMap = useMemo(
+    () => new Map(recentWidgetIds.map((widgetId, index) => [widgetId, index])),
+    [recentWidgetIds],
+  );
+  const favoriteWidgets = useMemo(
+    () =>
+      favoriteWidgetIds
+        .map((widgetId) => widgetMap.get(widgetId))
+        .filter((widget): widget is WidgetDefinition => Boolean(widget)),
+    [favoriteWidgetIds, widgetMap],
+  );
+  const recentWidgets = useMemo(
+    () =>
+      recentWidgetIds
+        .map((widgetId) => widgetMap.get(widgetId))
+        .filter((widget): widget is WidgetDefinition => Boolean(widget)),
+    [recentWidgetIds, widgetMap],
+  );
+  const catalogBaseWidgets = useMemo(() => {
+    if (catalogScope === "favorites") {
+      return favoriteWidgets;
+    }
+
+    if (catalogScope === "recent") {
+      return recentWidgets;
+    }
+
+    return allowedWidgets;
+  }, [allowedWidgets, catalogScope, favoriteWidgets, recentWidgets]);
 
   const filteredWidgets = useMemo(() => {
     const query = deferredCatalogQuery.trim().toLowerCase();
+    const hasCategoryFilter = catalogCategoryFilter !== "all";
+    const hasKindFilter = catalogKindFilter !== "all";
+    const hasSourceFilter = catalogSourceFilter !== "all";
 
-    if (!query) {
-      return allowedWidgets;
+    return catalogBaseWidgets
+      .map((widget) => ({
+        widget,
+        score: getWidgetCatalogSearchScore(widget, query),
+      }))
+      .filter(({ score, widget }) => {
+        if (score < 0) {
+          return false;
+        }
+
+        if (hasCategoryFilter && widget.category !== catalogCategoryFilter) {
+          return false;
+        }
+
+        if (hasKindFilter && widget.kind !== catalogKindFilter) {
+          return false;
+        }
+
+        if (hasSourceFilter && widget.source !== catalogSourceFilter) {
+          return false;
+        }
+
+        return true;
+      })
+      .sort((left, right) => {
+        const scoreDifference = right.score - left.score;
+
+        if (scoreDifference !== 0) {
+          return scoreDifference;
+        }
+
+        const favoriteDifference =
+          Number(favoriteWidgetSet.has(right.widget.id)) - Number(favoriteWidgetSet.has(left.widget.id));
+
+        if (favoriteDifference !== 0) {
+          return favoriteDifference;
+        }
+
+        const leftRecentIndex = recentWidgetIndexMap.get(left.widget.id) ?? Number.MAX_SAFE_INTEGER;
+        const rightRecentIndex = recentWidgetIndexMap.get(right.widget.id) ?? Number.MAX_SAFE_INTEGER;
+
+        if (leftRecentIndex !== rightRecentIndex) {
+          return leftRecentIndex - rightRecentIndex;
+        }
+
+        return left.widget.title.localeCompare(right.widget.title);
+      })
+      .map(({ widget }) => widget);
+  }, [
+    catalogBaseWidgets,
+    catalogCategoryFilter,
+    catalogKindFilter,
+    catalogSourceFilter,
+    deferredCatalogQuery,
+    favoriteWidgetSet,
+    recentWidgetIndexMap,
+  ]);
+  const catalogFiltersActive =
+    catalogCategoryFilter !== "all" || catalogKindFilter !== "all" || catalogSourceFilter !== "all";
+  const catalogSearchActive = deferredCatalogQuery.trim().length > 0;
+  const catalogSections = useMemo<CatalogSection[]>(() => {
+    if (catalogScope === "favorites") {
+      return [
+        {
+          id: "favorites",
+          title: "Favorites",
+          description: "Pin the components you reach for most often.",
+          widgets: filteredWidgets,
+        },
+      ];
     }
 
-    return allowedWidgets.filter((widget) => {
-      const haystack = [
-        widget.title,
-        widget.description,
-        widget.category,
-        widget.kind,
-        widget.tags?.join(" ") ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
+    if (catalogScope === "recent") {
+      return [
+        {
+          id: "recent",
+          title: "Recently used",
+          description: "Components you placed most recently.",
+          widgets: filteredWidgets,
+        },
+      ];
+    }
 
-      return haystack.includes(query);
-    });
-  }, [allowedWidgets, deferredCatalogQuery]);
+    if (catalogSearchActive || catalogFiltersActive) {
+      return [
+        {
+          id: "results",
+          title: "Results",
+          description: "Filtered components for the current search.",
+          widgets: filteredWidgets,
+        },
+      ];
+    }
+
+    const sections: CatalogSection[] = [];
+
+    if (favoriteWidgets.length > 0) {
+      sections.push({
+        id: "favorites",
+        title: "Favorites",
+        description: "Pinned components stay at the top for quick access.",
+        widgets: favoriteWidgets,
+      });
+    }
+
+    if (recentWidgets.length > 0) {
+      sections.push({
+        id: "recent",
+        title: "Recently used",
+        description: "Latest components added to a workspace.",
+        widgets: recentWidgets,
+      });
+    }
+
+    const widgetsByCategory = allowedWidgets.reduce<Map<string, WidgetDefinition[]>>((groups, widget) => {
+      const current = groups.get(widget.category) ?? [];
+      current.push(widget);
+      groups.set(widget.category, current);
+      return groups;
+    }, new Map());
+
+    Array.from(widgetsByCategory.entries())
+      .sort(([left], [right]) => left.localeCompare(right))
+      .forEach(([category, widgets]) => {
+        sections.push({
+          id: `category:${category}`,
+          title: category,
+          widgets: [...widgets].sort((left, right) => {
+            const leftFavorite = favoriteWidgetSet.has(left.id);
+            const rightFavorite = favoriteWidgetSet.has(right.id);
+
+            if (leftFavorite !== rightFavorite) {
+              return Number(rightFavorite) - Number(leftFavorite);
+            }
+
+            return left.title.localeCompare(right.title);
+          }),
+        });
+      });
+
+    return sections;
+  }, [
+    allowedWidgets,
+    catalogFiltersActive,
+    catalogScope,
+    catalogSearchActive,
+    favoriteWidgetSet,
+    favoriteWidgets,
+    filteredWidgets,
+    recentWidgets,
+  ]);
 
   useEffect(() => {
     updateSelectedWorkspaceRef.current = updateSelectedWorkspace;
   }, [updateSelectedWorkspace]);
+
+  useEffect(() => {
+    if (!catalogPreferencesUserId) {
+      setFavoriteWidgetIds([]);
+      setRecentWidgetIds([]);
+      return;
+    }
+
+    const preferences = loadWidgetCatalogPreferences(
+      catalogPreferencesUserId,
+      allowedWidgets.map((widget) => widget.id),
+    );
+
+    setFavoriteWidgetIds(preferences.favoriteWidgetIds);
+    setRecentWidgetIds(preferences.recentWidgetIds);
+  }, [allowedWidgets, catalogPreferencesUserId]);
+
+  useEffect(() => {
+    if (!catalogPreferencesUserId) {
+      return;
+    }
+
+    saveWidgetCatalogPreferences(catalogPreferencesUserId, {
+      favoriteWidgetIds,
+      recentWidgetIds,
+    });
+  }, [catalogPreferencesUserId, favoriteWidgetIds, recentWidgetIds]);
 
   const selectedLayout = useMemo(
     () =>
@@ -676,6 +1150,7 @@ export function CustomDashboardStudioPage() {
         const widget = widgetMap.get(draggedWidgetId);
 
         if (widget) {
+          setRecentWidgetIds((current) => pushRecentWidgetId(current, widget.id));
           updateSelectedWorkspaceRef.current?.((dashboard) =>
             placeCatalogWidget(dashboard, widget, placement),
           );
@@ -745,7 +1220,23 @@ export function CustomDashboardStudioPage() {
 
   function handleCatalogAdd(widget: WidgetDefinition) {
     setEditMode(true);
+    setRecentWidgetIds((current) => pushRecentWidgetId(current, widget.id));
     updateSelectedWorkspace((dashboard) => appendCatalogWidget(dashboard, widget));
+  }
+
+  function handleCatalogFavoriteToggle(widgetId: string) {
+    setFavoriteWidgetIds((current) =>
+      current.includes(widgetId)
+        ? current.filter((entry) => entry !== widgetId)
+        : [widgetId, ...current],
+    );
+  }
+
+  function handleCatalogFiltersReset() {
+    setCatalogQuery("");
+    setCatalogCategoryFilter("all");
+    setCatalogKindFilter("all");
+    setCatalogSourceFilter("all");
   }
 
   function handleCatalogPointerStart(
@@ -837,7 +1328,7 @@ export function CustomDashboardStudioPage() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </WorkspaceToolbarButton>
-                    {editMode ? (
+                    {editMode && !backendMode ? (
                       <WorkspaceToolbarButton
                         active={dirty}
                         title="Save workspace"
@@ -967,6 +1458,11 @@ export function CustomDashboardStudioPage() {
                 );
               }
 
+              const HeaderActions =
+                widget.headerActions as
+                  | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
+                  | undefined;
+
               return (
                 <BuilderWidgetCard
                   key={instance.id}
@@ -976,6 +1472,18 @@ export function CustomDashboardStudioPage() {
                   selected={selectedInstanceId === instance.id}
                   editable={editMode}
                   style={layoutToStyle(instance.layout)}
+                  headerActions={
+                    HeaderActions ? (
+                      <HeaderActions
+                        widget={widget}
+                        props={instance.props ?? {}}
+                        runtimeState={instance.runtimeState}
+                        onRuntimeStateChange={(state) => {
+                          handleWidgetRuntimeStateChange(instance.id, state);
+                        }}
+                      />
+                    ) : undefined
+                  }
                   widget={widget}
                   widgetProps={instance.props ?? {}}
                   widgetRuntimeState={instance.runtimeState}
@@ -1020,33 +1528,33 @@ export function CustomDashboardStudioPage() {
 
         <aside
           className={cn(
-            "absolute left-4 bottom-4 z-30 w-[320px] max-w-[calc(100%-2rem)] overflow-hidden rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform] duration-200",
+            "absolute left-4 bottom-4 z-30 w-[420px] max-w-[calc(100%-2rem)] overflow-hidden rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform] duration-200",
             dashboardMenuHidden ? "top-4" : "top-12",
             libraryOpen ? "translate-x-0" : "-translate-x-[calc(100%+24px)]",
           )}
         >
           <div className="flex h-full flex-col">
-            <div className="flex items-start justify-between gap-3 border-b border-border/70 px-4 py-4">
-              <div>
-                <div className="text-sm font-semibold text-foreground">Components</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  Drag onto the canvas or add directly.
-                </div>
-              </div>
-              <button
-                type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                aria-label="Close components"
-                onClick={() => {
-                  setLibraryOpen(false);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
             <div className="border-b border-border/70 px-4 py-4">
-              <div className="relative">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-foreground">Components</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Search, filter, favorite, or drag directly onto the canvas.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                  aria-label="Close components"
+                  onClick={() => {
+                    setLibraryOpen(false);
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 relative">
                 <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   className="border-border/70 bg-background/45 pl-9"
@@ -1054,71 +1562,157 @@ export function CustomDashboardStudioPage() {
                   onChange={(event) => {
                     setCatalogQuery(event.target.value);
                   }}
-                  placeholder="Search components"
+                  placeholder="Search by name, category, source, or tag"
                 />
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <CatalogScopeButton
+                  active={catalogScope === "browse"}
+                  count={allowedWidgets.length}
+                  label="Browse"
+                  onClick={() => {
+                    setCatalogScope("browse");
+                  }}
+                />
+                <CatalogScopeButton
+                  active={catalogScope === "favorites"}
+                  count={favoriteWidgets.length}
+                  label="Favorites"
+                  onClick={() => {
+                    setCatalogScope("favorites");
+                  }}
+                />
+                <CatalogScopeButton
+                  active={catalogScope === "recent"}
+                  count={recentWidgets.length}
+                  label="Recent"
+                  onClick={() => {
+                    setCatalogScope("recent");
+                  }}
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <Select
+                  value={catalogCategoryFilter}
+                  onChange={(event) => {
+                    setCatalogCategoryFilter(event.target.value);
+                  }}
+                >
+                  <option value="all">All categories</option>
+                  {categoryOptions.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  value={catalogKindFilter}
+                  onChange={(event) => {
+                    setCatalogKindFilter(event.target.value as WidgetDefinition["kind"] | "all");
+                  }}
+                >
+                  <option value="all">All kinds</option>
+                  {kindOptions.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {titleCase(kind)}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  value={catalogSourceFilter}
+                  onChange={(event) => {
+                    setCatalogSourceFilter(event.target.value);
+                  }}
+                >
+                  <option value="all">All sources</option>
+                  {sourceOptions.map((source) => (
+                    <option key={source} value={source}>
+                      {titleCase(source)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock3 className="h-3.5 w-3.5" />
+                  {catalogSearchActive || catalogFiltersActive ? (
+                    <span>{filteredWidgets.length} matching components</span>
+                  ) : (
+                    <span>{allowedWidgets.length} available components</span>
+                  )}
+                </div>
+                {catalogSearchActive || catalogFiltersActive ? (
+                  <Button size="sm" variant="ghost" onClick={handleCatalogFiltersReset}>
+                    Clear filters
+                  </Button>
+                ) : null}
               </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto p-4">
-              <div className="space-y-3">
-                {filteredWidgets.map((widget) => (
-                  <div
-                    key={widget.id}
-                    className={cn(
-                      "rounded-[18px] border border-border/70 bg-background/35 p-3 transition-colors hover:bg-background/55",
-                      editMode ? "cursor-grab active:cursor-grabbing" : undefined,
-                    )}
-                    onPointerDown={(event) => {
-                      handleCatalogPointerStart(widget, event);
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-foreground">
-                          {widget.title}
+              {catalogSections.some((section) => section.widgets.length > 0) ? (
+                <div className="space-y-5">
+                  {catalogSections.map((section) =>
+                    section.widgets.length > 0 ? (
+                      <section key={section.id}>
+                        <CatalogSectionHeader
+                          title={section.title}
+                          description={section.description}
+                          count={section.widgets.length}
+                        />
+                        <div className="space-y-2">
+                          {section.widgets.map((widget) => (
+                            <CatalogWidgetRow
+                              key={`${section.id}:${widget.id}`}
+                              widget={widget}
+                              editable={editMode}
+                              favorite={favoriteWidgetSet.has(widget.id)}
+                              onToggleFavorite={() => {
+                                handleCatalogFavoriteToggle(widget.id);
+                              }}
+                              onAdd={() => {
+                                handleCatalogAdd(widget);
+                              }}
+                              onPointerDown={(event) => {
+                                handleCatalogPointerStart(widget, event);
+                              }}
+                            />
+                          ))}
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {widget.description}
-                        </div>
-                      </div>
-                      <Badge variant="neutral">
-                        {widget.defaultSize.w * CUSTOM_WORKSPACE_COLUMN_SCALE} x{" "}
-                        {widget.defaultSize.h * CUSTOM_WORKSPACE_ROW_SCALE}
-                      </Badge>
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge variant="neutral">{titleCase(widget.category)}</Badge>
-                      <Badge variant="neutral">{widget.kind}</Badge>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                        {editMode ? "Drag to canvas" : "Open edit to place"}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onPointerDown={(event) => {
-                          event.stopPropagation();
-                        }}
-                        onClick={() => {
-                          handleCatalogAdd(widget);
-                        }}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Add
-                      </Button>
-                    </div>
+                      </section>
+                    ) : null,
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-[18px] border border-dashed border-border/70 bg-background/35 p-5 text-center">
+                  <div className="text-sm font-medium text-foreground">
+                    {allowedWidgets.length === 0
+                      ? "No components are available for this workspace."
+                      : catalogScope === "favorites"
+                        ? "No favorite components yet."
+                        : catalogScope === "recent"
+                          ? "No recent components yet."
+                          : "No components match the current search."}
                   </div>
-                ))}
-
-                {filteredWidgets.length === 0 ? (
-                  <div className="rounded-[18px] border border-dashed border-border/70 bg-background/35 p-5 text-center text-sm text-muted-foreground">
-                    No components match the current search.
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    {allowedWidgets.length === 0
+                      ? "Your current permissions do not expose any widget definitions here."
+                      : catalogScope === "favorites"
+                        ? "Use the star on a component to pin it for faster access."
+                        : catalogScope === "recent"
+                          ? "Components you add to a workspace will appear here."
+                          : "Try another search or clear the active filters."}
                   </div>
-                ) : null}
-              </div>
+                  {catalogSearchActive || catalogFiltersActive ? (
+                    <Button className="mt-4" size="sm" variant="outline" onClick={handleCatalogFiltersReset}>
+                      Clear filters
+                    </Button>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
         </aside>
@@ -1128,7 +1722,11 @@ export function CustomDashboardStudioPage() {
             open
             widget={settingsWidgetDefinition}
             instance={settingsWidget}
-            persistenceNote="Changes apply to this workspace immediately. Save workspace only if you want to keep them in local browser storage."
+            persistenceNote={
+              backendMode
+                ? "Changes sync to the backend automatically."
+                : "Changes apply to this workspace immediately. Save workspace if you want to persist them."
+            }
             onClose={() => {
               setSettingsInstanceId(null);
             }}

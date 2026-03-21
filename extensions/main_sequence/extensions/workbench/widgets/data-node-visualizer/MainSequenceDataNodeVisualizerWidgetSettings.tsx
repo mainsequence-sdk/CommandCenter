@@ -1,8 +1,9 @@
 import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, Loader2 } from "lucide-react";
+import { CalendarClock, Loader2, RefreshCw, X } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,7 +18,7 @@ import {
   fetchDataNodeDetail,
   fetchDataNodeLastObservation,
   formatMainSequenceError,
-  listDataNodes,
+  quickSearchDataNodes,
 } from "../../../../common/api";
 import { DataNodeVisualizerTable } from "./DataNodeVisualizerTable";
 import {
@@ -117,6 +118,35 @@ function formatRangeSummary(startMs: number, endMs: number) {
   return `${formatter.format(startMs)} - ${formatter.format(endMs)}`;
 }
 
+function tokenizeUniqueIdentifierValues(values: string) {
+  return values
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function mergeUniqueIdentifierValues(existingValues: string[], nextValues: string[]) {
+  const seen = new Set(existingValues);
+  const mergedValues = [...existingValues];
+
+  nextValues.forEach((value) => {
+    if (!seen.has(value)) {
+      seen.add(value);
+      mergedValues.push(value);
+    }
+  });
+
+  return mergedValues;
+}
+
+function areUniqueIdentifierListsEqual(leftValues: string[], rightValues: string[]) {
+  if (leftValues.length !== rightValues.length) {
+    return false;
+  }
+
+  return leftValues.every((value, index) => value === rightValues[index]);
+}
+
 function toColorInputValue(value: string | undefined, fallback: string) {
   if (value && hexColorPattern.test(value.trim())) {
     return value.trim().toLowerCase();
@@ -182,6 +212,8 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
   );
   const [fixedStartValue, setFixedStartValue] = useState("");
   const [fixedEndValue, setFixedEndValue] = useState("");
+  const [uniqueIdentifierInputValue, setUniqueIdentifierInputValue] = useState("");
+  const [pendingUniqueIdentifierList, setPendingUniqueIdentifierList] = useState<string[]>([]);
   const deferredDataNodeSearchValue = useDeferredValue(dataNodeSearchValue);
   const normalizedDataNodeSearchValue = deferredDataNodeSearchValue.trim();
 
@@ -190,18 +222,15 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
       "main_sequence",
       "widgets",
       "data_node_visualizer",
-      "data_nodes",
-      "light",
+      "quick_search",
       normalizedDataNodeSearchValue,
     ],
     queryFn: () =>
-      listDataNodes({
+      quickSearchDataNodes({
         limit: dataNodeOptionLimit,
-        light: true,
-        offset: 0,
         q: normalizedDataNodeSearchValue,
       }),
-    enabled: normalizedDataNodeSearchValue.length > 0,
+    enabled: normalizedDataNodeSearchValue.length >= 3,
     staleTime: 300_000,
   });
   const selectedDataNodeDetailQuery = useQuery({
@@ -224,7 +253,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
   });
 
   const dataNodeOptions = useMemo(() => {
-    const baseOptions = normalizedDataNodeSearchValue.length > 0 ? dataNodesQuery.data?.results ?? [] : [];
+    const baseOptions = normalizedDataNodeSearchValue.length >= 3 ? dataNodesQuery.data ?? [] : [];
     const selectedDetail = selectedDataNodeDetailQuery.data;
 
     if (
@@ -235,7 +264,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
     }
 
     return baseOptions;
-  }, [dataNodesQuery.data?.results, selectedDataNodeDetailQuery.data]);
+  }, [dataNodesQuery.data, selectedDataNodeDetailQuery.data]);
   const dataNodePickerOptions = useMemo<PickerOption[]>(
     () =>
       dataNodeOptions.map((dataNode) => ({
@@ -261,6 +290,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
   const hasLoadedDataNodeDetail = Boolean(selectedDataNodeDetailQuery.data);
   const hasSourceTableConfiguration = Boolean(selectedDataNodeDetailQuery.data?.sourcetableconfiguration);
   const hasNoData = hasLoadedDataNodeDetail && !hasSourceTableConfiguration;
+  const supportsUniqueIdentifierList = resolvedConfig.supportsUniqueIdentifierList;
   const xAxisOptions = useMemo<PickerOption[]>(
     () => [
       {
@@ -373,6 +403,11 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
     return rangeSummary;
   }, [previewRange.rangeEndMs, previewRange.rangeStartMs, rangeSummary]);
   const activePreviewMode = previewModeOverride ?? resolvedConfig.displayMode;
+  const appliedUniqueIdentifierList = resolvedConfig.uniqueIdentifierList ?? [];
+  const hasPendingUniqueIdentifierChanges = !areUniqueIdentifierListsEqual(
+    pendingUniqueIdentifierList,
+    appliedUniqueIdentifierList,
+  );
 
   const previewQuery = useQuery({
     queryKey: [
@@ -382,6 +417,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
       "preview",
       resolvedConfig.dataNodeId,
       previewRequestedColumns.join("|"),
+      (resolvedConfig.uniqueIdentifierList ?? []).join("|"),
       previewRange.rangeStartMs,
       previewRange.rangeEndMs,
       resolvedConfig.limit,
@@ -391,6 +427,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
         start_date: Math.floor(previewRange.rangeStartMs! / 1000),
         end_date: Math.floor(previewRange.rangeEndMs! / 1000),
         columns: previewRequestedColumns,
+        unique_identifier_list: resolvedConfig.uniqueIdentifierList,
         great_or_equal: true,
         less_or_equal: true,
         limit: Math.min(resolvedConfig.limit, previewRowLimit),
@@ -554,6 +591,14 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
   }, [resolvedConfig.displayMode]);
 
   useEffect(() => {
+    setPendingUniqueIdentifierList(resolvedConfig.uniqueIdentifierList ?? []);
+    setUniqueIdentifierInputValue("");
+  }, [
+    resolvedConfig.dataNodeId,
+    resolvedConfig.supportsUniqueIdentifierList,
+  ]);
+
+  useEffect(() => {
     setNormalizeAtValue(
       resolvedConfig.normalizeAtMs ? formatDateTimeLocalValue(resolvedConfig.normalizeAtMs) : "",
     );
@@ -634,6 +679,45 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
     });
   }
 
+  function commitUniqueIdentifierInput(rawValue?: string) {
+    const nextInputValue = rawValue ?? uniqueIdentifierInputValue;
+    const nextTokens = tokenizeUniqueIdentifierValues(nextInputValue);
+
+    if (nextTokens.length === 0) {
+      return;
+    }
+
+    setPendingUniqueIdentifierList((currentValues) =>
+      mergeUniqueIdentifierValues(currentValues, nextTokens),
+    );
+    setUniqueIdentifierInputValue("");
+  }
+
+  function removePendingUniqueIdentifier(valueToRemove: string) {
+    setPendingUniqueIdentifierList((currentValues) =>
+      currentValues.filter((value) => value !== valueToRemove),
+    );
+  }
+
+  function applyUniqueIdentifierList() {
+    if (!resolvedConfig.supportsUniqueIdentifierList) {
+      return;
+    }
+
+    const nextUniqueIdentifierList =
+      pendingUniqueIdentifierList.length > 0 ? pendingUniqueIdentifierList : undefined;
+
+    if (hasPendingUniqueIdentifierChanges) {
+      onDraftPropsChange({
+        ...draftProps,
+        uniqueIdentifierList: nextUniqueIdentifierList,
+      });
+      return;
+    }
+
+    void previewQuery.refetch();
+  }
+
   return (
     <div className="space-y-4">
       <SettingsSection>
@@ -652,26 +736,33 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                   yField: undefined,
                   groupField: undefined,
                   seriesOverrides: undefined,
+                  uniqueIdentifierList: undefined,
                 });
+                setPendingUniqueIdentifierList([]);
+                setUniqueIdentifierInputValue("");
               }}
               options={dataNodePickerOptions}
               placeholder="Select a data node"
               searchPlaceholder="Search data nodes"
               emptyMessage={
-                normalizedDataNodeSearchValue.length > 0
+                normalizedDataNodeSearchValue.length >= 3
                   ? "No matching data nodes."
-                  : "Type to search data nodes."
+                  : normalizedDataNodeSearchValue.length > 0
+                    ? "Type at least 3 characters."
+                    : "Type to search data nodes."
               }
               searchable
               searchValue={dataNodeSearchValue}
               onSearchValueChange={setDataNodeSearchValue}
               disabled={!editable}
-              loading={normalizedDataNodeSearchValue.length > 0 && dataNodesQuery.isFetching}
+              loading={normalizedDataNodeSearchValue.length >= 3 && dataNodesQuery.isFetching}
             />
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>Choose the table you want to visualize.</span>
               {normalizedDataNodeSearchValue.length === 0 ? (
                 <span>Type to search.</span>
+              ) : normalizedDataNodeSearchValue.length < 3 ? (
+                <span>Use at least 3 characters.</span>
               ) : null}
               {dataNodesQuery.isError ? (
                 <Button
@@ -705,6 +796,102 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
           hasNoData ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
               This data node has no data.
+            </div>
+          ) : null}
+
+          {selectedDataNodeId > 0 && supportsUniqueIdentifierList && !hasNoData ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-topbar-foreground">Unique identifiers</div>
+                  <p className="text-sm text-muted-foreground">
+                    Press Enter to add identifiers, then refresh the preview to query them.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={hasPendingUniqueIdentifierChanges ? "default" : "outline"}
+                  onClick={applyUniqueIdentifierList}
+                  disabled={!editable && hasPendingUniqueIdentifierChanges}
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${previewQuery.isFetching && !hasPendingUniqueIdentifierChanges ? "animate-spin" : ""}`}
+                  />
+                  Refresh preview
+                </Button>
+              </div>
+
+              <div className="rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/35 px-3 py-3 shadow-sm transition-colors focus-within:border-ring/70 focus-within:ring-2 focus-within:ring-ring/20">
+                <div className="flex flex-wrap items-center gap-2">
+                  {pendingUniqueIdentifierList.map((identifier) => (
+                    <Badge
+                      key={identifier}
+                      variant="neutral"
+                      className="border border-border/70 bg-card/80 px-2.5 py-1 text-[11px] text-foreground"
+                    >
+                      <span>{identifier}</span>
+                      <button
+                        type="button"
+                        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                        aria-label={`Remove ${identifier}`}
+                        title={`Remove ${identifier}`}
+                        onClick={() => {
+                          removePendingUniqueIdentifier(identifier);
+                        }}
+                        disabled={!editable}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+
+                  <input
+                    value={uniqueIdentifierInputValue}
+                    onChange={(event) => {
+                      setUniqueIdentifierInputValue(event.target.value);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === ",") {
+                        event.preventDefault();
+                        commitUniqueIdentifierInput();
+                        return;
+                      }
+
+                      if (event.key === "Backspace" && !uniqueIdentifierInputValue && pendingUniqueIdentifierList.length > 0) {
+                        event.preventDefault();
+                        removePendingUniqueIdentifier(
+                          pendingUniqueIdentifierList[pendingUniqueIdentifierList.length - 1]!,
+                        );
+                      }
+                    }}
+                    onBlur={() => {
+                      commitUniqueIdentifierInput();
+                    }}
+                    placeholder={
+                      pendingUniqueIdentifierList.length > 0
+                        ? "Add another identifier"
+                        : "Type an identifier and press Enter"
+                    }
+                    className="h-8 min-w-[180px] flex-1 border-0 bg-transparent px-0 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                    disabled={!editable}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>Use Backspace on an empty field to remove the last identifier.</span>
+                {hasPendingUniqueIdentifierChanges ? (
+                  <span>Refresh preview to apply the current identifier list.</span>
+                ) : (
+                  <span>
+                    {pendingUniqueIdentifierList.length > 0
+                      ? `${pendingUniqueIdentifierList.length} identifier${pendingUniqueIdentifierList.length === 1 ? "" : "s"} applied.`
+                      : "No identifier filter applied."}
+                  </span>
+                )}
+              </div>
             </div>
           ) : null}
         </div>
@@ -1027,27 +1214,6 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-topbar-foreground">Y axis</span>
-            <PickerField
-              value={resolvedConfig.yField ?? ""}
-              onChange={(value) => {
-                onDraftPropsChange({
-                  ...draftProps,
-                  yField: value || undefined,
-                });
-              }}
-              options={yAxisOptions}
-              placeholder="Auto"
-              searchPlaceholder="Search Y-axis fields"
-              emptyMessage="No matching fields."
-              disabled={!editable || resolvedConfig.availableFields.length === 0}
-            />
-            <p className="text-sm text-muted-foreground">
-              Choose the value you want to plot.
-            </p>
-          </label>
-
-          <label className="space-y-2">
             <span className="text-sm font-medium text-topbar-foreground">Group by</span>
             <PickerField
               value={resolvedConfig.groupField ?? ""}
@@ -1065,6 +1231,27 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
             />
             <p className="text-sm text-muted-foreground">
               Split the chart into separate series.
+            </p>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-topbar-foreground">Y axis</span>
+            <PickerField
+              value={resolvedConfig.yField ?? ""}
+              onChange={(value) => {
+                onDraftPropsChange({
+                  ...draftProps,
+                  yField: value || undefined,
+                });
+              }}
+              options={yAxisOptions}
+              placeholder="Auto"
+              searchPlaceholder="Search Y-axis fields"
+              emptyMessage="No matching fields."
+              disabled={!editable || resolvedConfig.availableFields.length === 0}
+            />
+            <p className="text-sm text-muted-foreground">
+              Choose the value you want to plot.
             </p>
           </label>
           </div>

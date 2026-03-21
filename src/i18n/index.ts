@@ -1,6 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
+import { commandCenterConfig } from "@/config/command-center";
 import {
   defaultLanguage,
   isSupportedLanguage,
@@ -9,14 +10,18 @@ import {
 } from "@/i18n/config";
 import { resources } from "@/i18n/resources";
 
+const backendPreferencesEnabled = Boolean(commandCenterConfig.preferences.url.trim());
+
 function resolveInitialLanguage() {
   if (typeof window === "undefined") {
     return defaultLanguage;
   }
 
-  const storedLanguage = window.localStorage.getItem(languageStorageKey);
-  if (storedLanguage && isSupportedLanguage(storedLanguage)) {
-    return storedLanguage;
+  if (!backendPreferencesEnabled) {
+    const storedLanguage = window.localStorage.getItem(languageStorageKey);
+    if (storedLanguage && isSupportedLanguage(storedLanguage)) {
+      return storedLanguage;
+    }
   }
 
   const browserLanguage = window.navigator.language.split("-")[0]?.toLowerCase() ?? "";
@@ -44,7 +49,11 @@ if (typeof document !== "undefined") {
 }
 
 i18n.on("languageChanged", (language) => {
-  if (typeof window !== "undefined" && isSupportedLanguage(language)) {
+  if (
+    !backendPreferencesEnabled &&
+    typeof window !== "undefined" &&
+    isSupportedLanguage(language)
+  ) {
     window.localStorage.setItem(languageStorageKey, language);
   }
 

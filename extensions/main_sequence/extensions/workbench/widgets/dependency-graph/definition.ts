@@ -20,6 +20,9 @@ export const mainSequenceDependencyGraphWidget: WidgetDefinition<MainSequenceDep
     localTimeSerieId: 716,
     direction: "downstream",
   },
+  mockRuntimeState: {
+    selectedNodeId: "desk-curve-signal",
+  },
   settingsComponent: MainSequenceDependencyGraphWidgetSettings,
   component: MainSequenceDependencyGraphWidget,
 };

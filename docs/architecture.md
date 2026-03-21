@@ -23,6 +23,8 @@ Relevant files:
 - `src/app/providers/AppProviders.tsx`
 - `src/app/registry/index.ts`
 - `src/dashboards/layout.ts`
+- `src/preferences/CommandCenterPreferencesProvider.tsx`
+- `src/features/dashboards/custom-workspace-studio-store.ts`
 
 ### Registry model
 
@@ -139,6 +141,20 @@ The app currently uses:
 - `Zustand` for local session and shell state
 - mock REST and WebSocket adapters for development
 
+Shell-level durable preferences now have two runtime modes:
+
+- backend-backed when `preferences.url` is configured
+- browser-local when that config entry is blank or omitted
+
+That split is intentionally isolated behind `src/preferences/` so the rest of the shell reads one state model regardless of the persistence mode.
+
+Workspaces now follow the same pattern:
+
+- backend-backed when both `workspaces.list_url` and `workspaces.detail_url` are configured
+- browser-local when either config entry is blank, `null`, or `None`
+
+That split is isolated behind `src/features/dashboards/workspace-persistence.ts` so the workspace editor still consumes one draft/saved state model regardless of persistence target.
+
 The mock adapters live in `src/data/` and are intentionally replaceable.
 
 ## Directory guide
@@ -152,6 +168,8 @@ src/
   data/          API adapters and live transports
   extensions/    bundled extension entrypoints
   features/      page-level features
+  preferences/   optional backend persistence for shell-level user preferences
+  features/dashboards/ optional backend persistence for workspace documents
   themes/        theme types, presets, provider, snippet generation
   widgets/       widget implementations
 ```

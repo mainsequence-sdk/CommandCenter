@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -9,11 +9,10 @@ import {
   Table2,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
-import type { WidgetComponentProps } from "@/widgets/types";
+import type { WidgetComponentProps, WidgetHeaderActionsProps } from "@/widgets/types";
 
 import {
   fetchDataNodeDataBetweenDatesFromRemote,
@@ -22,6 +21,7 @@ import {
 } from "../../../../common/api";
 import {
   buildDataNodeVisualizerSeries,
+  buildDataNodeVisualizerRequestedColumns,
   buildDataNodeVisualizerTableColumns,
   resolveDataNodeVisualizerDateRange,
   resolveDataNodeVisualizerNormalizationTimeMs,
@@ -54,21 +54,87 @@ function WidgetModeButton({
 
 type Props = WidgetComponentProps<MainSequenceDataNodeVisualizerWidgetProps>;
 
-function formatWidgetRangeLabel(startMs: number, endMs: number) {
-  const formatter = new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+function resolveDataNodeVisualizerViewMode(
+  props: MainSequenceDataNodeVisualizerWidgetProps,
+  runtimeState?: Record<string, unknown>,
+): DataNodeVisualizerViewMode {
+  const runtimeViewMode = runtimeState?.viewMode;
 
-  return `${formatter.format(startMs)} - ${formatter.format(endMs)}`;
+  if (runtimeViewMode === "table" || runtimeViewMode === "chart") {
+    return runtimeViewMode;
+  }
+
+  return props.displayMode === "table" ? "table" : "chart";
 }
 
-export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
-  const { rangeStartMs, rangeEndMs, timeRangeLabel } = useDashboardControls();
-  const dataNodeId = Number(props.dataNodeId ?? 0);
-  const [viewModeOverride, setViewModeOverride] = useState<DataNodeVisualizerViewMode | null>(
-    null,
+function updateDataNodeVisualizerViewMode(
+  props: MainSequenceDataNodeVisualizerWidgetProps,
+  runtimeState: Record<string, unknown> | undefined,
+  nextViewMode: DataNodeVisualizerViewMode,
+  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void,
+) {
+  if (!onRuntimeStateChange) {
+    return;
+  }
+
+  const defaultViewMode = props.displayMode === "table" ? "table" : "chart";
+  const nextRuntimeState = { ...(runtimeState ?? {}) };
+
+  if (nextViewMode === defaultViewMode) {
+    delete nextRuntimeState.viewMode;
+  } else {
+    nextRuntimeState.viewMode = nextViewMode;
+  }
+
+  onRuntimeStateChange(
+    Object.keys(nextRuntimeState).length > 0 ? nextRuntimeState : undefined,
   );
+}
+
+export function MainSequenceDataNodeVisualizerHeaderActions({
+  props,
+  runtimeState,
+  onRuntimeStateChange,
+}: WidgetHeaderActionsProps<MainSequenceDataNodeVisualizerWidgetProps>) {
+  const activeViewMode = resolveDataNodeVisualizerViewMode(props, runtimeState);
+
+  return (
+    <div className="flex items-center gap-2">
+      <WidgetModeButton
+        active={activeViewMode === "chart"}
+        onClick={() => {
+          updateDataNodeVisualizerViewMode(
+            props,
+            runtimeState,
+            "chart",
+            onRuntimeStateChange,
+          );
+        }}
+      >
+        <BarChart3 className="h-3.5 w-3.5" />
+        Chart
+      </WidgetModeButton>
+      <WidgetModeButton
+        active={activeViewMode === "table"}
+        onClick={() => {
+          updateDataNodeVisualizerViewMode(
+            props,
+            runtimeState,
+            "table",
+            onRuntimeStateChange,
+          );
+        }}
+      >
+        <Table2 className="h-3.5 w-3.5" />
+        Table
+      </WidgetModeButton>
+    </div>
+  );
+}
+
+export function MainSequenceDataNodeVisualizerWidget({ props, runtimeState }: Props) {
+  const { rangeStartMs, rangeEndMs } = useDashboardControls();
+  const dataNodeId = Number(props.dataNodeId ?? 0);
 
   const dataNodeDetailQuery = useQuery({
     queryKey: ["main_sequence", "widgets", "data_node_visualizer", "detail", dataNodeId],
@@ -82,24 +148,13 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
     [dataNodeDetailQuery.data, props],
   );
   const requestedColumns = useMemo(
-    () => resolvedConfig.availableFields.map((field) => field.key),
-    [resolvedConfig.availableFields],
+    () => buildDataNodeVisualizerRequestedColumns(resolvedConfig),
+    [resolvedConfig],
   );
   const resolvedRange = useMemo(
     () => resolveDataNodeVisualizerDateRange(resolvedConfig, rangeStartMs, rangeEndMs),
     [rangeEndMs, rangeStartMs, resolvedConfig],
   );
-  const rangeLabel = useMemo(() => {
-    if (resolvedRange.mode === "dashboard") {
-      return timeRangeLabel;
-    }
-
-    if (resolvedRange.rangeStartMs !== null && resolvedRange.rangeEndMs !== null) {
-      return formatWidgetRangeLabel(resolvedRange.rangeStartMs, resolvedRange.rangeEndMs);
-    }
-
-    return "Fixed date";
-  }, [resolvedRange, timeRangeLabel]);
 
   const dataQuery = useQuery({
     queryKey: [
@@ -108,6 +163,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
       "data_node_visualizer",
       resolvedConfig.dataNodeId,
       requestedColumns.join("|"),
+      (resolvedConfig.uniqueIdentifierList ?? []).join("|"),
       resolvedRange.mode,
       resolvedRange.rangeStartMs,
       resolvedRange.rangeEndMs,
@@ -118,6 +174,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
         start_date: Math.floor(resolvedRange.rangeStartMs! / 1000),
         end_date: Math.floor(resolvedRange.rangeEndMs! / 1000),
         columns: requestedColumns,
+        unique_identifier_list: resolvedConfig.uniqueIdentifierList,
         great_or_equal: true,
         less_or_equal: true,
         limit: resolvedConfig.limit,
@@ -145,16 +202,12 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
       ),
     [resolvedConfig, resolvedRange.rangeStartMs],
   );
-  const activeViewMode = viewModeOverride ?? resolvedConfig.displayMode;
+  const activeViewMode = resolveDataNodeVisualizerViewMode(props, runtimeState);
   const hasSourceTableConfiguration = Boolean(dataNodeDetailQuery.data?.sourcetableconfiguration);
   const chartEmptyMessage =
     (dataQuery.data?.length ?? 0) > 0
       ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
       : "No chartable rows are available for the selected range.";
-
-  useEffect(() => {
-    setViewModeOverride(null);
-  }, [resolvedConfig.displayMode]);
 
   if (!resolvedConfig.dataNodeId) {
     return (
@@ -233,49 +286,12 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">{resolvedConfig.dataNodeLabel}</Badge>
-            <Badge variant="neutral">{resolvedConfig.provider}</Badge>
-            <Badge variant="neutral">{resolvedConfig.chartType}</Badge>
-            <Badge variant="neutral">
-              {resolvedConfig.seriesAxisMode === "separate" ? "separate axes" : "shared axis"}
-            </Badge>
-            {resolvedConfig.normalizeSeries ? (
-              <Badge variant="neutral">normalized</Badge>
-            ) : null}
-            <Badge variant="neutral">{rangeLabel}</Badge>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            <span>X {resolvedConfig.xField}</span>
-            <span>Y {resolvedConfig.yField}</span>
-            {resolvedConfig.groupField ? <span>Group {resolvedConfig.groupField}</span> : null}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <WidgetModeButton
-            active={activeViewMode === "chart"}
-            onClick={() => setViewModeOverride("chart")}
-          >
-            <BarChart3 className="h-3.5 w-3.5" />
-            Chart
-          </WidgetModeButton>
-          <WidgetModeButton
-            active={activeViewMode === "table"}
-            onClick={() => setViewModeOverride("table")}
-          >
-            <Table2 className="h-3.5 w-3.5" />
-            Table
-          </WidgetModeButton>
-        </div>
-      </div>
-
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {dataQuery.isLoading ? (
-        <div className="grid flex-1 gap-3 md:grid-cols-[minmax(0,1fr)_240px]">
-          <Skeleton className="h-full min-h-[260px] rounded-[calc(var(--radius)-6px)]" />
+        <div className="grid flex-1 gap-3">
+          {activeViewMode === "table" ? (
+            <Skeleton className="h-9 w-36 rounded-[calc(var(--radius)-8px)]" />
+          ) : null}
           <Skeleton className="h-full min-h-[260px] rounded-[calc(var(--radius)-6px)]" />
         </div>
       ) : null}
@@ -288,43 +304,34 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
 
       {!dataQuery.isLoading && !dataQuery.isError ? (
         <>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>{(dataQuery.data?.length ?? 0).toLocaleString()} rows loaded</span>
-            {seriesResult.droppedGroups > 0 ? (
-              <span>
-                showing top {(seriesResult.series.length).toLocaleString()} groups, hiding{" "}
-                {seriesResult.droppedGroups.toLocaleString()}
-              </span>
-            ) : null}
-            {dataQuery.data && dataQuery.data.length >= resolvedConfig.limit ? (
-              <span>limited to {resolvedConfig.limit.toLocaleString()} rows</span>
-            ) : null}
-          </div>
-
           <div className="min-h-0 flex-1">
             {activeViewMode === "table" ? (
-              <DataNodeVisualizerTable columns={tableColumns} rows={dataQuery.data ?? []} />
+              <div className="flex h-full min-h-0 flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>{(dataQuery.data?.length ?? 0).toLocaleString()} rows loaded</span>
+                    {dataQuery.data && dataQuery.data.length >= resolvedConfig.limit ? (
+                      <span>limited to {resolvedConfig.limit.toLocaleString()} rows</span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1">
+                  <DataNodeVisualizerTable columns={tableColumns} rows={dataQuery.data ?? []} />
+                </div>
+              </div>
             ) : (
-              <TradingViewSeriesChart
-                chartType={resolvedConfig.chartType}
-                emptyMessage={chartEmptyMessage}
-                normalizationTimeMs={normalizationTimeMs}
-                series={seriesResult.series}
-                seriesAxisMode={resolvedConfig.seriesAxisMode}
-              />
+              <div className="h-full min-h-0">
+                <TradingViewSeriesChart
+                  chartType={resolvedConfig.chartType}
+                  emptyMessage={chartEmptyMessage}
+                  normalizationTimeMs={normalizationTimeMs}
+                  series={seriesResult.series}
+                  seriesAxisMode={resolvedConfig.seriesAxisMode}
+                />
+              </div>
             )}
           </div>
-
-          {!dataQuery.isLoading &&
-          !dataQuery.isError &&
-          activeViewMode === "chart" &&
-          (dataQuery.data?.length ?? 0) > 0 &&
-          seriesResult.series.length === 0 ? (
-            <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-              The selected X field does not look time-like, or the Y field does not contain numeric
-              values for the current range.
-            </div>
-          ) : null}
         </>
       ) : null}
 

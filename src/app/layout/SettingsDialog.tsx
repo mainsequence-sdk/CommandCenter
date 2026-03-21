@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 
-import { CircleUserRound, Info, Settings2, ShieldCheck } from "lucide-react";
+import { CircleUserRound, FileCode2, Info, Settings2, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -10,6 +10,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { fetchCurrentAuthGroups } from "@/auth/api";
 import { getRoleLabel } from "@/auth/permissions";
+import { commandCenterConfigSource } from "@/config/command-center";
 import { env } from "@/config/env";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
 import { defaultLanguage, isSupportedLanguage, languageOptions } from "@/i18n/config";
@@ -24,7 +25,7 @@ interface SettingsDialogProps {
   user?: AppUser;
 }
 
-type SettingsSectionId = "general" | "account" | "auth" | "about";
+type SettingsSectionId = "general" | "account" | "auth" | "configuration" | "about";
 
 function resolveSettingsUrl(baseUrl: string, path: string) {
   if (!path) {
@@ -112,6 +113,18 @@ function SettingsSection({
   );
 }
 
+function SettingsCodeBlock({
+  value,
+}: {
+  value: string;
+}) {
+  return (
+    <pre className="max-h-[420px] overflow-auto rounded-[calc(var(--radius)-6px)] border border-white/8 bg-black/20 p-4 text-left font-mono text-xs leading-6 text-topbar-foreground">
+      <code>{value}</code>
+    </pre>
+  );
+}
+
 export function SettingsDialog({
   mode,
   onClose,
@@ -164,6 +177,7 @@ export function SettingsDialog({
     auth.jwt.userDetails.roleGroups.admin || t("common.unavailable");
   const authUserGroupValue =
     auth.jwt.userDetails.roleGroups.user || t("settingsDialog.authUserFallback");
+  const configurationSource = commandCenterConfigSource;
   const navItems: Array<{
     id: SettingsSectionId;
     label: string;
@@ -177,6 +191,11 @@ export function SettingsDialog({
             id: "auth" as const,
             label: t("settingsDialog.authNav"),
             icon: ShieldCheck,
+          },
+          {
+            id: "configuration" as const,
+            label: t("settingsDialog.configurationNav"),
+            icon: FileCode2,
           },
         ]
       : []),
@@ -441,6 +460,32 @@ export function SettingsDialog({
                   </div>
                 }
               />
+            </SettingsSection>
+          ) : null}
+
+          {mode === "admin" && activeSection === "configuration" ? (
+            <SettingsSection
+              title={t("settingsDialog.configurationTitle")}
+              description={t("settingsDialog.configurationDescription")}
+            >
+              <SettingsRow
+                label={t("settingsDialog.configurationFile")}
+                description={t("settingsDialog.configurationFileHelp")}
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    config/command-center.yaml
+                  </span>
+                }
+              />
+              <div className="py-4">
+                <div className="mb-2 text-sm font-medium text-topbar-foreground">
+                  {t("settingsDialog.configurationYaml")}
+                </div>
+                <div className="mb-4 text-sm text-muted-foreground">
+                  {t("settingsDialog.configurationYamlHelp")}
+                </div>
+                <SettingsCodeBlock value={configurationSource} />
+              </div>
             </SettingsSection>
           ) : null}
 

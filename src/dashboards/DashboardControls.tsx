@@ -99,7 +99,14 @@ const defaultTimeRangeOptions: Record<DashboardTimeRangeKey, DashboardTimeRangeO
   "90d": { key: "90d", label: "Last 90 days", durationMs: 90 * 24 * 60 * 60 * 1000 },
 };
 
-const defaultRefreshIntervals: Array<number | null> = [null, 10000, 15000, 30000, 60000];
+const defaultRefreshIntervals: Array<number | null> = [
+  null,
+  30000,
+  60000,
+  300000,
+  600000,
+  3600000,
+];
 const defaultDashboardControlsContextValue: DashboardControlsContextValue = {
   timeRange: defaultTimeRangeOptions["30d"],
   timeRangeKey: "30d",
@@ -247,6 +254,10 @@ function formatRefreshInterval(value: number | null) {
 
   if (value < 120000) {
     return `${Math.round(value / 1000)}s`;
+  }
+
+  if (value % 3600000 === 0) {
+    return `${Math.round(value / 3600000)}h`;
   }
 
   return `${Math.round(value / 60000)}m`;
@@ -667,7 +678,7 @@ function RefreshSelector({
             }}
           >
             <div className="flex items-center justify-between gap-3 pb-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              <span>Custom</span>
+              <span>Custom seconds</span>
               {customSelected && value !== null ? <span>{formatRefreshInterval(value)}</span> : null}
             </div>
             <div className="flex items-center gap-2">

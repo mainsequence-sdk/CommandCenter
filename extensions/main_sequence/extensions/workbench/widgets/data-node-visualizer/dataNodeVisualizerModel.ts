@@ -30,6 +30,7 @@ export interface MainSequenceDataNodeVisualizerWidgetProps extends Record<string
   provider?: DataNodeVisualizerProvider;
   seriesAxisMode?: DataNodeVisualizerSeriesAxisMode;
   seriesOverrides?: DataNodeVisualizerSeriesOverrides;
+  uniqueIdentifierList?: string[];
   xField?: string;
   yField?: string;
 }
@@ -60,6 +61,8 @@ export interface ResolvedDataNodeVisualizerConfig {
   provider: DataNodeVisualizerProvider;
   seriesAxisMode: DataNodeVisualizerSeriesAxisMode;
   seriesOverrides?: DataNodeVisualizerSeriesOverrides;
+  supportsUniqueIdentifierList: boolean;
+  uniqueIdentifierList?: string[];
   xField?: string;
   yField?: string;
 }
@@ -140,6 +143,22 @@ function normalizeSeriesOverrides(value: unknown) {
   }
 
   return Object.fromEntries(normalizedEntries) satisfies DataNodeVisualizerSeriesOverrides;
+}
+
+function normalizeUniqueIdentifierList(value: unknown) {
+  if (typeof value === "string") {
+    return uniqueStrings(value.split(/[\n,]+/).map((item) => item.trim()));
+  }
+
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalizedValues = uniqueStrings(
+    value.map((item) => (typeof item === "string" ? item.trim() : "")),
+  );
+
+  return normalizedValues.length > 0 ? normalizedValues : undefined;
 }
 
 function normalizeTimestampMs(value: unknown) {
@@ -295,6 +314,10 @@ function getValidFieldKey(
   return fieldOptions.some((field) => field.key === requestedKey) ? requestedKey : undefined;
 }
 
+function supportsUniqueIdentifierList(detail?: DataNodeDetail | null) {
+  return detail?.sourcetableconfiguration?.index_names?.[1] === "unique_identifier";
+}
+
 export function resolveDataNodeVisualizerConfig(
   props: MainSequenceDataNodeVisualizerWidgetProps,
   detail?: DataNodeDetail | null,
@@ -316,6 +339,10 @@ export function resolveDataNodeVisualizerConfig(
   const seriesAxisMode: DataNodeVisualizerSeriesAxisMode =
     props.seriesAxisMode === "separate" ? "separate" : "shared";
   const seriesOverrides = normalizeSeriesOverrides(props.seriesOverrides);
+  const supportsIdentifierList = supportsUniqueIdentifierList(detail);
+  const uniqueIdentifierList = supportsIdentifierList
+    ? normalizeUniqueIdentifierList(props.uniqueIdentifierList)
+    : undefined;
 
   const xField =
     getValidFieldKey(props.xField, availableFields) ||
@@ -343,6 +370,8 @@ export function resolveDataNodeVisualizerConfig(
     normalizeAtMs,
     seriesAxisMode,
     seriesOverrides,
+    supportsUniqueIdentifierList: supportsIdentifierList,
+    uniqueIdentifierList,
     availableFields,
     dataNodeLabel: formatDataNodeLabel(detail ?? (dataNodeId ? { id: dataNodeId, storage_hash: "", identifier: null } : null)),
   };
@@ -371,6 +400,7 @@ export function normalizeDataNodeVisualizerProps(
     normalizeAtMs: resolved.normalizeAtMs,
     seriesAxisMode: resolved.seriesAxisMode,
     seriesOverrides: resolved.seriesOverrides,
+    uniqueIdentifierList: resolved.uniqueIdentifierList,
   } satisfies MainSequenceDataNodeVisualizerWidgetProps;
 }
 

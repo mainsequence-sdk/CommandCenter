@@ -16,6 +16,9 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   requiredPermissions?: string[];
   tags?: string[];
   exampleProps?: TProps;
+  mockProps?: TProps;
+  mockRuntimeState?: Record<string, unknown>;
+  headerActions?: ComponentType<WidgetHeaderActionsProps<TProps>>;
   settingsComponent?: ComponentType<WidgetSettingsComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;
 }
@@ -24,6 +27,15 @@ export interface WidgetComponentProps<TProps extends Record<string, unknown> = R
   widget: WidgetDefinition<TProps>;
   props: TProps;
   instanceTitle?: string;
+  runtimeState?: Record<string, unknown>;
+  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
+}
+
+export interface WidgetHeaderActionsProps<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  widget: WidgetDefinition<TProps>;
+  props: TProps;
   runtimeState?: Record<string, unknown>;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
 }

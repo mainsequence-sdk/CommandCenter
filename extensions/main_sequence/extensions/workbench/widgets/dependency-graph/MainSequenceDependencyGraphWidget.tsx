@@ -1,4 +1,5 @@
 import { Network } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
 import type { WidgetComponentProps } from "@/widgets/types";
@@ -15,8 +16,13 @@ export function MainSequenceDependencyGraphWidget({
   runtimeState,
   onRuntimeStateChange,
 }: WidgetComponentProps<MainSequenceDependencyGraphWidgetProps>) {
+  const { t } = useTranslation();
   const direction = props.direction === "upstream" ? "upstream" : "downstream";
   const localTimeSerieId = Number(props.localTimeSerieId ?? 0);
+  const directionLabel =
+    direction === "upstream"
+      ? t("mainSequenceDependencyGraph.settings.directionUpstreamShort")
+      : t("mainSequenceDependencyGraph.settings.directionDownstreamShort");
 
   if (!Number.isFinite(localTimeSerieId) || localTimeSerieId <= 0) {
     return (
@@ -25,12 +31,16 @@ export function MainSequenceDependencyGraphWidget({
           <Network className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Dependency graph needs a LocalTimeSerie id</div>
+          <div className="text-sm font-medium text-foreground">
+            {t("mainSequenceDependencyGraph.widget.titleMissingLocalTimeSerieId")}
+          </div>
           <p className="text-sm text-muted-foreground">
-            Set <code>localTimeSerieId</code> in the widget props to load upstream or downstream dependencies.
+            {t("mainSequenceDependencyGraph.widget.descriptionMissingLocalTimeSerieId", {
+              prop: "localTimeSerieId",
+            })}
           </p>
         </div>
-        <Badge variant="neutral">{direction}</Badge>
+        <Badge variant="neutral">{directionLabel}</Badge>
       </div>
     );
   }

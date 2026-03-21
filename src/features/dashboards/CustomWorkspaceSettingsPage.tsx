@@ -7,6 +7,7 @@ import { getAppPath } from "@/apps/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -56,24 +57,32 @@ function buildWorkspaceExportFilename(title: string) {
 export function CustomWorkspaceSettingsPage() {
   const navigate = useNavigate();
   const [labelInput, setLabelInput] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jsonDialogMode, setJsonDialogMode] = useState<"export" | "import" | null>(null);
   const [jsonImportValue, setJsonImportValue] = useState("");
   const [jsonCopyFeedback, setJsonCopyFeedback] = useState<string | null>(null);
   const {
     user,
+    workspaceListCollection,
     draftCollection,
     selectedDashboard,
     resolvedDashboard,
     dirty,
+    isHydrating,
+    isSaving,
+    error,
+    persistenceMode,
     setSelectedWorkspaceId,
     updateDraftCollection,
     updateSelectedWorkspace,
     createWorkspace,
+    createWorkspaceFromDefinition,
     deleteSelectedWorkspace,
     resetWorkspaceDraft,
     saveWorkspaceDraft,
     savedCollection,
   } = useCustomWorkspaceStudio();
+  const backendMode = persistenceMode === "backend";
 
   useEffect(() => {
     setLabelInput("");
@@ -191,7 +200,7 @@ export function CustomWorkspaceSettingsPage() {
     }
   }
 
-  function handleImportWorkspace(mode: "new" | "replace") {
+  async function handleImportWorkspace(mode: "new" | "replace") {
     if (!parsedWorkspaceSnapshot.snapshot) {
       return;
     }
@@ -208,12 +217,17 @@ export function CustomWorkspaceSettingsPage() {
 
     const importedWorkspace = restoreWorkspaceFromSnapshot(parsedWorkspaceSnapshot.snapshot);
 
-    updateDraftCollection((current) => ({
-      ...current,
-      dashboards: [importedWorkspace, ...current.dashboards],
-      selectedDashboardId: importedWorkspace.id,
-    }));
-    setSelectedWorkspaceId(importedWorkspace.id);
+    if (backendMode) {
+      await createWorkspaceFromDefinition(importedWorkspace);
+    } else {
+      updateDraftCollection((current) => ({
+        ...current,
+        dashboards: [importedWorkspace, ...current.dashboards],
+        selectedDashboardId: importedWorkspace.id,
+      }));
+      setSelectedWorkspaceId(importedWorkspace.id);
+    }
+
     closeJsonDialog();
   }
 
@@ -238,30 +252,54 @@ export function CustomWorkspaceSettingsPage() {
                 setSelectedWorkspaceId(event.target.value);
               }}
             >
-              {draftCollection.dashboards.map((dashboard) => (
+              {workspaceListCollection.dashboards.map((dashboard) => (
                 <option key={dashboard.id} value={dashboard.id}>
                   {dashboard.title}
                 </option>
               ))}
             </Select>
-            {dirty ? <Badge variant="warning">Unsaved</Badge> : <Badge variant="success">Saved</Badge>}
+            {isHydrating ? (
+              <Badge variant="neutral">Loading</Badge>
+            ) : isSaving ? (
+              <Badge variant="neutral">Saving</Badge>
+            ) : !backendMode && dirty ? (
+              <Badge variant="warning">Unsaved</Badge>
+            ) : (
+              <Badge variant="success">Saved</Badge>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={() => createWorkspace()}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                void createWorkspace();
+              }}
+              disabled={isHydrating || isSaving}
+            >
               <LayoutTemplate className="h-4 w-4" />
               New workspace
             </Button>
-            <Button variant="outline" onClick={resetWorkspaceDraft} disabled={!dirty}>
-              <RotateCcw className="h-4 w-4" />
-              Reset
-            </Button>
-            <Button onClick={saveWorkspaceDraft} disabled={!dirty}>
-              <Save className="h-4 w-4" />
-              Save
-            </Button>
+            {!backendMode ? (
+              <>
+                <Button variant="outline" onClick={resetWorkspaceDraft} disabled={!dirty}>
+                  <RotateCcw className="h-4 w-4" />
+                  Reset
+                </Button>
+                <Button onClick={saveWorkspaceDraft} disabled={!dirty || isSaving || isHydrating}>
+                  <Save className="h-4 w-4" />
+                  Save
+                </Button>
+              </>
+            ) : null}
           </div>
         </div>
+
+        {error ? (
+          <div className="rounded-[var(--radius)] border border-danger/30 bg-danger/8 px-4 py-3 text-sm text-danger">
+            {error}
+          </div>
+        ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <Card>
@@ -368,7 +406,7 @@ export function CustomWorkspaceSettingsPage() {
                 <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                   Storage scope
                 </div>
-                <div className="mt-2 text-foreground">local-dev / {user.id}</div>
+                <div className="mt-2 text-foreground">{persistenceMode} / {user.id}</div>
               </div>
 
               <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
@@ -411,28 +449,69 @@ export function CustomWorkspaceSettingsPage() {
                 </div>
               </div>
 
-              <Button
-                variant="danger"
-                className="w-full"
-                onClick={() => {
-                  const confirmed = window.confirm(
-                    `Delete workspace "${workspace.title}" from this browser's local development storage?`,
-                  );
-
-                  if (!confirmed) {
-                    return;
-                  }
-
-                  deleteSelectedWorkspace();
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete workspace
-              </Button>
+                <Button
+                  variant="danger"
+                  className="w-full"
+                  onClick={() => {
+                    setDeleteDialogOpen(true);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete workspace
+                </Button>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <ActionConfirmationDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+        }}
+        title="Delete workspace"
+        actionLabel="delete"
+        objectLabel="workspace"
+        objectSummary={
+          <div className="space-y-1">
+            <div className="font-medium text-foreground">{workspace.title}</div>
+            <div className="text-sm text-muted-foreground">
+              {workspace.widgets.length} widgets
+            </div>
+          </div>
+        }
+        description={
+          persistenceMode === "backend"
+            ? "This deletes the workspace from the backend. The workspace stays visible until the backend confirms deletion."
+            : "This removes the workspace from local browser storage for this account."
+        }
+        specialText="This removes the current workspace from the saved collection. Type DELETE to continue."
+        confirmWord="DELETE"
+        confirmButtonLabel="Delete workspace"
+        tone="danger"
+        successToast={{
+          title: "Workspace deleted",
+          description: `${workspace.title} was deleted.`,
+          variant: "success",
+        }}
+        errorToast={{
+          title: "Delete failed",
+          description: (caughtError) =>
+            caughtError instanceof Error ? caughtError.message : "Unable to delete workspace.",
+          variant: "error",
+        }}
+        onConfirm={async () => {
+          const deleted = await deleteSelectedWorkspace();
+
+          if (!deleted) {
+            throw new Error("Unable to delete workspace.");
+          }
+        }}
+        onSuccess={() => {
+          setDeleteDialogOpen(false);
+          navigate(getAppPath("workspace-studio", "workspaces"));
+        }}
+      />
 
       <Dialog
         open={jsonDialogMode === "export"}
@@ -473,7 +552,11 @@ export function CustomWorkspaceSettingsPage() {
         open={jsonDialogMode === "import"}
         onClose={closeJsonDialog}
         title="Import workspace JSON"
-        description="Import into the current draft, then use Save if you want to persist the recovered workspace in local browser storage."
+        description={
+          backendMode
+            ? "Import into the backend-backed workspace collection."
+            : "Import into the current draft, then use Save if you want to persist the recovered workspace."
+        }
         className="max-w-[min(980px,calc(100vw-24px))]"
       >
         <div className="space-y-4">
@@ -533,7 +616,7 @@ export function CustomWorkspaceSettingsPage() {
             <Button
               variant="outline"
               onClick={() => {
-                handleImportWorkspace("new");
+                void handleImportWorkspace("new");
               }}
               disabled={!parsedWorkspaceSnapshot.snapshot}
             >
@@ -541,7 +624,7 @@ export function CustomWorkspaceSettingsPage() {
             </Button>
             <Button
               onClick={() => {
-                handleImportWorkspace("replace");
+                void handleImportWorkspace("replace");
               }}
               disabled={!parsedWorkspaceSnapshot.snapshot}
             >

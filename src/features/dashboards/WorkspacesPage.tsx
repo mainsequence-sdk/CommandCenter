@@ -83,6 +83,10 @@ function formatWorkspaceRefresh(workspace: { controls?: { refresh?: {
     return `${Math.round(refreshIntervalMs / 1000)}s`;
   }
 
+  if (refreshIntervalMs % 3_600_000 === 0) {
+    return `${Math.round(refreshIntervalMs / 3_600_000)}h`;
+  }
+
   return `${Math.round(refreshIntervalMs / 60_000)}m`;
 }
 
@@ -93,13 +97,19 @@ export function WorkspacesPage() {
   const toggleWorkspaceFavorite = useShellStore((state) => state.toggleWorkspaceFavorite);
   const {
     user,
+    workspaceListCollection,
     draftCollection,
     selectedDashboard,
     dirty,
+    isHydrating,
+    isSaving,
+    error,
+    persistenceMode,
     createWorkspace,
     requestedWorkspaceId,
   } = useCustomWorkspaceStudio();
   const selectedWorkspaceView = new URLSearchParams(location.search).get("view");
+  const backendMode = persistenceMode === "backend";
 
   if (!user) {
     return (
@@ -118,27 +128,43 @@ export function WorkspacesPage() {
   return (
     <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
       <div className="mx-auto max-w-6xl space-y-6">
+        {error ? (
+          <div className="rounded-[var(--radius)] border border-danger/30 bg-danger/8 px-4 py-3 text-sm text-danger">
+            {error}
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <Badge variant="neutral" className="border border-border/70 bg-card/55">
-              local-dev / {user.id}
+              {persistenceMode} / {user.id}
             </Badge>
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 Workspaces
               </h1>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Choose a saved workspace or create a new one. Canvas and settings belong to each workspace instance.
+                Choose a saved workspace or create a new one. Canvas and settings belong to each
+                workspace instance.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {dirty ? <Badge variant="warning">Unsaved draft</Badge> : <Badge variant="success">Saved</Badge>}
+            {isHydrating ? (
+              <Badge variant="neutral">Loading</Badge>
+            ) : isSaving ? (
+              <Badge variant="neutral">Saving</Badge>
+            ) : !backendMode && dirty ? (
+              <Badge variant="warning">Unsaved draft</Badge>
+            ) : (
+              <Badge variant="success">Saved</Badge>
+            )}
             <Button
               onClick={() => {
-                createWorkspace();
+                void createWorkspace();
               }}
+              disabled={isHydrating || isSaving}
             >
               <LayoutTemplate className="h-4 w-4" />
               New workspace
@@ -181,7 +207,7 @@ export function WorkspacesPage() {
                 </tr>
               </thead>
               <tbody>
-                {draftCollection.dashboards.map((workspace) => (
+                {workspaceListCollection.dashboards.map((workspace) => (
                   <tr
                     key={workspace.id}
                     className="border-b border-border/60 transition-colors hover:bg-background/35"
@@ -201,7 +227,7 @@ export function WorkspacesPage() {
                           {workspace.title}
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          local-dev
+                          {workspace.source || persistenceMode}
                         </div>
                       </div>
                     </td>
@@ -271,7 +297,9 @@ export function WorkspacesPage() {
           </div>
 
           <div className="border-t border-border/70 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
-            {draftCollection.dashboards.length} workspaces. Collection saved {formatSavedAt(draftCollection.savedAt)}.
+            {workspaceListCollection.dashboards.length} workspaces.{" "}
+            {persistenceMode === "backend" ? "Backend synced" : "Collection saved"}{" "}
+            {formatSavedAt(workspaceListCollection.savedAt)}.
           </div>
         </div>
       </div>

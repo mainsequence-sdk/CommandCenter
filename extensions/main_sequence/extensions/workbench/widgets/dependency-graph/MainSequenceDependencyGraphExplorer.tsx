@@ -7,7 +7,9 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from "react";
 
+import type { TFunction } from "i18next";
 import { ArrowUpRight, Loader2, Network } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,8 +62,23 @@ interface MinimapDragState {
   offsetY: number;
 }
 
-function getDirectionLabel(direction: MainSequenceDependencyGraphDirection) {
-  return direction === "downstream" ? "Downstream graph" : "Upstream graph";
+const dependencyGraphPropertyLabelKeyMap: Record<string, string> = {
+  human_readable: "humanReadable",
+  update_hash: "updateHash",
+  local_time_serie_id: "localTimeSerieId",
+  remote_table_hash_id: "remoteTableHashId",
+  remote_table_id: "remoteTableId",
+  data_source_id: "dataSourceId",
+  is_api: "isApi",
+  error_on_last_update: "errorOnLastUpdate",
+  last_update: "lastUpdate",
+  next_update: "nextUpdate",
+};
+
+function getDirectionLabel(direction: MainSequenceDependencyGraphDirection, t: TFunction) {
+  return direction === "downstream"
+    ? t("mainSequenceDependencyGraph.directionDownstream")
+    : t("mainSequenceDependencyGraph.directionUpstream");
 }
 
 function alphaColor(color: string, alpha: number) {
@@ -119,13 +136,19 @@ function buildEdgePath(
   return `M ${fromX} ${fromY} C ${fromX} ${fromY + (downward ? curve : -curve)}, ${toX} ${toY - (downward ? curve : -curve)}, ${toX} ${toY}`;
 }
 
-function formatPropertyLabel(key: string) {
+function formatPropertyLabel(key: string, t: TFunction) {
+  const translationKey = dependencyGraphPropertyLabelKeyMap[key];
+
+  if (translationKey) {
+    return t(`mainSequenceDependencyGraph.properties.${translationKey}`);
+  }
+
   return key.replace(/_/g, " ").replace(/^\w/, (value) => value.toUpperCase());
 }
 
-function formatPropertyValue(key: string, value: unknown) {
+function formatPropertyValue(key: string, value: unknown, t: TFunction) {
   if (value === null || value === undefined || value === "") {
-    return "Not set";
+    return t("mainSequenceDependencyGraph.values.notSet");
   }
 
   if (key === "last_update" || key === "next_update") {
@@ -140,7 +163,9 @@ function formatPropertyValue(key: string, value: unknown) {
   }
 
   if (typeof value === "boolean") {
-    return value ? "true" : "false";
+    return value
+      ? t("mainSequenceDependencyGraph.values.booleanTrue")
+      : t("mainSequenceDependencyGraph.values.booleanFalse");
   }
 
   if (typeof value === "string" || typeof value === "number") {
@@ -154,7 +179,7 @@ function formatPropertyValue(key: string, value: unknown) {
   }
 }
 
-function getPropertyEntries(node: DependencyGraphLayoutNode | null) {
+function getPropertyEntries(node: DependencyGraphLayoutNode | null, t: TFunction) {
   if (!node?.properties) {
     return [];
   }
@@ -179,8 +204,8 @@ function getPropertyEntries(node: DependencyGraphLayoutNode | null) {
 
   return orderedKeys.map((key) => ({
     key,
-    label: formatPropertyLabel(key),
-    value: formatPropertyValue(key, node.properties?.[key]),
+    label: formatPropertyLabel(key, t),
+    value: formatPropertyValue(key, node.properties?.[key], t),
     monospace: key.includes("hash") || key.endsWith("_id"),
   }));
 }
@@ -275,6 +300,7 @@ export function MainSequenceDependencyGraphExplorer({
   runtimeState,
   variant = "card",
 }: MainSequenceDependencyGraphExplorerProps) {
+  const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const hydratedRuntimeState = useMemo(
@@ -323,8 +349,8 @@ export function MainSequenceDependencyGraphExplorer({
     [layout?.edges, selectedNodeId],
   );
   const propertyEntries = useMemo(
-    () => getPropertyEntries(selectedNode),
-    [selectedNode],
+    () => getPropertyEntries(selectedNode, t),
+    [selectedNode, t],
   );
   const visibleWorldRect = useMemo(
     () => getVisibleWorldRect(viewport, panX, panY, zoom),
@@ -699,10 +725,10 @@ export function MainSequenceDependencyGraphExplorer({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleFullscreenToggle}>
-            Fullscreen
+            {t("mainSequenceDependencyGraph.explorer.fullscreen")}
           </Button>
           <Button variant="outline" size="sm" onClick={handleFit} disabled={!layout || isLoading || Boolean(error)}>
-            Fit
+            {t("mainSequenceDependencyGraph.explorer.fit")}
           </Button>
           <Button
             variant={minimapVisible ? "default" : "outline"}
@@ -713,7 +739,7 @@ export function MainSequenceDependencyGraphExplorer({
             }}
             disabled={!layout || isLoading || Boolean(error)}
           >
-            Minimap
+            {t("mainSequenceDependencyGraph.explorer.minimap")}
           </Button>
         </div>
         <div className="flex min-w-[220px] flex-1 items-center justify-end gap-3">
@@ -773,7 +799,7 @@ export function MainSequenceDependencyGraphExplorer({
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/30 backdrop-blur-sm">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading graph data
+              {t("mainSequenceDependencyGraph.explorer.loading")}
             </div>
           </div>
         ) : null}
@@ -786,7 +812,7 @@ export function MainSequenceDependencyGraphExplorer({
 
         {!isLoading && !error && (layout?.nodes.length ?? 0) === 0 ? (
           <div className="absolute inset-4 z-20 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/60 px-4 py-10 text-center text-sm text-muted-foreground">
-            No dependency nodes were returned for this direction.
+            {t("mainSequenceDependencyGraph.explorer.noNodes")}
           </div>
         ) : null}
 
@@ -934,7 +960,11 @@ export function MainSequenceDependencyGraphExplorer({
                             </div>
                           ) : null}
                         </div>
-                        <Badge variant="neutral">{`D${node.depth}`}</Badge>
+                        <Badge variant="neutral">
+                          {t("mainSequenceDependencyGraph.explorer.depthBadge", {
+                            depth: node.depth,
+                          })}
+                        </Badge>
                       </div>
 
                       <div className="flex items-end justify-between gap-3">
@@ -990,7 +1020,7 @@ export function MainSequenceDependencyGraphExplorer({
                       {selectedNode.title}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {selectedNode.subtitle || "Node details"}
+                      {selectedNode.subtitle || t("mainSequenceDependencyGraph.explorer.nodeDetails")}
                     </div>
                   </div>
                   <Button
@@ -1001,7 +1031,7 @@ export function MainSequenceDependencyGraphExplorer({
                       setSelectedNodeId(null);
                     }}
                   >
-                    Close
+                    {t("mainSequenceDependencyGraph.explorer.close")}
                   </Button>
                 </div>
 
@@ -1013,7 +1043,7 @@ export function MainSequenceDependencyGraphExplorer({
                       onClick={() => handleOpenExternal(buildLocalUpdateUrl(selectedNode.properties))}
                     >
                       <ArrowUpRight className="h-3.5 w-3.5" />
-                      Open update
+                      {t("mainSequenceDependencyGraph.explorer.openUpdate")}
                     </Button>
                   ) : null}
                   {buildDataNodeUrl(selectedNode.properties) ? (
@@ -1023,7 +1053,7 @@ export function MainSequenceDependencyGraphExplorer({
                       onClick={() => handleOpenExternal(buildDataNodeUrl(selectedNode.properties))}
                     >
                       <ArrowUpRight className="h-3.5 w-3.5" />
-                      Open data node
+                      {t("mainSequenceDependencyGraph.explorer.openDataNode")}
                     </Button>
                   ) : null}
                 </div>
@@ -1133,12 +1163,16 @@ export function MainSequenceDependencyGraphExplorer({
 
       {!isLoading && !error ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="neutral">{getDirectionLabel(direction)}</Badge>
-          <span>{pointerPan ? "Panning" : "Drag canvas to pan"}</span>
+          <Badge variant="neutral">{getDirectionLabel(direction, t)}</Badge>
+          <span>
+            {pointerPan
+              ? t("mainSequenceDependencyGraph.explorer.panning")
+              : t("mainSequenceDependencyGraph.explorer.dragCanvasToPan")}
+          </span>
           <span>•</span>
-          <span>Scroll to zoom</span>
+          <span>{t("mainSequenceDependencyGraph.explorer.scrollToZoom")}</span>
           <span>•</span>
-          <span>Click a node to inspect details</span>
+          <span>{t("mainSequenceDependencyGraph.explorer.clickNodeToInspect")}</span>
         </div>
       ) : null}
     </div>

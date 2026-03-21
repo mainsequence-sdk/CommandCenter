@@ -11,6 +11,7 @@ into other apps.
 ## Owned Assets
 
 - the `order-book` widget under `src/widgets/extensions/order-book/`
+- the `strategy-book` widget under `src/widgets/extensions/strategy-book/`
 - the `flow-lab` theme preset used by demo surfaces
 
 ## Dependencies

@@ -3,6 +3,7 @@ import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useAuthStore } from "@/auth/auth-store";
+import { useToast } from "@/components/ui/toaster";
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import type { DashboardDefinition } from "@/dashboards/types";
 import {
@@ -10,22 +11,30 @@ import {
   type UserDashboardCollection,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudioStore } from "./custom-workspace-studio-store";
+import { getWorkspacePersistenceMode } from "./workspace-persistence";
 
 export function useCustomWorkspaceStudio() {
   const user = useAuthStore((state) => state.session?.user);
+  const { toast } = useToast();
   const permissions = user?.permissions ?? [];
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedWorkspaceId = searchParams.get("workspace");
+  const persistenceMode = getWorkspacePersistenceMode();
 
   const savedCollection = useCustomWorkspaceStudioStore((state) => state.savedCollection);
   const draftCollection = useCustomWorkspaceStudioStore((state) => state.draftCollection);
+  const isHydrating = useCustomWorkspaceStudioStore((state) => state.isHydrating);
+  const isSaving = useCustomWorkspaceStudioStore((state) => state.isSaving);
+  const error = useCustomWorkspaceStudioStore((state) => state.error);
   const initialize = useCustomWorkspaceStudioStore((state) => state.initialize);
   const updateDraftCollection = useCustomWorkspaceStudioStore((state) => state.updateDraftCollection);
+  const createPersistedWorkspace = useCustomWorkspaceStudioStore((state) => state.createWorkspace);
+  const deletePersistedWorkspace = useCustomWorkspaceStudioStore((state) => state.deleteWorkspace);
   const resetDraftCollection = useCustomWorkspaceStudioStore((state) => state.resetDraftCollection);
   const saveDraftCollection = useCustomWorkspaceStudioStore((state) => state.saveDraftCollection);
 
   useEffect(() => {
-    initialize(user?.id ?? null);
+    void initialize(user?.id ?? null);
   }, [initialize, user?.id]);
 
   const selectedDashboard = useMemo(
@@ -56,6 +65,25 @@ export function useCustomWorkspaceStudio() {
     () => JSON.stringify(draftCollection) !== JSON.stringify(savedCollection),
     [draftCollection, savedCollection],
   );
+  const workspaceListCollection = useMemo(
+    () => (persistenceMode === "backend" ? savedCollection : draftCollection),
+    [draftCollection, persistenceMode, savedCollection],
+  );
+  const backendMode = persistenceMode === "backend";
+
+  useEffect(() => {
+    if (!backendMode || !dirty || isSaving || isHydrating) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void saveDraftCollection();
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [backendMode, dirty, isHydrating, isSaving, saveDraftCollection]);
 
   function setSelectedWorkspaceId(workspaceId: string | null) {
     const nextParams = new URLSearchParams(searchParams);
@@ -81,42 +109,59 @@ export function useCustomWorkspaceStudio() {
     }));
   }
 
-  function createWorkspace(name?: string) {
+  async function createWorkspace(name?: string) {
     const nextDashboard = createBlankDashboard(
       name || `Workspace ${draftCollection.dashboards.length + 1}`,
     );
+    return createWorkspaceFromDefinition(nextDashboard);
+  }
 
-    updateDraftCollection((current) => ({
-      ...current,
-      dashboards: [nextDashboard, ...current.dashboards],
-      selectedDashboardId: nextDashboard.id,
-    }));
+  async function createWorkspaceFromDefinition(workspace: DashboardDefinition) {
+    const createdDashboard = await createPersistedWorkspace(workspace);
+
+    if (!createdDashboard) {
+      return null;
+    }
 
     const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("workspace", nextDashboard.id);
+    nextParams.set("workspace", createdDashboard.id);
     nextParams.delete("view");
     setSearchParams(nextParams);
 
-    return nextDashboard;
+    return createdDashboard;
   }
 
-  function deleteSelectedWorkspace() {
+  async function deleteSelectedWorkspace() {
     if (!selectedDashboard) {
-      return;
+      return false;
     }
 
-    updateDraftCollection((current) => ({
-      ...current,
-      dashboards: current.dashboards.filter((dashboard) => dashboard.id !== selectedDashboard.id),
-    }));
+    return deletePersistedWorkspace(selectedDashboard.id);
   }
 
   function resetWorkspaceDraft() {
     resetDraftCollection();
   }
 
-  function saveWorkspaceDraft() {
-    saveDraftCollection();
+  async function saveWorkspaceDraft() {
+    const savedCollection = await saveDraftCollection();
+
+    if (!savedCollection) {
+      return null;
+    }
+
+    const savedWorkspace = selectedDashboard
+      ? (savedCollection.dashboards.find((dashboard) => dashboard.id === selectedDashboard.id) ?? null)
+      : null;
+    const savedWorkspaceTitle = savedWorkspace?.title ?? selectedDashboard?.title ?? "Workspace";
+
+    toast({
+      title: "Workspace saved",
+      description: `${savedWorkspaceTitle} was saved successfully.`,
+      variant: "success",
+    });
+
+    return savedCollection;
   }
 
   return {
@@ -124,6 +169,11 @@ export function useCustomWorkspaceStudio() {
     permissions,
     savedCollection,
     draftCollection,
+    workspaceListCollection,
+    isHydrating,
+    isSaving,
+    error,
+    persistenceMode,
     selectedDashboard,
     resolvedDashboard,
     dirty,
@@ -132,6 +182,7 @@ export function useCustomWorkspaceStudio() {
     updateDraftCollection,
     updateSelectedWorkspace,
     createWorkspace,
+    createWorkspaceFromDefinition,
     deleteSelectedWorkspace,
     resetWorkspaceDraft,
     saveWorkspaceDraft,
@@ -141,4 +192,9 @@ export function useCustomWorkspaceStudio() {
 export type CustomWorkspaceStudioState = {
   savedCollection: UserDashboardCollection;
   draftCollection: UserDashboardCollection;
+  workspaceListCollection: UserDashboardCollection;
+  isHydrating: boolean;
+  isSaving: boolean;
+  error: string | null;
+  persistenceMode: "backend" | "local";
 };

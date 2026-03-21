@@ -37,6 +37,16 @@ branding:
   logo_alt: Main Sequence
   monogram: MS
 
+preferences:
+  url: /api/v1/command_center/preferences/
+  favorites_create_url: /api/v1/command_center/favorites/
+  favorites_reorder_url: /api/v1/command_center/favorites/reorder/
+  favorites_delete_url: /api/v1/command_center/favorites/{kind}/{target_key}/
+
+workspaces:
+  list_url:
+  detail_url:
+
 auth:
   base_url: http://127.0.0.1:8000
   identifier_label: Email
@@ -109,6 +119,12 @@ notifications:
 - `branding.logo_mark`: compact mark used in the sidebar and other small brand surfaces
 - `branding.logo_alt`: alt text for the brand image
 - `branding.monogram`: short label used by the compact brand mark
+- `preferences.url`: optional authenticated `GET/PUT` snapshot endpoint used to load and save shell-level user preferences such as language and favorites. Leave blank to keep the existing browser-local persistence behavior.
+- `preferences.favorites_create_url`: optional authenticated `POST` endpoint for creating one favorite entry.
+- `preferences.favorites_reorder_url`: optional authenticated `POST` endpoint for reordering favorites.
+- `preferences.favorites_delete_url`: optional authenticated `DELETE` endpoint for removing one favorite entry. The current backend contract uses `{kind}` and `{target_key}` path placeholders.
+- `workspaces.list_url`: optional authenticated list/create endpoint for workspace documents. When this and `workspaces.detail_url` are configured, Workspaces stops using browser-local storage.
+- `workspaces.detail_url`: optional authenticated detail/update/delete endpoint for one workspace document. The frontend supports `{id}` or `:id` placeholders and also falls back to appending the workspace id if the placeholder is omitted.
 - `auth.base_url`: base URL used to resolve relative JWT auth endpoints
 - `auth.identifier_label`: label shown on the login form for the primary credential field
 - `auth.identifier_placeholder`: placeholder shown on that field
@@ -146,6 +162,10 @@ The application:
 - resolves logo filenames against `config/branding/`
 - swaps between light and dark logos based on the active theme
 - uses the configured mark asset in the compact sidebar/login mark
+- loads and syncs shell-level user preferences through `preferences.url` when it is configured
+- falls back to local browser persistence for language and favorites when `preferences.url` is blank or omitted
+- loads and saves workspaces through the configured workspace endpoints when both workspace URLs are configured
+- falls back to browser-local workspace persistence when either workspace URL is blank, `null`, or `None`
 - resolves JWT login and refresh endpoints from the configured auth block
 - fetches configured user details after JWT login succeeds
 - revalidates persisted JWT sessions against the configured user-details endpoint before granting access
@@ -155,6 +175,95 @@ The application:
 - queries the configured Access & RBAC groups endpoint when an admin assigns RBAC groups to shell policies
 - refreshes the notifications feed using `app.notifications_refresh_interval_ms`
 - uses user initials for account surfaces when no user-specific avatar is provided
+
+## Preferences endpoint contract
+
+The preferences config block supports one snapshot endpoint plus explicit favorite mutation endpoints.
+
+Configured endpoints:
+
+- `preferences.url`
+  - `GET`: return the current snapshot
+  - `PUT`: replace the current snapshot and return the saved normalized snapshot
+- `preferences.favorites_create_url`
+  - `POST`: create one favorite entry
+- `preferences.favorites_reorder_url`
+  - `POST`: reorder favorites
+- `preferences.favorites_delete_url`
+  - `DELETE`: remove one favorite entry
+
+Expected payload shape:
+
+```json
+{
+  "language": "en",
+  "favoriteSurfaceIds": ["access-rbac.overview"],
+  "favoriteWorkspaceIds": ["workspace-studio::workspace::abc123"]
+}
+```
+
+Notes:
+
+- The shell still keeps transient UI state such as sidebar expansion, kiosk mode, active app panel, and command input in local memory.
+- If `preferences.url` is configured, the frontend stops using `localStorage` for language and shell favorites.
+- If `preferences.url` is not configured, the frontend continues using the existing local browser persistence path with no backend dependency.
+- The current frontend runtime uses the snapshot endpoint directly. The explicit favorite mutation URLs are documented in config so the backend contract is visible and can be adopted incrementally.
+
+## Workspaces endpoint contract
+
+The workspace config block supports a minimal DRF-style list/detail contract.
+
+Configured endpoints:
+
+- `workspaces.list_url`
+  - `GET`: return the current workspace list
+  - `POST`: create one workspace document
+- `workspaces.detail_url`
+  - `PUT`: replace one workspace document
+  - `DELETE`: remove one workspace document
+
+Expected workspace payload shape:
+
+```json
+{
+  "id": "custom-dashboard-123",
+  "title": "Rates Desk",
+  "description": "Shared workspace for rates monitoring",
+  "labels": ["rates", "monitoring"],
+  "category": "Custom",
+  "source": "user",
+  "grid": {
+    "columns": 96,
+    "rowHeight": 18,
+    "gap": 2
+  },
+  "controls": {
+    "enabled": true,
+    "timeRange": {
+      "enabled": true,
+      "defaultRange": "24h",
+      "options": ["15m", "1h", "6h", "24h", "7d", "30d", "90d"]
+    },
+    "refresh": {
+      "enabled": true,
+      "defaultIntervalMs": 60000,
+      "intervals": [null, 10000, 15000, 30000, 60000]
+    },
+    "actions": {
+      "enabled": true,
+      "share": false,
+      "view": true
+    }
+  },
+  "widgets": []
+}
+```
+
+Notes:
+
+- The studio still keeps draft/save/reset semantics on the frontend; backend mode only swaps the persistence target.
+- The current adapter expects stable workspace ids in the request/response document shape so draft save operations can map cleanly back onto the selected workspace route.
+- Blank, `null`, and `None` values are all treated as "not configured" for workspace endpoints.
 
 ## Notes
 

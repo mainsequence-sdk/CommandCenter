@@ -167,7 +167,7 @@ export function Topbar() {
   ];
 
   useEffect(() => {
-    initializeWorkspaceStudio(user?.id ?? null);
+    void initializeWorkspaceStudio(user?.id ?? null);
   }, [initializeWorkspaceStudio, user?.id]);
 
   useEffect(() => {

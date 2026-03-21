@@ -6,6 +6,7 @@ import { hasAllPermissions } from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { getWidgetExplorerPath } from "@/features/widgets/widget-explorer";
 import { titleCase } from "@/lib/utils";
 
 export function WidgetCatalogPage() {
@@ -87,6 +88,21 @@ export function WidgetCatalogPage() {
                             {(widget.requiredPermissions ?? ["none"]).join(", ")}
                           </div>
                         </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3">
+                        <div className="text-sm text-muted-foreground">
+                          Open the dedicated widget explorer to inspect metadata and preview this
+                          widget with mock data.
+                        </div>
+                        <a
+                          href={getWidgetExplorerPath(widget.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex h-8 items-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border bg-card/80 px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/60"
+                        >
+                          Open explorer
+                        </a>
                       </div>
 
                       <div>

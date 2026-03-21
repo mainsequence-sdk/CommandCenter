@@ -1,19 +1,22 @@
 import { env } from "@/config/env";
 import * as liveApi from "@/data/live/rest-api";
 import * as mockApi from "@/data/demo-api";
+import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
 type DataApi = typeof mockApi;
 
-const dataApi: DataApi = env.useMockData ? mockApi : liveApi;
+function getDataApi(): DataApi {
+  return env.useMockData || isWidgetPreviewMode() ? mockApi : liveApi;
+}
 
-export const fetchKpiCards: DataApi["fetchKpiCards"] = (...args) => dataApi.fetchKpiCards(...args);
-export const fetchPositions: DataApi["fetchPositions"] = (...args) => dataApi.fetchPositions(...args);
-export const fetchNews: DataApi["fetchNews"] = (...args) => dataApi.fetchNews(...args);
-export const fetchActivity: DataApi["fetchActivity"] = (...args) => dataApi.fetchActivity(...args);
+export const fetchKpiCards: DataApi["fetchKpiCards"] = (...args) => getDataApi().fetchKpiCards(...args);
+export const fetchPositions: DataApi["fetchPositions"] = (...args) => getDataApi().fetchPositions(...args);
+export const fetchNews: DataApi["fetchNews"] = (...args) => getDataApi().fetchNews(...args);
+export const fetchActivity: DataApi["fetchActivity"] = (...args) => getDataApi().fetchActivity(...args);
 export const fetchPriceHistory: DataApi["fetchPriceHistory"] = (...args) =>
-  dataApi.fetchPriceHistory(...args);
+  getDataApi().fetchPriceHistory(...args);
 export const fetchOrderBook: DataApi["fetchOrderBook"] = (...args) =>
-  dataApi.fetchOrderBook(...args);
+  getDataApi().fetchOrderBook(...args);
 
 export type {
   ActivityItem,

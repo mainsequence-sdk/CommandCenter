@@ -1,6 +1,8 @@
 import rawCommandCenterConfig from "../../config/command-center.yaml?raw";
 import { env } from "@/config/env";
 
+export const commandCenterConfigSource = rawCommandCenterConfig.trim();
+
 export interface CommandCenterAuthConfig {
   baseUrl: string;
   identifierLabel: string;
@@ -69,6 +71,16 @@ export interface CommandCenterConfig {
     logoAlt: string;
     monogram: string;
   };
+  preferences: {
+    url: string;
+    favoritesCreateUrl: string;
+    favoritesReorderUrl: string;
+    favoritesDeleteUrl: string;
+  };
+  workspaces: {
+    listUrl: string;
+    detailUrl: string;
+  };
   auth: CommandCenterAuthConfig;
   accessRbac: {
     users: {
@@ -106,7 +118,7 @@ export interface CommandCenterConfig {
 }
 
 interface SimpleYamlNode {
-  [key: string]: string | number | boolean | SimpleYamlNode;
+  [key: string]: string | number | boolean | null | SimpleYamlNode;
 }
 
 interface DefaultCommandCenterConfig {
@@ -121,6 +133,16 @@ interface DefaultCommandCenterConfig {
     logo_mark: string;
     logo_alt: string;
     monogram: string;
+  };
+  preferences: {
+    url: string;
+    favorites_create_url: string;
+    favorites_reorder_url: string;
+    favorites_delete_url: string;
+  };
+  workspaces: {
+    list_url: string;
+    detail_url: string;
   };
   auth: {
     base_url: string;
@@ -229,6 +251,16 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     logo_alt: "Main Sequence",
     monogram: "MS",
   },
+  preferences: {
+    url: "",
+    favorites_create_url: "",
+    favorites_reorder_url: "",
+    favorites_delete_url: "",
+  },
+  workspaces: {
+    list_url: "",
+    detail_url: "",
+  },
   auth: {
     base_url: env.apiBaseUrl,
     identifier_label: "Email",
@@ -322,7 +354,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function parseScalar(value: string): string | number | boolean {
+function parseScalar(value: string): string | number | boolean | null {
   const trimmed = value.trim();
 
   if (
@@ -334,6 +366,7 @@ function parseScalar(value: string): string | number | boolean {
 
   if (trimmed === "true") return true;
   if (trimmed === "false") return false;
+  if (["null", "none", "~"].includes(trimmed.toLowerCase())) return null;
 
   const asNumber = Number(trimmed);
   if (!Number.isNaN(asNumber) && trimmed !== "") {
@@ -418,6 +451,8 @@ function getNestedObject(source: Record<string, unknown>, key: string): Record<s
 const parsedConfig = parseSimpleYaml(rawCommandCenterConfig) as Record<string, unknown>;
 const parsedApp = getNestedObject(parsedConfig, "app");
 const parsedBranding = getNestedObject(parsedConfig, "branding");
+const parsedPreferences = getNestedObject(parsedConfig, "preferences");
+const parsedWorkspaces = getNestedObject(parsedConfig, "workspaces");
 const parsedAuth = getNestedObject(parsedConfig, "auth");
 const parsedAccessRbac = getNestedObject(parsedConfig, "access_rbac");
 const parsedMainSequence = getNestedObject(parsedConfig, "main_sequence");
@@ -468,6 +503,25 @@ export const commandCenterConfig: CommandCenterConfig = {
     monogram: readString(parsedBranding.monogram, defaultRawConfig.branding.monogram)
       .slice(0, 3)
       .toUpperCase(),
+  },
+  preferences: {
+    url: readString(parsedPreferences.url, defaultRawConfig.preferences.url),
+    favoritesCreateUrl: readString(
+      parsedPreferences.favorites_create_url,
+      defaultRawConfig.preferences.favorites_create_url,
+    ),
+    favoritesReorderUrl: readString(
+      parsedPreferences.favorites_reorder_url,
+      defaultRawConfig.preferences.favorites_reorder_url,
+    ),
+    favoritesDeleteUrl: readString(
+      parsedPreferences.favorites_delete_url,
+      defaultRawConfig.preferences.favorites_delete_url,
+    ),
+  },
+  workspaces: {
+    listUrl: readString(parsedWorkspaces.list_url, defaultRawConfig.workspaces.list_url),
+    detailUrl: readString(parsedWorkspaces.detail_url, defaultRawConfig.workspaces.detail_url),
   },
   auth: {
     baseUrl: readString(parsedAuth.base_url, defaultRawConfig.auth.base_url),

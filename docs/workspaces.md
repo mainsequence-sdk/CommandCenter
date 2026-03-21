@@ -29,7 +29,7 @@ This keeps the app model simple while still supporting instance-specific editing
 
 ## Persistence Model
 
-Workspaces are stored in browser `localStorage` during development.
+Workspaces are stored in browser `localStorage` during development by default.
 
 The current implementation is:
 
@@ -38,10 +38,36 @@ The current implementation is:
 - draft-aware, with explicit save/reset behavior
 - migration-capable for older grid formats
 
+If both workspace backend URLs are configured in `config/command-center.yaml`, the studio switches
+to backend persistence instead:
+
+- `workspaces.list_url`
+- `workspaces.detail_url`
+
+Blank, `null`, or `None` values keep the browser-local fallback active.
+
 The main persistence code lives in:
 
 - `src/features/dashboards/custom-dashboard-storage.ts`
 - `src/features/dashboards/custom-workspace-studio-store.ts`
+- `src/features/dashboards/workspace-api.ts`
+- `src/features/dashboards/workspace-persistence.ts`
+
+When the backend uses numeric workspace ids, the frontend normalizes them to strings in the
+workspace model and URL state.
+In backend mode, workspace creation waits for the backend response and adopts the backend-assigned
+id instead of persisting a client-generated id.
+The workspace index page uses the backend-backed saved collection as its source of truth in backend
+mode rather than rendering the current draft collection.
+In backend mode, the editor autosaves changes to the backend and does not expose save/reset draft
+controls.
+In backend mode, delete reloads the workspace collection from the backend after success instead of
+computing the next list locally.
+
+For the recommended production backend model for shared workspaces, see:
+
+- `docs/workspace-backend-model.md`
+- `docs/adr-shared-workspace-state.md`
 
 ## Workspace Model
 
@@ -59,6 +85,15 @@ The canvas uses a fine-grained grid and stores widget placement directly in the 
 Labels are edited in workspace settings as pill chips with enter-to-add behavior.
 Widget runtime state can also be stored per instance when the widget reports it through the shared
 widget contract.
+In canvas edit mode, widget cards keep the same header height as normal viewing, use the existing
+header area as the drag target, and reveal edit actions on hover instead of adding a separate move
+control.
+Widget instances may hide their header during normal viewing, but the canvas forces headers visible
+again in edit mode so widget controls remain reachable.
+The canvas `Components` browser supports large widget catalogs with search, category/kind/source
+filters, favorites, recent widgets, and grouped category browse when search is empty.
+Workspace deletion from settings uses the app's destructive confirmation dialog. In backend mode,
+the workspace remains in the UI until the backend confirms the delete.
 
 ## JSON Snapshots
 
@@ -82,7 +117,10 @@ Import supports two recovery paths:
 - replace the current workspace draft with the snapshot
 
 Import changes the draft model first. Users still save explicitly if they want the recovered
-workspace written into local browser storage.
+workspace written to the active persistence target.
+
+In a production backend, this snapshot shape should map to revision/export transport rather than
+the primary `Workspace` row itself.
 
 ## Favorites
 
@@ -96,6 +134,23 @@ That means users can:
 
 Workspace favorites are stored in shell-local persisted state, then resolved against the current
 workspace collection.
+
+## Recommended Production Split
+
+For shared workspaces, the recommended backend split is:
+
+- shared workspace content in `Workspace`
+- direct and team access in object-level grant tables
+- per-user temporary viewing state in `WorkspaceUserState`
+- immutable snapshots in `WorkspaceRevision`
+
+That split exists because a shared editable workspace should still avoid collaboration conflicts on
+temporary interactions such as:
+
+- zoom / pan
+- selected date range
+- selected refresh interval
+- selected graph node
 
 ## Main Entry Points
 

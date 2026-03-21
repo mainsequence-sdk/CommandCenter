@@ -77,6 +77,7 @@ export const resources = {
         userDescription: "Personal preferences and command center display options.",
         generalNav: "General",
         authNav: "Auth",
+        configurationNav: "Configuration",
         generalDescription: "Theme, language, and immediate shell defaults.",
         webUiTitle: "WebUI Settings",
         accountTitle: "Account",
@@ -84,6 +85,14 @@ export const resources = {
         authTitle: "Auth",
         authDescription:
           "JWT endpoints and the RBAC group mapping that resolves backend roles into the shell Admin and User application groups.",
+        configurationTitle: "Configuration",
+        configurationDescription:
+          "Read-only visibility into the YAML-backed application configuration loaded by this command center.",
+        configurationFile: "Config file",
+        configurationFileHelp: "Source file bundled into the application at build time.",
+        configurationYaml: "YAML source",
+        configurationYamlHelp:
+          "This is the current command center configuration exactly as loaded from config/command-center.yaml.",
         aboutNav: "About",
         aboutDescription: "Product context and runtime details for this command center.",
         appearanceTitle: "Appearance",
@@ -140,6 +149,64 @@ export const resources = {
         groups: "Groups",
         themeHelp: "Use Theme Preset to switch the active shell look.",
         languageHelp: "Switch the interface language for the shell and settings surfaces.",
+      },
+      mainSequenceDependencyGraph: {
+        directionDownstream: "Downstream graph",
+        directionUpstream: "Upstream graph",
+        widget: {
+          badge: "Graph widget",
+          titleMissingLocalTimeSerieId: "Dependency graph needs a LocalTimeSerie id",
+          descriptionMissingLocalTimeSerieId:
+            "Set {{prop}} in the widget props to load upstream or downstream dependencies.",
+          summaryDescription: "Interactive dependency explorer for LocalTimeSerie graph data.",
+          legacyDescription: "Interactive dependency explorer aligned with the legacy graph flow.",
+          nodesCount: "{{count}} nodes",
+          edgesCount: "{{count}} edges",
+        },
+        settings: {
+          description:
+            "Configure the LocalTimeSerie source and graph direction for this widget instance.",
+          localTimeSerieId: "LocalTimeSerie id",
+          localTimeSerieIdHelp: "Use the local update id from the Data Nodes detail view.",
+          direction: "Direction",
+          directionDownstreamShort: "Downstream",
+          directionUpstreamShort: "Upstream",
+          directionHelp:
+            "Downstream follows impacted dependents. Upstream shows source dependencies.",
+        },
+        explorer: {
+          fullscreen: "Fullscreen",
+          fit: "Fit",
+          minimap: "Minimap",
+          loading: "Loading graph data",
+          noNodes: "No dependency nodes were returned for this direction.",
+          nodeDetails: "Node details",
+          close: "Close",
+          openUpdate: "Open update",
+          openDataNode: "Open data node",
+          panning: "Panning",
+          dragCanvasToPan: "Drag canvas to pan",
+          scrollToZoom: "Scroll to zoom",
+          clickNodeToInspect: "Click a node to inspect details",
+          depthBadge: "D{{depth}}",
+        },
+        values: {
+          notSet: "Not set",
+          booleanTrue: "true",
+          booleanFalse: "false",
+        },
+        properties: {
+          humanReadable: "Human readable",
+          updateHash: "Update hash",
+          localTimeSerieId: "LocalTimeSerie id",
+          remoteTableHashId: "Remote table hash id",
+          remoteTableId: "Remote table id",
+          dataSourceId: "Data source id",
+          isApi: "Is API",
+          errorOnLastUpdate: "Error on last update",
+          lastUpdate: "Last update",
+          nextUpdate: "Next update",
+        },
       },
     },
   },
@@ -225,11 +292,20 @@ export const resources = {
         userDescription: "Preferencias personales y opciones de visualización del command center.",
         generalNav: "General",
         authNav: "Auth",
+        configurationNav: "Configuración",
         accountTitle: "Cuenta",
         accountDescription: "Identidad de la sesión actual y perfil de acceso.",
         authTitle: "Auth",
         authDescription:
           "Endpoints JWT y el mapeo de grupos RBAC que resuelve roles del backend en los grupos de aplicación Admin y User del shell.",
+        configurationTitle: "Configuración",
+        configurationDescription:
+          "Visibilidad de solo lectura sobre la configuración de la aplicación cargada desde YAML por este command center.",
+        configurationFile: "Archivo de configuración",
+        configurationFileHelp: "Archivo fuente incluido en la aplicación durante el build.",
+        configurationYaml: "Fuente YAML",
+        configurationYamlHelp:
+          "Esta es la configuración actual del command center exactamente como se carga desde config/command-center.yaml.",
         appearanceTitle: "Apariencia",
         appearanceDescription: "Elige el tema activo y el idioma para esta sesión.",
         themePreset: "Tema",
@@ -277,6 +353,68 @@ export const resources = {
         groups: "Grupos",
         themeHelp: "Usa Tema para cambiar la apariencia activa del shell.",
         languageHelp: "Cambia el idioma de la interfaz del shell y de la configuración.",
+      },
+      mainSequenceDependencyGraph: {
+        directionDownstream: "Grafo downstream",
+        directionUpstream: "Grafo upstream",
+        widget: {
+          badge: "Widget de grafo",
+          titleMissingLocalTimeSerieId:
+            "El grafo de dependencias necesita un id de LocalTimeSerie",
+          descriptionMissingLocalTimeSerieId:
+            "Configura {{prop}} en las props del widget para cargar dependencias upstream o downstream.",
+          summaryDescription:
+            "Explorador interactivo de dependencias para datos de grafo de LocalTimeSerie.",
+          legacyDescription:
+            "Explorador interactivo de dependencias alineado con el flujo legado del grafo.",
+          nodesCount: "{{count}} nodos",
+          edgesCount: "{{count}} aristas",
+        },
+        settings: {
+          description:
+            "Configura la fuente LocalTimeSerie y la dirección del grafo para esta instancia del widget.",
+          localTimeSerieId: "Id de LocalTimeSerie",
+          localTimeSerieIdHelp:
+            "Usa el id de actualización local desde la vista de detalle de Data Nodes.",
+          direction: "Dirección",
+          directionDownstreamShort: "Downstream",
+          directionUpstreamShort: "Upstream",
+          directionHelp:
+            "Downstream sigue a los dependientes afectados. Upstream muestra las dependencias de origen.",
+        },
+        explorer: {
+          fullscreen: "Pantalla completa",
+          fit: "Ajustar",
+          minimap: "Minimapa",
+          loading: "Cargando datos del grafo",
+          noNodes: "No se devolvieron nodos de dependencia para esta dirección.",
+          nodeDetails: "Detalles del nodo",
+          close: "Cerrar",
+          openUpdate: "Abrir actualización",
+          openDataNode: "Abrir nodo de datos",
+          panning: "Desplazando",
+          dragCanvasToPan: "Arrastra el lienzo para desplazarte",
+          scrollToZoom: "Desplázate para hacer zoom",
+          clickNodeToInspect: "Haz clic en un nodo para inspeccionar los detalles",
+          depthBadge: "D{{depth}}",
+        },
+        values: {
+          notSet: "Sin definir",
+          booleanTrue: "true",
+          booleanFalse: "false",
+        },
+        properties: {
+          humanReadable: "Legible",
+          updateHash: "Hash de actualización",
+          localTimeSerieId: "Id de LocalTimeSerie",
+          remoteTableHashId: "Id hash de tabla remota",
+          remoteTableId: "Id de tabla remota",
+          dataSourceId: "Id de fuente de datos",
+          isApi: "Es API",
+          errorOnLastUpdate: "Error en la última actualización",
+          lastUpdate: "Última actualización",
+          nextUpdate: "Próxima actualización",
+        },
       },
     },
   },
@@ -362,11 +500,21 @@ export const resources = {
         userDescription: "Persönliche Präferenzen und Anzeigeoptionen des Command Centers.",
         generalNav: "Allgemein",
         authNav: "Auth",
+        configurationNav: "Konfiguration",
         accountTitle: "Konto",
         accountDescription: "Identität der aktuellen Sitzung und Zugriffsprofil.",
         authTitle: "Auth",
         authDescription:
           "JWT-Endpunkte und die RBAC-Gruppenabbildung, die Backend-Rollen in die Shell-Anwendungsgruppen Admin und User auflöst.",
+        configurationTitle: "Konfiguration",
+        configurationDescription:
+          "Schreibgeschützte Einsicht in die YAML-basierte Anwendungskonfiguration, die dieses Command Center lädt.",
+        configurationFile: "Konfigurationsdatei",
+        configurationFileHelp:
+          "Quelldatei, die beim Build in die Anwendung eingebunden wird.",
+        configurationYaml: "YAML-Quelle",
+        configurationYamlHelp:
+          "Dies ist die aktuelle Command-Center-Konfiguration genau so, wie sie aus config/command-center.yaml geladen wird.",
         appearanceTitle: "Darstellung",
         appearanceDescription: "Aktives Shell-Thema und Sprache für diese Sitzung auswählen.",
         themePreset: "Theme-Preset",
@@ -414,6 +562,68 @@ export const resources = {
         groups: "Gruppen",
         themeHelp: "Verwende Theme-Preset, um das aktive Shell-Design zu wechseln.",
         languageHelp: "Wechsle die Oberflächensprache für Shell und Einstellungsansichten.",
+      },
+      mainSequenceDependencyGraph: {
+        directionDownstream: "Downstream-Graph",
+        directionUpstream: "Upstream-Graph",
+        widget: {
+          badge: "Graph-Widget",
+          titleMissingLocalTimeSerieId:
+            "Der Abhängigkeitsgraph benötigt eine LocalTimeSerie-ID",
+          descriptionMissingLocalTimeSerieId:
+            "Setze {{prop}} in den Widget-Props, um Upstream- oder Downstream-Abhängigkeiten zu laden.",
+          summaryDescription:
+            "Interaktiver Abhängigkeits-Explorer für LocalTimeSerie-Graphdaten.",
+          legacyDescription:
+            "Interaktiver Abhängigkeits-Explorer, abgestimmt auf den alten Graph-Flow.",
+          nodesCount: "{{count}} Knoten",
+          edgesCount: "{{count}} Kanten",
+        },
+        settings: {
+          description:
+            "Konfiguriere die LocalTimeSerie-Quelle und die Graph-Richtung für diese Widget-Instanz.",
+          localTimeSerieId: "LocalTimeSerie-ID",
+          localTimeSerieIdHelp:
+            "Verwende die lokale Update-ID aus der Detailansicht der Data Nodes.",
+          direction: "Richtung",
+          directionDownstreamShort: "Downstream",
+          directionUpstreamShort: "Upstream",
+          directionHelp:
+            "Downstream verfolgt betroffene Nachfolger. Upstream zeigt die Quellabhängigkeiten.",
+        },
+        explorer: {
+          fullscreen: "Vollbild",
+          fit: "Einpassen",
+          minimap: "Minikarte",
+          loading: "Graphdaten werden geladen",
+          noNodes: "Für diese Richtung wurden keine Abhängigkeitsknoten zurückgegeben.",
+          nodeDetails: "Knotendetails",
+          close: "Schließen",
+          openUpdate: "Update öffnen",
+          openDataNode: "Data Node öffnen",
+          panning: "Verschieben",
+          dragCanvasToPan: "Canvas ziehen, um zu verschieben",
+          scrollToZoom: "Scrollen zum Zoomen",
+          clickNodeToInspect: "Klicke auf einen Knoten, um Details zu sehen",
+          depthBadge: "D{{depth}}",
+        },
+        values: {
+          notSet: "Nicht gesetzt",
+          booleanTrue: "true",
+          booleanFalse: "false",
+        },
+        properties: {
+          humanReadable: "Lesbarer Name",
+          updateHash: "Update-Hash",
+          localTimeSerieId: "LocalTimeSerie-ID",
+          remoteTableHashId: "Remote-Tabellen-Hash-ID",
+          remoteTableId: "Remote-Tabellen-ID",
+          dataSourceId: "Datenquellen-ID",
+          isApi: "Ist API",
+          errorOnLastUpdate: "Fehler beim letzten Update",
+          lastUpdate: "Letztes Update",
+          nextUpdate: "Nächstes Update",
+        },
       },
     },
   },
@@ -502,11 +712,21 @@ export const resources = {
         userDescription: "Préférences personnelles et options d’affichage du command center.",
         generalNav: "Général",
         authNav: "Auth",
+        configurationNav: "Configuration",
         accountTitle: "Compte",
         accountDescription: "Identité de la session actuelle et profil d’accès.",
         authTitle: "Auth",
         authDescription:
           "Endpoints JWT et mappage des groupes RBAC qui résolvent les rôles backend vers les groupes d’application Admin et User du shell.",
+        configurationTitle: "Configuration",
+        configurationDescription:
+          "Vue en lecture seule de la configuration applicative chargée depuis le YAML par ce command center.",
+        configurationFile: "Fichier de configuration",
+        configurationFileHelp:
+          "Fichier source embarqué dans l’application au moment du build.",
+        configurationYaml: "Source YAML",
+        configurationYamlHelp:
+          "Voici la configuration actuelle du command center exactement telle qu’elle est chargée depuis config/command-center.yaml.",
         appearanceTitle: "Apparence",
         appearanceDescription: "Choisissez le thème actif et la langue pour cette session.",
         themePreset: "Préréglage de thème",
@@ -554,6 +774,68 @@ export const resources = {
         groups: "Groupes",
         themeHelp: "Utilisez le préréglage de thème pour changer l’apparence du shell.",
         languageHelp: "Changez la langue de l’interface du shell et des réglages.",
+      },
+      mainSequenceDependencyGraph: {
+        directionDownstream: "Graphe downstream",
+        directionUpstream: "Graphe upstream",
+        widget: {
+          badge: "Widget graphe",
+          titleMissingLocalTimeSerieId:
+            "Le graphe de dépendances nécessite un id LocalTimeSerie",
+          descriptionMissingLocalTimeSerieId:
+            "Définissez {{prop}} dans les props du widget pour charger les dépendances upstream ou downstream.",
+          summaryDescription:
+            "Explorateur interactif de dépendances pour les données de graphe LocalTimeSerie.",
+          legacyDescription:
+            "Explorateur interactif de dépendances aligné sur le flux hérité du graphe.",
+          nodesCount: "{{count}} nœuds",
+          edgesCount: "{{count}} arêtes",
+        },
+        settings: {
+          description:
+            "Configurez la source LocalTimeSerie et la direction du graphe pour cette instance du widget.",
+          localTimeSerieId: "Id LocalTimeSerie",
+          localTimeSerieIdHelp:
+            "Utilisez l’id de mise à jour locale depuis la vue de détail Data Nodes.",
+          direction: "Direction",
+          directionDownstreamShort: "Downstream",
+          directionUpstreamShort: "Upstream",
+          directionHelp:
+            "Downstream suit les dépendants impactés. Upstream affiche les dépendances source.",
+        },
+        explorer: {
+          fullscreen: "Plein écran",
+          fit: "Ajuster",
+          minimap: "Mini-carte",
+          loading: "Chargement des données du graphe",
+          noNodes: "Aucun nœud de dépendance n’a été renvoyé pour cette direction.",
+          nodeDetails: "Détails du nœud",
+          close: "Fermer",
+          openUpdate: "Ouvrir la mise à jour",
+          openDataNode: "Ouvrir le nœud de données",
+          panning: "Déplacement",
+          dragCanvasToPan: "Faites glisser le canevas pour vous déplacer",
+          scrollToZoom: "Faites défiler pour zoomer",
+          clickNodeToInspect: "Cliquez sur un nœud pour voir les détails",
+          depthBadge: "D{{depth}}",
+        },
+        values: {
+          notSet: "Non défini",
+          booleanTrue: "true",
+          booleanFalse: "false",
+        },
+        properties: {
+          humanReadable: "Libellé lisible",
+          updateHash: "Hash de mise à jour",
+          localTimeSerieId: "Id LocalTimeSerie",
+          remoteTableHashId: "Id hash de table distante",
+          remoteTableId: "Id de table distante",
+          dataSourceId: "Id de source de données",
+          isApi: "Est une API",
+          errorOnLastUpdate: "Erreur lors de la dernière mise à jour",
+          lastUpdate: "Dernière mise à jour",
+          nextUpdate: "Prochaine mise à jour",
+        },
       },
     },
   },
@@ -640,11 +922,21 @@ export const resources = {
         userDescription: "Preferenze personali e opzioni di visualizzazione del command center.",
         generalNav: "Generale",
         authNav: "Auth",
+        configurationNav: "Configurazione",
         accountTitle: "Account",
         accountDescription: "Identità della sessione corrente e profilo di accesso.",
         authTitle: "Auth",
         authDescription:
           "Endpoint JWT e mappatura dei gruppi RBAC che risolve i ruoli backend nei gruppi applicativi Admin e User della shell.",
+        configurationTitle: "Configurazione",
+        configurationDescription:
+          "Visibilità in sola lettura della configurazione applicativa caricata da YAML da questo command center.",
+        configurationFile: "File di configurazione",
+        configurationFileHelp:
+          "File sorgente incluso nell’applicazione durante il build.",
+        configurationYaml: "Sorgente YAML",
+        configurationYamlHelp:
+          "Questa è la configurazione corrente del command center esattamente come viene caricata da config/command-center.yaml.",
         appearanceTitle: "Aspetto",
         appearanceDescription: "Scegli il tema attivo e la lingua per questa sessione.",
         themePreset: "Preset tema",
@@ -692,6 +984,68 @@ export const resources = {
         groups: "Gruppi",
         themeHelp: "Usa il preset tema per cambiare l’aspetto attivo della shell.",
         languageHelp: "Cambia la lingua dell’interfaccia per shell e impostazioni.",
+      },
+      mainSequenceDependencyGraph: {
+        directionDownstream: "Grafo downstream",
+        directionUpstream: "Grafo upstream",
+        widget: {
+          badge: "Widget grafo",
+          titleMissingLocalTimeSerieId:
+            "Il grafo delle dipendenze richiede un id LocalTimeSerie",
+          descriptionMissingLocalTimeSerieId:
+            "Imposta {{prop}} nelle props del widget per caricare dipendenze upstream o downstream.",
+          summaryDescription:
+            "Esploratore interattivo delle dipendenze per i dati del grafo LocalTimeSerie.",
+          legacyDescription:
+            "Esploratore interattivo delle dipendenze allineato al flusso legacy del grafo.",
+          nodesCount: "{{count}} nodi",
+          edgesCount: "{{count}} archi",
+        },
+        settings: {
+          description:
+            "Configura la sorgente LocalTimeSerie e la direzione del grafo per questa istanza del widget.",
+          localTimeSerieId: "Id LocalTimeSerie",
+          localTimeSerieIdHelp:
+            "Usa l’id dell’aggiornamento locale dalla vista dettaglio di Data Nodes.",
+          direction: "Direzione",
+          directionDownstreamShort: "Downstream",
+          directionUpstreamShort: "Upstream",
+          directionHelp:
+            "Downstream segue i dipendenti impattati. Upstream mostra le dipendenze sorgente.",
+        },
+        explorer: {
+          fullscreen: "Schermo intero",
+          fit: "Adatta",
+          minimap: "Minimappa",
+          loading: "Caricamento dati del grafo",
+          noNodes: "Nessun nodo di dipendenza è stato restituito per questa direzione.",
+          nodeDetails: "Dettagli del nodo",
+          close: "Chiudi",
+          openUpdate: "Apri aggiornamento",
+          openDataNode: "Apri data node",
+          panning: "Spostamento",
+          dragCanvasToPan: "Trascina il canvas per spostarti",
+          scrollToZoom: "Scorri per zoomare",
+          clickNodeToInspect: "Fai clic su un nodo per vedere i dettagli",
+          depthBadge: "D{{depth}}",
+        },
+        values: {
+          notSet: "Non impostato",
+          booleanTrue: "true",
+          booleanFalse: "false",
+        },
+        properties: {
+          humanReadable: "Nome leggibile",
+          updateHash: "Hash aggiornamento",
+          localTimeSerieId: "Id LocalTimeSerie",
+          remoteTableHashId: "Id hash tabella remota",
+          remoteTableId: "Id tabella remota",
+          dataSourceId: "Id sorgente dati",
+          isApi: "È API",
+          errorOnLastUpdate: "Errore all’ultimo aggiornamento",
+          lastUpdate: "Ultimo aggiornamento",
+          nextUpdate: "Prossimo aggiornamento",
+        },
       },
     },
   },

@@ -20,7 +20,9 @@ import {
   MissingWidgetFrame,
   WidgetFrame,
 } from "@/widgets/shared/widget-frame";
+import { resolveWidgetHeaderVisibility } from "@/widgets/shared/chrome";
 import { WidgetSettingsDialog } from "@/widgets/shared/widget-settings";
+import type { WidgetHeaderActionsProps } from "@/widgets/types";
 
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
   return {
@@ -31,6 +33,7 @@ function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
 
 interface WidgetInstanceOverride {
   props?: Record<string, unknown>;
+  runtimeState?: Record<string, unknown> | null;
   title?: string | null;
 }
 
@@ -52,6 +55,10 @@ function applyWidgetOverride(
       "props" in override
         ? override.props
         : instance.props,
+    runtimeState:
+      "runtimeState" in override
+        ? (override.runtimeState ?? undefined)
+        : instance.runtimeState,
   };
 }
 
@@ -141,7 +148,12 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                 instanceTitle?: string;
                 props: Record<string, unknown>;
                 runtimeState?: Record<string, unknown>;
+                onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
               }>;
+              const HeaderActions =
+                widget.headerActions as
+                  | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
+                  | undefined;
 
               return (
                 <WidgetFrame
@@ -149,6 +161,25 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                   widget={widget}
                   instance={instance}
                   style={style}
+                  showHeader={resolveWidgetHeaderVisibility(instance.props)}
+                  headerActions={
+                    HeaderActions ? (
+                      <HeaderActions
+                        widget={widget}
+                        props={instance.props ?? {}}
+                        runtimeState={instance.runtimeState}
+                        onRuntimeStateChange={(state) => {
+                          setWidgetOverrides((current) => ({
+                            ...current,
+                            [instance.id]: {
+                              ...current[instance.id],
+                              runtimeState: state ?? null,
+                            },
+                          }));
+                        }}
+                      />
+                    ) : undefined
+                  }
                   onOpenSettings={() => {
                     setSettingsInstanceId(instance.id);
                   }}
@@ -158,6 +189,15 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                     instanceTitle={instance.title}
                     props={instance.props ?? {}}
                     runtimeState={instance.runtimeState}
+                    onRuntimeStateChange={(state) => {
+                      setWidgetOverrides((current) => ({
+                        ...current,
+                        [instance.id]: {
+                          ...current[instance.id],
+                          runtimeState: state ?? null,
+                        },
+                      }));
+                    }}
                   />
                 </WidgetFrame>
               );

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Network } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,8 +17,13 @@ import type {
 } from "../../widgets/dependency-graph/graphLayout";
 import type { MainSequenceDependencyGraphRuntimeState } from "../../widgets/dependency-graph/MainSequenceDependencyGraphExplorer";
 
-function directionLabel(direction: MainSequenceDependencyGraphDirection) {
-  return direction === "downstream" ? "Downstream graph" : "Upstream graph";
+function directionLabel(
+  direction: MainSequenceDependencyGraphDirection,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  return direction === "downstream"
+    ? t("mainSequenceDependencyGraph.directionDownstream")
+    : t("mainSequenceDependencyGraph.directionUpstream");
 }
 
 export function MainSequenceLocalUpdateDependencyGraph({
@@ -35,6 +41,7 @@ export function MainSequenceLocalUpdateDependencyGraph({
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   variant?: "card" | "widget";
 }) {
+  const { t } = useTranslation();
   const graphQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "local_updates", "graph", localTimeSerieId, direction],
     queryFn: () => fetchLocalTimeSerieDependencyGraph(localTimeSerieId, direction),
@@ -50,16 +57,28 @@ export function MainSequenceLocalUpdateDependencyGraph({
           <div>
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <Network className="h-4 w-4 text-primary" />
-              <span>{directionLabel(direction)}</span>
+              <span>{directionLabel(direction, t)}</span>
             </div>
             <div className="mt-1 text-sm text-muted-foreground">
-              Interactive dependency explorer for LocalTimeSerie graph data.
+              {t("mainSequenceDependencyGraph.widget.summaryDescription")}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="neutral">{direction}</Badge>
-            <Badge variant="neutral">{`${payload?.nodes.length ?? 0} nodes`}</Badge>
-            <Badge variant="neutral">{`${payload?.edges.length ?? 0} edges`}</Badge>
+            <Badge variant="neutral">
+              {direction === "upstream"
+                ? t("mainSequenceDependencyGraph.settings.directionUpstreamShort")
+                : t("mainSequenceDependencyGraph.settings.directionDownstreamShort")}
+            </Badge>
+            <Badge variant="neutral">
+              {t("mainSequenceDependencyGraph.widget.nodesCount", {
+                count: payload?.nodes.length ?? 0,
+              })}
+            </Badge>
+            <Badge variant="neutral">
+              {t("mainSequenceDependencyGraph.widget.edgesCount", {
+                count: payload?.edges.length ?? 0,
+              })}
+            </Badge>
           </div>
         </div>
 
@@ -83,15 +102,23 @@ export function MainSequenceLocalUpdateDependencyGraph({
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <Network className="h-4 w-4 text-primary" />
-              {directionLabel(direction)}
+              {directionLabel(direction, t)}
             </CardTitle>
             <CardDescription>
-              Interactive dependency explorer aligned with the legacy graph flow.
+              {t("mainSequenceDependencyGraph.widget.legacyDescription")}
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="neutral">{`${payload?.nodes.length ?? 0} nodes`}</Badge>
-            <Badge variant="neutral">{`${payload?.edges.length ?? 0} edges`}</Badge>
+            <Badge variant="neutral">
+              {t("mainSequenceDependencyGraph.widget.nodesCount", {
+                count: payload?.nodes.length ?? 0,
+              })}
+            </Badge>
+            <Badge variant="neutral">
+              {t("mainSequenceDependencyGraph.widget.edgesCount", {
+                count: payload?.edges.length ?? 0,
+              })}
+            </Badge>
           </div>
         </div>
       </CardHeader>

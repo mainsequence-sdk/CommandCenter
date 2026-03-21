@@ -12,6 +12,16 @@ branding:
   logo_alt: Main Sequence
   monogram: MS
 
+preferences:
+  url: /api/v1/command_center/preferences/
+  favorites_create_url: /api/v1/command_center/favorites/
+  favorites_reorder_url: /api/v1/command_center/favorites/reorder/
+  favorites_delete_url: /api/v1/command_center/favorites/{kind}/{target_key}/
+
+workspaces:
+  list_url: /api/v1/command_center/workspaces/
+  detail_url: /api/v1/command_center/workspaces/{id}/
+
 auth:
   base_url: http://127.0.0.1:8000
   identifier_label: Email

@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
+import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const dynamicTableDataSourceEndpoint = "/orm/api/ts_manager/dynamic_table_data_source/";
@@ -1090,6 +1091,12 @@ export interface DataNodeSummary {
   data_frequency_id: string | number | null;
 }
 
+export interface DataNodeQuickSearchRecord {
+  id: number;
+  storage_hash: string;
+  identifier: string | null;
+}
+
 export interface DataNodeColumnMetadata {
   source_config_id: number | null;
   column_name: string;
@@ -1253,6 +1260,371 @@ export interface LocalTimeSerieDependencyGraphResponse {
   nodes: LocalTimeSerieDependencyGraphNode[];
   edges: LocalTimeSerieDependencyGraphEdge[];
   groups: LocalTimeSerieDependencyGraphGroup[];
+}
+
+function buildWidgetPreviewIsoTimestamp(offsetMs = 0) {
+  return new Date(Date.now() + offsetMs).toISOString();
+}
+
+function buildWidgetPreviewPortfolioWeightsResponse(
+  targetPortfolioId: number,
+): TargetPortfolioWeightsPositionDetailsResponse {
+  const rows = [
+    {
+      id: 1,
+      asset_name: "US 2Y Note",
+      asset_ticker: "UST2Y",
+      unique_identifier: "US91282CJR34",
+      figi: "BBG00JX7S9H4",
+      sector: "Rates",
+      rebalance_bucket: "Front End",
+      position_type: "weight_notional_exposure",
+      position_value: 0.184,
+    },
+    {
+      id: 2,
+      asset_name: "US 5Y Note",
+      asset_ticker: "UST5Y",
+      unique_identifier: "US91282CKL45",
+      figi: "BBG00K6R7X31",
+      sector: "Rates",
+      rebalance_bucket: "Belly",
+      position_type: "weight_notional_exposure",
+      position_value: 0.227,
+    },
+    {
+      id: 3,
+      asset_name: "US 10Y Note",
+      asset_ticker: "UST10Y",
+      unique_identifier: "US91282CLM67",
+      figi: "BBG00L0J2D82",
+      sector: "Rates",
+      rebalance_bucket: "Benchmark",
+      position_type: "weight_notional_exposure",
+      position_value: 0.311,
+    },
+    {
+      id: 4,
+      asset_name: "US 30Y Bond",
+      asset_ticker: "UST30Y",
+      unique_identifier: "US912810TW80",
+      figi: "BBG00M2P5V57",
+      sector: "Rates",
+      rebalance_bucket: "Long End",
+      position_type: "weight_notional_exposure",
+      position_value: 0.278,
+    },
+  ] satisfies Array<Record<string, unknown>>;
+
+  const positionMap = Object.fromEntries(
+    rows.map((row) => [
+      String(row.unique_identifier),
+      {
+        position_type: row.position_type,
+        position_value: row.position_value,
+      },
+    ]),
+  );
+
+  return {
+    weights: [
+      { label: "Rates", value: 0.57 },
+      { label: "Credit", value: 0.18 },
+      { label: "Equities", value: 0.14 },
+      { label: "Liquidity", value: 0.11 },
+    ],
+    position_columns: [],
+    rows,
+    columnDefs: [
+      { field: "asset_ticker", headerName: "Ticker" },
+      { field: "asset_name", headerName: "Asset" },
+      { field: "sector", headerName: "Sector" },
+      { field: "rebalance_bucket", headerName: "Bucket" },
+      { field: "position_value", headerName: "Target Weight" },
+    ],
+    summaryColumnDefs: [
+      { field: "label", headerName: "Bucket" },
+      { field: "value", headerName: "Weight" },
+    ],
+    position_map: {
+      ...positionMap,
+      [`portfolio-${targetPortfolioId}`]: {
+        position_type: "weight_notional_exposure",
+        position_value: 1,
+      },
+    },
+    weights_date: buildWidgetPreviewIsoTimestamp(),
+  };
+}
+
+function buildWidgetPreviewDataNodeDetail(dataNodeId: number): DataNodeDetail {
+  return {
+    id: dataNodeId,
+    storage_hash: `preview-data-node-${dataNodeId}`,
+    creation_date: buildWidgetPreviewIsoTimestamp(-14 * 24 * 60 * 60 * 1000),
+    source_class_name: "widget.preview",
+    protect_from_deletion: false,
+    time_serie_source_code_git_hash: null,
+    created_by_user: null,
+    open_for_everyone: false,
+    data_source: null,
+    table_index_names: ["observation_time", "unique_identifier"],
+    data_source_open_for_everyone: false,
+    identifier: "UST Curve Preview Node",
+    description: "Synthetic rates observations for widget explorer previews.",
+    data_frequency_id: "daily",
+    build_configuration: null,
+    build_meta_data: null,
+    sourcetableconfiguration: {
+      related_table: dataNodeId,
+      time_index_name: "observation_time",
+      column_dtypes_map: {
+        observation_time: "timestamp",
+        unique_identifier: "text",
+        mid_yield: "float",
+        carry_bp: "float",
+        dv01: "float",
+      },
+      index_names: ["observation_time", "unique_identifier"],
+      last_time_index_value: buildWidgetPreviewIsoTimestamp(),
+      earliest_index_value: buildWidgetPreviewIsoTimestamp(-45 * 24 * 60 * 60 * 1000),
+      table_partition: null,
+      open_for_everyone: false,
+      columns_metadata: [
+        {
+          source_config_id: dataNodeId,
+          column_name: "observation_time",
+          dtype: "timestamp",
+          label: "Observation Time",
+          description: "Synthetic observation timestamp.",
+        },
+        {
+          source_config_id: dataNodeId,
+          column_name: "unique_identifier",
+          dtype: "text",
+          label: "Series",
+          description: "Curve point identifier.",
+        },
+        {
+          source_config_id: dataNodeId,
+          column_name: "mid_yield",
+          dtype: "float",
+          label: "Mid Yield",
+          description: "Mock mid yield used by the chart preview.",
+        },
+        {
+          source_config_id: dataNodeId,
+          column_name: "carry_bp",
+          dtype: "float",
+          label: "Carry",
+          description: "Carry estimate in basis points.",
+        },
+        {
+          source_config_id: dataNodeId,
+          column_name: "dv01",
+          dtype: "float",
+          label: "DV01",
+          description: "Dollar value of a basis point.",
+        },
+      ],
+    },
+  };
+}
+
+function buildWidgetPreviewDataNodeRows(
+  input: DataNodeRemoteDataRequest,
+): DataNodeRemoteDataRow[] {
+  const requestedColumns = new Set(input.columns.length > 0 ? input.columns : [
+    "observation_time",
+    "unique_identifier",
+    "mid_yield",
+    "carry_bp",
+    "dv01",
+  ]);
+  const baseSeries = {
+    UST2Y: 4.26,
+    UST5Y: 4.04,
+    UST10Y: 3.88,
+    UST30Y: 4.01,
+  } as const;
+  const identifiers =
+    input.unique_identifier_list && input.unique_identifier_list.length > 0
+      ? input.unique_identifier_list
+      : Object.keys(baseSeries);
+  const endDateMs = input.end_date * 1000;
+  const rows: DataNodeRemoteDataRow[] = [];
+
+  for (let dayIndex = 27; dayIndex >= 0; dayIndex -= 1) {
+    const observationDateMs = endDateMs - dayIndex * 24 * 60 * 60 * 1000;
+
+    identifiers.forEach((identifier, seriesIndex) => {
+      const baseValue =
+        baseSeries[identifier as keyof typeof baseSeries] ??
+        3.7 + seriesIndex * 0.18;
+      const wave = Math.sin((27 - dayIndex + seriesIndex) / 3.4) * 0.11;
+      const drift = (27 - dayIndex) * 0.004;
+      const row: Record<string, unknown> = {
+        observation_time: new Date(observationDateMs).toISOString(),
+        unique_identifier: identifier,
+        mid_yield: Number((baseValue + wave + drift).toFixed(4)),
+        carry_bp: Number((12 + seriesIndex * 3 + Math.cos(dayIndex / 4) * 4).toFixed(2)),
+        dv01: Number((820 + seriesIndex * 95 + (27 - dayIndex) * 6).toFixed(2)),
+      };
+
+      rows.push(
+        Object.fromEntries(
+          Object.entries(row).filter(([key]) => requestedColumns.has(key)),
+        ),
+      );
+    });
+  }
+
+  return rows.slice(0, input.limit ?? rows.length);
+}
+
+function buildWidgetPreviewDependencyGraph(
+  localTimeSerieId: number,
+  direction: "downstream" | "upstream",
+): LocalTimeSerieDependencyGraphResponse {
+  const rootId = `lts-${localTimeSerieId}`;
+  const upstreamNodes: LocalTimeSerieDependencyGraphNode[] = [
+    {
+      id: "bucket-us-rates",
+      parent: "group-ingestion",
+      depth: 0,
+      card_title: "Rates Raw Bucket",
+      card_subtitle: "Shared storage",
+      color: "#0f766e",
+      background_color: "#0f766e",
+      badges: ["raw", "ok"],
+      properties: {
+        update_hash: "rates-raw-bucket",
+        remote_table_id: 540,
+        local_time_serie_id: 0,
+        last_update: buildWidgetPreviewIsoTimestamp(-5 * 60 * 1000),
+      },
+    },
+    {
+      id: "parser-us-rates",
+      parent: "group-ingestion",
+      depth: 1,
+      card_title: "Curve Parser",
+      card_subtitle: "Normalization stage",
+      color: "#2563eb",
+      background_color: "#2563eb",
+      badges: ["parser", "ok"],
+      properties: {
+        update_hash: "curve-parser",
+        remote_table_id: 614,
+        local_time_serie_id: 0,
+        last_update: buildWidgetPreviewIsoTimestamp(-3 * 60 * 1000),
+      },
+    },
+    {
+      id: rootId,
+      parent: "group-curation",
+      depth: 2,
+      card_title: "UST Curve Node",
+      card_subtitle: direction === "upstream" ? "Current target" : "Source node",
+      color: "#f59e0b",
+      background_color: "#f59e0b",
+      badges: ["widget", "active"],
+      properties: {
+        update_hash: `local-update-${localTimeSerieId}`,
+        local_time_serie_id: localTimeSerieId,
+        remote_table_id: 716,
+        last_update: buildWidgetPreviewIsoTimestamp(-90 * 1000),
+        next_update: buildWidgetPreviewIsoTimestamp(10 * 60 * 1000),
+      },
+    },
+  ];
+  const downstreamNodes: LocalTimeSerieDependencyGraphNode[] = [
+    {
+      id: rootId,
+      parent: "group-curation",
+      depth: 0,
+      card_title: "UST Curve Node",
+      card_subtitle: direction === "downstream" ? "Current source" : "Resolved dependency",
+      color: "#f59e0b",
+      background_color: "#f59e0b",
+      badges: ["widget", "active"],
+      properties: {
+        update_hash: `local-update-${localTimeSerieId}`,
+        local_time_serie_id: localTimeSerieId,
+        remote_table_id: 716,
+        last_update: buildWidgetPreviewIsoTimestamp(-90 * 1000),
+        next_update: buildWidgetPreviewIsoTimestamp(10 * 60 * 1000),
+      },
+    },
+    {
+      id: "desk-curve-signal",
+      parent: "group-desk",
+      depth: 1,
+      card_title: "Desk Curve Signal",
+      card_subtitle: "Signal transform",
+      color: "#8b5cf6",
+      background_color: "#8b5cf6",
+      badges: ["signal", "ok"],
+      properties: {
+        update_hash: "desk-curve-signal",
+        local_time_serie_id: 903,
+        remote_table_id: 812,
+        last_update: buildWidgetPreviewIsoTimestamp(-60 * 1000),
+      },
+    },
+    {
+      id: "risk-summary-curve",
+      parent: "group-desk",
+      depth: 2,
+      card_title: "Risk Summary",
+      card_subtitle: "Dashboard aggregate",
+      color: "#dc2626",
+      background_color: "#dc2626",
+      badges: ["aggregate", "warn"],
+      properties: {
+        update_hash: "risk-summary-curve",
+        local_time_serie_id: 1182,
+        remote_table_id: 915,
+        last_update: buildWidgetPreviewIsoTimestamp(-30 * 1000),
+        error_on_last_update: false,
+      },
+    },
+  ];
+  const nodes = direction === "upstream" ? upstreamNodes : downstreamNodes;
+
+  return {
+    nodes,
+    edges:
+      direction === "upstream"
+        ? [
+            { source: "parser-us-rates", target: "bucket-us-rates" },
+            { source: rootId, target: "parser-us-rates" },
+          ]
+        : [
+            { source: "desk-curve-signal", target: rootId },
+            { source: "risk-summary-curve", target: "desk-curve-signal" },
+          ],
+    groups: [
+      {
+        data: {
+          id: "group-ingestion",
+          name: "Ingestion",
+        },
+      },
+      {
+        data: {
+          id: "group-curation",
+          name: "Curated node",
+        },
+      },
+      {
+        data: {
+          id: "group-desk",
+          name: "Desk outputs",
+        },
+      },
+    ],
+  };
 }
 
 export interface LocalTimeSerieLogsGridRow {
@@ -2797,6 +3169,10 @@ export function fetchTargetPortfolioSummary(targetPortfolioId: number) {
 }
 
 export function fetchTargetPortfolioWeightsPositionDetails(targetPortfolioId: number) {
+  if (isWidgetPreviewMode()) {
+    return Promise.resolve(buildWidgetPreviewPortfolioWeightsResponse(targetPortfolioId));
+  }
+
   return requestJson<TargetPortfolioWeightsPositionDetailsResponse>(
     targetPortfolioEndpoint,
     `${targetPortfolioId}/weights-position-details/`,
@@ -3629,6 +4005,26 @@ export async function listDataNodes({
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
 }
 
+export async function quickSearchDataNodes({
+  limit = 50,
+  q,
+}: {
+  limit?: number;
+  q: string;
+}) {
+  const payload = await requestJson<DataNodeQuickSearchRecord[]>(
+    dynamicTableMetadataEndpoint,
+    "quick-search/",
+    undefined,
+    {
+      limit,
+      q: q.trim(),
+    },
+  );
+
+  return Array.isArray(payload) ? payload : [];
+}
+
 export async function listLocalTimeSeries(
   remoteTableId: number,
   {
@@ -4246,6 +4642,10 @@ export function fetchDataNodeSummary(dataNodeId: number) {
 }
 
 export function fetchDataNodeDetail(dataNodeId: number) {
+  if (isWidgetPreviewMode()) {
+    return Promise.resolve(buildWidgetPreviewDataNodeDetail(dataNodeId));
+  }
+
   return requestJson<DataNodeDetail>(
     dynamicTableMetadataEndpoint,
     `${dataNodeId}/`,
@@ -4321,6 +4721,10 @@ export async function fetchDataNodeDataBetweenDatesFromRemote(
   dataNodeId: number,
   input: DataNodeRemoteDataRequest,
 ) {
+  if (isWidgetPreviewMode()) {
+    return buildWidgetPreviewDataNodeRows(input);
+  }
+
   const payload = await requestJson<unknown>(
     dynamicTableMetadataEndpoint,
     `${dataNodeId}/get_data_between_dates_from_remote/`,
@@ -4400,6 +4804,10 @@ export function fetchLocalTimeSerieDependencyGraph(
   localTimeSerieId: number,
   direction: "downstream" | "upstream",
 ) {
+  if (isWidgetPreviewMode()) {
+    return Promise.resolve(buildWidgetPreviewDependencyGraph(localTimeSerieId, direction));
+  }
+
   return requestJson<LocalTimeSerieDependencyGraphResponse>(
     localTimeSerieEndpoint,
     `${localTimeSerieId}/dependencies-graph/`,

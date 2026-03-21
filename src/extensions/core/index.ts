@@ -149,7 +149,7 @@ const orderflowLabDashboard: DashboardDefinition = {
     },
     {
       id: "flow-positions",
-      widgetId: "positions-table",
+      widgetId: "strategy-book",
       title: "Strategy Book",
       props: {},
       layout: { cols: 8, rows: 6 },

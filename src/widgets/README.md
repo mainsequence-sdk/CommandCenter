@@ -5,7 +5,9 @@ This directory contains the Command Center widget platform, including the shared
 ## Main entry points
 
 - `types.ts`: shared widget definition contract, widget render props, and the optional settings component contract.
+- `types.ts`: shared widget definition contract, widget render props, optional header actions, and the optional settings component contract.
 - `shared/widget-frame.tsx`: common widget chrome used by dashboard surfaces.
+- `shared/chrome.ts`: shared widget-shell markers used so themes can target widget chrome consistently across runtime dashboards and the workspace builder.
 - `shared/widget-settings.tsx`: shared settings trigger and modal used by dashboard widgets and the custom workspace studio.
 - `core/`: built-in widgets shipped with the core extension.
 - `extensions/`: optional widget implementations used by example or third-party extensions.
@@ -18,10 +20,13 @@ This directory contains the Command Center widget platform, including the shared
 - Widget settings are instance-scoped, not global to the widget definition. Two surfaces can use the same widget definition with different props.
 - App-owned surfaces can use preconfigured widget instances so users consume the widget without needing to configure it.
 - Custom dashboard and workspace flows are the place where instance settings are intended to be user-editable.
-- The shared settings modal supports title overrides and raw JSON prop editing for any widget instance.
+- The shared settings modal supports title overrides, shared widget chrome options such as `showHeader`, and raw JSON prop editing for any widget instance.
 - Static dashboard surfaces currently keep widget settings changes only for the current page session.
 - The custom workspace studio writes widget settings into the workspace draft, and those changes persist once the user saves the workspace.
 - Stateful widgets can report runtime state back through `WidgetComponentProps.onRuntimeStateChange` so Workspaces JSON snapshots can round-trip view state such as zoom, pan, or selected node context.
+- Widgets can also provide optional header actions through the shared shell when a control belongs in the widget chrome instead of inside the widget body.
+- Widget shells expose shared markers through `shared/chrome.ts`, so theme-specific CSS can style widget chrome separately from generic cards when needed.
+- Shared widget shells no longer add default body padding. If a widget needs internal spacing, the widget component itself must add it explicitly.
 
 ## Maintenance notes
 

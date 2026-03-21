@@ -1,15 +1,15 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Pencil, Save } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toaster";
 
 import {
+  fetchDataNodeDetail,
   fetchCurrentInstrumentsConfiguration,
   formatMainSequenceError,
   listDataNodes,
@@ -29,7 +29,13 @@ function getDataNodeTitle(dataNode: DataNodeSummary) {
     return identifier;
   }
 
-  return `Dynamic table ${dataNode.id}`;
+  const storageHash = dataNode.storage_hash?.trim();
+
+  if (storageHash) {
+    return storageHash;
+  }
+
+  return `Data node ${dataNode.id}`;
 }
 
 function getDataSourceLabel(dataNode: DataNodeSummary) {
@@ -84,6 +90,10 @@ function mergePickerOptions(
   return [...optionsByValue.values()];
 }
 
+function findOptionByValue(options: PickerOption[], value: string) {
+  return options.find((option) => option.value === value) ?? null;
+}
+
 function findCurrentNodeOption(
   payload: InstrumentsConfigurationCurrentResponse,
   key: "discount_curves_storage_node" | "reference_rates_fixings_storage_node",
@@ -104,15 +114,16 @@ function findCurrentNodeOption(
 export function MainSequenceInstrumentsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
   const [discountNodeId, setDiscountNodeId] = useState("");
   const [fixingsNodeId, setFixingsNodeId] = useState("");
-  const [selectedDiscountOption, setSelectedDiscountOption] = useState<PickerOption | null>(null);
-  const [selectedFixingsOption, setSelectedFixingsOption] = useState<PickerOption | null>(null);
   const [discountSearchValue, setDiscountSearchValue] = useState("");
   const [fixingsSearchValue, setFixingsSearchValue] = useState("");
 
   const deferredDiscountSearchValue = useDeferredValue(discountSearchValue.trim());
   const deferredFixingsSearchValue = useDeferredValue(fixingsSearchValue.trim());
+  const selectedDiscountNodeId = discountNodeId ? Number(discountNodeId) : null;
+  const selectedFixingsNodeId = fixingsNodeId ? Number(fixingsNodeId) : null;
 
   const configurationQuery = useQuery({
     queryKey: instrumentsConfigurationQueryKey,
@@ -158,6 +169,32 @@ export function MainSequenceInstrumentsPage() {
     staleTime: 300_000,
   });
 
+  const selectedDiscountNodeQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "markets",
+      "instruments",
+      "selected_discount_node",
+      selectedDiscountNodeId,
+    ],
+    queryFn: () => fetchDataNodeDetail(selectedDiscountNodeId as number),
+    enabled: Number.isInteger(selectedDiscountNodeId) && (selectedDiscountNodeId as number) > 0,
+    staleTime: 300_000,
+  });
+
+  const selectedFixingsNodeQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "markets",
+      "instruments",
+      "selected_fixings_node",
+      selectedFixingsNodeId,
+    ],
+    queryFn: () => fetchDataNodeDetail(selectedFixingsNodeId as number),
+    enabled: Number.isInteger(selectedFixingsNodeId) && (selectedFixingsNodeId as number) > 0,
+    staleTime: 300_000,
+  });
+
   useEffect(() => {
     const payload = configurationQuery.data;
 
@@ -173,25 +210,87 @@ export function MainSequenceInstrumentsPage() {
         ? String(payload.reference_rates_fixings_storage_node)
         : "",
     );
-    setSelectedDiscountOption(findCurrentNodeOption(payload, "discount_curves_storage_node"));
-    setSelectedFixingsOption(findCurrentNodeOption(payload, "reference_rates_fixings_storage_node"));
+    setIsEditing(false);
     setDiscountSearchValue("");
     setFixingsSearchValue("");
   }, [configurationQuery.data]);
 
-  const discountOptions = useMemo(() => {
-    const currentOptions = (configurationQuery.data?.discount_nodes ?? []).map(toCurrentNodeOption);
-    const searchedOptions = (discountNodesQuery.data?.results ?? []).map(toDataNodePickerOption);
+  const currentDiscountOptions = useMemo(
+    () => (configurationQuery.data?.discount_nodes ?? []).map(toCurrentNodeOption),
+    [configurationQuery.data?.discount_nodes],
+  );
+  const currentFixingsOptions = useMemo(
+    () => (configurationQuery.data?.fixings_nodes ?? []).map(toCurrentNodeOption),
+    [configurationQuery.data?.fixings_nodes],
+  );
+  const searchedDiscountOptions = useMemo(
+    () => (discountNodesQuery.data?.results ?? []).map(toDataNodePickerOption),
+    [discountNodesQuery.data?.results],
+  );
+  const searchedFixingsOptions = useMemo(
+    () => (fixingsNodesQuery.data?.results ?? []).map(toDataNodePickerOption),
+    [fixingsNodesQuery.data?.results],
+  );
+  const selectedDiscountOption = useMemo(() => {
+    if (!discountNodeId) {
+      return null;
+    }
 
-    return mergePickerOptions(selectedDiscountOption, currentOptions, searchedOptions);
-  }, [configurationQuery.data?.discount_nodes, discountNodesQuery.data?.results, selectedDiscountOption]);
+    const detailedOption = selectedDiscountNodeQuery.data
+      ? toDataNodePickerOption(selectedDiscountNodeQuery.data)
+      : null;
+
+    return (
+      detailedOption ??
+      findOptionByValue(searchedDiscountOptions, discountNodeId) ??
+      findOptionByValue(currentDiscountOptions, discountNodeId) ??
+      (configurationQuery.data
+        ? findCurrentNodeOption(configurationQuery.data, "discount_curves_storage_node")
+        : null)
+    );
+  }, [
+    configurationQuery.data,
+    currentDiscountOptions,
+    discountNodeId,
+    searchedDiscountOptions,
+    selectedDiscountNodeQuery.data,
+  ]);
+  const selectedFixingsOption = useMemo(() => {
+    if (!fixingsNodeId) {
+      return null;
+    }
+
+    const detailedOption = selectedFixingsNodeQuery.data
+      ? toDataNodePickerOption(selectedFixingsNodeQuery.data)
+      : null;
+
+    return (
+      detailedOption ??
+      findOptionByValue(searchedFixingsOptions, fixingsNodeId) ??
+      findOptionByValue(currentFixingsOptions, fixingsNodeId) ??
+      (configurationQuery.data
+        ? findCurrentNodeOption(configurationQuery.data, "reference_rates_fixings_storage_node")
+        : null)
+    );
+  }, [
+    configurationQuery.data,
+    currentFixingsOptions,
+    fixingsNodeId,
+    searchedFixingsOptions,
+    selectedFixingsNodeQuery.data,
+  ]);
+
+  const discountOptions = useMemo(() => {
+    return mergePickerOptions(
+      selectedDiscountOption,
+      currentDiscountOptions,
+      searchedDiscountOptions,
+    );
+  }, [currentDiscountOptions, searchedDiscountOptions, selectedDiscountOption]);
 
   const fixingsOptions = useMemo(() => {
-    const currentOptions = (configurationQuery.data?.fixings_nodes ?? []).map(toCurrentNodeOption);
-    const searchedOptions = (fixingsNodesQuery.data?.results ?? []).map(toDataNodePickerOption);
-
-    return mergePickerOptions(selectedFixingsOption, currentOptions, searchedOptions);
-  }, [configurationQuery.data?.fixings_nodes, fixingsNodesQuery.data?.results, selectedFixingsOption]);
+    return mergePickerOptions(selectedFixingsOption, currentFixingsOptions, searchedFixingsOptions);
+  }, [currentFixingsOptions, searchedFixingsOptions, selectedFixingsOption]);
 
   const configuration = configurationQuery.data;
   const initialDiscountNodeId = configuration?.discount_curves_storage_node
@@ -203,6 +302,7 @@ export function MainSequenceInstrumentsPage() {
   const isDirty =
     discountNodeId !== initialDiscountNodeId || fixingsNodeId !== initialFixingsNodeId;
   const canEdit = Boolean(configuration?.can_edit);
+  const fieldsDisabled = !canEdit || !isEditing;
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -212,6 +312,7 @@ export function MainSequenceInstrumentsPage() {
       }),
     onSuccess: (result) => {
       queryClient.setQueryData(instrumentsConfigurationQueryKey, result);
+      setIsEditing(false);
       toast({
         variant: "success",
         title: "Instrument configuration updated",
@@ -227,16 +328,6 @@ export function MainSequenceInstrumentsPage() {
     },
   });
 
-  function selectDiscountNode(nextValue: string) {
-    setDiscountNodeId(nextValue);
-    setSelectedDiscountOption(discountOptions.find((option) => option.value === nextValue) ?? null);
-  }
-
-  function selectFixingsNode(nextValue: string) {
-    setFixingsNodeId(nextValue);
-    setSelectedFixingsOption(fixingsOptions.find((option) => option.value === nextValue) ?? null);
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -245,22 +336,50 @@ export function MainSequenceInstrumentsPage() {
         description="Configure the data nodes used by the instrument settings for discount curves and reference-rate fixings."
         actions={
           <>
-            <Badge variant="neutral">
-              {configurationQuery.isLoading ? "Loading" : canEdit ? "Editable" : "Read only"}
-            </Badge>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => saveMutation.mutate()}
-              disabled={!canEdit || !isDirty || saveMutation.isPending || configurationQuery.isLoading}
-            >
-              {saveMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Save
-            </Button>
+            {canEdit && !isEditing ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setIsEditing(true)}
+                disabled={configurationQuery.isLoading}
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Button>
+            ) : null}
+            {canEdit && isEditing ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setDiscountNodeId(initialDiscountNodeId);
+                    setFixingsNodeId(initialFixingsNodeId);
+                    setDiscountSearchValue("");
+                    setFixingsSearchValue("");
+                    setIsEditing(false);
+                  }}
+                  disabled={saveMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={!isDirty || saveMutation.isPending || configurationQuery.isLoading}
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save
+                </Button>
+              </>
+            ) : null}
           </>
         }
       />
@@ -310,7 +429,7 @@ export function MainSequenceInstrumentsPage() {
                   </div>
                   <PickerField
                     value={discountNodeId}
-                    onChange={selectDiscountNode}
+                    onChange={setDiscountNodeId}
                     options={discountOptions}
                     placeholder="Select a data node"
                     searchPlaceholder="Search data nodes"
@@ -322,8 +441,11 @@ export function MainSequenceInstrumentsPage() {
                     searchable
                     searchValue={discountSearchValue}
                     onSearchValueChange={setDiscountSearchValue}
-                    disabled={!canEdit}
-                    loading={deferredDiscountSearchValue.length > 0 && discountNodesQuery.isFetching}
+                    disabled={fieldsDisabled}
+                    loading={
+                      selectedDiscountNodeQuery.isFetching ||
+                      (deferredDiscountSearchValue.length > 0 && discountNodesQuery.isFetching)
+                    }
                   />
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
                     <span>Type to search for another data node.</span>
@@ -333,16 +455,21 @@ export function MainSequenceInstrumentsPage() {
                         size="sm"
                         variant="ghost"
                         className="h-auto px-0 py-0 text-sm text-primary hover:bg-transparent"
-                        disabled={!canEdit}
+                        disabled={fieldsDisabled}
                         onClick={() => {
                           setDiscountNodeId("");
-                          setSelectedDiscountOption(null);
+                          setDiscountSearchValue("");
                         }}
                       >
                         Clear
                       </Button>
                     ) : null}
                   </div>
+                  {selectedDiscountNodeQuery.isError ? (
+                    <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                      {formatMainSequenceError(selectedDiscountNodeQuery.error)}
+                    </div>
+                  ) : null}
                   {discountNodesQuery.isError ? (
                     <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
                       {formatMainSequenceError(discountNodesQuery.error)}
@@ -361,7 +488,7 @@ export function MainSequenceInstrumentsPage() {
                   </div>
                   <PickerField
                     value={fixingsNodeId}
-                    onChange={selectFixingsNode}
+                    onChange={setFixingsNodeId}
                     options={fixingsOptions}
                     placeholder="Select a data node"
                     searchPlaceholder="Search data nodes"
@@ -373,8 +500,11 @@ export function MainSequenceInstrumentsPage() {
                     searchable
                     searchValue={fixingsSearchValue}
                     onSearchValueChange={setFixingsSearchValue}
-                    disabled={!canEdit}
-                    loading={deferredFixingsSearchValue.length > 0 && fixingsNodesQuery.isFetching}
+                    disabled={fieldsDisabled}
+                    loading={
+                      selectedFixingsNodeQuery.isFetching ||
+                      (deferredFixingsSearchValue.length > 0 && fixingsNodesQuery.isFetching)
+                    }
                   />
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
                     <span>Type to search for another data node.</span>
@@ -384,16 +514,21 @@ export function MainSequenceInstrumentsPage() {
                         size="sm"
                         variant="ghost"
                         className="h-auto px-0 py-0 text-sm text-primary hover:bg-transparent"
-                        disabled={!canEdit}
+                        disabled={fieldsDisabled}
                         onClick={() => {
                           setFixingsNodeId("");
-                          setSelectedFixingsOption(null);
+                          setFixingsSearchValue("");
                         }}
                       >
                         Clear
                       </Button>
                     ) : null}
                   </div>
+                  {selectedFixingsNodeQuery.isError ? (
+                    <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                      {formatMainSequenceError(selectedFixingsNodeQuery.error)}
+                    </div>
+                  ) : null}
                   {fixingsNodesQuery.isError ? (
                     <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
                       {formatMainSequenceError(fixingsNodesQuery.error)}

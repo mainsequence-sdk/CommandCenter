@@ -13,6 +13,7 @@ import { withAlpha } from "@/lib/color";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetComponentProps } from "@/widgets/types";
+import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
 type Props = WidgetComponentProps<{ symbol?: string }>;
 
@@ -22,6 +23,7 @@ export function PriceChartWidget({ props }: Props) {
   const [latestPrice, setLatestPrice] = useState<number | null>(null);
   const { resolvedTokens } = useTheme();
   const { t } = useTranslation();
+  const previewMode = isWidgetPreviewMode();
 
   const historyQuery = useQuery({
     queryKey: ["price-history", symbol],
@@ -140,7 +142,9 @@ export function PriceChartWidget({ props }: Props) {
             {formatPercent(changePct)}
           </Badge>
           <div className="mt-2 text-xs text-muted-foreground">
-            {env.useMockData ? t("settingsDialog.mockData") : t("settingsDialog.liveData")}
+            {env.useMockData || previewMode
+              ? t("settingsDialog.mockData")
+              : t("settingsDialog.liveData")}
           </div>
         </div>
       </div>

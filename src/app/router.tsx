@@ -16,6 +16,7 @@ import { ExtensionsGalleryPage } from "@/features/extensions/ExtensionsGalleryPa
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
 import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
+import { WidgetExplorerPage } from "@/features/widgets/WidgetExplorerPage";
 import { MainSequenceAssetCategoryDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-categories/MainSequenceAssetCategoryDetailPage";
 import { MainSequenceAssetTranslationTableDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-translation-tables/MainSequenceAssetTranslationTableDetailPage";
 import { MainSequenceExecutionVenueDetailPage } from "../../extensions/main_sequence/extensions/markets/features/execution-venues/MainSequenceExecutionVenueDetailPage";
@@ -58,6 +59,10 @@ export const router = createBrowserRouter([
             <WidgetCatalogPage />
           </PermissionRoute>
         ),
+      },
+      {
+        path: "widgets/:widgetId",
+        element: <WidgetExplorerPage />,
       },
       {
         path: "themes",

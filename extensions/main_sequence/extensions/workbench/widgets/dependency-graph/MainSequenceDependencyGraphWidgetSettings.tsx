@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useTranslation } from "react-i18next";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import type { MainSequenceDependencyGraphWidgetProps } from "./MainSequenceDependencyGraphWidget";
@@ -20,6 +21,7 @@ export function MainSequenceDependencyGraphWidgetSettings({
   editable,
   onDraftPropsChange,
 }: WidgetSettingsComponentProps<MainSequenceDependencyGraphWidgetProps>) {
+  const { t } = useTranslation();
   const direction = draftProps.direction === "upstream" ? "upstream" : "downstream";
   const localTimeSerieId =
     Number.isFinite(Number(draftProps.localTimeSerieId)) && Number(draftProps.localTimeSerieId) > 0
@@ -29,15 +31,17 @@ export function MainSequenceDependencyGraphWidgetSettings({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="neutral">Graph widget</Badge>
+        <Badge variant="neutral">{t("mainSequenceDependencyGraph.widget.badge")}</Badge>
         <span className="text-sm text-muted-foreground">
-          Configure the LocalTimeSerie source and graph direction for this widget instance.
+          {t("mainSequenceDependencyGraph.settings.description")}
         </span>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="space-y-2">
-          <span className="text-sm font-medium text-topbar-foreground">LocalTimeSerie id</span>
+          <span className="text-sm font-medium text-topbar-foreground">
+            {t("mainSequenceDependencyGraph.settings.localTimeSerieId")}
+          </span>
           <Input
             type="number"
             min="1"
@@ -54,12 +58,14 @@ export function MainSequenceDependencyGraphWidgetSettings({
             }}
           />
           <p className="text-sm text-muted-foreground">
-            Use the local update id from the Data Nodes detail view.
+            {t("mainSequenceDependencyGraph.settings.localTimeSerieIdHelp")}
           </p>
         </label>
 
         <label className="space-y-2">
-          <span className="text-sm font-medium text-topbar-foreground">Direction</span>
+          <span className="text-sm font-medium text-topbar-foreground">
+            {t("mainSequenceDependencyGraph.settings.direction")}
+          </span>
           <Select
             value={direction}
             disabled={!editable}
@@ -70,11 +76,15 @@ export function MainSequenceDependencyGraphWidgetSettings({
               });
             }}
           >
-            <option value="downstream">Downstream</option>
-            <option value="upstream">Upstream</option>
+            <option value="downstream">
+              {t("mainSequenceDependencyGraph.settings.directionDownstreamShort")}
+            </option>
+            <option value="upstream">
+              {t("mainSequenceDependencyGraph.settings.directionUpstreamShort")}
+            </option>
           </Select>
           <p className="text-sm text-muted-foreground">
-            Downstream follows impacted dependents. Upstream shows source dependencies.
+            {t("mainSequenceDependencyGraph.settings.directionHelp")}
           </p>
         </label>
       </div>

@@ -24,7 +24,15 @@ const LEGACY_WORKSPACE_ROW_HEIGHT = 78;
 const LEGACY_WORKSPACE_GAP = 8;
 
 const DEFAULT_TIME_RANGE_OPTIONS = ["15m", "1h", "6h", "24h", "7d", "30d", "90d"] as const;
-const DEFAULT_REFRESH_INTERVALS = [null, 10_000, 15_000, 30_000, 60_000] as const;
+const DEFAULT_REFRESH_INTERVAL_MS = 300_000;
+const DEFAULT_REFRESH_INTERVALS = [
+  null,
+  30_000,
+  60_000,
+  300_000,
+  600_000,
+  3_600_000,
+] as const;
 
 export interface UserDashboardCollection {
   version: number;
@@ -157,10 +165,14 @@ function scaleWidgetForFineGrid(
 
 export function ensureUserDashboardCollectionSelection(
   collection: UserDashboardCollection,
+  options?: {
+    allowEmpty?: boolean;
+  },
 ): UserDashboardCollection {
+  const allowEmpty = options?.allowEmpty ?? false;
   const dashboards = collection.dashboards.length
     ? collection.dashboards
-    : [createBlankDashboard()];
+    : (allowEmpty ? [] : [createBlankDashboard()]);
 
   const selectedDashboardId =
     collection.selectedDashboardId &&
@@ -210,10 +222,10 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
   return materializeDashboardLayout({
     ...dashboard,
     title: dashboard.title || "Untitled workspace",
-    description: dashboard.description || "User-scoped workspace stored in local browser storage.",
+    description: dashboard.description || "User-scoped workspace managed in Command Center.",
     labels: normalizeWorkspaceLabels(dashboard.labels),
     category: dashboard.category || "Custom",
-    source: dashboard.source || "local-dev",
+    source: dashboard.source || "user",
     widgets,
     controls: dashboard.controls ?? {
       enabled: true,
@@ -224,7 +236,7 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
       },
       refresh: {
         enabled: true,
-        defaultIntervalMs: 60_000,
+        defaultIntervalMs: DEFAULT_REFRESH_INTERVAL_MS,
         intervals: [...DEFAULT_REFRESH_INTERVALS],
       },
       actions: {
@@ -245,6 +257,10 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
           : (dashboard.grid?.gap ?? DEFAULT_WORKSPACE_GAP),
     },
   });
+}
+
+export function normalizeDashboardDefinition(dashboard: DashboardDefinition) {
+  return sanitizeDashboard(dashboard);
 }
 
 export function cloneDashboardCollection(collection: UserDashboardCollection) {
@@ -275,10 +291,10 @@ export function createBlankDashboard(title = "My Workspace"): DashboardDefinitio
   return sanitizeDashboard({
     id: createId("custom-dashboard"),
     title,
-    description: "User-scoped workspace stored in temporary local browser storage for development.",
+    description: "User-scoped workspace managed in Command Center.",
     labels: [],
     category: "Custom",
-    source: "local-dev",
+    source: "user",
     grid: {
       columns: DEFAULT_WORKSPACE_COLUMNS,
       rowHeight: DEFAULT_WORKSPACE_ROW_HEIGHT,
@@ -293,7 +309,7 @@ export function createBlankDashboard(title = "My Workspace"): DashboardDefinitio
       },
       refresh: {
         enabled: true,
-        defaultIntervalMs: 60_000,
+        defaultIntervalMs: DEFAULT_REFRESH_INTERVAL_MS,
         intervals: [...DEFAULT_REFRESH_INTERVALS],
       },
       actions: {
@@ -320,6 +336,31 @@ function buildDefaultCollection(): UserDashboardCollection {
   };
 }
 
+export function normalizeUserDashboardCollection(
+  collection: Partial<UserDashboardCollection> | null | undefined,
+  options?: {
+    fallbackSavedAt?: string | null;
+    allowEmpty?: boolean;
+  },
+): UserDashboardCollection {
+  const source = collection ?? {};
+
+  return ensureUserDashboardCollectionSelection({
+    version: STORAGE_VERSION,
+    dashboards: Array.isArray(source.dashboards)
+      ? source.dashboards.map((dashboard) => sanitizeDashboard(dashboard))
+      : [],
+    selectedDashboardId:
+      typeof source.selectedDashboardId === "string" ? source.selectedDashboardId : null,
+    savedAt:
+      typeof source.savedAt === "string"
+        ? source.savedAt
+        : (options?.fallbackSavedAt ?? null),
+  }, {
+    allowEmpty: options?.allowEmpty ?? false,
+  });
+}
+
 export function loadUserDashboardCollection(userId: string): UserDashboardCollection {
   if (!userId || !canUseLocalStorage()) {
     return buildDefaultCollection();
@@ -332,18 +373,7 @@ export function loadUserDashboardCollection(userId: string): UserDashboardCollec
       return buildDefaultCollection();
     }
 
-    const parsed = JSON.parse(rawValue) as Partial<UserDashboardCollection>;
-    const dashboards = Array.isArray(parsed.dashboards)
-      ? parsed.dashboards.map((dashboard) => sanitizeDashboard(dashboard))
-      : [];
-
-    return ensureUserDashboardCollectionSelection({
-      version: STORAGE_VERSION,
-      dashboards,
-      selectedDashboardId:
-        typeof parsed.selectedDashboardId === "string" ? parsed.selectedDashboardId : null,
-      savedAt: typeof parsed.savedAt === "string" ? parsed.savedAt : null,
-    });
+    return normalizeUserDashboardCollection(JSON.parse(rawValue) as Partial<UserDashboardCollection>);
   } catch {
     return buildDefaultCollection();
   }
@@ -353,11 +383,8 @@ export function saveUserDashboardCollection(
   userId: string,
   collection: UserDashboardCollection,
 ): UserDashboardCollection {
-  const normalized = ensureUserDashboardCollectionSelection({
-    version: STORAGE_VERSION,
-    dashboards: collection.dashboards.map((dashboard) => sanitizeDashboard(dashboard)),
-    selectedDashboardId: collection.selectedDashboardId,
-    savedAt: new Date().toISOString(),
+  const normalized = normalizeUserDashboardCollection(collection, {
+    fallbackSavedAt: new Date().toISOString(),
   });
 
   if (userId && canUseLocalStorage()) {
@@ -514,7 +541,8 @@ export function updateDashboardControlsState(
     },
     refresh: {
       enabled: dashboard.controls?.refresh?.enabled ?? true,
-      defaultIntervalMs: dashboard.controls?.refresh?.defaultIntervalMs ?? 60_000,
+      defaultIntervalMs:
+        dashboard.controls?.refresh?.defaultIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS,
       intervals: dashboard.controls?.refresh?.intervals ?? [...DEFAULT_REFRESH_INTERVALS],
       selectedIntervalMs: state.refreshIntervalMs,
     },

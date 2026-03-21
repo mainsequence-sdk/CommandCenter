@@ -1,7 +1,31 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { commandCenterConfig } from "@/config/command-center";
+
 export type LiveState = "connecting" | "connected" | "disconnected";
+
+const backendPreferencesEnabled = Boolean(commandCenterConfig.preferences.url.trim());
+
+const noopStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
+
+function normalizeFavoriteIds(values: string[] | undefined) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+}
 
 interface ShellState {
   liveState: LiveState;
@@ -22,6 +46,10 @@ interface ShellState {
   toggleSurfaceFavorite: (favoriteId: string) => void;
   setWorkspaceFavorite: (favoriteId: string, value: boolean) => void;
   toggleWorkspaceFavorite: (favoriteId: string) => void;
+  hydratePersistedPreferences: (preferences: {
+    favoriteSurfaceIds?: string[];
+    favoriteWorkspaceIds?: string[];
+  }) => void;
   openAppPanel: (appId: string) => void;
   closeAppPanel: () => void;
   toggleAppPanel: (appId: string) => void;
@@ -108,6 +136,12 @@ export const useShellStore = create<ShellState>()(
             : [...state.favoriteWorkspaceIds, favoriteId],
         }));
       },
+      hydratePersistedPreferences(preferences) {
+        set({
+          favoriteSurfaceIds: normalizeFavoriteIds(preferences.favoriteSurfaceIds),
+          favoriteWorkspaceIds: normalizeFavoriteIds(preferences.favoriteWorkspaceIds),
+        });
+      },
       openAppPanel(appId) {
         set({ appPanelAppId: appId });
       },
@@ -134,7 +168,9 @@ export const useShellStore = create<ShellState>()(
     }),
     {
       name: "command-center.shell",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() =>
+        backendPreferencesEnabled ? noopStorage : localStorage,
+      ),
       partialize: (state) => ({
         favoriteSurfaceIds: state.favoriteSurfaceIds,
         favoriteWorkspaceIds: state.favoriteWorkspaceIds,

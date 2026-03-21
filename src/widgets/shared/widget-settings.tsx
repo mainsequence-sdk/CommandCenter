@@ -14,6 +14,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { resolveWidgetHeaderVisibility } from "@/widgets/shared/chrome";
 import type { WidgetDefinition, WidgetSettingsComponentProps } from "@/widgets/types";
 
 function cloneWidgetProps<T extends Record<string, unknown>>(value: T): T {
@@ -110,6 +111,7 @@ export function WidgetSettingsDialog<
     widget.settingsComponent as
       | ComponentType<WidgetSettingsComponentProps<TProps>>
       | undefined;
+  const showHeader = resolveWidgetHeaderVisibility(draftProps);
 
   useEffect(() => {
     if (!open) {
@@ -156,6 +158,13 @@ export function WidgetSettingsDialog<
     setDraftProps(nextProps);
     setRawPropsValue(serializeWidgetProps(nextProps));
     setJsonError(null);
+  }
+
+  function handleShowHeaderChange(nextValue: boolean) {
+    handleDraftPropsChange({
+      ...draftProps,
+      showHeader: nextValue,
+    } as TProps);
   }
 
   function handleSave() {
@@ -212,6 +221,40 @@ export function WidgetSettingsDialog<
             placeholder={widget.title}
             readOnly={!editable}
           />
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <div className="text-sm font-medium text-topbar-foreground">Header</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Control whether the widget header is visible during normal viewing. Workspace edit mode
+              always shows it.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={showHeader ? "default" : "outline"}
+              onClick={() => {
+                handleShowHeaderChange(true);
+              }}
+              disabled={!editable}
+            >
+              Show header
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={!showHeader ? "default" : "outline"}
+              onClick={() => {
+                handleShowHeaderChange(false);
+              }}
+              disabled={!editable}
+            >
+              Hide header
+            </Button>
+          </div>
         </section>
 
         {SettingsComponent ? (
