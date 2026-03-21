@@ -74,6 +74,10 @@ export function TradingViewSeriesChart({
   const chartMinHeight = separateAxes
     ? Math.max(260, themedSeries.length * separateAxisPaneHeight)
     : 260;
+  const showPointMarkers = useMemo(
+    () => themedSeries.length > 0 && themedSeries.every((entry) => entry.points.length <= 1),
+    [themedSeries],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -137,6 +141,8 @@ export function TradingViewSeriesChart({
             lineWidth: 2,
             priceLineVisible: false,
             lastValueVisible: false,
+            pointMarkersVisible: showPointMarkers,
+            pointMarkersRadius: showPointMarkers ? 5 : undefined,
             title: entry.label,
           },
           paneIndex,
@@ -169,6 +175,8 @@ export function TradingViewSeriesChart({
           lineWidth: 2,
           priceLineVisible: false,
           lastValueVisible: false,
+          pointMarkersVisible: showPointMarkers,
+          pointMarkersRadius: showPointMarkers ? 5 : undefined,
           title: entry.label,
         },
         paneIndex,
@@ -198,7 +206,7 @@ export function TradingViewSeriesChart({
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [chartMinHeight, chartType, resolvedTokens, separateAxes, themedSeries]);
+  }, [chartMinHeight, chartType, resolvedTokens, separateAxes, showPointMarkers, themedSeries]);
 
   if (themedSeries.length === 0) {
     return (

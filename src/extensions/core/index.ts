@@ -15,12 +15,13 @@ import { AccessRbacOverviewPage } from "@/extensions/core/apps/access-rbac/Acces
 import { AccessRbacPoliciesPage } from "@/extensions/core/apps/access-rbac/AccessRbacPoliciesPage";
 import { AccessRbacTeamsPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamsPage";
 import { AdminActivePlansPage } from "@/extensions/core/apps/admin/AdminActivePlansPage";
-import { AdminConsolePage } from "@/extensions/core/apps/admin/AdminConsolePage";
-import { AdminEventStreamPage } from "@/extensions/core/apps/admin/AdminEventStreamPage";
+import { AdminBillingDetailsPage } from "@/extensions/core/apps/admin/AdminBillingDetailsPage";
 import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/AdminGithubOrganizationsPage";
+import { AdminInvoicesPage } from "@/extensions/core/apps/admin/AdminInvoicesPage";
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
 import { MarketBriefApp } from "@/features/applications/MarketBriefApp";
+import { cyberpunkTheme } from "@/themes/presets/cyberpunk";
 import { grandpaTheme } from "@/themes/presets/grandpa";
 import { graphiteTheme } from "@/themes/presets/graphite";
 import { mainSequenceTheme } from "@/themes/presets/main-sequence";
@@ -245,40 +246,8 @@ const adminApp: AppDefinition = {
   navigationPlacement: "admin-menu",
   topNavigationStyle: "hidden",
   requiredPermissions: ["rbac:view"],
-  defaultSurfaceId: "event-stream",
+  defaultSurfaceId: "organization-users",
   surfaces: [
-    {
-      id: "event-stream",
-      title: "Event Stream",
-      navLabel: "Event Stream",
-      description: "Recent control-plane events, scheduler retries, and audit activity.",
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["rbac:view"],
-      navigationSection: {
-        id: "operations",
-        label: "Operations",
-        description: "Operational surfaces for platform owners and compliance admins.",
-        order: 30,
-      },
-      component: AdminEventStreamPage,
-    },
-    {
-      id: "admin-console",
-      title: "Admin Console",
-      navLabel: "Console",
-      description: "Operational dashboard for platform owners and compliance admins.",
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["rbac:view"],
-      navigationSection: {
-        id: "operations",
-        label: "Operations",
-        description: "Operational surfaces for platform owners and compliance admins.",
-        order: 30,
-      },
-      component: AdminConsolePage,
-    },
     {
       id: "organization-users",
       title: "Organization Users",
@@ -326,6 +295,38 @@ const adminApp: AppDefinition = {
         order: 40,
       },
       component: AdminGithubOrganizationsPage,
+    },
+    {
+      id: "invoices",
+      title: "Invoices",
+      navLabel: "Invoices",
+      description: "Reserved surface for organization invoice history and statement downloads.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: {
+        id: "billing",
+        label: "Billing",
+        description: "Organization billing records and payment configuration.",
+        order: 45,
+      },
+      component: AdminInvoicesPage,
+    },
+    {
+      id: "billing-details",
+      title: "Billing Details",
+      navLabel: "Billing Details",
+      description: "Reserved surface for organization billing profile and invoice recipients.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["rbac:view"],
+      navigationSection: {
+        id: "billing",
+        label: "Billing",
+        description: "Organization billing records and payment configuration.",
+        order: 45,
+      },
+      component: AdminBillingDetailsPage,
     },
   ],
 };
@@ -448,6 +449,7 @@ const coreExtension: AppExtension = {
   themes: [
     mainSequenceSpaceTheme,
     mainSequenceTheme,
+    cyberpunkTheme,
     grandpaTheme,
     graphiteTheme,
     sapphireTheme,

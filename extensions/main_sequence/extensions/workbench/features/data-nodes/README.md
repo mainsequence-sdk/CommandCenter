@@ -15,3 +15,4 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 - Keep reusable graph and inspector subcomponents here if they are specific to data nodes.
 - If a piece becomes useful outside this feature, move it to `../../components` and update this README.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateId` and `msLocalUpdateTab` drive the nested local-update detail view.
+- The surface also accepts standalone local-update deep links with `msLocalUpdateId` even when `msDataNodeId` is absent; this is used by cross-app links from Markets portfolio summaries.

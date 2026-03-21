@@ -463,11 +463,29 @@ function parseNumericValue(value: unknown) {
   }
 
   if (typeof value === "string") {
-    const parsed = Number(value.trim());
+    const parsed = Number(value.trim().replaceAll(",", ""));
     return Number.isFinite(parsed) ? parsed : null;
   }
 
   return null;
+}
+
+function normalizeDateTimeString(value: string) {
+  let normalized = value.trim();
+
+  if (!normalized) {
+    return normalized;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(normalized)) {
+    normalized = normalized.replace(/\s+/, "T");
+  }
+
+  normalized = normalized.replace(/(\.\d{3})\d+/, "$1");
+  normalized = normalized.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+  normalized = normalized.replace(/\s+UTC$/i, "Z");
+
+  return normalized;
 }
 
 export function parseDataNodeVisualizerTimeValue(value: unknown) {
@@ -496,11 +514,59 @@ export function parseDataNodeVisualizerTimeValue(value: unknown) {
       return parseDataNodeVisualizerTimeValue(numericValue);
     }
 
-    const parsed = Date.parse(trimmed);
+    const parsed = Date.parse(normalizeDateTimeString(trimmed));
     return Number.isNaN(parsed) ? null : parsed;
   }
 
   return null;
+}
+
+function fieldHasParsableValue(
+  rows: DataNodeRemoteDataRow[],
+  key: string,
+  parser: (value: unknown) => number | null,
+) {
+  return rows.some((row) => parser(row[key]) !== null);
+}
+
+export function resolveDataNodeVisualizerRenderableFields(
+  rows: DataNodeRemoteDataRow[],
+  config: Pick<ResolvedDataNodeVisualizerConfig, "availableFields" | "groupField" | "xField" | "yField">,
+) {
+  if (rows.length === 0) {
+    return {
+      xField: config.xField,
+      yField: config.yField,
+      groupField: config.groupField,
+    };
+  }
+
+  const rowKeys = uniqueStrings(rows.flatMap((row) => Object.keys(row)));
+  const xField =
+    uniqueStrings([
+      config.xField,
+      ...config.availableFields.filter((field) => field.isTime).map((field) => field.key),
+      ...rowKeys,
+    ]).find((key) => fieldHasParsableValue(rows, key, parseDataNodeVisualizerTimeValue)) ??
+    config.xField;
+  const yField =
+    uniqueStrings([
+      config.yField,
+      ...config.availableFields.filter((field) => field.isNumeric).map((field) => field.key),
+      ...rowKeys,
+    ])
+      .filter((key) => key !== xField && key !== config.groupField)
+      .find((key) => fieldHasParsableValue(rows, key, parseNumericValue)) ?? config.yField;
+  const groupField =
+    config.groupField && config.groupField !== xField && config.groupField !== yField
+      ? config.groupField
+      : undefined;
+
+  return {
+    xField,
+    yField,
+    groupField,
+  };
 }
 
 export function resolveDataNodeVisualizerPreviewAnchorMs(
@@ -524,31 +590,39 @@ export function resolveDataNodeVisualizerPreviewAnchorMs(
 
 export function buildDataNodeVisualizerSeries(
   rows: DataNodeRemoteDataRow[],
-  config: Pick<ResolvedDataNodeVisualizerConfig, "groupField" | "seriesOverrides" | "xField" | "yField">,
+  config: Pick<
+    ResolvedDataNodeVisualizerConfig,
+    "availableFields" | "groupField" | "seriesOverrides" | "xField" | "yField"
+  >,
   maxSeries = 8,
 ): DataNodeVisualizerSeriesResult {
-  if (!config.xField || !config.yField) {
+  const renderableFields = resolveDataNodeVisualizerRenderableFields(rows, config);
+
+  if (!renderableFields.xField || !renderableFields.yField) {
     return { series: [], droppedGroups: 0 };
   }
 
+  const xField = renderableFields.xField;
+  const yField = renderableFields.yField;
+  const groupField = renderableFields.groupField;
   const groupedPoints = new Map<string, DataNodeVisualizerSeries>();
 
   rows.forEach((row) => {
-    const time = parseDataNodeVisualizerTimeValue(row[config.xField!]);
-    const value = parseNumericValue(row[config.yField!]);
+    const time = parseDataNodeVisualizerTimeValue(row[xField]);
+    const value = parseNumericValue(row[yField]);
 
     if (time === null || value === null) {
       return;
     }
 
-    const groupLabel = config.groupField
-      ? formatDataNodeVisualizerValue(row[config.groupField])
-      : config.yField!;
+    const groupLabel = groupField
+      ? formatDataNodeVisualizerValue(row[groupField])
+      : yField;
 
-    const groupKey = config.groupField
-      ? String(row[config.groupField] ?? "__empty__")
-      : config.yField!;
-    const current =
+    const groupKey = groupField
+      ? String(row[groupField] ?? "__empty__")
+      : yField;
+    const current: DataNodeVisualizerSeries =
       groupedPoints.get(groupKey) ??
       {
         id: groupKey,

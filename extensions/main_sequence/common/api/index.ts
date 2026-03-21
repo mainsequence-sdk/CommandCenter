@@ -10,6 +10,7 @@ const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
 const assetEndpoint = "/orm/api/assets/asset/";
 const assetCategoryEndpoint = "/orm/api/assets/asset-category/";
 const executionVenueEndpoint = "/orm/api/assets/execution_venue/";
+const targetPortfolioEndpoint = "/orm/api/assets/target_portfolio/";
 const assetTranslationTableEndpoint = "/orm/api/assets/asset-translation-tables/";
 export const mainSequenceRegistryPageSize = 25;
 
@@ -413,6 +414,77 @@ export interface CreateExecutionVenueInput {
 export interface UpdateExecutionVenueInput {
   symbol: string;
   name: string;
+}
+
+export interface TargetPortfolioListRow extends Record<string, unknown> {
+  id: number;
+  creation_date?: string | null;
+  index_asset?: {
+    id?: number | null;
+    current_snapshot?: {
+      id?: number | null;
+      name?: string | null;
+      ticker?: string | null;
+      [key: string]: unknown;
+    } | null;
+    [key: string]: unknown;
+  } | null;
+  portfolio_index_asset?: {
+    id?: number | null;
+    current_snapshot?: {
+      id?: number | null;
+      name?: string | null;
+      ticker?: string | null;
+      [key: string]: unknown;
+    } | null;
+    [key: string]: unknown;
+  } | null;
+}
+
+export interface TargetPortfolioBulkDeleteInput {
+  ids?: number[];
+  selectedItemsIds?: string;
+  selectAll?: boolean;
+  currentUrl?: string;
+}
+
+export interface TargetPortfolioBulkDeleteResponse {
+  detail: string;
+  deleted_count?: number;
+}
+
+export interface TargetPortfolioSummaryExtra extends EntitySummaryExtra {
+  description?: string;
+  signal_name?: string;
+  signal_description?: string;
+  rebalance_strategy_name?: string;
+  rebalance_strategy_description?: string;
+  weights?: unknown;
+  portfolio_weights?: unknown;
+  target_weights?: unknown;
+  weight_rows?: unknown;
+  [key: string]: unknown;
+}
+
+export interface TargetPortfolioSummaryHeader extends EntitySummaryHeader {
+  extra?: TargetPortfolioSummaryExtra;
+  extras?: TargetPortfolioSummaryExtra;
+}
+
+export interface TargetPortfolioWeightsPositionColumnDef {
+  field: string;
+  headerName?: string;
+  [key: string]: unknown;
+}
+
+export interface TargetPortfolioWeightsPositionDetailsResponse {
+  weights: unknown;
+  position_columns: unknown[];
+  rows: Array<Record<string, unknown>>;
+  columnDefs: TargetPortfolioWeightsPositionColumnDef[];
+  summaryColumnDefs: TargetPortfolioWeightsPositionColumnDef[];
+  position_map: Record<string, unknown> | null;
+  weights_date: string | null;
 }
 
 export interface AssetTranslationTableListRow {
@@ -1644,6 +1716,12 @@ export interface ExecutionVenueListFilters {
   nameContains?: string;
 }
 
+export interface TargetPortfolioListFilters {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface AssetTranslationTableListFilters {
   search?: string;
   page?: number;
@@ -2112,6 +2190,15 @@ function buildExecutionVenueListSearch(filters: ExecutionVenueListFilters) {
   } satisfies Record<string, QueryValue>;
 }
 
+function buildTargetPortfolioListSearch(filters: TargetPortfolioListFilters) {
+  return {
+    search: filters.search?.trim() || undefined,
+    limit: filters.limit,
+    offset: filters.offset,
+    fields: "id,creation_date,index_asset",
+  } satisfies Record<string, QueryValue>;
+}
+
 function buildAssetTranslationTableListSearch(
   filters: AssetTranslationTableListFilters,
   includeResponseFormat = true,
@@ -2416,6 +2503,61 @@ export function deleteExecutionVenue(executionVenueId: number) {
     {
       method: "DELETE",
     },
+  );
+}
+
+export async function listTargetPortfolios({
+  search,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: TargetPortfolioListFilters = {}) {
+  const filters = {
+    search,
+    limit,
+    offset,
+  } satisfies TargetPortfolioListFilters;
+
+  const payload = await requestJson<
+    PaginatedResponse<TargetPortfolioListRow> | TargetPortfolioListRow[]
+  >(
+    targetPortfolioEndpoint,
+    "",
+    undefined,
+    buildTargetPortfolioListSearch(filters),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function bulkDeleteTargetPortfolios(input: TargetPortfolioBulkDeleteInput) {
+  return requestJson<TargetPortfolioBulkDeleteResponse>(
+    targetPortfolioEndpoint,
+    "bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ids: input.ids,
+        selected_items_ids:
+          input.selectedItemsIds ??
+          (input.ids && input.ids.length > 0 ? input.ids.join(",") : undefined),
+        select_all: input.selectAll,
+        current_url: input.currentUrl,
+      }),
+    },
+  );
+}
+
+export function fetchTargetPortfolioSummary(targetPortfolioId: number) {
+  return requestJson<TargetPortfolioSummaryHeader>(
+    targetPortfolioEndpoint,
+    `${targetPortfolioId}/summary/`,
+  );
+}
+
+export function fetchTargetPortfolioWeightsPositionDetails(targetPortfolioId: number) {
+  return requestJson<TargetPortfolioWeightsPositionDetailsResponse>(
+    targetPortfolioEndpoint,
+    `${targetPortfolioId}/weights-position-details/`,
   );
 }
 

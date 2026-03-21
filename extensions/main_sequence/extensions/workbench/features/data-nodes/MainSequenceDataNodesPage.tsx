@@ -32,6 +32,10 @@ import { MainSequenceRegistrySearch } from "../../../../common/components/MainSe
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
+import {
+  MainSequenceDataNodeLocalUpdateDetail,
+  type LocalUpdateDetailTabId,
+} from "./MainSequenceDataNodeLocalUpdateDetail";
 import { MainSequenceDataNodeLocalTimeSeriesTab } from "./MainSequenceDataNodeLocalTimeSeriesTab";
 import { MainSequenceDataNodePoliciesTab } from "./MainSequenceDataNodePoliciesTab";
 
@@ -209,6 +213,7 @@ export function MainSequenceDataNodesPage() {
   const isDataNodeDetailOpen = Number.isFinite(selectedDataNodeId) && selectedDataNodeId > 0;
   const isLocalUpdateDetailOpen =
     Number.isFinite(selectedLocalUpdateId) && selectedLocalUpdateId > 0;
+  const isStandaloneLocalUpdateDetailOpen = isLocalUpdateDetailOpen && !isDataNodeDetailOpen;
   const selectedDetailTabId: DataNodeDetailTabId = isLocalUpdateDetailOpen
     ? "local-time-series"
     : isDataNodeDetailTabId(requestedDetailTabId)
@@ -372,7 +377,16 @@ export function MainSequenceDataNodesPage() {
     });
   }
 
-  function selectLocalUpdateTab(tabId: string) {
+  function closeStandaloneLocalUpdateDetail() {
+    updateSearchParams((nextParams) => {
+      nextParams.delete(mainSequenceDataNodeIdParam);
+      nextParams.delete(mainSequenceDataNodeTabParam);
+      nextParams.delete(mainSequenceLocalUpdateIdParam);
+      nextParams.delete(mainSequenceLocalUpdateTabParam);
+    });
+  }
+
+  function selectLocalUpdateTab(tabId: LocalUpdateDetailTabId) {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequenceDataNodeTabParam, "local-time-series");
       nextParams.set(mainSequenceLocalUpdateTabParam, tabId);
@@ -612,7 +626,15 @@ export function MainSequenceDataNodesPage() {
 
   return (
     <div className="space-y-6">
-      {isDataNodeDetailOpen ? (
+      {isStandaloneLocalUpdateDetailOpen ? (
+        <MainSequenceDataNodeLocalUpdateDetail
+          localTimeSerieId={selectedLocalUpdateId}
+          onClose={closeStandaloneLocalUpdateDetail}
+          onOpenDataNodeDetail={openDataNodeDetail}
+          onSelectTab={selectLocalUpdateTab}
+          selectedTabId={selectedLocalUpdateTabId}
+        />
+      ) : isDataNodeDetailOpen ? (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

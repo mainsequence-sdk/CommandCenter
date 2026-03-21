@@ -8,6 +8,7 @@ Feature folders in this extension should contain market-facing Main Sequence scr
 - `asset-translation-tables/`: translation table registry, dedicated detail page, and embedded rules manager.
 - `assets/`: read-only asset registry list with dedicated detail loading.
 - `execution-venues/`: execution venue registry with dedicated detail editing and deletion.
+- `portfolios/`: target-portfolio registry with shared list search, offset pagination, and bulk delete.
 
 ## Rules
 

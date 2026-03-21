@@ -13,6 +13,7 @@
     "docs:serve": "npm --prefix docs-site run serve"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.12.19",
     "@codemirror/language": "^6.12.2",
     "@codemirror/language-data": "^6.5.2",
     "@codemirror/state": "^6.6.0",

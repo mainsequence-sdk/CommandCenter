@@ -6,6 +6,7 @@ import { MainSequenceAssetCategoriesPage } from "./features/asset-categories/Mai
 import { MainSequenceAssetTranslationTablesPage } from "./features/asset-translation-tables/MainSequenceAssetTranslationTablesPage";
 import { MainSequenceAssetsPage } from "./features/assets/MainSequenceAssetsPage";
 import { MainSequenceExecutionVenuesPage } from "./features/execution-venues/MainSequenceExecutionVenuesPage";
+import { MainSequenceTargetPortfoliosPage } from "./features/portfolios/MainSequenceTargetPortfoliosPage";
 
 const marketsSection: AppSurfaceNavigationSection = {
   id: "markets",
@@ -51,6 +52,16 @@ export const mainSequenceMarketsApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["marketdata:read"],
       component: MainSequenceAssetsPage,
+    },
+    {
+      id: "portfolios",
+      title: "Portfolios",
+      navLabel: "Portfolios",
+      description: "Browse target portfolios and remove selected rows through the backend bulk-delete action.",
+      navigationSection: marketsSection,
+      kind: "page",
+      requiredPermissions: ["marketdata:read"],
+      component: MainSequenceTargetPortfoliosPage,
     },
     {
       id: "execution-venues",

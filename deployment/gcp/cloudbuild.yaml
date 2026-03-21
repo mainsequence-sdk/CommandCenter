@@ -1,0 +1,61 @@
+# Cloud Build pipeline for deploying Command Center to Firebase Hosting.
+# The Vite app is compiled in CI and the generated `dist/` folder is pushed to
+# the Firebase Hosting site mapped to the temporary `app` target.
+
+timeout: "1800s"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  # Pin the builder image so Node upgrades are explicit and reviewable.
+  _NODE_VERSION: "20.19.0"
+
+  # Required deployment target settings. Set these in the Cloud Build trigger.
+  _FIREBASE_PROJECT_ID: "replace-with-firebase-project-id"
+  _FIREBASE_HOSTING_SITE: "replace-with-firebase-hosting-site-id"
+
+  # Public frontend runtime configuration compiled into the bundle by Vite.
+  # Do not place secrets here because all `VITE_*` values ship to the browser.
+  _VITE_API_BASE_URL: "https://api.example.com/api"
+  _VITE_WS_URL: "wss://api.example.com/ws"
+  _VITE_USE_MOCK_DATA: "false"
+  _VITE_BYPASS_AUTH: "false"
+
+steps:
+  - id: install-and-build
+    name: "node:${_NODE_VERSION}-bookworm"
+    entrypoint: bash
+    env:
+      - CI=true
+      - NODE_ENV=production
+      - NPM_CONFIG_CACHE=/workspace/.npm
+      - VITE_API_BASE_URL=${_VITE_API_BASE_URL}
+      - VITE_WS_URL=${_VITE_WS_URL}
+      - VITE_USE_MOCK_DATA=${_VITE_USE_MOCK_DATA}
+      - VITE_BYPASS_AUTH=${_VITE_BYPASS_AUTH}
+    args:
+      - -ceu
+      - |
+        npm ci
+        npm run build
+        test -f dist/index.html
+
+  - id: deploy-firebase-hosting
+    name: "node:${_NODE_VERSION}-bookworm"
+    entrypoint: bash
+    env:
+      - CI=true
+      - NPM_CONFIG_CACHE=/workspace/.npm
+    args:
+      - -ceu
+      - |
+        npx --yes firebase-tools@13.35.1 target:apply \
+          hosting app "${_FIREBASE_HOSTING_SITE}" \
+          --project "${_FIREBASE_PROJECT_ID}"
+
+        npx --yes firebase-tools@13.35.1 deploy \
+          --project "${_FIREBASE_PROJECT_ID}" \
+          --config deployment/gcp/firebase.json \
+          --only hosting:app \
+          --non-interactive

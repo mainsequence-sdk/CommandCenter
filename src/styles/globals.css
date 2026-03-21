@@ -169,6 +169,25 @@ html[data-theme="main-sequence-space"] {
   --workspace-grid-dot-selected: rgba(255, 255, 255, 0.98);
 }
 
+html[data-theme="cyberpunk"] {
+  --shadow-panel: 0 18px 40px -24px rgba(56, 232, 255, 0.16);
+  --ms-bg-gradient:
+    linear-gradient(180deg, rgba(4, 3, 8, 0.96) 0%, rgba(1, 1, 3, 1) 100%),
+    radial-gradient(circle at 18% 12%, rgba(56, 232, 255, 0.16) 0%, rgba(56, 232, 255, 0.05) 12%, rgba(0, 0, 0, 0) 34%),
+    radial-gradient(circle at 80% 14%, rgba(243, 238, 114, 0.14) 0%, rgba(243, 238, 114, 0.04) 10%, rgba(0, 0, 0, 0) 30%),
+    radial-gradient(circle at 68% 74%, rgba(255, 90, 217, 0.14) 0%, rgba(255, 90, 217, 0.04) 14%, rgba(0, 0, 0, 0) 36%);
+  --workspace-canvas-base-color: #010103;
+  --workspace-canvas-background:
+    linear-gradient(180deg, rgba(8, 5, 13, 0.98) 0%, rgba(2, 2, 4, 1) 100%),
+    radial-gradient(circle at 16% 11%, rgba(56, 232, 255, 0.16) 0%, rgba(56, 232, 255, 0.05) 14%, rgba(0, 0, 0, 0) 32%),
+    radial-gradient(circle at 82% 18%, rgba(243, 238, 114, 0.12) 0%, rgba(243, 238, 114, 0.04) 10%, rgba(0, 0, 0, 0) 28%),
+    radial-gradient(circle at 70% 78%, rgba(255, 90, 217, 0.12) 0%, rgba(255, 90, 217, 0.03) 12%, rgba(0, 0, 0, 0) 34%);
+  --workspace-canvas-overlay:
+    linear-gradient(180deg, rgba(255, 90, 217, 0.05) 0%, rgba(56, 232, 255, 0.02) 18%, rgba(0, 0, 0, 0) 42%);
+  --workspace-grid-dot: rgba(56, 232, 255, 0.30);
+  --workspace-grid-dot-selected: rgba(243, 238, 114, 0.90);
+}
+
 html[data-theme="graphite"] {
   --workspace-canvas-base-color: #060b13;
   --workspace-canvas-background:
@@ -253,6 +272,10 @@ html[data-theme="grandpa"] body {
   text-shadow: 0 0 10px rgba(242, 161, 43, 0.02);
 }
 
+html[data-theme="grandpa"] h1 {
+  color: #ffffff;
+}
+
 html[data-theme="grandpa"] button,
 html[data-theme="grandpa"] input,
 html[data-theme="grandpa"] select,
@@ -303,6 +326,41 @@ html[data-theme="grandpa"] .ag-header-cell {
 
 html[data-theme="grandpa"] .ag-row-hover .ag-cell {
   background-color: rgba(39, 46, 58, 0.55) !important;
+}
+
+html[data-theme="cyberpunk"] body {
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 8px rgba(56, 232, 255, 0.03);
+}
+
+html[data-theme="cyberpunk"] h1 {
+  color: var(--primary);
+  text-shadow:
+    0 0 10px rgba(243, 238, 114, 0.10),
+    0 0 18px rgba(243, 238, 114, 0.03);
+}
+
+html[data-theme="cyberpunk"] [data-theme-chrome="topbar"] {
+  box-shadow: inset 0 -1px 0 rgba(56, 232, 255, 0.16);
+}
+
+html[data-theme="cyberpunk"] [data-theme-chrome="sidebar"] {
+  box-shadow: inset -1px 0 0 rgba(100, 76, 137, 0.52);
+}
+
+html[data-theme="cyberpunk"] .ag-header,
+html[data-theme="cyberpunk"] .ag-header-row {
+  background: rgba(12, 9, 18, 0.92) !important;
+}
+
+html[data-theme="cyberpunk"] .ag-header-cell-label {
+  color: #d6cff8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+html[data-theme="cyberpunk"] .ag-row-hover .ag-cell {
+  background-color: rgba(71, 47, 104, 0.22) !important;
 }
 
 body {

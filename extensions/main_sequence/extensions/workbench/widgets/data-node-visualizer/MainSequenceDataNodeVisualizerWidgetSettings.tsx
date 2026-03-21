@@ -326,6 +326,52 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
 
     return "Choose a fixed date.";
   }, [resolvedConfig.dateRangeMode, resolvedRange.rangeEndMs, resolvedRange.rangeStartMs, timeRangeLabel]);
+  const previewSpanMs = useMemo(() => {
+    if (
+      resolvedRange.rangeStartMs !== null &&
+      resolvedRange.rangeEndMs !== null &&
+      resolvedRange.rangeStartMs < resolvedRange.rangeEndMs
+    ) {
+      return resolvedRange.rangeEndMs - resolvedRange.rangeStartMs;
+    }
+
+    if (
+      Number.isFinite(dashboardRangeStartMs) &&
+      Number.isFinite(dashboardRangeEndMs) &&
+      dashboardRangeStartMs < dashboardRangeEndMs
+    ) {
+      return dashboardRangeEndMs - dashboardRangeStartMs;
+    }
+
+    return defaultPreviewWindowMs;
+  }, [
+    dashboardRangeEndMs,
+    dashboardRangeStartMs,
+    resolvedRange.rangeEndMs,
+    resolvedRange.rangeStartMs,
+  ]);
+  const previewRange = useMemo(() => {
+    if (previewAnchorMs !== null) {
+      return {
+        rangeStartMs: previewAnchorMs - previewSpanMs,
+        rangeEndMs: previewAnchorMs,
+        hasValidRange: previewSpanMs > 0,
+      };
+    }
+
+    return {
+      rangeStartMs: resolvedRange.rangeStartMs,
+      rangeEndMs: resolvedRange.rangeEndMs,
+      hasValidRange: resolvedRange.hasValidRange,
+    };
+  }, [previewAnchorMs, previewSpanMs, resolvedRange]);
+  const previewRangeSummary = useMemo(() => {
+    if (previewRange.rangeStartMs !== null && previewRange.rangeEndMs !== null) {
+      return formatRangeSummary(previewRange.rangeStartMs, previewRange.rangeEndMs);
+    }
+
+    return rangeSummary;
+  }, [previewRange.rangeEndMs, previewRange.rangeStartMs, rangeSummary]);
   const activePreviewMode = previewModeOverride ?? resolvedConfig.displayMode;
 
   const previewQuery = useQuery({
@@ -336,15 +382,14 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
       "preview",
       resolvedConfig.dataNodeId,
       previewRequestedColumns.join("|"),
-      resolvedRange.mode,
-      resolvedRange.rangeStartMs,
-      resolvedRange.rangeEndMs,
+      previewRange.rangeStartMs,
+      previewRange.rangeEndMs,
       resolvedConfig.limit,
     ],
     queryFn: () =>
       fetchDataNodeDataBetweenDatesFromRemote(resolvedConfig.dataNodeId!, {
-        start_date: Math.floor(resolvedRange.rangeStartMs! / 1000),
-        end_date: Math.floor(resolvedRange.rangeEndMs! / 1000),
+        start_date: Math.floor(previewRange.rangeStartMs! / 1000),
+        end_date: Math.floor(previewRange.rangeEndMs! / 1000),
         columns: previewRequestedColumns,
         great_or_equal: true,
         less_or_equal: true,
@@ -354,7 +399,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
     enabled:
       Boolean(resolvedConfig.dataNodeId) &&
       previewRequestedColumns.length > 0 &&
-      resolvedRange.hasValidRange,
+      previewRange.hasValidRange,
     staleTime: 60_000,
   });
 
@@ -370,10 +415,14 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
     () =>
       resolveDataNodeVisualizerNormalizationTimeMs(
         resolvedConfig,
-        resolvedRange.rangeStartMs,
+        previewRange.rangeStartMs,
       ),
-    [resolvedConfig, resolvedRange.rangeStartMs],
+    [previewRange.rangeStartMs, resolvedConfig],
   );
+  const previewChartEmptyMessage =
+    (previewQuery.data?.length ?? 0) > 0
+      ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
+      : "No chartable rows are available for the selected range.";
   const seriesPalette = useMemo(
     () => [
       resolvedTokens.primary,
@@ -1024,7 +1073,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
 
       <SettingsSection
         title="Preview"
-        description="Check the current mapping against the date range this widget will actually use."
+        description="Check the current mapping against a preview window anchored on the latest available row."
       >
         {resolvedConfig.dataNodeId ? (
           <div className="space-y-4">
@@ -1055,19 +1104,13 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                   </div>
 
                   <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-3 py-2 text-sm text-muted-foreground">
-                    {rangeSummary}
+                    {previewRangeSummary}
                   </div>
                 </div>
 
                 {activePreviewMode === "chart" && (!resolvedConfig.xField || !resolvedConfig.yField) ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
                     Choose both axes to load the preview.
-                  </div>
-                ) : null}
-
-                {resolvedConfig.dateRangeMode === "fixed" && !resolvedRange.hasValidRange ? (
-                  <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-                    Pick a valid fixed date range to load the preview.
                   </div>
                 ) : null}
 
@@ -1086,7 +1129,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
 
                 {!previewQuery.isLoading &&
                 !previewQuery.isError &&
-                resolvedRange.hasValidRange &&
+                previewRange.hasValidRange &&
                 resolvedConfig.xField &&
                 resolvedConfig.yField ? (
                   <>
@@ -1107,7 +1150,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                       <DataNodeVisualizerTable
                         className="min-h-[280px]"
                         columns={previewTableColumns}
-                        emptyMessage="No rows are available for the selected date."
+                        emptyMessage="No rows are available for the preview window."
                         maxRows={40}
                         rows={previewQuery.data ?? []}
                       />
@@ -1115,7 +1158,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                       <TradingViewSeriesChart
                         chartType={resolvedConfig.chartType}
                         className="min-h-[280px]"
-                        emptyMessage="No chartable rows are available for the selected date."
+                        emptyMessage={previewChartEmptyMessage}
                         normalizationTimeMs={previewNormalizationTimeMs}
                         series={previewSeriesResult.series}
                         seriesAxisMode={resolvedConfig.seriesAxisMode}
@@ -1127,7 +1170,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                     previewSeriesResult.series.length === 0 ? (
                       <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
                         The selected X field does not look time-like, or the Y field does not contain
-                        numeric values for the selected date.
+                        numeric values for the selected range.
                       </div>
                     ) : null}
                   </>

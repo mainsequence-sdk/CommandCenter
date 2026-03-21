@@ -3,6 +3,7 @@ import { Navigate, createBrowserRouter } from "react-router-dom";
 import { PermissionRoute } from "@/app/guards/PermissionRoute";
 import { ProtectedRoute } from "@/app/guards/ProtectedRoute";
 import { AppShell } from "@/app/layout/AppShell";
+import { ChatPage } from "@/features/chat";
 import { AppPage } from "@/features/apps/AppPage";
 import { AppRedirect } from "@/features/apps/AppRedirect";
 import { LegacyDashboardRedirect } from "@/features/apps/LegacyDashboardRedirect";
@@ -77,7 +78,7 @@ export const router = createBrowserRouter([
         path: "admin-panel",
         element: (
           <PermissionRoute anyOf={["rbac:view"]}>
-            <Navigate to="/app/admin/event-stream" replace />
+            <Navigate to="/app/admin/organization-users" replace />
           </PermissionRoute>
         ),
       },
@@ -85,7 +86,7 @@ export const router = createBrowserRouter([
         path: "admin-panel/:surfaceId",
         element: (
           <PermissionRoute anyOf={["rbac:view"]}>
-            <Navigate to="/app/admin/event-stream" replace />
+            <Navigate to="/app/admin/organization-users" replace />
           </PermissionRoute>
         ),
       },
@@ -144,6 +145,10 @@ export const router = createBrowserRouter([
             <MainSequenceExecutionVenueDetailPage />
           </PermissionRoute>
         ),
+      },
+      {
+        path: "chat",
+        element: <ChatPage />,
       },
       {
         path: ":appId",

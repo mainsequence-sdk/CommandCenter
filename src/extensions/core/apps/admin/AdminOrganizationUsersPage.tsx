@@ -216,7 +216,7 @@ export function AdminOrganizationUsersPage() {
   return (
     <AdminSurfaceLayout
       title="Organization users"
-      description="Browse organization-scoped users from the shared user endpoint with pod users excluded."
+      description="Browse and manage organization users."
     >
       <Card>
         <CardHeader className="border-b border-border/70">
@@ -224,8 +224,7 @@ export function AdminOrganizationUsersPage() {
             <div>
               <CardTitle>Organization user registry</CardTitle>
               <CardDescription>
-                This list uses the shared user endpoint with <code>exclude_pod_users=true</code>{" "}
-                and <code>front_end_list=true</code>.
+                Review users, manage access, and add new members.
               </CardDescription>
             </div>
             <MainSequenceRegistrySearch
@@ -287,7 +286,7 @@ export function AdminOrganizationUsersPage() {
               </div>
               <div className="mt-4 text-sm font-medium text-foreground">No users found</div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Clear the current search or verify the organization user endpoint response.
+                Clear the current search to review all users.
               </p>
             </div>
           ) : null}
@@ -378,7 +377,7 @@ export function AdminOrganizationUsersPage() {
           }
         }}
         title="Add new user"
-        description="Create a new user by posting only an email to the user endpoint."
+        description="Enter an email address to create a new user."
         className="max-w-[min(560px,calc(100vw-24px))]"
       >
         <form
@@ -410,9 +409,6 @@ export function AdminOrganizationUsersPage() {
               autoFocus
               disabled={createUserMutation.isPending}
             />
-            <p className="text-xs text-muted-foreground">
-              This sends a <code>POST</code> to <code>/user/api/user/</code> with the email only.
-            </p>
           </div>
 
           {createUserMutation.isError ? (

@@ -5,6 +5,7 @@ import {
 import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
+import type { EntitySummaryHeader } from "../../../../../extensions/main_sequence/common/api";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 
@@ -188,6 +189,48 @@ export interface GithubOrganizationConnectStartResponse {
   state?: string;
 }
 
+export interface BillingInvoiceRecord {
+  id: string;
+  number: string | null;
+  status: string | null;
+  paid: boolean;
+  created: string | null;
+  currency: string | null;
+  amount_due: number;
+  amount_paid: number;
+  amount_remaining: number;
+  view_url: string;
+  pdf_url: string;
+}
+
+export interface BillingInvoicesResponse {
+  invoices: BillingInvoiceRecord[];
+  has_more: boolean;
+  next_starting_after: string | null;
+}
+
+export type BillingSummaryResponse = EntitySummaryHeader;
+
+export interface BillingUsageRow {
+  usage_start_time: string;
+  usage_end_time: string;
+  source_type: string;
+  source_object: string;
+  total_cost: string;
+  is_estimate_state: boolean;
+}
+
+export interface BillingUsageColumnDef {
+  headerName: string;
+  field: keyof BillingUsageRow | string;
+  valueFormatter?: string;
+}
+
+export interface BillingUsageResponse {
+  rows: BillingUsageRow[];
+  columnDefs: BillingUsageColumnDef[];
+}
+
 export interface OrganizationActivePlanItem {
   item_id: number;
   plan_type: string;
@@ -221,6 +264,32 @@ export interface OrganizationActivePlanAssignmentUpdateResponse {
   action: "assign" | "remove";
   user_id: number;
   item_id: number;
+}
+
+export interface OrganizationSubscriptionSeatsSubscription {
+  stripe_subscription_id: string | null;
+  status: string | null;
+  status_display: string | null;
+}
+
+export interface OrganizationSubscriptionSeatsPlanRow {
+  plan_type: string;
+  label: string;
+  current_qty: number;
+  assigned_qty: number;
+  min_qty: number;
+}
+
+export interface OrganizationSubscriptionSeatsResponse {
+  has_subscription: boolean;
+  subscription: OrganizationSubscriptionSeatsSubscription | null;
+  plan_rows: OrganizationSubscriptionSeatsPlanRow[];
+}
+
+export interface OrganizationSubscriptionSeatsUpdateResponse {
+  detail: string;
+  mode: "redirect" | "updated";
+  redirect_url: string | null;
 }
 
 interface CurrentUserDetailsPayload {
@@ -281,6 +350,53 @@ export async function listGithubOrganizations({
   };
 }
 
+export function listBillingInvoices({
+  startingAfter,
+  originUrl,
+}: {
+  startingAfter?: string;
+  originUrl?: string;
+} = {}) {
+  return requestAdminJson<BillingInvoicesResponse>(
+    "/orm/api/pods/billing/invoices/",
+    {
+      method: "GET",
+    },
+    {
+      starting_after: startingAfter,
+      origin_url: originUrl,
+    },
+  );
+}
+
+export function getBillingSummary() {
+  return requestAdminJson<BillingSummaryResponse>(
+    "/orm/api/pods/billing/summary/",
+    {
+      method: "GET",
+    },
+  );
+}
+
+export function listBillingUsage({
+  startDate,
+  endDate,
+}: {
+  startDate: string;
+  endDate: string;
+}) {
+  return requestAdminJson<BillingUsageResponse>(
+    "/orm/api/pods/billing/usage/",
+    {
+      method: "GET",
+    },
+    {
+      start_date: startDate,
+      end_date: endDate,
+    },
+  );
+}
+
 export async function fetchCurrentOrganizationId() {
   const payload = await requestAdminJson<CurrentUserDetailsPayload>("/user/api/user/get_user_details/");
   const organizationId = payload.organization?.id;
@@ -299,6 +415,43 @@ export function listOrganizationActivePlans(organizationId: number) {
       method: "GET",
     },
   );
+}
+
+export function listOrganizationSubscriptionSeats(organizationId: number) {
+  return requestAdminJson<OrganizationSubscriptionSeatsResponse>(
+    `/user/api/organization/${encodeURIComponent(String(organizationId))}/subscription-seats/`,
+    {
+      method: "GET",
+    },
+  );
+}
+
+export function submitOrganizationSubscriptionSeatsUpdate({
+  organizationId,
+  seatTotals,
+  successUrl,
+  cancelUrl,
+}: {
+  organizationId: number;
+  seatTotals: Record<string, number>;
+  successUrl: string;
+  cancelUrl: string;
+}) {
+  return requestAdminJson<OrganizationSubscriptionSeatsUpdateResponse>(
+    `/user/api/organization/${encodeURIComponent(String(organizationId))}/subscription-seats/`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        seat_totals: seatTotals,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      }),
+    },
+  );
+}
+
+export function resolveAdminBrowserUrl(path: string) {
+  return buildEndpointUrl(path);
 }
 
 export function updateOrganizationActivePlanAssignment(

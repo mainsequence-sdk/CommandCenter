@@ -1,10 +1,13 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Receipt, Users } from "lucide-react";
+import { Loader2, Minus, Plus, Receipt, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 import { MainSequenceRegistrySearch } from "../../../../../extensions/main_sequence/common/components/MainSequenceRegistrySearch";
@@ -13,9 +16,12 @@ import { getRegistryTableCellClassName } from "../../../../../extensions/main_se
 import {
   fetchCurrentOrganizationId,
   listOrganizationActivePlans,
+  listOrganizationSubscriptionSeats,
   type OrganizationActivePlanAssignment,
   type OrganizationActivePlanItem,
+  type OrganizationSubscriptionSeatsPlanRow,
   type OrganizationActivePlanUser,
+  submitOrganizationSubscriptionSeatsUpdate,
   updateOrganizationActivePlanAssignment,
 } from "./api";
 import { AdminSurfaceLayout } from "./shared";
@@ -42,6 +48,47 @@ function renderAssignedPlans(value: OrganizationActivePlanAssignment[]) {
       ))}
     </div>
   );
+}
+
+function clampSeatQuantity(nextValue: number, minValue: number) {
+  if (!Number.isFinite(nextValue)) {
+    return minValue;
+  }
+
+  return Math.max(minValue, Math.floor(nextValue));
+}
+
+function getDraftSeatQuantity(
+  row: OrganizationSubscriptionSeatsPlanRow,
+  seatDrafts: Record<string, number>,
+) {
+  const rawValue = seatDrafts[row.plan_type];
+
+  if (!Number.isFinite(rawValue)) {
+    return row.current_qty;
+  }
+
+  return clampSeatQuantity(rawValue, row.min_qty);
+}
+
+function formatSeatDelta(delta: number) {
+  if (delta > 0) {
+    return `+${delta}`;
+  }
+
+  return String(delta);
+}
+
+function getSeatDeltaVariant(delta: number) {
+  if (delta > 0) {
+    return "success" as const;
+  }
+
+  if (delta < 0) {
+    return "warning" as const;
+  }
+
+  return "neutral" as const;
 }
 
 type UserPlanDropdownAction =
@@ -131,6 +178,8 @@ export function AdminActivePlansPage() {
   const { toast } = useToast();
   const [searchValue, setSearchValue] = useState("");
   const [activeAssignmentUserId, setActiveAssignmentUserId] = useState<number | null>(null);
+  const [manageSeatsOpen, setManageSeatsOpen] = useState(false);
+  const [seatDrafts, setSeatDrafts] = useState<Record<string, number>>({});
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim().toLowerCase();
   const organizationIdQuery = useQuery({
@@ -142,6 +191,61 @@ export function AdminActivePlansPage() {
     queryKey: ["admin", "organization", organizationIdQuery.data, "active-plans"],
     queryFn: () => listOrganizationActivePlans(organizationIdQuery.data!),
     enabled: typeof organizationIdQuery.data === "number",
+  });
+  const subscriptionSeatsQuery = useQuery({
+    queryKey: ["admin", "organization", organizationIdQuery.data, "subscription-seats"],
+    queryFn: () => listOrganizationSubscriptionSeats(organizationIdQuery.data!),
+    enabled: manageSeatsOpen && typeof organizationIdQuery.data === "number",
+  });
+  const seatUpdateMutation = useMutation({
+    mutationFn: ({
+      organizationId,
+      seatTotals,
+      successUrl,
+      cancelUrl,
+    }: {
+      organizationId: number;
+      seatTotals: Record<string, number>;
+      successUrl: string;
+      cancelUrl: string;
+    }) =>
+      submitOrganizationSubscriptionSeatsUpdate({
+        organizationId,
+        seatTotals,
+        successUrl,
+        cancelUrl,
+      }),
+    onSuccess: async (result, variables) => {
+      if (result.mode === "redirect" && result.redirect_url) {
+        window.location.assign(result.redirect_url);
+        return;
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "organization", variables.organizationId, "active-plans"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "organization", variables.organizationId, "subscription-seats"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "organization-users"],
+        }),
+      ]);
+
+      setManageSeatsOpen(false);
+      toast({
+        variant: "success",
+        title: result.detail || "Subscription seats updated",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Manage seats failed",
+        description: formatAdminError(error),
+      });
+    },
   });
   const assignmentMutation = useMutation({
     mutationFn: ({
@@ -171,6 +275,9 @@ export function AdminActivePlansPage() {
         queryClient.invalidateQueries({
           queryKey: ["admin", "organization-users"],
         }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "organization", variables.organizationId, "subscription-seats"],
+        }),
       ]);
 
       toast({
@@ -192,6 +299,7 @@ export function AdminActivePlansPage() {
   });
 
   const activePlans = activePlansQuery.data;
+  const subscriptionSeats = subscriptionSeatsQuery.data;
   const summary = useMemo(() => {
     const items = activePlans?.items ?? [];
     const users = activePlans?.users ?? [];
@@ -228,8 +336,43 @@ export function AdminActivePlansPage() {
       return haystack.includes(normalizedSearchValue);
     });
   }, [activePlans, normalizedSearchValue]);
+  const manageSeatsSummary = useMemo(() => {
+    const rows = subscriptionSeats?.plan_rows ?? [];
+    const currentTotal = rows.reduce((sum, row) => sum + row.current_qty, 0);
+    const newTotal = rows.reduce((sum, row) => sum + getDraftSeatQuantity(row, seatDrafts), 0);
+    const delta = newTotal - currentTotal;
+
+    return {
+      currentTotal,
+      newTotal,
+      delta,
+    };
+  }, [seatDrafts, subscriptionSeats]);
+  const manageSeatsHasChanges = useMemo(
+    () => (subscriptionSeats?.plan_rows ?? []).some((row) => getDraftSeatQuantity(row, seatDrafts) !== row.current_qty),
+    [seatDrafts, subscriptionSeats],
+  );
   const loading = organizationIdQuery.isLoading || activePlansQuery.isLoading;
   const error = organizationIdQuery.error ?? activePlansQuery.error;
+  const manageSeatsError = organizationIdQuery.error ?? subscriptionSeatsQuery.error;
+
+  useEffect(() => {
+    if (!manageSeatsOpen || !subscriptionSeats) {
+      return;
+    }
+
+    setSeatDrafts(
+      Object.fromEntries(
+        subscriptionSeats.plan_rows.map((row) => [row.plan_type, row.current_qty]),
+      ),
+    );
+  }, [manageSeatsOpen, subscriptionSeats]);
+
+  useEffect(() => {
+    if (!manageSeatsOpen) {
+      setSeatDrafts({});
+    }
+  }, [manageSeatsOpen]);
 
   function handleAssignmentChange(userId: number, value: string) {
     const organizationId = organizationIdQuery.data;
@@ -243,6 +386,41 @@ export function AdminActivePlansPage() {
       organizationId,
       userId,
       action,
+    });
+  }
+
+  function setSeatDraftValue(row: OrganizationSubscriptionSeatsPlanRow, nextValue: number) {
+    setSeatDrafts((current) => ({
+      ...current,
+      [row.plan_type]: clampSeatQuantity(nextValue, row.min_qty),
+    }));
+  }
+
+  function buildManageSeatsReturnUrl() {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return new URL(`${window.location.pathname}${window.location.search}`, window.location.origin).toString();
+  }
+
+  function handleManageSeatsSubmit() {
+    const organizationId = organizationIdQuery.data;
+
+    if (typeof organizationId !== "number" || !subscriptionSeats?.has_subscription) {
+      return;
+    }
+
+    const seatTotals = Object.fromEntries(
+      subscriptionSeats.plan_rows.map((row) => [row.plan_type, getDraftSeatQuantity(row, seatDrafts)]),
+    );
+    const returnUrl = buildManageSeatsReturnUrl();
+
+    seatUpdateMutation.mutate({
+      organizationId,
+      seatTotals,
+      successUrl: returnUrl,
+      cancelUrl: returnUrl,
     });
   }
 
@@ -316,6 +494,15 @@ export function AdminActivePlansPage() {
                     {activePlans.has_subscription ? "Subscription active" : "No active subscription"}
                   </Badge>
                   <Badge variant="neutral">{`${summary.itemCount} plans`}</Badge>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setManageSeatsOpen(true);
+                    }}
+                  >
+                    Manage seats
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -521,6 +708,214 @@ export function AdminActivePlansPage() {
           </Card>
         </>
       ) : null}
+
+      <Dialog
+        open={manageSeatsOpen}
+        onClose={() => {
+          setManageSeatsOpen(false);
+        }}
+        title="Manage seats"
+        description="Adjust seat totals for the current subscription and compare the new totals before checkout."
+        className="max-w-[min(980px,calc(100vw-24px))]"
+      >
+        {organizationIdQuery.isLoading || subscriptionSeatsQuery.isLoading ? (
+          <div className="flex min-h-56 items-center justify-center">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading subscription seats
+            </div>
+          </div>
+        ) : null}
+
+        {!organizationIdQuery.isLoading && !subscriptionSeatsQuery.isLoading && manageSeatsError ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+            {formatAdminError(manageSeatsError)}
+          </div>
+        ) : null}
+
+        {!organizationIdQuery.isLoading &&
+        !subscriptionSeatsQuery.isLoading &&
+        !manageSeatsError &&
+        subscriptionSeats &&
+        !subscriptionSeats.has_subscription ? (
+          <div className="rounded-[calc(var(--radius)-2px)] border border-warning/40 bg-warning/10 p-5">
+            <div className="text-sm font-medium text-foreground">No subscription found</div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This organization has no subscription row yet, so seats cannot be managed.
+            </p>
+          </div>
+        ) : null}
+
+        {!organizationIdQuery.isLoading &&
+        !subscriptionSeatsQuery.isLoading &&
+        !manageSeatsError &&
+        subscriptionSeats?.has_subscription ? (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="neutral">
+                {subscriptionSeats.subscription?.stripe_subscription_id || "no-stripe"}
+              </Badge>
+              <Badge variant="success">
+                {subscriptionSeats.subscription?.status_display ||
+                  subscriptionSeats.subscription?.status ||
+                  "Active"}
+              </Badge>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <SummaryMetric
+                label="Current total"
+                value={manageSeatsSummary.currentTotal}
+                detail="Seats currently billed across all plans"
+              />
+              <SummaryMetric
+                label="Change"
+                value={formatSeatDelta(manageSeatsSummary.delta)}
+                detail="Difference between current and edited totals"
+              />
+              <SummaryMetric
+                label="New total"
+                value={manageSeatsSummary.newTotal}
+                detail="Projected seat total after checkout or immediate update"
+              />
+            </div>
+
+            <div className="overflow-x-auto">
+              <table
+                className="w-full min-w-[760px] border-separate text-sm"
+                style={{ borderSpacing: "0 var(--table-row-gap-y)" }}
+              >
+                <thead>
+                  <tr
+                    className="text-left uppercase tracking-[0.18em] text-muted-foreground"
+                    style={{ fontSize: "var(--table-meta-font-size)" }}
+                  >
+                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Plan</th>
+                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Current</th>
+                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">In use</th>
+                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                      New total
+                    </th>
+                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subscriptionSeats.plan_rows.map((row) => {
+                    const draftValue = getDraftSeatQuantity(row, seatDrafts);
+                    const delta = draftValue - row.current_qty;
+
+                    return (
+                      <tr key={row.plan_type}>
+                        <td className={getRegistryTableCellClassName(false, "left")}>
+                          <div className="font-medium text-foreground">{row.label}</div>
+                          <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+                            {row.plan_type}
+                          </div>
+                        </td>
+                        <td className={getRegistryTableCellClassName(false)}>
+                          <span className="text-foreground">{row.current_qty}</span>
+                        </td>
+                        <td className={getRegistryTableCellClassName(false)}>
+                          <div className="text-foreground">{row.assigned_qty}</div>
+                          <div className="mt-1 text-[11px] text-muted-foreground">
+                            Min allowed {row.min_qty}
+                          </div>
+                        </td>
+                        <td className={getRegistryTableCellClassName(false)}>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setSeatDraftValue(row, draftValue - 1);
+                              }}
+                              disabled={seatUpdateMutation.isPending || draftValue <= row.min_qty}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <Input
+                              type="number"
+                              min={row.min_qty}
+                              value={draftValue}
+                              onChange={(event) => {
+                                setSeatDraftValue(row, Number(event.target.value));
+                              }}
+                              className="h-9 w-24 text-right"
+                              disabled={seatUpdateMutation.isPending}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setSeatDraftValue(row, draftValue + 1);
+                              }}
+                              disabled={seatUpdateMutation.isPending}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                        <td className={getRegistryTableCellClassName(false, "right")}>
+                          <Badge variant={getSeatDeltaVariant(delta)}>
+                            {formatSeatDelta(delta)}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-col gap-4 rounded-[calc(var(--radius)-2px)] border border-border/70 bg-background/35 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                You’ll be redirected to checkout if payment is required. If the change is $0, it
+                will apply immediately.
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setSeatDrafts(
+                      Object.fromEntries(
+                        subscriptionSeats.plan_rows.map((row) => [row.plan_type, row.current_qty]),
+                      ),
+                    );
+                  }}
+                  disabled={seatUpdateMutation.isPending}
+                >
+                  Reset
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setManageSeatsOpen(false);
+                  }}
+                  disabled={seatUpdateMutation.isPending}
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleManageSeatsSubmit}
+                  disabled={seatUpdateMutation.isPending || !manageSeatsHasChanges}
+                >
+                  {seatUpdateMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  Continue
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Dialog>
     </AdminSurfaceLayout>
   );
 }

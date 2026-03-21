@@ -12,6 +12,8 @@ import { BrandWordmark } from "@/components/brand/BrandWordmark";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { Avatar } from "@/components/ui/avatar";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
+import { useChatFeature } from "@/features/chat/ChatProvider";
+import { CHAT_PAGE_PATH } from "@/features/chat/chat-ui-store";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import { SettingsDialog } from "./SettingsDialog";
@@ -90,6 +92,66 @@ function HoverTooltip({
   );
 }
 
+function AssistantSidebarTrigger({
+  active,
+  collapsed,
+  onClick,
+  shortcutLabel,
+  shortcutVisual,
+}: {
+  active: boolean;
+  collapsed: boolean;
+  onClick: () => void;
+  shortcutLabel: string;
+  shortcutVisual: string;
+}) {
+  const trigger = (
+    <button
+      type="button"
+      className={cn(
+        collapsed
+          ? "flex h-9 w-full items-center justify-center rounded-md transition-colors"
+          : "flex w-full items-center gap-3 rounded-[calc(var(--radius)-6px)] px-2 py-2 text-left transition-colors",
+        active
+          ? collapsed
+            ? "text-topbar-foreground"
+            : "border-primary/35 bg-primary/12 text-topbar-foreground"
+          : collapsed
+            ? "text-sidebar-foreground/72 hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground"
+            : "border-border/70 bg-muted/45 text-sidebar-foreground/72 hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground",
+      )}
+      title={`Open AI chat (${shortcutLabel})`}
+      onClick={onClick}
+    >
+      <span
+        className={cn(
+          "inline-flex items-center justify-center rounded-md border border-border/70 bg-background/55 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground shadow-sm",
+          collapsed ? "min-w-[34px]" : "min-w-[52px]",
+          active && "border-primary/30 bg-primary/10 text-topbar-foreground",
+        )}
+      >
+        {shortcutVisual}
+      </span>
+      {!collapsed ? (
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-medium text-topbar-foreground">
+            Assistant
+          </span>
+          <span className="block truncate text-xs text-muted-foreground">
+            Open chat
+          </span>
+        </span>
+      ) : null}
+    </button>
+  );
+
+  if (collapsed) {
+    return <HoverTooltip label="Open AI chat">{trigger}</HoverTooltip>;
+  }
+
+  return trigger;
+}
+
 export function Sidebar() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -105,17 +167,27 @@ export function Sidebar() {
   const openAppPanel = useShellStore((state) => state.openAppPanel);
   const toggleAppPanel = useShellStore((state) => state.toggleAppPanel);
   const [userSettingsOpen, setUserSettingsOpen] = useState(false);
+  const { isOverlayOpen, toggleChat } = useChatFeature();
 
   const userName = user?.name?.trim() || app.name;
   const userRole = user?.role?.trim() || "User";
   const userRoleLabel = getRoleLabel(userRole);
   const permissions = user?.permissions ?? [];
+  const assistantShortcutLabel =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+      ? "⌘ + J"
+      : "Ctrl + J";
+  const assistantShortcutVisual =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+      ? "⌘J"
+      : "⌃J";
   const widgetCatalogAllowed = hasAnyPermission(permissions, ["widget.catalog:view"]);
   const themeStudioAllowed = hasAnyPermission(permissions, ["theme:manage"]);
 
   const accessibleApps = getAccessiblePrimaryApps(permissions);
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const activeAppId = pathSegments[1];
+  const assistantActive = isOverlayOpen || location.pathname === CHAT_PAGE_PATH;
   const userMenuActions = [
     {
       icon: Users2,
@@ -255,6 +327,13 @@ export function Sidebar() {
       <div className="mt-auto shrink-0 px-2 pb-3 pt-2">
         {sidebarCollapsed ? (
           <div className="flex w-full flex-col items-center gap-2">
+            <AssistantSidebarTrigger
+              active={assistantActive}
+              collapsed
+              onClick={toggleChat}
+              shortcutLabel={assistantShortcutLabel}
+              shortcutVisual={assistantShortcutVisual}
+            />
             <UserMenu
               name={userName}
               avatarSrc={user?.avatarUrl}
@@ -296,6 +375,15 @@ export function Sidebar() {
           </div>
         ) : (
           <>
+            <div className="mb-2 px-2">
+              <AssistantSidebarTrigger
+                active={assistantActive}
+                collapsed={false}
+                onClick={toggleChat}
+                shortcutLabel={assistantShortcutLabel}
+                shortcutVisual={assistantShortcutVisual}
+              />
+            </div>
             <div className="mb-2 flex items-center gap-3 px-2">
               <UserMenu
                 name={userName}

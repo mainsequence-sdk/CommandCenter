@@ -147,6 +147,10 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
   );
   const activeViewMode = viewModeOverride ?? resolvedConfig.displayMode;
   const hasSourceTableConfiguration = Boolean(dataNodeDetailQuery.data?.sourcetableconfiguration);
+  const chartEmptyMessage =
+    (dataQuery.data?.length ?? 0) > 0
+      ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
+      : "No chartable rows are available for the selected range.";
 
   useEffect(() => {
     setViewModeOverride(null);
@@ -303,6 +307,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
             ) : (
               <TradingViewSeriesChart
                 chartType={resolvedConfig.chartType}
+                emptyMessage={chartEmptyMessage}
                 normalizationTimeMs={normalizationTimeMs}
                 series={seriesResult.series}
                 seriesAxisMode={resolvedConfig.seriesAxisMode}

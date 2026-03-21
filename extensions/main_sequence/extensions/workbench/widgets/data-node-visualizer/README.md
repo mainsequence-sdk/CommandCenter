@@ -28,11 +28,13 @@ This widget turns Main Sequence data-node table data into configurable chart or 
 - Remote data is fetched from `dynamic_table/{id}/get_data_between_dates_from_remote/`.
 - For a fixed node and time window, the widget fetches the available field set once and remaps chart axes, series normalization, and series colors locally so those changes do not trigger a new remote data request.
 - Each widget instance can either follow the current dashboard date or persist its own fixed `start/end` date.
+- The chart path is tolerant of Python-style datetime strings and can recover a usable X/Y pair from returned rows when metadata is incomplete.
+- When a grouped line or area chart resolves to one point per series, the TradingView renderer enables point markers so sparse daily snapshots stay visible.
 
 ## Settings preview
 
 - The settings modal fetches the selected node's latest observation and uses its time index as the default fixed-date end when needed.
-- The preview always uses the same date range configuration the saved widget will use.
+- The preview anchors its request on the latest available row for the node and keeps the current range span, so stale datasets still render in settings.
 - Visualization settings separate widget-level defaults, such as the default open view, from provider-specific renderer controls.
 - The preview can switch locally between chart and table without changing the saved widget `displayMode`.
 - Table preview requests all available fields so the preview grid shows the full row shape, not only the mapped chart columns.
