@@ -9,6 +9,7 @@ const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
 const assetEndpoint = "/orm/api/assets/asset/";
 const assetCategoryEndpoint = "/orm/api/assets/asset-category/";
+const instrumentsConfigurationEndpoint = "/orm/api/assets/instruments-configuration/";
 const virtualFundEndpoint = "/orm/api/assets/virtualfund/";
 const executionVenueEndpoint = "/orm/api/assets/execution_venue/";
 const portfolioGroupEndpoint = "/orm/api/assets/portfolio_group/";
@@ -419,6 +420,20 @@ export interface VirtualFundListRow {
   target_portfolio_name: string;
   account_id: number | null;
   account_name: string;
+}
+
+export interface InstrumentsConfigurationNodeOption {
+  id: number;
+  label: string;
+}
+
+export interface InstrumentsConfigurationCurrentResponse {
+  id: number;
+  discount_curves_storage_node: number | null;
+  reference_rates_fixings_storage_node: number | null;
+  discount_nodes: InstrumentsConfigurationNodeOption[];
+  fixings_nodes: InstrumentsConfigurationNodeOption[];
+  can_edit: boolean;
 }
 
 export interface UpdateExecutionVenueInput {
@@ -2572,6 +2587,33 @@ export async function listVirtualFunds({
   );
 
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchCurrentInstrumentsConfiguration() {
+  return requestJson<InstrumentsConfigurationCurrentResponse>(
+    instrumentsConfigurationEndpoint,
+    "current/",
+  );
+}
+
+export function updateCurrentInstrumentsConfiguration({
+  discountCurvesStorageNode,
+  referenceRatesFixingsStorageNode,
+}: {
+  discountCurvesStorageNode: number | null;
+  referenceRatesFixingsStorageNode: number | null;
+}) {
+  return requestJson<InstrumentsConfigurationCurrentResponse>(
+    instrumentsConfigurationEndpoint,
+    "current/",
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        discount_curves_storage_node: discountCurvesStorageNode,
+        reference_rates_fixings_storage_node: referenceRatesFixingsStorageNode,
+      }),
+    },
+  );
 }
 
 export function fetchExecutionVenueDetail(executionVenueId: number) {

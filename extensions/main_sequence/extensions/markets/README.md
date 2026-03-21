@@ -20,7 +20,7 @@ This nested extension is the separate application shell for market-facing Main S
 - `portfolios/`: target-portfolio registry with shared list search, fixed pagination, and bulk-delete support.
 - `Settings`
 - `asset-translation-tables/`: translation table registry with a dedicated detail page and embedded rules manager.
-- `instruments/`: placeholder settings surface for the future instrument registry.
+- `instruments/`: quick editor for the org-scoped instrument storage-node configuration.
 - `execution-venues/`: execution venue registry with create flow and a dedicated detail page for edit/delete.
 
 ## Dependencies
