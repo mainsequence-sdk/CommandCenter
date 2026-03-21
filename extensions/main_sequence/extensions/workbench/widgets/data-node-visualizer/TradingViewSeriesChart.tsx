@@ -20,7 +20,12 @@ import type {
   DataNodeVisualizerSeries,
 } from "./dataNodeVisualizerModel";
 
-const separateAxisPaneHeight = 140;
+function getChartSize(container: HTMLDivElement) {
+  return {
+    width: Math.max(container.clientWidth, 1),
+    height: Math.max(container.clientHeight, 1),
+  };
+}
 
 export function TradingViewSeriesChart({
   chartType,
@@ -71,9 +76,6 @@ export function TradingViewSeriesChart({
     resolvedTokens.success,
     resolvedTokens.warning,
   ]);
-  const chartMinHeight = separateAxes
-    ? Math.max(260, themedSeries.length * separateAxisPaneHeight)
-    : 260;
   const showPointMarkers = useMemo(
     () => themedSeries.length > 0 && themedSeries.every((entry) => entry.points.length <= 1),
     [themedSeries],
@@ -85,9 +87,6 @@ export function TradingViewSeriesChart({
     if (!container || themedSeries.length === 0) {
       return;
     }
-
-    const chartWidth = Math.max(container.clientWidth, 320);
-    const chartHeight = Math.max(container.clientHeight, chartMinHeight);
 
     const chart = createChart(container, {
       layout: {
@@ -116,8 +115,7 @@ export function TradingViewSeriesChart({
           width: 1,
         },
       },
-      width: chartWidth,
-      height: chartHeight,
+      ...getChartSize(container),
     });
 
     themedSeries.forEach((entry, index) => {
@@ -194,10 +192,7 @@ export function TradingViewSeriesChart({
     chart.timeScale().fitContent();
 
     const resizeObserver = new ResizeObserver(() => {
-      chart.applyOptions({
-        width: Math.max(container.clientWidth, 320),
-        height: Math.max(container.clientHeight, chartMinHeight),
-      });
+      chart.applyOptions(getChartSize(container));
     });
 
     resizeObserver.observe(container);
@@ -206,13 +201,13 @@ export function TradingViewSeriesChart({
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [chartMinHeight, chartType, resolvedTokens, separateAxes, showPointMarkers, themedSeries]);
+  }, [chartType, resolvedTokens, separateAxes, showPointMarkers, themedSeries]);
 
   if (themedSeries.length === 0) {
     return (
       <div
         className={cn(
-          "flex h-full min-h-[220px] items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 text-sm text-muted-foreground",
+          "flex h-full min-h-0 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 text-sm text-muted-foreground",
           className,
         )}
       >
@@ -224,15 +219,14 @@ export function TradingViewSeriesChart({
   return (
     <div
       className={cn(
-        "flex h-full min-h-[260px] flex-col overflow-auto rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35",
+        "flex h-full min-h-0 flex-col overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35",
         className,
       )}
-      style={{ minHeight: chartMinHeight }}
     >
-      <div className="min-h-0 flex-1" style={{ minHeight: chartMinHeight - 40 }}>
-        <div ref={containerRef} className="h-full w-full" />
+      <div className="min-h-0 flex-1">
+        <div ref={containerRef} className="h-full min-h-0 w-full" />
       </div>
-      <div className="flex flex-wrap items-center gap-3 border-t border-border/70 px-3 py-2">
+      <div className="shrink-0 flex flex-wrap items-center gap-3 border-t border-border/70 px-3 py-2">
         {themedSeries.map((entry) => (
           <div key={entry.id} className="flex items-center gap-2 text-xs text-muted-foreground">
             <span

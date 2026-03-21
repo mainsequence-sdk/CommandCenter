@@ -31,7 +31,7 @@ export function YieldCurvePlotWidgetSettings({
 
       <div className="text-sm text-muted-foreground">
         This first pass stays mock-only. Use the settings below to switch the curve family, shape, and
-        comparison stack rendered by the dashboard instance.
+        time-gradient history stack rendered by the dashboard instance.
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -76,7 +76,7 @@ export function YieldCurvePlotWidgetSettings({
         </label>
 
         <label className="space-y-2">
-          <span className="text-sm font-medium text-topbar-foreground">Comparison stack</span>
+          <span className="text-sm font-medium text-topbar-foreground">History mode</span>
           <Select
             value={comparisonMode}
             disabled={!editable}

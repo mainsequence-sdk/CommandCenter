@@ -18,3 +18,4 @@ This nested extension owns the administrative and operational Main Sequence surf
 
 - Keep Workbench-only pages, routes, and widgets here.
 - Move code into `../../common/` only when it is meant to be reused by another Main Sequence extension.
+- `index.ts` currently registers `main-sequence-data-node-visualizer` in the live widget catalog.

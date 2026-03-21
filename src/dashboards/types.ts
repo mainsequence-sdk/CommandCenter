@@ -1,3 +1,5 @@
+import type { WidgetInstancePresentation } from "@/widgets/types";
+
 export interface DashboardGridConfig {
   columns?: number;
   rowHeight?: number;
@@ -67,6 +69,7 @@ export interface DashboardWidgetInstance {
   title?: string;
   props?: Record<string, unknown>;
   runtimeState?: Record<string, unknown>;
+  presentation?: WidgetInstancePresentation;
   layout: DashboardWidgetLayout;
   position?: DashboardWidgetPlacement;
   requiredPermissions?: string[];

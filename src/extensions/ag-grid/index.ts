@@ -1,5 +1,4 @@
 import type { AppExtension } from "@/app/registry/types";
-
 import { positionsTableWidget } from "@/widgets/extensions/ag-grid/definition";
 
 const agGridExtension: AppExtension = {

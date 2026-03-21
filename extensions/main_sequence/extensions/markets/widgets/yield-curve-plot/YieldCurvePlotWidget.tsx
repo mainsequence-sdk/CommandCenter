@@ -42,16 +42,44 @@ function toTimeKey(time: Time) {
   return `${time.year}-${time.month}-${time.day}`;
 }
 
-function getSeriesPalette(market: YieldCurveMarket, tokens: ReturnType<typeof useTheme>["resolvedTokens"]) {
+function getMarketTone(market: YieldCurveMarket, tokens: ReturnType<typeof useTheme>["resolvedTokens"]) {
   if (market === "bund") {
-    return [tokens.accent, tokens.primary, tokens.success] as const;
+    return tokens.accent;
   }
 
   if (market === "sofr") {
-    return [tokens.warning, tokens.primary, tokens.accent] as const;
+    return tokens.warning;
   }
 
-  return [tokens.primary, tokens.accent, tokens.warning] as const;
+  return tokens.primary;
+}
+
+function getSnapshotOpacity(index: number, total: number) {
+  const progress = total <= 1 ? 1 : 1 - index / (total - 1);
+  return 0.22 + progress * 0.72;
+}
+
+function getSnapshotColor(baseTone: string, index: number, total: number) {
+  return withAlpha(baseTone, getSnapshotOpacity(index, total));
+}
+
+function getSnapshotLineWidth(index: number) {
+  if (index === 0) {
+    return 3;
+  }
+
+  if (index === 1) {
+    return 2;
+  }
+
+  return 1;
+}
+
+function getChartSize(container: HTMLDivElement) {
+  return {
+    width: Math.max(container.clientWidth, 1),
+    height: Math.max(container.clientHeight, 1),
+  };
 }
 
 export function YieldCurvePlotWidget({ props }: Props) {
@@ -72,7 +100,7 @@ export function YieldCurvePlotWidget({ props }: Props) {
     [comparisonMode, market, scenario],
   );
 
-  const palette = useMemo(() => getSeriesPalette(deck.market, resolvedTokens), [deck.market, resolvedTokens]);
+  const baseTone = useMemo(() => getMarketTone(deck.market, resolvedTokens), [deck.market, resolvedTokens]);
   const maturityLabelMap = useMemo(
     () => new Map(deck.points.map((point) => [String(point.time), point.label])),
     [deck.points],
@@ -94,8 +122,7 @@ export function YieldCurvePlotWidget({ props }: Props) {
         vertLines: { color: withAlpha(resolvedTokens["chart-grid"], 0.08) },
         horzLines: { color: withAlpha(resolvedTokens["chart-grid"], 0.14) },
       },
-      width: Math.max(container.clientWidth, 320),
-      height: Math.max(container.clientHeight, 260),
+      ...getChartSize(container),
       leftPriceScale: {
         visible: false,
       },
@@ -129,14 +156,14 @@ export function YieldCurvePlotWidget({ props }: Props) {
     });
 
     deck.snapshots.forEach((snapshot, index) => {
-      const color = palette[index] ?? palette[palette.length - 1];
-      const emphasis = snapshot.emphasis === "primary";
+      const color = getSnapshotColor(baseTone, index, deck.snapshots.length);
+      const emphasis = index === 0;
       const series = chart.addSeries(LineSeries, {
         color,
-        lineWidth: emphasis ? 3 : 2,
-        lineStyle: emphasis ? 0 : 2,
-        pointMarkersVisible: true,
-        pointMarkersRadius: emphasis ? 5 : 4,
+        lineWidth: getSnapshotLineWidth(index),
+        lineStyle: 0,
+        pointMarkersVisible: emphasis,
+        pointMarkersRadius: emphasis ? 5 : 0,
         crosshairMarkerVisible: true,
         crosshairMarkerRadius: emphasis ? 5 : 4,
         crosshairMarkerBorderColor: color,
@@ -156,10 +183,7 @@ export function YieldCurvePlotWidget({ props }: Props) {
     chart.timeScale().fitContent();
 
     const resizeObserver = new ResizeObserver(() => {
-      chart.applyOptions({
-        width: Math.max(container.clientWidth, 320),
-        height: Math.max(container.clientHeight, 260),
-      });
+      chart.applyOptions(getChartSize(container));
     });
 
     resizeObserver.observe(container);
@@ -168,12 +192,12 @@ export function YieldCurvePlotWidget({ props }: Props) {
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [deck.snapshots, maturityLabelMap, palette, resolvedTokens]);
+  }, [baseTone, deck.snapshots, maturityLabelMap, resolvedTokens]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div
-        className="min-h-[280px] flex-1 rounded-[22px] px-2 pt-2 pb-5"
+        className="min-h-0 flex-1 overflow-hidden rounded-[22px] px-2 pt-2 pb-5"
         style={{
           background: `linear-gradient(180deg, ${withAlpha(resolvedTokens.background, 0.76)} 0%, ${withAlpha(
             resolvedTokens.card,
@@ -181,11 +205,11 @@ export function YieldCurvePlotWidget({ props }: Props) {
           )} 100%)`,
         }}
       >
-        <div ref={containerRef} className="h-full w-full" />
+        <div ref={containerRef} className="h-full min-h-0 w-full" />
       </div>
 
       <div
-        className="flex flex-wrap items-center gap-2 rounded-[18px] border px-4 py-3"
+        className="shrink-0 flex flex-wrap items-center gap-2 rounded-[18px] border px-4 py-3"
         style={{
           borderColor: withAlpha(resolvedTokens.border, 0.72),
           background: `linear-gradient(180deg, ${withAlpha(resolvedTokens.background, 0.62)} 0%, ${withAlpha(
@@ -195,20 +219,26 @@ export function YieldCurvePlotWidget({ props }: Props) {
         }}
       >
         {deck.snapshots.map((snapshot, index) => {
-          const color = palette[index] ?? palette[palette.length - 1];
+          const opacity = getSnapshotOpacity(index, deck.snapshots.length);
+          const color = withAlpha(baseTone, opacity);
 
           return (
             <div
               key={snapshot.id}
               className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs"
               style={{
-                borderColor: withAlpha(color, 0.26),
-                backgroundColor: withAlpha(color, snapshot.emphasis === "primary" ? 0.16 : 0.1),
+                borderColor: withAlpha(baseTone, Math.max(0.16, opacity * 0.4)),
+                backgroundColor: withAlpha(
+                  baseTone,
+                  snapshot.emphasis === "primary" ? Math.max(0.14, opacity * 0.22) : Math.max(0.08, opacity * 0.18),
+                ),
               }}
             >
               <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: color }}
+                className="h-2.5 w-8 rounded-full"
+                style={{
+                  background: `linear-gradient(90deg, ${withAlpha(baseTone, Math.max(0.12, opacity * 0.4))} 0%, ${color} 100%)`,
+                }}
               />
               <span className="font-medium text-foreground">{snapshot.label}</span>
             </div>

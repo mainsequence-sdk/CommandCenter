@@ -22,19 +22,15 @@ import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOr
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
 import { MarketBriefApp } from "@/features/applications/MarketBriefApp";
 import { cyberpunkTheme } from "@/themes/presets/cyberpunk";
+import { draculaTheme } from "@/themes/presets/dracula";
 import { grandpaTheme } from "@/themes/presets/grandpa";
 import { graphiteTheme } from "@/themes/presets/graphite";
 import { mainSequenceTheme } from "@/themes/presets/main-sequence";
 import { mainSequenceSpaceTheme } from "@/themes/presets/main-sequence-space";
 import { quartzLightTheme } from "@/themes/presets/quartz-light";
 import { sapphireTheme } from "@/themes/presets/sapphire";
-import { activityFeedWidget } from "@/widgets/core/activity-feed/definition";
-import { causalGraphWidget } from "@/widgets/core/causal-graph/definition";
-import { distributionLabWidget } from "@/widgets/core/distribution-lab/definition";
-import { factorHeatmapWidget } from "@/widgets/core/factor-heatmap/definition";
-import { marketKpisWidget } from "@/widgets/core/market-kpis/definition";
 import { newsFeedWidget } from "@/widgets/core/news-feed/definition";
-import { scenarioConesWidget } from "@/widgets/core/scenario-cones/definition";
+import { workspaceRowWidget } from "@/widgets/core/workspace-row/definition";
 
 const overviewDashboard: DashboardDefinition = {
   id: "overview",
@@ -45,35 +41,27 @@ const overviewDashboard: DashboardDefinition = {
   requiredPermissions: ["dashboard:view"],
   widgets: [
     {
-      id: "overview-kpis",
-      widgetId: "market-kpis",
-      title: "Desk KPIs",
-      props: { symbol: "AAPL" },
-      layout: { cols: 4, rows: 4 },
+      id: "overview-curve-ust",
+      widgetId: "yield-curve-plot",
+      title: "US Treasury Curve",
+      props: { market: "ust", scenario: "desk", comparisonMode: "historical" },
+      layout: { cols: 6, rows: 6 },
       position: { x: 0 },
     },
     {
-      id: "overview-news",
-      widgetId: "news-feed",
-      title: "Market News",
-      props: { limit: 5 },
-      layout: { cols: 4, rows: 5 },
-      position: { x: 4 },
+      id: "overview-curve-bund",
+      widgetId: "yield-curve-plot",
+      title: "Bund Curve",
+      props: { market: "bund", scenario: "desk", comparisonMode: "historical" },
+      layout: { cols: 6, rows: 6 },
+      position: { x: 6 },
     },
     {
-      id: "overview-activity",
-      widgetId: "activity-feed",
-      title: "Desk Activity",
-      props: { limit: 6 },
-      layout: { cols: 4, rows: 5 },
-      position: { x: 8 },
-    },
-    {
-      id: "overview-kpis-secondary",
-      widgetId: "market-kpis",
-      title: "Cross-Asset Snapshot",
-      props: { symbol: "NVDA" },
-      layout: { cols: 12, rows: 4 },
+      id: "overview-curve-sofr",
+      widgetId: "yield-curve-plot",
+      title: "SOFR Curve",
+      props: { market: "sofr", scenario: "desk", comparisonMode: "session" },
+      layout: { cols: 12, rows: 6 },
     },
   ],
 };
@@ -87,35 +75,35 @@ const crossAssetDashboard: DashboardDefinition = {
   requiredPermissions: ["dashboard:view"],
   widgets: [
     {
-      id: "cross-asset-kpis",
-      widgetId: "market-kpis",
-      title: "Cross-Asset KPIs",
-      props: { symbol: "MSFT" },
-      layout: { cols: 4, rows: 4 },
+      id: "cross-asset-curve-ust",
+      widgetId: "yield-curve-plot",
+      title: "UST Historical Gradient",
+      props: { market: "ust", scenario: "desk", comparisonMode: "historical" },
+      layout: { cols: 4, rows: 6 },
       position: { x: 0 },
     },
     {
-      id: "cross-asset-news",
-      widgetId: "news-feed",
-      title: "Macro Pulse",
-      props: { limit: 4 },
-      layout: { cols: 4, rows: 5 },
+      id: "cross-asset-curve-bull",
+      widgetId: "yield-curve-plot",
+      title: "SOFR Bull Steepener",
+      props: { market: "sofr", scenario: "bull-steepener", comparisonMode: "session" },
+      layout: { cols: 4, rows: 6 },
       position: { x: 4 },
     },
     {
-      id: "cross-asset-activity",
-      widgetId: "activity-feed",
-      title: "Desk Signals",
-      props: { limit: 5 },
-      layout: { cols: 4, rows: 5 },
+      id: "cross-asset-curve-flat",
+      widgetId: "yield-curve-plot",
+      title: "Bund Bear Flattener",
+      props: { market: "bund", scenario: "bear-flattener", comparisonMode: "session" },
+      layout: { cols: 4, rows: 6 },
       position: { x: 8 },
     },
     {
-      id: "cross-asset-kpis-secondary",
-      widgetId: "market-kpis",
-      title: "Rotation Snapshot",
-      props: { symbol: "SPY" },
-      layout: { cols: 12, rows: 4 },
+      id: "cross-asset-curve-inverted",
+      widgetId: "yield-curve-plot",
+      title: "UST Inverted",
+      props: { market: "ust", scenario: "inverted", comparisonMode: "historical" },
+      layout: { cols: 12, rows: 6 },
     },
   ],
 };
@@ -132,36 +120,19 @@ const orderflowLabDashboard: DashboardDefinition = {
   },
   widgets: [
     {
-      id: "flow-chart",
-      widgetId: "price-chart",
-      title: "TSLA - Micro Structure",
-      props: { symbol: "TSLA" },
-      layout: { cols: 8, rows: 5 },
-      position: { x: 0 },
-    },
-    {
-      id: "flow-orderbook",
-      widgetId: "order-book",
-      title: "Level II Snapshot",
-      props: { symbol: "TSLA" },
-      layout: { cols: 4, rows: 5 },
-      position: { x: 8 },
-    },
-    {
       id: "flow-positions",
-      widgetId: "strategy-book",
-      title: "Strategy Book",
+      widgetId: "data-node-table-visualizer",
+      title: "data-node-table visualizer",
       props: {},
-      layout: { cols: 8, rows: 6 },
+      layout: { cols: 12, rows: 7 },
       position: { x: 0 },
     },
     {
-      id: "flow-activity",
-      widgetId: "activity-feed",
-      title: "Routing Events",
-      props: { limit: 6 },
-      layout: { cols: 4, rows: 6 },
-      position: { x: 8 },
+      id: "flow-rates",
+      widgetId: "yield-curve-plot",
+      title: "Rates Overlay",
+      props: { market: "ust", scenario: "desk", comparisonMode: "historical" },
+      layout: { cols: 12, rows: 6 },
     },
   ],
 };
@@ -197,7 +168,7 @@ const demoApp: AppDefinition = {
       id: "orderflow-lab",
       title: "Flow Lab",
       navLabel: "Flow Lab",
-      description: "Extension-backed demo dashboard with charting, book, positions, and routing events.",
+      description: "Extension-backed demo dashboard narrowed to the strategy book and yield-curve widgets.",
       kind: "dashboard",
       requiredPermissions: ["orders:read"],
       dashboard: orderflowLabDashboard,
@@ -435,21 +406,14 @@ const accessRbacApp: AppDefinition = {
 const coreExtension: AppExtension = {
   id: "core",
   title: "Core Extension",
-  description: "Built-in terminal widgets, apps, dashboard surfaces, and theme presets.",
-  widgets: [
-    marketKpisWidget,
-    newsFeedWidget,
-    activityFeedWidget,
-    causalGraphWidget,
-    factorHeatmapWidget,
-    distributionLabWidget,
-    scenarioConesWidget,
-  ],
+  description: "Built-in terminal apps, dashboard surfaces, and theme presets.",
+  widgets: [newsFeedWidget, workspaceRowWidget],
   apps: [demoApp, workspaceStudioApp, adminApp, accessRbacApp],
   themes: [
     mainSequenceSpaceTheme,
     mainSequenceTheme,
     cyberpunkTheme,
+    draculaTheme,
     grandpaTheme,
     graphiteTheme,
     sapphireTheme,

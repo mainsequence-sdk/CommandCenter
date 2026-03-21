@@ -43,6 +43,7 @@ interface MarketCurveDefinition {
   previousClose: number[];
   previousWeek: number[];
   previousMonth: number[];
+  previousQuarter: number[];
 }
 
 const DAY_SECONDS = 24 * 60 * 60;
@@ -70,6 +71,7 @@ const MARKET_CURVES: Record<YieldCurveMarket, MarketCurveDefinition> = {
     previousClose: [5.04, 4.98, 4.88, 4.65, 4.32, 4.22, 4.13, 4.17, 4.24, 4.46, 4.35],
     previousWeek: [4.83, 4.78, 4.69, 4.5, 4.18, 4.08, 4.02, 4.07, 4.15, 4.37, 4.26],
     previousMonth: [4.69, 4.64, 4.56, 4.38, 4.09, 3.99, 3.95, 4.01, 4.08, 4.29, 4.2],
+    previousQuarter: [4.52, 4.48, 4.41, 4.25, 3.99, 3.91, 3.88, 3.96, 4.03, 4.21, 4.14],
   },
   bund: {
     label: "German Bund",
@@ -78,6 +80,7 @@ const MARKET_CURVES: Record<YieldCurveMarket, MarketCurveDefinition> = {
     previousClose: [3.26, 3.14, 3.05, 2.86, 2.61, 2.51, 2.43, 2.45, 2.53, 2.73, 2.75],
     previousWeek: [3.08, 2.98, 2.9, 2.75, 2.51, 2.42, 2.35, 2.37, 2.45, 2.65, 2.69],
     previousMonth: [2.92, 2.83, 2.77, 2.65, 2.43, 2.36, 2.31, 2.34, 2.42, 2.61, 2.66],
+    previousQuarter: [2.78, 2.71, 2.66, 2.55, 2.36, 2.3, 2.27, 2.31, 2.39, 2.56, 2.62],
   },
   sofr: {
     label: "SOFR Swap",
@@ -86,6 +89,7 @@ const MARKET_CURVES: Record<YieldCurveMarket, MarketCurveDefinition> = {
     previousClose: [5.48, 5.4, 5.28, 5.1, 4.77, 4.63, 4.49, 4.45, 4.39, 4.47, 4.45],
     previousWeek: [5.26, 5.18, 5.08, 4.93, 4.64, 4.53, 4.42, 4.38, 4.33, 4.41, 4.39],
     previousMonth: [5.08, 5.01, 4.92, 4.8, 4.54, 4.45, 4.36, 4.33, 4.29, 4.37, 4.35],
+    previousQuarter: [4.92, 4.86, 4.79, 4.68, 4.44, 4.36, 4.29, 4.27, 4.24, 4.31, 4.3],
   },
 };
 
@@ -106,8 +110,8 @@ export const yieldCurveComparisonOptions: Array<{
   value: YieldCurveComparisonMode;
   label: string;
 }> = [
-  { value: "session", label: "Session stack" },
-  { value: "historical", label: "Historical stack" },
+  { value: "session", label: "Latest pair" },
+  { value: "historical", label: "Historical gradient" },
 ];
 
 function roundRate(value: number) {
@@ -177,7 +181,7 @@ export function getYieldCurveScenarioLabel(scenario: YieldCurveScenario) {
 export function getYieldCurveComparisonLabel(comparisonMode: YieldCurveComparisonMode) {
   return (
     yieldCurveComparisonOptions.find((entry) => entry.value === comparisonMode)?.label ??
-    "Session stack"
+    "Latest pair"
   );
 }
 
@@ -191,17 +195,23 @@ export function buildMockYieldCurveDeck(args: {
   const comparisonMode = normalizeYieldCurveComparisonMode(args.comparisonMode);
   const marketDefinition = MARKET_CURVES[market];
   const currentCurve = normalizeCurveWithScenario(marketDefinition.current, scenario);
+  const previousCloseCurve = normalizeCurveWithScenario(marketDefinition.previousClose, scenario);
+  const previousWeekCurve = normalizeCurveWithScenario(marketDefinition.previousWeek, scenario);
+  const previousMonthCurve = normalizeCurveWithScenario(marketDefinition.previousMonth, scenario);
+  const previousQuarterCurve = normalizeCurveWithScenario(marketDefinition.previousQuarter, scenario);
 
   const snapshots =
     comparisonMode === "historical"
       ? [
           buildSnapshot("current", "Current", "primary", currentCurve),
-          buildSnapshot("week", "1W ago", "secondary", marketDefinition.previousWeek),
-          buildSnapshot("month", "1M ago", "tertiary", marketDefinition.previousMonth),
+          buildSnapshot("close", "1D ago", "secondary", previousCloseCurve),
+          buildSnapshot("week", "1W ago", "tertiary", previousWeekCurve),
+          buildSnapshot("month", "1M ago", "tertiary", previousMonthCurve),
+          buildSnapshot("quarter", "3M ago", "tertiary", previousQuarterCurve),
         ]
       : [
           buildSnapshot("current", "Current", "primary", currentCurve),
-          buildSnapshot("close", "Prev close", "secondary", marketDefinition.previousClose),
+          buildSnapshot("close", "1D ago", "secondary", previousCloseCurve),
         ];
 
   return {

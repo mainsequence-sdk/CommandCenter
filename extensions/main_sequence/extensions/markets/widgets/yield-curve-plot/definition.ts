@@ -19,7 +19,7 @@ export const yieldCurvePlotWidget: WidgetDefinition<YieldCurvePlotWidgetProps> =
   exampleProps: {
     market: "ust",
     scenario: "desk",
-    comparisonMode: "session",
+    comparisonMode: "historical",
   },
   settingsComponent: YieldCurvePlotWidgetSettings,
   component: YieldCurvePlotWidget,

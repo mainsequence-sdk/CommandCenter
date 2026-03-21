@@ -15,7 +15,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { resolveWidgetHeaderVisibility } from "@/widgets/shared/chrome";
-import type { WidgetDefinition, WidgetSettingsComponentProps } from "@/widgets/types";
+import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
+import {
+  normalizeWidgetPresentation,
+  resolveDefaultWidgetPresentation,
+  useResolvedWidgetControllerContext,
+} from "@/widgets/shared/widget-schema";
+import type {
+  WidgetDefinition,
+  WidgetInstancePresentation,
+  WidgetSettingsComponentProps,
+} from "@/widgets/types";
 
 function cloneWidgetProps<T extends Record<string, unknown>>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -79,9 +89,14 @@ interface WidgetSettingsDialogProps<
     id: string;
     title?: string;
     props?: TProps;
+    presentation?: WidgetInstancePresentation;
   };
   onClose: () => void;
-  onSave?: (next: { title?: string; props: TProps }) => void;
+  onSave?: (next: {
+    title?: string;
+    props: TProps;
+    presentation: WidgetInstancePresentation;
+  }) => void;
   open: boolean;
   persistenceNote?: string;
   widget: WidgetDefinition<TProps>;
@@ -103,8 +118,15 @@ export function WidgetSettingsDialog<
     [instance.props, widget.exampleProps],
   );
   const initialTitle = instance.title ?? "";
+  const initialPresentation = useMemo(
+    () => normalizeWidgetPresentation(instance.presentation),
+    [instance.presentation],
+  );
   const [instanceTitle, setInstanceTitle] = useState(initialTitle);
   const [draftProps, setDraftProps] = useState<TProps>(initialProps);
+  const [draftPresentation, setDraftPresentation] = useState<WidgetInstancePresentation>(
+    initialPresentation,
+  );
   const [rawPropsValue, setRawPropsValue] = useState(() => serializeWidgetProps(initialProps));
   const [jsonError, setJsonError] = useState<string | null>(null);
   const SettingsComponent =
@@ -112,6 +134,10 @@ export function WidgetSettingsDialog<
       | ComponentType<WidgetSettingsComponentProps<TProps>>
       | undefined;
   const showHeader = resolveWidgetHeaderVisibility(draftProps);
+  const controllerContext = useResolvedWidgetControllerContext(widget, {
+    props: draftProps,
+    mode: "settings",
+  });
 
   useEffect(() => {
     if (!open) {
@@ -120,13 +146,15 @@ export function WidgetSettingsDialog<
 
     setInstanceTitle(initialTitle);
     setDraftProps(initialProps);
+    setDraftPresentation(initialPresentation);
     setRawPropsValue(serializeWidgetProps(initialProps));
     setJsonError(null);
-  }, [initialProps, initialTitle, open, instance.id]);
+  }, [initialPresentation, initialProps, initialTitle, open, instance.id]);
 
   const dirty =
     instanceTitle !== initialTitle ||
-    serializeWidgetProps(draftProps) !== serializeWidgetProps(initialProps);
+    serializeWidgetProps(draftProps) !== serializeWidgetProps(initialProps) ||
+    JSON.stringify(draftPresentation) !== JSON.stringify(initialPresentation);
 
   function handleDraftPropsChange(nextProps: TProps) {
     const cloned = cloneWidgetProps(nextProps);
@@ -154,8 +182,10 @@ export function WidgetSettingsDialog<
 
   function handleReset() {
     const nextProps = cloneWidgetProps((widget.exampleProps ?? {}) as TProps);
+    const nextPresentation = resolveDefaultWidgetPresentation(widget);
     setInstanceTitle("");
     setDraftProps(nextProps);
+    setDraftPresentation(nextPresentation);
     setRawPropsValue(serializeWidgetProps(nextProps));
     setJsonError(null);
   }
@@ -178,6 +208,7 @@ export function WidgetSettingsDialog<
     onSave?.({
       title: instanceTitle.trim() ? instanceTitle.trim() : undefined,
       props: parsed.props,
+      presentation: draftPresentation,
     });
     onClose();
   }
@@ -257,11 +288,26 @@ export function WidgetSettingsDialog<
           </div>
         </section>
 
+        {widget.schema ? (
+          <WidgetSchemaForm
+            widget={widget}
+            draftProps={draftProps}
+            onDraftPropsChange={handleDraftPropsChange}
+            draftPresentation={draftPresentation}
+            onDraftPresentationChange={setDraftPresentation}
+            editable={editable}
+            context={controllerContext}
+          />
+        ) : null}
+
         {SettingsComponent ? (
           <SettingsComponent
             widget={widget}
             draftProps={draftProps}
             onDraftPropsChange={handleDraftPropsChange}
+            draftPresentation={draftPresentation}
+            onDraftPresentationChange={setDraftPresentation}
+            controllerContext={controllerContext}
             instanceTitle={instanceTitle}
             onInstanceTitleChange={setInstanceTitle}
             editable={editable}

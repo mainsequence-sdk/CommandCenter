@@ -92,6 +92,9 @@ Widget instances may hide their header during normal viewing, but the canvas for
 again in edit mode so widget controls remain reachable.
 The canvas `Components` browser supports large widget catalogs with search, category/kind/source
 filters, favorites, recent widgets, and grouped category browse when search is empty.
+If a workspace still contains a widget id that is no longer available in the current client build,
+the canvas explains that the widget is a legacy/unavailable instance and offers a direct delete
+action.
 Workspace deletion from settings uses the app's destructive confirmation dialog. In backend mode,
 the workspace remains in the UI until the backend confirms the delete.
 

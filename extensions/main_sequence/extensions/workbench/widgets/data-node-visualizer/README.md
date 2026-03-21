@@ -1,20 +1,29 @@
 # Main Sequence Data Node Visualizer Widget
 
-This widget turns Main Sequence data-node table data into configurable chart or table views.
+This widget turns Main Sequence data-node table data into configurable charts, with a settings-only table preview for inspection.
 
 ## Files
 
 - `definition.ts`: widget metadata and registration payload.
-- `MainSequenceDataNodeVisualizerWidget.tsx`: widget shell and header action entry point that resolve configuration, choose either the dashboard date or a fixed widget date, fetch only the mapped live fields, and render chart/table modes.
-- `MainSequenceDataNodeVisualizerWidgetSettings.tsx`: typed widget settings form grouped into data node, date range, visualization, field mapping, preview, and series styling sections, using the shared Main Sequence picker UI.
+- `schema.tsx`: schema-driven field definitions for the primary settings form, including the
+  poppable `dataNodeId` selector and the default-on-canvas `uniqueIdentifierList` field.
+- `controller.ts`: shared controller layer that normalizes props, resolves data-node metadata, and
+  provides field option/context data to both settings and canvas-exposed controls.
+- `MainSequenceDataNodeVisualizerWidget.tsx`: widget shell that resolves configuration, chooses either the dashboard date or a fixed widget date, fetches only the mapped live fields, and always renders the mounted chart.
+- `MainSequenceDataNodeVisualizerWidgetSettings.tsx`: advanced settings panel for preview and
+  series styling, rendered below the shared schema-driven settings form.
 - `TradingViewSeriesChart.tsx`: TradingView Lightweight Charts renderer for line, area, and bar visualizations.
 - `DataNodeVisualizerTable.tsx`: table fallback for inspecting the fetched rows directly.
 - `dataNodeVisualizerModel.ts`: shared configuration defaults, field-option inference, requested-column selection, and row-to-series transforms.
 
 ## Configuration model
 
-- The widget definition is reusable, but each widget instance owns its own `dataNodeId`, date-range mode, axis selections, grouping, provider, chart type, and default view.
+- The widget definition is reusable, but each widget instance owns its own `dataNodeId`, date-range mode, axis selections, grouping, provider, and chart type.
 - When a selected data node uses `["time_index", "unique_identifier"]` as its leading indexes, the widget instance can also persist a `uniqueIdentifierList` filter.
+- The `dataNodeId` selector can be exposed as an external companion card on the canvas for dynamic
+  chart switching.
+- The `uniqueIdentifierList` field is exposed on the canvas by default as its own companion card
+  so a workspace can expose identifier filtering without reopening settings.
 - Saved chart behavior also includes series normalization, an optional normalization anchor date, shared vs separate series axes, and per-series color overrides keyed by the resolved series id.
 - App-owned surfaces can ship preconfigured instances.
 - Dashboard and workspace builders can expose instance settings through the shared widget settings modal.
@@ -36,15 +45,18 @@ This widget turns Main Sequence data-node table data into configurable chart or 
 
 ## Settings preview
 
+- Core configuration now comes from the shared schema renderer, while preview and per-series color
+  tuning stay in the widget-specific advanced settings panel.
 - The settings modal fetches the selected node's latest observation and uses its time index as the default fixed-date end when needed.
 - The preview anchors its request on the latest available row for the node and keeps the current range span, so stale datasets still render in settings.
-- Identifier edits stay local until the user refreshes the preview, which applies the current pills to the widget draft and reruns the request for that filtered set.
-- Visualization settings separate widget-level defaults, such as the default open view, from provider-specific renderer controls.
-- The preview can switch locally between chart and table without changing the saved widget `displayMode`.
+- Identifier edits now update the widget draft directly and flow into the preview query immediately.
+- Visualization settings focus on the mounted chart renderer and provider-specific controls.
+- The preview can switch locally between chart and table without changing the live widget surface.
 - Table preview requests all available fields so the preview grid shows the full row shape, not only the mapped chart columns.
 - Fixed-date presets and inputs update the widget instance configuration directly.
 - The previewed series list also drives the per-series color editors, so overrides stay aligned with the current grouping output.
-- In the mounted widget, the chart/table switch lives in the shared widget header and chart mode keeps the surface visually minimal by removing the metadata summary block above the chart.
+- In the mounted widget, the visualizer always stays on the chart so the table remains a settings-only inspection tool.
+- The mounted chart now sizes directly to the available widget body, so dashboard resizing should shrink the visualizer instead of cropping it behind hardcoded chart minimums.
 
 ## Defaults
 

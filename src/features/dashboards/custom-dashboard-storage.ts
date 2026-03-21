@@ -1,4 +1,8 @@
 import { resolveDashboardLayout } from "@/dashboards/layout";
+import {
+  isWorkspaceRowWidgetId,
+  WORKSPACE_ROW_HEIGHT_ROWS,
+} from "@/dashboards/structural-widgets";
 import type {
   DashboardControlsState,
   DashboardDefinition,
@@ -7,6 +11,7 @@ import type {
   DashboardWidgetPlacement,
 } from "@/dashboards/types";
 import type { WidgetDefinition } from "@/widgets/types";
+import { resolveDefaultWidgetPresentation } from "@/widgets/shared/widget-schema";
 
 const STORAGE_PREFIX = "main-sequence.custom-dashboards";
 const STORAGE_VERSION = 4;
@@ -399,7 +404,7 @@ function looksLikeDashboardDefinition(value: unknown): value is DashboardDefinit
 }
 
 function buildWidgetInstance(
-  widget: Pick<WidgetDefinition, "defaultSize" | "exampleProps" | "id" | "title">,
+  widget: Pick<WidgetDefinition, "defaultSize" | "exampleProps" | "id" | "schema" | "title">,
   position?: DashboardWidgetPlacement,
 ): DashboardWidgetInstance {
   return {
@@ -407,6 +412,7 @@ function buildWidgetInstance(
     widgetId: widget.id,
     title: widget.title,
     props: cloneJson(widget.exampleProps ?? {}),
+    presentation: resolveDefaultWidgetPresentation(widget),
     layout: {
       cols: Math.min(widget.defaultSize.w * WORKSPACE_COLUMN_SCALE, DEFAULT_WORKSPACE_COLUMNS),
       rows: widget.defaultSize.h * WORKSPACE_ROW_SCALE,
@@ -415,19 +421,35 @@ function buildWidgetInstance(
   };
 }
 
+function getDashboardBottomY(dashboard: DashboardDefinition) {
+  const resolved = resolveDashboardLayout(dashboard);
+
+  return resolved.widgets.reduce(
+    (bottomY, instance) => Math.max(bottomY, instance.layout.y + instance.layout.h),
+    0,
+  );
+}
+
 export function appendCatalogWidget(
   dashboard: DashboardDefinition,
-  widget: Pick<WidgetDefinition, "defaultSize" | "exampleProps" | "id" | "title">,
+  widget: Pick<WidgetDefinition, "defaultSize" | "exampleProps" | "id" | "schema" | "title">,
 ) {
+  const nextWidget = isWorkspaceRowWidgetId(widget.id)
+    ? buildWidgetInstance(widget, {
+        x: 0,
+        y: getDashboardBottomY(dashboard),
+      })
+    : buildWidgetInstance(widget);
+
   return materializeDashboardLayout({
     ...dashboard,
-    widgets: [...dashboard.widgets, buildWidgetInstance(widget)],
+    widgets: [...dashboard.widgets, nextWidget],
   });
 }
 
 export function placeCatalogWidget(
   dashboard: DashboardDefinition,
-  widget: Pick<WidgetDefinition, "defaultSize" | "exampleProps" | "id" | "title">,
+  widget: Pick<WidgetDefinition, "defaultSize" | "exampleProps" | "id" | "schema" | "title">,
   position: DashboardWidgetPlacement,
 ) {
   return materializeDashboardLayout({
@@ -474,6 +496,20 @@ export function resizeDashboardWidget(
         return widget;
       }
 
+      if (isWorkspaceRowWidgetId(widget.widgetId)) {
+        return {
+          ...widget,
+          layout: {
+            cols: maxColumns,
+            rows: WORKSPACE_ROW_HEIGHT_ROWS,
+          },
+          position: {
+            x: 0,
+            y: widget.position?.y,
+          },
+        };
+      }
+
       const cols = "cols" in widget.layout ? widget.layout.cols : widget.layout.w;
       const rows = "rows" in widget.layout ? widget.layout.rows : widget.layout.h;
 
@@ -505,6 +541,20 @@ export function setDashboardWidgetGeometry(
     widgets: dashboard.widgets.map((widget) => {
       if (widget.id !== instanceId) {
         return widget;
+      }
+
+      if (isWorkspaceRowWidgetId(widget.widgetId)) {
+        return {
+          ...widget,
+          layout: {
+            cols: maxColumns,
+            rows: WORKSPACE_ROW_HEIGHT_ROWS,
+          },
+          position: {
+            x: 0,
+            y: geometry.y ?? widget.position?.y,
+          },
+        };
       }
 
       const cols = getLayoutCols(widget.layout);
@@ -606,6 +656,7 @@ export function updateDashboardWidgetSettings(
   settings: {
     title?: string;
     props?: Record<string, unknown>;
+    presentation?: DashboardWidgetInstance["presentation"];
   },
 ) {
   return materializeDashboardLayout({
@@ -625,6 +676,10 @@ export function updateDashboardWidgetSettings(
           "props" in settings
             ? cloneJson(settings.props ?? {})
             : widget.props,
+        presentation:
+          "presentation" in settings
+            ? cloneJson(settings.presentation ?? {})
+            : widget.presentation,
       };
     }),
   });

@@ -20,7 +20,6 @@ export interface MainSequenceDataNodeVisualizerWidgetProps extends Record<string
   chartType?: DataNodeVisualizerChartType;
   dataNodeId?: number;
   dateRangeMode?: DataNodeVisualizerDateRangeMode;
-  displayMode?: DataNodeVisualizerViewMode;
   fixedEndMs?: number;
   fixedStartMs?: number;
   groupField?: string;
@@ -51,7 +50,6 @@ export interface ResolvedDataNodeVisualizerConfig {
   dataNodeId?: number;
   dataNodeLabel: string;
   dateRangeMode: DataNodeVisualizerDateRangeMode;
-  displayMode: DataNodeVisualizerViewMode;
   fixedEndMs?: number;
   fixedStartMs?: number;
   groupField?: string;
@@ -331,8 +329,6 @@ export function resolveDataNodeVisualizerConfig(
   const provider: DataNodeVisualizerProvider = "tradingview";
   const chartType: DataNodeVisualizerChartType =
     props.chartType === "area" || props.chartType === "bar" ? props.chartType : "line";
-  const displayMode: DataNodeVisualizerViewMode =
-    props.displayMode === "table" ? "table" : "chart";
   const limit = Math.max(1, Math.min(normalizePositiveInteger(props.limit) ?? defaultVisualizerLimit, 14_000));
   const normalizeSeries = props.normalizeSeries === true;
   const normalizeAtMs = normalizePositiveInteger(props.normalizeAtMs);
@@ -359,7 +355,6 @@ export function resolveDataNodeVisualizerConfig(
     dateRangeMode,
     provider,
     chartType,
-    displayMode,
     fixedStartMs,
     fixedEndMs,
     xField,
@@ -389,7 +384,6 @@ export function normalizeDataNodeVisualizerProps(
     dateRangeMode: resolved.dateRangeMode,
     provider: resolved.provider,
     chartType: resolved.chartType,
-    displayMode: resolved.displayMode,
     fixedStartMs: resolved.fixedStartMs,
     fixedEndMs: resolved.fixedEndMs,
     xField: resolved.xField,

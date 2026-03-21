@@ -20,8 +20,10 @@ import {
   MissingWidgetFrame,
   WidgetFrame,
 } from "@/widgets/shared/widget-frame";
+import { WidgetCanvasControls } from "@/widgets/shared/widget-canvas-controls";
 import { resolveWidgetHeaderVisibility } from "@/widgets/shared/chrome";
 import { WidgetSettingsDialog } from "@/widgets/shared/widget-settings";
+import type { WidgetInstancePresentation } from "@/widgets/types";
 import type { WidgetHeaderActionsProps } from "@/widgets/types";
 
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
@@ -33,6 +35,7 @@ function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
 
 interface WidgetInstanceOverride {
   props?: Record<string, unknown>;
+  presentation?: WidgetInstancePresentation | null;
   runtimeState?: Record<string, unknown> | null;
   title?: string | null;
 }
@@ -55,6 +58,10 @@ function applyWidgetOverride(
       "props" in override
         ? override.props
         : instance.props,
+    presentation:
+      "presentation" in override
+        ? (override.presentation ?? undefined)
+        : instance.presentation,
     runtimeState:
       "runtimeState" in override
         ? (override.runtimeState ?? undefined)
@@ -156,39 +163,25 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                   | undefined;
 
               return (
-                <WidgetFrame
+                <div
                   key={instance.id}
-                  widget={widget}
-                  instance={instance}
                   style={style}
-                  showHeader={resolveWidgetHeaderVisibility(instance.props)}
-                  headerActions={
-                    HeaderActions ? (
-                      <HeaderActions
-                        widget={widget}
-                        props={instance.props ?? {}}
-                        runtimeState={instance.runtimeState}
-                        onRuntimeStateChange={(state) => {
-                          setWidgetOverrides((current) => ({
-                            ...current,
-                            [instance.id]: {
-                              ...current[instance.id],
-                              runtimeState: state ?? null,
-                            },
-                          }));
-                        }}
-                      />
-                    ) : undefined
-                  }
-                  onOpenSettings={() => {
-                    setSettingsInstanceId(instance.id);
-                  }}
+                  className="relative isolate h-full overflow-visible"
                 >
-                  <Component
+                  <WidgetCanvasControls
                     widget={widget}
-                    instanceTitle={instance.title}
-                    props={instance.props ?? {}}
+                    props={(instance.props ?? {}) as Record<string, unknown>}
+                    presentation={instance.presentation}
                     runtimeState={instance.runtimeState}
+                    onPropsChange={(props) => {
+                      setWidgetOverrides((current) => ({
+                        ...current,
+                        [instance.id]: {
+                          ...current[instance.id],
+                          props,
+                        },
+                      }));
+                    }}
                     onRuntimeStateChange={(state) => {
                       setWidgetOverrides((current) => ({
                         ...current,
@@ -198,8 +191,59 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                         },
                       }));
                     }}
+                    onPresentationChange={(nextPresentation) => {
+                      setWidgetOverrides((current) => ({
+                        ...current,
+                        [instance.id]: {
+                          ...current[instance.id],
+                          presentation: nextPresentation,
+                        },
+                      }));
+                    }}
                   />
-                </WidgetFrame>
+                  <WidgetFrame
+                    widget={widget}
+                    instance={instance}
+                    showHeader={resolveWidgetHeaderVisibility(instance.props)}
+                    headerActions={
+                      HeaderActions ? (
+                        <HeaderActions
+                          widget={widget}
+                          props={instance.props ?? {}}
+                          runtimeState={instance.runtimeState}
+                          onRuntimeStateChange={(state) => {
+                            setWidgetOverrides((current) => ({
+                              ...current,
+                              [instance.id]: {
+                                ...current[instance.id],
+                                runtimeState: state ?? null,
+                              },
+                            }));
+                          }}
+                        />
+                      ) : undefined
+                    }
+                    onOpenSettings={() => {
+                      setSettingsInstanceId(instance.id);
+                    }}
+                  >
+                    <Component
+                      widget={widget}
+                      instanceTitle={instance.title}
+                      props={instance.props ?? {}}
+                      runtimeState={instance.runtimeState}
+                      onRuntimeStateChange={(state) => {
+                        setWidgetOverrides((current) => ({
+                          ...current,
+                          [instance.id]: {
+                            ...current[instance.id],
+                            runtimeState: state ?? null,
+                          },
+                        }));
+                      }}
+                    />
+                  </WidgetFrame>
+                </div>
               );
             })}
           </div>
@@ -213,12 +257,13 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
             onClose={() => {
               setSettingsInstanceId(null);
             }}
-            onSave={({ title, props }) => {
+            onSave={({ title, props, presentation }) => {
               setWidgetOverrides((current) => ({
                 ...current,
                 [settingsInstance.id]: {
                   title: title ?? null,
                   props,
+                  presentation: presentation ?? null,
                 },
               }));
             }}

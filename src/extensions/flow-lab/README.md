@@ -10,9 +10,9 @@ into other apps.
 
 ## Owned Assets
 
-- the `order-book` widget under `src/widgets/extensions/order-book/`
-- the `strategy-book` widget under `src/widgets/extensions/strategy-book/`
+- the `data-node-table-visualizer` widget under `src/widgets/extensions/data-node-table-visualizer/`
 - the `flow-lab` theme preset used by demo surfaces
+- the order-book widget modules remain on disk under `src/widgets/extensions/order-book/`, but they are not currently registered
 
 ## Dependencies
 

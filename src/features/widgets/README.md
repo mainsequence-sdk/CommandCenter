@@ -16,10 +16,14 @@ dashboard canvas.
   they do not reuse live cached responses from the main app shell.
 - Widget runtime state in the explorer stays local to the page and is discarded when the tab
   closes.
+- Widgets that expose a configuration schema can also document their field sections and which
+  fields are eligible to be exposed directly on the canvas.
 
 ## Maintenance Notes
 
 - New widgets should provide `mockProps` when `exampleProps` are not enough to render a useful
   explorer preview.
+- Schema-backed widgets should keep section titles, field descriptions, and pop-to-canvas metadata
+  accurate because the explorer uses that metadata as documentation.
 - Data-backed widgets should keep their explorer preview compatible with `isWidgetPreviewMode()`
   so the route can stay mock-only without changing normal application behavior.

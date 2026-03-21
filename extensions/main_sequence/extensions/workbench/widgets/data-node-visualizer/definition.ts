@@ -1,18 +1,15 @@
 import type { WidgetDefinition } from "@/widgets/types";
 
-import {
-  MainSequenceDataNodeVisualizerHeaderActions,
-  MainSequenceDataNodeVisualizerWidget,
-} from "./MainSequenceDataNodeVisualizerWidget";
-import {
-  MainSequenceDataNodeVisualizerWidgetSettings,
-} from "./MainSequenceDataNodeVisualizerWidgetSettings";
+import { MainSequenceDataNodeVisualizerWidget } from "./MainSequenceDataNodeVisualizerWidget";
+import { dataNodeVisualizerWidgetController } from "./controller";
+import { MainSequenceDataNodeVisualizerWidgetSettings } from "./MainSequenceDataNodeVisualizerWidgetSettings";
 import type { MainSequenceDataNodeVisualizerWidgetProps } from "./dataNodeVisualizerModel";
+import { dataNodeVisualizerSettingsSchema } from "./schema";
 
 export const mainSequenceDataNodeVisualizerWidget: WidgetDefinition<MainSequenceDataNodeVisualizerWidgetProps> = {
   id: "main-sequence-data-node-visualizer",
   title: "Data Node Visualizer",
-  description: "Turns Main Sequence data-node tables into charts or tables.",
+  description: "Turns Main Sequence data-node tables into charts, with a settings-only table preview.",
   category: "DataNodes",
   kind: "chart",
   source: "main_sequence_workbench",
@@ -23,16 +20,15 @@ export const mainSequenceDataNodeVisualizerWidget: WidgetDefinition<MainSequence
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
-    displayMode: "chart",
   },
   mockProps: {
     dataNodeId: 1084,
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
-    displayMode: "chart",
   },
-  headerActions: MainSequenceDataNodeVisualizerHeaderActions,
+  schema: dataNodeVisualizerSettingsSchema,
+  controller: dataNodeVisualizerWidgetController,
   settingsComponent: MainSequenceDataNodeVisualizerWidgetSettings,
   component: MainSequenceDataNodeVisualizerWidget,
 };

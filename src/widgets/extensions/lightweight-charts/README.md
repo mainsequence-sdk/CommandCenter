@@ -1,6 +1,6 @@
 # Lightweight Charts Widgets
 
-This directory contains the optional widget set registered by the `lightweight-charts` extension.
+This directory contains the optional widget set owned by the `lightweight-charts` extension. The modules are retained on disk, but the extension does not currently register them in the live widget catalog.
 
 ## Files
 

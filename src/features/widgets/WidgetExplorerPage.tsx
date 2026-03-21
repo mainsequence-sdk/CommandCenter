@@ -63,6 +63,21 @@ function PrettyJsonBlock({
   );
 }
 
+function groupSchemaFieldsBySection(widget: WidgetDefinition<Record<string, unknown>>) {
+  const schema = widget.schema;
+
+  if (!schema) {
+    return [];
+  }
+
+  return schema.sections
+    .map((section) => ({
+      section,
+      fields: schema.fields.filter((field) => field.sectionId === section.id),
+    }))
+    .filter((entry) => entry.fields.length > 0);
+}
+
 export function WidgetExplorerPage() {
   const { widgetId = "" } = useParams();
   const widget = widgetId ? getWidgetById(widgetId) : undefined;
@@ -87,6 +102,13 @@ export function WidgetExplorerPage() {
   );
   const [runtimeState, setRuntimeState] = useState<Record<string, unknown>>(() =>
     widget ? resolveWidgetMockRuntimeState(widget) : {},
+  );
+  const schemaSections = useMemo(
+    () =>
+      widget
+        ? groupSchemaFieldsBySection(widget as WidgetDefinition<Record<string, unknown>>)
+        : [],
+    [widget],
   );
   const allowed = widget
     ? hasAllPermissions(permissions, widget.requiredPermissions ?? [])
@@ -311,6 +333,59 @@ export function WidgetExplorerPage() {
               </div>
             </CardContent>
           </Card>
+
+          {schemaSections.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Configuration schema</CardTitle>
+                <CardDescription>
+                  Field sections, descriptions, and which controls can be exposed on canvas.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {schemaSections.map(({ section, fields }) => (
+                  <div
+                    key={section.id}
+                    className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 p-4"
+                  >
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-foreground">{section.title}</div>
+                      {section.description ? (
+                        <p className="text-sm text-muted-foreground">{section.description}</p>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-3">
+                      {fields.map((field) => (
+                        <div
+                          key={field.id}
+                          className="space-y-2 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-card/70 p-3"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium text-foreground">{field.label}</div>
+                              {field.description ? (
+                                <p className="text-sm text-muted-foreground">{field.description}</p>
+                              ) : null}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="neutral">{field.id}</Badge>
+                              {field.category ? <Badge variant="neutral">{field.category}</Badge> : null}
+                              {field.pop?.canPop ? (
+                                <Badge variant="success">
+                                  {field.pop.defaultPopped ? "canvas default" : "canvas available"}
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

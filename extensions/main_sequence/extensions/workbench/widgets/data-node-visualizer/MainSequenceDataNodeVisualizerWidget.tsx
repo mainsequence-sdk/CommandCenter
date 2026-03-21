@@ -1,18 +1,11 @@
 import { useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  BarChart3,
-  CalendarClock,
-  Database,
-  Loader2,
-  Table2,
-} from "lucide-react";
+import { BarChart3, CalendarClock, Database, Loader2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
-import type { WidgetComponentProps, WidgetHeaderActionsProps } from "@/widgets/types";
+import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
   fetchDataNodeDataBetweenDatesFromRemote,
@@ -22,117 +15,16 @@ import {
 import {
   buildDataNodeVisualizerSeries,
   buildDataNodeVisualizerRequestedColumns,
-  buildDataNodeVisualizerTableColumns,
   resolveDataNodeVisualizerDateRange,
   resolveDataNodeVisualizerNormalizationTimeMs,
   resolveDataNodeVisualizerConfig,
   type MainSequenceDataNodeVisualizerWidgetProps,
-  type DataNodeVisualizerViewMode,
 } from "./dataNodeVisualizerModel";
-import { DataNodeVisualizerTable } from "./DataNodeVisualizerTable";
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
-
-function WidgetModeButton({
-  active,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      size="sm"
-      variant={active ? "default" : "outline"}
-      onClick={onClick}
-    >
-      {children}
-    </Button>
-  );
-}
 
 type Props = WidgetComponentProps<MainSequenceDataNodeVisualizerWidgetProps>;
 
-function resolveDataNodeVisualizerViewMode(
-  props: MainSequenceDataNodeVisualizerWidgetProps,
-  runtimeState?: Record<string, unknown>,
-): DataNodeVisualizerViewMode {
-  const runtimeViewMode = runtimeState?.viewMode;
-
-  if (runtimeViewMode === "table" || runtimeViewMode === "chart") {
-    return runtimeViewMode;
-  }
-
-  return props.displayMode === "table" ? "table" : "chart";
-}
-
-function updateDataNodeVisualizerViewMode(
-  props: MainSequenceDataNodeVisualizerWidgetProps,
-  runtimeState: Record<string, unknown> | undefined,
-  nextViewMode: DataNodeVisualizerViewMode,
-  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void,
-) {
-  if (!onRuntimeStateChange) {
-    return;
-  }
-
-  const defaultViewMode = props.displayMode === "table" ? "table" : "chart";
-  const nextRuntimeState = { ...(runtimeState ?? {}) };
-
-  if (nextViewMode === defaultViewMode) {
-    delete nextRuntimeState.viewMode;
-  } else {
-    nextRuntimeState.viewMode = nextViewMode;
-  }
-
-  onRuntimeStateChange(
-    Object.keys(nextRuntimeState).length > 0 ? nextRuntimeState : undefined,
-  );
-}
-
-export function MainSequenceDataNodeVisualizerHeaderActions({
-  props,
-  runtimeState,
-  onRuntimeStateChange,
-}: WidgetHeaderActionsProps<MainSequenceDataNodeVisualizerWidgetProps>) {
-  const activeViewMode = resolveDataNodeVisualizerViewMode(props, runtimeState);
-
-  return (
-    <div className="flex items-center gap-2">
-      <WidgetModeButton
-        active={activeViewMode === "chart"}
-        onClick={() => {
-          updateDataNodeVisualizerViewMode(
-            props,
-            runtimeState,
-            "chart",
-            onRuntimeStateChange,
-          );
-        }}
-      >
-        <BarChart3 className="h-3.5 w-3.5" />
-        Chart
-      </WidgetModeButton>
-      <WidgetModeButton
-        active={activeViewMode === "table"}
-        onClick={() => {
-          updateDataNodeVisualizerViewMode(
-            props,
-            runtimeState,
-            "table",
-            onRuntimeStateChange,
-          );
-        }}
-      >
-        <Table2 className="h-3.5 w-3.5" />
-        Table
-      </WidgetModeButton>
-    </div>
-  );
-}
-
-export function MainSequenceDataNodeVisualizerWidget({ props, runtimeState }: Props) {
+export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
   const { rangeStartMs, rangeEndMs } = useDashboardControls();
   const dataNodeId = Number(props.dataNodeId ?? 0);
 
@@ -190,10 +82,6 @@ export function MainSequenceDataNodeVisualizerWidget({ props, runtimeState }: Pr
     () => buildDataNodeVisualizerSeries(dataQuery.data ?? [], resolvedConfig),
     [dataQuery.data, resolvedConfig],
   );
-  const tableColumns = useMemo(
-    () => buildDataNodeVisualizerTableColumns(dataQuery.data ?? [], resolvedConfig),
-    [dataQuery.data, resolvedConfig],
-  );
   const normalizationTimeMs = useMemo(
     () =>
       resolveDataNodeVisualizerNormalizationTimeMs(
@@ -202,7 +90,6 @@ export function MainSequenceDataNodeVisualizerWidget({ props, runtimeState }: Pr
       ),
     [resolvedConfig, resolvedRange.rangeStartMs],
   );
-  const activeViewMode = resolveDataNodeVisualizerViewMode(props, runtimeState);
   const hasSourceTableConfiguration = Boolean(dataNodeDetailQuery.data?.sourcetableconfiguration);
   const chartEmptyMessage =
     (dataQuery.data?.length ?? 0) > 0
@@ -289,10 +176,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props, runtimeState }: Pr
     <div className="flex h-full min-h-0 flex-col gap-3">
       {dataQuery.isLoading ? (
         <div className="grid flex-1 gap-3">
-          {activeViewMode === "table" ? (
-            <Skeleton className="h-9 w-36 rounded-[calc(var(--radius)-8px)]" />
-          ) : null}
-          <Skeleton className="h-full min-h-[260px] rounded-[calc(var(--radius)-6px)]" />
+          <Skeleton className="h-full min-h-0 rounded-[calc(var(--radius)-6px)]" />
         </div>
       ) : null}
 
@@ -303,36 +187,17 @@ export function MainSequenceDataNodeVisualizerWidget({ props, runtimeState }: Pr
       ) : null}
 
       {!dataQuery.isLoading && !dataQuery.isError ? (
-        <>
-          <div className="min-h-0 flex-1">
-            {activeViewMode === "table" ? (
-              <div className="flex h-full min-h-0 flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>{(dataQuery.data?.length ?? 0).toLocaleString()} rows loaded</span>
-                    {dataQuery.data && dataQuery.data.length >= resolvedConfig.limit ? (
-                      <span>limited to {resolvedConfig.limit.toLocaleString()} rows</span>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="min-h-0 flex-1">
-                  <DataNodeVisualizerTable columns={tableColumns} rows={dataQuery.data ?? []} />
-                </div>
-              </div>
-            ) : (
-              <div className="h-full min-h-0">
-                <TradingViewSeriesChart
-                  chartType={resolvedConfig.chartType}
-                  emptyMessage={chartEmptyMessage}
-                  normalizationTimeMs={normalizationTimeMs}
-                  series={seriesResult.series}
-                  seriesAxisMode={resolvedConfig.seriesAxisMode}
-                />
-              </div>
-            )}
+        <div className="min-h-0 flex-1">
+          <div className="h-full min-h-0">
+            <TradingViewSeriesChart
+              chartType={resolvedConfig.chartType}
+              emptyMessage={chartEmptyMessage}
+              normalizationTimeMs={normalizationTimeMs}
+              series={seriesResult.series}
+              seriesAxisMode={resolvedConfig.seriesAxisMode}
+            />
           </div>
-        </>
+        </div>
       ) : null}
 
       {!dataQuery.isLoading && !dataQuery.isError && (dataQuery.data?.length ?? 0) === 0 ? (

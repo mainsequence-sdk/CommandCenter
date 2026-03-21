@@ -40,6 +40,10 @@ import {
   DashboardDataControls,
   DashboardRefreshProgressLine,
 } from "@/dashboards/DashboardControls";
+import {
+  isWorkspaceRowWidgetId,
+  WORKSPACE_ROW_HEIGHT_ROWS,
+} from "@/dashboards/structural-widgets";
 import type { DashboardWidgetPlacement, ResolvedDashboardWidgetLayout } from "@/dashboards/types";
 import { cn, titleCase } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
@@ -70,7 +74,10 @@ import {
   WidgetSettingsDialog,
   WidgetSettingsTrigger,
 } from "@/widgets/shared/widget-settings";
+import { WidgetCanvasControls } from "@/widgets/shared/widget-canvas-controls";
+import { MissingWidgetFrame } from "@/widgets/shared/widget-frame";
 import { WidgetExplorerTrigger } from "@/widgets/shared/widget-explorer-trigger";
+import type { WidgetInstancePresentation } from "@/widgets/types";
 
 interface CatalogDragPayload {
   widgetId: string;
@@ -434,8 +441,11 @@ function BuilderWidgetCard({
   headerActions,
   widget,
   widgetProps,
+  widgetPresentation,
   widgetRuntimeState,
   onRemove,
+  onPropsChange,
+  onPresentationChange,
   onRuntimeStateChange,
   onSelect,
   onStartDrag,
@@ -451,8 +461,14 @@ function BuilderWidgetCard({
   headerActions?: ReactNode;
   widget: WidgetDefinition;
   widgetProps: Record<string, unknown>;
+  widgetPresentation?: WidgetInstancePresentation;
   widgetRuntimeState?: Record<string, unknown>;
   onRemove: (instanceId: string) => void;
+  onPropsChange: (instanceId: string, props: Record<string, unknown>) => void;
+  onPresentationChange: (
+    instanceId: string,
+    presentation: WidgetInstancePresentation,
+  ) => void;
   onRuntimeStateChange: (
     instanceId: string,
     runtimeState: Record<string, unknown> | undefined,
@@ -472,32 +488,85 @@ function BuilderWidgetCard({
 
   const title = instanceTitle ?? widget.title;
   const headerVisible = editable || resolveWidgetHeaderVisibility(widgetProps);
+  const rowWidget = isWorkspaceRowWidgetId(widget.id);
+  const structuralVisible = widgetProps.visible === true;
+  const widgetRenderProps =
+    rowWidget && editable && !structuralVisible
+      ? {
+          ...widgetProps,
+          visible: true,
+        }
+      : widgetProps;
+  const editControlsVisibilityClass = !editable
+    ? "pointer-events-none opacity-0"
+    : selected
+      ? "opacity-100"
+      : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100";
 
   return (
-    <section
-      data-widget-shell="default"
+    <div
       style={style}
-      className={cn(
-        widgetShellClassName,
-        "group relative z-10 flex min-h-0 flex-col overflow-hidden rounded-[20px] border bg-card/92 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl transition-colors",
-        selected && editable
-          ? "border-primary/70 ring-2 ring-primary/30"
-          : "border-border/70 hover:border-border",
-      )}
+      className="group relative isolate h-full overflow-visible"
       onPointerDownCapture={() => {
         if (editable) {
           onSelect(instanceId);
         }
       }}
     >
-      {headerVisible ? (
-      <header
-        data-widget-shell-header=""
+      <WidgetCanvasControls
+        widget={widget}
+        props={widgetProps}
+        presentation={widgetPresentation}
+        runtimeState={widgetRuntimeState}
+        onPropsChange={(props) => {
+          onPropsChange(instanceId, props);
+        }}
+        onRuntimeStateChange={(state) => {
+          onRuntimeStateChange(instanceId, state);
+        }}
+        onPresentationChange={(nextPresentation) => {
+          onPresentationChange(instanceId, nextPresentation);
+        }}
+        editable={editable}
+      />
+
+      <section
+        data-widget-shell="default"
         className={cn(
-          widgetShellHeaderClassName,
-          "flex items-center justify-between gap-3 border-b border-border/70 px-3 py-2.5",
-          editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
+          "relative z-10 flex h-full min-h-0 flex-col transition-colors",
+          rowWidget
+            ? "overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
+            : cn(
+                widgetShellClassName,
+                "overflow-hidden rounded-[20px] border bg-card/92 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl",
+                selected && editable
+                  ? "border-primary/70 ring-2 ring-primary/30"
+                : "border-border/70 hover:border-border",
+              ),
+          rowWidget && editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
         )}
+        onPointerDown={(event) => {
+          if (!editable || !rowWidget) {
+            return;
+          }
+
+          const target = event.target as HTMLElement;
+
+          if (target.closest("button, a, input, textarea, select, [data-no-widget-drag='true']")) {
+            return;
+          }
+
+          onStartDrag(event);
+        }}
+      >
+        {headerVisible && !rowWidget ? (
+        <header
+          data-widget-shell-header=""
+          className={cn(
+            widgetShellHeaderClassName,
+            "flex items-center justify-between gap-3 border-b border-border/70 px-3 py-2.5",
+            editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
+          )}
           onPointerDown={(event) => {
             if (!editable) {
               return;
@@ -537,14 +606,7 @@ function BuilderWidgetCard({
             />
 
             <div
-              className={cn(
-                "flex items-center gap-1 transition-opacity",
-                !editable
-                  ? "pointer-events-none opacity-0"
-                  : selected
-                    ? "opacity-100"
-                    : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
-              )}
+              className={cn("flex items-center gap-1 transition-opacity", editControlsVisibilityClass)}
             >
               <WidgetSettingsTrigger
                 widgetTitle={title}
@@ -580,39 +642,95 @@ function BuilderWidgetCard({
             </div>
           </div>
         </header>
-      ) : null}
+        ) : null}
 
-      <div
-        className={cn(
-          "min-h-0 flex-1",
-          editable ? "pointer-events-none select-none" : undefined,
-        )}
-      >
-        <Component
-          widget={widget}
-          instanceTitle={instanceTitle}
-          props={widgetProps}
-          runtimeState={widgetRuntimeState}
-          onRuntimeStateChange={(state) => {
-            onRuntimeStateChange(instanceId, state);
-          }}
-        />
-      </div>
-
-      {selected && editable ? (
-        <button
-          type="button"
-          className="absolute right-3 bottom-3 flex h-8 w-8 cursor-se-resize items-center justify-center rounded-full border border-primary/40 bg-background/88 text-primary shadow-[var(--shadow-panel)] transition-colors hover:bg-muted/55"
-          aria-label={`Resize ${title}`}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            onStartResize(event);
-          }}
+        {rowWidget ? (
+        <div
+          className={cn(
+            "absolute z-20 flex items-center gap-1 rounded-full border border-border/70 bg-background/88 px-1.5 py-1 shadow-[var(--shadow-panel)] backdrop-blur-md transition-opacity",
+            "top-1/2 right-0 -translate-y-1/2",
+            editControlsVisibilityClass,
+          )}
+          data-no-widget-drag="true"
         >
-          <MoveDiagonal2 className="h-3.5 w-3.5" />
-        </button>
-      ) : null}
-    </section>
+          <WidgetExplorerTrigger
+            widgetId={widget.id}
+            widgetTitle={title}
+            className="h-7 w-7 rounded-full border border-border/70 bg-background/40 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            data-no-widget-drag="true"
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          />
+          <WidgetSettingsTrigger
+            widgetTitle={title}
+            className="h-7 w-7 rounded-full border border-border/70 bg-background/40 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            data-no-widget-drag="true"
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenSettings(instanceId);
+            }}
+            tabIndex={editable ? 0 : -1}
+            aria-hidden={!editable}
+          />
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-danger/30 bg-danger/8 text-danger transition-colors hover:bg-danger/16"
+            aria-label={`Remove ${title}`}
+            data-no-widget-drag="true"
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove(instanceId);
+            }}
+            tabIndex={editable ? 0 : -1}
+            aria-hidden={!editable}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        ) : null}
+
+        <div
+          className={cn(
+            "min-h-0 flex-1",
+            editable ? "pointer-events-none select-none" : undefined,
+          )}
+        >
+          <Component
+            widget={widget}
+            instanceTitle={instanceTitle}
+            props={widgetRenderProps}
+            runtimeState={widgetRuntimeState}
+            onRuntimeStateChange={(state) => {
+              onRuntimeStateChange(instanceId, state);
+            }}
+          />
+        </div>
+
+        {selected && editable && !rowWidget ? (
+          <button
+            type="button"
+            className="absolute right-3 bottom-3 flex h-8 w-8 cursor-se-resize items-center justify-center rounded-full border border-primary/40 bg-background/88 text-primary shadow-[var(--shadow-panel)] transition-colors hover:bg-muted/55"
+            aria-label={`Resize ${title}`}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onStartResize(event);
+            }}
+          >
+            <MoveDiagonal2 className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+      </section>
+    </div>
   );
 }
 
@@ -1001,13 +1119,28 @@ export function CustomDashboardStudioPage() {
     [measuredGridMetrics, selectedLayout],
   );
 
-  const hoveredPlacementBounds = useMemo(
-    () =>
-      hoveredPlacement && measuredGridMetrics
-        ? getPlacementBounds(hoveredPlacement, measuredGridMetrics)
-        : null,
-    [hoveredPlacement, measuredGridMetrics],
-  );
+  const hoveredPlacementBounds = useMemo(() => {
+    if (!hoveredPlacement || !measuredGridMetrics || !activeCatalogDrag) {
+      return null;
+    }
+
+    const draggedWidget = widgetMap.get(activeCatalogDrag.widgetId);
+
+    if (!draggedWidget) {
+      return getPlacementBounds(hoveredPlacement, measuredGridMetrics);
+    }
+
+    if (isWorkspaceRowWidgetId(draggedWidget.id)) {
+      return {
+        left: 0,
+        top: (hoveredPlacement.y ?? 0) * measuredGridMetrics.stepY,
+        width: measuredGridMetrics.rect.width,
+        height: WORKSPACE_ROW_HEIGHT_ROWS * measuredGridMetrics.rowHeight,
+      };
+    }
+
+    return getPlacementBounds(hoveredPlacement, measuredGridMetrics);
+  }, [activeCatalogDrag, hoveredPlacement, measuredGridMetrics, widgetMap]);
 
   const dotGridBackgroundStyle = useMemo<CSSProperties | null>(() => {
     if (!measuredGridMetrics) {
@@ -1384,7 +1517,7 @@ export function CustomDashboardStudioPage() {
 
         <div
           className={cn(
-            "absolute inset-0 overflow-auto px-4 pb-4 transition-[padding] duration-200",
+            "absolute inset-0 overflow-auto pl-2 pr-4 pb-4 transition-[padding] duration-200",
             dashboardMenuHidden ? "pt-3" : "pt-12",
           )}
         >
@@ -1448,13 +1581,18 @@ export function CustomDashboardStudioPage() {
 
               if (!widget) {
                 return (
-                  <div
+                  <MissingWidgetFrame
                     key={instance.id}
+                    widgetId={instance.widgetId}
                     style={layoutToStyle(instance.layout)}
-                    className="relative z-10 flex items-center justify-center rounded-[20px] border border-dashed border-danger/40 bg-danger/8 p-5 text-center text-sm text-muted-foreground"
-                  >
-                    Missing widget definition: {instance.widgetId}
-                  </div>
+                    onRemove={() => {
+                      updateSelectedWorkspace((dashboard) =>
+                        removeDashboardWidget(dashboard, instance.id),
+                      );
+                      setSelectedInstanceId((current) => (current === instance.id ? null : current));
+                      setSettingsInstanceId((current) => (current === instance.id ? null : current));
+                    }}
+                  />
                 );
               }
 
@@ -1486,12 +1624,27 @@ export function CustomDashboardStudioPage() {
                   }
                   widget={widget}
                   widgetProps={instance.props ?? {}}
+                  widgetPresentation={instance.presentation}
                   widgetRuntimeState={instance.runtimeState}
                   onRemove={(instanceId) => {
                     updateSelectedWorkspace((dashboard) =>
                       removeDashboardWidget(dashboard, instanceId),
                     );
                     setSelectedInstanceId((current) => (current === instanceId ? null : current));
+                  }}
+                  onPropsChange={(instanceId, props) => {
+                    updateSelectedWorkspace((dashboard) =>
+                      updateDashboardWidgetSettings(dashboard, instanceId, {
+                        props,
+                      }),
+                    );
+                  }}
+                  onPresentationChange={(instanceId, presentation) => {
+                    updateSelectedWorkspace((dashboard) =>
+                      updateDashboardWidgetSettings(dashboard, instanceId, {
+                        presentation,
+                      }),
+                    );
                   }}
                   onRuntimeStateChange={handleWidgetRuntimeStateChange}
                   onSelect={(instanceId) => {
@@ -1730,12 +1883,13 @@ export function CustomDashboardStudioPage() {
             onClose={() => {
               setSettingsInstanceId(null);
             }}
-            onSave={({ title, props }) => {
+            onSave={({ title, props, presentation }) => {
               setEditMode(true);
               updateSelectedWorkspace((dashboard) =>
                 updateDashboardWidgetSettings(dashboard, settingsWidget.id, {
                   title,
                   props,
+                  presentation,
                 }),
               );
             }}

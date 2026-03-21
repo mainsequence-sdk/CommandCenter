@@ -4,8 +4,8 @@ This folder contains widget definitions and widget-owned presentation components
 
 ## Widgets
 
-- `portfolio-weights-table/`: reusable `Portfolio Weights` widget plus the shared table renderer used by the portfolio detail flow.
-- `yield-curve-plot/`: reusable `Yield Curve Plot` widget that renders mock rates curves with Lightweight Charts.
+- `yield-curve-plot/`: reusable `Yield Curve Plot` widget that renders mock rates curves with Lightweight Charts and remains registered in the live widget catalog.
+- `portfolio-weights-table/`: reusable `Portfolio Weights` widget plus the shared table renderer used by the portfolio detail flow; the module remains on disk but is not currently registered in the live widget catalog.
 
 ## Rules
 
