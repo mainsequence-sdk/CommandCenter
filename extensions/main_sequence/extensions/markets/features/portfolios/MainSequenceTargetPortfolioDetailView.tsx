@@ -24,6 +24,7 @@ import { MainSequenceEntitySummaryCard } from "../../../../common/components/Mai
 import {
   formatPortfolioWeightsCellValue,
   normalizePortfolioWeightSummaryRows,
+  PortfolioWeightsPositionSummaryStrip,
   PortfolioWeightsTable,
 } from "../../widgets/portfolio-weights-table/PortfolioWeightsTable";
 
@@ -465,6 +466,7 @@ export function MainSequenceTargetPortfolioDetailView({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
+                    <PortfolioWeightsPositionSummaryStrip rows={weightRows} />
                     <PortfolioWeightsTable
                       columnDefs={weightsDetailsQuery.data?.columnDefs ?? []}
                       rows={weightRows}

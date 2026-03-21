@@ -165,6 +165,14 @@ export function formatPortfolioWeightAggregateValue(
   return formatPortfolioWeightPositionValueByType(value, positionType, "position_value");
 }
 
+function normalizePortfolioWeightsSummaryPositionType(types: Set<string>) {
+  if (types.size !== 1) {
+    return null;
+  }
+
+  return Array.from(types)[0] ?? null;
+}
+
 export function normalizePortfolioWeightSummaryRows(weights: unknown): Array<Record<string, unknown>> {
   if (Array.isArray(weights) && weights.every((entry) => isRecord(entry))) {
     return weights;
@@ -343,6 +351,100 @@ export function getPortfolioWeightPositionRowNumericValue(row: Record<string, un
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export function getPortfolioWeightsPositionSummary(
+  rows: Array<Record<string, unknown>>,
+) {
+  let longSum = 0;
+  let shortSum = 0;
+  let totalSum = 0;
+  const longTypes = new Set<string>();
+  const shortTypes = new Set<string>();
+  const totalTypes = new Set<string>();
+
+  for (const row of rows) {
+    const numericValue = getPortfolioWeightPositionRowNumericValue(row);
+
+    if (numericValue === null) {
+      continue;
+    }
+
+    const positionType = getPortfolioWeightPositionRowType(row);
+    totalSum += numericValue;
+
+    if (positionType !== "Not available") {
+      totalTypes.add(positionType);
+    }
+
+    if (numericValue > 0) {
+      longSum += numericValue;
+      if (positionType !== "Not available") {
+        longTypes.add(positionType);
+      }
+    } else if (numericValue < 0) {
+      shortSum += numericValue;
+      if (positionType !== "Not available") {
+        shortTypes.add(positionType);
+      }
+    }
+  }
+
+  return {
+    longSum,
+    shortSum,
+    totalSum,
+    longType: normalizePortfolioWeightsSummaryPositionType(longTypes),
+    shortType: normalizePortfolioWeightsSummaryPositionType(shortTypes),
+    totalType: normalizePortfolioWeightsSummaryPositionType(totalTypes),
+  };
+}
+
+export function PortfolioWeightsPositionSummaryStrip({
+  rows,
+}: {
+  rows: Array<Record<string, unknown>>;
+}) {
+  const summary = useMemo(() => getPortfolioWeightsPositionSummary(rows), [rows]);
+
+  return (
+    <div className="mb-3 flex flex-wrap gap-2">
+      {[
+        {
+          key: "longs",
+          label: "Longs",
+          value: formatPortfolioWeightAggregateValue(summary.longSum, summary.longType),
+          tone:
+            summary.longSum > 0
+              ? "text-emerald-300 border-emerald-500/20 bg-emerald-500/8"
+              : "text-muted-foreground border-border/60 bg-background/40",
+        },
+        {
+          key: "shorts",
+          label: "Shorts",
+          value: formatPortfolioWeightAggregateValue(summary.shortSum, summary.shortType),
+          tone:
+            summary.shortSum < 0
+              ? "text-rose-300 border-rose-500/20 bg-rose-500/8"
+              : "text-muted-foreground border-border/60 bg-background/40",
+        },
+        {
+          key: "total",
+          label: "Total",
+          value: formatPortfolioWeightAggregateValue(summary.totalSum, summary.totalType),
+          tone: "text-foreground border-border/60 bg-background/40",
+        },
+      ].map((item) => (
+        <div
+          key={item.key}
+          className={`min-w-[112px] rounded-[calc(var(--radius)-8px)] border px-3 py-2 ${item.tone}`}
+        >
+          <div className="text-[10px] uppercase tracking-[0.16em]">{item.label}</div>
+          <div className="mt-1 text-sm font-medium">{item.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function getPortfolioWeightPositionRowValue(row: Record<string, unknown>) {
   const value = getPortfolioWeightPositionRowNumericValue(row);
   const positionType = getPortfolioWeightPositionRowType(row);
@@ -374,28 +476,135 @@ const collapsedPositionFieldKeys = new Set([
 
 function getPortfolioWeightPositionExpandedFields(row: Record<string, unknown>) {
   const scalarFields: Array<{ key: string; label: string; value: string }> = [];
-  const structuredFields: Array<{ key: string; label: string; value: string }> = [];
+  const structuredFields: Array<{ key: string; label: string; value: unknown }> = [];
 
   for (const [key, rawValue] of Object.entries(row)) {
     if (collapsedPositionFieldKeys.has(key) || rawValue === null || rawValue === undefined || rawValue === "") {
       continue;
     }
 
-    const field = {
-      key,
-      label: formatPortfolioWeightsColumnLabel(key),
-      value: formatPortfolioWeightsCellValue(rawValue, key),
-    };
+    const label = formatPortfolioWeightsColumnLabel(key);
 
     if (isRecord(rawValue) || Array.isArray(rawValue)) {
-      structuredFields.push(field);
+      structuredFields.push({
+        key,
+        label,
+        value: rawValue,
+      });
       continue;
     }
 
-    scalarFields.push(field);
+    scalarFields.push({
+      key,
+      label,
+      value: formatPortfolioWeightsCellValue(rawValue, key),
+    });
   }
 
   return { scalarFields, structuredFields };
+}
+
+function PortfolioWeightsNestedValue({
+  value,
+  fieldKey,
+  depth = 0,
+}: {
+  value: unknown;
+  fieldKey?: string;
+  depth?: number;
+}) {
+  if (value === null || value === undefined || value === "") {
+    return <div className="text-sm text-muted-foreground">Not available</div>;
+  }
+
+  if (depth >= 4) {
+    return (
+      <div className="text-sm text-foreground">
+        {formatPortfolioWeightsCellValue(value, fieldKey)}
+      </div>
+    );
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return <div className="text-sm text-muted-foreground">No items</div>;
+    }
+
+    if (value.every((entry) => isPrimitiveValue(entry))) {
+      return (
+        <div className="flex flex-wrap gap-2">
+          {value.map((entry, index) => (
+            <div
+              key={`${fieldKey ?? "value"}-${index}`}
+              className="rounded-[calc(var(--radius)-10px)] border border-border/50 bg-card/65 px-2.5 py-1 text-xs text-foreground"
+            >
+              {formatPortfolioWeightsCellValue(entry, fieldKey)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {value.map((entry, index) => (
+          <div
+            key={`${fieldKey ?? "value"}-${index}`}
+            className="rounded-[calc(var(--radius)-8px)] border border-border/50 bg-card/65 px-3 py-3"
+          >
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              Item {index + 1}
+            </div>
+            <div className="mt-2">
+              <PortfolioWeightsNestedValue
+                value={entry}
+                fieldKey={fieldKey}
+                depth={depth + 1}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (isRecord(value)) {
+    const entries = Object.entries(value).filter(
+      ([, entryValue]) => entryValue !== null && entryValue !== undefined && entryValue !== "",
+    );
+
+    if (entries.length === 0) {
+      return <div className="text-sm text-muted-foreground">No fields</div>;
+    }
+
+    return (
+      <div className="grid gap-3 md:grid-cols-2">
+        {entries.map(([key, entryValue]) => (
+          <div
+            key={key}
+            className="rounded-[calc(var(--radius)-8px)] border border-border/50 bg-card/65 px-3 py-3"
+          >
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              {formatPortfolioWeightsColumnLabel(key)}
+            </div>
+            <div className="mt-2">
+              <PortfolioWeightsNestedValue
+                value={entryValue}
+                fieldKey={key}
+                depth={depth + 1}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-sm text-foreground">
+      {formatPortfolioWeightsCellValue(value, fieldKey)}
+    </div>
+  );
 }
 
 function getPortfolioWeightsColumns(
@@ -547,9 +756,9 @@ function PortfolioWeightPositionExpandedContent({
             <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               {field.label}
             </div>
-            <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words font-mono text-[12px] leading-5 text-muted-foreground">
-              {field.value}
-            </pre>
+            <div className="mt-2">
+              <PortfolioWeightsNestedValue value={field.value} fieldKey={field.key} />
+            </div>
           </div>
         ))}
       </aside>

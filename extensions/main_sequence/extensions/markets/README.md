@@ -11,11 +11,17 @@ This nested extension is the separate application shell for market-facing Main S
 
 ## Current Surfaces
 
+- `Assets`
 - `asset-categories/`: category registry with create/edit/delete flows, a dedicated detail page, and nested asset loading.
-- `asset-translation-tables/`: translation table registry with a dedicated detail page and embedded rules manager.
 - `assets/`: read-only asset registry list with dedicated detail loading.
-- `execution-venues/`: execution venue registry with create flow and a dedicated detail page for edit/delete.
+- `Portfolios`
+- `funds/`: read-only virtual-fund registry showing linked portfolios and accounts.
+- `portfolio-groups/`: portfolio-group registry with bulk delete from the list and a dedicated direct-detail page.
 - `portfolios/`: target-portfolio registry with shared list search, fixed pagination, and bulk-delete support.
+- `Settings`
+- `asset-translation-tables/`: translation table registry with a dedicated detail page and embedded rules manager.
+- `instruments/`: placeholder settings surface for the future instrument registry.
+- `execution-venues/`: execution venue registry with create flow and a dedicated detail page for edit/delete.
 
 ## Dependencies
 

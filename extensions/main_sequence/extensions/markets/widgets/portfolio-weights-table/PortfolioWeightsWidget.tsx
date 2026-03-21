@@ -1,5 +1,3 @@
-import { useMemo } from "react";
-
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
@@ -11,10 +9,8 @@ import {
   formatMainSequenceError,
 } from "../../../../common/api";
 import {
-  formatPortfolioWeightAggregateValue,
-  getPortfolioWeightPositionRowNumericValue,
-  getPortfolioWeightPositionRowType,
   normalizePortfolioWeightSummaryRows,
+  PortfolioWeightsPositionSummaryStrip,
   PortfolioWeightsTable,
   type PortfolioWeightsTableVariant,
 } from "./PortfolioWeightsTable";
@@ -27,103 +23,6 @@ export interface PortfolioWeightsWidgetProps extends Record<string, unknown> {
 }
 
 type Props = WidgetComponentProps<PortfolioWeightsWidgetProps>;
-
-function normalizeSummaryPositionType(types: Set<string>) {
-  if (types.size !== 1) {
-    return null;
-  }
-
-  return Array.from(types)[0] ?? null;
-}
-
-function PortfolioWeightsSummaryStrip({
-  rows,
-}: {
-  rows: Array<Record<string, unknown>>;
-}) {
-  const summary = useMemo(() => {
-    let longSum = 0;
-    let shortSum = 0;
-    let totalSum = 0;
-    const longTypes = new Set<string>();
-    const shortTypes = new Set<string>();
-    const totalTypes = new Set<string>();
-
-    for (const row of rows) {
-      const numericValue = getPortfolioWeightPositionRowNumericValue(row);
-
-      if (numericValue === null) {
-        continue;
-      }
-
-      const positionType = getPortfolioWeightPositionRowType(row);
-      totalSum += numericValue;
-      if (positionType !== "Not available") {
-        totalTypes.add(positionType);
-      }
-
-      if (numericValue > 0) {
-        longSum += numericValue;
-        if (positionType !== "Not available") {
-          longTypes.add(positionType);
-        }
-      } else if (numericValue < 0) {
-        shortSum += numericValue;
-        if (positionType !== "Not available") {
-          shortTypes.add(positionType);
-        }
-      }
-    }
-
-    return {
-      longSum,
-      shortSum,
-      totalSum,
-      longType: normalizeSummaryPositionType(longTypes),
-      shortType: normalizeSummaryPositionType(shortTypes),
-      totalType: normalizeSummaryPositionType(totalTypes),
-    };
-  }, [rows]);
-
-  return (
-    <div className="mb-3 flex flex-wrap gap-2">
-      {[
-        {
-          key: "longs",
-          label: "Longs",
-          value: formatPortfolioWeightAggregateValue(summary.longSum, summary.longType),
-          tone:
-            summary.longSum > 0
-              ? "text-emerald-300 border-emerald-500/20 bg-emerald-500/8"
-              : "text-muted-foreground border-border/60 bg-background/40",
-        },
-        {
-          key: "shorts",
-          label: "Shorts",
-          value: formatPortfolioWeightAggregateValue(summary.shortSum, summary.shortType),
-          tone:
-            summary.shortSum < 0
-              ? "text-rose-300 border-rose-500/20 bg-rose-500/8"
-              : "text-muted-foreground border-border/60 bg-background/40",
-        },
-        {
-          key: "total",
-          label: "Total",
-          value: formatPortfolioWeightAggregateValue(summary.totalSum, summary.totalType),
-          tone: "text-foreground border-border/60 bg-background/40",
-        },
-      ].map((item) => (
-        <div
-          key={item.key}
-          className={`min-w-[112px] rounded-[calc(var(--radius)-8px)] border px-3 py-2 ${item.tone}`}
-        >
-          <div className="text-[10px] uppercase tracking-[0.16em]">{item.label}</div>
-          <div className="mt-1 text-sm font-medium">{item.value}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export function PortfolioWeightsWidget({ props }: Props) {
   const targetPortfolioId = Number(props.portfolioId ?? props.targetPortfolioId ?? "");
@@ -181,7 +80,9 @@ export function PortfolioWeightsWidget({ props }: Props) {
 
   return (
     <div className="space-y-0">
-      {variant === "positions" && rows.length > 0 ? <PortfolioWeightsSummaryStrip rows={rows} /> : null}
+      {variant === "positions" && rows.length > 0 ? (
+        <PortfolioWeightsPositionSummaryStrip rows={rows} />
+      ) : null}
       <PortfolioWeightsTable
         columnDefs={columnDefs}
         rows={rows}

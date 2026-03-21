@@ -6,12 +6,27 @@ import { MainSequenceAssetCategoriesPage } from "./features/asset-categories/Mai
 import { MainSequenceAssetTranslationTablesPage } from "./features/asset-translation-tables/MainSequenceAssetTranslationTablesPage";
 import { MainSequenceAssetsPage } from "./features/assets/MainSequenceAssetsPage";
 import { MainSequenceExecutionVenuesPage } from "./features/execution-venues/MainSequenceExecutionVenuesPage";
+import { MainSequenceFundsPage } from "./features/funds/MainSequenceFundsPage";
+import { MainSequenceInstrumentsPage } from "./features/instruments/MainSequenceInstrumentsPage";
+import { MainSequencePortfolioGroupsPage } from "./features/portfolio-groups/MainSequencePortfolioGroupsPage";
 import { MainSequenceTargetPortfoliosPage } from "./features/portfolios/MainSequenceTargetPortfoliosPage";
 
-const marketsSection: AppSurfaceNavigationSection = {
-  id: "markets",
-  label: "Markets",
+const assetsSection: AppSurfaceNavigationSection = {
+  id: "assets",
+  label: "Assets",
   order: 10,
+};
+
+const portfoliosSection: AppSurfaceNavigationSection = {
+  id: "portfolios",
+  label: "Portfolios",
+  order: 20,
+};
+
+const settingsSection: AppSurfaceNavigationSection = {
+  id: "settings",
+  label: "Settings",
+  order: 30,
 };
 
 export const mainSequenceMarketsApp: AppDefinition = {
@@ -28,7 +43,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       title: "Asset Translation Tables",
       navLabel: "Translation Tables",
       description: "Manage asset translation tables and the translation rules embedded inside each table.",
-      navigationSection: marketsSection,
+      navigationSection: settingsSection,
       kind: "page",
       requiredPermissions: ["marketdata:read"],
       component: MainSequenceAssetTranslationTablesPage,
@@ -38,7 +53,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       title: "Asset Categories",
       navLabel: "Asset Categories",
       description: "Create, inspect, and delete asset categories with nested migrated asset lists.",
-      navigationSection: marketsSection,
+      navigationSection: assetsSection,
       kind: "page",
       requiredPermissions: ["marketdata:read"],
       component: MainSequenceAssetCategoriesPage,
@@ -48,27 +63,57 @@ export const mainSequenceMarketsApp: AppDefinition = {
       title: "Master List",
       navLabel: "Master List",
       description: "Browse market assets and apply API-backed filters.",
-      navigationSection: marketsSection,
+      navigationSection: assetsSection,
       kind: "page",
       requiredPermissions: ["marketdata:read"],
       component: MainSequenceAssetsPage,
+    },
+    {
+      id: "funds",
+      title: "Virtual Funds",
+      navLabel: "Virtual Funds",
+      description: "Browse virtual funds and the portfolio and account linked to each one.",
+      navigationSection: portfoliosSection,
+      kind: "page",
+      requiredPermissions: ["marketdata:read"],
+      component: MainSequenceFundsPage,
+    },
+    {
+      id: "portfolio-groups",
+      title: "Portfolio Groups",
+      navLabel: "Portfolio Groups",
+      description: "Browse portfolio groups and open direct detail pages backed by the standard DRF endpoints.",
+      navigationSection: portfoliosSection,
+      kind: "page",
+      requiredPermissions: ["marketdata:read"],
+      component: MainSequencePortfolioGroupsPage,
     },
     {
       id: "portfolios",
       title: "Portfolios",
       navLabel: "Portfolios",
       description: "Browse target portfolios and remove selected rows through the backend bulk-delete action.",
-      navigationSection: marketsSection,
+      navigationSection: portfoliosSection,
       kind: "page",
       requiredPermissions: ["marketdata:read"],
       component: MainSequenceTargetPortfoliosPage,
+    },
+    {
+      id: "instruments",
+      title: "Instruments",
+      navLabel: "Instruments",
+      description: "Placeholder surface for upcoming instrument registry and detail workflows.",
+      navigationSection: settingsSection,
+      kind: "page",
+      requiredPermissions: ["marketdata:read"],
+      component: MainSequenceInstrumentsPage,
     },
     {
       id: "execution-venues",
       title: "Execution Venues",
       navLabel: "Execution Venues",
       description: "Browse execution venues and manage their basic metadata.",
-      navigationSection: marketsSection,
+      navigationSection: settingsSection,
       kind: "page",
       requiredPermissions: ["marketdata:read"],
       component: MainSequenceExecutionVenuesPage,

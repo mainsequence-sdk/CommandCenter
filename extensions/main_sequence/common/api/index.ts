@@ -9,7 +9,9 @@ const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
 const assetEndpoint = "/orm/api/assets/asset/";
 const assetCategoryEndpoint = "/orm/api/assets/asset-category/";
+const virtualFundEndpoint = "/orm/api/assets/virtualfund/";
 const executionVenueEndpoint = "/orm/api/assets/execution_venue/";
+const portfolioGroupEndpoint = "/orm/api/assets/portfolio_group/";
 const targetPortfolioEndpoint = "/orm/api/assets/target_portfolio/";
 const assetTranslationTableEndpoint = "/orm/api/assets/asset-translation-tables/";
 export const mainSequenceRegistryPageSize = 25;
@@ -411,13 +413,61 @@ export interface CreateExecutionVenueInput {
   name: string;
 }
 
+export interface VirtualFundListRow {
+  id: number;
+  target_portfolio_id: number | null;
+  target_portfolio_name: string;
+  account_id: number | null;
+  account_name: string;
+}
+
 export interface UpdateExecutionVenueInput {
   symbol: string;
   name: string;
 }
 
+export interface PortfolioGroupListRow extends Record<string, unknown> {
+  id: number;
+  name?: string | null;
+  display_name?: string | null;
+  portfolio_group_name?: string | null;
+  unique_identifier?: string | null;
+  description?: string | null;
+  portfolios?: number[] | null;
+  portfolio_ids?: number[] | null;
+  creation_date?: string | null;
+  creation_date_display?: string | null;
+  created_at?: string | null;
+  created_display?: string | null;
+  created?: string | null;
+}
+
+export interface PortfolioGroupRecord extends PortfolioGroupListRow {}
+
+export interface CreatePortfolioGroupInput {
+  unique_identifier: string;
+  display_name?: string;
+  source?: string;
+  description?: string;
+  portfolios?: number[];
+}
+
+export interface PortfolioGroupBulkDeleteInput {
+  ids?: number[];
+}
+
+export interface PortfolioGroupBulkDeleteResponse {
+  detail: string;
+  deleted_count?: number;
+}
+
+export interface PortfolioGroupPortfolioMutationInput {
+  portfolios: number[];
+}
+
 export interface TargetPortfolioListRow extends Record<string, unknown> {
   id: number;
+  portfolio_name?: string | null;
   creation_date?: string | null;
   index_asset?: {
     id?: number | null;
@@ -451,6 +501,12 @@ export interface TargetPortfolioBulkDeleteInput {
 export interface TargetPortfolioBulkDeleteResponse {
   detail: string;
   deleted_count?: number;
+}
+
+export interface TargetPortfolioSearchOption {
+  id: number;
+  portfolio_name: string;
+  creation_date?: string | null;
 }
 
 export interface TargetPortfolioSummaryExtra extends EntitySummaryExtra {
@@ -1716,7 +1772,25 @@ export interface ExecutionVenueListFilters {
   nameContains?: string;
 }
 
+export interface PortfolioGroupListFilters {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface VirtualFundListFilters {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface TargetPortfolioListFilters {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface TargetPortfolioSearchFilters {
   search?: string;
   limit?: number;
   offset?: number;
@@ -2190,6 +2264,15 @@ function buildExecutionVenueListSearch(filters: ExecutionVenueListFilters) {
   } satisfies Record<string, QueryValue>;
 }
 
+function buildPortfolioGroupListSearch(filters: PortfolioGroupListFilters) {
+  return {
+    response_format: "frontend_list",
+    search: filters.search?.trim() || undefined,
+    limit: filters.limit,
+    offset: filters.offset,
+  } satisfies Record<string, QueryValue>;
+}
+
 function buildTargetPortfolioListSearch(filters: TargetPortfolioListFilters) {
   return {
     search: filters.search?.trim() || undefined,
@@ -2471,8 +2554,101 @@ export async function listExecutionVenues({
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
 }
 
+export async function listVirtualFunds({
+  search,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: VirtualFundListFilters = {}) {
+  const payload = await requestJson<PaginatedResponse<VirtualFundListRow> | VirtualFundListRow[]>(
+    virtualFundEndpoint,
+    "",
+    undefined,
+    {
+      response_format: "frontend_list",
+      search,
+      limit,
+      offset,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
 export function fetchExecutionVenueDetail(executionVenueId: number) {
   return requestJson<ExecutionVenueRecord>(executionVenueEndpoint, `${executionVenueId}/`);
+}
+
+export async function listPortfolioGroups({
+  search,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: PortfolioGroupListFilters = {}) {
+  const filters = {
+    search,
+    limit,
+    offset,
+  } satisfies PortfolioGroupListFilters;
+
+  const payload = await requestJson<PaginatedResponse<PortfolioGroupListRow> | PortfolioGroupListRow[]>(
+    portfolioGroupEndpoint,
+    "",
+    undefined,
+    buildPortfolioGroupListSearch(filters),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function bulkDeletePortfolioGroups(input: PortfolioGroupBulkDeleteInput) {
+  return requestJson<PortfolioGroupBulkDeleteResponse>(
+    portfolioGroupEndpoint,
+    "bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ids: input.ids,
+      }),
+    },
+  );
+}
+
+export function createPortfolioGroup(input: CreatePortfolioGroupInput) {
+  return requestJson<PortfolioGroupRecord>(portfolioGroupEndpoint, "get_or_create/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchPortfolioGroupDetail(portfolioGroupId: number) {
+  return requestJson<PortfolioGroupRecord>(portfolioGroupEndpoint, `${portfolioGroupId}/`);
+}
+
+export function appendPortfolioGroupPortfolios(
+  portfolioGroupId: number,
+  input: PortfolioGroupPortfolioMutationInput,
+) {
+  return requestJson<PortfolioGroupRecord>(
+    portfolioGroupEndpoint,
+    `${portfolioGroupId}/append-portfolios/`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function removePortfolioGroupPortfolios(
+  portfolioGroupId: number,
+  input: PortfolioGroupPortfolioMutationInput,
+) {
+  return requestJson<PortfolioGroupRecord>(
+    portfolioGroupEndpoint,
+    `${portfolioGroupId}/remove-portfolios/`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function createExecutionVenue(input: CreateExecutionVenueInput) {
@@ -2524,6 +2700,30 @@ export async function listTargetPortfolios({
     "",
     undefined,
     buildTargetPortfolioListSearch(filters),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export async function searchTargetPortfolioOptions({
+  search,
+  limit = 10,
+  offset = 0,
+}: TargetPortfolioSearchFilters = {}) {
+  const normalizedSearch = search?.trim() || undefined;
+
+  const payload = await requestJson<
+    PaginatedResponse<TargetPortfolioSearchOption> | TargetPortfolioSearchOption[]
+  >(
+    targetPortfolioEndpoint,
+    "",
+    undefined,
+    {
+      response_format: "frontend_list",
+      index_asset__current_snapshot__name: normalizedSearch,
+      limit,
+      offset,
+    },
   );
 
   return normalizeOffsetPaginatedResponse(payload, limit, offset);

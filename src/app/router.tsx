@@ -19,6 +19,7 @@ import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
 import { MainSequenceAssetCategoryDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-categories/MainSequenceAssetCategoryDetailPage";
 import { MainSequenceAssetTranslationTableDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-translation-tables/MainSequenceAssetTranslationTableDetailPage";
 import { MainSequenceExecutionVenueDetailPage } from "../../extensions/main_sequence/extensions/markets/features/execution-venues/MainSequenceExecutionVenueDetailPage";
+import { MainSequencePortfolioGroupDetailPage } from "../../extensions/main_sequence/extensions/markets/features/portfolio-groups/MainSequencePortfolioGroupDetailPage";
 import { MainSequenceClusterDetailPage } from "../../extensions/main_sequence/extensions/workbench/features/clusters/MainSequenceClusterDetailPage";
 
 export const router = createBrowserRouter([
@@ -143,6 +144,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionRoute anyOf={["marketdata:read"]}>
             <MainSequenceExecutionVenueDetailPage />
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: "main_sequence_markets/portfolio-groups/:groupId",
+        element: (
+          <PermissionRoute anyOf={["marketdata:read"]}>
+            <MainSequencePortfolioGroupDetailPage />
           </PermissionRoute>
         ),
       },
