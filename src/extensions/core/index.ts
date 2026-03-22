@@ -122,7 +122,7 @@ const orderflowLabDashboard: DashboardDefinition = {
     {
       id: "flow-positions",
       widgetId: "data-node-table-visualizer",
-      title: "data-node-table visualizer",
+      title: "Data Node Table",
       props: {},
       layout: { cols: 12, rows: 7 },
       position: { x: 0 },

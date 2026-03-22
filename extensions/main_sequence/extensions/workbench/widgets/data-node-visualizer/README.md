@@ -1,4 +1,4 @@
-# Main Sequence Data Node Visualizer Widget
+# Main Sequence Data Node Graph Widget
 
 This widget turns Main Sequence data-node table data into configurable charts, with a settings-only table preview for inspection.
 

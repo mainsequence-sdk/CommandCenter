@@ -1,11 +1,9 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import type {
   WidgetFieldCanvasRendererProps,
   WidgetFieldSettingsRendererProps,
@@ -13,15 +11,10 @@ import type {
 } from "@/widgets/types";
 
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
-import {
-  type DataNodeQuickSearchRecord,
-  formatMainSequenceError,
-  quickSearchDataNodes,
-} from "../../../../common/api";
 import type { DataNodeVisualizerControllerContext } from "./controller";
-import { formatDataNodeLabel, type MainSequenceDataNodeVisualizerWidgetProps } from "./dataNodeVisualizerModel";
-
-const dataNodeOptionLimit = 50;
+import type { MainSequenceDataNodeVisualizerWidgetProps } from "./dataNodeVisualizerModel";
+import { DataNodeDateTimeField } from "../data-node-shared/DataNodeDateTimeField";
+import { DataNodeQuickSearchPicker } from "../data-node-shared/DataNodeQuickSearchPicker";
 
 const dateRangeModeOptions: PickerOption[] = [
   {
@@ -50,28 +43,6 @@ const axisModeOptions: PickerOption[] = [
     description: "Render each series in aligned panes.",
   },
 ];
-
-function formatDateTimeLocalValue(timestampMs?: number) {
-  if (!timestampMs) {
-    return "";
-  }
-
-  const date = new Date(timestampMs);
-  const pad = (value: number) => String(value).padStart(2, "0");
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours(),
-  )}:${pad(date.getMinutes())}`;
-}
-
-function parseDateTimeLocalValue(value: string) {
-  if (!value.trim()) {
-    return null;
-  }
-
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 function tokenizeUniqueIdentifierValues(values: string) {
   return values
@@ -109,127 +80,27 @@ function DataNodePickerField({
   MainSequenceDataNodeVisualizerWidgetProps,
   DataNodeVisualizerControllerContext
 >) {
-  const [searchValue, setSearchValue] = useState("");
-  const deferredSearchValue = useDeferredValue(searchValue);
-  const normalizedSearchValue = deferredSearchValue.trim();
-
-  const dataNodesQuery = useQuery({
-    queryKey: [
-      "main_sequence",
-      "widgets",
-      "data_node_visualizer",
-      "quick_search",
-      normalizedSearchValue,
-    ],
-    queryFn: () =>
-      quickSearchDataNodes({
-        limit: dataNodeOptionLimit,
-        q: normalizedSearchValue,
-      }),
-    enabled: normalizedSearchValue.length >= 3,
-    staleTime: 300_000,
-  });
-
-  const dataNodeOptions = useMemo(() => {
-    const baseOptions: DataNodeQuickSearchRecord[] =
-      normalizedSearchValue.length >= 3 ? dataNodesQuery.data ?? [] : [];
-    const selectedDetail = context.selectedDataNodeDetailQuery.data;
-
-    if (selectedDetail && !baseOptions.some((dataNode) => dataNode.id === selectedDetail.id)) {
-      return [selectedDetail, ...baseOptions];
-    }
-
-    return baseOptions;
-  }, [context.selectedDataNodeDetailQuery.data, dataNodesQuery.data, normalizedSearchValue.length]);
-
-  const pickerOptions = useMemo<PickerOption[]>(
-    () =>
-      dataNodeOptions.map((dataNode) => ({
-        value: String(dataNode.id),
-        label: formatDataNodeLabel(dataNode),
-        description:
-          dataNode.identifier?.trim() && dataNode.storage_hash !== dataNode.identifier
-            ? dataNode.storage_hash
-            : undefined,
-        keywords: [String(dataNode.id), dataNode.identifier ?? "", dataNode.storage_hash ?? ""],
-      })),
-    [dataNodeOptions],
-  );
-
   return (
-    <div className="space-y-2">
-      <PickerField
-        value={context.selectedDataNodeId > 0 ? String(context.selectedDataNodeId) : ""}
-        onChange={(value) => {
-          const nextId = Number(value);
-
-          onDraftPropsChange({
-            ...draftProps,
-            dataNodeId: Number.isFinite(nextId) && nextId > 0 ? nextId : undefined,
-            xField: undefined,
-            yField: undefined,
-            groupField: undefined,
-            seriesOverrides: undefined,
-            uniqueIdentifierList: undefined,
-          });
-        }}
-        options={pickerOptions}
-        placeholder="Select a data node"
-        searchPlaceholder="Search data nodes"
-        emptyMessage={
-          normalizedSearchValue.length >= 3
-            ? "No matching data nodes."
-            : normalizedSearchValue.length > 0
-              ? "Type at least 3 characters."
-              : "Type to search data nodes."
-        }
-        searchable
-        searchValue={searchValue}
-        onSearchValueChange={setSearchValue}
-        disabled={!editable}
-        loading={normalizedSearchValue.length >= 3 && dataNodesQuery.isFetching}
-      />
-
-      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <span>Choose the table you want to visualize.</span>
-        {normalizedSearchValue.length === 0 ? (
-          <span>Type to search.</span>
-        ) : normalizedSearchValue.length < 3 ? (
-          <span>Use at least 3 characters.</span>
-        ) : null}
-        {dataNodesQuery.isError ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-auto px-0 py-0 text-sm text-primary hover:bg-transparent"
-            onClick={() => {
-              void dataNodesQuery.refetch();
-            }}
-          >
-            Retry
-          </Button>
-        ) : null}
-      </div>
-
-      {dataNodesQuery.isError ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {formatMainSequenceError(dataNodesQuery.error)}
-        </div>
-      ) : null}
-
-      {context.selectedDataNodeDetailQuery.isError ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {formatMainSequenceError(context.selectedDataNodeDetailQuery.error)}
-        </div>
-      ) : null}
-
-      {context.selectedDataNodeId > 0 && context.hasNoData ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-          This data node has no data.
-        </div>
-      ) : null}
-    </div>
+    <DataNodeQuickSearchPicker
+      value={context.selectedDataNodeId}
+      onChange={(nextId) => {
+        onDraftPropsChange({
+          ...draftProps,
+          dataNodeId: nextId,
+          xField: undefined,
+          yField: undefined,
+          groupField: undefined,
+          seriesOverrides: undefined,
+          uniqueIdentifierList: undefined,
+        });
+      }}
+      editable={editable}
+      queryScope="data_node_visualizer"
+      selectedDataNode={context.selectedDataNodeDetailQuery.data}
+      detailError={context.selectedDataNodeDetailQuery.error}
+      hasNoData={context.hasNoData}
+      selectionHelpText="Choose the table you want to visualize."
+    />
   );
 }
 
@@ -242,66 +113,17 @@ function DataNodePickerCanvasField({
   MainSequenceDataNodeVisualizerWidgetProps,
   DataNodeVisualizerControllerContext
 >) {
-  const [searchValue, setSearchValue] = useState("");
-  const deferredSearchValue = useDeferredValue(searchValue);
-  const normalizedSearchValue = deferredSearchValue.trim();
-
-  const dataNodesQuery = useQuery({
-    queryKey: [
-      "main_sequence",
-      "widgets",
-      "data_node_visualizer",
-      "canvas_quick_search",
-      normalizedSearchValue,
-    ],
-    queryFn: () =>
-      quickSearchDataNodes({
-        limit: dataNodeOptionLimit,
-        q: normalizedSearchValue,
-      }),
-    enabled: normalizedSearchValue.length >= 3,
-    staleTime: 300_000,
-  });
-
-  const dataNodeOptions = useMemo(() => {
-    const baseOptions: DataNodeQuickSearchRecord[] =
-      normalizedSearchValue.length >= 3 ? dataNodesQuery.data ?? [] : [];
-    const selectedDetail = context.selectedDataNodeDetailQuery.data;
-
-    if (selectedDetail && !baseOptions.some((dataNode) => dataNode.id === selectedDetail.id)) {
-      return [selectedDetail, ...baseOptions];
-    }
-
-    return baseOptions;
-  }, [context.selectedDataNodeDetailQuery.data, dataNodesQuery.data, normalizedSearchValue.length]);
-
-  const pickerOptions = useMemo<PickerOption[]>(
-    () =>
-      dataNodeOptions.map((dataNode) => ({
-        value: String(dataNode.id),
-        label: formatDataNodeLabel(dataNode),
-        description:
-          dataNode.identifier?.trim() && dataNode.storage_hash !== dataNode.identifier
-            ? dataNode.storage_hash
-            : undefined,
-        keywords: [String(dataNode.id), dataNode.identifier ?? "", dataNode.storage_hash ?? ""],
-      })),
-    [dataNodeOptions],
-  );
-
   return (
     <div className="space-y-2">
       <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         Data node
       </div>
-      <PickerField
-        value={context.selectedDataNodeId > 0 ? String(context.selectedDataNodeId) : ""}
-        onChange={(value) => {
-          const nextId = Number(value);
-
+      <DataNodeQuickSearchPicker
+        value={context.selectedDataNodeId}
+        onChange={(nextId) => {
           onPropsChange({
             ...props,
-            dataNodeId: Number.isFinite(nextId) && nextId > 0 ? nextId : undefined,
+            dataNodeId: nextId,
             xField: undefined,
             yField: undefined,
             groupField: undefined,
@@ -309,21 +131,10 @@ function DataNodePickerCanvasField({
             uniqueIdentifierList: undefined,
           });
         }}
-        options={pickerOptions}
-        placeholder="Select a data node"
-        searchPlaceholder="Search data nodes"
-        emptyMessage={
-          normalizedSearchValue.length >= 3
-            ? "No matching data nodes."
-            : normalizedSearchValue.length > 0
-              ? "Type at least 3 characters."
-              : "Type to search data nodes."
-        }
-        searchable
-        searchValue={searchValue}
-        onSearchValueChange={setSearchValue}
-        disabled={!editable}
-        loading={normalizedSearchValue.length >= 3 && dataNodesQuery.isFetching}
+        editable={editable}
+        queryScope="data_node_graph_canvas"
+        selectedDataNode={context.selectedDataNodeDetailQuery.data}
+        showStatus={false}
       />
     </div>
   );
@@ -553,45 +364,6 @@ function PickerFieldSetting({
   );
 }
 
-function DateTimeField({
-  valueMs,
-  onChangeValue,
-  editable,
-}: {
-  valueMs?: number;
-  onChangeValue: (valueMs: number | undefined) => void;
-  editable: boolean;
-}) {
-  const [inputValue, setInputValue] = useState(() => formatDateTimeLocalValue(valueMs));
-
-  useEffect(() => {
-    setInputValue(formatDateTimeLocalValue(valueMs));
-  }, [valueMs]);
-
-  return (
-    <Input
-      type="datetime-local"
-      value={inputValue}
-      onChange={(event) => {
-        const nextValue = event.target.value;
-        setInputValue(nextValue);
-
-        if (!nextValue.trim()) {
-          onChangeValue(undefined);
-          return;
-        }
-
-        const parsed = parseDateTimeLocalValue(nextValue);
-
-        if (parsed !== null) {
-          onChangeValue(parsed);
-        }
-      }}
-      disabled={!editable}
-    />
-  );
-}
-
 function ToggleButtonField({
   enabled,
   editable,
@@ -716,7 +488,7 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
       sectionId: "date-range",
       isVisible: ({ context }) => context.resolvedConfig.dateRangeMode === "fixed",
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
-        <DateTimeField
+        <DataNodeDateTimeField
           valueMs={context.resolvedConfig.fixedStartMs}
           editable={editable}
           onChangeValue={(nextValue) => {
@@ -735,7 +507,7 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
       sectionId: "date-range",
       isVisible: ({ context }) => context.resolvedConfig.dateRangeMode === "fixed",
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
-        <DateTimeField
+        <DataNodeDateTimeField
           valueMs={context.resolvedConfig.fixedEndMs}
           editable={editable}
           onChangeValue={(nextValue) => {
@@ -814,7 +586,7 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
       sectionId: "visualization",
       isVisible: ({ context }) => context.resolvedConfig.normalizeSeries,
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
-        <DateTimeField
+        <DataNodeDateTimeField
           valueMs={context.resolvedConfig.normalizeAtMs}
           editable={editable}
           onChangeValue={(nextValue) => {

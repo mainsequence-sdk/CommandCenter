@@ -1,4 +1,12 @@
+import type { DataNodeDetail, DataNodeRemoteDataRow } from "../../../../common/api";
+import {
+  buildDataNodeFieldOptions,
+  formatDataNodeLabel,
+} from "../data-node-shared/dataNodeShared";
+
 export type DataNodeTableVisualizerDatasetId = "positions" | "risk-monitor" | "execution-quality";
+export type DataNodeTableVisualizerSourceMode = "mock-dataset" | "data-node";
+export type DataNodeTableVisualizerDateRangeMode = "dashboard" | "fixed";
 export type DataNodeTableVisualizerColumnFormat =
   | "auto"
   | "text"
@@ -75,7 +83,14 @@ export interface DataNodeTableVisualizerConditionalRule {
 }
 
 export interface DataNodeTableVisualizerProps extends Record<string, unknown> {
+  sourceMode?: DataNodeTableVisualizerSourceMode;
   datasetId?: DataNodeTableVisualizerDatasetId;
+  dataNodeId?: number;
+  dateRangeMode?: DataNodeTableVisualizerDateRangeMode;
+  fixedEndMs?: number;
+  fixedStartMs?: number;
+  uniqueIdentifierList?: string[];
+  limit?: number;
   columns?: string[];
   rows?: DataNodeTableVisualizerFrameRow[];
   schema?: DataNodeTableVisualizerColumnSchema[];
@@ -100,7 +115,16 @@ export interface ResolvedDataNodeTableVisualizerColumnConfig extends DataNodeTab
 }
 
 export interface ResolvedDataNodeTableVisualizerProps {
+  sourceMode: DataNodeTableVisualizerSourceMode;
   datasetId: DataNodeTableVisualizerDatasetId;
+  dataNodeId?: number;
+  dataNodeLabel?: string;
+  dateRangeMode: DataNodeTableVisualizerDateRangeMode;
+  fixedEndMs?: number;
+  fixedStartMs?: number;
+  uniqueIdentifierList?: string[];
+  limit: number;
+  supportsUniqueIdentifierList: boolean;
   columns: string[];
   rows: DataNodeTableVisualizerFrameRow[];
   schema: DataNodeTableVisualizerColumnSchema[];
@@ -115,6 +139,14 @@ export interface ResolvedDataNodeTableVisualizerProps {
   conditionalRules: DataNodeTableVisualizerConditionalRule[];
 }
 
+export interface DataNodeTableVisualizerResolvedFrameInput {
+  columns: string[];
+  rows: DataNodeTableVisualizerFrameRow[];
+  schemaFallback: DataNodeTableVisualizerColumnSchema[];
+  supportsUniqueIdentifierList?: boolean;
+  dataNodeLabel?: string;
+}
+
 export interface DataNodeTableVisualizerSchemaValidationIssue {
   code: "empty_schema" | "missing_columns" | "non_numeric_columns";
   columnKeys?: string[];
@@ -126,6 +158,7 @@ export interface DataNodeTableVisualizerSchemaValidationResult {
 }
 
 const defaultPageSize = 10;
+const defaultRemoteLimit = 500;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
 
 const positionsDataset: DataNodeTableVisualizerDataset = {
@@ -257,6 +290,138 @@ function normalizeCellValue(value: unknown): DataNodeTableVisualizerCellValue {
   }
 
   return String(value);
+}
+
+function uniqueStrings(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+
+  return values.filter((value): value is string => {
+    if (!value?.trim()) {
+      return false;
+    }
+
+    if (seen.has(value)) {
+      return false;
+    }
+
+    seen.add(value);
+    return true;
+  });
+}
+
+function normalizePositiveInteger(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return Math.trunc(parsed);
+}
+
+function normalizeTimestampMs(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return undefined;
+  }
+
+  return Math.trunc(parsed);
+}
+
+function normalizeSourceMode(value: unknown): DataNodeTableVisualizerSourceMode {
+  return value === "data-node" ? "data-node" : "mock-dataset";
+}
+
+function normalizeDateRangeMode(value: unknown): DataNodeTableVisualizerDateRangeMode {
+  return value === "fixed" ? "fixed" : "dashboard";
+}
+
+function normalizeUniqueIdentifierList(value: unknown) {
+  if (typeof value === "string") {
+    return uniqueStrings(value.split(/[\n,]+/).map((item) => item.trim()));
+  }
+
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalizedValues = uniqueStrings(
+    value.map((item) => (typeof item === "string" ? item.trim() : "")),
+  );
+
+  return normalizedValues.length > 0 ? normalizedValues : undefined;
+}
+
+function inferRemoteColumnFormatFromKey(
+  key: string,
+  dtype: string | null | undefined,
+  rows: readonly DataNodeTableVisualizerFrameRow[],
+  columnIndex: number,
+): Exclude<DataNodeTableVisualizerColumnFormat, "auto"> {
+  if (dtype && /date|time|timestamp/i.test(dtype)) {
+    return "text";
+  }
+
+  if (dtype && /int|float|double|decimal|number|numeric|real|bigint/i.test(dtype)) {
+    if (/%|pct|percent/i.test(key)) {
+      return "percent";
+    }
+
+    if (/bps/i.test(key)) {
+      return "bps";
+    }
+
+    if (/price|cost|value|gross|net|pnl|notional|amount|exposure/i.test(key)) {
+      return "currency";
+    }
+
+    return "number";
+  }
+
+  return inferSchemaFormatFromRows(key, rows, columnIndex);
+}
+
+export function buildDataNodeTableVisualizerFrameFromRemoteData(
+  detail?: DataNodeDetail | null,
+  remoteRows: readonly DataNodeRemoteDataRow[] = [],
+): DataNodeTableVisualizerResolvedFrameInput {
+  const fieldOptions = buildDataNodeFieldOptions(detail);
+  const fieldOptionByKey = new Map(fieldOptions.map((field) => [field.key, field]));
+  const rowKeys = uniqueStrings(remoteRows.flatMap((row) => Object.keys(row)));
+  const columns = uniqueStrings([
+    ...fieldOptions.map((field) => field.key),
+    ...rowKeys,
+  ]);
+  const rows = remoteRows.map((row) => columns.map((columnKey) => normalizeCellValue(row[columnKey])));
+  const schemaFallback = columns.map<DataNodeTableVisualizerColumnSchema>((columnKey, index) => {
+    const field = fieldOptionByKey.get(columnKey);
+    const label = field?.label?.trim() || columnKey;
+    const format = inferRemoteColumnFormatFromKey(columnKey, field?.dtype, rows, index);
+
+    return {
+      key: columnKey,
+      label,
+      description: field?.description ?? undefined,
+      format,
+      minWidth: field?.isTime ? 160 : format === "text" ? 140 : 120,
+      pinned: field?.isIndex ? "left" : undefined,
+      categorical: format === "text",
+      heatmapEligible: format !== "text",
+      compact:
+        format === "currency" &&
+        /gross|net|pnl|notional|amount|exposure|value/i.test(columnKey),
+    };
+  });
+
+  return {
+    columns,
+    rows,
+    schemaFallback,
+    supportsUniqueIdentifierList:
+      (detail?.sourcetableconfiguration?.index_names ?? []).includes("unique_identifier"),
+    dataNodeLabel: formatDataNodeLabel(detail),
+  };
 }
 
 function normalizeFrameColumns(value: unknown, fallback: readonly string[]) {
@@ -800,6 +965,17 @@ export function resolveDataNodeTableVisualizerSchema(
   });
 }
 
+function resolveDataNodeTableVisualizerSchemaFromFrame(
+  props: Pick<DataNodeTableVisualizerProps, "schema">,
+  frameInput: Pick<DataNodeTableVisualizerResolvedFrameInput, "schemaFallback">,
+) {
+  if (Array.isArray(props.schema)) {
+    return normalizeColumnSchemas(props.schema, frameInput.schemaFallback);
+  }
+
+  return cloneDataNodeTableVisualizerSchema(frameInput.schemaFallback);
+}
+
 export function constrainDataNodeTableVisualizerPropsToDataset(
   props: DataNodeTableVisualizerProps,
   datasetOrId: DataNodeTableVisualizerDataset | DataNodeTableVisualizerDatasetId,
@@ -827,14 +1003,53 @@ export function constrainDataNodeTableVisualizerPropsToDataset(
   };
 }
 
-export function resolveDataNodeTableVisualizerProps(props: DataNodeTableVisualizerProps): ResolvedDataNodeTableVisualizerProps {
+export function resolveDataNodeTableVisualizerPropsWithFrame(
+  props: DataNodeTableVisualizerProps,
+  frameInput?: DataNodeTableVisualizerResolvedFrameInput | null,
+): ResolvedDataNodeTableVisualizerProps {
   const migratedProps = stripLegacyDataNodeTableVisualizerDisplayConfig(props);
+  const sourceMode = normalizeSourceMode(migratedProps.sourceMode);
   const dataset = getDataNodeTableVisualizerDataset(migratedProps.datasetId);
-  const frame = resolveDataNodeTableVisualizerFrame(migratedProps, dataset);
-  const schema = resolveDataNodeTableVisualizerSchema(migratedProps, dataset);
+  const normalizedDataNodeId = normalizePositiveInteger(migratedProps.dataNodeId);
+  const normalizedFixedStartMs = normalizeTimestampMs(migratedProps.fixedStartMs);
+  const normalizedFixedEndMs = normalizeTimestampMs(migratedProps.fixedEndMs);
+  const normalizedUniqueIdentifierList = normalizeUniqueIdentifierList(
+    migratedProps.uniqueIdentifierList,
+  );
+  const normalizedLimit =
+    normalizePositiveInteger(migratedProps.limit) ?? defaultRemoteLimit;
+  const activeFrame =
+    sourceMode === "data-node"
+      ? {
+          columns: frameInput?.columns ?? [],
+          rows: frameInput?.rows ?? [],
+          schemaFallback: frameInput?.schemaFallback ?? [],
+        }
+      : null;
+  const frame =
+    activeFrame ??
+    resolveDataNodeTableVisualizerFrame(migratedProps, dataset);
+  const schema =
+    activeFrame != null
+      ? resolveDataNodeTableVisualizerSchemaFromFrame(migratedProps, activeFrame)
+      : resolveDataNodeTableVisualizerSchema(migratedProps, dataset);
 
   return {
+    sourceMode,
     datasetId: dataset.id,
+    dataNodeId: normalizedDataNodeId,
+    dataNodeLabel:
+      sourceMode === "data-node"
+        ? frameInput?.dataNodeLabel ??
+          (normalizedDataNodeId ? formatDataNodeLabel({ id: normalizedDataNodeId, storage_hash: "", identifier: null }) : undefined)
+        : undefined,
+    dateRangeMode: normalizeDateRangeMode(migratedProps.dateRangeMode),
+    fixedStartMs: normalizedFixedStartMs,
+    fixedEndMs: normalizedFixedEndMs,
+    uniqueIdentifierList: normalizedUniqueIdentifierList,
+    limit: normalizedLimit,
+    supportsUniqueIdentifierList:
+      sourceMode === "data-node" ? Boolean(frameInput?.supportsUniqueIdentifierList) : false,
     columns: frame.columns,
     rows: frame.rows,
     schema,
@@ -859,6 +1074,10 @@ export function resolveDataNodeTableVisualizerProps(props: DataNodeTableVisualiz
           .filter((entry): entry is DataNodeTableVisualizerConditionalRule => Boolean(entry))
       : [],
   };
+}
+
+export function resolveDataNodeTableVisualizerProps(props: DataNodeTableVisualizerProps): ResolvedDataNodeTableVisualizerProps {
+  return resolveDataNodeTableVisualizerPropsWithFrame(props);
 }
 
 export function resolveDataNodeTableVisualizerColumns(
@@ -1104,6 +1323,40 @@ export const dataNodeTableVisualizerDatasetOptions = dataNodeTableVisualizerData
   description: dataset.description,
 }));
 
+export const dataNodeTableVisualizerSourceModeOptions: Array<{
+  value: DataNodeTableVisualizerSourceMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "mock-dataset",
+    label: "Mock dataset",
+    description: "Use the shipped sample frame to configure the formatter.",
+  },
+  {
+    value: "data-node",
+    label: "Data node",
+    description: "Fetch live frame data from a selected data node.",
+  },
+];
+
+export const dataNodeTableVisualizerDateRangeModeOptions: Array<{
+  value: DataNodeTableVisualizerDateRangeMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "dashboard",
+    label: "Dashboard date",
+    description: "Keep the table in sync with the current dashboard range.",
+  },
+  {
+    value: "fixed",
+    label: "Fixed date",
+    description: "Use a saved start and end date for this widget only.",
+  },
+];
+
 export const dataNodeTableVisualizerFormatOptions: Array<{
   value: DataNodeTableVisualizerColumnFormat;
   label: string;
@@ -1174,7 +1427,10 @@ export const dataNodeTableVisualizerToneOptions: Array<{
 ];
 
 export const dataNodeTableVisualizerDefaultProps: DataNodeTableVisualizerProps = {
+  sourceMode: "mock-dataset",
   datasetId: "positions",
+  dateRangeMode: "dashboard",
+  limit: defaultRemoteLimit,
   ...buildDataNodeTableVisualizerFrameFromDataset(positionsDataset),
   schema: cloneDataNodeTableVisualizerSchema(positionsDataset.columns),
   density: "comfortable",

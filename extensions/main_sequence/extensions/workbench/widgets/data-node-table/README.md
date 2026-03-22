@@ -1,15 +1,17 @@
-# data-node-table-visualizer Widget
+# Main Sequence Data Node Table Widget
 
-This folder owns the Flow Lab `data-node-table-visualizer` widget id. The UI and settings are built
-as a reusable AG Grid Community table formatter.
+This folder owns the Main Sequence workbench `data-node-table-visualizer` widget id. The UI and
+settings are built as a reusable AG Grid Community table formatter.
 
 ## Purpose
 
-`data-node-table visualizer` is the complex table-formatting surface for mock trading datasets. It is
-meant to exercise the formatter layer before the real backend feed is connected. The widget is intentionally
+`Data Node Table` is the complex table-formatting surface for either shipped mock trading
+datasets or live data-node rows fetched from the backend. The widget is intentionally
 configuration-heavy:
 
+- source switching between mock datasets and live data nodes
 - dataset switching across multiple mock row shapes
+- data-node selection, date range selection, row limit, and optional `unique_identifier` filtering
 - raw-frame input shaped as `columns[]` plus `rows[][]`
 - per-instance schema control for keys, labels, descriptions, and base formats
 - per-column visibility, pinning, alignment, and numeric display formatting
@@ -23,12 +25,14 @@ configuration-heavy:
 ## Entry Points
 
 - `definition.ts`: widget registry definition, default props, and settings registration.
-- `DataNodeTableVisualizerWidget.tsx`: runtime renderer that maps the resolved config into AG Grid Community.
-- `DataNodeTableVisualizerWidgetSettings.tsx`: widget settings editor for dataset, columns, value labels, and
-  numeric rules. The form now uses the shared tight-density widget settings classes so large table
-  configs stay compact.
-- `data-node-table-visualizer-model.ts`: shared config model, mock datasets, defaults, formatters, and helper
+- `DataNodeTableWidget.tsx`: runtime renderer that maps the resolved config into AG Grid Community.
+- `DataNodeTableWidgetSettings.tsx`: widget settings editor for source mode, data-node
+  selection, date range, columns, value labels, and numeric rules. The form uses the shared
+  tight-density widget settings classes so large table configs stay compact.
+- `dataNodeTableModel.ts`: shared config model, mock datasets, defaults, formatters, and helper
   functions used by both renderer and settings.
+- `../data-node-shared/`: shared data-node picker, datetime field, metadata inference, and range
+  helpers reused by both the table and graph widgets.
 
 ## AG Grid Community Scope
 
@@ -55,27 +59,40 @@ Not used here:
 If a future change depends on AG Grid Enterprise, document that explicitly before wiring it into this
 widget. The current intent is to keep this formatter removable and license-light.
 
-## Mock Data Model
+## Data Sources
 
-`data-node-table-visualizer-model.ts` ships three mock datasets:
+`dataNodeTableModel.ts` ships three mock datasets:
 
 - `positions`: position and strategy-level rows with PnL, exposure, conviction, and status fields
 - `risk-monitor`: desk-level risk rows with drawdown, utilization, VaR, and regime fields
 - `execution-quality`: venue/routing diagnostics with fill rate, slippage, latency, and score
 
-The mock dataset layer exists so the formatter can be developed independently from backend transport.
-Each widget instance now owns its active data frame and field schema in props, while the selected mock
-dataset only seeds that frame with sample rows and a starting field shape. When live data is introduced
-later, keep that instance-owned frame + field contract stable and swap only the row source adapters.
+The mock dataset layer exists so the formatter can still be explored without backend data. In live
+mode the widget fetches source-table metadata plus remote rows from a selected data node, then adapts
+them into the same frame contract used by the mock datasets:
+
+- `columns[]`
+- `rows[][]`
+- schema fallback inferred from column metadata and sampled rows
+
+The settings editor resolves against that live frame preview, so field formatting still happens in the
+same per-instance schema/override pipeline no matter where the rows came from.
 
 If the instance schema no longer matches the available row shape, the widget and settings both surface
 an explicit schema-mismatch error instead of silently rendering a broken grid.
 
 ## Config Surface
 
-The widget props are intentionally the contract for future live integration:
+The widget props are intentionally the contract for both shipped mock mode and live data-node mode:
 
+- `sourceMode`
 - `datasetId`
+- `dataNodeId`
+- `dateRangeMode`
+- `fixedStartMs`
+- `fixedEndMs`
+- `uniqueIdentifierList`
+- `limit`
 - `columns`
 - `rows`
 - `schema`
@@ -89,7 +106,7 @@ The widget props are intentionally the contract for future live integration:
 - `valueLabels`
 - `conditionalRules`
 
-`columns` and `rows` are the primary input contract. The widget assumes tabular frame data shaped like:
+`columns` and `rows` are the primary runtime contract. The widget assumes tabular frame data shaped like:
 
 - `columns = ["a", "b", "c"]`
 - `rows = [[1, 2, "pedro"], [3, 4, "maria"]]`
@@ -136,7 +153,7 @@ to any non-text display column from settings; non-numeric cells are ignored at r
 
 - Keep all `assistant-ui` and chat work out of this folder. This widget should remain isolated to table
   formatting only.
-- If the mock datasets or formatter contract changes, update both `data-node-table-visualizer-model.ts` and this
-  README in the same change.
-- If real backend data replaces the mock rows, keep the settings schema and formatting helpers stable
-  so existing saved widget props continue to render.
+- If the source adapters or formatter contract changes, update both
+  `dataNodeTableModel.ts` and this README in the same change.
+- Live data-node mode should keep the per-instance schema and formatter helpers stable so existing
+  saved widget props continue to render after backend changes.

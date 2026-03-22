@@ -6,9 +6,9 @@ import { MainSequenceDataNodeVisualizerWidgetSettings } from "./MainSequenceData
 import type { MainSequenceDataNodeVisualizerWidgetProps } from "./dataNodeVisualizerModel";
 import { dataNodeVisualizerSettingsSchema } from "./schema";
 
-export const mainSequenceDataNodeVisualizerWidget: WidgetDefinition<MainSequenceDataNodeVisualizerWidgetProps> = {
+export const mainSequenceDataNodeGraphWidget: WidgetDefinition<MainSequenceDataNodeVisualizerWidgetProps> = {
   id: "main-sequence-data-node-visualizer",
-  title: "Data Node Visualizer",
+  title: "Data Node Graph",
   description: "Turns Main Sequence data-node tables into charts, with a settings-only table preview.",
   category: "DataNodes",
   kind: "chart",

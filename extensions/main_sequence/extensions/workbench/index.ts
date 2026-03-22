@@ -1,13 +1,14 @@
 import type { AppExtension } from "@/app/registry/types";
 
 import { mainSequenceWorkbenchApp } from "./app";
-import { mainSequenceDataNodeVisualizerWidget } from "./widgets/data-node-visualizer/definition";
+import { mainSequenceDataNodeGraphWidget } from "./widgets/data-node-visualizer/definition";
+import { mainSequenceDataNodeTableWidget } from "./widgets/data-node-table/definition";
 
 const mainSequenceWorkbenchExtension: AppExtension = {
   id: "main_sequence_workbench",
   title: "Main Sequence Workbench",
   description: "Workbench surfaces and widgets for Main Sequence backend administration.",
-  widgets: [mainSequenceDataNodeVisualizerWidget],
+  widgets: [mainSequenceDataNodeGraphWidget, mainSequenceDataNodeTableWidget],
   apps: [mainSequenceWorkbenchApp],
 };
 

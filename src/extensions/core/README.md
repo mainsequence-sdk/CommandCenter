@@ -20,7 +20,8 @@ This extension owns the built-in registry entries that ship with Command Center 
 - Core widget source still lives under `src/widgets/core/`.
 - This extension currently registers `news-feed` and `workspace-row` in the live widget catalog.
 - The shipped dashboards now depend on only two registered widget ids:
-  `data-node-table-visualizer` from `flow-lab` and `yield-curve-plot` from `main_sequence_markets`.
+  `data-node-table-visualizer` from `main_sequence_workbench` and `yield-curve-plot` from
+  `main_sequence_markets`.
 
 ## Maintenance Notes
 

@@ -5,12 +5,11 @@ into other apps.
 
 ## Entry Points
 
-- `index.ts`: registers the Flow Lab extension metadata, widget, and theme.
+- `index.ts`: registers the Flow Lab extension metadata and theme.
 - `theme.ts`: exports the `neon-mint` theme preset owned by this extension.
 
 ## Owned Assets
 
-- the `data-node-table-visualizer` widget under `src/widgets/extensions/data-node-table-visualizer/`
 - the `flow-lab` theme preset used by demo surfaces
 - the order-book widget modules remain on disk under `src/widgets/extensions/order-book/`, but they are not currently registered
 
@@ -21,5 +20,5 @@ into other apps.
 
 ## Maintenance Notes
 
-- Keep `source: "flow-lab"` aligned across assets defined here.
+- Keep `source: "flow-lab"` aligned across Flow Lab-owned assets defined here.
 - This extension no longer registers its own app; app-level navigation stays in the core demo app.

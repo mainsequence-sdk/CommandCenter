@@ -1,7 +1,19 @@
+import { useMemo } from "react";
+
+import { useQuery } from "@tanstack/react-query";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useDashboardControls } from "@/dashboards/DashboardControls";
+import {
+  fetchDataNodeDataBetweenDatesFromRemote,
+  fetchDataNodeDetail,
+  formatMainSequenceError,
+} from "../../../../common/api";
 import { useTheme } from "@/themes/ThemeProvider";
 import {
   widgetTightFormButtonGroupClass,
@@ -17,8 +29,11 @@ import {
 } from "@/widgets/shared/form-density";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
+import { DataNodeDateTimeField } from "../data-node-shared/DataNodeDateTimeField";
+import { DataNodeQuickSearchPicker } from "../data-node-shared/DataNodeQuickSearchPicker";
 import {
   buildDataNodeTableVisualizerFrameFromDataset,
+  buildDataNodeTableVisualizerFrameFromRemoteData,
   buildDataNodeTableVisualizerRowObjects,
   cloneDataNodeTableVisualizerSchema,
   constrainDataNodeTableVisualizerPropsToDataset,
@@ -27,24 +42,31 @@ import {
   getDataNodeTableVisualizerDataset,
   resolveDataNodeTableVisualizerColumns,
   resolveDataNodeTableVisualizerProps,
+  resolveDataNodeTableVisualizerPropsWithFrame,
   validateDataNodeTableVisualizerSchema,
+  dataNodeTableVisualizerDateRangeModeOptions,
   dataNodeTableVisualizerAlignOptions,
   dataNodeTableVisualizerBarModeOptions,
   dataNodeTableVisualizerDatasetOptions,
   dataNodeTableVisualizerDefaultProps,
-    dataNodeTableVisualizerDensityOptions,
-    dataNodeTableVisualizerFormatOptions,
-    dataNodeTableVisualizerOperatorOptions,
-    dataNodeTableVisualizerPinnedOptions,
-    dataNodeTableVisualizerToneOptions,
-    type DataNodeTableVisualizerColumnSchema,
-    type DataNodeTableVisualizerColumnOverride,
-    type DataNodeTableVisualizerConditionalRule,
-    type DataNodeTableVisualizerProps,
-    type DataNodeTableVisualizerSchemaValidationIssue,
-    type DataNodeTableVisualizerTone,
-    type DataNodeTableVisualizerValueLabel,
-} from "./data-node-table-visualizer-model";
+  dataNodeTableVisualizerSourceModeOptions,
+  dataNodeTableVisualizerDensityOptions,
+  dataNodeTableVisualizerFormatOptions,
+  dataNodeTableVisualizerOperatorOptions,
+  dataNodeTableVisualizerPinnedOptions,
+  dataNodeTableVisualizerToneOptions,
+  type DataNodeTableVisualizerColumnSchema,
+  type DataNodeTableVisualizerColumnOverride,
+  type DataNodeTableVisualizerConditionalRule,
+  type DataNodeTableVisualizerProps,
+  type DataNodeTableVisualizerSchemaValidationIssue,
+  type DataNodeTableVisualizerTone,
+  type DataNodeTableVisualizerValueLabel,
+} from "./dataNodeTableModel";
+import {
+  buildDataNodeFieldOptions,
+  resolveDataNodeDateRange,
+} from "../data-node-shared/dataNodeShared";
 
 const sectionClass = widgetTightFormSectionClass;
 const insetSectionClass = widgetTightFormInsetSectionClass;
@@ -56,6 +78,16 @@ const inputClass = widgetTightFormInputClass;
 const selectClass = widgetTightFormSelectClass;
 const colorInputClass = widgetTightFormColorInputClass;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
+const dataNodeFramePreviewLimit = 500;
+
+function normalizeUniqueIdentifierText(value: string) {
+  const items = value
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return items.length > 0 ? items : undefined;
+}
 
 function toColorInputValue(value: string | undefined, fallback: string) {
   if (value && hexColorPattern.test(value.trim())) {
@@ -184,16 +216,115 @@ function formatSchemaValidationIssue(issue: DataNodeTableVisualizerSchemaValidat
   return `Fields formatted as numeric but backed by non-numeric data: ${(issue.columnKeys ?? []).join(", ")}`;
 }
 
-export function DataNodeTableVisualizerWidgetSettings({
+export function DataNodeTableWidgetSettings({
   draftProps,
   editable,
   onDraftPropsChange,
 }: WidgetSettingsComponentProps<DataNodeTableVisualizerProps>) {
+  const {
+    rangeStartMs: dashboardRangeStartMs,
+    rangeEndMs: dashboardRangeEndMs,
+  } = useDashboardControls();
   const { resolvedTokens } = useTheme();
   const resolvedDraft = resolveDataNodeTableVisualizerProps(draftProps);
+  const isDataNodeMode = resolvedDraft.sourceMode === "data-node";
   const dataset = getDataNodeTableVisualizerDataset(resolvedDraft.datasetId);
-  const scopedDraft = constrainDataNodeTableVisualizerPropsToDataset(draftProps, dataset);
-  const resolvedScopedDraft = resolveDataNodeTableVisualizerProps(scopedDraft);
+  const selectedDataNodeId =
+    isDataNodeMode ? Number(resolvedDraft.dataNodeId ?? 0) : 0;
+
+  const dataNodeDetailQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "widgets",
+      "data_node_table_visualizer",
+      "detail",
+      selectedDataNodeId,
+    ],
+    queryFn: () => fetchDataNodeDetail(selectedDataNodeId),
+    enabled: isDataNodeMode && Number.isFinite(selectedDataNodeId) && selectedDataNodeId > 0,
+    staleTime: 300_000,
+  });
+
+  const resolvedRange = useMemo(
+    () =>
+      resolveDataNodeDateRange(
+        resolvedDraft,
+        dashboardRangeStartMs,
+        dashboardRangeEndMs,
+      ),
+    [dashboardRangeEndMs, dashboardRangeStartMs, resolvedDraft],
+  );
+  const requestedRemoteColumns = useMemo(
+    () => buildDataNodeFieldOptions(dataNodeDetailQuery.data).map((field) => field.key),
+    [dataNodeDetailQuery.data],
+  );
+  const hasSourceTableConfiguration = Boolean(
+    dataNodeDetailQuery.data?.sourcetableconfiguration,
+  );
+
+  const dataNodeFrameQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "widgets",
+      "data_node_table_visualizer",
+      "preview_frame",
+      selectedDataNodeId,
+      requestedRemoteColumns.join("|"),
+      (resolvedDraft.uniqueIdentifierList ?? []).join("|"),
+      resolvedRange.mode,
+      resolvedRange.rangeStartMs,
+      resolvedRange.rangeEndMs,
+      Math.min(resolvedDraft.limit, dataNodeFramePreviewLimit),
+    ],
+    queryFn: () =>
+      fetchDataNodeDataBetweenDatesFromRemote(selectedDataNodeId, {
+        start_date: Math.floor((resolvedRange.rangeStartMs ?? 0) / 1000),
+        end_date: Math.floor((resolvedRange.rangeEndMs ?? 0) / 1000),
+        columns: requestedRemoteColumns,
+        unique_identifier_list: resolvedDraft.uniqueIdentifierList,
+        great_or_equal: true,
+        less_or_equal: true,
+        limit: Math.min(resolvedDraft.limit, dataNodeFramePreviewLimit),
+        offset: 0,
+      }),
+    enabled:
+      isDataNodeMode &&
+      Boolean(selectedDataNodeId) &&
+      hasSourceTableConfiguration &&
+      requestedRemoteColumns.length > 0 &&
+      resolvedRange.hasValidRange,
+    staleTime: 60_000,
+  });
+
+  const remoteFrameInput = useMemo(
+    () =>
+      isDataNodeMode
+        ? buildDataNodeTableVisualizerFrameFromRemoteData(
+            dataNodeDetailQuery.data,
+            dataNodeFrameQuery.data ?? [],
+          )
+        : null,
+    [dataNodeDetailQuery.data, dataNodeFrameQuery.data, isDataNodeMode],
+  );
+  const scopedDraft = useMemo(
+    () =>
+      isDataNodeMode
+        ? {
+            ...draftProps,
+            sourceMode: "data-node" as const,
+            columns: undefined,
+            rows: undefined,
+          }
+        : constrainDataNodeTableVisualizerPropsToDataset(draftProps, dataset),
+    [dataset, draftProps, isDataNodeMode],
+  );
+  const resolvedScopedDraft = useMemo(
+    () =>
+      isDataNodeMode
+        ? resolveDataNodeTableVisualizerPropsWithFrame(scopedDraft, remoteFrameInput)
+        : resolveDataNodeTableVisualizerProps(scopedDraft),
+    [isDataNodeMode, remoteFrameInput, scopedDraft],
+  );
   const frameRows = buildDataNodeTableVisualizerRowObjects(
     resolvedScopedDraft.columns,
     resolvedScopedDraft.rows,
@@ -210,8 +341,26 @@ export function DataNodeTableVisualizerWidgetSettings({
   const fallbackFillColor = resolvedTokens.primary;
 
   function commit(nextProps: DataNodeTableVisualizerProps) {
+    if (nextProps.sourceMode === "data-node") {
+      onDraftPropsChange({
+        ...nextProps,
+        sourceMode: "data-node",
+        columns: undefined,
+        rows: undefined,
+      });
+      return;
+    }
+
     onDraftPropsChange(
-      constrainDataNodeTableVisualizerPropsToDataset(nextProps, nextProps.datasetId ?? dataset.id),
+      constrainDataNodeTableVisualizerPropsToDataset(
+        {
+          ...nextProps,
+          sourceMode: "mock-dataset",
+          dataNodeId: undefined,
+          uniqueIdentifierList: undefined,
+        },
+        nextProps.datasetId ?? dataset.id,
+      ),
     );
   }
 
@@ -403,49 +552,284 @@ export function DataNodeTableVisualizerWidgetSettings({
         <div>
           <div className={titleClass}>Table options</div>
           <p className={descriptionClass}>
-            This widget consumes a data frame shaped like `columns[] + rows[][]`. The dataset picker only
-            seeds mock frame data while the widget stays mock-backed.
+            This widget can either stay mock-backed or pull a live frame from a data node. In both
+            modes the formatter below works against the same `columns[] + rows[][]` shape.
           </p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <div className={fieldClass}>
+          <div className="space-y-2 md:col-span-2">
             <label className={labelClass}>
-              Dataset
+              Source
             </label>
-            <Select
-              className={selectClass}
-              value={dataset.id}
-              disabled={!editable}
-              onChange={(event) => {
-                const nextDataset = getDataNodeTableVisualizerDataset(event.target.value);
-                const nextFrame = buildDataNodeTableVisualizerFrameFromDataset(nextDataset);
-                commit({
-                  ...scopedDraft,
-                  datasetId: nextDataset.id,
-                  columns: nextFrame.columns,
-                  rows: nextFrame.rows,
-                  schema: cloneDataNodeTableVisualizerSchema(nextDataset.columns),
-                });
-              }}
-            >
-              {dataNodeTableVisualizerDatasetOptions.map((option) => (
-                <option key={option.value} value={option.value}>
+            <div className={widgetTightFormButtonGroupClass}>
+              {dataNodeTableVisualizerSourceModeOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  size="sm"
+                  variant={resolvedDraft.sourceMode === option.value ? "default" : "outline"}
+                  disabled={!editable}
+                  onClick={() => {
+                    if (option.value === resolvedDraft.sourceMode) {
+                      return;
+                    }
+
+                    if (option.value === "data-node") {
+                      commit({
+                        ...scopedDraft,
+                        sourceMode: "data-node",
+                        dataNodeId: undefined,
+                        dateRangeMode: "dashboard",
+                        fixedStartMs: undefined,
+                        fixedEndMs: undefined,
+                        uniqueIdentifierList: undefined,
+                        schema: undefined,
+                        columnOverrides: {},
+                        valueLabels: [],
+                        conditionalRules: [],
+                      });
+                      return;
+                    }
+
+                    const nextDataset = getDataNodeTableVisualizerDataset(dataset.id);
+                    const nextFrame = buildDataNodeTableVisualizerFrameFromDataset(nextDataset);
+                    commit({
+                      ...dataNodeTableVisualizerDefaultProps,
+                      sourceMode: "mock-dataset",
+                      datasetId: nextDataset.id,
+                      columns: nextFrame.columns,
+                      rows: nextFrame.rows,
+                      schema: cloneDataNodeTableVisualizerSchema(nextDataset.columns),
+                    });
+                  }}
+                >
                   {option.label}
-                </option>
+                </Button>
               ))}
-            </Select>
-            <p className={descriptionClass}>{dataset.description}</p>
+            </div>
+            <p className={descriptionClass}>
+              {dataNodeTableVisualizerSourceModeOptions.find(
+                (option) => option.value === resolvedDraft.sourceMode,
+              )?.description ?? ""}
+            </p>
           </div>
 
-          <div className={fieldClass}>
-            <label className={labelClass}>
-              Frame shape
-            </label>
-            <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-3 py-2 text-sm text-muted-foreground">
-              {resolvedScopedDraft.columns.length} columns, {resolvedScopedDraft.rows.length} rows
-            </div>
-          </div>
+          {isDataNodeMode ? (
+            <>
+              <div className="space-y-2 md:col-span-2">
+                <label className={labelClass}>
+                  Data node
+                </label>
+                <DataNodeQuickSearchPicker
+                  value={selectedDataNodeId}
+                  onChange={(nextId) => {
+                    commit({
+                      ...scopedDraft,
+                      sourceMode: "data-node",
+                      dataNodeId: nextId,
+                      uniqueIdentifierList: undefined,
+                      schema: undefined,
+                      columnOverrides: {},
+                      valueLabels: [],
+                      conditionalRules: [],
+                    });
+                  }}
+                  editable={editable}
+                  queryScope="data_node_table"
+                  selectedDataNode={dataNodeDetailQuery.data}
+                  detailError={dataNodeDetailQuery.error}
+                  selectionHelpText="Choose the source table that should feed this widget."
+                />
+              </div>
+
+              <div className={fieldClass}>
+                <label className={labelClass}>
+                  Date source
+                </label>
+                <Select
+                  className={selectClass}
+                  value={resolvedDraft.dateRangeMode}
+                  disabled={!editable}
+                  onChange={(event) => {
+                    commit({
+                      ...scopedDraft,
+                      dateRangeMode: event.target.value as DataNodeTableVisualizerProps["dateRangeMode"],
+                    });
+                  }}
+                >
+                  {dataNodeTableVisualizerDateRangeModeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+                <p className={descriptionClass}>
+                  {dataNodeTableVisualizerDateRangeModeOptions.find(
+                    (option) => option.value === resolvedDraft.dateRangeMode,
+                  )?.description ?? ""}
+                </p>
+              </div>
+
+              <div className={fieldClass}>
+                <label className={labelClass}>
+                  Remote row limit
+                </label>
+                <Input
+                  className={inputClass}
+                  type="number"
+                  min={50}
+                  max={10000}
+                  value={resolvedDraft.limit}
+                  disabled={!editable}
+                  onChange={(event) => {
+                    commit({
+                      ...scopedDraft,
+                      limit: Number(event.target.value),
+                    });
+                  }}
+                />
+                <p className={descriptionClass}>
+                  Controls how many rows the live query can return at runtime.
+                </p>
+              </div>
+
+              {resolvedDraft.dateRangeMode === "fixed" ? (
+                <>
+                  <div className={fieldClass}>
+                    <label className={labelClass}>
+                      Fixed start
+                    </label>
+                    <DataNodeDateTimeField
+                      valueMs={resolvedDraft.fixedStartMs}
+                      editable={editable}
+                      onChangeValue={(nextValue) => {
+                        commit({
+                          ...scopedDraft,
+                          fixedStartMs: nextValue,
+                        });
+                      }}
+                    />
+                  </div>
+
+                  <div className={fieldClass}>
+                    <label className={labelClass}>
+                      Fixed end
+                    </label>
+                    <DataNodeDateTimeField
+                      valueMs={resolvedDraft.fixedEndMs}
+                      editable={editable}
+                      onChangeValue={(nextValue) => {
+                        commit({
+                          ...scopedDraft,
+                          fixedEndMs: nextValue,
+                        });
+                      }}
+                    />
+                  </div>
+                </>
+              ) : null}
+
+              {resolvedScopedDraft.supportsUniqueIdentifierList ? (
+                <div className="space-y-2 md:col-span-2">
+                  <label className={labelClass}>
+                    Unique identifiers
+                  </label>
+                  <Textarea
+                    className="min-h-[92px] text-sm"
+                    value={(resolvedDraft.uniqueIdentifierList ?? []).join("\n")}
+                    placeholder="One identifier per line"
+                    readOnly={!editable}
+                    onChange={(event) => {
+                      commit({
+                        ...scopedDraft,
+                        uniqueIdentifierList: normalizeUniqueIdentifierText(event.target.value),
+                      });
+                    }}
+                  />
+                  <p className={descriptionClass}>
+                    Optional filter for the `unique_identifier` index. Leave blank to include every series.
+                  </p>
+                </div>
+              ) : selectedDataNodeId > 0 && hasSourceTableConfiguration ? (
+                <div className="md:col-span-2 rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/20 px-3 py-2 text-sm text-muted-foreground">
+                  This data node does not expose a `unique_identifier` index, so row filtering by identifier is not available.
+                </div>
+              ) : null}
+
+              <div className={fieldClass}>
+                <label className={labelClass}>
+                  Frame shape
+                </label>
+                {dataNodeDetailQuery.isLoading && selectedDataNodeId > 0 ? (
+                  <Skeleton className="h-10 rounded-[calc(var(--radius)-6px)]" />
+                ) : (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-3 py-2 text-sm text-muted-foreground">
+                    {!selectedDataNodeId
+                      ? "Select a data node."
+                      : `${resolvedScopedDraft.columns.length} columns, ${resolvedScopedDraft.rows.length} preview rows`}
+                  </div>
+                )}
+                <p className={descriptionClass}>
+                  Field formatting below binds to this live frame preview.
+                </p>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                {dataNodeFrameQuery.isError ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                    {formatMainSequenceError(dataNodeFrameQuery.error)}
+                  </div>
+                ) : null}
+
+                {selectedDataNodeId > 0 && !dataNodeDetailQuery.isLoading && !hasSourceTableConfiguration ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                    This data node has no source-table metadata, so the table cannot infer fields.
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={fieldClass}>
+                <label className={labelClass}>
+                  Dataset
+                </label>
+                <Select
+                  className={selectClass}
+                  value={dataset.id}
+                  disabled={!editable}
+                  onChange={(event) => {
+                    const nextDataset = getDataNodeTableVisualizerDataset(event.target.value);
+                    const nextFrame = buildDataNodeTableVisualizerFrameFromDataset(nextDataset);
+                    commit({
+                      ...scopedDraft,
+                      datasetId: nextDataset.id,
+                      columns: nextFrame.columns,
+                      rows: nextFrame.rows,
+                      schema: cloneDataNodeTableVisualizerSchema(nextDataset.columns),
+                    });
+                  }}
+                >
+                  {dataNodeTableVisualizerDatasetOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+                <p className={descriptionClass}>{dataset.description}</p>
+              </div>
+
+              <div className={fieldClass}>
+                <label className={labelClass}>
+                  Frame shape
+                </label>
+                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-3 py-2 text-sm text-muted-foreground">
+                  {resolvedScopedDraft.columns.length} columns, {resolvedScopedDraft.rows.length} rows
+                </div>
+              </div>
+            </>
+          )}
 
           <div className={fieldClass}>
             <label className={labelClass}>
@@ -490,7 +874,7 @@ export function DataNodeTableVisualizerWidgetSettings({
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-2">
             <label className={labelClass}>
               Surface toggles
             </label>
@@ -570,7 +954,7 @@ export function DataNodeTableVisualizerWidgetSettings({
             type="button"
             size="sm"
             variant="outline"
-            disabled={!editable}
+            disabled={!editable || isDataNodeMode}
             onClick={() => {
               commit({
                 ...scopedDraft,
@@ -591,8 +975,28 @@ export function DataNodeTableVisualizerWidgetSettings({
             type="button"
             size="sm"
             variant="outline"
-            disabled={!editable}
+            disabled={
+              !editable ||
+              (isDataNodeMode
+                ? (remoteFrameInput?.schemaFallback.length ?? 0) === 0
+                : false)
+            }
             onClick={() => {
+              if (isDataNodeMode) {
+                if (!remoteFrameInput) {
+                  return;
+                }
+
+                commit({
+                  ...scopedDraft,
+                  schema: cloneDataNodeTableVisualizerSchema(remoteFrameInput.schemaFallback),
+                  columnOverrides: {},
+                  valueLabels: [],
+                  conditionalRules: [],
+                });
+                return;
+              }
+
               const nextFrame = buildDataNodeTableVisualizerFrameFromDataset(dataset);
               commit({
                 ...scopedDraft,
@@ -609,7 +1013,9 @@ export function DataNodeTableVisualizerWidgetSettings({
         <div className="space-y-3">
           {schemaColumns.length === 0 ? (
             <p className={descriptionClass}>
-              No schema columns are defined yet. Add one or reset from the current dataset.
+              {isDataNodeMode
+                ? "No source fields are available yet. Select a data node or reset from the current live frame."
+                : "No schema columns are defined yet. Add one or reset from the current dataset."}
             </p>
           ) : schemaColumns.map((column, index) => (
             <div
