@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import type { WidgetComponentProps } from "@/widgets/types";
 
-import { MainSequenceLocalUpdateDependencyGraph } from "../../features/data-nodes/MainSequenceLocalUpdateDependencyGraph";
+import { fetchLocalTimeSerieDependencyGraph } from "../../../../common/api";
+import { MainSequenceUpdateDependencyGraph } from "./MainSequenceUpdateDependencyGraph";
 
 export interface MainSequenceDependencyGraphWidgetProps extends Record<string, unknown> {
   direction?: "downstream" | "upstream";
@@ -46,9 +47,11 @@ export function MainSequenceDependencyGraphWidget({
   }
 
   return (
-    <MainSequenceLocalUpdateDependencyGraph
+    <MainSequenceUpdateDependencyGraph
       direction={direction}
-      localTimeSerieId={localTimeSerieId}
+      enabled={localTimeSerieId > 0}
+      queryKey={["main_sequence", "data_nodes", "local_updates", "graph", localTimeSerieId]}
+      queryFn={() => fetchLocalTimeSerieDependencyGraph(localTimeSerieId, direction)}
       runtimeState={runtimeState}
       onRuntimeStateChange={onRuntimeStateChange}
       variant="widget"

@@ -4,8 +4,6 @@ import {
   formatDataNodeLabel,
 } from "../data-node-shared/dataNodeShared";
 
-export type DataNodeTableVisualizerDatasetId = "positions" | "risk-monitor" | "execution-quality";
-export type DataNodeTableVisualizerSourceMode = "mock-dataset" | "data-node";
 export type DataNodeTableVisualizerDateRangeMode = "dashboard" | "fixed";
 export type DataNodeTableVisualizerColumnFormat =
   | "auto"
@@ -39,14 +37,6 @@ export interface DataNodeTableVisualizerColumnSchema {
   categorical?: boolean;
   heatmapEligible?: boolean;
   compact?: boolean;
-}
-
-export interface DataNodeTableVisualizerDataset {
-  id: DataNodeTableVisualizerDatasetId;
-  label: string;
-  description: string;
-  rows: DataNodeTableVisualizerRow[];
-  columns: DataNodeTableVisualizerColumnSchema[];
 }
 
 export interface DataNodeTableVisualizerColumnOverride {
@@ -83,8 +73,6 @@ export interface DataNodeTableVisualizerConditionalRule {
 }
 
 export interface DataNodeTableVisualizerProps extends Record<string, unknown> {
-  sourceMode?: DataNodeTableVisualizerSourceMode;
-  datasetId?: DataNodeTableVisualizerDatasetId;
   dataNodeId?: number;
   dateRangeMode?: DataNodeTableVisualizerDateRangeMode;
   fixedEndMs?: number;
@@ -115,8 +103,6 @@ export interface ResolvedDataNodeTableVisualizerColumnConfig extends DataNodeTab
 }
 
 export interface ResolvedDataNodeTableVisualizerProps {
-  sourceMode: DataNodeTableVisualizerSourceMode;
-  datasetId: DataNodeTableVisualizerDatasetId;
   dataNodeId?: number;
   dataNodeLabel?: string;
   dateRangeMode: DataNodeTableVisualizerDateRangeMode;
@@ -160,102 +146,6 @@ export interface DataNodeTableVisualizerSchemaValidationResult {
 const defaultPageSize = 10;
 const defaultRemoteLimit = 500;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
-
-const positionsDataset: DataNodeTableVisualizerDataset = {
-  id: "positions",
-  label: "Strategy Book",
-  description: "Multi-account positions with PnL, exposure, conviction, and side/status fields.",
-  columns: [
-    { key: "symbol", label: "Symbol", format: "text", minWidth: 110, pinned: "left", categorical: true },
-    { key: "status", label: "Status", format: "text", minWidth: 120, categorical: true },
-    { key: "side", label: "Side", format: "text", minWidth: 100, categorical: true },
-    { key: "quantity", label: "Qty", format: "number", minWidth: 110 },
-    { key: "avgPrice", label: "Avg", format: "currency", minWidth: 120, decimals: 2 },
-    { key: "lastPrice", label: "Last", format: "currency", minWidth: 120, decimals: 2 },
-    { key: "dayChangePct", label: "Day %", format: "percent", minWidth: 110, decimals: 2, heatmapEligible: true },
-    { key: "pnl", label: "PnL", format: "currency", minWidth: 140, heatmapEligible: true },
-    { key: "exposure", label: "Exposure", format: "currency", minWidth: 150, compact: true, heatmapEligible: true },
-    { key: "conviction", label: "Conviction", format: "number", minWidth: 120, decimals: 1, heatmapEligible: true },
-    { key: "account", label: "Account", format: "text", minWidth: 120, categorical: true },
-    { key: "strategy", label: "Strategy", format: "text", minWidth: 160, flex: 1.2, categorical: true },
-  ],
-  rows: [
-    { symbol: "NVDA", status: "Active", side: "Long", quantity: 1800, avgPrice: 812.42, lastPrice: 846.13, dayChangePct: 2.88, pnl: 60678, exposure: 1523034, conviction: 9.4, account: "L/S Core", strategy: "AI Momentum" },
-    { symbol: "TSLA", status: "Trim", side: "Short", quantity: 950, avgPrice: 201.12, lastPrice: 188.74, dayChangePct: -1.42, pnl: 11761, exposure: -179303, conviction: 6.2, account: "Event", strategy: "Flow Fade" },
-    { symbol: "META", status: "Active", side: "Long", quantity: 720, avgPrice: 476.55, lastPrice: 489.18, dayChangePct: 1.16, pnl: 9094, exposure: 352210, conviction: 7.9, account: "Growth", strategy: "Platform Quality" },
-    { symbol: "AAPL", status: "Watch", side: "Long", quantity: 2400, avgPrice: 186.31, lastPrice: 183.44, dayChangePct: -0.64, pnl: -6888, exposure: 440256, conviction: 5.3, account: "Core", strategy: "Mega Cap Carry" },
-    { symbol: "MSFT", status: "Active", side: "Long", quantity: 960, avgPrice: 411.92, lastPrice: 420.74, dayChangePct: 0.92, pnl: 8467, exposure: 403910, conviction: 8.1, account: "Core", strategy: "Cloud Compounders" },
-    { symbol: "AMD", status: "Watch", side: "Long", quantity: 1400, avgPrice: 182.64, lastPrice: 176.08, dayChangePct: -2.24, pnl: -9184, exposure: 246512, conviction: 4.8, account: "Semis", strategy: "Relative Value" },
-    { symbol: "NFLX", status: "Active", side: "Short", quantity: 420, avgPrice: 625.14, lastPrice: 611.55, dayChangePct: -0.73, pnl: 5708, exposure: -256851, conviction: 6.8, account: "Event", strategy: "Earnings Mean Reversion" },
-    { symbol: "PLTR", status: "Active", side: "Long", quantity: 5200, avgPrice: 24.12, lastPrice: 27.81, dayChangePct: 3.74, pnl: 19188, exposure: 144612, conviction: 8.7, account: "Tactical", strategy: "Retail Strength" },
-    { symbol: "SHOP", status: "Reduce", side: "Long", quantity: 680, avgPrice: 79.44, lastPrice: 75.62, dayChangePct: -1.31, pnl: -2598, exposure: 51422, conviction: 3.6, account: "Growth", strategy: "Margin Recovery" },
-    { symbol: "UBER", status: "Active", side: "Long", quantity: 2100, avgPrice: 73.18, lastPrice: 76.94, dayChangePct: 1.04, pnl: 7896, exposure: 161574, conviction: 7.1, account: "Core", strategy: "Mobility Compounders" },
-  ],
-};
-
-const riskMonitorDataset: DataNodeTableVisualizerDataset = {
-  id: "risk-monitor",
-  label: "Risk Monitor",
-  description: "Desk-level risk dashboard with drawdown, VaR, utilization, regime fields, and stress metrics.",
-  columns: [
-    { key: "book", label: "Book", format: "text", minWidth: 140, pinned: "left", categorical: true },
-    { key: "owner", label: "Owner", format: "text", minWidth: 130, categorical: true },
-    { key: "regime", label: "Regime", format: "text", minWidth: 120, categorical: true },
-    { key: "gross", label: "Gross", format: "currency", minWidth: 150, compact: true, heatmapEligible: true },
-    { key: "net", label: "Net", format: "currency", minWidth: 150, compact: true, heatmapEligible: true },
-    { key: "var95", label: "VaR 95", format: "currency", minWidth: 140, compact: true, heatmapEligible: true },
-    { key: "stressLoss", label: "Stress", format: "currency", minWidth: 140, compact: true, heatmapEligible: true },
-    { key: "beta", label: "Beta", format: "number", minWidth: 100, decimals: 2, heatmapEligible: true },
-    { key: "sharpe", label: "Sharpe", format: "number", minWidth: 110, decimals: 2, heatmapEligible: true },
-    { key: "drawdownPct", label: "Drawdown", format: "percent", minWidth: 120, decimals: 2, heatmapEligible: true },
-    { key: "utilizationPct", label: "Utilization", format: "percent", minWidth: 120, decimals: 1, heatmapEligible: true },
-  ],
-  rows: [
-    { book: "Macro Core", owner: "Nina", regime: "Stable", gross: 124000000, net: 38000000, var95: 4320000, stressLoss: 11800000, beta: 0.86, sharpe: 1.74, drawdownPct: -2.1, utilizationPct: 61.4 },
-    { book: "Event Driven", owner: "Jon", regime: "Watch", gross: 68200000, net: 14400000, var95: 3180000, stressLoss: 9900000, beta: 0.51, sharpe: 1.22, drawdownPct: -4.8, utilizationPct: 73.8 },
-    { book: "Semis RV", owner: "Mila", regime: "Crowded", gross: 55400000, net: -6200000, var95: 2790000, stressLoss: 7600000, beta: 1.18, sharpe: 0.94, drawdownPct: -6.2, utilizationPct: 81.1 },
-    { book: "Rates Overlay", owner: "Rafa", regime: "Stable", gross: 39000000, net: 4100000, var95: 1680000, stressLoss: 4310000, beta: -0.14, sharpe: 1.81, drawdownPct: -1.2, utilizationPct: 48.6 },
-    { book: "Index Hedge", owner: "Sora", regime: "Protective", gross: 28000000, net: -18200000, var95: 1190000, stressLoss: 3110000, beta: -0.73, sharpe: 0.66, drawdownPct: -0.8, utilizationPct: 35.2 },
-    { book: "Retail Flow", owner: "Ivy", regime: "Hot", gross: 46200000, net: 12200000, var95: 2920000, stressLoss: 8020000, beta: 1.32, sharpe: 1.08, drawdownPct: -5.5, utilizationPct: 88.4 },
-  ],
-};
-
-const executionQualityDataset: DataNodeTableVisualizerDataset = {
-  id: "execution-quality",
-  label: "Execution Quality",
-  description: "Venue and routing diagnostics with fill-rate, reject-rate, slippage, latency, and route quality labels.",
-  columns: [
-    { key: "venue", label: "Venue", format: "text", minWidth: 120, pinned: "left", categorical: true },
-    { key: "route", label: "Route", format: "text", minWidth: 150, categorical: true },
-    { key: "status", label: "Status", format: "text", minWidth: 120, categorical: true },
-    { key: "notional", label: "Notional", format: "currency", minWidth: 140, compact: true, heatmapEligible: true },
-    { key: "fillRatePct", label: "Fill Rate", format: "percent", minWidth: 120, decimals: 1, heatmapEligible: true },
-    { key: "participationPct", label: "Participation", format: "percent", minWidth: 130, decimals: 1, heatmapEligible: true },
-    { key: "slippageBps", label: "Slippage", format: "bps", minWidth: 120, decimals: 1, heatmapEligible: true },
-    { key: "feeBps", label: "Fee", format: "bps", minWidth: 100, decimals: 1 },
-    { key: "avgFillMs", label: "Latency", format: "number", minWidth: 110, decimals: 0, suffix: " ms", heatmapEligible: true },
-    { key: "rejectRatePct", label: "Rejects", format: "percent", minWidth: 110, decimals: 2, heatmapEligible: true },
-    { key: "score", label: "Score", format: "number", minWidth: 100, decimals: 1, heatmapEligible: true },
-  ],
-  rows: [
-    { venue: "NASDAQ", route: "Smart / Lit", status: "Healthy", notional: 18200000, fillRatePct: 94.2, participationPct: 18.4, slippageBps: -0.6, feeBps: 0.2, avgFillMs: 41, rejectRatePct: 0.18, score: 9.4 },
-    { venue: "NYSE", route: "Primary Close", status: "Healthy", notional: 13600000, fillRatePct: 91.8, participationPct: 11.2, slippageBps: 0.4, feeBps: 0.3, avgFillMs: 58, rejectRatePct: 0.24, score: 8.8 },
-    { venue: "IEX", route: "Protected Peg", status: "Watch", notional: 4900000, fillRatePct: 82.1, participationPct: 6.7, slippageBps: 1.6, feeBps: 0.1, avgFillMs: 95, rejectRatePct: 0.82, score: 6.3 },
-    { venue: "ARCA", route: "Open Sweep", status: "Healthy", notional: 7200000, fillRatePct: 88.7, participationPct: 13.5, slippageBps: 0.8, feeBps: 0.4, avgFillMs: 62, rejectRatePct: 0.44, score: 7.7 },
-    { venue: "BATS", route: "Midpoint Dark", status: "Watch", notional: 9600000, fillRatePct: 79.4, participationPct: 7.3, slippageBps: -1.2, feeBps: 0.0, avgFillMs: 132, rejectRatePct: 1.42, score: 6.9 },
-    { venue: "MEMX", route: "Queue Join", status: "Critical", notional: 3100000, fillRatePct: 61.5, participationPct: 4.1, slippageBps: 2.9, feeBps: 0.2, avgFillMs: 184, rejectRatePct: 3.12, score: 4.2 },
-  ],
-};
-
-export const dataNodeTableVisualizerDatasets = [
-  positionsDataset,
-  riskMonitorDataset,
-  executionQualityDataset,
-] as const satisfies readonly DataNodeTableVisualizerDataset[];
-
-const datasetMap = new Map<DataNodeTableVisualizerDatasetId, DataNodeTableVisualizerDataset>(
-  dataNodeTableVisualizerDatasets.map((dataset) => [dataset.id, dataset]),
-);
 
 function normalizeHexColor(value: unknown) {
   if (typeof value !== "string") {
@@ -327,10 +217,6 @@ function normalizeTimestampMs(value: unknown) {
   }
 
   return Math.trunc(parsed);
-}
-
-function normalizeSourceMode(value: unknown): DataNodeTableVisualizerSourceMode {
-  return value === "data-node" ? "data-node" : "mock-dataset";
 }
 
 function normalizeDateRangeMode(value: unknown): DataNodeTableVisualizerDateRangeMode {
@@ -503,12 +389,12 @@ function inferSchemaFormatFromRows(
 function createSchemaTemplateFromFrame(
   columns: readonly string[],
   rows: readonly DataNodeTableVisualizerFrameRow[],
-  dataset: DataNodeTableVisualizerDataset,
+  schemaFallback: readonly DataNodeTableVisualizerColumnSchema[] = [],
 ) {
-  const datasetColumnsByKey = new Map(dataset.columns.map((column) => [column.key, column]));
+  const schemaFallbackByKey = new Map(schemaFallback.map((column) => [column.key, column]));
 
   return columns.map<DataNodeTableVisualizerColumnSchema>((columnKey, index) => {
-    const existing = datasetColumnsByKey.get(columnKey);
+    const existing = schemaFallbackByKey.get(columnKey);
 
     if (existing) {
       return { ...existing };
@@ -888,26 +774,6 @@ export function createDataNodeTableVisualizerRuleId() {
   return uuid ? `table-rule-${uuid}` : `table-rule-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function getDataNodeTableVisualizerDataset(datasetId?: unknown) {
-  if (typeof datasetId === "string" && datasetMap.has(datasetId as DataNodeTableVisualizerDatasetId)) {
-    return datasetMap.get(datasetId as DataNodeTableVisualizerDatasetId)!;
-  }
-
-  return positionsDataset;
-}
-
-export function buildDataNodeTableVisualizerFrameFromDataset(
-  dataset: DataNodeTableVisualizerDataset,
-) {
-  const columns = dataset.columns.map((column) => column.key);
-  const rows = dataset.rows.map((row) => columns.map((columnKey) => normalizeCellValue(row[columnKey])));
-
-  return {
-    columns,
-    rows,
-  };
-}
-
 export function buildDataNodeTableVisualizerRowObjects(
   columns: readonly string[],
   rows: readonly DataNodeTableVisualizerFrameRow[],
@@ -919,39 +785,25 @@ export function buildDataNodeTableVisualizerRowObjects(
   );
 }
 
-export function resolveDataNodeTableVisualizerFrame(
-  props: Pick<DataNodeTableVisualizerProps, "columns" | "rows">,
-  dataset: DataNodeTableVisualizerDataset,
+function resolveDataNodeTableVisualizerSchemaFromFrame(
+  props: Pick<DataNodeTableVisualizerProps, "columnOverrides" | "schema">,
+  frameInput: Pick<
+    DataNodeTableVisualizerResolvedFrameInput,
+    "columns" | "rows" | "schemaFallback"
+  >,
 ) {
-  const datasetFrame = buildDataNodeTableVisualizerFrameFromDataset(dataset);
-  const columns = normalizeFrameColumns(props.columns, datasetFrame.columns);
-  const rows =
-    Array.isArray(props.rows) && props.rows.length > 0
-      ? normalizeFrameRows(props.rows, columns.length)
-      : dataset.rows.map((row) => columns.map((columnKey) => normalizeCellValue(row[columnKey])));
-
-  return {
-    columns,
-    rows,
-  };
-}
-
-export function resolveDataNodeTableVisualizerSchema(
-  props: Pick<DataNodeTableVisualizerProps, "columnOverrides" | "columns" | "rows" | "schema">,
-  dataset: DataNodeTableVisualizerDataset,
-) {
-  const frame = resolveDataNodeTableVisualizerFrame(props, dataset);
+  const schemaFallback =
+    frameInput.schemaFallback.length > 0
+      ? frameInput.schemaFallback
+      : createSchemaTemplateFromFrame(frameInput.columns, frameInput.rows);
 
   if (Array.isArray(props.schema)) {
-    return normalizeColumnSchemas(
-      props.schema,
-      createSchemaTemplateFromFrame(frame.columns, frame.rows, dataset),
-    );
+    return normalizeColumnSchemas(props.schema, schemaFallback);
   }
 
   const normalizedOverrides = normalizeColumnOverrides(props.columnOverrides);
 
-  return createSchemaTemplateFromFrame(frame.columns, frame.rows, dataset).map((column) => {
+  return cloneDataNodeTableVisualizerSchema(schemaFallback).map((column) => {
     const override = normalizedOverrides[column.key];
 
     return {
@@ -965,51 +817,11 @@ export function resolveDataNodeTableVisualizerSchema(
   });
 }
 
-function resolveDataNodeTableVisualizerSchemaFromFrame(
-  props: Pick<DataNodeTableVisualizerProps, "schema">,
-  frameInput: Pick<DataNodeTableVisualizerResolvedFrameInput, "schemaFallback">,
-) {
-  if (Array.isArray(props.schema)) {
-    return normalizeColumnSchemas(props.schema, frameInput.schemaFallback);
-  }
-
-  return cloneDataNodeTableVisualizerSchema(frameInput.schemaFallback);
-}
-
-export function constrainDataNodeTableVisualizerPropsToDataset(
-  props: DataNodeTableVisualizerProps,
-  datasetOrId: DataNodeTableVisualizerDataset | DataNodeTableVisualizerDatasetId,
-): DataNodeTableVisualizerProps {
-  const migratedProps = stripLegacyDataNodeTableVisualizerDisplayConfig(props);
-  const dataset =
-    typeof datasetOrId === "string" ? getDataNodeTableVisualizerDataset(datasetOrId) : datasetOrId;
-  const frame = resolveDataNodeTableVisualizerFrame(migratedProps, dataset);
-  const schema = resolveDataNodeTableVisualizerSchema(migratedProps, dataset);
-  const columnKeys = new Set(schema.map((column) => column.key));
-
-  return {
-    ...migratedProps,
-    datasetId: dataset.id,
-    columns: frame.columns,
-    rows: frame.rows,
-    schema,
-    columnOverrides: Object.fromEntries(
-      Object.entries(stripSchemaManagedFieldsFromColumnOverrides(migratedProps.columnOverrides)).filter(([key]) =>
-        columnKeys.has(key),
-      ),
-    ),
-    valueLabels: (migratedProps.valueLabels ?? []).filter((entry) => columnKeys.has(entry.columnKey)),
-    conditionalRules: (migratedProps.conditionalRules ?? []).filter((entry) => columnKeys.has(entry.columnKey)),
-  };
-}
-
 export function resolveDataNodeTableVisualizerPropsWithFrame(
   props: DataNodeTableVisualizerProps,
   frameInput?: DataNodeTableVisualizerResolvedFrameInput | null,
 ): ResolvedDataNodeTableVisualizerProps {
   const migratedProps = stripLegacyDataNodeTableVisualizerDisplayConfig(props);
-  const sourceMode = normalizeSourceMode(migratedProps.sourceMode);
-  const dataset = getDataNodeTableVisualizerDataset(migratedProps.datasetId);
   const normalizedDataNodeId = normalizePositiveInteger(migratedProps.dataNodeId);
   const normalizedFixedStartMs = normalizeTimestampMs(migratedProps.fixedStartMs);
   const normalizedFixedEndMs = normalizeTimestampMs(migratedProps.fixedEndMs);
@@ -1018,40 +830,32 @@ export function resolveDataNodeTableVisualizerPropsWithFrame(
   );
   const normalizedLimit =
     normalizePositiveInteger(migratedProps.limit) ?? defaultRemoteLimit;
-  const activeFrame =
-    sourceMode === "data-node"
-      ? {
-          columns: frameInput?.columns ?? [],
-          rows: frameInput?.rows ?? [],
-          schemaFallback: frameInput?.schemaFallback ?? [],
-        }
-      : null;
-  const frame =
-    activeFrame ??
-    resolveDataNodeTableVisualizerFrame(migratedProps, dataset);
-  const schema =
-    activeFrame != null
-      ? resolveDataNodeTableVisualizerSchemaFromFrame(migratedProps, activeFrame)
-      : resolveDataNodeTableVisualizerSchema(migratedProps, dataset);
+  const columns = normalizeFrameColumns(frameInput?.columns, []);
+  const rows = normalizeFrameRows(frameInput?.rows, columns.length);
+  const schema = resolveDataNodeTableVisualizerSchemaFromFrame(
+    migratedProps,
+    {
+      columns,
+      rows,
+      schemaFallback: frameInput?.schemaFallback ?? [],
+    },
+  );
 
   return {
-    sourceMode,
-    datasetId: dataset.id,
     dataNodeId: normalizedDataNodeId,
     dataNodeLabel:
-      sourceMode === "data-node"
-        ? frameInput?.dataNodeLabel ??
-          (normalizedDataNodeId ? formatDataNodeLabel({ id: normalizedDataNodeId, storage_hash: "", identifier: null }) : undefined)
-        : undefined,
+      frameInput?.dataNodeLabel ??
+      (normalizedDataNodeId
+        ? formatDataNodeLabel({ id: normalizedDataNodeId, storage_hash: "", identifier: null })
+        : undefined),
     dateRangeMode: normalizeDateRangeMode(migratedProps.dateRangeMode),
     fixedStartMs: normalizedFixedStartMs,
     fixedEndMs: normalizedFixedEndMs,
     uniqueIdentifierList: normalizedUniqueIdentifierList,
     limit: normalizedLimit,
-    supportsUniqueIdentifierList:
-      sourceMode === "data-node" ? Boolean(frameInput?.supportsUniqueIdentifierList) : false,
-    columns: frame.columns,
-    rows: frame.rows,
+    supportsUniqueIdentifierList: Boolean(frameInput?.supportsUniqueIdentifierList),
+    columns,
+    rows,
     schema,
     density: migratedProps.density === "compact" ? "compact" : "comfortable",
     showToolbar: migratedProps.showToolbar !== false,
@@ -1317,29 +1121,6 @@ function getNumberFormatter(key: string, factory: () => Intl.NumberFormat) {
   return nextFormatter;
 }
 
-export const dataNodeTableVisualizerDatasetOptions = dataNodeTableVisualizerDatasets.map((dataset) => ({
-  value: dataset.id,
-  label: dataset.label,
-  description: dataset.description,
-}));
-
-export const dataNodeTableVisualizerSourceModeOptions: Array<{
-  value: DataNodeTableVisualizerSourceMode;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: "mock-dataset",
-    label: "Mock dataset",
-    description: "Use the shipped sample frame to configure the formatter.",
-  },
-  {
-    value: "data-node",
-    label: "Data node",
-    description: "Fetch live frame data from a selected data node.",
-  },
-];
-
 export const dataNodeTableVisualizerDateRangeModeOptions: Array<{
   value: DataNodeTableVisualizerDateRangeMode;
   label: string;
@@ -1427,12 +1208,9 @@ export const dataNodeTableVisualizerToneOptions: Array<{
 ];
 
 export const dataNodeTableVisualizerDefaultProps: DataNodeTableVisualizerProps = {
-  sourceMode: "mock-dataset",
-  datasetId: "positions",
   dateRangeMode: "dashboard",
   limit: defaultRemoteLimit,
-  ...buildDataNodeTableVisualizerFrameFromDataset(positionsDataset),
-  schema: cloneDataNodeTableVisualizerSchema(positionsDataset.columns),
+  schema: [],
   density: "comfortable",
   showToolbar: true,
   showSearch: true,

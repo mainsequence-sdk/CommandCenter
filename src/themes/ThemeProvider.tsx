@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { appRegistry } from "@/app/registry";
+import { commandCenterConfig } from "@/config/command-center";
 import { getThemeSurfaceHierarchyMetrics } from "@/themes/surface-hierarchy";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
 import {
@@ -36,7 +37,29 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-const DEFAULT_THEME_ID = "main-sequence-space";
+const backendPreferencesEnabled = Boolean(commandCenterConfig.preferences.url.trim());
+export const themeStorageKey = "ms.command-center.theme";
+export const DEFAULT_THEME_ID = "main-sequence-space";
+
+function resolveInitialThemeId(availableThemes: ThemePreset[], defaultThemeId: string) {
+  if (
+    backendPreferencesEnabled ||
+    typeof window === "undefined" ||
+    typeof window.localStorage === "undefined"
+  ) {
+    return defaultThemeId;
+  }
+
+  const storedThemeId = window.localStorage.getItem(themeStorageKey)?.trim();
+
+  if (!storedThemeId) {
+    return defaultThemeId;
+  }
+
+  return availableThemes.some((theme) => theme.id === storedThemeId)
+    ? storedThemeId
+    : defaultThemeId;
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const availableThemes = appRegistry.themes;
@@ -44,7 +67,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     availableThemes.find((theme) => theme.id === DEFAULT_THEME_ID)?.id ??
     availableThemes[0]?.id ??
     DEFAULT_THEME_ID;
-  const [themeId, setThemeId] = useState(defaultThemeId);
+  const [themeId, setThemeId] = useState(() =>
+    resolveInitialThemeId(availableThemes, defaultThemeId),
+  );
   const [overrides, setOverrides] = useState<Partial<ThemeTokens>>({});
   const [tightnessOverride, setTightnessOverride] = useState<ThemeTightness | null>(null);
   const [surfaceHierarchyOverride, setSurfaceHierarchyOverride] = useState<ThemeSurfaceHierarchy | null>(null);
@@ -153,6 +178,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--card-nested-background", surfaceHierarchyMetrics.nestedCardBackground);
     root.style.setProperty("--card-nested-shadow", surfaceHierarchyMetrics.nestedCardShadow);
   }, [activeTheme, resolvedTokens, surfaceHierarchy, surfaceHierarchyMetrics, tightness, tightnessMetrics]);
+
+  useEffect(() => {
+    if (
+      backendPreferencesEnabled ||
+      typeof window === "undefined" ||
+      typeof window.localStorage === "undefined"
+    ) {
+      return;
+    }
+
+    window.localStorage.setItem(themeStorageKey, activeTheme.id);
+  }, [activeTheme.id]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({

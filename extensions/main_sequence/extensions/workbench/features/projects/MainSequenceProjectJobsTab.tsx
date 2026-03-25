@@ -18,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toaster";
 
 import {
-  deleteJob,
+  bulkDeleteJobs,
   fetchJob,
   formatMainSequenceError,
   listProjectJobs,
@@ -150,12 +150,9 @@ export function MainSequenceProjectJobsTab({
       : [];
 
   const deleteJobMutation = useMutation({
-    mutationFn: async (jobs: JobRecord[]) =>
-      Promise.allSettled(jobs.map((job) => deleteJob(job.id))),
-    onSuccess: async (results, jobs) => {
-      const failedJobs = jobs.filter((_, index) => results[index]?.status === "rejected");
-      const deletedCount = jobs.length - failedJobs.length;
-
+    mutationFn: async (jobs: JobRecord[]) => bulkDeleteJobs(jobs.map((job) => job.id)),
+    onSuccess: async (result, jobs) => {
+      const deletedCount = result.deleted_count ?? jobs.length;
       setJobsPendingDelete([]);
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "jobs", projectId],
@@ -164,32 +161,18 @@ export function MainSequenceProjectJobsTab({
         queryKey: ["main_sequence", "projects", "summary", projectId],
       });
 
-      if (failedJobs.length > 0) {
-        toast({
-          variant: "error",
-          title:
-            failedJobs.length === jobs.length
-              ? "Job deletion failed"
-              : "Some jobs could not be deleted",
-          description:
-            failedJobs.length === jobs.length
-              ? "No selected jobs were deleted."
-              : `${failedJobs.length} of ${jobs.length} selected jobs could not be deleted.`,
-        });
-      }
-
       if (deletedCount > 0) {
         toast({
           variant: "success",
           title: deletedCount === 1 ? "Job deleted" : "Jobs deleted",
           description:
             deletedCount === 1
-              ? `${jobs.find((job) => !failedJobs.some((failed) => failed.id === job.id))?.name ?? "Job"} was deleted.`
+              ? `${jobs[0]?.name ?? "Job"} was deleted.`
               : `${deletedCount} jobs were deleted.`,
         });
       }
 
-      jobSelection.setSelection(failedJobs.map((job) => job.id));
+      jobSelection.clearSelection();
     },
     onError: (error) => {
       toast({

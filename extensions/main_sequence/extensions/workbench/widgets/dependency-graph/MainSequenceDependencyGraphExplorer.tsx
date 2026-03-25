@@ -8,7 +8,7 @@ import {
 } from "react";
 
 import type { TFunction } from "i18next";
-import { ArrowUpRight, Loader2, Network } from "lucide-react";
+import { ArrowUpRight, Database, Loader2, Network, Table2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
@@ -63,9 +63,12 @@ interface MinimapDragState {
 }
 
 const dependencyGraphPropertyLabelKeyMap: Record<string, string> = {
+  data_node_update_id: "dataNodeUpdateId",
   human_readable: "humanReadable",
+  node_type: "nodeType",
   update_hash: "updateHash",
   local_time_serie_id: "localTimeSerieId",
+  remote_table_type: "remoteTableType",
   remote_table_hash_id: "remoteTableHashId",
   remote_table_id: "remoteTableId",
   data_source_id: "dataSourceId",
@@ -73,6 +76,7 @@ const dependencyGraphPropertyLabelKeyMap: Record<string, string> = {
   error_on_last_update: "errorOnLastUpdate",
   last_update: "lastUpdate",
   next_update: "nextUpdate",
+  simple_table_update_id: "simpleTableUpdateId",
 };
 
 function getDirectionLabel(direction: MainSequenceDependencyGraphDirection, t: TFunction) {
@@ -185,8 +189,12 @@ function getPropertyEntries(node: DependencyGraphLayoutNode | null, t: TFunction
   }
 
   const preferredKeys = [
+    "node_type",
+    "remote_table_type",
     "human_readable",
     "update_hash",
+    "data_node_update_id",
+    "simple_table_update_id",
     "local_time_serie_id",
     "remote_table_hash_id",
     "remote_table_id",
@@ -228,27 +236,106 @@ function getBadgeVariant(label: string) {
   return "neutral" as const;
 }
 
-function buildDataNodeUrl(properties: Record<string, unknown> | undefined) {
-  const remoteTableId = Number(properties?.remote_table_id ?? "");
+function getNumericPropertyValue(value: unknown) {
+  const parsedValue = Number(value ?? "");
 
-  if (!Number.isFinite(remoteTableId) || remoteTableId <= 0) {
+  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : null;
+}
+
+function getRemoteTableType(node: DependencyGraphLayoutNode | null) {
+  if (!node) {
+    return null;
+  }
+
+  if (typeof node.remote_table_type === "string" && node.remote_table_type.trim()) {
+    return node.remote_table_type.trim();
+  }
+
+  const propertyValue = node.properties?.remote_table_type;
+
+  return typeof propertyValue === "string" && propertyValue.trim() ? propertyValue.trim() : null;
+}
+
+function getNodeType(node: DependencyGraphLayoutNode | null) {
+  if (!node) {
+    return null;
+  }
+
+  if (typeof node.node_type === "string" && node.node_type.trim()) {
+    return node.node_type.trim();
+  }
+
+  const propertyValue = node.properties?.node_type;
+
+  return typeof propertyValue === "string" && propertyValue.trim() ? propertyValue.trim() : null;
+}
+
+function buildDataNodeUrl(node: DependencyGraphLayoutNode | null) {
+  const remoteTableType = getRemoteTableType(node);
+  const nodeType = getNodeType(node);
+
+  if (remoteTableType && remoteTableType !== "dynamic_table_metadata") {
+    return null;
+  }
+
+  if (
+    nodeType === "simple_table_update" ||
+    getNumericPropertyValue(node?.properties?.simple_table_update_id) !== null
+  ) {
+    return null;
+  }
+
+  const remoteTableId = getNumericPropertyValue(node?.properties?.remote_table_id);
+
+  if (remoteTableId === null) {
     return null;
   }
 
   return `/app/main_sequence_workbench/data-nodes?msDataNodeId=${remoteTableId}&msDataNodeTab=details`;
 }
 
-function buildLocalUpdateUrl(properties: Record<string, unknown> | undefined) {
-  const localUpdateId = Number(properties?.local_time_serie_id ?? "");
+function buildSimpleTableUrl(node: DependencyGraphLayoutNode | null) {
+  const remoteTableType = getRemoteTableType(node);
+  const nodeType = getNodeType(node);
 
-  if (!Number.isFinite(localUpdateId) || localUpdateId <= 0) {
+  if (remoteTableType && remoteTableType !== "simple_table") {
     return null;
   }
 
-  const remoteTableId = Number(properties?.remote_table_id ?? "");
+  if (
+    nodeType === "data_node_update" ||
+    getNumericPropertyValue(node?.properties?.data_node_update_id) !== null ||
+    getNumericPropertyValue(node?.properties?.local_time_serie_id) !== null
+  ) {
+    return null;
+  }
+
+  const remoteTableId = getNumericPropertyValue(node?.properties?.remote_table_id);
+
+  if (remoteTableId === null) {
+    return null;
+  }
+
+  return `/app/main_sequence_workbench/simple-tables?msSimpleTableId=${remoteTableId}&msSimpleTableTab=details`;
+}
+
+function buildDataNodeUpdateUrl(node: DependencyGraphLayoutNode | null) {
+  if (getNodeType(node) === "simple_table_update") {
+    return null;
+  }
+
+  const localUpdateId =
+    getNumericPropertyValue(node?.properties?.data_node_update_id) ??
+    getNumericPropertyValue(node?.properties?.local_time_serie_id);
+
+  if (localUpdateId === null) {
+    return null;
+  }
+
+  const remoteTableId = getNumericPropertyValue(node?.properties?.remote_table_id);
   const search = new URLSearchParams();
 
-  if (Number.isFinite(remoteTableId) && remoteTableId > 0) {
+  if (remoteTableId !== null) {
     search.set("msDataNodeId", String(remoteTableId));
   }
 
@@ -257,6 +344,47 @@ function buildLocalUpdateUrl(properties: Record<string, unknown> | undefined) {
   search.set("msLocalUpdateTab", "graphs");
 
   return `/app/main_sequence_workbench/data-nodes?${search.toString()}`;
+}
+
+function buildSimpleTableUpdateUrl(node: DependencyGraphLayoutNode | null) {
+  if (getNodeType(node) === "data_node_update") {
+    return null;
+  }
+
+  const simpleTableUpdateId = getNumericPropertyValue(node?.properties?.simple_table_update_id);
+
+  if (simpleTableUpdateId === null) {
+    return null;
+  }
+
+  const remoteTableId = getNumericPropertyValue(node?.properties?.remote_table_id);
+  const search = new URLSearchParams();
+
+  if (remoteTableId !== null) {
+    search.set("msSimpleTableId", String(remoteTableId));
+  }
+
+  search.set("msSimpleTableTab", "local-update");
+  search.set("msSimpleTableUpdateId", String(simpleTableUpdateId));
+  search.set("msSimpleTableUpdateTab", "graphs");
+
+  return `/app/main_sequence_workbench/simple-tables?${search.toString()}`;
+}
+
+function getNodeIcon(node: DependencyGraphLayoutNode) {
+  if (node.node_type === "simple_table_update") {
+    return <Table2 className="h-3.5 w-3.5" />;
+  }
+
+  if (node.node_type === "data_node_update") {
+    return <Database className="h-3.5 w-3.5" />;
+  }
+
+  if (node.icon) {
+    return <span>{node.icon}</span>;
+  }
+
+  return null;
 }
 
 function sanitizeDependencyGraphRuntimeState(
@@ -810,7 +938,7 @@ export function MainSequenceDependencyGraphExplorer({
           </div>
         ) : null}
 
-        {!isLoading && !error && (layout?.nodes.length ?? 0) === 0 ? (
+        {!isLoading && !error && payload && (layout?.nodes.length ?? 0) === 0 ? (
           <div className="absolute inset-4 z-20 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/60 px-4 py-10 text-center text-sm text-muted-foreground">
             {t("mainSequenceDependencyGraph.explorer.noNodes")}
           </div>
@@ -942,12 +1070,12 @@ export function MainSequenceDependencyGraphExplorer({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            {node.icon ? (
+                            {getNodeIcon(node) ? (
                               <span
                                 className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-background/60 text-xs text-foreground"
                                 aria-hidden="true"
                               >
-                                {node.icon}
+                                {getNodeIcon(node)}
                               </span>
                             ) : null}
                             <div className="truncate text-sm font-semibold text-card-foreground">
@@ -1036,24 +1164,44 @@ export function MainSequenceDependencyGraphExplorer({
                 </div>
 
                 <div className="flex flex-wrap gap-2 border-b border-border/70 px-4 py-3">
-                  {buildLocalUpdateUrl(selectedNode.properties) ? (
+                  {buildDataNodeUpdateUrl(selectedNode) ? (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleOpenExternal(buildLocalUpdateUrl(selectedNode.properties))}
+                      onClick={() => handleOpenExternal(buildDataNodeUpdateUrl(selectedNode))}
                     >
                       <ArrowUpRight className="h-3.5 w-3.5" />
-                      {t("mainSequenceDependencyGraph.explorer.openUpdate")}
+                      Open Data Node Update
                     </Button>
                   ) : null}
-                  {buildDataNodeUrl(selectedNode.properties) ? (
+                  {buildSimpleTableUpdateUrl(selectedNode) ? (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleOpenExternal(buildDataNodeUrl(selectedNode.properties))}
+                      onClick={() => handleOpenExternal(buildSimpleTableUpdateUrl(selectedNode))}
                     >
                       <ArrowUpRight className="h-3.5 w-3.5" />
-                      {t("mainSequenceDependencyGraph.explorer.openDataNode")}
+                      Open Simple Table Update
+                    </Button>
+                  ) : null}
+                  {buildDataNodeUrl(selectedNode) ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenExternal(buildDataNodeUrl(selectedNode))}
+                    >
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      Open Data Node
+                    </Button>
+                  ) : null}
+                  {buildSimpleTableUrl(selectedNode) ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenExternal(buildSimpleTableUrl(selectedNode))}
+                    >
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      Open Simple Table
                     </Button>
                   ) : null}
                 </div>

@@ -23,16 +23,16 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toaster";
 
 import {
-    createProject,
-    deleteProject,
-    type EntitySummaryHeader,
-    fetchProjectSummary,
-    fetchProjectFormOptions,
-    formatMainSequenceError,
-    listProjects,
-    mainSequenceRegistryPageSize,
-    type ProjectSummary,
-  } from "../../../../common/api";
+  bulkDeleteProjects,
+  createProject,
+  type EntitySummaryHeader,
+  fetchProjectSummary,
+  fetchProjectFormOptions,
+  formatMainSequenceError,
+  listProjects,
+  mainSequenceRegistryPageSize,
+  type ProjectSummary,
+} from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceProjectCodeTab } from "./MainSequenceProjectCodeTab";
@@ -321,31 +321,14 @@ export function MainSequenceProjectsPage() {
   const projectSelection = useRegistrySelection(filteredProjects);
   const deleteProjectMutation = useMutation({
     mutationFn: async ({ deleteRepositories, projects }: ProjectDeleteRequest) =>
-      Promise.allSettled(
-        projects.map((project) => deleteProject(project.id, { deleteRepositories })),
+      bulkDeleteProjects(
+        projects.map((project) => project.id),
+        { deleteRepositories },
       ),
-    onSuccess: async (results, request) => {
-      const failedProjects = request.projects.filter(
-        (_, index) => results[index]?.status === "rejected",
-      );
-      const deletedCount = request.projects.length - failedProjects.length;
-
+    onSuccess: async (result, request) => {
+      const deletedCount = result.deleted_count ?? request.projects.length;
       setProjectDeleteRequest(null);
       await queryClient.invalidateQueries({ queryKey: ["main_sequence", "projects", "list"] });
-
-      if (failedProjects.length > 0) {
-        toast({
-          variant: "error",
-          title:
-            failedProjects.length === request.projects.length
-              ? "Project deletion failed"
-              : "Some projects could not be deleted",
-          description:
-            failedProjects.length === request.projects.length
-              ? "No selected projects were deleted."
-              : `${failedProjects.length} of ${request.projects.length} selected projects could not be deleted.`,
-        });
-      }
 
       if (deletedCount > 0) {
         toast({
@@ -361,7 +344,7 @@ export function MainSequenceProjectsPage() {
         });
       }
 
-      projectSelection.setSelection(failedProjects.map((project) => project.id));
+      projectSelection.clearSelection();
     },
     onError: (error) => {
       toast({

@@ -74,10 +74,9 @@ export function Topbar() {
   const adminMenuApps = getAccessibleAdminMenuApps(permissions);
   const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
   const favoriteSurfaces = getFavoriteSurfaceEntries(permissions, favoriteSurfaceIds);
-  const favoriteWorkspaces = getFavoriteWorkspaceEntries(
-    workspaceDraftCollection.dashboards,
-    favoriteWorkspaceIds,
-  );
+  const favoriteWorkspaces = env.includeWorkspaces
+    ? getFavoriteWorkspaceEntries(workspaceDraftCollection.dashboards, favoriteWorkspaceIds)
+    : [];
   const favoriteMenuItems = useMemo<FavoriteMenuItem[]>(
     () => [
       ...favoriteWorkspaces.map((workspace) => ({
@@ -120,6 +119,7 @@ export function Topbar() {
       ? currentSurface
       : undefined;
   const showWorkspaceCanvasMenuRestore =
+    env.includeWorkspaces &&
     params.appId === "workspace-studio" &&
     params.surfaceId === "workspaces" &&
     Boolean(new URLSearchParams(location.search).get("workspace")) &&
@@ -167,6 +167,10 @@ export function Topbar() {
   ];
 
   useEffect(() => {
+    if (!env.includeWorkspaces) {
+      return;
+    }
+
     void initializeWorkspaceStudio(user?.id ?? null);
   }, [initializeWorkspaceStudio, user?.id]);
 

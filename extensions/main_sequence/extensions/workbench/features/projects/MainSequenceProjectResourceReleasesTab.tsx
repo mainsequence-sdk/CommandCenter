@@ -21,8 +21,8 @@ import { useToast } from "@/components/ui/toaster";
 import { listTeams } from "@/features/teams/api";
 
 import {
+  bulkDeleteResourceReleases,
   createResourceRelease,
-  deleteResourceRelease,
   fetchObjectCanEdit,
   fetchObjectCanView,
   fetchProjectImages,
@@ -811,11 +811,9 @@ export function MainSequenceProjectResourceReleasesTab({
 
   const deleteResourceReleaseMutation = useMutation({
     mutationFn: async (releases: ResourceReleaseRecord[]) =>
-      Promise.allSettled(releases.map((release) => deleteResourceRelease(release.id))),
-    onSuccess: async (results, releases) => {
-      const failedReleases = releases.filter((_, index) => results[index]?.status === "rejected");
-      const deletedCount = releases.length - failedReleases.length;
-
+      bulkDeleteResourceReleases(releases.map((release) => release.id)),
+    onSuccess: async (result, releases) => {
+      const deletedCount = result.deleted_count ?? releases.length;
       setReleasesPendingDelete([]);
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "resource-releases"],
@@ -824,32 +822,18 @@ export function MainSequenceProjectResourceReleasesTab({
         queryKey: ["main_sequence", "projects", "summary", projectId],
       });
 
-      if (failedReleases.length > 0) {
-        toast({
-          variant: "error",
-          title:
-            failedReleases.length === releases.length
-              ? "Resource release deletion failed"
-              : "Some resource releases could not be deleted",
-          description:
-            failedReleases.length === releases.length
-              ? "No selected resource releases were deleted."
-              : `${failedReleases.length} of ${releases.length} selected resource releases could not be deleted.`,
-        });
-      }
-
       if (deletedCount > 0) {
         toast({
           variant: "success",
           title: deletedCount === 1 ? "Resource release deleted" : "Resource releases deleted",
           description:
             deletedCount === 1
-              ? `${releases.find((release) => !failedReleases.some((failed) => failed.id === release.id))?.subdomain ?? "Release"} was deleted.`
+              ? `${releases[0]?.subdomain ?? "Release"} was deleted.`
               : `${deletedCount} resource releases were deleted.`,
         });
       }
 
-      releaseSelection.setSelection(failedReleases.map((release) => release.id));
+      releaseSelection.clearSelection();
     },
     onError: (error) => {
       toast({

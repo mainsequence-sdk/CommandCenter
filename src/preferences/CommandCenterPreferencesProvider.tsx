@@ -14,17 +14,19 @@ import {
   type CommandCenterPreferencesSnapshot,
 } from "@/preferences/api";
 import { useShellStore } from "@/stores/shell-store";
+import { useTheme } from "@/themes/ThemeProvider";
 
 function resolveActiveLanguage(): SupportedLanguage {
   const activeLanguage = i18n.resolvedLanguage ?? i18n.language;
   return isSupportedLanguage(activeLanguage) ? activeLanguage : defaultLanguage;
 }
 
-function buildCurrentSnapshot(): CommandCenterPreferencesSnapshot {
+function buildCurrentSnapshot(themeId: string): CommandCenterPreferencesSnapshot {
   const shellState = useShellStore.getState();
 
   return {
     language: resolveActiveLanguage(),
+    themeId,
     favoriteSurfaceIds: shellState.favoriteSurfaceIds,
     favoriteWorkspaceIds: shellState.favoriteWorkspaceIds,
   };
@@ -49,6 +51,7 @@ export function CommandCenterPreferencesProvider({
 }) {
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
   const endpointConfigured = hasConfiguredPreferencesEndpoint();
+  const { setThemeById, themeId } = useTheme();
   const applyingRemoteStateRef = useRef(false);
   const hydratedUserIdRef = useRef<string | null>(null);
   const lastSyncedSnapshotKeyRef = useRef<string | null>(null);
@@ -99,6 +102,10 @@ export function CommandCenterPreferencesProvider({
           if (resolveActiveLanguage() !== snapshot.language) {
             await i18n.changeLanguage(snapshot.language);
           }
+
+          if (snapshot.themeId && snapshot.themeId !== themeId) {
+            setThemeById(snapshot.themeId);
+          }
         } finally {
           applyingRemoteStateRef.current = false;
         }
@@ -110,7 +117,7 @@ export function CommandCenterPreferencesProvider({
             "[command-center] Unable to hydrate backend preferences.",
             error,
           );
-          lastSyncedSnapshotKeyRef.current = serializeSnapshot(buildCurrentSnapshot());
+          lastSyncedSnapshotKeyRef.current = serializeSnapshot(buildCurrentSnapshot(themeId));
         }
       } finally {
         applyingRemoteStateRef.current = false;
@@ -167,7 +174,7 @@ export function CommandCenterPreferencesProvider({
             const normalizedSnapshotKey = serializeSnapshot(normalizedSnapshot);
             lastSyncedSnapshotKeyRef.current = normalizedSnapshotKey;
 
-            if (normalizedSnapshotKey !== serializeSnapshot(buildCurrentSnapshot())) {
+            if (normalizedSnapshotKey !== serializeSnapshot(buildCurrentSnapshot(themeId))) {
               applyingRemoteStateRef.current = true;
 
               try {
@@ -175,6 +182,10 @@ export function CommandCenterPreferencesProvider({
 
                 if (resolveActiveLanguage() !== normalizedSnapshot.language) {
                   await i18n.changeLanguage(normalizedSnapshot.language);
+                }
+
+                if (normalizedSnapshot.themeId && normalizedSnapshot.themeId !== themeId) {
+                  setThemeById(normalizedSnapshot.themeId);
                 }
               } finally {
                 applyingRemoteStateRef.current = false;
@@ -198,7 +209,7 @@ export function CommandCenterPreferencesProvider({
         return;
       }
 
-      pendingSnapshotRef.current = buildCurrentSnapshot();
+      pendingSnapshotRef.current = buildCurrentSnapshot(themeId);
       void flushPendingSnapshot();
     }
 
@@ -224,13 +235,14 @@ export function CommandCenterPreferencesProvider({
     }
 
     i18n.on("languageChanged", handleLanguageChanged);
+    scheduleSync();
 
     return () => {
       active = false;
       i18n.off("languageChanged", handleLanguageChanged);
       unsubscribeShellStore();
     };
-  }, [endpointConfigured, sessionUserId]);
+  }, [endpointConfigured, sessionUserId, setThemeById, themeId]);
 
   return <>{children}</>;
 }

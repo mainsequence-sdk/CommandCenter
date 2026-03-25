@@ -281,3 +281,7 @@ export function useChatFeature() {
 
   return context;
 }
+
+export function useOptionalChatFeature() {
+  return useContext(ChatFeatureContext);
+}

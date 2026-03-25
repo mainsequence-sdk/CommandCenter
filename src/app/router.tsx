@@ -3,6 +3,7 @@ import { Navigate, createBrowserRouter } from "react-router-dom";
 import { PermissionRoute } from "@/app/guards/PermissionRoute";
 import { ProtectedRoute } from "@/app/guards/ProtectedRoute";
 import { AppShell } from "@/app/layout/AppShell";
+import { env } from "@/config/env";
 import { ChatPage } from "@/features/chat";
 import { AppPage } from "@/features/apps/AppPage";
 import { AppRedirect } from "@/features/apps/AppRedirect";
@@ -162,7 +163,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "chat",
-        element: <ChatPage />,
+        element: env.includeAui ? <ChatPage /> : <Navigate to="/app" replace />,
       },
       {
         path: ":appId",

@@ -12,7 +12,8 @@ import { BrandWordmark } from "@/components/brand/BrandWordmark";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { Avatar } from "@/components/ui/avatar";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
-import { useChatFeature } from "@/features/chat/ChatProvider";
+import { env } from "@/config/env";
+import { useOptionalChatFeature } from "@/features/chat/ChatProvider";
 import { CHAT_PAGE_PATH } from "@/features/chat/chat-ui-store";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
@@ -167,7 +168,7 @@ export function Sidebar() {
   const openAppPanel = useShellStore((state) => state.openAppPanel);
   const toggleAppPanel = useShellStore((state) => state.toggleAppPanel);
   const [userSettingsOpen, setUserSettingsOpen] = useState(false);
-  const { isOverlayOpen, toggleChat } = useChatFeature();
+  const chatFeature = useOptionalChatFeature();
 
   const userName = user?.name?.trim() || app.name;
   const userRole = user?.role?.trim() || "User";
@@ -187,7 +188,7 @@ export function Sidebar() {
   const accessibleApps = getAccessiblePrimaryApps(permissions);
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const activeAppId = pathSegments[1];
-  const assistantActive = isOverlayOpen || location.pathname === CHAT_PAGE_PATH;
+  const assistantActive = Boolean(chatFeature?.isOverlayOpen) || location.pathname === CHAT_PAGE_PATH;
   const userMenuActions = [
     {
       icon: Users2,
@@ -327,13 +328,15 @@ export function Sidebar() {
       <div className="mt-auto shrink-0 px-2 pb-3 pt-2">
         {sidebarCollapsed ? (
           <div className="flex w-full flex-col items-center gap-2">
-            <AssistantSidebarTrigger
-              active={assistantActive}
-              collapsed
-              onClick={toggleChat}
-              shortcutLabel={assistantShortcutLabel}
-              shortcutVisual={assistantShortcutVisual}
-            />
+            {env.includeAui && chatFeature ? (
+              <AssistantSidebarTrigger
+                active={assistantActive}
+                collapsed
+                onClick={chatFeature.toggleChat}
+                shortcutLabel={assistantShortcutLabel}
+                shortcutVisual={assistantShortcutVisual}
+              />
+            ) : null}
             <UserMenu
               name={userName}
               avatarSrc={user?.avatarUrl}
@@ -375,15 +378,17 @@ export function Sidebar() {
           </div>
         ) : (
           <>
-            <div className="mb-2 px-2">
-              <AssistantSidebarTrigger
-                active={assistantActive}
-                collapsed={false}
-                onClick={toggleChat}
-                shortcutLabel={assistantShortcutLabel}
-                shortcutVisual={assistantShortcutVisual}
-              />
-            </div>
+            {env.includeAui && chatFeature ? (
+              <div className="mb-2 px-2">
+                <AssistantSidebarTrigger
+                  active={assistantActive}
+                  collapsed={false}
+                  onClick={chatFeature.toggleChat}
+                  shortcutLabel={assistantShortcutLabel}
+                  shortcutVisual={assistantShortcutVisual}
+                />
+              </div>
+            ) : null}
             <div className="mb-2 flex items-center gap-3 px-2">
               <UserMenu
                 name={userName}

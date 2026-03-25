@@ -1,4 +1,4 @@
-import { fetchLocalTimeSerieDependencyGraph } from "../../../../common/api";
+import { fetchSimpleTableUpdateDependencyGraph } from "../../../../common/api";
 import {
   MainSequenceUpdateDependencyGraph,
 } from "../../widgets/dependency-graph/MainSequenceUpdateDependencyGraph";
@@ -9,17 +9,17 @@ import type {
   MainSequenceDependencyGraphDirection,
 } from "../../widgets/dependency-graph/graphLayout";
 
-export function MainSequenceLocalUpdateDependencyGraph({
+export function MainSequenceSimpleTableUpdateDependencyGraph({
   direction,
   enabled = true,
-  localTimeSerieId,
+  simpleTableUpdateId,
   runtimeState,
   onRuntimeStateChange,
   variant = "card",
 }: {
   direction: MainSequenceDependencyGraphDirection;
   enabled?: boolean;
-  localTimeSerieId: number;
+  simpleTableUpdateId: number;
   runtimeState?: MainSequenceDependencyGraphRuntimeState;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   variant?: "card" | "widget";
@@ -27,9 +27,15 @@ export function MainSequenceLocalUpdateDependencyGraph({
   return (
     <MainSequenceUpdateDependencyGraph
       direction={direction}
-      enabled={enabled && localTimeSerieId > 0}
-      queryKey={["main_sequence", "data_nodes", "local_updates", "graph", localTimeSerieId]}
-      queryFn={() => fetchLocalTimeSerieDependencyGraph(localTimeSerieId, direction)}
+      enabled={enabled && simpleTableUpdateId > 0}
+      queryKey={[
+        "main_sequence",
+        "simple_tables",
+        "updates",
+        "graph",
+        simpleTableUpdateId,
+      ]}
+      queryFn={() => fetchSimpleTableUpdateDependencyGraph(simpleTableUpdateId, direction)}
       runtimeState={runtimeState}
       onRuntimeStateChange={onRuntimeStateChange}
       variant={variant}

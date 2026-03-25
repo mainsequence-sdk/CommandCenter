@@ -12,6 +12,7 @@ import { MainSequencePhysicalDataSourcesPage } from "./features/physical-data-so
 import { MainSequenceProjectDataSourcesPage } from "./features/project-data-sources/MainSequenceProjectDataSourcesPage";
 import { MainSequenceProjectsPage } from "./features/projects/MainSequenceProjectsPage";
 import { MainSequenceSecretsPage } from "./features/secrets/MainSequenceSecretsPage";
+import { MainSequenceSimpleTablesPage } from "./features/simple-tables/MainSequenceSimpleTablesPage";
 
 const workspaceSection: AppSurfaceNavigationSection = {
   id: "workspace",
@@ -170,6 +171,16 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence.data:view"],
       component: MainSequenceDataNodesPage,
+    },
+    {
+      id: "simple-tables",
+      title: "Simple Tables",
+      navLabel: "Simple Tables",
+      description: "Browse and bulk delete ts_manager simple_table records.",
+      navigationSection: dataSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence.data:view"],
+      component: MainSequenceSimpleTablesPage,
     },
   ],
 };

@@ -136,7 +136,8 @@ html {
   color-scheme: dark;
 }
 
-html[data-theme="quartz-light"] {
+html[data-theme="quartz-light"],
+html[data-theme="panda-trueno"] {
   color-scheme: light;
 }
 
@@ -218,6 +219,30 @@ html[data-theme="cyberpunk"] {
     linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0.01) 18%, rgba(0, 0, 0, 0) 42%);
   --workspace-grid-dot: rgba(70, 207, 255, 0.28);
   --workspace-grid-dot-selected: rgba(255, 88, 186, 0.92);
+}
+
+html[data-theme="panda-trueno"] {
+  --shadow-panel: 0 24px 44px -28px rgba(16, 20, 28, 0.18);
+  --ms-bg-gradient:
+    radial-gradient(circle at 14% 12%, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.52) 12%, rgba(255, 255, 255, 0) 32%),
+    radial-gradient(circle at 12% 58%, rgba(213, 138, 47, 0.16) 0%, rgba(213, 138, 47, 0.06) 10%, rgba(213, 138, 47, 0) 22%),
+    radial-gradient(circle at 88% 78%, rgba(47, 120, 242, 0.18) 0%, rgba(47, 120, 242, 0.07) 14%, rgba(47, 120, 242, 0) 32%),
+    linear-gradient(180deg, rgba(245, 245, 241, 1) 0%, rgba(235, 238, 241, 1) 100%);
+  --workspace-canvas-base-color: #eceeeb;
+  --workspace-canvas-background:
+    linear-gradient(
+      180deg,
+      rgba(250, 250, 247, 0.98) 0%,
+      rgba(241, 243, 245, 0.98) 56%,
+      rgba(228, 232, 236, 0.98) 100%
+    );
+  --workspace-canvas-overlay:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.10) 18%, rgba(255, 255, 255, 0) 38%),
+    linear-gradient(180deg, rgba(17, 20, 23, 0) 0%, rgba(17, 20, 23, 0) 72%, rgba(17, 20, 23, 0.06) 72%, rgba(17, 20, 23, 0.06) 100%),
+    linear-gradient(90deg, rgba(47, 120, 242, 0) 0%, rgba(47, 120, 242, 0) 74%, rgba(47, 120, 242, 0.11) 84%, rgba(47, 120, 242, 0) 100%),
+    linear-gradient(90deg, rgba(213, 138, 47, 0) 0%, rgba(213, 138, 47, 0.12) 8%, rgba(213, 138, 47, 0) 18%);
+  --workspace-grid-dot: rgba(22, 26, 30, 0.24);
+  --workspace-grid-dot-selected: rgba(47, 120, 242, 0.92);
 }
 
 html[data-theme="graphite"] {
@@ -390,6 +415,15 @@ html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-she
   border: 1px solid transparent;
   background:
     linear-gradient(
+        135deg,
+        rgba(255, 88, 186, 0.34) 0%,
+        rgba(143, 99, 255, 0.18) 18%,
+        rgba(18, 14, 32, 0.14) 48%,
+        rgba(17, 22, 38, 0.16) 78%,
+        rgba(70, 207, 255, 0.34) 100%
+      )
+      border-box,
+    linear-gradient(
         90deg,
         rgba(255, 88, 186, 0.05) 0%,
         rgba(13, 11, 24, 0.96) 16%,
@@ -402,7 +436,7 @@ html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-she
     inset 0 1px 0 rgba(255, 255, 255, 0.03),
     -8px 0 22px -20px rgba(255, 88, 186, 0.20),
     8px 0 22px -20px rgba(70, 207, 255, 0.20),
-    0 18px 34px -28px rgba(0, 0, 0, 0.82);
+    0 18px 34px -28px rgba(7, 5, 18, 0.64);
 }
 
 html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-shell="default"])::before {
@@ -411,39 +445,20 @@ html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-she
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background:
-    linear-gradient(
-        180deg,
-        rgba(255, 88, 186, 0.82) 0%,
-        rgba(255, 88, 186, 0.54) 100%
-      )
-      left / 1px 100% no-repeat,
-    linear-gradient(
-        180deg,
-        rgba(70, 207, 255, 0.82) 0%,
-        rgba(70, 207, 255, 0.54) 100%
-      )
-      right / 1px 100% no-repeat,
-    linear-gradient(
-        90deg,
-        rgba(255, 88, 186, 0.72) 0%,
-        rgba(182, 96, 235, 0.22) 14%,
-        rgba(182, 96, 235, 0) 34%,
-        rgba(182, 96, 235, 0) 66%,
-        rgba(182, 96, 235, 0.22) 86%,
-        rgba(70, 207, 255, 0.72) 100%
-      )
-      top / 100% 1px no-repeat,
-    linear-gradient(
-        90deg,
-        rgba(255, 88, 186, 0.72) 0%,
-        rgba(182, 96, 235, 0.22) 14%,
-        rgba(182, 96, 235, 0) 34%,
-        rgba(182, 96, 235, 0) 66%,
-        rgba(182, 96, 235, 0.22) 86%,
-        rgba(70, 207, 255, 0.72) 100%
-      )
-      bottom / 100% 1px no-repeat;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 88, 186, 0.92) 0%,
+    rgba(255, 88, 186, 0.78) 8%,
+    rgba(182, 96, 235, 0.42) 22%,
+    rgba(182, 96, 235, 0.12) 38%,
+    rgba(182, 96, 235, 0.12) 62%,
+    rgba(70, 207, 255, 0.42) 78%,
+    rgba(70, 207, 255, 0.78) 92%,
+    rgba(70, 207, 255, 0.92) 100%
+  );
+  box-shadow:
+    inset 0 0 12px rgba(182, 96, 235, 0.08),
+    inset 0 0 18px rgba(70, 207, 255, 0.04);
   pointer-events: none;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -459,6 +474,15 @@ html[data-theme="cyberpunk"] [data-widget-shell="default"] [data-widget-shell-he
 html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-shell="default"]):hover {
   background:
     linear-gradient(
+        135deg,
+        rgba(255, 88, 186, 0.42) 0%,
+        rgba(143, 99, 255, 0.22) 18%,
+        rgba(20, 15, 36, 0.16) 48%,
+        rgba(18, 24, 42, 0.18) 78%,
+        rgba(70, 207, 255, 0.42) 100%
+      )
+      border-box,
+    linear-gradient(
         90deg,
         rgba(255, 88, 186, 0.06) 0%,
         rgba(13, 11, 24, 0.97) 16%,
@@ -471,43 +495,24 @@ html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-she
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     -10px 0 26px -22px rgba(255, 88, 186, 0.26),
     10px 0 26px -22px rgba(70, 207, 255, 0.26),
-    0 18px 38px -28px rgba(0, 0, 0, 0.84);
+    0 18px 38px -28px rgba(7, 5, 18, 0.68);
 }
 
 html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-shell="default"]):hover::before {
-  background:
-    linear-gradient(
-        180deg,
-        rgba(255, 88, 186, 0.92) 0%,
-        rgba(255, 88, 186, 0.62) 100%
-      )
-      left / 1px 100% no-repeat,
-    linear-gradient(
-        180deg,
-        rgba(70, 207, 255, 0.92) 0%,
-        rgba(70, 207, 255, 0.62) 100%
-      )
-      right / 1px 100% no-repeat,
-    linear-gradient(
-        90deg,
-        rgba(255, 88, 186, 0.82) 0%,
-        rgba(182, 96, 235, 0.28) 14%,
-        rgba(182, 96, 235, 0) 34%,
-        rgba(182, 96, 235, 0) 66%,
-        rgba(182, 96, 235, 0.28) 86%,
-        rgba(70, 207, 255, 0.82) 100%
-      )
-      top / 100% 1px no-repeat,
-    linear-gradient(
-        90deg,
-        rgba(255, 88, 186, 0.82) 0%,
-        rgba(182, 96, 235, 0.28) 14%,
-        rgba(182, 96, 235, 0) 34%,
-        rgba(182, 96, 235, 0) 66%,
-        rgba(182, 96, 235, 0.28) 86%,
-        rgba(70, 207, 255, 0.82) 100%
-      )
-      bottom / 100% 1px no-repeat;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 88, 186, 0.98) 0%,
+    rgba(255, 88, 186, 0.84) 8%,
+    rgba(182, 96, 235, 0.50) 22%,
+    rgba(182, 96, 235, 0.16) 38%,
+    rgba(182, 96, 235, 0.16) 62%,
+    rgba(70, 207, 255, 0.50) 78%,
+    rgba(70, 207, 255, 0.84) 92%,
+    rgba(70, 207, 255, 0.98) 100%
+  );
+  box-shadow:
+    inset 0 0 14px rgba(182, 96, 235, 0.10),
+    inset 0 0 20px rgba(70, 207, 255, 0.06);
 }
 
 html[data-theme="cyberpunk"] .ag-header,

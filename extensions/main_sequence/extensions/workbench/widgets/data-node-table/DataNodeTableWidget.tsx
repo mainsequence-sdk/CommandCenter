@@ -346,18 +346,12 @@ export function DataNodeTableWidget({ props }: Props) {
   const { resolvedTokens, tightness } = useTheme();
   const tightnessMetrics = useMemo(() => getThemeTightnessMetrics(tightness), [tightness]);
   const baseResolvedProps = useMemo(() => resolveDataNodeTableVisualizerProps(props), [props]);
-  const dataNodeId =
-    baseResolvedProps.sourceMode === "data-node"
-      ? Number(baseResolvedProps.dataNodeId ?? 0)
-      : 0;
+  const dataNodeId = Number(baseResolvedProps.dataNodeId ?? 0);
 
   const dataNodeDetailQuery = useQuery({
     queryKey: ["main_sequence", "widgets", "data_node_table_visualizer", "detail", dataNodeId],
     queryFn: () => fetchDataNodeDetail(dataNodeId),
-    enabled:
-      baseResolvedProps.sourceMode === "data-node" &&
-      Number.isFinite(dataNodeId) &&
-      dataNodeId > 0,
+    enabled: Number.isFinite(dataNodeId) && dataNodeId > 0,
     staleTime: 300_000,
   });
 
@@ -403,7 +397,6 @@ export function DataNodeTableWidget({ props }: Props) {
         offset: 0,
       }),
     enabled:
-      baseResolvedProps.sourceMode === "data-node" &&
       Boolean(dataNodeId) &&
       hasSourceTableConfiguration &&
       requestedColumns.length > 0 &&
@@ -413,13 +406,11 @@ export function DataNodeTableWidget({ props }: Props) {
 
   const remoteFrame = useMemo(
     () =>
-      baseResolvedProps.sourceMode === "data-node"
-        ? buildDataNodeTableVisualizerFrameFromRemoteData(
-            dataNodeDetailQuery.data,
-            dataQuery.data ?? [],
-          )
-        : null,
-    [baseResolvedProps.sourceMode, dataNodeDetailQuery.data, dataQuery.data],
+      buildDataNodeTableVisualizerFrameFromRemoteData(
+        dataNodeDetailQuery.data,
+        dataQuery.data ?? [],
+      ),
+    [dataNodeDetailQuery.data, dataQuery.data],
   );
   const resolvedProps = useMemo(
     () => resolveDataNodeTableVisualizerPropsWithFrame(props, remoteFrame),
@@ -517,7 +508,7 @@ export function DataNodeTableWidget({ props }: Props) {
     }
   }, [quickFilter, resolvedProps.showSearch]);
 
-  if (resolvedProps.sourceMode === "data-node" && !resolvedProps.dataNodeId) {
+  if (!resolvedProps.dataNodeId) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -533,11 +524,11 @@ export function DataNodeTableWidget({ props }: Props) {
     );
   }
 
-  if (resolvedProps.sourceMode === "data-node" && dataNodeDetailQuery.isLoading && !dataNodeDetailQuery.data) {
+  if (dataNodeDetailQuery.isLoading && !dataNodeDetailQuery.data) {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
 
-  if (resolvedProps.sourceMode === "data-node" && dataNodeDetailQuery.isError) {
+  if (dataNodeDetailQuery.isError) {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
         {formatMainSequenceError(dataNodeDetailQuery.error)}
@@ -545,7 +536,7 @@ export function DataNodeTableWidget({ props }: Props) {
     );
   }
 
-  if (resolvedProps.sourceMode === "data-node" && !hasSourceTableConfiguration) {
+  if (!hasSourceTableConfiguration) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -561,7 +552,7 @@ export function DataNodeTableWidget({ props }: Props) {
     );
   }
 
-  if (resolvedProps.sourceMode === "data-node" && resolvedProps.dateRangeMode === "fixed" && !resolvedRange.hasValidRange) {
+  if (resolvedProps.dateRangeMode === "fixed" && !resolvedRange.hasValidRange) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -577,11 +568,11 @@ export function DataNodeTableWidget({ props }: Props) {
     );
   }
 
-  if (resolvedProps.sourceMode === "data-node" && dataQuery.isLoading && !dataQuery.data) {
+  if (dataQuery.isLoading && !dataQuery.data) {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
 
-  if (resolvedProps.sourceMode === "data-node" && dataQuery.isError) {
+  if (dataQuery.isError) {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
         {formatMainSequenceError(dataQuery.error)}
@@ -661,8 +652,7 @@ export function DataNodeTableWidget({ props }: Props) {
           </div>
         )}
 
-        {resolvedProps.sourceMode === "data-node" &&
-        !dataQuery.isLoading &&
+        {!dataQuery.isLoading &&
         !dataQuery.isError &&
         rowObjects.length === 0 ? (
           <div className="border-t border-border/70 bg-background/22 px-4 py-3 text-sm text-muted-foreground">

@@ -87,9 +87,22 @@ function getNormalizedNodes(payload: LocalTimeSerieDependencyGraphResponse) {
   const nodes = (payload.nodes ?? []).map<DependencyGraphLayoutNode>((node) => {
     const id = String(node.id);
     const depth = Number.isFinite(Number(node.depth)) ? Number(node.depth) : 0;
+    const properties =
+      node.properties && typeof node.properties === "object" && !Array.isArray(node.properties)
+        ? { ...node.properties }
+        : {};
+
+    if (node.node_type && !("node_type" in properties)) {
+      properties.node_type = node.node_type;
+    }
+
+    if (node.remote_table_type && !("remote_table_type" in properties)) {
+      properties.remote_table_type = node.remote_table_type;
+    }
 
     return {
       ...node,
+      properties,
       id,
       depth,
       x: 0,

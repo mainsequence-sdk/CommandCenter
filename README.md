@@ -74,6 +74,10 @@ cp .env.example .env
 
 `VITE_BYPASS_AUTH=true` bypasses backend authentication for local development and re-enables the built-in role picker.
 
+`INCLUDE_AUI=true` keeps the detachable `assistant-ui` shell enabled. Set `INCLUDE_AUI=false` to remove the chat provider, sidebar trigger, overlay rail, and `/app/chat` route at runtime.
+
+`INCLUDE_WORKSPACES=true` keeps the `Workspaces` application registered. Set `INCLUDE_WORKSPACES=false` to remove the `workspace-studio` app from navigation, search, topbar favorites, and routed app resolution.
+
 Authentication is configured separately in `config/command-center.yaml` with the JWT token, refresh, and user-details endpoints.
 
 ## Documentation
@@ -122,6 +126,8 @@ Runtime data mode is controlled separately through Vite env vars:
 - `VITE_USE_MOCK_DATA=true|false`
 - `VITE_API_BASE_URL=http://localhost:8000/api`
 - `VITE_WS_URL=ws://localhost:8000/ws`
+- `INCLUDE_AUI=true|false`
+- `INCLUDE_WORKSPACES=true|false`
 
 ## High-level structure
 

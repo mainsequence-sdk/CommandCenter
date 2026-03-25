@@ -10,8 +10,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toaster";
 
 import {
+  bulkDeleteProjectImages,
   createProjectImage,
-  deleteProjectImage,
   fetchProjectImageCommitHashes,
   formatMainSequenceError,
   listProjectImages,
@@ -187,11 +187,9 @@ export function MainSequenceProjectImagesTab({
 
   const deleteImageMutation = useMutation({
     mutationFn: async (images: ProjectImageOption[]) =>
-      Promise.allSettled(images.map((image) => deleteProjectImage(image.id))),
-    onSuccess: async (results, images) => {
-      const failedImages = images.filter((_, index) => results[index]?.status === "rejected");
-      const deletedCount = images.length - failedImages.length;
-
+      bulkDeleteProjectImages(images.map((image) => image.id)),
+    onSuccess: async (result, images) => {
+      const deletedCount = result.deleted_count ?? images.length;
       setImagesPendingDelete([]);
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "images", projectId],
@@ -203,20 +201,6 @@ export function MainSequenceProjectImagesTab({
         queryKey: ["main_sequence", "projects", "summary", projectId],
       });
 
-      if (failedImages.length > 0) {
-        toast({
-          variant: "error",
-          title:
-            failedImages.length === images.length
-              ? "Image deletion failed"
-              : "Some images could not be deleted",
-          description:
-            failedImages.length === images.length
-              ? "No selected images were deleted."
-              : `${failedImages.length} of ${images.length} selected images could not be deleted.`,
-        });
-      }
-
       if (deletedCount > 0) {
         toast({
           variant: "success",
@@ -226,7 +210,7 @@ export function MainSequenceProjectImagesTab({
         });
       }
 
-      imageSelection.setSelection(failedImages.map((image) => image.id));
+      imageSelection.clearSelection();
     },
     onError: (error) => {
       toast({

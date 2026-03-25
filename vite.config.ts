@@ -30,6 +30,7 @@ function readLoopbackAuthProxyTarget() {
 const loopbackAuthProxyTarget = readLoopbackAuthProxyTarget();
 
 export default defineConfig({
+  envPrefix: ["VITE_", "INCLUDE_"],
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

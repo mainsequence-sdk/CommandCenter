@@ -32,6 +32,7 @@ Expected payload shape:
 ```json
 {
   "language": "en",
+  "themeId": "main-sequence-space",
   "favoriteSurfaceIds": ["access-rbac.overview"],
   "favoriteWorkspaceIds": ["workspace-studio::workspace::abc123"]
 }
@@ -41,6 +42,7 @@ Expected payload shape:
 
 - Persisted remotely when configured:
   - `language`
+  - `themeId`
   - `favoriteSurfaceIds`
   - `favoriteWorkspaceIds`
 - Kept local-only:
@@ -49,9 +51,11 @@ Expected payload shape:
 ## Runtime behavior
 
 - When `preferences.url` is configured, the provider waits for an authenticated user, loads the preference snapshot, hydrates i18n and the shell store, and pushes later language/favorite changes back with `PUT`.
+- Theme preset selection now follows the same snapshot contract, so a backend-backed session rehydrates the last saved `themeId`.
 - The dedicated favorites endpoints are also available in config so the frontend can move to per-favorite mutations later without changing the runtime config shape again.
 - When `preferences.url` is blank or omitted, the app keeps the pre-existing browser-local behavior:
   - language persists through `localStorage`
+  - theme preset persists through `localStorage`
   - shell favorites persist through the existing persisted Zustand store
 - Auth session state is intentionally separate from this module. This module does not own JWT/session persistence.
 

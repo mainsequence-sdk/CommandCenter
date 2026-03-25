@@ -19,6 +19,8 @@ Files outside this folder that are intentionally touched:
 - `package-lock.json`
 - `src/app/layout/AppShell.tsx`
 - `src/app/router.tsx`
+- `src/config/env.ts`
+- `vite.config.ts`
 
 Files intentionally not modified for this scaffold:
 
@@ -98,6 +100,15 @@ Do not add a second mutation path that only chat uses.
 - rendering the overlay when open
 
 The persistent visible trigger now lives in the sidebar chrome above the user menu/avatar instead of a floating bubble.
+
+### Feature Flag
+
+The chat scaffold is gated by the `INCLUDE_AUI` environment variable.
+
+- default: `true`
+- when `false`: the shell does not mount `ChatProvider`, does not render `ChatMount`, hides the sidebar trigger, and redirects `/app/chat` back to `/app`
+
+This keeps the dependency installed while making the UI integration effectively disappear at runtime.
 
 ### Dedicated Route
 

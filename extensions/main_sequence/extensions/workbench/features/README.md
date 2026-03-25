@@ -13,6 +13,7 @@ Feature folders group screens and supporting components by domain instead of by 
 - `project-data-sources/`: project data source registry and editor workflows.
 - `projects/`: project registry, repository browsing, images, jobs, and related tabs.
 - `secrets/`: secret-management surfaces.
+- `simple-tables/`: `ts_manager/simple_table` registry, detail routing, and SimpleTableUpdate workflows.
 
 ## Rules
 

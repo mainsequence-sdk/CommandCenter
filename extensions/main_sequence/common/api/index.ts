@@ -6,6 +6,7 @@ import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 const devAuthProxyPrefix = "/__command_center_auth__";
 const dynamicTableDataSourceEndpoint = "/orm/api/ts_manager/dynamic_table_data_source/";
 const dynamicTableMetadataEndpoint = "/orm/api/ts_manager/dynamic_table/";
+const simpleTableEndpoint = "/orm/api/ts_manager/simple_table/";
 const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
 const assetEndpoint = "/orm/api/assets/asset/";
@@ -49,6 +50,11 @@ export interface FrontendRowsResponse<T> {
   search: string;
   rows: T[];
   pagination: FrontendListPagination;
+}
+
+export interface MainSequenceBulkDeleteResponse {
+  detail?: string;
+  deleted_count: number;
 }
 
 export interface DynamicTableDataSourceOption {
@@ -1074,6 +1080,119 @@ export interface UploadBucketArtifactResponse {
   content_url: string;
 }
 
+export interface SimpleTableRecord {
+  id: number;
+  storage_hash?: string;
+  creation_date?: string | null;
+  source_class_name?: string | null;
+  identifier?: string | null;
+  description?: string | null;
+  data_frequency_id?: string | number | null;
+  data_source?: DynamicTableDataSourceOption | null;
+  [key: string]: unknown;
+}
+
+export interface SimpleTableColumnRecord {
+  id: number;
+  attr_name: string;
+  column_name: string;
+  db_type: string;
+  is_pk: boolean;
+  nullable: boolean;
+  is_unique: boolean;
+}
+
+export interface SimpleTableForeignKeyRecord {
+  id: number;
+  source_column: string;
+  target_table: number | Record<string, unknown> | null;
+  target_column: string;
+  on_delete: string;
+}
+
+export interface SimpleTableIndexRecord {
+  id: number;
+  name: string;
+  columns: string[];
+}
+
+export interface SimpleTableSchemaGraphColumnRecord {
+  id: number;
+  attr_name: string;
+  column_name: string;
+  db_type: string;
+  nullable: boolean;
+  is_primary_key: boolean;
+  is_unique: boolean;
+}
+
+export interface SimpleTableSchemaGraphIndexRecord {
+  id: number;
+  name: string;
+  columns: string[];
+}
+
+export interface SimpleTableSchemaGraphTableRecord {
+  id: number;
+  identifier: string;
+  storage_hash: string;
+  source_class_name: string | null;
+  data_source_id: number | null;
+  columns: SimpleTableSchemaGraphColumnRecord[];
+  indexes: SimpleTableSchemaGraphIndexRecord[];
+}
+
+export interface SimpleTableSchemaGraphRelationshipRecord {
+  id: number;
+  source_table_id: number;
+  source_table_storage_hash: string | null;
+  source_column: string;
+  target_table_id: number;
+  target_table_storage_hash: string | null;
+  target_column: string;
+  on_delete: string | null;
+  source_to_target_multiplicity: string | null;
+  target_to_source_multiplicity: string | null;
+}
+
+export interface SimpleTableSchemaGraphResponse {
+  root_table_id: number;
+  tables: SimpleTableSchemaGraphTableRecord[];
+  relationships: SimpleTableSchemaGraphRelationshipRecord[];
+}
+
+export interface SimpleTableDetail extends SimpleTableRecord {
+  schema?: unknown;
+  sourcetableconfiguration?: DataNodeSourceTableConfiguration | null;
+  build_configuration?: unknown;
+  build_configuration_json_schema?: unknown;
+  protect_from_deletion?: boolean;
+  created_by_user?: number | null;
+  organization_owner?: number | null;
+  open_for_everyone?: boolean;
+  columns?: SimpleTableColumnRecord[];
+  foreign_keys?: SimpleTableForeignKeyRecord[];
+  incoming_fks?: SimpleTableForeignKeyRecord[];
+  indexes_meta?: SimpleTableIndexRecord[];
+}
+
+export interface SimpleTableBulkDeleteInput {
+  ids: number[];
+  fullDeleteSelected?: boolean;
+  fullDeleteDownstreamTables?: boolean;
+}
+
+export interface SimpleTableBulkRefreshResult {
+  ok: boolean;
+  simple_table_id: number;
+  search_index_updated: boolean;
+  embedding_model?: string | null;
+}
+
+export interface SimpleTableBulkRefreshResponse {
+  results: SimpleTableBulkRefreshResult[];
+}
+
 export interface DataNodeSummary {
   id: number;
   storage_hash: string;
@@ -1238,6 +1357,8 @@ export interface LocalTimeSerieDependencyGraphEdge {
 
 export interface LocalTimeSerieDependencyGraphNode {
   id: string | number;
+  node_type?: string;
+  remote_table_type?: string;
   update_hash?: string;
   card_title?: string;
   card_subtitle?: string;
@@ -1260,6 +1381,100 @@ export interface LocalTimeSerieDependencyGraphResponse {
   nodes: LocalTimeSerieDependencyGraphNode[];
   edges: LocalTimeSerieDependencyGraphEdge[];
   groups: LocalTimeSerieDependencyGraphGroup[];
+}
+
+function tryBuildDependencyGraphPayload(value: unknown): LocalTimeSerieDependencyGraphResponse | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  if (!Array.isArray(candidate.nodes) || !Array.isArray(candidate.edges)) {
+    return null;
+  }
+
+  return {
+    nodes: candidate.nodes as LocalTimeSerieDependencyGraphNode[],
+    edges: candidate.edges as LocalTimeSerieDependencyGraphEdge[],
+    groups: Array.isArray(candidate.groups)
+      ? (candidate.groups as LocalTimeSerieDependencyGraphGroup[])
+      : [],
+  };
+}
+
+function normalizeDependencyGraphPayload(
+  payload: unknown,
+  endpointLabel: string,
+): LocalTimeSerieDependencyGraphResponse {
+  const normalizedTopLevel = tryBuildDependencyGraphPayload(payload);
+
+  if (normalizedTopLevel) {
+    return normalizedTopLevel;
+  }
+
+  if (payload && typeof payload === "object") {
+    const candidate = payload as Record<string, unknown>;
+    const nestedKeys = ["graph", "data", "payload", "result", "elements"] as const;
+
+    for (const key of nestedKeys) {
+      const normalizedNested = tryBuildDependencyGraphPayload(candidate[key]);
+
+      if (normalizedNested) {
+        return normalizedNested;
+      }
+    }
+  }
+
+  throw new MainSequenceApiError(
+    `The ${endpointLabel} endpoint did not return a dependency graph payload.`,
+    200,
+    payload,
+  );
+}
+
+export interface SimpleTableUpdateRunConfiguration {
+  update_schedule: unknown;
+  [key: string]: unknown;
+}
+
+export interface SimpleTableUpdateRunConfigurationInput {
+  update_schedule?: unknown;
+}
+
+export interface SimpleTableUpdateDetails {
+  related_table: number;
+  active_update: boolean;
+  update_pid: number | null;
+  error_on_last_update: boolean;
+  last_update: string | null;
+  next_update: string | null;
+  active_update_status: string | null;
+  active_update_scheduler: number | null;
+  update_priority: number | null;
+  last_updated_by_user: number | null;
+  run_configuration: SimpleTableUpdateRunConfiguration | null;
+}
+
+export interface SimpleTableUpdateRecord {
+  id: number;
+  remote_table: SimpleTableDetail | SimpleTableRecord | null;
+  update_hash: string;
+  build_configuration: unknown;
+  update_details: SimpleTableUpdateDetails | null;
+  run_configuration: SimpleTableUpdateRunConfiguration | null;
+  ogm_dependencies_linked: boolean;
+  open_for_everyone: boolean;
+}
+
+export interface SimpleTableHistoricalUpdateRecord {
+  id: number;
+  related_table: number;
+  update_time_start: string | null;
+  update_time_end: string | null;
+  error_on_update: boolean;
+  trace_id: string | null;
+  updated_by_user: number | null;
 }
 
 function buildWidgetPreviewIsoTimestamp(offsetMs = 0) {
@@ -3818,6 +4033,10 @@ export function deleteConstant(constantId: number) {
   });
 }
 
+export function bulkDeleteConstants(ids: number[]) {
+  return postMainSequenceBulkDelete("constant/bulk-delete/", ids);
+}
+
 export async function listSecrets({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
@@ -3978,6 +4197,322 @@ export function bulkDeleteBuckets(input: BucketBulkDeleteInput) {
   );
 }
 
+export async function listSimpleTables({
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: {
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const payload = await requestJson<PaginatedResponse<SimpleTableRecord> | SimpleTableRecord[]>(
+    simpleTableEndpoint,
+    "",
+    undefined,
+    {
+      limit,
+      offset,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function bulkDeleteSimpleTables({
+  ids,
+  fullDeleteSelected = false,
+  fullDeleteDownstreamTables = false,
+}: SimpleTableBulkDeleteInput) {
+  return requestJson<SimpleTableRecord[] | MainSequenceBulkDeleteResponse>(
+    simpleTableEndpoint,
+    "bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    },
+    {
+      full_delete_selected: fullDeleteSelected || undefined,
+      full_delete_downstream_tables: fullDeleteDownstreamTables || undefined,
+    },
+  );
+}
+
+export function bulkRefreshSimpleTableSearchIndex(ids: number[]) {
+  return requestJson<SimpleTableBulkRefreshResponse>(
+    simpleTableEndpoint,
+    "bulk-refresh-table-search-index/",
+    {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    },
+  );
+}
+
+interface SimpleTableSummaryPayload {
+  summary: {
+    id: number;
+    identifier?: string | null;
+    storage_hash?: string | null;
+    description?: string | null;
+    schema?: unknown;
+    data_source?:
+      | {
+          id?: number | null;
+          label?: string | null;
+        }
+      | null
+      | Record<string, unknown>;
+    column_count?: number | null;
+    foreign_key_count?: number | null;
+    index_count?: number | null;
+    update_count?: number | null;
+    active_update_count?: number | null;
+    latest_update?: string | null;
+    protect_from_deletion?: boolean;
+    open_for_everyone?: boolean;
+    updates?: SimpleTableUpdateRecord[];
+  };
+}
+
+function isSimpleTableSummaryPayload(payload: unknown): payload is SimpleTableSummaryPayload {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+
+  return Boolean(candidate.summary) && typeof candidate.summary === "object";
+}
+
+function getSimpleTableSummaryDataSourceLabel(summary: SimpleTableSummaryPayload["summary"]) {
+  const dataSource = summary.data_source;
+
+  if (!dataSource || typeof dataSource !== "object") {
+    return "No data source";
+  }
+
+  const label = "label" in dataSource ? dataSource.label : null;
+
+  return typeof label === "string" && label.trim() ? label.trim() : "No data source";
+}
+
+function getSimpleTableSchemaModelLabel(schema: unknown) {
+  if (schema && typeof schema === "object" && !Array.isArray(schema)) {
+    const model = (schema as Record<string, unknown>).model;
+
+    if (typeof model === "string" && model.trim()) {
+      return model.trim();
+    }
+  }
+
+  return "Not set";
+}
+
+function buildSimpleTableSummaryHeader(payload: SimpleTableSummaryPayload): EntitySummaryHeader {
+  const summary = payload.summary;
+
+  return {
+    entity: {
+      id: summary.id,
+      type: "simple_table",
+      title: summary.storage_hash?.trim() || `Simple Table ${summary.id}`,
+    },
+    badges: [
+      {
+        key: "visibility",
+        label: summary.open_for_everyone ? "Public" : "Private",
+        tone: summary.open_for_everyone ? "success" : "neutral",
+      },
+      {
+        key: "protection",
+        label: summary.protect_from_deletion ? "Protected" : "Deletable",
+        tone: summary.protect_from_deletion ? "warning" : "info",
+      },
+    ],
+    inline_fields: [
+      {
+        key: "identifier",
+        label: "Identifier",
+        value: summary.identifier?.trim() || "Not set",
+        kind: "text",
+      },
+      {
+        key: "data_source",
+        label: "Data Source",
+        value: getSimpleTableSummaryDataSourceLabel(summary),
+        kind: "text",
+      },
+      {
+        key: "latest_update",
+        label: "Latest Update",
+        value: summary.latest_update ?? "Not set",
+        kind: "datetime",
+      },
+    ],
+    highlight_fields: [
+      {
+        key: "schema_model",
+        label: "Schema Model",
+        value: getSimpleTableSchemaModelLabel(summary.schema),
+        kind: "code",
+      },
+      {
+        key: "description",
+        label: "Description",
+        value: summary.description?.trim() || "Not set",
+        kind: "text",
+      },
+    ],
+    stats: [
+      {
+        key: "column_count",
+        label: "Columns",
+        display: String(summary.column_count ?? 0),
+        value: summary.column_count ?? 0,
+        kind: "number",
+      },
+      {
+        key: "foreign_key_count",
+        label: "Foreign Keys",
+        display: String(summary.foreign_key_count ?? 0),
+        value: summary.foreign_key_count ?? 0,
+        kind: "number",
+      },
+      {
+        key: "index_count",
+        label: "Indexes",
+        display: String(summary.index_count ?? 0),
+        value: summary.index_count ?? 0,
+        kind: "number",
+      },
+      {
+        key: "update_count",
+        label: "Updates",
+        display: String(summary.update_count ?? 0),
+        value: summary.update_count ?? 0,
+        kind: "number",
+      },
+      {
+        key: "active_update_count",
+        label: "Active Updates",
+        display: String(summary.active_update_count ?? 0),
+        value: summary.active_update_count ?? 0,
+        kind: "number",
+      },
+    ],
+  };
+}
+
+export async function fetchSimpleTableSummary(simpleTableId: number) {
+  const payload = await requestJson<unknown>(
+    simpleTableEndpoint,
+    `${simpleTableId}/summary/`,
+  );
+
+  if (isEntitySummaryHeaderPayload(payload)) {
+    return payload;
+  }
+
+  if (isSimpleTableSummaryPayload(payload)) {
+    return buildSimpleTableSummaryHeader(payload);
+  }
+
+  return null;
+}
+
+export function fetchSimpleTableDetail(simpleTableId: number) {
+  return requestJson<SimpleTableDetail>(
+    simpleTableEndpoint,
+    `${simpleTableId}/`,
+  );
+}
+
+export function fetchSimpleTableSchemaGraph(
+  simpleTableId: number,
+  {
+    depth,
+    includeIncoming = false,
+  }: {
+    depth?: number;
+    includeIncoming?: boolean;
+  } = {},
+) {
+  return requestJson<SimpleTableSchemaGraphResponse>(
+    simpleTableEndpoint,
+    `${simpleTableId}/schema-graph/`,
+    undefined,
+    {
+      depth,
+      include_incoming: includeIncoming,
+    },
+  );
+}
+
+export async function listSimpleTableUpdates(
+  simpleTableId: number,
+  {
+    limit = mainSequenceRegistryPageSize,
+    offset = 0,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  const payload = await requestJson<
+    PaginatedResponse<SimpleTableUpdateRecord> | SimpleTableUpdateRecord[]
+  >(simpleTableEndpoint, "update/", undefined, {
+    limit,
+    offset,
+    remote_table: simpleTableId,
+  });
+
+  const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
+
+  return {
+    ...page,
+    results: [...page.results].sort((left, right) => right.id - left.id),
+  };
+}
+
+export function fetchSimpleTableUpdateDetail(simpleTableUpdateId: number) {
+  return requestJson<SimpleTableUpdateRecord>(
+    simpleTableEndpoint,
+    `update/${simpleTableUpdateId}/`,
+  );
+}
+
+export function fetchSimpleTableUpdateRunConfiguration(simpleTableUpdateId: number) {
+  return requestJson<SimpleTableUpdateRunConfiguration>(
+    simpleTableEndpoint,
+    `update/${simpleTableUpdateId}/run-configuration/`,
+  );
+}
+
+export function updateSimpleTableUpdateRunConfiguration(
+  simpleTableUpdateId: number,
+  input: SimpleTableUpdateRunConfigurationInput,
+) {
+  return requestJson<SimpleTableUpdateRunConfiguration>(
+    simpleTableEndpoint,
+    `update/${simpleTableUpdateId}/run-configuration/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function listSimpleTableUpdateHistoricalUpdates(
+  simpleTableUpdateId: number,
+  limit = 100,
+) {
+  return requestJson<SimpleTableHistoricalUpdateRecord[]>(
+    simpleTableEndpoint,
+    `update/${simpleTableUpdateId}/historical-updates/`,
+    undefined,
+    { limit },
+  );
+}
+
 export async function listDataNodes({
   limit = mainSequenceRegistryPageSize,
   light = false,
@@ -4085,6 +4620,22 @@ async function postDynamicTableBulkAction<T>(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+function postMainSequenceBulkDelete(
+  path: string,
+  ids: number[],
+  search?: Record<string, QueryValue>,
+) {
+  return requestJson<MainSequenceBulkDeleteResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    path,
+    {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    },
+    search,
+  );
 }
 
 export function bulkSetDataNodeNextUpdateFromLastIndexValue(selectedIds: number[]) {
@@ -4286,6 +4837,10 @@ export function deleteResourceRelease(resourceReleaseId: number) {
   );
 }
 
+export function bulkDeleteResourceReleases(ids: number[]) {
+  return postMainSequenceBulkDelete("resource-release/bulk-delete/", ids);
+}
+
 export function deleteProjectImage(imageId: number) {
   return requestJson<{ detail?: string } | null>(
     commandCenterConfig.mainSequence.endpoint,
@@ -4294,6 +4849,10 @@ export function deleteProjectImage(imageId: number) {
       method: "DELETE",
     },
   );
+}
+
+export function bulkDeleteProjectImages(ids: number[]) {
+  return postMainSequenceBulkDelete("project-image/bulk-delete/", ids);
 }
 
 export function fetchProjectImageCommitHashes(projectId: number, limit = 100) {
@@ -4519,6 +5078,10 @@ export function deleteJob(jobId: number) {
   });
 }
 
+export function bulkDeleteJobs(ids: number[]) {
+  return postMainSequenceBulkDelete("job/bulk-delete/", ids);
+}
+
 export function deleteProject(
   projectId: number,
   {
@@ -4533,6 +5096,21 @@ export function deleteProject(
     {
       method: "DELETE",
     },
+    deleteRepositories ? { delete_repositories: "true" } : undefined,
+  );
+}
+
+export function bulkDeleteProjects(
+  ids: number[],
+  {
+    deleteRepositories = false,
+  }: {
+    deleteRepositories?: boolean;
+  } = {},
+) {
+  return postMainSequenceBulkDelete(
+    "projects/bulk-delete/",
+    ids,
     deleteRepositories ? { delete_repositories: "true" } : undefined,
   );
 }
@@ -4808,11 +5386,27 @@ export function fetchLocalTimeSerieDependencyGraph(
     return Promise.resolve(buildWidgetPreviewDependencyGraph(localTimeSerieId, direction));
   }
 
-  return requestJson<LocalTimeSerieDependencyGraphResponse>(
+  return requestJson<unknown>(
     localTimeSerieEndpoint,
     `${localTimeSerieId}/dependencies-graph/`,
     undefined,
     { direction },
+  ).then((payload) =>
+    normalizeDependencyGraphPayload(payload, "LocalTimeSerie dependency graph"),
+  );
+}
+
+export function fetchSimpleTableUpdateDependencyGraph(
+  simpleTableUpdateId: number,
+  direction: "downstream" | "upstream",
+) {
+  return requestJson<unknown>(
+    simpleTableEndpoint,
+    `update/${simpleTableUpdateId}/dependencies-graph/`,
+    undefined,
+    { direction },
+  ).then((payload) =>
+    normalizeDependencyGraphPayload(payload, "SimpleTableUpdate dependency graph"),
   );
 }
 

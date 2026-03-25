@@ -28,6 +28,8 @@ Runtime data mode is selected with:
 - `VITE_USE_MOCK_DATA=false` for the live REST/WebSocket adapters
 - `VITE_BYPASS_AUTH=true` to bypass backend auth locally and use the built-in role picker
 - `VITE_API_BASE_URL` and `VITE_WS_URL` for live transport endpoints
+- `INCLUDE_AUI=true|false` to enable or disable the detachable `assistant-ui` shell integration
+- `INCLUDE_WORKSPACES=true|false` to enable or disable the `Workspaces` app at the registry level
 
 ## Data integration model
 

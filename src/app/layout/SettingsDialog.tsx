@@ -7,9 +7,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { fetchCurrentAuthGroups } from "@/auth/api";
 import { getRoleLabel } from "@/auth/permissions";
+import type { CommandCenterConfig } from "@/config/command-center";
 import { commandCenterConfigSource } from "@/config/command-center";
 import { env } from "@/config/env";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
@@ -125,6 +128,386 @@ function SettingsCodeBlock({
   );
 }
 
+interface SettingsConfigFieldSpec {
+  label: string;
+  value: string;
+  description?: string;
+  monospace?: boolean;
+  multiline?: boolean;
+}
+
+interface SettingsConfigGroupSpec {
+  title: string;
+  description?: string;
+  fields: SettingsConfigFieldSpec[];
+}
+
+function SettingsConfigField({
+  label,
+  value,
+  description,
+  monospace = false,
+  multiline = false,
+}: SettingsConfigFieldSpec) {
+  const sharedClassName = cn(
+    "bg-black/20",
+    monospace ? "font-mono text-xs" : undefined,
+  );
+
+  return (
+    <div className="space-y-2 rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] p-3">
+      <div>
+        <div className="text-sm font-medium text-topbar-foreground">{label}</div>
+        {description ? (
+          <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
+        ) : null}
+      </div>
+      {multiline ? (
+        <Textarea readOnly value={value} className={cn("min-h-[104px] resize-y", sharedClassName)} />
+      ) : (
+        <Input readOnly value={value} className={sharedClassName} />
+      )}
+    </div>
+  );
+}
+
+function SettingsConfigGroup({
+  title,
+  description,
+  fields,
+}: SettingsConfigGroupSpec) {
+  return (
+    <section className="rounded-[calc(var(--radius)-2px)] border border-white/8 bg-white/[0.02] p-4">
+      <div className="mb-4">
+        <div className="text-sm font-semibold uppercase tracking-[0.18em] text-topbar-foreground/80">
+          {title}
+        </div>
+        {description ? (
+          <div className="mt-1 text-sm text-muted-foreground">{description}</div>
+        ) : null}
+      </div>
+      <div className="grid gap-3 xl:grid-cols-2">
+        {fields.map((field) => (
+          <SettingsConfigField key={`${title}-${field.label}`} {...field} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function buildConfigurationGroups({
+  config,
+  authTokenUrl,
+  authRefreshUrl,
+  authUserDetailsUrl,
+  authGroupsUrl,
+}: {
+  config: CommandCenterConfig;
+  authTokenUrl: string;
+  authRefreshUrl: string;
+  authUserDetailsUrl: string;
+  authGroupsUrl: string;
+}): SettingsConfigGroupSpec[] {
+  const { accessRbac, app, auth, branding, mainSequence, notifications, preferences, workspaces } =
+    config;
+
+  return [
+    {
+      title: "App",
+      description: "Shell identity and global refresh timings loaded from the bundled config.",
+      fields: [
+        { label: "Application name", value: app.name },
+        { label: "Short name", value: app.shortName },
+        {
+          label: "Notifications refresh interval",
+          value: `${app.notificationsRefreshIntervalMs} ms`,
+          monospace: true,
+        },
+      ],
+    },
+    {
+      title: "Branding",
+      description: "Resolved branding assets and display labels used across the shell.",
+      fields: [
+        { label: "Light logo source", value: branding.logoLightmodeSrc, monospace: true },
+        { label: "Dark logo source", value: branding.logoDarkmodeSrc, monospace: true },
+        { label: "Logo mark source", value: branding.logoMarkSrc, monospace: true },
+        { label: "Logo alt text", value: branding.logoAlt },
+        { label: "Monogram", value: branding.monogram },
+      ],
+    },
+    {
+      title: "Preferences API",
+      description: "Endpoints used for user preference and favorites persistence.",
+      fields: [
+        { label: "Preferences URL", value: preferences.url, monospace: true },
+        { label: "Favorites create URL", value: preferences.favoritesCreateUrl, monospace: true },
+        {
+          label: "Favorites reorder URL",
+          value: preferences.favoritesReorderUrl,
+          monospace: true,
+        },
+        {
+          label: "Favorites delete URL",
+          value: preferences.favoritesDeleteUrl,
+          monospace: true,
+        },
+      ],
+    },
+    {
+      title: "Workspaces API",
+      description: "Workspace list and detail routes used by the dashboard studio.",
+      fields: [
+        { label: "Workspace list URL", value: workspaces.listUrl, monospace: true },
+        { label: "Workspace detail URL", value: workspaces.detailUrl, monospace: true },
+      ],
+    },
+    {
+      title: "Auth Identity",
+      description: "High-level login configuration and the base URL used to resolve JWT routes.",
+      fields: [
+        { label: "Auth base URL", value: auth.baseUrl, monospace: true },
+        { label: "Identifier label", value: auth.identifierLabel },
+        { label: "Identifier placeholder", value: auth.identifierPlaceholder },
+      ],
+    },
+    {
+      title: "JWT Endpoints",
+      description: "Resolved authentication endpoints built from the configured base URL.",
+      fields: [
+        { label: "Token endpoint", value: authTokenUrl, monospace: true },
+        { label: "Refresh endpoint", value: authRefreshUrl, monospace: true },
+        { label: "User details endpoint", value: authUserDetailsUrl, monospace: true },
+        { label: "Groups endpoint", value: authGroupsUrl, monospace: true },
+      ],
+    },
+    {
+      title: "JWT Request Fields",
+      description: "Payload field names expected by the token and refresh endpoints.",
+      fields: [
+        {
+          label: "Identifier field",
+          value: auth.jwt.requestFields.identifier,
+          monospace: true,
+        },
+        { label: "Password field", value: auth.jwt.requestFields.password, monospace: true },
+        { label: "Refresh field", value: auth.jwt.requestFields.refresh, monospace: true },
+      ],
+    },
+    {
+      title: "JWT Response Fields",
+      description: "Response keys used to extract the access token, refresh token, and type.",
+      fields: [
+        {
+          label: "Access token field",
+          value: auth.jwt.responseFields.accessToken,
+          monospace: true,
+        },
+        {
+          label: "Refresh token field",
+          value: auth.jwt.responseFields.refreshToken,
+          monospace: true,
+        },
+        { label: "Token type field", value: auth.jwt.responseFields.tokenType, monospace: true },
+      ],
+    },
+    {
+      title: "JWT Claim Mapping",
+      description: "JWT claim names mapped into the shell user model after sign-in.",
+      fields: [
+        { label: "User ID claim", value: auth.jwt.claimMapping.userId, monospace: true },
+        { label: "Name claim", value: auth.jwt.claimMapping.name, monospace: true },
+        { label: "Email claim", value: auth.jwt.claimMapping.email, monospace: true },
+        { label: "Team claim", value: auth.jwt.claimMapping.team, monospace: true },
+        { label: "Role claim", value: auth.jwt.claimMapping.role, monospace: true },
+        {
+          label: "Permissions claim",
+          value: auth.jwt.claimMapping.permissions,
+          monospace: true,
+        },
+        {
+          label: "Date joined claim",
+          value: auth.jwt.claimMapping.dateJoined,
+          monospace: true,
+        },
+        { label: "Active flag claim", value: auth.jwt.claimMapping.isActive, monospace: true },
+        { label: "Last login claim", value: auth.jwt.claimMapping.lastLogin, monospace: true },
+        {
+          label: "MFA enabled claim",
+          value: auth.jwt.claimMapping.mfaEnabled,
+          monospace: true,
+        },
+        {
+          label: "Organization teams claim",
+          value: auth.jwt.claimMapping.organizationTeams,
+          monospace: true,
+        },
+      ],
+    },
+    {
+      title: "User Details Mapping",
+      description: "Field mapping for the user-details endpoint plus RBAC role-group resolution.",
+      fields: [
+        { label: "User details URL", value: auth.jwt.userDetails.url, monospace: true },
+        { label: "Groups URL", value: auth.jwt.userDetails.groupsUrl, monospace: true },
+        {
+          label: "User ID response field",
+          value: auth.jwt.userDetails.responseMapping.userId,
+          monospace: true,
+        },
+        {
+          label: "Name response field",
+          value: auth.jwt.userDetails.responseMapping.name,
+          monospace: true,
+        },
+        {
+          label: "Email response field",
+          value: auth.jwt.userDetails.responseMapping.email,
+          monospace: true,
+        },
+        {
+          label: "Team response field",
+          value: auth.jwt.userDetails.responseMapping.team,
+          monospace: true,
+        },
+        {
+          label: "Role response field",
+          value: auth.jwt.userDetails.responseMapping.role,
+          monospace: true,
+        },
+        {
+          label: "Permissions response field",
+          value: auth.jwt.userDetails.responseMapping.permissions,
+          monospace: true,
+        },
+        {
+          label: "Groups response field",
+          value: auth.jwt.userDetails.responseMapping.groups,
+          monospace: true,
+        },
+        {
+          label: "Date joined response field",
+          value: auth.jwt.userDetails.responseMapping.dateJoined,
+          monospace: true,
+        },
+        {
+          label: "Active flag response field",
+          value: auth.jwt.userDetails.responseMapping.isActive,
+          monospace: true,
+        },
+        {
+          label: "Last login response field",
+          value: auth.jwt.userDetails.responseMapping.lastLogin,
+          monospace: true,
+        },
+        {
+          label: "MFA enabled response field",
+          value: auth.jwt.userDetails.responseMapping.mfaEnabled,
+          monospace: true,
+        },
+        {
+          label: "Organization teams response field",
+          value: auth.jwt.userDetails.responseMapping.organizationTeams,
+          monospace: true,
+        },
+        {
+          label: "Admin role group",
+          value: auth.jwt.userDetails.roleGroups.admin || "Not configured",
+          monospace: true,
+        },
+        {
+          label: "User role group",
+          value: auth.jwt.userDetails.roleGroups.user || "Not configured",
+          monospace: true,
+        },
+      ],
+    },
+    {
+      title: "Access RBAC",
+      description: "RBAC endpoints used by the admin tools to browse users and groups.",
+      fields: [
+        { label: "Users list URL", value: accessRbac.users.listUrl, monospace: true },
+        { label: "Groups list URL", value: accessRbac.groups.listUrl, monospace: true },
+      ],
+    },
+    {
+      title: "Main Sequence",
+      description: "Main Sequence pod endpoint plus the permission route suffixes used by admin flows.",
+      fields: [
+        { label: "Endpoint", value: mainSequence.endpoint, monospace: true },
+        {
+          label: "Candidate users suffix",
+          value: mainSequence.permissions.candidateUsersSuffix,
+          monospace: true,
+        },
+        {
+          label: "Can view suffix",
+          value: mainSequence.permissions.canViewSuffix,
+          monospace: true,
+        },
+        {
+          label: "Can edit suffix",
+          value: mainSequence.permissions.canEditSuffix,
+          monospace: true,
+        },
+        {
+          label: "Add to view suffix",
+          value: mainSequence.permissions.addToViewSuffix,
+          monospace: true,
+        },
+        {
+          label: "Add to edit suffix",
+          value: mainSequence.permissions.addToEditSuffix,
+          monospace: true,
+        },
+        {
+          label: "Remove from view suffix",
+          value: mainSequence.permissions.removeFromViewSuffix,
+          monospace: true,
+        },
+        {
+          label: "Remove from edit suffix",
+          value: mainSequence.permissions.removeFromEditSuffix,
+          monospace: true,
+        },
+        {
+          label: "Add team to view suffix",
+          value: mainSequence.permissions.addTeamToViewSuffix,
+          monospace: true,
+        },
+        {
+          label: "Add team to edit suffix",
+          value: mainSequence.permissions.addTeamToEditSuffix,
+          monospace: true,
+        },
+        {
+          label: "Remove team from view suffix",
+          value: mainSequence.permissions.removeTeamFromViewSuffix,
+          monospace: true,
+        },
+        {
+          label: "Remove team from edit suffix",
+          value: mainSequence.permissions.removeTeamFromEditSuffix,
+          monospace: true,
+        },
+      ],
+    },
+    {
+      title: "Notifications",
+      description: "Routes and mode used by the notification center.",
+      fields: [
+        { label: "List URL", value: notifications.listUrl, monospace: true },
+        { label: "Detail URL", value: notifications.detailUrl, monospace: true },
+        { label: "Mark read URL", value: notifications.markReadUrl, monospace: true },
+        { label: "Dismiss URL", value: notifications.dismissUrl, monospace: true },
+        { label: "Mark all read URL", value: notifications.markAllReadUrl, monospace: true },
+        { label: "Dismiss all URL", value: notifications.dismissAllUrl, monospace: true },
+        { label: "Type", value: notifications.type, monospace: true },
+      ],
+    },
+  ];
+}
+
 export function SettingsDialog({
   mode,
   onClose,
@@ -132,12 +515,14 @@ export function SettingsDialog({
   user,
 }: SettingsDialogProps) {
   const { i18n, t } = useTranslation();
-  const { app, auth } = useCommandCenterConfig();
+  const config = useCommandCenterConfig();
+  const { app, auth } = config;
   const { availableThemes, resetOverrides, setThemeById, themeId } = useTheme();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
   const [currentGroups, setCurrentGroups] = useState<string[] | null>(null);
   const [currentGroupsError, setCurrentGroupsError] = useState<string | null>(null);
   const [currentGroupsLoading, setCurrentGroupsLoading] = useState(false);
+  const [showRawConfiguration, setShowRawConfiguration] = useState(false);
 
   const title =
     mode === "admin" ? t("settingsDialog.adminTitle") : t("settingsDialog.userTitle");
@@ -178,6 +563,13 @@ export function SettingsDialog({
   const authUserGroupValue =
     auth.jwt.userDetails.roleGroups.user || t("settingsDialog.authUserFallback");
   const configurationSource = commandCenterConfigSource;
+  const configurationGroups = buildConfigurationGroups({
+    config,
+    authTokenUrl,
+    authRefreshUrl,
+    authUserDetailsUrl,
+    authGroupsUrl,
+  });
   const navItems: Array<{
     id: SettingsSectionId;
     label: string;
@@ -208,6 +600,7 @@ export function SettingsDialog({
       setCurrentGroups(null);
       setCurrentGroupsError(null);
       setCurrentGroupsLoading(false);
+      setShowRawConfiguration(false);
     }
   }, [open, mode]);
 
@@ -472,20 +865,51 @@ export function SettingsDialog({
                 label={t("settingsDialog.configurationFile")}
                 description={t("settingsDialog.configurationFileHelp")}
                 value={
-                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    config/command-center.yaml
-                  </span>
+                  <div className="flex max-w-[420px] flex-col items-end gap-2 text-right">
+                    <span className="block break-all font-mono text-xs text-foreground">
+                      config/command-center.yaml
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowRawConfiguration((currentValue) => !currentValue);
+                      }}
+                    >
+                      {showRawConfiguration ? "Hide YAML" : "Show YAML"}
+                    </Button>
+                  </div>
                 }
               />
-              <div className="py-4">
-                <div className="mb-2 text-sm font-medium text-topbar-foreground">
-                  {t("settingsDialog.configurationYaml")}
+              <div className="space-y-4 py-4">
+                <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
+                  <div className="text-sm font-medium text-topbar-foreground">
+                    Structured configuration mapping
+                  </div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Each YAML section is mapped into explicit fields below so this admin screen can
+                    evolve into an editable configuration surface without changing the configuration
+                    shape first.
+                  </div>
                 </div>
-                <div className="mb-4 text-sm text-muted-foreground">
-                  {t("settingsDialog.configurationYamlHelp")}
+                <div className="grid gap-4">
+                  {configurationGroups.map((group) => (
+                    <SettingsConfigGroup key={group.title} {...group} />
+                  ))}
                 </div>
-                <SettingsCodeBlock value={configurationSource} />
               </div>
+              {showRawConfiguration ? (
+                <div className="py-4">
+                  <div className="mb-2 text-sm font-medium text-topbar-foreground">
+                    {t("settingsDialog.configurationYaml")}
+                  </div>
+                  <div className="mb-4 text-sm text-muted-foreground">
+                    {t("settingsDialog.configurationYamlHelp")}
+                  </div>
+                  <SettingsCodeBlock value={configurationSource} />
+                </div>
+              ) : null}
             </SettingsSection>
           ) : null}
 

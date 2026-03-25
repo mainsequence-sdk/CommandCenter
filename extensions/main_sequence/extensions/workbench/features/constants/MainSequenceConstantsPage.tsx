@@ -23,8 +23,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toaster";
 
 import {
+  bulkDeleteConstants,
   createConstant,
-  deleteConstant,
   fetchConstant,
   formatMainSequenceError,
   listConstants,
@@ -195,29 +195,13 @@ export function MainSequenceConstantsPage() {
 
   const deleteConstantMutation = useMutation({
     mutationFn: async (constants: ConstantRecord[]) =>
-      Promise.allSettled(constants.map((constant) => deleteConstant(constant.id))),
-    onSuccess: async (results, constants) => {
-      const failedConstants = constants.filter((_, index) => results[index]?.status === "rejected");
-      const deletedCount = constants.length - failedConstants.length;
-
+      bulkDeleteConstants(constants.map((constant) => constant.id)),
+    onSuccess: async (result, constants) => {
+      const deletedCount = result.deleted_count ?? constants.length;
       setConstantsPendingDelete([]);
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "constants"],
       });
-
-      if (failedConstants.length > 0) {
-        toast({
-          variant: "error",
-          title:
-            failedConstants.length === constants.length
-              ? "Constant deletion failed"
-              : "Some constants could not be deleted",
-          description:
-            failedConstants.length === constants.length
-              ? "No selected constants were deleted."
-              : `${failedConstants.length} of ${constants.length} selected constants could not be deleted.`,
-        });
-      }
 
       if (deletedCount > 0) {
         toast({
@@ -225,12 +209,12 @@ export function MainSequenceConstantsPage() {
           title: deletedCount === 1 ? "Constant deleted" : "Constants deleted",
           description:
             deletedCount === 1
-              ? `${constants.find((constant) => !failedConstants.some((failed) => failed.id === constant.id))?.name ?? "Constant"} was deleted.`
+              ? `${constants[0]?.name ?? "Constant"} was deleted.`
               : `${deletedCount} constants were deleted.`,
         });
       }
 
-      constantSelection.setSelection(failedConstants.map((constant) => constant.id));
+      constantSelection.clearSelection();
     },
     onError: (error) => {
       toast({

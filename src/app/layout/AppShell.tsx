@@ -12,6 +12,7 @@ import {
   getSurfaceNavigationGroups,
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
+import { env } from "@/config/env";
 import { terminalSocket } from "@/data/terminal-socket";
 import { ChatMount, ChatProvider } from "@/features/chat";
 import { cn } from "@/lib/utils";
@@ -130,57 +131,57 @@ export function AppShell() {
     };
   }, [kioskMode, setKioskMode]);
 
-  return (
-    <ChatProvider>
-      <div className="relative h-screen overflow-hidden bg-background text-foreground">
+  const shell = (
+    <div className="relative h-screen overflow-hidden bg-background text-foreground">
+      <div
+        className="grid h-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out"
+        style={{
+          gridTemplateColumns: kioskMode ? "minmax(0, 1fr)" : `${sidebarWidth}px minmax(0, 1fr)`,
+        }}
+      >
+        {!kioskMode ? <Sidebar /> : null}
         <div
-          className="grid h-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out"
-          style={{
-            gridTemplateColumns: kioskMode ? "minmax(0, 1fr)" : `${sidebarWidth}px minmax(0, 1fr)`,
-          }}
+          className={cn(
+            "grid min-h-0 min-w-0",
+            kioskMode ? "grid-rows-[1fr]" : "grid-rows-[56px_1fr]",
+          )}
         >
-          {!kioskMode ? <Sidebar /> : null}
-          <div
+          {!kioskMode ? <Topbar /> : null}
+          <main
             className={cn(
-              "grid min-h-0 min-w-0",
-              kioskMode ? "grid-rows-[1fr]" : "grid-rows-[56px_1fr]",
+              "min-h-0",
+              kioskMode
+                ? "overflow-auto px-3 py-3 md:px-4 md:py-4"
+                : fullBleedSurface
+                  ? "overflow-hidden p-0"
+                  : "overflow-auto px-2 py-3 md:px-3 md:py-4",
             )}
           >
-            {!kioskMode ? <Topbar /> : null}
-            <main
-              className={cn(
-                "min-h-0",
-                kioskMode
-                  ? "overflow-auto px-3 py-3 md:px-4 md:py-4"
-                  : fullBleedSurface
-                    ? "overflow-hidden p-0"
-                    : "overflow-auto px-2 py-3 md:px-3 md:py-4",
-              )}
-            >
-              <div className={cn("w-full", fullBleedSurface ? "h-full" : undefined)}>
-                <Outlet />
-              </div>
-            </main>
-          </div>
+            <div className={cn("w-full", fullBleedSurface ? "h-full" : undefined)}>
+              <Outlet />
+            </div>
+          </main>
         </div>
-
-        {showAppPanel && panelApp ? (
-          <div
-            className="fixed inset-y-0 z-[90]"
-            style={{ left: sidebarWidth }}
-          >
-            <AppNavigationPanel
-              app={panelApp}
-              groups={panelAppSurfaceGroups}
-              favoriteSurfaceIds={favoriteSurfaceIds}
-              onSelectSurface={closeAppPanel}
-              onToggleFavorite={toggleSurfaceFavorite}
-            />
-          </div>
-        ) : null}
-
-        <ChatMount />
       </div>
-    </ChatProvider>
+
+      {showAppPanel && panelApp ? (
+        <div
+          className="fixed inset-y-0 z-[90]"
+          style={{ left: sidebarWidth }}
+        >
+          <AppNavigationPanel
+            app={panelApp}
+            groups={panelAppSurfaceGroups}
+            favoriteSurfaceIds={favoriteSurfaceIds}
+            onSelectSurface={closeAppPanel}
+            onToggleFavorite={toggleSurfaceFavorite}
+          />
+        </div>
+      ) : null}
+
+      {env.includeAui ? <ChatMount /> : null}
+    </div>
   );
+
+  return env.includeAui ? <ChatProvider>{shell}</ChatProvider> : shell;
 }

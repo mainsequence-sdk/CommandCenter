@@ -10,7 +10,7 @@ import {
 export const mainSequenceDataNodeTableWidget: WidgetDefinition<DataNodeTableVisualizerProps> = {
   id: "data-node-table-visualizer",
   title: "Data Node Table",
-  description: "Main Sequence table formatter that can render either shipped mock frames or live data-node rows with instance-owned field config.",
+  description: "Main Sequence table formatter for live data-node rows with instance-owned field config.",
   category: "DataNodes",
   kind: "table",
   source: "main_sequence_workbench",

@@ -11,6 +11,7 @@ const devAuthProxyPrefix = "/__command_center_auth__";
 
 export interface CommandCenterPreferencesSnapshot {
   language: SupportedLanguage;
+  themeId: string;
   favoriteSurfaceIds: string[];
   favoriteWorkspaceIds: string[];
 }
@@ -56,9 +57,11 @@ function normalizeFavoriteIds(value: unknown) {
 function normalizePreferencesPayload(payload: unknown): CommandCenterPreferencesSnapshot {
   const source = isRecord(payload) ? payload : {};
   const rawLanguage = typeof source.language === "string" ? source.language : "";
+  const rawThemeId = typeof source.themeId === "string" ? source.themeId.trim() : "";
 
   return {
     language: isSupportedLanguage(rawLanguage) ? rawLanguage : defaultLanguage,
+    themeId: rawThemeId,
     favoriteSurfaceIds: normalizeFavoriteIds(source.favoriteSurfaceIds),
     favoriteWorkspaceIds: normalizeFavoriteIds(source.favoriteWorkspaceIds),
   };

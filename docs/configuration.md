@@ -22,6 +22,13 @@ Auth bypass for local development is controlled separately through Vite env:
 VITE_BYPASS_AUTH=true
 ```
 
+Optional UI feature flags are also controlled through env:
+
+```text
+INCLUDE_AUI=true
+INCLUDE_WORKSPACES=true
+```
+
 ## Current schema
 
 ```yaml
@@ -272,5 +279,7 @@ Notes:
 - JWT field mappings support dotted paths such as `user.email` or `data.tokens.access`.
 - Group role mappings use comma-separated strings because the runtime config parser is intentionally simple.
 - `VITE_BYPASS_AUTH=true` bypasses backend auth locally and re-enables the mock role picker.
+- `INCLUDE_AUI=true` keeps the detachable `assistant-ui` chat integration mounted; set it to `false` to remove the runtime chat surface without uninstalling the dependency.
+- `INCLUDE_WORKSPACES=true` keeps the `Workspaces` app registered; set it to `false` to remove the `workspace-studio` app from the runtime registry and shell navigation.
 - Relative auth endpoint paths are resolved against `auth.base_url`. Absolute URLs are used as-is.
 - If the configured asset is missing, the app falls back to the default bundled branding asset names.

@@ -1,5 +1,6 @@
 import type { AppExtension, AppRegistry } from "@/app/registry/types";
 import type { AppSurfaceEntry } from "@/apps/types";
+import { env } from "@/config/env";
 
 const internalModules = import.meta.glob(
   ["../../extensions/*/index.ts", "../../extensions/*/extensions/*/index.ts"],
@@ -28,7 +29,13 @@ const extensions = Object.values(modules)
   .filter((module): module is AppExtension => Boolean(module));
 
 const widgets = uniqueById(extensions.flatMap((extension) => extension.widgets ?? []));
-const apps = uniqueById(extensions.flatMap((extension) => extension.apps ?? []));
+const apps = uniqueById(extensions.flatMap((extension) => extension.apps ?? [])).filter((app) => {
+  if (!env.includeWorkspaces && app.id === "workspace-studio") {
+    return false;
+  }
+
+  return true;
+});
 const surfaces = apps.flatMap<AppSurfaceEntry>((app) =>
   app.surfaces.map((surface) => ({
     ...surface,

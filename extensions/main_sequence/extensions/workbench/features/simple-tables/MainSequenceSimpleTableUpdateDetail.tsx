@@ -1,63 +1,42 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  Loader2,
-  Save,
-} from "lucide-react";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { LogTable, type LogTableEntry } from "@/components/ui/log-table";
 import { Textarea } from "@/components/ui/textarea";
 import { TimeseriesAreaChart } from "@/components/ui/timeseries-area-chart";
 import { useToast } from "@/components/ui/toaster";
 
 import {
-  fetchLocalTimeSerieDetail,
-  fetchLocalTimeSerieLogs,
-  fetchLocalTimeSerieRunConfiguration,
-  fetchLocalTimeSerieSummary,
+  fetchSimpleTableUpdateDetail,
+  fetchSimpleTableUpdateRunConfiguration,
   formatMainSequenceError,
-  listLocalTimeSerieHistoricalUpdates,
+  listSimpleTableUpdateHistoricalUpdates,
   type EntitySummaryHeader,
-  type LocalTimeSerieLogsGridRow,
-  type LocalTimeSerieRecord,
-  type LocalTimeSerieRunConfiguration,
-  type LocalTimeSerieRunConfigurationInput,
-  type SummaryField,
-  updateLocalTimeSerieRunConfiguration,
+  type SimpleTableHistoricalUpdateRecord,
+  type SimpleTableUpdateRecord,
+  type SimpleTableUpdateRunConfiguration,
+  type SimpleTableUpdateRunConfigurationInput,
+  updateSimpleTableUpdateRunConfiguration,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
-import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
-import { MainSequenceLocalUpdateDependencyGraph } from "./MainSequenceLocalUpdateDependencyGraph";
+import { MainSequenceSimpleTableUpdateDependencyGraph } from "./MainSequenceSimpleTableUpdateDependencyGraph";
 
-export type LocalUpdateDetailTabId = "details" | "graphs" | "historical-updates" | "logs";
+export type SimpleTableUpdateDetailTabId = "details" | "graphs" | "historical-updates";
 
-const localUpdateDetailTabs: Array<{ id: LocalUpdateDetailTabId; label: string }> = [
+const simpleTableUpdateDetailTabs: Array<{
+  id: SimpleTableUpdateDetailTabId;
+  label: string;
+}> = [
   { id: "details", label: "Details" },
   { id: "graphs", label: "Dependencies Graphs" },
   { id: "historical-updates", label: "Historical Updates" },
-  { id: "logs", label: "Logs" },
 ];
 
-const localUpdateLogLevelOptions = [
-  { id: "", label: "All" },
-  { id: "info", label: "Info" },
-  { id: "warning", label: "Warning" },
-  { id: "error", label: "Error" },
-  { id: "debug", label: "Debug" },
-] as const;
-
 interface RunConfigurationFormState {
-  retryOnError: boolean;
-  secondsWaitOnRetry: string;
-  requiredCpus: string;
-  requiredGpus: string;
-  executionTimeoutSeconds: string;
   updateSchedule: string;
 }
 
@@ -94,26 +73,6 @@ function formatDurationSeconds(seconds: number | null) {
   return `${(seconds / 3600).toFixed(seconds >= 36_000 ? 0 : 1)}h`;
 }
 
-function formatValue(value: unknown) {
-  if (value === null || value === undefined || value === "") {
-    return "Not set";
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "Yes" : "No";
-  }
-
-  if (typeof value === "string" || typeof value === "number") {
-    return String(value);
-  }
-
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return "Not set";
-  }
-}
-
 function formatJson(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return "{}";
@@ -130,22 +89,6 @@ function formatJson(value: unknown) {
   }
 }
 
-function parseOptionalNumber(value: string) {
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) {
-    return null;
-  }
-
-  const parsedValue = Number(trimmedValue);
-
-  if (!Number.isFinite(parsedValue)) {
-    return null;
-  }
-
-  return parsedValue;
-}
-
 function parseScheduleValue(value: string) {
   const trimmedValue = value.trim();
 
@@ -160,50 +103,52 @@ function parseScheduleValue(value: string) {
   }
 }
 
-function getStatusValue(localTimeSerie: LocalTimeSerieRecord) {
-  const normalizedValue = localTimeSerie.update_details?.active_update_status?.trim();
+function getStatusValue(simpleTableUpdate: SimpleTableUpdateRecord) {
+  const normalizedValue = simpleTableUpdate.update_details?.active_update_status?.trim();
 
   if (normalizedValue) {
     return normalizedValue;
   }
 
-  return localTimeSerie.update_details?.active_update ? "ACTIVE" : "Idle";
+  return simpleTableUpdate.update_details?.active_update ? "ACTIVE" : "Idle";
 }
 
-function buildFallbackLocalUpdateSummary(localTimeSerie: LocalTimeSerieRecord): EntitySummaryHeader {
+function buildFallbackSimpleTableUpdateSummary(
+  simpleTableUpdate: SimpleTableUpdateRecord,
+): EntitySummaryHeader {
   return {
     entity: {
-      id: localTimeSerie.id,
-      type: "data_node_update",
-      title: localTimeSerie.update_hash,
+      id: simpleTableUpdate.id,
+      type: "simple_table_update",
+      title: simpleTableUpdate.update_hash,
     },
     badges: [
       {
         key: "visibility",
-        label: localTimeSerie.open_for_everyone ? "Public" : "Private",
-        tone: localTimeSerie.open_for_everyone ? "success" : "neutral",
+        label: simpleTableUpdate.open_for_everyone ? "Public" : "Private",
+        tone: simpleTableUpdate.open_for_everyone ? "success" : "neutral",
       },
       {
         key: "status",
-        label: getStatusValue(localTimeSerie),
-        tone: localTimeSerie.update_details?.error_on_last_update ? "danger" : "info",
+        label: getStatusValue(simpleTableUpdate),
+        tone: simpleTableUpdate.update_details?.error_on_last_update ? "danger" : "info",
       },
     ],
     inline_fields: [
       {
-        key: "data_node",
-        label: "Data node",
-        value: localTimeSerie.data_node_storage?.storage_hash ?? "Unknown",
+        key: "simple_table",
+        label: "Simple Table",
+        value: simpleTableUpdate.remote_table?.storage_hash ?? "Unknown",
         kind: "code",
       },
       {
         key: "scheduler",
         label: "Scheduler",
         value:
-          localTimeSerie.update_details?.active_update_scheduler === null ||
-          localTimeSerie.update_details?.active_update_scheduler === undefined
+          simpleTableUpdate.update_details?.active_update_scheduler === null ||
+          simpleTableUpdate.update_details?.active_update_scheduler === undefined
             ? "Not assigned"
-            : `Scheduler ${localTimeSerie.update_details.active_update_scheduler}`,
+            : `Scheduler ${simpleTableUpdate.update_details.active_update_scheduler}`,
         kind: "text",
       },
     ],
@@ -211,13 +156,13 @@ function buildFallbackLocalUpdateSummary(localTimeSerie: LocalTimeSerieRecord): 
       {
         key: "last_update",
         label: "Last update",
-        value: formatDateTime(localTimeSerie.update_details?.last_update),
+        value: formatDateTime(simpleTableUpdate.update_details?.last_update),
         kind: "datetime",
       },
       {
         key: "next_update",
         label: "Next update",
-        value: formatDateTime(localTimeSerie.update_details?.next_update),
+        value: formatDateTime(simpleTableUpdate.update_details?.next_update),
         kind: "datetime",
       },
     ],
@@ -226,28 +171,9 @@ function buildFallbackLocalUpdateSummary(localTimeSerie: LocalTimeSerieRecord): 
 }
 
 function buildRunConfigurationFormState(
-  runConfiguration?: LocalTimeSerieRunConfiguration | null,
+  runConfiguration?: SimpleTableUpdateRunConfiguration | null,
 ): RunConfigurationFormState {
   return {
-    retryOnError: Boolean(runConfiguration?.retry_on_error),
-    secondsWaitOnRetry:
-      runConfiguration?.seconds_wait_on_retry === null ||
-      runConfiguration?.seconds_wait_on_retry === undefined
-        ? ""
-        : String(runConfiguration.seconds_wait_on_retry),
-    requiredCpus:
-      runConfiguration?.required_cpus === null || runConfiguration?.required_cpus === undefined
-        ? ""
-        : String(runConfiguration.required_cpus),
-    requiredGpus:
-      runConfiguration?.required_gpus === null || runConfiguration?.required_gpus === undefined
-        ? ""
-        : String(runConfiguration.required_gpus),
-    executionTimeoutSeconds:
-      runConfiguration?.execution_time_out_seconds === null ||
-      runConfiguration?.execution_time_out_seconds === undefined
-        ? ""
-        : String(runConfiguration.execution_time_out_seconds),
     updateSchedule:
       runConfiguration?.update_schedule === null || runConfiguration?.update_schedule === undefined
         ? ""
@@ -257,74 +183,25 @@ function buildRunConfigurationFormState(
 
 function buildRunConfigurationInput(
   formState: RunConfigurationFormState,
-): LocalTimeSerieRunConfigurationInput {
+): SimpleTableUpdateRunConfigurationInput {
   return {
-    retry_on_error: formState.retryOnError,
-    seconds_wait_on_retry: parseOptionalNumber(formState.secondsWaitOnRetry),
-    required_cpus: formState.requiredCpus.trim() || null,
-    required_gpus: formState.requiredGpus.trim() || null,
-    execution_time_out_seconds: parseOptionalNumber(formState.executionTimeoutSeconds),
     update_schedule: parseScheduleValue(formState.updateSchedule),
   };
 }
 
-function getDataNodeIdFromSummaryHref(href?: string) {
-  if (!href) {
-    return null;
-  }
-
-  try {
-    const url = new URL(href, "https://mainsequence.local");
-    const rawId =
-      url.searchParams.get("dynamic_table_id") ??
-      url.searchParams.get("msDataNodeId") ??
-      url.searchParams.get("dynamicTableId");
-    const parsedId = Number(rawId ?? "");
-
-    if (Number.isFinite(parsedId) && parsedId > 0) {
-      return parsedId;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function mapLogRowToEntry(row: LocalTimeSerieLogsGridRow, index: number): LogTableEntry {
-  const detail =
-    row.detail && typeof row.detail === "object"
-      ? (row.detail as Record<string, unknown>)
-      : null;
-
-  return {
-    id: `${row.timestamp ?? "log"}-${index}`,
-    timestamp: typeof row.timestamp === "string" ? row.timestamp : null,
-    level: typeof row.level === "string" ? row.level : null,
-    message: typeof row.event === "string" && row.event.trim() ? row.event : "Log row",
-    source:
-      typeof detail?.filename === "string"
-        ? detail.filename
-        : typeof detail?.func_name === "string"
-          ? detail.func_name
-          : null,
-    context: detail,
-  };
-}
-
-function LocalUpdateOverviewDetails({
-  localTimeSerie,
+function SimpleTableUpdateOverviewDetails({
+  simpleTableUpdate,
 }: {
-  localTimeSerie: LocalTimeSerieRecord;
+  simpleTableUpdate: SimpleTableUpdateRecord;
 }) {
-  const details = localTimeSerie.update_details;
+  const details = simpleTableUpdate.update_details;
 
   const detailRows = [
-    ["Update hash", localTimeSerie.update_hash],
-    ["Visibility", localTimeSerie.open_for_everyone ? "Public" : "Private"],
-    ["Dependencies linked", localTimeSerie.ogm_dependencies_linked ? "Yes" : "No"],
+    ["Update hash", simpleTableUpdate.update_hash],
+    ["Visibility", simpleTableUpdate.open_for_everyone ? "Public" : "Private"],
+    ["Dependencies linked", simpleTableUpdate.ogm_dependencies_linked ? "Yes" : "No"],
     ["Active update", details?.active_update ? "Yes" : "No"],
-    ["Active update status", getStatusValue(localTimeSerie)],
+    ["Active update status", getStatusValue(simpleTableUpdate)],
     ["Error on last update", details?.error_on_last_update ? "Yes" : "No"],
     ["Update PID", details?.update_pid ?? "Not running"],
     ["Last update", formatDateTime(details?.last_update)],
@@ -340,15 +217,15 @@ function LocalUpdateOverviewDetails({
       "Last updated by",
       details?.last_updated_by_user ? `User ${details.last_updated_by_user}` : "Not recorded",
     ],
-    ["Related data node", localTimeSerie.data_node_storage?.storage_hash ?? "Unknown"],
-    ["Source class", localTimeSerie.data_node_storage?.source_class_name ?? "Unknown"],
+    ["Related simple table", simpleTableUpdate.remote_table?.storage_hash ?? "Unknown"],
+    ["Source class", simpleTableUpdate.remote_table?.source_class_name ?? "Unknown"],
   ];
 
   return (
     <Card variant="nested">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Update details</CardTitle>
-        <CardDescription>Read-only fields from the LocalTimeSerie retrieve serializer.</CardDescription>
+        <CardDescription>Read-only fields from the SimpleTableUpdate serializer.</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="grid gap-x-8 gap-y-3 md:grid-cols-2">
@@ -366,7 +243,7 @@ function LocalUpdateOverviewDetails({
   );
 }
 
-function LocalUpdateBuildConfiguration({
+function SimpleTableUpdateBuildConfiguration({
   buildConfiguration,
 }: {
   buildConfiguration: unknown;
@@ -375,7 +252,9 @@ function LocalUpdateBuildConfiguration({
     <Card variant="nested">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Build configuration</CardTitle>
-        <CardDescription>Raw build configuration returned by the LocalTimeSerie detail serializer.</CardDescription>
+        <CardDescription>
+          Raw build configuration returned by the SimpleTableUpdate detail serializer.
+        </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <pre className="overflow-x-auto rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/50 p-3 text-xs text-muted-foreground">
@@ -386,59 +265,46 @@ function LocalUpdateBuildConfiguration({
   );
 }
 
-export function MainSequenceDataNodeLocalUpdateDetail({
-  initialLocalTimeSerie,
-  localTimeSerieId,
+export function MainSequenceSimpleTableUpdateDetail({
+  initialSimpleTableUpdate,
+  simpleTableUpdateId,
   onClose,
-  onOpenDataNodeDetail,
-  selectedTabId,
+  onOpenSimpleTableDetail,
   onSelectTab,
+  selectedTabId,
 }: {
-  initialLocalTimeSerie?: LocalTimeSerieRecord | null;
-  localTimeSerieId: number;
+  initialSimpleTableUpdate?: SimpleTableUpdateRecord | null;
+  simpleTableUpdateId: number;
   onClose: () => void;
-  onOpenDataNodeDetail: (dataNodeId: number) => void;
+  onOpenSimpleTableDetail: (simpleTableId: number) => void;
+  onSelectTab: (tabId: SimpleTableUpdateDetailTabId) => void;
   selectedTabId: string | null;
-  onSelectTab: (tabId: LocalUpdateDetailTabId) => void;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [logFilterValue, setLogFilterValue] = useState("");
-  const [selectedLogLevel, setSelectedLogLevel] = useState<string>("");
   const [runConfigurationForm, setRunConfigurationForm] = useState<RunConfigurationFormState>(
-    buildRunConfigurationFormState(initialLocalTimeSerie?.run_configuration),
+    buildRunConfigurationFormState(initialSimpleTableUpdate?.run_configuration),
   );
-  const deferredLogFilterValue = useDeferredValue(logFilterValue);
-  const activeTabId: LocalUpdateDetailTabId = localUpdateDetailTabs.some(
+  const activeTabId: SimpleTableUpdateDetailTabId = simpleTableUpdateDetailTabs.some(
     (tab) => tab.id === selectedTabId,
   )
-    ? (selectedTabId as LocalUpdateDetailTabId)
+    ? (selectedTabId as SimpleTableUpdateDetailTabId)
     : "details";
 
-  const summaryQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "local_updates", "summary", localTimeSerieId],
-    queryFn: () => fetchLocalTimeSerieSummary(localTimeSerieId),
-    enabled: localTimeSerieId > 0,
-  });
   const detailQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "local_updates", "detail", localTimeSerieId],
-    queryFn: () => fetchLocalTimeSerieDetail(localTimeSerieId),
-    enabled: localTimeSerieId > 0,
+    queryKey: ["main_sequence", "simple_tables", "updates", "detail", simpleTableUpdateId],
+    queryFn: () => fetchSimpleTableUpdateDetail(simpleTableUpdateId),
+    enabled: simpleTableUpdateId > 0,
   });
   const runConfigurationQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "local_updates", "run_configuration", localTimeSerieId],
-    queryFn: () => fetchLocalTimeSerieRunConfiguration(localTimeSerieId),
-    enabled: localTimeSerieId > 0,
+    queryKey: ["main_sequence", "simple_tables", "updates", "run_configuration", simpleTableUpdateId],
+    queryFn: () => fetchSimpleTableUpdateRunConfiguration(simpleTableUpdateId),
+    enabled: simpleTableUpdateId > 0,
   });
   const historicalUpdatesQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "local_updates", "historical_updates", localTimeSerieId],
-    queryFn: () => listLocalTimeSerieHistoricalUpdates(localTimeSerieId, 100),
-    enabled: localTimeSerieId > 0 && activeTabId === "historical-updates",
-  });
-  const logsQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "local_updates", "logs", localTimeSerieId, selectedLogLevel],
-    queryFn: () => fetchLocalTimeSerieLogs(localTimeSerieId, selectedLogLevel || undefined),
-    enabled: localTimeSerieId > 0 && activeTabId === "logs",
+    queryKey: ["main_sequence", "simple_tables", "updates", "historical_updates", simpleTableUpdateId],
+    queryFn: () => listSimpleTableUpdateHistoricalUpdates(simpleTableUpdateId, 100),
+    enabled: simpleTableUpdateId > 0 && activeTabId === "historical-updates",
   });
 
   useEffect(() => {
@@ -446,26 +312,24 @@ export function MainSequenceDataNodeLocalUpdateDetail({
   }, [runConfigurationQuery.data]);
 
   const updateRunConfigurationMutation = useMutation({
-    mutationFn: (input: LocalTimeSerieRunConfigurationInput) =>
-      updateLocalTimeSerieRunConfiguration(localTimeSerieId, input),
+    mutationFn: (input: SimpleTableUpdateRunConfigurationInput) =>
+      updateSimpleTableUpdateRunConfiguration(simpleTableUpdateId, input),
     onSuccess: async () => {
       toast({
         variant: "success",
         title: "Run configuration updated",
-        description: "The data node update run configuration was saved.",
+        description: "The simple table update run configuration was saved.",
       });
+
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "data_nodes", "local_updates", "run_configuration", localTimeSerieId],
+          queryKey: ["main_sequence", "simple_tables", "updates", "run_configuration", simpleTableUpdateId],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "data_nodes", "local_updates", "detail", localTimeSerieId],
+          queryKey: ["main_sequence", "simple_tables", "updates", "detail", simpleTableUpdateId],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "data_nodes", "local_updates", "summary", localTimeSerieId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "data_nodes", "local_time_series"],
+          queryKey: ["main_sequence", "simple_tables", "updates"],
         }),
       ]);
     },
@@ -478,11 +342,16 @@ export function MainSequenceDataNodeLocalUpdateDetail({
     },
   });
 
-  const localTimeSerie = detailQuery.data ?? initialLocalTimeSerie ?? null;
-  const summary =
-    summaryQuery.data ?? (localTimeSerie ? buildFallbackLocalUpdateSummary(localTimeSerie) : null);
+  const simpleTableUpdate = detailQuery.data ?? initialSimpleTableUpdate ?? null;
+  const summary = simpleTableUpdate
+    ? buildFallbackSimpleTableUpdateSummary(simpleTableUpdate)
+    : null;
   const detailTitle =
-    summary?.entity.title ?? localTimeSerie?.update_hash ?? `Data node update ${localTimeSerieId}`;
+    summary?.entity.title ?? simpleTableUpdate?.update_hash ?? `Simple table update ${simpleTableUpdateId}`;
+  const linkedSimpleTableId =
+    simpleTableUpdate?.remote_table?.id && Number.isFinite(simpleTableUpdate.remote_table.id)
+      ? simpleTableUpdate.remote_table.id
+      : null;
 
   const historicalUpdateMetrics = useMemo(() => {
     const updates = historicalUpdatesQuery.data ?? [];
@@ -514,7 +383,7 @@ export function MainSequenceDataNodeLocalUpdateDetail({
   const historicalUpdateChartData = useMemo(
     () =>
       (historicalUpdatesQuery.data ?? [])
-        .map((update) => {
+        .map((update: SimpleTableHistoricalUpdateRecord) => {
           const start = update.update_time_start ? Date.parse(update.update_time_start) : NaN;
           const end = update.update_time_end ? Date.parse(update.update_time_end) : NaN;
 
@@ -532,28 +401,6 @@ export function MainSequenceDataNodeLocalUpdateDetail({
     [historicalUpdatesQuery.data],
   );
 
-  const filteredLogEntries = useMemo(() => {
-    const needle = deferredLogFilterValue.trim().toLowerCase();
-    const rows = logsQuery.data?.rows ?? [];
-    const entries = rows.map(mapLogRowToEntry);
-
-    return entries.filter((entry) => {
-      if (!needle) {
-        return true;
-      }
-
-      return JSON.stringify(entry).toLowerCase().includes(needle);
-    });
-  }, [deferredLogFilterValue, logsQuery.data?.rows]);
-
-  function handleSummaryFieldLink(field: SummaryField) {
-    const relatedDataNodeId = getDataNodeIdFromSummaryHref(field.href);
-
-    if (relatedDataNodeId) {
-      onOpenDataNodeDetail(relatedDataNodeId);
-    }
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
@@ -568,29 +415,37 @@ export function MainSequenceDataNodeLocalUpdateDetail({
           <span>/</span>
           <span className="text-foreground">{detailTitle}</span>
         </div>
-        <Button variant="outline" size="sm" onClick={onClose}>
-          <ArrowLeft className="h-4 w-4" />
-          Back to local updates
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {linkedSimpleTableId ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenSimpleTableDetail(linkedSimpleTableId)}
+            >
+              Open simple table
+            </Button>
+          ) : null}
+          <Button variant="outline" size="sm" onClick={onClose}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to local updates
+          </Button>
+        </div>
       </div>
 
-      {summaryQuery.isError && !summary ? (
+      {detailQuery.isError && !summary ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {formatMainSequenceError(summaryQuery.error)}
+          {formatMainSequenceError(detailQuery.error)}
         </div>
       ) : null}
 
       {summary ? (
-        <MainSequenceEntitySummaryCard
-          summary={summary}
-          onFieldLinkClick={handleSummaryFieldLink}
-        />
+        <MainSequenceEntitySummaryCard summary={summary} />
       ) : (
         <Card>
           <CardContent className="flex min-h-48 items-center justify-center">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading data node update
+              Loading simple table update
             </div>
           </CardContent>
         </Card>
@@ -599,7 +454,7 @@ export function MainSequenceDataNodeLocalUpdateDetail({
       <Card>
         <CardHeader className="border-b border-border/70 pb-4">
           <div className="flex flex-wrap gap-2">
-            {localUpdateDetailTabs.map((tab) => (
+            {simpleTableUpdateDetailTabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -618,10 +473,10 @@ export function MainSequenceDataNodeLocalUpdateDetail({
         <CardContent className="pt-5">
           {activeTabId === "details" ? (
             <div className="space-y-4">
-              {detailQuery.isLoading && !localTimeSerie ? (
+              {detailQuery.isLoading && !simpleTableUpdate ? (
                 <div className="flex min-h-48 items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-3 h-4 w-4 animate-spin" />
-                  Loading data node update details
+                  Loading simple table update details
                 </div>
               ) : null}
 
@@ -631,10 +486,12 @@ export function MainSequenceDataNodeLocalUpdateDetail({
                 </div>
               ) : null}
 
-              {localTimeSerie ? (
+              {simpleTableUpdate ? (
                 <>
-                  <LocalUpdateOverviewDetails localTimeSerie={localTimeSerie} />
-                  <LocalUpdateBuildConfiguration buildConfiguration={localTimeSerie.build_configuration} />
+                  <SimpleTableUpdateOverviewDetails simpleTableUpdate={simpleTableUpdate} />
+                  <SimpleTableUpdateBuildConfiguration
+                    buildConfiguration={simpleTableUpdate.build_configuration}
+                  />
                 </>
               ) : null}
 
@@ -642,7 +499,7 @@ export function MainSequenceDataNodeLocalUpdateDetail({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Run configuration</CardTitle>
                   <CardDescription>
-                    Dedicated run-configuration endpoint for this data node update.
+                    Dedicated run-configuration endpoint for this simple table update.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -669,79 +526,6 @@ export function MainSequenceDataNodeLocalUpdateDetail({
                         );
                       }}
                     >
-                      <label className="flex items-center gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-3 py-3 text-sm text-foreground">
-                        <input
-                          type="checkbox"
-                          checked={runConfigurationForm.retryOnError}
-                          onChange={(event) =>
-                            setRunConfigurationForm((currentValue) => ({
-                              ...currentValue,
-                              retryOnError: event.target.checked,
-                            }))
-                          }
-                        />
-                        Retry on error
-                      </label>
-
-                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <label className="space-y-2">
-                          <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            CPU
-                          </span>
-                          <Input
-                            value={runConfigurationForm.requiredCpus}
-                            onChange={(event) =>
-                              setRunConfigurationForm((currentValue) => ({
-                                ...currentValue,
-                                requiredCpus: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                        <label className="space-y-2">
-                          <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            GPU
-                          </span>
-                          <Input
-                            value={runConfigurationForm.requiredGpus}
-                            onChange={(event) =>
-                              setRunConfigurationForm((currentValue) => ({
-                                ...currentValue,
-                                requiredGpus: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                        <label className="space-y-2">
-                          <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            Retry wait (seconds)
-                          </span>
-                          <Input
-                            value={runConfigurationForm.secondsWaitOnRetry}
-                            onChange={(event) =>
-                              setRunConfigurationForm((currentValue) => ({
-                                ...currentValue,
-                                secondsWaitOnRetry: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                        <label className="space-y-2">
-                          <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            Timeout (seconds)
-                          </span>
-                          <Input
-                            value={runConfigurationForm.executionTimeoutSeconds}
-                            onChange={(event) =>
-                              setRunConfigurationForm((currentValue) => ({
-                                ...currentValue,
-                                executionTimeoutSeconds: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                      </div>
-
                       <label className="space-y-2">
                         <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                           Update schedule
@@ -777,13 +561,13 @@ export function MainSequenceDataNodeLocalUpdateDetail({
 
           {activeTabId === "graphs" ? (
             <div className="grid gap-4 xl:grid-cols-2">
-              <MainSequenceLocalUpdateDependencyGraph
+              <MainSequenceSimpleTableUpdateDependencyGraph
                 direction="downstream"
-                localTimeSerieId={localTimeSerieId}
+                simpleTableUpdateId={simpleTableUpdateId}
               />
-              <MainSequenceLocalUpdateDependencyGraph
+              <MainSequenceSimpleTableUpdateDependencyGraph
                 direction="upstream"
-                localTimeSerieId={localTimeSerieId}
+                simpleTableUpdateId={simpleTableUpdateId}
               />
             </div>
           ) : null}
@@ -916,73 +700,12 @@ export function MainSequenceDataNodeLocalUpdateDetail({
                         </div>
                       ) : (
                         <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-10 text-center text-sm text-muted-foreground">
-                          No historical updates were returned for this data node update.
+                          No historical updates were returned for this simple table update.
                         </div>
                       )}
                     </CardContent>
                   </Card>
                 </>
-              ) : null}
-            </div>
-          ) : null}
-
-          {activeTabId === "logs" ? (
-            <div className="space-y-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <div className="text-sm font-medium text-foreground">Update logs</div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Logs returned by the resource-scoped LocalTimeSerie logs endpoint.
-                  </p>
-                </div>
-                <MainSequenceRegistrySearch
-                  accessory={<Badge variant="neutral">{`${logsQuery.data?.rows.length ?? 0} rows`}</Badge>}
-                  value={logFilterValue}
-                  onChange={(event) => setLogFilterValue(event.target.value)}
-                  placeholder="Filter logs by any row content"
-                  searchClassName="max-w-lg"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {localUpdateLogLevelOptions.map((option) => (
-                  <Button
-                    key={option.id || "all"}
-                    variant="outline"
-                    size="sm"
-                    className={
-                      selectedLogLevel === option.id
-                        ? "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15"
-                        : undefined
-                    }
-                    onClick={() => setSelectedLogLevel(option.id)}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-
-              {logsQuery.isLoading ? (
-                <div className="flex min-h-48 items-center justify-center text-sm text-muted-foreground">
-                  <Loader2 className="mr-3 h-4 w-4 animate-spin" />
-                  Loading logs
-                </div>
-              ) : null}
-
-              {logsQuery.isError ? (
-                <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                  {formatMainSequenceError(logsQuery.error)}
-                </div>
-              ) : null}
-
-              {!logsQuery.isLoading && !logsQuery.isError && filteredLogEntries.length === 0 ? (
-                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-10 text-center text-sm text-muted-foreground">
-                  No logs matched the current level or filter.
-                </div>
-              ) : null}
-
-              {!logsQuery.isLoading && !logsQuery.isError && filteredLogEntries.length > 0 ? (
-                <LogTable logs={filteredLogEntries} />
               ) : null}
             </div>
           ) : null}

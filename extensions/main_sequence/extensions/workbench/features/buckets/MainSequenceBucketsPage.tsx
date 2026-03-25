@@ -16,7 +16,6 @@ import { useToast } from "@/components/ui/toaster";
 import {
   bulkDeleteBuckets,
   createBucket,
-  deleteBucket,
   formatMainSequenceError,
   listBuckets,
   mainSequenceRegistryPageSize,
@@ -231,14 +230,6 @@ export function MainSequenceBucketsPage() {
   async function handleDeleteBuckets() {
     if (pendingDeleteBuckets.length === 0) {
       return null;
-    }
-
-    if (pendingDeleteBuckets.length === 1) {
-      await deleteBucket(pendingDeleteBuckets[0].id);
-      return {
-        detail: "Bucket deleted successfully.",
-        deleted_count: 1,
-      };
     }
 
     return bulkDeleteBuckets({

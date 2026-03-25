@@ -12,12 +12,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <CommandCenterConfigProvider>
-        <CommandCenterPreferencesProvider>
-          <ThemeProvider>
+        <ThemeProvider>
+          <CommandCenterPreferencesProvider>
             {children}
             <Toaster />
-          </ThemeProvider>
-        </CommandCenterPreferencesProvider>
+          </CommandCenterPreferencesProvider>
+        </ThemeProvider>
       </CommandCenterConfigProvider>
     </QueryClientProvider>
   );
