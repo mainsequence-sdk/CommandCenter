@@ -13,6 +13,7 @@ import { LegacyMainSequenceWorkbenchRedirect } from "@/features/apps/LegacyMainS
 import { LegacyWorkspaceRedirect } from "@/features/apps/LegacyWorkspaceRedirect";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { LoginPageV2 } from "@/features/auth/LoginPageV2";
+import { ResetPasswordPage } from "@/features/auth/ResetPasswordPage";
 import { ExtensionsGalleryPage } from "@/features/extensions/ExtensionsGalleryPage";
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
@@ -32,6 +33,10 @@ export const router = createBrowserRouter([
   {
     path: "/login-v2",
     element: <LoginPageV2 />,
+  },
+  {
+    path: "/reset-password",
+    element: <ResetPasswordPage />,
   },
   {
     path: "/extensions",

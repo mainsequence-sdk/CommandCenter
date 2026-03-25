@@ -99,6 +99,29 @@ function buildEndpointUrl(path: string) {
   return url.toString();
 }
 
+export interface AuthDetailResponse {
+  detail: string;
+}
+
+export interface PasswordResetRequestInput {
+  email: string;
+}
+
+export interface PasswordResetValidateInput {
+  uidb64: string;
+  token: string;
+}
+
+export interface PasswordResetValidateResponse {
+  valid: boolean;
+  detail: string;
+}
+
+export interface PasswordResetConfirmInput extends PasswordResetValidateInput {
+  password: string;
+  confirm_password: string;
+}
+
 async function readResponsePayload(response: Response) {
   if (response.status === 204) {
     return null;
@@ -129,6 +152,64 @@ function readErrorMessage(payload: unknown) {
   }
 
   return "";
+}
+
+async function requestAuthJson<T>(
+  path: string,
+  init?: RequestInit,
+  {
+    requiresAuth = false,
+  }: {
+    requiresAuth?: boolean;
+  } = {},
+) {
+  const requestUrl = buildEndpointUrl(path);
+
+  async function sendRequest() {
+    const session = useAuthStore.getState().session;
+    const headers = new Headers(init?.headers);
+
+    if (!headers.has("Accept")) {
+      headers.set("Accept", "application/json");
+    }
+
+    if (init?.body && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    if (requiresAuth) {
+      if (!session?.token) {
+        throw new Error("You need to be signed in to complete this request.");
+      }
+
+      headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
+    }
+
+    return fetch(requestUrl, {
+      ...init,
+      headers,
+    });
+  }
+
+  let response = await sendRequest();
+
+  if (requiresAuth && response.status === 401) {
+    const refreshed = await useAuthStore.getState().refreshSession();
+
+    if (refreshed) {
+      response = await sendRequest();
+    }
+  }
+
+  const payload = await readResponsePayload(response);
+
+  if (!response.ok) {
+    throw new Error(
+      readErrorMessage(payload) || `Authentication request failed with ${response.status}.`,
+    );
+  }
+
+  return payload as T;
 }
 
 function resolveGroupsFromPayload(payload: unknown) {
@@ -167,38 +248,39 @@ export async function fetchCurrentAuthGroups() {
     return [] as string[];
   }
 
-  const requestUrl = buildEndpointUrl(groupsPath);
-
-  async function sendRequest() {
-    const session = useAuthStore.getState().session;
-    const headers = new Headers({
-      Accept: "application/json",
-    });
-
-    if (session?.token) {
-      headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
-    }
-
-    return fetch(requestUrl, { headers });
-  }
-
-  let response = await sendRequest();
-
-  if (response.status === 401) {
-    const refreshed = await useAuthStore.getState().refreshSession();
-
-    if (refreshed) {
-      response = await sendRequest();
-    }
-  }
-
-  const payload = await readResponsePayload(response);
-
-  if (!response.ok) {
-    throw new Error(
-      readErrorMessage(payload) || `Current groups request failed with ${response.status}.`,
-    );
-  }
+  const payload = await requestAuthJson<unknown>(groupsPath, undefined, {
+    requiresAuth: true,
+  });
 
   return resolveGroupsFromPayload(payload);
+}
+
+export function requestPasswordReset(input: PasswordResetRequestInput) {
+  return requestAuthJson<AuthDetailResponse>("/user/api/user/password-reset/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function validatePasswordResetLink(input: PasswordResetValidateInput) {
+  return requestAuthJson<PasswordResetValidateResponse>("/user/api/user/password-reset/validate/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function confirmPasswordReset(input: PasswordResetConfirmInput) {
+  return requestAuthJson<AuthDetailResponse>("/user/api/user/password-reset/confirm/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function requestPasswordChangeEmail() {
+  return requestAuthJson<AuthDetailResponse>("/user/api/user/request-password-change/", {
+    method: "POST",
+    body: JSON.stringify({}),
+  }, {
+    requiresAuth: true,
+  });
 }

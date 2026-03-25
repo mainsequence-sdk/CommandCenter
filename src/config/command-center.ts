@@ -260,7 +260,7 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
   },
   auth: {
     identifier_label: "Email",
-    identifier_placeholder: "admin@example.com",
+    identifier_placeholder: "Please enter your email",
     jwt: {
       token_url: "/auth/jwt-token/token/",
       refresh_url: "/auth/jwt-token/token/refresh/",

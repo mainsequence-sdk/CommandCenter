@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Users } from "lucide-react";
@@ -188,6 +188,17 @@ export function AdminOrganizationUsersPage() {
     ],
     [],
   );
+  const closeCreateUserDialog = useEffectEvent(() => {
+    if (createUserMutation.isPending) {
+      return;
+    }
+
+    setCreateDialogOpen(false);
+    setCreateEmail("");
+    setCreateFirstName("");
+    setCreateLastName("");
+    createUserMutation.reset();
+  });
 
   useEffect(() => {
     setPageIndex(0);
@@ -198,15 +209,6 @@ export function AdminOrganizationUsersPage() {
       setPageIndex(totalPages - 1);
     }
   }, [pageIndex, totalPages]);
-
-  useEffect(() => {
-    if (!createDialogOpen) {
-      setCreateEmail("");
-      setCreateFirstName("");
-      setCreateLastName("");
-      createUserMutation.reset();
-    }
-  }, [createDialogOpen, createUserMutation]);
 
   function renderSelectedUsersSummary() {
     return (
@@ -391,11 +393,7 @@ export function AdminOrganizationUsersPage() {
 
       <Dialog
         open={createDialogOpen}
-        onClose={() => {
-          if (!createUserMutation.isPending) {
-            setCreateDialogOpen(false);
-          }
-        }}
+        onClose={closeCreateUserDialog}
         title="Add new user"
         description="Enter an email address and optional first and last name to create a new user."
         className="max-w-[min(560px,calc(100vw-24px))]"
@@ -481,9 +479,7 @@ export function AdminOrganizationUsersPage() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => {
-                setCreateDialogOpen(false);
-              }}
+              onClick={closeCreateUserDialog}
               disabled={createUserMutation.isPending}
             >
               Close

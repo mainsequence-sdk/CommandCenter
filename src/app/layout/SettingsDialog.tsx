@@ -1,8 +1,11 @@
 import { type ReactNode, useEffect, useState } from "react";
 
+import { useMutation } from "@tanstack/react-query";
 import { CircleUserRound, FileCode2, Info, Settings2, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { fetchCurrentAuthGroups, requestPasswordChangeEmail } from "@/auth/api";
+import { useToast } from "@/components/ui/toaster";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +13,6 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchCurrentAuthGroups } from "@/auth/api";
 import { getRoleLabel } from "@/auth/permissions";
 import type { CommandCenterConfig } from "@/config/command-center";
 import { commandCenterConfigSource } from "@/config/command-center";
@@ -515,6 +517,7 @@ export function SettingsDialog({
   user,
 }: SettingsDialogProps) {
   const { i18n, t } = useTranslation();
+  const { toast } = useToast();
   const config = useCommandCenterConfig();
   const { app, auth } = config;
   const { availableThemes, resetOverrides, setThemeById, themeId } = useTheme();
@@ -523,6 +526,23 @@ export function SettingsDialog({
   const [currentGroupsError, setCurrentGroupsError] = useState<string | null>(null);
   const [currentGroupsLoading, setCurrentGroupsLoading] = useState(false);
   const [showRawConfiguration, setShowRawConfiguration] = useState(false);
+  const requestPasswordChangeMutation = useMutation({
+    mutationFn: requestPasswordChangeEmail,
+    onSuccess: (result) => {
+      toast({
+        variant: "success",
+        title: "Password change email sent",
+        description: result.detail,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Unable to send password change email",
+        description: error instanceof Error ? error.message : "The request failed.",
+      });
+    },
+  });
 
   const title =
     mode === "admin" ? t("settingsDialog.adminTitle") : t("settingsDialog.userTitle");
@@ -738,6 +758,27 @@ export function SettingsDialog({
                 label={t("settingsDialog.groups")}
                 value={groupsValue}
               />
+              {!env.bypassAuth && user?.email ? (
+                <SettingsRow
+                  label="Password"
+                  description="Send a password change email to the address on this account."
+                  value={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={requestPasswordChangeMutation.isPending}
+                      onClick={() => {
+                        requestPasswordChangeMutation.mutate();
+                      }}
+                    >
+                      {requestPasswordChangeMutation.isPending
+                        ? "Sending email..."
+                        : "Send password change email"}
+                    </Button>
+                  }
+                />
+              ) : null}
             </SettingsSection>
           ) : null}
 

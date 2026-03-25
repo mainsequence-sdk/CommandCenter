@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { ArrowRight } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/auth/auth-store";
 import { getRoleLabel } from "@/auth/permissions";
@@ -107,6 +107,17 @@ export function LoginPage() {
                   data-lpignore="true"
                 />
               </div>
+
+              {!isBypassAuth ? (
+                <div className="flex justify-end">
+                  <Link
+                    to="/reset-password"
+                    className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                  >
+                    Change your password
+                  </Link>
+                </div>
+              ) : null}
 
               {isBypassAuth ? (
                 <div className="space-y-1.5">
