@@ -124,7 +124,7 @@ The same YAML file also controls auth integration:
 Runtime data mode is controlled separately through Vite env vars:
 
 - `VITE_USE_MOCK_DATA=true|false`
-- `VITE_API_BASE_URL=http://localhost:8000/api`
+- `VITE_API_BASE_URL=http://127.0.0.1:8000`
 - `VITE_WS_URL=ws://localhost:8000/ws`
 - `VITE_INCLUDE_AUI=true|false`
 - `VITE_INCLUDE_WORKSPACES=true|false`

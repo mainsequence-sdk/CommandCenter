@@ -9,7 +9,7 @@ function toBooleanEnv(value: string | undefined, fallback: boolean) {
 const rawEnv = import.meta.env as Record<string, string | undefined>;
 
 export const env = {
-  apiBaseUrl: rawEnv.VITE_API_BASE_URL ?? "http://localhost:8000/api",
+  apiBaseUrl: rawEnv.VITE_API_BASE_URL ?? "http://127.0.0.1:8000",
   wsUrl: rawEnv.VITE_WS_URL ?? "ws://localhost:8000/ws",
   useMockData: toBooleanEnv(rawEnv.VITE_USE_MOCK_DATA, true),
   bypassAuth: toBooleanEnv(rawEnv.VITE_BYPASS_AUTH, false),
