@@ -20,7 +20,7 @@ The primary route is:
 
 - `/app/workspace-studio/workspaces`
 
-The entire app is gated by `INCLUDE_WORKSPACES=true`. When that env flag is set to `false`, the
+The entire app is gated by `VITE_INCLUDE_WORKSPACES=true`. When that env flag is set to `false`, the
 runtime registry does not expose `workspace-studio`, and direct app routes fall back through the
 normal app-resolution redirect path.
 

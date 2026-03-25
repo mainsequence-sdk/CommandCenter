@@ -103,7 +103,7 @@ The persistent visible trigger now lives in the sidebar chrome above the user me
 
 ### Feature Flag
 
-The chat scaffold is gated by the `INCLUDE_AUI` environment variable.
+The chat scaffold is gated by the `VITE_INCLUDE_AUI` environment variable.
 
 - default: `true`
 - when `false`: the shell does not mount `ChatProvider`, does not render `ChatMount`, hides the sidebar trigger, and redirects `/app/chat` back to `/app`

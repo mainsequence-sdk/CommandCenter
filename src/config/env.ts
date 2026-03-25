@@ -13,9 +13,6 @@ export const env = {
   wsUrl: rawEnv.VITE_WS_URL ?? "ws://localhost:8000/ws",
   useMockData: toBooleanEnv(rawEnv.VITE_USE_MOCK_DATA, true),
   bypassAuth: toBooleanEnv(rawEnv.VITE_BYPASS_AUTH, false),
-  includeAui: toBooleanEnv(rawEnv.INCLUDE_AUI ?? rawEnv.VITE_INCLUDE_AUI, true),
-  includeWorkspaces: toBooleanEnv(
-    rawEnv.INCLUDE_WORKSPACES ?? rawEnv.VITE_INCLUDE_WORKSPACES,
-    true,
-  ),
+  includeAui: toBooleanEnv(rawEnv.VITE_INCLUDE_AUI, true),
+  includeWorkspaces: toBooleanEnv(rawEnv.VITE_INCLUDE_WORKSPACES, true),
 } as const;

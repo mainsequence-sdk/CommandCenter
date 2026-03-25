@@ -28,6 +28,6 @@ This extension owns the built-in registry entries that ship with Command Center 
 - Keep core focused on shell-level building blocks and default sample surfaces.
 - Workspaces feature implementation lives in `src/features/dashboards/`; keep that folder's
   `README.md` and `docs/workspaces.md` updated when the workspace model or UX changes.
-- The `Workspaces` app is feature-flagged at runtime through `INCLUDE_WORKSPACES`; keep registry behavior and docs aligned if that flag changes scope.
+- The `Workspaces` app is feature-flagged at runtime through `VITE_INCLUDE_WORKSPACES`; keep registry behavior and docs aligned if that flag changes scope.
 - Optional or vendor-specific capabilities should stay in separate extensions and be composed
   through the registry instead of being re-owned here.

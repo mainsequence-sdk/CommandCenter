@@ -27,7 +27,7 @@ These flows are all part of one app surface, with instance state selected throug
 
 - The app is registered in `src/extensions/core/index.ts` as a single full-bleed page surface: `workspaces`.
 - The workspace list lives at `/app/workspace-studio/workspaces`.
-- The app is only included when `INCLUDE_WORKSPACES=true`. When the flag is `false`, the runtime registry removes `workspace-studio` from navigation and route resolution.
+- The app is only included when `VITE_INCLUDE_WORKSPACES=true`. When the flag is `false`, the runtime registry removes `workspace-studio` from navigation and route resolution.
 - Opening a workspace instance adds `?workspace=<id>`.
 - Opening workspace settings adds `?workspace=<id>&view=settings`.
 - Persistence is browser-local and user-scoped through `localStorage` by default.
