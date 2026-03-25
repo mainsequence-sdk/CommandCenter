@@ -30,6 +30,10 @@ const extensions = Object.values(modules)
 
 const widgets = uniqueById(extensions.flatMap((extension) => extension.widgets ?? []));
 const apps = uniqueById(extensions.flatMap((extension) => extension.apps ?? [])).filter((app) => {
+  if (!env.useMockData && app.id === "demo") {
+    return false;
+  }
+
   if (!env.includeWorkspaces && app.id === "workspace-studio") {
     return false;
   }

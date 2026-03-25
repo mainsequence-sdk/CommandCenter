@@ -26,6 +26,7 @@ This extension owns the built-in registry entries that ship with Command Center 
 ## Maintenance Notes
 
 - Keep core focused on shell-level building blocks and default sample surfaces.
+- The `Demo` app is only registered while `VITE_USE_MOCK_DATA=true`; keep the registry filter and this README aligned if mock-mode scope changes.
 - Workspaces feature implementation lives in `src/features/dashboards/`; keep that folder's
   `README.md` and `docs/workspaces.md` updated when the workspace model or UX changes.
 - The `Workspaces` app is feature-flagged at runtime through `VITE_INCLUDE_WORKSPACES`; keep registry behavior and docs aligned if that flag changes scope.

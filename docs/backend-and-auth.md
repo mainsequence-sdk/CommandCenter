@@ -25,9 +25,10 @@ Relevant files:
 Runtime data mode is selected with:
 
 - `VITE_USE_MOCK_DATA=true` for local mock adapters
-- `VITE_USE_MOCK_DATA=false` for the live REST/WebSocket adapters
+- `VITE_USE_MOCK_DATA=false` for the live REST/WebSocket adapters and to remove the built-in `Demo` app from the shell registry
 - `VITE_BYPASS_AUTH=true` to bypass backend auth locally and use the built-in role picker
 - `VITE_API_BASE_URL` and `VITE_WS_URL` for live transport endpoints
+- `VITE_INCLUDE_WEBSOCKETS=true|false` to enable or disable websocket connection startup and streaming subscriptions without changing REST mode
 - `VITE_INCLUDE_AUI=true|false` to enable or disable the detachable `assistant-ui` shell integration
 - `VITE_INCLUDE_WORKSPACES=true|false` to enable or disable the `Workspaces` app at the registry level
 

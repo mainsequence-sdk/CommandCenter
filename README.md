@@ -70,9 +70,11 @@ Use `.env.example` as the starting point for data mode:
 cp .env.example .env
 ```
 
-`VITE_USE_MOCK_DATA=true` keeps the shell on local mock adapters. Set `VITE_USE_MOCK_DATA=false` to route the app through the live REST and WebSocket adapters configured by `VITE_API_BASE_URL` and `VITE_WS_URL`.
+`VITE_USE_MOCK_DATA=true` keeps the shell on local mock adapters and leaves the built-in `Demo` app registered. Set `VITE_USE_MOCK_DATA=false` to route the app through the live REST and WebSocket adapters configured by `VITE_API_BASE_URL` and `VITE_WS_URL`, and to remove the `Demo` app from navigation and app redirects.
 
 `VITE_BYPASS_AUTH=true` bypasses backend authentication for local development and re-enables the built-in role picker.
+
+`VITE_INCLUDE_WEBSOCKETS=true` keeps the websocket layer enabled. Set `VITE_INCLUDE_WEBSOCKETS=false` to stop the shell from opening the terminal socket connection and to disable streaming price subscriptions without changing the rest of the live REST mode.
 
 `VITE_INCLUDE_AUI=true` keeps the detachable `assistant-ui` shell enabled. Set `VITE_INCLUDE_AUI=false` to remove the chat provider, sidebar trigger, overlay rail, and `/app/chat` route at runtime.
 
@@ -126,6 +128,7 @@ Runtime data mode is controlled separately through Vite env vars:
 - `VITE_USE_MOCK_DATA=true|false`
 - `VITE_API_BASE_URL=http://127.0.0.1:8000`
 - `VITE_WS_URL=ws://localhost:8000/ws`
+- `VITE_INCLUDE_WEBSOCKETS=true|false`
 - `VITE_INCLUDE_AUI=true|false`
 - `VITE_INCLUDE_WORKSPACES=true|false`
 
