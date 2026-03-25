@@ -408,9 +408,9 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Badge variant="neutral">
-          {env.useMockData ? t("topbar.dataModeMock") : t("topbar.dataModeLive")}
-        </Badge>
+        {env.useMockData ? (
+          <Badge variant="neutral">{t("topbar.dataModeMock")}</Badge>
+        ) : null}
 
         <FavoriteSurfacesMenu
           items={favoriteMenuItems}

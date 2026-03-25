@@ -554,6 +554,21 @@ function buildUserProfile(
     (userDetails && resolveMappedValue(userDetailsMapping.email, [userDetails])) ??
       resolveMappedValue(claimMapping.email, tokenSources),
   );
+  const firstName = readString(
+    (userDetails &&
+      (resolveMappedValue("first_name", [userDetails]) ??
+        resolveMappedValue("firstName", [userDetails]))) ??
+      resolveMappedValue("first_name", tokenSources) ??
+      resolveMappedValue("firstName", tokenSources),
+  );
+  const lastName = readString(
+    (userDetails &&
+      (resolveMappedValue("last_name", [userDetails]) ??
+        resolveMappedValue("lastName", [userDetails]))) ??
+      resolveMappedValue("last_name", tokenSources) ??
+      resolveMappedValue("lastName", tokenSources),
+  );
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
   const plan = readString(
     (userDetails &&
       (resolveMappedValue("plan", [userDetails]) ??
@@ -568,7 +583,7 @@ function buildUserProfile(
   const name = readString(
     (userDetails && resolveMappedValue(userDetailsMapping.name, [userDetails])) ??
       resolveMappedValue(claimMapping.name, tokenSources),
-    deriveName(email, role),
+    fullName || deriveName(email, role),
   );
   const team = readString(
     (userDetails && resolveMappedValue(userDetailsMapping.team, [userDetails])) ??
@@ -585,6 +600,8 @@ function buildUserProfile(
     id,
     name,
     email,
+    first_name: firstName || undefined,
+    last_name: lastName || undefined,
     plan: plan || undefined,
     team,
     role,

@@ -2,6 +2,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
 import { commandCenterConfig } from "@/config/command-center";
+import { readCachedCurrentCommandCenterPreferences } from "@/preferences/api";
 import {
   defaultLanguage,
   isSupportedLanguage,
@@ -17,7 +18,13 @@ function resolveInitialLanguage() {
     return defaultLanguage;
   }
 
-  if (!backendPreferencesEnabled) {
+  if (backendPreferencesEnabled) {
+    const cachedLanguage = readCachedCurrentCommandCenterPreferences()?.language;
+
+    if (cachedLanguage && isSupportedLanguage(cachedLanguage)) {
+      return cachedLanguage;
+    }
+  } else {
     const storedLanguage = window.localStorage.getItem(languageStorageKey);
     if (storedLanguage && isSupportedLanguage(storedLanguage)) {
       return storedLanguage;

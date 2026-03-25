@@ -16,6 +16,8 @@ export interface AppUser {
   id: string;
   name: string;
   email: string;
+  first_name?: string;
+  last_name?: string;
   avatarUrl?: string;
   plan?: string;
   team: string;

@@ -10,8 +10,10 @@ import {
 import {
   fetchCommandCenterPreferences,
   hasConfiguredPreferencesEndpoint,
+  readCachedCommandCenterPreferences,
   updateCommandCenterPreferences,
   type CommandCenterPreferencesSnapshot,
+  writeCachedCommandCenterPreferences,
 } from "@/preferences/api";
 import { useShellStore } from "@/stores/shell-store";
 import { useTheme } from "@/themes/ThemeProvider";
@@ -57,6 +59,30 @@ export function CommandCenterPreferencesProvider({
   const lastSyncedSnapshotKeyRef = useRef<string | null>(null);
   const pendingSnapshotRef = useRef<CommandCenterPreferencesSnapshot | null>(null);
   const syncInFlightRef = useRef(false);
+  const themeIdRef = useRef(themeId);
+
+  useEffect(() => {
+    themeIdRef.current = themeId;
+  }, [themeId]);
+
+  async function applySnapshot(snapshot: CommandCenterPreferencesSnapshot) {
+    applyingRemoteStateRef.current = true;
+
+    try {
+      useShellStore.getState().hydratePersistedPreferences(snapshot);
+
+      if (resolveActiveLanguage() !== snapshot.language) {
+        await i18n.changeLanguage(snapshot.language);
+      }
+
+      if (snapshot.themeId && snapshot.themeId !== themeIdRef.current) {
+        themeIdRef.current = snapshot.themeId;
+        setThemeById(snapshot.themeId);
+      }
+    } finally {
+      applyingRemoteStateRef.current = false;
+    }
+  }
 
   useEffect(() => {
     if (!endpointConfigured) {
@@ -81,12 +107,20 @@ export function CommandCenterPreferencesProvider({
     hydratedUserIdRef.current = null;
     lastSyncedSnapshotKeyRef.current = null;
     pendingSnapshotRef.current = null;
-    useShellStore.getState().hydratePersistedPreferences({
-      favoriteSurfaceIds: [],
-      favoriteWorkspaceIds: [],
-    });
 
     async function hydratePreferences() {
+      const cachedSnapshot = readCachedCommandCenterPreferences(sessionUserId);
+
+      if (cachedSnapshot) {
+        lastSyncedSnapshotKeyRef.current = serializeSnapshot(cachedSnapshot);
+        await applySnapshot(cachedSnapshot);
+      } else {
+        useShellStore.getState().hydratePersistedPreferences({
+          favoriteSurfaceIds: [],
+          favoriteWorkspaceIds: [],
+        });
+      }
+
       try {
         const snapshot = await fetchCommandCenterPreferences();
 
@@ -94,21 +128,8 @@ export function CommandCenterPreferencesProvider({
           return;
         }
 
-        applyingRemoteStateRef.current = true;
-
-        try {
-          useShellStore.getState().hydratePersistedPreferences(snapshot);
-
-          if (resolveActiveLanguage() !== snapshot.language) {
-            await i18n.changeLanguage(snapshot.language);
-          }
-
-          if (snapshot.themeId && snapshot.themeId !== themeId) {
-            setThemeById(snapshot.themeId);
-          }
-        } finally {
-          applyingRemoteStateRef.current = false;
-        }
+        writeCachedCommandCenterPreferences(sessionUserId, snapshot);
+        await applySnapshot(snapshot);
 
         lastSyncedSnapshotKeyRef.current = serializeSnapshot(snapshot);
       } catch (error) {
@@ -117,11 +138,11 @@ export function CommandCenterPreferencesProvider({
             "[command-center] Unable to hydrate backend preferences.",
             error,
           );
-          lastSyncedSnapshotKeyRef.current = serializeSnapshot(buildCurrentSnapshot(themeId));
+          lastSyncedSnapshotKeyRef.current =
+            lastSyncedSnapshotKeyRef.current ??
+            serializeSnapshot(buildCurrentSnapshot(themeIdRef.current));
         }
       } finally {
-        applyingRemoteStateRef.current = false;
-
         if (!cancelled) {
           hydratedUserIdRef.current = sessionUserId;
         }
@@ -173,23 +194,12 @@ export function CommandCenterPreferencesProvider({
 
             const normalizedSnapshotKey = serializeSnapshot(normalizedSnapshot);
             lastSyncedSnapshotKeyRef.current = normalizedSnapshotKey;
+            writeCachedCommandCenterPreferences(sessionUserId, normalizedSnapshot);
 
-            if (normalizedSnapshotKey !== serializeSnapshot(buildCurrentSnapshot(themeId))) {
-              applyingRemoteStateRef.current = true;
-
-              try {
-                useShellStore.getState().hydratePersistedPreferences(normalizedSnapshot);
-
-                if (resolveActiveLanguage() !== normalizedSnapshot.language) {
-                  await i18n.changeLanguage(normalizedSnapshot.language);
-                }
-
-                if (normalizedSnapshot.themeId && normalizedSnapshot.themeId !== themeId) {
-                  setThemeById(normalizedSnapshot.themeId);
-                }
-              } finally {
-                applyingRemoteStateRef.current = false;
-              }
+            if (
+              normalizedSnapshotKey !== serializeSnapshot(buildCurrentSnapshot(themeIdRef.current))
+            ) {
+              await applySnapshot(normalizedSnapshot);
             }
           } catch (error) {
             console.warn(
@@ -209,7 +219,9 @@ export function CommandCenterPreferencesProvider({
         return;
       }
 
-      pendingSnapshotRef.current = buildCurrentSnapshot(themeId);
+      const snapshot = buildCurrentSnapshot(themeId);
+      pendingSnapshotRef.current = snapshot;
+      writeCachedCommandCenterPreferences(sessionUserId, snapshot);
       void flushPendingSnapshot();
     }
 

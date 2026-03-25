@@ -15,7 +15,7 @@ This module owns the active shell theme runtime and applies the resolved design 
 
 ## Persistence behavior
 
-- When `preferences.url` is configured, theme persistence is handled through the shared preferences snapshot and hydrated by `CommandCenterPreferencesProvider`.
+- When `preferences.url` is configured, theme persistence is handled through the shared preferences snapshot, bootstrapped from the last cached snapshot, and revalidated by `CommandCenterPreferencesProvider`.
 - When `preferences.url` is blank or omitted, the active preset falls back to browser-local persistence under `ms.command-center.theme`.
 - This module currently persists the active preset only. Token overrides, tightness overrides, and surface hierarchy overrides remain runtime-only.
 

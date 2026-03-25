@@ -6,6 +6,9 @@ import { router } from "@/app/router";
 import { AppProviders } from "@/app/providers/AppProviders";
 import "@/i18n";
 import "@/styles/globals.css";
+import { initializeDocumentTheme } from "@/themes/ThemeProvider";
+
+initializeDocumentTheme();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

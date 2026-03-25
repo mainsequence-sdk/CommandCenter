@@ -9,6 +9,7 @@ import {
 
 import { appRegistry } from "@/app/registry";
 import { commandCenterConfig } from "@/config/command-center";
+import { readCachedCurrentCommandCenterPreferences } from "@/preferences/api";
 import { getThemeSurfaceHierarchyMetrics } from "@/themes/surface-hierarchy";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
 import {
@@ -41,16 +42,22 @@ const backendPreferencesEnabled = Boolean(commandCenterConfig.preferences.url.tr
 export const themeStorageKey = "ms.command-center.theme";
 export const DEFAULT_THEME_ID = "main-sequence-space";
 
+function resolveDefaultThemeId(availableThemes: ThemePreset[]) {
+  return (
+    availableThemes.find((theme) => theme.id === DEFAULT_THEME_ID)?.id ??
+    availableThemes[0]?.id ??
+    DEFAULT_THEME_ID
+  );
+}
+
 function resolveInitialThemeId(availableThemes: ThemePreset[], defaultThemeId: string) {
-  if (
-    backendPreferencesEnabled ||
-    typeof window === "undefined" ||
-    typeof window.localStorage === "undefined"
-  ) {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
     return defaultThemeId;
   }
 
-  const storedThemeId = window.localStorage.getItem(themeStorageKey)?.trim();
+  const storedThemeId = backendPreferencesEnabled
+    ? readCachedCurrentCommandCenterPreferences()?.themeId?.trim()
+    : window.localStorage.getItem(themeStorageKey)?.trim();
 
   if (!storedThemeId) {
     return defaultThemeId;
@@ -61,12 +68,128 @@ function resolveInitialThemeId(availableThemes: ThemePreset[], defaultThemeId: s
     : defaultThemeId;
 }
 
+function applyThemeDocumentState({
+  activeTheme,
+  resolvedTokens,
+  tightness,
+  surfaceHierarchy,
+}: {
+  activeTheme: ThemePreset;
+  resolvedTokens: ThemeTokens;
+  tightness: ThemeTightness;
+  surfaceHierarchy: ThemeSurfaceHierarchy;
+}) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const root = document.documentElement;
+  const tightnessMetrics = getThemeTightnessMetrics(tightness);
+  const surfaceHierarchyMetrics = getThemeSurfaceHierarchyMetrics(surfaceHierarchy);
+
+  root.dataset.theme = activeTheme.id;
+  root.classList.toggle("dark", activeTheme.mode === "dark");
+
+  themeTokenKeys.forEach((token) => {
+    root.style.setProperty(`--${token}`, resolvedTokens[token]);
+  });
+  root.dataset.tightness = tightness;
+  root.style.setProperty(
+    "--table-standard-cell-padding-y",
+    tightnessMetrics.table.standardCellPaddingY,
+  );
+  root.style.setProperty(
+    "--table-standard-header-padding-y",
+    tightnessMetrics.table.standardHeaderPaddingY,
+  );
+  root.style.setProperty("--table-row-gap-y", tightnessMetrics.table.rowGapY);
+  root.style.setProperty("--table-font-size", tightnessMetrics.table.fontSize);
+  root.style.setProperty("--table-meta-font-size", tightnessMetrics.table.metaFontSize);
+  root.style.setProperty(
+    "--table-compact-cell-padding-y",
+    tightnessMetrics.table.compactCellPaddingY,
+  );
+  root.style.setProperty(
+    "--table-compact-header-padding-y",
+    tightnessMetrics.table.compactHeaderPaddingY,
+  );
+  root.style.setProperty("--font-size-page-title", tightnessMetrics.typography.pageTitleSize);
+  root.style.setProperty("--font-size-section-title", tightnessMetrics.typography.sectionTitleSize);
+  root.style.setProperty("--font-size-body", tightnessMetrics.typography.bodySize);
+  root.style.setProperty("--font-size-body-sm", tightnessMetrics.typography.bodySmSize);
+  root.style.setProperty("--font-size-body-xs", tightnessMetrics.typography.bodyXsSize);
+  root.style.setProperty("--line-height-body", tightnessMetrics.typography.bodyLineHeight);
+  root.style.setProperty("--font-size-markdown-h1", tightnessMetrics.typography.markdownH1Size);
+  root.style.setProperty("--font-size-markdown-h2", tightnessMetrics.typography.markdownH2Size);
+  root.style.setProperty("--font-size-markdown-h3", tightnessMetrics.typography.markdownH3Size);
+  root.style.setProperty("--font-size-markdown-h4", tightnessMetrics.typography.markdownH4Size);
+  root.style.setProperty("--summary-stat-grid-gap", tightnessMetrics.summary.statGridGap);
+  root.style.setProperty("--summary-highlight-gap", tightnessMetrics.summary.highlightGap);
+  root.style.setProperty(
+    "--summary-stat-card-padding-x",
+    tightnessMetrics.summary.statCardPaddingX,
+  );
+  root.style.setProperty(
+    "--summary-stat-card-padding-y",
+    tightnessMetrics.summary.statCardPaddingY,
+  );
+  root.style.setProperty("--summary-stat-label-size", tightnessMetrics.summary.statLabelSize);
+  root.style.setProperty("--summary-stat-value-size", tightnessMetrics.summary.statValueSize);
+  root.style.setProperty("--summary-stat-info-size", tightnessMetrics.summary.statInfoSize);
+  root.style.setProperty(
+    "--summary-highlight-card-padding-x",
+    tightnessMetrics.summary.highlightCardPaddingX,
+  );
+  root.style.setProperty(
+    "--summary-highlight-card-padding-y",
+    tightnessMetrics.summary.highlightCardPaddingY,
+  );
+  root.style.setProperty(
+    "--summary-stat-value-margin-top",
+    tightnessMetrics.summary.statValueMarginTop,
+  );
+  root.style.setProperty(
+    "--summary-stat-info-margin-top",
+    tightnessMetrics.summary.statInfoMarginTop,
+  );
+  root.style.setProperty(
+    "--summary-highlight-value-margin-top",
+    tightnessMetrics.summary.highlightValueMarginTop,
+  );
+  root.style.setProperty(
+    "--summary-highlight-meta-margin-top",
+    tightnessMetrics.summary.highlightMetaMarginTop,
+  );
+  root.dataset.surfaceHierarchy = surfaceHierarchy;
+  root.style.setProperty("--card-nested-border-color", surfaceHierarchyMetrics.nestedCardBorderColor);
+  root.style.setProperty("--card-nested-background", surfaceHierarchyMetrics.nestedCardBackground);
+  root.style.setProperty("--card-nested-shadow", surfaceHierarchyMetrics.nestedCardShadow);
+}
+
+export function initializeDocumentTheme() {
+  const availableThemes = appRegistry.themes;
+  const defaultThemeId = resolveDefaultThemeId(availableThemes);
+  const themeId = resolveInitialThemeId(availableThemes, defaultThemeId);
+  const activeTheme =
+    availableThemes.find((theme) => theme.id === themeId) ??
+    availableThemes.find((theme) => theme.id === defaultThemeId) ??
+    availableThemes[0];
+
+  if (!activeTheme) {
+    return;
+  }
+
+  applyThemeDocumentState({
+    activeTheme,
+    resolvedTokens: activeTheme.tokens,
+    tightness: activeTheme.tightness,
+    surfaceHierarchy: activeTheme.surfaceHierarchy,
+  });
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const availableThemes = appRegistry.themes;
-  const defaultThemeId =
-    availableThemes.find((theme) => theme.id === DEFAULT_THEME_ID)?.id ??
-    availableThemes[0]?.id ??
-    DEFAULT_THEME_ID;
+  const defaultThemeId = resolveDefaultThemeId(availableThemes);
   const [themeId, setThemeId] = useState(() =>
     resolveInitialThemeId(availableThemes, defaultThemeId),
   );
@@ -80,15 +203,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     availableThemes[0];
   const tightness = tightnessOverride ?? activeTheme.tightness;
   const surfaceHierarchy = surfaceHierarchyOverride ?? activeTheme.surfaceHierarchy;
-  const tightnessMetrics = useMemo(
-    () => getThemeTightnessMetrics(tightness),
-    [tightness],
-  );
-  const surfaceHierarchyMetrics = useMemo(
-    () => getThemeSurfaceHierarchyMetrics(surfaceHierarchy),
-    [surfaceHierarchy],
-  );
-
   const resolvedTokens = useMemo(
     () =>
       ({
@@ -99,85 +213,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.dataset.theme = activeTheme.id;
-    root.classList.toggle("dark", activeTheme.mode === "dark");
-
-    themeTokenKeys.forEach((token) => {
-      root.style.setProperty(`--${token}`, resolvedTokens[token]);
+    applyThemeDocumentState({
+      activeTheme,
+      resolvedTokens,
+      tightness,
+      surfaceHierarchy,
     });
-    root.dataset.tightness = tightness;
-    root.style.setProperty(
-      "--table-standard-cell-padding-y",
-      tightnessMetrics.table.standardCellPaddingY,
-    );
-    root.style.setProperty(
-      "--table-standard-header-padding-y",
-      tightnessMetrics.table.standardHeaderPaddingY,
-    );
-    root.style.setProperty("--table-row-gap-y", tightnessMetrics.table.rowGapY);
-    root.style.setProperty("--table-font-size", tightnessMetrics.table.fontSize);
-    root.style.setProperty("--table-meta-font-size", tightnessMetrics.table.metaFontSize);
-    root.style.setProperty(
-      "--table-compact-cell-padding-y",
-      tightnessMetrics.table.compactCellPaddingY,
-    );
-    root.style.setProperty(
-      "--table-compact-header-padding-y",
-      tightnessMetrics.table.compactHeaderPaddingY,
-    );
-    root.style.setProperty("--font-size-page-title", tightnessMetrics.typography.pageTitleSize);
-    root.style.setProperty("--font-size-section-title", tightnessMetrics.typography.sectionTitleSize);
-    root.style.setProperty("--font-size-body", tightnessMetrics.typography.bodySize);
-    root.style.setProperty("--font-size-body-sm", tightnessMetrics.typography.bodySmSize);
-    root.style.setProperty("--font-size-body-xs", tightnessMetrics.typography.bodyXsSize);
-    root.style.setProperty("--line-height-body", tightnessMetrics.typography.bodyLineHeight);
-    root.style.setProperty("--font-size-markdown-h1", tightnessMetrics.typography.markdownH1Size);
-    root.style.setProperty("--font-size-markdown-h2", tightnessMetrics.typography.markdownH2Size);
-    root.style.setProperty("--font-size-markdown-h3", tightnessMetrics.typography.markdownH3Size);
-    root.style.setProperty("--font-size-markdown-h4", tightnessMetrics.typography.markdownH4Size);
-    root.style.setProperty("--summary-stat-grid-gap", tightnessMetrics.summary.statGridGap);
-    root.style.setProperty("--summary-highlight-gap", tightnessMetrics.summary.highlightGap);
-    root.style.setProperty(
-      "--summary-stat-card-padding-x",
-      tightnessMetrics.summary.statCardPaddingX,
-    );
-    root.style.setProperty(
-      "--summary-stat-card-padding-y",
-      tightnessMetrics.summary.statCardPaddingY,
-    );
-    root.style.setProperty("--summary-stat-label-size", tightnessMetrics.summary.statLabelSize);
-    root.style.setProperty("--summary-stat-value-size", tightnessMetrics.summary.statValueSize);
-    root.style.setProperty("--summary-stat-info-size", tightnessMetrics.summary.statInfoSize);
-    root.style.setProperty(
-      "--summary-highlight-card-padding-x",
-      tightnessMetrics.summary.highlightCardPaddingX,
-    );
-    root.style.setProperty(
-      "--summary-highlight-card-padding-y",
-      tightnessMetrics.summary.highlightCardPaddingY,
-    );
-    root.style.setProperty(
-      "--summary-stat-value-margin-top",
-      tightnessMetrics.summary.statValueMarginTop,
-    );
-    root.style.setProperty(
-      "--summary-stat-info-margin-top",
-      tightnessMetrics.summary.statInfoMarginTop,
-    );
-    root.style.setProperty(
-      "--summary-highlight-value-margin-top",
-      tightnessMetrics.summary.highlightValueMarginTop,
-    );
-    root.style.setProperty(
-      "--summary-highlight-meta-margin-top",
-      tightnessMetrics.summary.highlightMetaMarginTop,
-    );
-    root.dataset.surfaceHierarchy = surfaceHierarchy;
-    root.style.setProperty("--card-nested-border-color", surfaceHierarchyMetrics.nestedCardBorderColor);
-    root.style.setProperty("--card-nested-background", surfaceHierarchyMetrics.nestedCardBackground);
-    root.style.setProperty("--card-nested-shadow", surfaceHierarchyMetrics.nestedCardShadow);
-  }, [activeTheme, resolvedTokens, surfaceHierarchy, surfaceHierarchyMetrics, tightness, tightnessMetrics]);
+  }, [activeTheme, resolvedTokens, surfaceHierarchy, tightness]);
 
   useEffect(() => {
     if (

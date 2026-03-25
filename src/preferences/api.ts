@@ -8,6 +8,7 @@ import {
 } from "@/i18n/config";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
+const preferencesCacheStorageKeyPrefix = "ms.command-center.preferences";
 
 export interface CommandCenterPreferencesSnapshot {
   language: SupportedLanguage;
@@ -60,6 +61,56 @@ function normalizePreferencesPayload(payload: unknown): CommandCenterPreferences
     favoriteSurfaceIds: normalizeFavoriteIds(source.favoriteSurfaceIds),
     favoriteWorkspaceIds: normalizeFavoriteIds(source.favoriteWorkspaceIds),
   };
+}
+
+function canUseLocalStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function buildPreferencesCacheStorageKey(userId: string) {
+  return `${preferencesCacheStorageKeyPrefix}:${userId}`;
+}
+
+export function readCachedCommandCenterPreferences(
+  userId: string | null | undefined,
+): CommandCenterPreferencesSnapshot | null {
+  if (!userId || !canUseLocalStorage()) {
+    return null;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(buildPreferencesCacheStorageKey(userId));
+
+    if (!rawValue) {
+      return null;
+    }
+
+    return normalizePreferencesPayload(JSON.parse(rawValue));
+  } catch {
+    return null;
+  }
+}
+
+export function readCachedCurrentCommandCenterPreferences() {
+  return readCachedCommandCenterPreferences(useAuthStore.getState().session?.user.id ?? null);
+}
+
+export function writeCachedCommandCenterPreferences(
+  userId: string | null | undefined,
+  snapshot: CommandCenterPreferencesSnapshot,
+) {
+  if (!userId || !canUseLocalStorage()) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      buildPreferencesCacheStorageKey(userId),
+      JSON.stringify(normalizePreferencesPayload(snapshot)),
+    );
+  } catch {
+    // Ignore cache write failures and continue with the backend response path.
+  }
 }
 
 async function readResponsePayload(response: Response) {

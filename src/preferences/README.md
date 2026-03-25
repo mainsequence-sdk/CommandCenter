@@ -50,8 +50,9 @@ Expected payload shape:
 
 ## Runtime behavior
 
-- When `preferences.url` is configured, the provider waits for an authenticated user, loads the preference snapshot, hydrates i18n and the shell store, and pushes later language/favorite changes back with `PUT`.
+- When `preferences.url` is configured, the provider seeds the shell from a per-user browser cache, then loads the latest preference snapshot from the backend, hydrates i18n and the shell store, and pushes later language/favorite changes back with `PUT`.
 - Theme preset selection now follows the same snapshot contract, so a backend-backed session rehydrates the last saved `themeId`.
+- The cache is only a startup optimization. The app still issues the backend `GET` on every load and replaces the cache with the normalized server response.
 - The dedicated favorites endpoints are also available in config so the frontend can move to per-favorite mutations later without changing the runtime config shape again.
 - When `preferences.url` is blank or omitted, the app keeps the pre-existing browser-local behavior:
   - language persists through `localStorage`

@@ -14,7 +14,8 @@ Registration stays in:
 Current surfaces in this folder:
 
 - `AdminOrganizationUsersPage.tsx`: organization user registry backed by the shared user endpoint
-  with email-only user creation plus bulk delete and org-admin role actions
+  with optional first/last-name user creation, visible name columns in the registry table, plus
+  bulk delete and org-admin role actions
 - `AdminActivePlansPage.tsx`: organization subscription inventory and per-user plan assignments
   backed by `/user/api/organization/<id>/active-plans/` with inline assign/remove seat controls
   plus a `Manage seats` modal loaded from `/user/api/organization/<id>/subscription-seats/`

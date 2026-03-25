@@ -2166,6 +2166,38 @@ export interface ResourceReleaseRecord {
   release_kind: string;
 }
 
+export interface ResourceReleaseGalleryRecord {
+  id: number;
+  subdomain: string;
+  release_kind: string;
+  title: string;
+  resource_id: number;
+  resource_name: string;
+  project_id: number;
+  project_name: string;
+  image_id: number | null;
+  project_repo_hash: string | null;
+  public_url: string | null;
+  exchange_launch_url?: string | null;
+}
+
+export interface ResourceReleaseExchangeLaunchUrlResponse {
+  release_kind: string;
+  mode: "url";
+  url: string;
+}
+
+export interface ResourceReleaseExchangeLaunchTokenResponse {
+  release_kind: string;
+  mode: "token";
+  token: string;
+  rpc_url: string;
+}
+
+export type ResourceReleaseExchangeLaunchResponse =
+  | ResourceReleaseExchangeLaunchUrlResponse
+  | ResourceReleaseExchangeLaunchTokenResponse;
+
 export interface ShareablePermissionUserRecord {
   id: number | string;
   username: string;
@@ -4774,6 +4806,35 @@ export async function listResourceReleases({
     ...page,
     results: [...page.results].sort((left, right) => right.id - left.id),
   };
+}
+
+export async function listResourceReleaseGallery({
+  limit = 500,
+  offset = 0,
+  exclude,
+}: {
+  limit?: number;
+  offset?: number;
+  exclude?: string;
+} = {}) {
+  const payload = await requestJson<
+    PaginatedResponse<ResourceReleaseGalleryRecord> | ResourceReleaseGalleryRecord[]
+  >(commandCenterConfig.mainSequence.endpoint, "resource-release/gallery/", undefined, {
+    limit,
+    offset,
+    exclude,
+  });
+
+  const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
+
+  return {
+    ...page,
+    results: [...page.results].sort((left, right) => right.id - left.id),
+  };
+}
+
+export async function fetchResourceReleaseExchangeLaunch(exchangeLaunchUrl: string) {
+  return requestJson<ResourceReleaseExchangeLaunchResponse>(env.apiBaseUrl, exchangeLaunchUrl);
 }
 
 export async function listProjectResources(

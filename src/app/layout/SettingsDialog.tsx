@@ -945,16 +945,12 @@ export function SettingsDialog({
               />
               {mode === "admin" ? (
                 <>
-                  <SettingsRow
-                    label={t("settingsDialog.dataMode")}
-                    value={
-                      <Badge variant={env.useMockData ? "warning" : "success"}>
-                        {env.useMockData
-                          ? t("settingsDialog.mockData")
-                          : t("settingsDialog.liveData")}
-                      </Badge>
-                    }
-                  />
+                  {env.useMockData ? (
+                    <SettingsRow
+                      label={t("settingsDialog.dataMode")}
+                      value={<Badge variant="warning">{t("settingsDialog.mockData")}</Badge>}
+                    />
+                  ) : null}
                   <SettingsRow label={t("settingsDialog.api")} value={env.apiBaseUrl} />
                   <SettingsRow label={t("settingsDialog.websocket")} value={env.wsUrl} />
                 </>

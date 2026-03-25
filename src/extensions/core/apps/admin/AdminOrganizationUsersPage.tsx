@@ -55,10 +55,14 @@ export function AdminOrganizationUsersPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createEmail, setCreateEmail] = useState("");
+  const [createFirstName, setCreateFirstName] = useState("");
+  const [createLastName, setCreateLastName] = useState("");
   const [activeBulkAction, setActiveBulkAction] = useState<OrganizationUserBulkAction | null>(null);
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim();
   const normalizedCreateEmail = createEmail.trim().toLowerCase();
+  const normalizedCreateFirstName = createFirstName.trim();
+  const normalizedCreateLastName = createLastName.trim();
 
   const usersQuery = useQuery({
     queryKey: ["admin", "organization-users", "list", pageIndex, normalizedSearchValue],
@@ -71,13 +75,15 @@ export function AdminOrganizationUsersPage() {
   });
   const createUserMutation = useMutation({
     mutationFn: createOrganizationUser,
-    onSuccess: async (result, email) => {
+    onSuccess: async (result, payload) => {
       await queryClient.invalidateQueries({
         queryKey: ["admin", "organization-users"],
       });
 
       setCreateDialogOpen(false);
       setCreateEmail("");
+      setCreateFirstName("");
+      setCreateLastName("");
 
       toast({
         variant: "success",
@@ -85,7 +91,7 @@ export function AdminOrganizationUsersPage() {
           typeof result.detail === "string" && result.detail.trim()
             ? result.detail
             : "User created",
-        description: email,
+        description: payload.email,
       });
     },
     onError: (error) => {
@@ -196,6 +202,8 @@ export function AdminOrganizationUsersPage() {
   useEffect(() => {
     if (!createDialogOpen) {
       setCreateEmail("");
+      setCreateFirstName("");
+      setCreateLastName("");
       createUserMutation.reset();
     }
   }, [createDialogOpen, createUserMutation]);
@@ -294,7 +302,7 @@ export function AdminOrganizationUsersPage() {
           {!usersQuery.isLoading && !usersQuery.isError && totalItems > 0 ? (
             <div className="overflow-x-auto px-4 py-4">
               <table
-                className="w-full min-w-[960px] border-separate text-sm"
+                className="w-full min-w-[1120px] border-separate text-sm"
                 style={{ borderSpacing: "0 var(--table-row-gap-y)" }}
               >
                 <thead>
@@ -311,6 +319,8 @@ export function AdminOrganizationUsersPage() {
                       />
                     </th>
                     <th className="px-4 py-[var(--table-standard-header-padding-y)]">Email</th>
+                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">First name</th>
+                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Last name</th>
                     <th className="px-4 py-[var(--table-standard-header-padding-y)]">Groups</th>
                     <th className="px-4 py-[var(--table-standard-header-padding-y)]">Plan</th>
                     <th className="px-4 py-[var(--table-standard-header-padding-y)]">Teams</th>
@@ -337,6 +347,16 @@ export function AdminOrganizationUsersPage() {
                           <div className="font-mono text-xs text-muted-foreground">
                             {user.email || "Not available"}
                           </div>
+                        </td>
+                        <td className={getRegistryTableCellClassName(selected)}>
+                          <span className="text-muted-foreground">
+                            {user.first_name || "Not provided"}
+                          </span>
+                        </td>
+                        <td className={getRegistryTableCellClassName(selected)}>
+                          <span className="text-muted-foreground">
+                            {user.last_name || "Not provided"}
+                          </span>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <span className="text-muted-foreground">{formatGroups(user.groups)}</span>
@@ -377,7 +397,7 @@ export function AdminOrganizationUsersPage() {
           }
         }}
         title="Add new user"
-        description="Enter an email address to create a new user."
+        description="Enter an email address and optional first and last name to create a new user."
         className="max-w-[min(560px,calc(100vw-24px))]"
       >
         <form
@@ -389,7 +409,11 @@ export function AdminOrganizationUsersPage() {
               return;
             }
 
-            createUserMutation.mutate(normalizedCreateEmail);
+            createUserMutation.mutate({
+              email: normalizedCreateEmail,
+              first_name: normalizedCreateFirstName || undefined,
+              last_name: normalizedCreateLastName || undefined,
+            });
           }}
         >
           <div className="space-y-2">
@@ -409,6 +433,42 @@ export function AdminOrganizationUsersPage() {
               autoFocus
               disabled={createUserMutation.isPending}
             />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label
+                htmlFor="admin-create-user-first-name"
+                className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
+              >
+                First name
+              </label>
+              <Input
+                id="admin-create-user-first-name"
+                value={createFirstName}
+                onChange={(event) => setCreateFirstName(event.target.value)}
+                placeholder="Ada"
+                autoComplete="given-name"
+                disabled={createUserMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="admin-create-user-last-name"
+                className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
+              >
+                Last name
+              </label>
+              <Input
+                id="admin-create-user-last-name"
+                value={createLastName}
+                onChange={(event) => setCreateLastName(event.target.value)}
+                placeholder="Lovelace"
+                autoComplete="family-name"
+                disabled={createUserMutation.isPending}
+              />
+            </div>
           </div>
 
           {createUserMutation.isError ? (

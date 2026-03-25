@@ -345,6 +345,13 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
   const email = readString(
     readPathValue(record, mapping.email) ?? readPathValue(record, "email"),
   );
+  const firstName = readString(
+    readPathValue(record, "first_name") ?? readPathValue(record, "firstName"),
+  );
+  const lastName = readString(
+    readPathValue(record, "last_name") ?? readPathValue(record, "lastName"),
+  );
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
   const plan = readString(
     readPathValue(record, "plan") ??
       readPathValue(record, "active_plan_type") ??
@@ -353,7 +360,7 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
   );
   const name = readString(
     readPathValue(record, mapping.name) ?? readPathValue(record, "name"),
-    deriveName(email, role),
+    fullName || deriveName(email, role),
   );
   const team = readString(
     readPathValue(record, mapping.team) ??
@@ -376,6 +383,8 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
     id,
     name,
     email,
+    first_name: firstName || undefined,
+    last_name: lastName || undefined,
     plan: plan || undefined,
     team,
     role,

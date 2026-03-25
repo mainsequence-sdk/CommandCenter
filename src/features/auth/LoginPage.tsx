@@ -67,11 +67,11 @@ export function LoginPage() {
             <BrandWordmark className="justify-center" imageClassName="h-12 w-auto sm:h-14" />
             <div className="space-y-2">
               <CardTitle className="text-2xl">Sign in</CardTitle>
-              <CardDescription>
-                {isBypassAuth
-                  ? `Bypass auth for local development in ${app.shortName}.`
-                  : `Access the ${app.shortName} command center.`}
-              </CardDescription>
+              {isBypassAuth ? (
+                <CardDescription>
+                  {`Bypass auth for local development in ${app.shortName}.`}
+                </CardDescription>
+              ) : null}
             </div>
           </CardHeader>
 
@@ -151,11 +151,7 @@ export function LoginPage() {
                 enabled. Authentication is bypassed locally and the selected built-in role is used
                 for RBAC.
               </div>
-            ) : (
-              <div className="mt-5 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
-                Use your organization credentials to access the command center.
-              </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </div>

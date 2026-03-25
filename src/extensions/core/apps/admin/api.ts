@@ -154,6 +154,12 @@ export interface OrganizationUserCreateResponse {
   id?: number | string;
 }
 
+export interface OrganizationUserCreateInput {
+  email: string;
+  first_name?: string;
+  last_name?: string;
+}
+
 export interface GithubOrganizationRecord {
   id: number;
   login: string;
@@ -504,12 +510,10 @@ export function importGithubOrganizationProjects(selectedIds: number[]) {
   );
 }
 
-export function createOrganizationUser(email: string) {
+export function createOrganizationUser(payload: OrganizationUserCreateInput) {
   return requestAdminJson<OrganizationUserCreateResponse>("/user/api/user/", {
     method: "POST",
-    body: JSON.stringify({
-      email,
-    }),
+    body: JSON.stringify(payload),
   });
 }
 

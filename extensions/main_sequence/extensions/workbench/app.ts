@@ -13,6 +13,7 @@ import { MainSequenceProjectDataSourcesPage } from "./features/project-data-sour
 import { MainSequenceProjectsPage } from "./features/projects/MainSequenceProjectsPage";
 import { MainSequenceSecretsPage } from "./features/secrets/MainSequenceSecretsPage";
 import { MainSequenceSimpleTablesPage } from "./features/simple-tables/MainSequenceSimpleTablesPage";
+import { MainSequenceStreamlitPage } from "./features/streamlit/MainSequenceStreamlitPage";
 
 const workspaceSection: AppSurfaceNavigationSection = {
   id: "workspace",
@@ -24,6 +25,12 @@ const operationsSection: AppSurfaceNavigationSection = {
   id: "operations",
   label: "Operations",
   order: 20,
+};
+
+const resourcesSection: AppSurfaceNavigationSection = {
+  id: "resources",
+  label: "Resources",
+  order: 15,
 };
 
 const dataSection: AppSurfaceNavigationSection = {
@@ -49,7 +56,8 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
     {
       id: "main_sequence.workspace:view",
       label: "Workbench workspace / view",
-      description: "Open workspace surfaces such as Projects, Constants, and Secrets.",
+      description:
+        "Open workspace surfaces such as Projects, Streamlit, Constants, and Secrets.",
       category: "Main Sequence Workbench",
     },
     {
@@ -101,6 +109,16 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence.operations:view"],
       component: MainSequenceJobsPage,
+    },
+    {
+      id: "streamlit",
+      title: "Streamlit",
+      navLabel: "Streamlit",
+      description: "Browse public Streamlit releases from the resource gallery.",
+      navigationSection: resourcesSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence.workspace:view"],
+      component: MainSequenceStreamlitPage,
     },
     {
       id: "clusters",
