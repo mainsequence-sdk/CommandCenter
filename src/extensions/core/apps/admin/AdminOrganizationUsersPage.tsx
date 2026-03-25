@@ -1,8 +1,9 @@
 import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Users } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, Plus, Users } from "lucide-react";
 
+import type { AppUser } from "@/auth/types";
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,75 @@ function formatAdminError(error: unknown) {
 }
 
 type OrganizationUserBulkAction = "delete" | "make-admins" | "remove-admins";
+type OrganizationUserSortKey =
+  | "email"
+  | "first_name"
+  | "last_name"
+  | "groups"
+  | "plan"
+  | "teams";
+type OrganizationUserSortDirection = "asc" | "desc";
+
+const organizationUsersSortCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
+function normalizeSortValue(value?: string) {
+  return value?.trim() ?? "";
+}
+
+function getOrganizationUserSortValue(user: AppUser, key: OrganizationUserSortKey) {
+  switch (key) {
+    case "email":
+      return normalizeSortValue(user.email);
+    case "first_name":
+      return normalizeSortValue(user.first_name);
+    case "last_name":
+      return normalizeSortValue(user.last_name);
+    case "groups":
+      return normalizeSortValue(user.groups?.join(", "));
+    case "plan":
+      return normalizeSortValue(user.plan);
+    case "teams":
+      return normalizeSortValue(user.organizationTeams?.map((team) => team.name).join(", "));
+  }
+}
+
+function compareOrganizationUsers(
+  left: AppUser,
+  right: AppUser,
+  key: OrganizationUserSortKey,
+  direction: OrganizationUserSortDirection,
+) {
+  const leftValue = getOrganizationUserSortValue(left, key);
+  const rightValue = getOrganizationUserSortValue(right, key);
+  const leftMissing = !leftValue;
+  const rightMissing = !rightValue;
+
+  if (leftMissing && rightMissing) {
+    return organizationUsersSortCollator.compare(left.email, right.email);
+  }
+
+  if (leftMissing) {
+    return 1;
+  }
+
+  if (rightMissing) {
+    return -1;
+  }
+
+  const comparison =
+    direction === "asc"
+      ? organizationUsersSortCollator.compare(leftValue, rightValue)
+      : organizationUsersSortCollator.compare(rightValue, leftValue);
+
+  if (comparison !== 0) {
+    return comparison;
+  }
+
+  return organizationUsersSortCollator.compare(left.email, right.email);
+}
 
 export function AdminOrganizationUsersPage() {
   const queryClient = useQueryClient();
@@ -57,6 +127,13 @@ export function AdminOrganizationUsersPage() {
   const [createEmail, setCreateEmail] = useState("");
   const [createFirstName, setCreateFirstName] = useState("");
   const [createLastName, setCreateLastName] = useState("");
+  const [sortState, setSortState] = useState<{
+    direction: OrganizationUserSortDirection;
+    key: OrganizationUserSortKey | null;
+  }>({
+    direction: "asc",
+    key: null,
+  });
   const [activeBulkAction, setActiveBulkAction] = useState<OrganizationUserBulkAction | null>(null);
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim();
@@ -104,9 +181,18 @@ export function AdminOrganizationUsersPage() {
   });
 
   const pageRows = usersQuery.data?.results ?? [];
+  const sortedPageRows = useMemo(() => {
+    if (!sortState.key) {
+      return pageRows;
+    }
+
+    return [...pageRows].sort((left, right) =>
+      compareOrganizationUsers(left, right, sortState.key!, sortState.direction),
+    );
+  }, [pageRows, sortState.direction, sortState.key]);
   const selectableRows = useMemo(
     () =>
-      pageRows.flatMap((user) => {
+      sortedPageRows.flatMap((user) => {
         const numericId = Number(user.id);
 
         if (!Number.isFinite(numericId) || numericId <= 0) {
@@ -120,7 +206,7 @@ export function AdminOrganizationUsersPage() {
           },
         ];
       }),
-    [pageRows],
+    [sortedPageRows],
   );
   const userSelection = useRegistrySelection(selectableRows);
   const selectedUsers = userSelection.selectedItems.map((item) => item.user);
@@ -199,6 +285,28 @@ export function AdminOrganizationUsersPage() {
     setCreateLastName("");
     createUserMutation.reset();
   });
+  const toggleSort = useEffectEvent((key: OrganizationUserSortKey) => {
+    setSortState((current) => {
+      if (current.key !== key) {
+        return {
+          key,
+          direction: "asc",
+        };
+      }
+
+      if (current.direction === "asc") {
+        return {
+          key,
+          direction: "desc",
+        };
+      }
+
+      return {
+        key: null,
+        direction: "asc",
+      };
+    });
+  });
 
   useEffect(() => {
     setPageIndex(0);
@@ -220,6 +328,29 @@ export function AdminOrganizationUsersPage() {
           </div>
         ))}
       </div>
+    );
+  }
+
+  function renderSortableHeader(label: string, key: OrganizationUserSortKey) {
+    const isActive = sortState.key === key;
+
+    return (
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+        onClick={() => toggleSort(key)}
+      >
+        <span>{label}</span>
+        {isActive ? (
+          sortState.direction === "asc" ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 opacity-70" />
+        )}
+      </button>
     );
   }
 
@@ -320,16 +451,82 @@ export function AdminOrganizationUsersPage() {
                         onChange={userSelection.toggleAll}
                       />
                     </th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Email</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">First name</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Last name</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Groups</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Plan</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Teams</th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "email"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Email", "email")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "first_name"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("First name", "first_name")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "last_name"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Last name", "last_name")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "groups"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Groups", "groups")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "plan"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Plan", "plan")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "teams"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Teams", "teams")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pageRows.map((user) => {
+                  {sortedPageRows.map((user) => {
                     const numericId = Number(user.id);
                     const selectable = Number.isFinite(numericId) && numericId > 0;
                     const selected = selectable ? userSelection.isSelected(numericId) : false;

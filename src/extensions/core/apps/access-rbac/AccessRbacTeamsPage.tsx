@@ -6,7 +6,7 @@ export function AccessRbacTeamsPage() {
   return (
     <AccessRbacSurfaceLayout
       title="Teams"
-      description="Manage organization teams, memberships, and team sharing as part of Access & RBAC."
+      description="Browse organization teams and open a dedicated detail view for policies and membership."
     >
       <TeamsPage embedded />
     </AccessRbacSurfaceLayout>

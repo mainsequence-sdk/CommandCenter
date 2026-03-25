@@ -1,10 +1,11 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
-import { ArrowLeft, ArrowRight, Users2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search, Users2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export type RbacEntityId = string | number;
@@ -137,15 +138,39 @@ function TransferListPane({
   label: string;
   onToggle: (key: string) => void;
 }) {
+  const [searchValue, setSearchValue] = useState("");
+  const filteredItems = useMemo(() => {
+    const normalizedQuery = searchValue.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return items;
+    }
+
+    return items.filter((item) =>
+      [item.title, item.subtitle, item.meta]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(normalizedQuery)),
+    );
+  }, [items, searchValue]);
+
   return (
     <div className="space-y-2">
       <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </div>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={searchValue}
+          onChange={(event) => setSearchValue(event.target.value)}
+          placeholder={`Search ${label.toLowerCase()}`}
+          className="pl-9"
+        />
+      </div>
       <div className="min-h-[220px] rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/45 p-2">
-        {items.length ? (
+        {filteredItems.length ? (
           <div className="space-y-1">
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const active = activeKeys.includes(item.key);
 
               return (
@@ -177,7 +202,7 @@ function TransferListPane({
           </div>
         ) : (
           <div className="flex min-h-[204px] items-center justify-center rounded-[calc(var(--radius)-8px)] border border-dashed border-border/60 px-4 text-center text-sm text-muted-foreground">
-            {emptyText}
+            {items.length ? `No ${label.toLowerCase()} matched this search.` : emptyText}
           </div>
         )}
       </div>

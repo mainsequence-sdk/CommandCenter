@@ -19,6 +19,7 @@ import { NotFoundPage } from "@/features/misc/NotFoundPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
 import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
 import { WidgetExplorerPage } from "@/features/widgets/WidgetExplorerPage";
+import { AccessRbacTeamDetailPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamDetailPage";
 import { MainSequenceAssetCategoryDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-categories/MainSequenceAssetCategoryDetailPage";
 import { MainSequenceAssetTranslationTableDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-translation-tables/MainSequenceAssetTranslationTableDetailPage";
 import { MainSequenceExecutionVenueDetailPage } from "../../extensions/main_sequence/extensions/markets/features/execution-venues/MainSequenceExecutionVenueDetailPage";
@@ -107,6 +108,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionRoute anyOf={["rbac:view"]}>
             <Navigate to="/app/access-rbac/teams" replace />
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: "access-rbac/teams/:teamId",
+        element: (
+          <PermissionRoute anyOf={["rbac:view"]}>
+            <AccessRbacTeamDetailPage />
           </PermissionRoute>
         ),
       },

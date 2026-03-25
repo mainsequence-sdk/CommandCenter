@@ -193,10 +193,12 @@ export function AccessRbacSurfaceLayout({
   title,
   description,
   children,
+  surfaceId,
 }: {
   title: string;
   description: string;
   children: ReactNode;
+  surfaceId?: string;
 }) {
   const navigate = useNavigate();
   const params = useParams();
@@ -206,7 +208,7 @@ export function AccessRbacSurfaceLayout({
   const app = getAppById("access-rbac");
   const surfaces = app ? getAccessibleSurfaces(app, permissions) : [];
   const groups = getSurfaceNavigationGroups(surfaces);
-  const currentSurfaceId = params.surfaceId ?? app?.defaultSurfaceId ?? "";
+  const currentSurfaceId = surfaceId ?? params.surfaceId ?? app?.defaultSurfaceId ?? "";
 
   return (
     <div className="h-full min-h-0 overflow-auto">
