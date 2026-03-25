@@ -24,13 +24,8 @@ function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
 }
 
-function getConfiguredBaseUrl() {
-  const configuredBaseUrl = commandCenterConfig.auth.baseUrl.trim();
-  return configuredBaseUrl || env.apiBaseUrl;
-}
-
 function buildEndpointUrl(path: string) {
-  const url = new URL(path, getConfiguredBaseUrl());
+  const url = new URL(path, env.apiBaseUrl);
 
   if (import.meta.env.DEV && isLoopbackHostname(url.hostname)) {
     return `${devAuthProxyPrefix}${url.pathname}${url.search}`;

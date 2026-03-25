@@ -46,11 +46,6 @@ export class NotificationsApiError extends Error {
   }
 }
 
-function getConfiguredBaseUrl() {
-  const configuredBaseUrl = commandCenterConfig.auth.baseUrl.trim();
-  return configuredBaseUrl || env.apiBaseUrl;
-}
-
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
 }
@@ -58,7 +53,7 @@ function isLoopbackHostname(hostname: string) {
 function buildEndpointUrl(
   path: string,
   search?: Record<string, QueryValue>,
-  baseUrl = getConfiguredBaseUrl(),
+  baseUrl = env.apiBaseUrl,
 ) {
   const url = new URL(path, baseUrl);
 

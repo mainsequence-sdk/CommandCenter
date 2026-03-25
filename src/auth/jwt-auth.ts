@@ -293,17 +293,12 @@ function decodeJwtClaims(token: string) {
   return claims;
 }
 
-function getConfiguredBaseUrl() {
-  const configuredBaseUrl = commandCenterConfig.auth.baseUrl.trim();
-  return configuredBaseUrl || env.apiBaseUrl;
-}
-
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
 }
 
 function resolveEndpointUrl(path: string) {
-  const resolvedUrl = new URL(path, getConfiguredBaseUrl());
+  const resolvedUrl = new URL(path, env.apiBaseUrl);
 
   if (import.meta.env.DEV && isLoopbackHostname(resolvedUrl.hostname)) {
     return `${devAuthProxyPrefix}${resolvedUrl.pathname}${resolvedUrl.search}`;

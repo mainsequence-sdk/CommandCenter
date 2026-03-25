@@ -23,7 +23,6 @@ workspaces:
   detail_url: /api/v1/command_center/workspaces/{id}/
 
 auth:
-  base_url: http://127.0.0.1:8000
   identifier_label: Email
   identifier_placeholder: admin@example.com
   jwt:

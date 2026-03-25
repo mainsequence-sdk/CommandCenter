@@ -55,7 +55,6 @@ workspaces:
   detail_url:
 
 auth:
-  base_url: http://127.0.0.1:8000
   identifier_label: Email
   identifier_placeholder: admin@example.com
   jwt:
@@ -132,7 +131,6 @@ notifications:
 - `preferences.favorites_delete_url`: optional authenticated `DELETE` endpoint for removing one favorite entry. The current backend contract uses `{kind}` and `{target_key}` path placeholders.
 - `workspaces.list_url`: optional authenticated list/create endpoint for workspace documents. When this and `workspaces.detail_url` are configured, Workspaces stops using browser-local storage.
 - `workspaces.detail_url`: optional authenticated detail/update/delete endpoint for one workspace document. The frontend supports `{id}` or `:id` placeholders and also falls back to appending the workspace id if the placeholder is omitted.
-- `auth.base_url`: base URL used to resolve relative JWT auth endpoints
 - `auth.identifier_label`: label shown on the login form for the primary credential field
 - `auth.identifier_placeholder`: placeholder shown on that field
 - `auth.jwt.token_url`: login endpoint that returns an access token
@@ -281,5 +279,5 @@ Notes:
 - `VITE_BYPASS_AUTH=true` bypasses backend auth locally and re-enables the mock role picker.
 - `VITE_INCLUDE_AUI=true` keeps the detachable `assistant-ui` chat integration mounted; set it to `false` to remove the runtime chat surface without uninstalling the dependency.
 - `VITE_INCLUDE_WORKSPACES=true` keeps the `Workspaces` app registered; set it to `false` to remove the `workspace-studio` app from the runtime registry and shell navigation.
-- Relative auth endpoint paths are resolved against `auth.base_url`. Absolute URLs are used as-is.
+- Relative backend endpoint paths are resolved against `VITE_API_BASE_URL`. Absolute URLs are used as-is.
 - If the configured asset is missing, the app falls back to the default bundled branding asset names.

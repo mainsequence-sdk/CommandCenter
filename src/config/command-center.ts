@@ -1,10 +1,8 @@
 import rawCommandCenterConfig from "../../config/command-center.yaml?raw";
-import { env } from "@/config/env";
 
 export const commandCenterConfigSource = rawCommandCenterConfig.trim();
 
 export interface CommandCenterAuthConfig {
-  baseUrl: string;
   identifierLabel: string;
   identifierPlaceholder: string;
   jwt: {
@@ -145,7 +143,6 @@ interface DefaultCommandCenterConfig {
     detail_url: string;
   };
   auth: {
-    base_url: string;
     identifier_label: string;
     identifier_placeholder: string;
     jwt: {
@@ -262,7 +259,6 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     detail_url: "",
   },
   auth: {
-    base_url: env.apiBaseUrl,
     identifier_label: "Email",
     identifier_placeholder: "admin@example.com",
     jwt: {
@@ -524,7 +520,6 @@ export const commandCenterConfig: CommandCenterConfig = {
     detailUrl: readString(parsedWorkspaces.detail_url, defaultRawConfig.workspaces.detail_url),
   },
   auth: {
-    baseUrl: readString(parsedAuth.base_url, defaultRawConfig.auth.base_url),
     identifierLabel: readString(
       parsedAuth.identifier_label,
       defaultRawConfig.auth.identifier_label,

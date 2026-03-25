@@ -264,9 +264,9 @@ function buildConfigurationGroups({
     },
     {
       title: "Auth Identity",
-      description: "High-level login configuration and the base URL used to resolve JWT routes.",
+      description: "High-level login configuration. Relative auth endpoints resolve against the runtime API base URL.",
       fields: [
-        { label: "Auth base URL", value: auth.baseUrl, monospace: true },
+        { label: "API base URL", value: env.apiBaseUrl, monospace: true },
         { label: "Identifier label", value: auth.identifierLabel },
         { label: "Identifier placeholder", value: auth.identifierPlaceholder },
       ],
@@ -554,10 +554,10 @@ export function SettingsDialog({
     user?.groups && user.groups.length > 0
       ? user.groups.join(", ")
       : t("common.unavailable");
-  const authTokenUrl = resolveSettingsUrl(auth.baseUrl, auth.jwt.tokenUrl);
-  const authRefreshUrl = resolveSettingsUrl(auth.baseUrl, auth.jwt.refreshUrl);
-  const authUserDetailsUrl = resolveSettingsUrl(auth.baseUrl, auth.jwt.userDetails.url);
-  const authGroupsUrl = resolveSettingsUrl(auth.baseUrl, auth.jwt.userDetails.groupsUrl);
+  const authTokenUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.tokenUrl);
+  const authRefreshUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.refreshUrl);
+  const authUserDetailsUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.userDetails.url);
+  const authGroupsUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.userDetails.groupsUrl);
   const authAdminGroupValue =
     auth.jwt.userDetails.roleGroups.admin || t("common.unavailable");
   const authUserGroupValue =
@@ -774,10 +774,10 @@ export function SettingsDialog({
                 }
               />
               <SettingsRow
-                label={t("settingsDialog.authBaseUrl")}
+                label={t("settingsDialog.api")}
                 value={
                   <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    {auth.baseUrl}
+                    {env.apiBaseUrl}
                   </span>
                 }
               />

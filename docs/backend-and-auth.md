@@ -87,7 +87,6 @@ JWT mode is configured in `config/command-center.yaml`:
 
 ```yaml
 auth:
-  base_url: http://127.0.0.1:8000
   identifier_label: Email
   identifier_placeholder: name@example.com
   jwt:

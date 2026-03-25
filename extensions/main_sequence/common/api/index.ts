@@ -2434,11 +2434,6 @@ export class MainSequenceApiError extends Error {
   }
 }
 
-function getConfiguredBaseUrl() {
-  const configuredBaseUrl = commandCenterConfig.auth.baseUrl.trim();
-  return configuredBaseUrl || env.apiBaseUrl;
-}
-
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
 }
@@ -2448,7 +2443,7 @@ function buildEndpointUrl(
   path = "",
   search?: Record<string, QueryValue>,
 ) {
-  const root = new URL(endpoint, getConfiguredBaseUrl());
+  const root = new URL(endpoint, env.apiBaseUrl);
   const requestUrl = new URL(path.replace(/^\/+/, ""), root);
 
   Object.entries(search ?? {}).forEach(([key, value]) => {
