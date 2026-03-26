@@ -61,6 +61,7 @@ import {
   widgetShellClassName,
   widgetShellHeaderClassName,
 } from "@/widgets/shared/chrome";
+import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
 import type { WidgetDefinition, WidgetHeaderActionsProps } from "@/widgets/types";
 import {
   appendCatalogWidget,
@@ -804,6 +805,7 @@ function BuilderWidgetCard({
 
       <section
         data-widget-shell="default"
+        data-widget-surface={floatingChromeWidget || transparentSurface ? "bare" : "card"}
         className={cn(
           "relative z-10 flex h-full min-h-0 flex-col transition-colors",
           floatingChromeWidget
@@ -1327,16 +1329,34 @@ export function CustomDashboardStudioPage() {
 
   const canvasWidgets = useMemo(
     () =>
-      resolvedDashboard?.widgets.filter(
-        (widget) => !resolveWidgetSidebarOnly(widget.presentation),
-      ) ?? [],
+      resolvedDashboard?.widgets
+        .map((instance) => {
+          const widget = getWidgetById(instance.widgetId);
+
+          return widget
+            ? {
+                ...instance,
+                presentation: resolveWidgetInstancePresentation(widget, instance.presentation),
+              }
+            : instance;
+        })
+        .filter((widget) => !resolveWidgetSidebarOnly(widget.presentation)) ?? [],
     [resolvedDashboard?.widgets],
   );
   const sidebarOnlyWidgets = useMemo(
     () =>
-      resolvedDashboard?.widgets.filter((widget) =>
-        resolveWidgetSidebarOnly(widget.presentation),
-      ) ?? [],
+      resolvedDashboard?.widgets
+        .map((instance) => {
+          const widget = getWidgetById(instance.widgetId);
+
+          return widget
+            ? {
+                ...instance,
+                presentation: resolveWidgetInstancePresentation(widget, instance.presentation),
+              }
+            : instance;
+        })
+        .filter((widget) => resolveWidgetSidebarOnly(widget.presentation)) ?? [],
     [resolvedDashboard?.widgets],
   );
 
@@ -2062,6 +2082,61 @@ export function CustomDashboardStudioPage() {
                 />
               );
             })}
+
+            {sidebarOnlyWidgets.map((instance) => {
+              const widget = getWidgetById(instance.widgetId);
+
+              if (!widget) {
+                return null;
+              }
+
+              const required = [
+                ...(widget.requiredPermissions ?? []),
+                ...(instance.requiredPermissions ?? []),
+              ];
+
+              if (!hasAllPermissions(permissions, required)) {
+                return null;
+              }
+
+              return (
+                <div
+                  key={instance.id}
+                  style={layoutToStyle(instance.layout)}
+                  className="relative isolate h-full overflow-visible"
+                  onPointerDownCapture={() => {
+                    if (editMode) {
+                      setSelectedInstanceId(instance.id);
+                    }
+                  }}
+                >
+                  <WidgetCanvasControls
+                    widget={widget}
+                    props={(instance.props ?? {}) as Record<string, unknown>}
+                    presentation={instance.presentation}
+                    runtimeState={instance.runtimeState}
+                    onPropsChange={(props) => {
+                      updateSelectedWorkspace((dashboard) =>
+                        updateDashboardWidgetSettings(dashboard, instance.id, {
+                          props,
+                        }),
+                      );
+                    }}
+                    onRuntimeStateChange={(state) => {
+                      handleWidgetRuntimeStateChange(instance.id, state);
+                    }}
+                    onPresentationChange={(presentation) => {
+                      updateSelectedWorkspace((dashboard) =>
+                        updateDashboardWidgetSettings(dashboard, instance.id, {
+                          presentation,
+                        }),
+                      );
+                    }}
+                    editable={editMode}
+                  />
+                </div>
+              );
+            })}
           </div>
 
           {hoveredPlacementBounds && catalogDragPayload && editMode ? (
@@ -2278,6 +2353,13 @@ export function CustomDashboardStudioPage() {
               "Changes apply to this workspace draft immediately. Save workspace when you want to persist them."
             }
             onClose={() => {
+              setSettingsInstanceId(null);
+            }}
+            onRemove={() => {
+              updateSelectedWorkspace((dashboard) =>
+                removeDashboardWidget(dashboard, settingsWidget.id),
+              );
+              setSelectedInstanceId((current) => (current === settingsWidget.id ? null : current));
               setSettingsInstanceId(null);
             }}
             onSave={({ title, props, presentation }) => {

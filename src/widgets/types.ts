@@ -144,6 +144,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   exampleProps?: TProps;
   mockProps?: TProps;
   mockRuntimeState?: Record<string, unknown>;
+  defaultPresentation?: WidgetInstancePresentation;
   bodyMode?: "default" | "none";
   schema?: WidgetSettingsSchema<TProps, unknown>;
   controller?: WidgetController<TProps, unknown>;

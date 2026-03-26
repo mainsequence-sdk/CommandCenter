@@ -60,8 +60,9 @@ export function normalizeWidgetPresentation(
 }
 
 export function resolveDefaultWidgetPresentation(
-  widget: Pick<WidgetDefinition, "schema">,
+  widget: Pick<WidgetDefinition, "schema" | "defaultPresentation">,
 ): WidgetInstancePresentation {
+  const basePresentation = normalizeWidgetPresentation(widget.defaultPresentation);
   const fields = widget.schema?.fields ?? [];
   const exposedFields = Object.fromEntries(
     fields.flatMap((field, index) => {
@@ -81,7 +82,35 @@ export function resolveDefaultWidgetPresentation(
     }),
   );
 
-  return Object.keys(exposedFields).length > 0 ? { exposedFields } : {};
+  const nextPresentation: WidgetInstancePresentation = {
+    ...basePresentation,
+    exposedFields:
+      Object.keys(exposedFields).length > 0
+        ? {
+            ...(basePresentation.exposedFields ?? {}),
+            ...exposedFields,
+          }
+        : basePresentation.exposedFields,
+  };
+
+  return normalizeWidgetPresentation(nextPresentation);
+}
+
+export function resolveWidgetInstancePresentation(
+  widget: Pick<WidgetDefinition, "schema" | "defaultPresentation">,
+  value?: WidgetInstancePresentation | null,
+): WidgetInstancePresentation {
+  const defaults = resolveDefaultWidgetPresentation(widget);
+  const current = normalizeWidgetPresentation(value);
+
+  return normalizeWidgetPresentation({
+    ...defaults,
+    ...current,
+    exposedFields: {
+      ...(defaults.exposedFields ?? {}),
+      ...(current.exposedFields ?? {}),
+    },
+  });
 }
 
 export function resolveWidgetFieldState(

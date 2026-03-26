@@ -46,6 +46,7 @@ export function WidgetFrame({
   return (
     <section
       data-widget-shell="default"
+      data-widget-surface={dividerPresentation || transparentSurface ? "bare" : "card"}
       style={style}
       className={cn(
         widgetShellClassName,

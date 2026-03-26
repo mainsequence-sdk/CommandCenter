@@ -22,8 +22,12 @@ import {
   WidgetFrame,
 } from "@/widgets/shared/widget-frame";
 import { WidgetCanvasControls } from "@/widgets/shared/widget-canvas-controls";
-import { resolveWidgetHeaderVisibility } from "@/widgets/shared/chrome";
+import {
+  resolveWidgetHeaderVisibility,
+  resolveWidgetSidebarOnly,
+} from "@/widgets/shared/chrome";
 import { WidgetSettingsDialog } from "@/widgets/shared/widget-settings";
+import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
 import type { WidgetInstancePresentation } from "@/widgets/types";
 import type { WidgetHeaderActionsProps } from "@/widgets/types";
 
@@ -87,9 +91,31 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
       ),
     [resolvedDashboard.widgets, widgetOverrides],
   );
+  const resolvedRenderedWidgets = useMemo(
+    () =>
+      renderedWidgets.map((instance) => {
+        const widget = getWidgetById(instance.widgetId);
+
+        return widget
+          ? {
+              ...instance,
+              presentation: resolveWidgetInstancePresentation(widget, instance.presentation),
+            }
+          : instance;
+      }),
+    [renderedWidgets],
+  );
+  const canvasWidgets = useMemo(
+    () => resolvedRenderedWidgets.filter((instance) => !resolveWidgetSidebarOnly(instance.presentation)),
+    [resolvedRenderedWidgets],
+  );
+  const sidebarOnlyWidgets = useMemo(
+    () => resolvedRenderedWidgets.filter((instance) => resolveWidgetSidebarOnly(instance.presentation)),
+    [resolvedRenderedWidgets],
+  );
   const settingsInstance = useMemo(
-    () => renderedWidgets.find((instance) => instance.id === settingsInstanceId) ?? null,
-    [renderedWidgets, settingsInstanceId],
+    () => resolvedRenderedWidgets.find((instance) => instance.id === settingsInstanceId) ?? null,
+    [resolvedRenderedWidgets, settingsInstanceId],
   );
   const settingsWidget = settingsInstance ? getWidgetById(settingsInstance.widgetId) : null;
 
@@ -101,11 +127,11 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
   useEffect(() => {
     if (
       settingsInstanceId &&
-      !renderedWidgets.some((instance) => instance.id === settingsInstanceId)
+      !resolvedRenderedWidgets.some((instance) => instance.id === settingsInstanceId)
     ) {
       setSettingsInstanceId(null);
     }
-  }, [renderedWidgets, settingsInstanceId]);
+  }, [resolvedRenderedWidgets, settingsInstanceId]);
 
   return (
     <DashboardControlsProvider key={dashboard.id} controls={dashboard.controls}>
@@ -114,6 +140,54 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
           <DashboardRefreshProgressLine />
           <div className="space-y-3">
             <DashboardDataControls controls={dashboard.controls} />
+            <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
+              {sidebarOnlyWidgets.map((instance) => {
+                const widget = getWidgetById(instance.widgetId);
+
+                if (!widget) {
+                  return null;
+                }
+
+                const required = [
+                  ...(widget.requiredPermissions ?? []),
+                  ...(instance.requiredPermissions ?? []),
+                ];
+
+                if (!hasAllPermissions(permissions, required)) {
+                  return null;
+                }
+
+                const Component = widget.component as ComponentType<{
+                  widget: typeof widget;
+                  instanceTitle?: string;
+                  props: Record<string, unknown>;
+                  presentation?: WidgetInstancePresentation;
+                  runtimeState?: Record<string, unknown>;
+                  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
+                }>;
+
+                return (
+                  <div key={instance.id} className="h-px w-px overflow-hidden">
+                    <Component
+                      widget={widget}
+                      instanceTitle={instance.title}
+                      props={instance.props ?? {}}
+                      presentation={instance.presentation}
+                      runtimeState={instance.runtimeState}
+                      onRuntimeStateChange={(state) => {
+                        setWidgetOverrides((current) => ({
+                          ...current,
+                          [instance.id]: {
+                            ...current[instance.id],
+                            runtimeState: state ?? null,
+                          },
+                        }));
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
             <div
               className="grid"
               style={{
@@ -122,7 +196,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                 gridTemplateColumns: `repeat(${resolvedDashboard.grid.columns}, minmax(0, 1fr))`,
               }}
             >
-              {renderedWidgets.map((instance) => {
+              {canvasWidgets.map((instance) => {
                 const widget = getWidgetById(instance.widgetId);
                 const style = layoutToStyle(instance.layout);
 
@@ -248,6 +322,65 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                         }}
                       />
                     </WidgetFrame>
+                  </div>
+                );
+              })}
+
+              {sidebarOnlyWidgets.map((instance) => {
+                const widget = getWidgetById(instance.widgetId);
+
+                if (!widget) {
+                  return null;
+                }
+
+                const required = [
+                  ...(widget.requiredPermissions ?? []),
+                  ...(instance.requiredPermissions ?? []),
+                ];
+
+                if (!hasAllPermissions(permissions, required)) {
+                  return null;
+                }
+
+                return (
+                  <div
+                    key={instance.id}
+                    style={layoutToStyle(instance.layout)}
+                    className="relative isolate h-full overflow-visible"
+                  >
+                    <WidgetCanvasControls
+                      widget={widget}
+                      props={(instance.props ?? {}) as Record<string, unknown>}
+                      presentation={instance.presentation}
+                      runtimeState={instance.runtimeState}
+                      onPropsChange={(props) => {
+                        setWidgetOverrides((current) => ({
+                          ...current,
+                          [instance.id]: {
+                            ...current[instance.id],
+                            props,
+                          },
+                        }));
+                      }}
+                      onRuntimeStateChange={(state) => {
+                        setWidgetOverrides((current) => ({
+                          ...current,
+                          [instance.id]: {
+                            ...current[instance.id],
+                            runtimeState: state ?? null,
+                          },
+                        }));
+                      }}
+                      onPresentationChange={(nextPresentation) => {
+                        setWidgetOverrides((current) => ({
+                          ...current,
+                          [instance.id]: {
+                            ...current[instance.id],
+                            presentation: nextPresentation,
+                          },
+                        }));
+                      }}
+                    />
                   </div>
                 );
               })}

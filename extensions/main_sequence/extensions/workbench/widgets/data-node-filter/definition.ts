@@ -30,6 +30,9 @@ export const mainSequenceDataNodeFilterWidget: WidgetDefinition<MainSequenceData
     dateRangeMode: "dashboard",
     showHeader: false,
   },
+  defaultPresentation: {
+    placementMode: "sidebar",
+  },
   railIcon: Database,
   railSummaryComponent: DataNodeRailSummary,
   schema: dataNodeFilterSettingsSchema,

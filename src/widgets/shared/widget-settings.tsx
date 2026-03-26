@@ -6,8 +6,7 @@ import {
   type ComponentType,
 } from "react";
 
-import { Settings2 } from "lucide-react";
-import { Copy } from "lucide-react";
+import { Copy, Settings2, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,8 +20,8 @@ import {
 } from "@/widgets/shared/chrome";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
 import {
-  normalizeWidgetPresentation,
   resolveDefaultWidgetPresentation,
+  resolveWidgetInstancePresentation,
   useResolvedWidgetControllerContext,
 } from "@/widgets/shared/widget-schema";
 import type {
@@ -119,6 +118,7 @@ interface WidgetSettingsDialogProps<
     presentation?: WidgetInstancePresentation;
   };
   onClose: () => void;
+  onRemove?: (() => void) | undefined;
   onSave?: (next: {
     title?: string;
     props: TProps;
@@ -135,6 +135,7 @@ export function WidgetSettingsDialog<
   editable = true,
   instance,
   onClose,
+  onRemove,
   onSave,
   open,
   persistenceNote,
@@ -146,8 +147,8 @@ export function WidgetSettingsDialog<
   );
   const initialTitle = instance.title ?? "";
   const initialPresentation = useMemo(
-    () => normalizeWidgetPresentation(instance.presentation),
-    [instance.presentation],
+    () => resolveWidgetInstancePresentation(widget, instance.presentation),
+    [instance.presentation, widget],
   );
   const [instanceTitle, setInstanceTitle] = useState(initialTitle);
   const [draftProps, setDraftProps] = useState<TProps>(initialProps);
@@ -254,6 +255,11 @@ export function WidgetSettingsDialog<
       props: parsed.props,
       presentation: draftPresentation,
     });
+    onClose();
+  }
+
+  function handleRemove() {
+    onRemove?.();
     onClose();
   }
 
@@ -447,13 +453,21 @@ export function WidgetSettingsDialog<
         </section>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
-          <Button
-            variant="ghost"
-            onClick={handleReset}
-            disabled={!editable}
-          >
-            Reset to defaults
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleReset}
+              disabled={!editable}
+            >
+              Reset to defaults
+            </Button>
+            {editable && onRemove ? (
+              <Button variant="danger" onClick={handleRemove}>
+                <Trash2 className="h-3.5 w-3.5" />
+                Remove widget
+              </Button>
+            ) : null}
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={onClose}>
               {editable ? "Cancel" : "Close"}

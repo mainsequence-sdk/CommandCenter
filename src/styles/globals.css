@@ -409,7 +409,10 @@ html[data-theme="cyberpunk"] [data-theme-chrome="sidebar"] {
     14px 0 40px -34px rgba(70, 207, 255, 0.28);
 }
 
-html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-shell="default"]) {
+html[data-theme="cyberpunk"] :is(
+  [data-card-variant="default"],
+  [data-widget-shell="default"][data-widget-surface="card"]
+) {
   position: relative;
   isolation: isolate;
   border: 1px solid transparent;
@@ -439,7 +442,10 @@ html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-she
     0 18px 34px -28px rgba(7, 5, 18, 0.64);
 }
 
-html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-shell="default"])::before {
+html[data-theme="cyberpunk"] :is(
+  [data-card-variant="default"],
+  [data-widget-shell="default"][data-widget-surface="card"]
+)::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -467,11 +473,14 @@ html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-she
   mask-composite: exclude;
 }
 
-html[data-theme="cyberpunk"] [data-widget-shell="default"] [data-widget-shell-header] {
+html[data-theme="cyberpunk"] [data-widget-shell="default"][data-widget-surface="card"] [data-widget-shell-header] {
   border-color: rgba(111, 95, 190, 0.32);
 }
 
-html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-shell="default"]):hover {
+html[data-theme="cyberpunk"] :is(
+  [data-card-variant="default"],
+  [data-widget-shell="default"][data-widget-surface="card"]
+):hover {
   background:
     linear-gradient(
         135deg,
@@ -498,7 +507,10 @@ html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-she
     0 18px 38px -28px rgba(7, 5, 18, 0.68);
 }
 
-html[data-theme="cyberpunk"] :is([data-card-variant="default"], [data-widget-shell="default"]):hover::before {
+html[data-theme="cyberpunk"] :is(
+  [data-card-variant="default"],
+  [data-widget-shell="default"][data-widget-surface="card"]
+):hover::before {
   background: linear-gradient(
     90deg,
     rgba(255, 88, 186, 0.98) 0%,

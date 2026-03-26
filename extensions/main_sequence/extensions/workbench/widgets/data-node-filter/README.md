@@ -46,6 +46,11 @@ charts and tables.
 - The same Data Node hover summary can also render from the workspace widget rail. That keeps the
   rail status/hover information aligned with the mounted Data Node token instead of duplicating a
   separate summary format.
+- A `Data Node` can now live as a sidebar-only widget while still exposing selected schema
+  companions on the canvas. Those canvas cards remain projections of the same Data Node instance;
+  they do not create a second data owner or a duplicate fetch path.
+- `Data Node` now sets sidebar placement through the shared widget `defaultPresentation` contract,
+  so it defaults into the workspace rail without requiring a widget-specific host rule.
 - New instances default to hidden header + minimal chrome, so the Data Node behaves like a compact
   source token rather than a full content card. In workspace edit mode, controls surface as floating
   actions in the same style as the row widget.

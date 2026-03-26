@@ -19,6 +19,7 @@ This directory contains reusable widget presentation primitives that are shared 
 
 - Settings are intentionally instance-scoped: the modal edits the current dashboard widget instance, not the underlying widget definition.
 - The settings modal is generic by default and can be extended per widget through `WidgetDefinition.schema`, `WidgetDefinition.controller`, and `WidgetDefinition.settingsComponent`.
+- The shared settings modal can also expose an optional remove action from the host surface. This is important for sidebar-only widgets, because they may not have an on-canvas card chrome with a delete button.
 - Schema-backed fields can optionally be exposed on the canvas through instance-level presentation state as companion cards outside the widget frame instead of being trapped inside the settings modal.
 - Schema sections render as a responsive two-column grid by default. Fields that omit
   `settingsColumnSpan` take the full section width, while fields that set `settingsColumnSpan: 1`
@@ -31,10 +32,13 @@ This directory contains reusable widget presentation primitives that are shared 
 - Widget instances can hide their header in normal viewing through the shared `showHeader` chrome setting, while workspace edit mode forces the header visible so drag/settings controls stay available.
 - Widget instances can also choose a shared `surfaceMode` in presentation state. `default` keeps the normal card shell, while `transparent` removes the card fill/shadow so the widget sits flatter on the workspace canvas.
 - Widget instances can also choose a shared `placementMode` in presentation state. `canvas` keeps the normal mounted card in the dashboard grid, while `sidebar` keeps the widget mounted for runtime/state publication but hides its card from the workspace canvas so it lives only in the workspace widget rail.
+- Canvas companion fields from `presentation.exposedFields` remain independent from card placement. A sidebar-only widget can still project selected schema fields onto the canvas as companion cards while the owning widget instance stays in the rail.
 - Widget definitions can optionally provide `railIcon` and `railSummaryComponent` so workspace-style surfaces can show meaningful per-widget icons and hover summaries in the shared widget rail without hardcoding widget-specific logic into the canvas host.
+- Widget definitions can also provide `defaultPresentation`. This is the shared way to make a widget start as `sidebar` or `canvas` by default, or to seed other presentation defaults, without hardcoding per-widget behavior in the dashboard hosts.
 - The shared widget frame does not inject default body padding. Widget authors own internal spacing inside the widget implementation.
 - Missing-widget placeholders explain that the current client does not recognize the stored widget id. Customizable surfaces may attach a direct delete action so stale legacy instances can be removed.
 - Themes should target widget containers through the shared widget-shell markers from `chrome.ts` instead of hardcoding selectors against individual widget implementations.
+- Theme-specific card treatments should respect the shared widget surface contract. In particular, shells marked as transparent or otherwise borderless should not receive theme-added inner borders or pseudo-element frames that only make sense for normal card surfaces.
 
 ## Maintenance notes
 

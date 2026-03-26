@@ -404,7 +404,10 @@ function looksLikeDashboardDefinition(value: unknown): value is DashboardDefinit
 }
 
 function buildWidgetInstance(
-  widget: Pick<WidgetDefinition, "defaultSize" | "exampleProps" | "id" | "schema" | "title">,
+  widget: Pick<
+    WidgetDefinition,
+    "defaultPresentation" | "defaultSize" | "exampleProps" | "id" | "schema" | "title"
+  >,
   position?: DashboardWidgetPlacement,
 ): DashboardWidgetInstance {
   return {
@@ -432,7 +435,10 @@ function getDashboardBottomY(dashboard: DashboardDefinition) {
 
 export function appendCatalogWidget(
   dashboard: DashboardDefinition,
-  widget: Pick<WidgetDefinition, "defaultSize" | "exampleProps" | "id" | "schema" | "title">,
+  widget: Pick<
+    WidgetDefinition,
+    "defaultPresentation" | "defaultSize" | "exampleProps" | "id" | "schema" | "title"
+  >,
 ) {
   const nextWidget = isWorkspaceRowWidgetId(widget.id)
     ? buildWidgetInstance(widget, {
@@ -449,7 +455,10 @@ export function appendCatalogWidget(
 
 export function placeCatalogWidget(
   dashboard: DashboardDefinition,
-  widget: Pick<WidgetDefinition, "defaultSize" | "exampleProps" | "id" | "schema" | "title">,
+  widget: Pick<
+    WidgetDefinition,
+    "defaultPresentation" | "defaultSize" | "exampleProps" | "id" | "schema" | "title"
+  >,
   position: DashboardWidgetPlacement,
 ) {
   return materializeDashboardLayout({
