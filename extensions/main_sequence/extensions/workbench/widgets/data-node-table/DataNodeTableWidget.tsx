@@ -365,23 +365,26 @@ export function DataNodeTableWidget({ props }: Props) {
     () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
     [sourceBinding.referencedFilterWidget?.runtimeState],
   );
+  const effectiveDataNodeId = Number(
+    linkedFilterRuntime?.dataNodeId ?? sourceBinding.resolvedSourceProps.dataNodeId ?? 0,
+  );
   const effectiveProps = useMemo(
     () => ({
       ...normalizedProps,
       ...sourceBinding.resolvedSourceProps,
+      dataNodeId: effectiveDataNodeId || undefined,
     }),
-    [normalizedProps, sourceBinding.resolvedSourceProps],
+    [effectiveDataNodeId, normalizedProps, sourceBinding.resolvedSourceProps],
   );
   const baseResolvedProps = useMemo(
     () => resolveDataNodeTableVisualizerProps(effectiveProps),
     [effectiveProps],
   );
-  const dataNodeId = Number(sourceBinding.resolvedSourceProps.dataNodeId ?? 0);
 
   const dataNodeDetailQuery = useQuery({
-    queryKey: ["main_sequence", "widgets", "data_node_table_visualizer", "detail", dataNodeId],
-    queryFn: () => fetchDataNodeDetail(dataNodeId),
-    enabled: Number.isFinite(dataNodeId) && dataNodeId > 0,
+    queryKey: ["main_sequence", "widgets", "data_node_table_visualizer", "detail", effectiveDataNodeId],
+    queryFn: () => fetchDataNodeDetail(effectiveDataNodeId),
+    enabled: Number.isFinite(effectiveDataNodeId) && effectiveDataNodeId > 0,
     staleTime: 300_000,
   });
 
@@ -397,6 +400,12 @@ export function DataNodeTableWidget({ props }: Props) {
   const hasSourceTableConfiguration = Boolean(
     dataNodeDetailQuery.data?.sourcetableconfiguration,
   );
+  const hasPublishedFrame =
+    (linkedFilterRuntime?.status === "ready" &&
+      ((linkedFilterRuntime.rows?.length ?? 0) > 0 ||
+        (linkedFilterRuntime.columns?.length ?? 0) > 0)) ||
+    false;
+  const sourceColumns = linkedFilterRuntime?.columns ?? [];
   const sourceRows = linkedFilterRuntime?.rows ?? [];
 
   const remoteFrame = useMemo(
@@ -404,8 +413,9 @@ export function DataNodeTableWidget({ props }: Props) {
       buildDataNodeTableVisualizerFrameFromRemoteData(
         dataNodeDetailQuery.data,
         sourceRows,
+        sourceColumns,
       ),
-    [dataNodeDetailQuery.data, sourceRows],
+    [dataNodeDetailQuery.data, sourceColumns, sourceRows],
   );
   const resolvedProps = useMemo(
     () => resolveDataNodeTableVisualizerPropsWithFrame(effectiveProps, remoteFrame),
@@ -517,7 +527,7 @@ export function DataNodeTableWidget({ props }: Props) {
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and point this table to a Data Node widget in the dashboard.
+            Open widget settings and point this table to a Data Node in the dashboard.
           </p>
         </div>
       </div>
@@ -540,11 +550,11 @@ export function DataNodeTableWidget({ props }: Props) {
     );
   }
 
-  if (dataNodeDetailQuery.isLoading && !dataNodeDetailQuery.data) {
+  if (dataNodeDetailQuery.isLoading && !dataNodeDetailQuery.data && !hasPublishedFrame) {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
 
-  if (dataNodeDetailQuery.isError) {
+  if (dataNodeDetailQuery.isError && !hasPublishedFrame) {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
         {formatMainSequenceError(dataNodeDetailQuery.error)}
@@ -552,7 +562,7 @@ export function DataNodeTableWidget({ props }: Props) {
     );
   }
 
-  if (!hasSourceTableConfiguration) {
+  if (!hasSourceTableConfiguration && !hasPublishedFrame) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">

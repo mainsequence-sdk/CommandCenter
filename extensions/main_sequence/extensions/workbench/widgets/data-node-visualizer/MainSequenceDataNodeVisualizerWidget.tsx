@@ -94,7 +94,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and point this graph to a Data Node widget in the dashboard.
+            Open widget settings and point this graph to a Data Node in the dashboard.
           </p>
         </div>
       </div>

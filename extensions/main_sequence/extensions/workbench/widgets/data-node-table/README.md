@@ -25,7 +25,8 @@ before the table sees the rows. The widget is intentionally configuration-heavy:
 - `DataNodeTableWidget.tsx`: runtime renderer that maps the resolved config into AG Grid Community.
 - `DataNodeTableWidgetSettings.tsx`: widget settings editor for linked-filter selection, columns,
   value labels, and numeric rules. Column schema and display formatting are edited together inside
-  each per-column card. The form uses the shared
+  each per-column card. The linked-source section is intentionally minimal: choose a `Data Node`
+  widget, then move directly into table formatting. The form uses the shared
   tight-density widget settings classes so large table configs stay compact.
 - `dataNodeTableModel.ts`: shared config model, live frame helpers, defaults, formatters, and helper
   functions used by both renderer and settings.
@@ -67,7 +68,17 @@ runtime rows into a common frame contract:
 - schema fallback inferred from column metadata and sampled rows
 
 The settings editor resolves against that live frame preview, so field formatting still happens in the
-same per-instance schema/override pipeline on top of the incoming Data Node-owned data.
+same per-instance schema/override pipeline on top of the incoming Data Node-owned data. When the linked
+Data Node changes, the table resets its source-derived schema state so stale columns from the previous
+source do not leak into the next frame.
+
+At runtime, a published linked `Data Node` frame takes precedence over raw source-table metadata.
+That keeps the table usable for transformed upstream datasets, including chained aggregate and pivot
+nodes whose output shape no longer matches the original source metadata.
+
+The table does not care how many `Data Node` hops exist upstream. It always consumes the selected
+Data Node's final published frame only. That keeps the consumer contract stable as the pipeline
+grows deeper.
 
 If the instance schema no longer matches the available row shape, the widget and settings both surface
 an explicit schema-mismatch error instead of silently rendering a broken grid.
@@ -142,6 +153,6 @@ to any non-text display column from settings; non-numeric cells are ignored at r
 - If the source adapters or formatter contract changes, update both
   `dataNodeTableModel.ts` and this README in the same change.
 - Keep this widget free of shipped mock datasets. Explorer/demo previews should tolerate the empty
-  "Select a Data Node widget" state instead of reintroducing fake row shapes here.
+  "Select a Data Node" state instead of reintroducing fake row shapes here.
 - The linked Data Node owns backend fetch shape and row limits. Keep this widget focused on formatting
   and local slicing of the incoming frame.

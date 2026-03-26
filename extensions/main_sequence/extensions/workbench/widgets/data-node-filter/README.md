@@ -38,6 +38,8 @@ charts and tables.
   columns.
 - The current transform order is: input dataset -> transform mode (`none`, `aggregate`, or
   `pivot`) -> projection -> published dataset.
+- In pivot mode, the runtime preserves generated pivot columns even if a stale projection would
+  otherwise collapse the output down to row-key fields only.
 - The mounted widget is intentionally minimal: it renders as a small source icon and exposes its
   dataset summary on hover, so it can act as a composable configuration block without consuming
   dashboard space.
@@ -50,3 +52,9 @@ charts and tables.
   `dynamic_table/{id}/get_data_between_dates_from_remote/`.
 - For upstream sources, the preview reads the upstream Data Node runtime dataset and shows the
   transformed output locally.
+- Chaining is intentionally one rule repeated at every hop: a Data Node reads the immediate upstream
+  Data Node's published `columns + rows + dataNodeId`, applies its own transform, and republishes a
+  new dataset. That means `Node A -> Node B -> Node C -> Table/Graph` uses the same contract as
+  `Node A -> Table/Graph`.
+- Consumers should never try to reconstruct earlier nodes in the chain. They should only consume the
+  final published dataset from the selected upstream Data Node.

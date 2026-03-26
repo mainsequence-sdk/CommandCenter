@@ -160,6 +160,7 @@ export function WidgetSettingsDialog<
   const showHeader = resolveWidgetHeaderVisibility(draftProps);
   const controllerContext = useResolvedWidgetControllerContext(widget, {
     props: draftProps,
+    instanceId: instance.id,
     mode: "settings",
   });
 
@@ -327,6 +328,7 @@ export function WidgetSettingsDialog<
         {SettingsComponent ? (
           <SettingsComponent
             widget={widget}
+            instanceId={instance.id}
             draftProps={draftProps}
             onDraftPropsChange={handleDraftPropsChange}
             draftPresentation={draftPresentation}

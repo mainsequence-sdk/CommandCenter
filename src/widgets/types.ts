@@ -41,6 +41,7 @@ export interface WidgetControllerArgs<
 > {
   props: TProps;
   runtimeState?: Record<string, unknown>;
+  instanceId?: string;
   mode: "settings" | "canvas" | "render" | "preview";
 }
 
@@ -172,6 +173,7 @@ export interface WidgetSettingsComponentProps<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
   widget: WidgetDefinition<TProps>;
+  instanceId: string;
   draftProps: TProps;
   onDraftPropsChange: (props: TProps) => void;
   draftPresentation: WidgetInstancePresentation;

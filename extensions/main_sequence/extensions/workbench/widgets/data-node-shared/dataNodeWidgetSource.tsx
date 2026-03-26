@@ -60,6 +60,7 @@ export type DataNodeWidgetLastObservation = Record<string, unknown> | null;
 export interface DataNodeWidgetSourceControllerContext<
   TResolvedConfig extends ResolvedDataNodeWidgetSourceConfig = ResolvedDataNodeWidgetSourceConfig,
 > {
+  currentWidgetInstanceId?: string;
   filterWidgetOptions: PickerOption[];
   fieldPickerOptions: PickerOption[];
   hasLoadedDataNodeDetail: boolean;
@@ -404,9 +405,14 @@ export function normalizeDataNodeWidgetSourceReferenceProps<
 
 function buildFilterWidgetOptions(
   widgets: DashboardWidgetRegistryEntry[],
+  currentWidgetInstanceId?: string,
 ): PickerOption[] {
   return widgets
-    .filter((widget) => widget.widgetId === mainSequenceDataNodeWidgetId)
+    .filter(
+      (widget) =>
+        widget.widgetId === mainSequenceDataNodeWidgetId &&
+        widget.id !== currentWidgetInstanceId,
+    )
     .map((widget) => {
       const widgetDefinition = getWidgetById(widget.widgetId);
       const widgetTitle = widget.title?.trim() || widgetDefinition?.title || "Data Node";
@@ -424,8 +430,10 @@ export function useResolvedDataNodeWidgetSourceBinding<
   TProps extends DataNodeWidgetSourceProps & Partial<DataNodeWidgetSourceReferenceProps>,
 >({
   props,
+  currentWidgetInstanceId,
 }: {
   props: TProps;
+  currentWidgetInstanceId?: string;
 }) {
   const widgetRegistry = useDashboardWidgetRegistry();
   const normalizedReference = useMemo(
@@ -433,19 +441,20 @@ export function useResolvedDataNodeWidgetSourceBinding<
     [props],
   );
   const filterWidgetOptions = useMemo(
-    () => buildFilterWidgetOptions(widgetRegistry),
-    [widgetRegistry],
+    () => buildFilterWidgetOptions(widgetRegistry, currentWidgetInstanceId),
+    [currentWidgetInstanceId, widgetRegistry],
   );
   const referencedFilterWidget = useMemo(
     () =>
       normalizedReference.sourceMode === "filter_widget" && normalizedReference.sourceWidgetId
         ? widgetRegistry.find(
             (widget) =>
+              widget.id !== currentWidgetInstanceId &&
               widget.id === normalizedReference.sourceWidgetId &&
               widget.widgetId === mainSequenceDataNodeWidgetId,
           ) ?? null
         : null,
-    [normalizedReference.sourceMode, normalizedReference.sourceWidgetId, widgetRegistry],
+    [currentWidgetInstanceId, normalizedReference.sourceMode, normalizedReference.sourceWidgetId, widgetRegistry],
   );
   const resolvedSourceProps = useMemo(
     () =>
@@ -526,14 +535,16 @@ export function useDataNodeWidgetSourceControllerContext<
   TResolvedConfig extends ResolvedDataNodeWidgetSourceConfig,
 >({
   props,
+  currentWidgetInstanceId,
   queryKeyScope,
   resolveConfig,
 }: {
   props: TProps;
+  currentWidgetInstanceId?: string;
   queryKeyScope: string;
   resolveConfig: (props: TProps, detail?: DataNodeDetail | null) => TResolvedConfig;
 }): DataNodeWidgetSourceControllerContext<TResolvedConfig> {
-  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({ props });
+  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({ props, currentWidgetInstanceId });
   const selectedDataNodeId = Number(sourceBinding.resolvedSourceProps.dataNodeId ?? 0);
   const selectedDataNodeDetailQuery = useQuery({
     queryKey: ["main_sequence", "widgets", queryKeyScope, "detail", selectedDataNodeId],
@@ -563,6 +574,7 @@ export function useDataNodeWidgetSourceControllerContext<
   );
 
   return {
+    currentWidgetInstanceId,
     filterWidgetOptions: sourceBinding.filterWidgetOptions,
     fieldPickerOptions,
     hasLoadedDataNodeDetail,
@@ -638,11 +650,11 @@ export function createDataNodeWidgetSourceSettingsSchema<
         options={context.filterWidgetOptions}
         placeholder={
           context.filterWidgetOptions.length > 0
-            ? "Select a Data Node widget"
-            : "No Data Node widgets are available"
+            ? "Select a Data Node"
+            : "No Data Nodes are available"
         }
         searchPlaceholder="Search data nodes"
-        emptyMessage="No Data Node widgets are available in this dashboard."
+        emptyMessage="No Data Nodes are available in this dashboard."
         disabled={!editable || context.filterWidgetOptions.length === 0}
       />
     );
@@ -670,8 +682,8 @@ export function createDataNodeWidgetSourceSettingsSchema<
           },
           {
             value: "filter_widget",
-            label: "Filter widget",
-            description: "Read source settings from a Data Node widget in this dashboard.",
+            label: "Data Node",
+            description: "Read source settings from another Data Node in this dashboard.",
           },
         ]}
         placeholder="Select a source mode"
@@ -915,15 +927,15 @@ export function createDataNodeWidgetSourceSettingsSchema<
           {
             id: "sourceMode",
             label: "Source mode",
-            description: "Choose whether this widget owns its own query source or follows a Data Node widget.",
+            description: "Choose whether this widget owns its own query source or follows another Data Node.",
             sectionId: "data-source",
             isVisible: () => !filterWidgetOnly,
             renderSettings: SourceModeField,
           } satisfies WidgetFieldDefinition<TProps, TContext>,
           {
             id: "sourceWidgetId",
-            label: "Filter widget",
-            description: "Reference a Data Node widget from this dashboard.",
+            label: "Data Node",
+            description: "Reference a Data Node from this dashboard.",
             sectionId: "data-source",
             isVisible: ({ context }) => filterWidgetOnly || context.sourceMode === "filter_widget",
             renderSettings: FilterWidgetPickerField,

@@ -2,6 +2,7 @@ import type { DataNodeDetail, DataNodeRemoteDataRow } from "../../../../common/a
 import {
   buildDataNodeFieldOptionsFromRows,
   resolveDataNodeDateRange,
+  type DataNodeFieldOption,
 } from "../data-node-shared/dataNodeShared";
 import {
   normalizeDataNodeWidgetSourceReferenceProps,
@@ -224,26 +225,32 @@ export function normalizeDataNodeFilterRuntimeState(
 export function resolveDataNodeFilterConfig(
   props: MainSequenceDataNodeFilterWidgetProps,
   detail?: DataNodeDetail | null,
+  fieldOptionsOverride?: DataNodeFieldOption[],
 ): ResolvedDataNodeFilterConfig {
   const sourceReference = normalizeDataNodeWidgetSourceReferenceProps(props);
   const sourceConfig = resolveDataNodeWidgetSourceConfig(props, detail);
+  const availableFields =
+    fieldOptionsOverride && fieldOptionsOverride.length > 0
+      ? fieldOptionsOverride
+      : sourceConfig.availableFields;
 
   return {
     ...sourceConfig,
+    availableFields,
     sourceMode: sourceReference.sourceMode,
     sourceWidgetId: sourceReference.sourceWidgetId,
     aggregateMode: normalizeGroupAggregateMode(props.aggregateMode),
     keyFields: normalizeGroupByFields(
       props.keyFields,
-      sourceConfig.availableFields.map((field) => field.key),
+      availableFields.map((field) => field.key),
     ),
     pivotField: normalizeOptionalFieldKey(
       props.pivotField,
-      sourceConfig.availableFields.map((field) => field.key),
+      availableFields.map((field) => field.key),
     ),
     pivotValueField: normalizeOptionalFieldKey(
       props.pivotValueField,
-      sourceConfig.availableFields.map((field) => field.key),
+      availableFields.map((field) => field.key),
     ),
     projectFields: normalizeGroupByFields(props.projectFields),
     transformMode:
@@ -313,6 +320,24 @@ function projectTransformedDataset(
       Object.fromEntries(projectedColumns.map((column) => [column, row[column] ?? null])),
     ),
   };
+}
+
+function shouldBypassPivotProjection(
+  config: Pick<ResolvedDataNodeFilterConfig, "keyFields" | "projectFields" | "transformMode">,
+  baseColumns: readonly string[],
+) {
+  if (config.transformMode !== "pivot" || !config.projectFields || config.projectFields.length === 0) {
+    return false;
+  }
+
+  const projectedColumns = config.projectFields.filter((column) => baseColumns.includes(column));
+
+  if (projectedColumns.length === 0) {
+    return false;
+  }
+
+  const rowKeyColumns = (config.keyFields ?? []).filter((column) => baseColumns.includes(column));
+  return projectedColumns.every((column) => rowKeyColumns.includes(column));
 }
 
 function getRepresentativeValue(
@@ -560,10 +585,13 @@ export function buildDataNodeTransformedDataset(
             columns: [...columns],
             rows: [...rows],
           };
+  const effectiveProjectFields = shouldBypassPivotProjection(config, baseDataset.columns)
+    ? undefined
+    : config.projectFields;
   const projectedDataset = projectTransformedDataset(
     baseDataset.rows,
     baseDataset.columns,
-    config.projectFields,
+    effectiveProjectFields,
   );
 
   return {

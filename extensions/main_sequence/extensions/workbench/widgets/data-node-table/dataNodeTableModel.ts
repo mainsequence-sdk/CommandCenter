@@ -280,14 +280,18 @@ function inferRemoteColumnFormatFromKey(
 export function buildDataNodeTableVisualizerFrameFromRemoteData(
   detail?: DataNodeDetail | null,
   remoteRows: readonly DataNodeRemoteDataRow[] = [],
+  runtimeColumns: readonly string[] = [],
 ): DataNodeTableVisualizerResolvedFrameInput {
   const fieldOptions = buildDataNodeFieldOptions(detail);
   const fieldOptionByKey = new Map(fieldOptions.map((field) => [field.key, field]));
   const rowKeys = uniqueStrings(remoteRows.flatMap((row) => Object.keys(row)));
-  const columns = uniqueStrings([
-    ...fieldOptions.map((field) => field.key),
-    ...rowKeys,
-  ]);
+  const normalizedRuntimeColumns = uniqueStrings(
+    runtimeColumns.map((column) => (typeof column === "string" ? column.trim() : "")),
+  );
+  const columns =
+    normalizedRuntimeColumns.length > 0 || rowKeys.length > 0
+      ? uniqueStrings([...normalizedRuntimeColumns, ...rowKeys])
+      : uniqueStrings(fieldOptions.map((field) => field.key));
   const rows = remoteRows.map((row) => columns.map((columnKey) => normalizeCellValue(row[columnKey])));
   const schemaFallback = columns.map<DataNodeTableVisualizerColumnSchema>((columnKey, index) => {
     const field = fieldOptionByKey.get(columnKey);
@@ -807,7 +811,27 @@ function resolveDataNodeTableVisualizerSchemaFromFrame(
       : createSchemaTemplateFromFrame(frameInput.columns, frameInput.rows);
 
   if (Array.isArray(props.schema)) {
-    return normalizeColumnSchemas(props.schema, schemaFallback);
+    const normalizedSchema = normalizeColumnSchemas(props.schema, []);
+
+    if (schemaFallback.length === 0) {
+      return normalizedSchema;
+    }
+
+    const normalizedSchemaByKey = new Map(
+      normalizedSchema.map((column) => [column.key, column] as const),
+    );
+
+    return cloneDataNodeTableVisualizerSchema(schemaFallback).map((column) => {
+      const savedColumn = normalizedSchemaByKey.get(column.key);
+
+      return savedColumn
+        ? {
+            ...column,
+            ...savedColumn,
+            key: column.key,
+          }
+        : column;
+    });
   }
 
   const normalizedOverrides = normalizeColumnOverrides(props.columnOverrides);

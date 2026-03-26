@@ -31,6 +31,11 @@ formatting, and widget-specific preview behavior should stay in the owning widge
 When multiple widgets point at the same resolved source and request the same row shape, keep their
 React Query keys aligned through the shared helpers here so identical remote row requests dedupe.
 
+For chained `Data Node` pipelines, keep the contract hop-local: source binding resolves the selected
+upstream widget, then downstream widgets consume that upstream widget's published runtime dataset.
+Do not add special cases for chain depth; the same `published dataset -> local transform/render`
+pattern should hold no matter how many Data Nodes are linked together.
+
 Shared source/date-range widgets should keep fixed-date editing compact. If the shared source schema
 adds more small controls in the future, prefer the same `settingsColumnSpan` contract instead of
 hardcoding one-off layout wrappers inside individual widget settings screens.

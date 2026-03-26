@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PickerField } from "../../../../common/components/PickerField";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import {
   fetchDataNodeDetail,
@@ -235,14 +234,18 @@ export function DataNodeTableWidgetSettings({
     () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
     [sourceBinding.referencedFilterWidget?.runtimeState],
   );
+  const effectiveDataNodeId = Number(
+    linkedFilterRuntime?.dataNodeId ?? sourceBinding.resolvedSourceProps.dataNodeId ?? 0,
+  );
   const effectiveDraftProps = useMemo(
     () => ({
       ...resolvedDraft,
       ...sourceBinding.resolvedSourceProps,
+      dataNodeId: effectiveDataNodeId || undefined,
     }),
-    [resolvedDraft, sourceBinding.resolvedSourceProps],
+    [effectiveDataNodeId, resolvedDraft, sourceBinding.resolvedSourceProps],
   );
-  const selectedDataNodeId = Number(sourceBinding.resolvedSourceProps.dataNodeId ?? 0);
+  const selectedDataNodeId = effectiveDataNodeId;
 
   const dataNodeDetailQuery = useQuery({
     queryKey: [
@@ -260,6 +263,8 @@ export function DataNodeTableWidgetSettings({
   const hasSourceTableConfiguration = Boolean(
     dataNodeDetailQuery.data?.sourcetableconfiguration,
   );
+  const hasResolvedSource = sourceBinding.hasResolvedFilterWidgetSource;
+  const frameColumnsSource = linkedFilterRuntime?.columns ?? [];
   const frameRowsSource = linkedFilterRuntime?.rows ?? [];
 
   const remoteFrameInput = useMemo(
@@ -267,8 +272,9 @@ export function DataNodeTableWidgetSettings({
       buildDataNodeTableVisualizerFrameFromRemoteData(
         dataNodeDetailQuery.data,
         frameRowsSource,
+        frameColumnsSource,
       ),
-    [dataNodeDetailQuery.data, frameRowsSource],
+    [dataNodeDetailQuery.data, frameColumnsSource, frameRowsSource],
   );
   const scopedDraft = useMemo(
     () => stripLegacyTableSourceFields(draftProps),
@@ -280,10 +286,11 @@ export function DataNodeTableWidgetSettings({
         {
           ...scopedDraft,
           ...sourceBinding.resolvedSourceProps,
+          dataNodeId: effectiveDataNodeId || undefined,
         },
         remoteFrameInput,
       ),
-    [remoteFrameInput, scopedDraft, sourceBinding.resolvedSourceProps],
+    [effectiveDataNodeId, remoteFrameInput, scopedDraft, sourceBinding.resolvedSourceProps],
   );
   const frameRows = buildDataNodeTableVisualizerRowObjects(
     resolvedScopedDraft.columns,
@@ -291,10 +298,12 @@ export function DataNodeTableWidgetSettings({
   );
   const schemaColumns = resolvedScopedDraft.schema;
   const resolvedColumns = resolveDataNodeTableVisualizerColumns(resolvedScopedDraft);
-  const textFormattedColumns = resolvedColumns.filter((column) => column.format === "text");
-  const numericFormattedColumns = resolvedColumns.filter((column) => column.format !== "text");
+  const displayedColumns = hasResolvedSource ? resolvedColumns : [];
+  const textFormattedColumns = displayedColumns.filter((column) => column.format === "text");
+  const numericFormattedColumns = displayedColumns.filter((column) => column.format !== "text");
   const schemaValidation = validateDataNodeTableVisualizerSchema(frameRows, resolvedColumns);
   const shouldShowSchemaValidation =
+    hasResolvedSource &&
     selectedDataNodeId > 0 &&
     (resolvedScopedDraft.columns.length > 0 || schemaColumns.length > 0) &&
     !schemaValidation.isValid;
@@ -305,6 +314,18 @@ export function DataNodeTableWidgetSettings({
 
   function commit(nextProps: DataNodeTableVisualizerProps) {
     onDraftPropsChange(stripLegacyTableSourceFields(nextProps));
+  }
+
+  function buildSourceSelectionProps(nextSourceWidgetId?: string) {
+    return stripLegacyTableSourceFields({
+      ...scopedDraft,
+      sourceMode: "filter_widget",
+      sourceWidgetId: nextSourceWidgetId,
+      schema: [],
+      columnOverrides: {},
+      valueLabels: [],
+      conditionalRules: [],
+    });
   }
 
   function updateColumnOverride(
@@ -485,58 +506,37 @@ export function DataNodeTableWidgetSettings({
         <div>
           <div className={titleClass}>Table options</div>
           <p className={descriptionClass}>
-            Point the table at a Data Node widget, then control how the incoming fields
+            Point the table at a Data Node, then control how the incoming fields
             should render.
           </p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
-            <label className={labelClass}>Filter widget</label>
+            <label className={labelClass}>Data Node</label>
             <PickerField
               value={resolvedDraft.sourceWidgetId ?? ""}
               onChange={(value) => {
-                commit({
-                  ...scopedDraft,
-                  sourceMode: "filter_widget",
-                  sourceWidgetId: value || undefined,
-                });
+                const nextSourceWidgetId = value || undefined;
+
+                if (resolvedDraft.sourceWidgetId === nextSourceWidgetId) {
+                  return;
+                }
+
+                onDraftPropsChange(buildSourceSelectionProps(nextSourceWidgetId));
               }}
               options={sourceBinding.filterWidgetOptions}
               placeholder={
                 sourceBinding.filterWidgetOptions.length > 0
-                  ? "Select a Data Node widget"
-                  : "No Data Node widgets are available"
+                  ? "Select a Data Node"
+                  : "No Data Nodes are available"
               }
               searchPlaceholder="Search data nodes"
-              emptyMessage="No Data Node widgets are available in this dashboard."
+              emptyMessage="No Data Nodes are available in this dashboard."
               disabled={!editable || sourceBinding.filterWidgetOptions.length === 0}
             />
             <p className={descriptionClass}>
-              The filter owns data-node selection, identifier filtering, and date range. This table only formats the incoming dataset.
-            </p>
-          </div>
-          <div className="md:col-span-2 rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/20 px-3 py-2 text-sm text-muted-foreground">
-            {sourceBinding.hasResolvedFilterWidgetSource
-              ? "This widget inherits its data node, identifier filter, and date range from the selected Data Node widget."
-              : "Select a Data Node widget to resolve the source preview."}
-          </div>
-
-          <div className={fieldClass}>
-            <label className={labelClass}>
-              Frame shape
-            </label>
-            {dataNodeDetailQuery.isLoading && selectedDataNodeId > 0 ? (
-              <Skeleton className="h-10 rounded-[calc(var(--radius)-6px)]" />
-            ) : (
-              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-3 py-2 text-sm text-muted-foreground">
-                {!selectedDataNodeId
-                  ? "Select a Data Node widget."
-                  : `${resolvedScopedDraft.columns.length} columns, ${resolvedScopedDraft.rows.length} preview rows`}
-              </div>
-            )}
-            <p className={descriptionClass}>
-              Field formatting below binds to the dataset owned by the linked Data Node.
+              The linked Data Node owns source selection and dataset shape. This table only formats the incoming rows.
             </p>
           </div>
 
@@ -549,7 +549,7 @@ export function DataNodeTableWidgetSettings({
 
             {resolvedDraft.sourceMode === "filter_widget" && !sourceBinding.hasResolvedFilterWidgetSource ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
-                Select a Data Node widget in this dashboard to resolve the table source.
+                Select a Data Node in this dashboard to resolve the table source.
               </div>
             ) : null}
 
@@ -683,9 +683,9 @@ export function DataNodeTableWidgetSettings({
             type="button"
             size="sm"
             variant="outline"
-            disabled={!editable || remoteFrameInput.schemaFallback.length === 0}
+            disabled={!editable || !hasResolvedSource || remoteFrameInput.schemaFallback.length === 0}
             onClick={() => {
-              if (remoteFrameInput.schemaFallback.length === 0) {
+              if (!hasResolvedSource || remoteFrameInput.schemaFallback.length === 0) {
                 return;
               }
 
@@ -703,11 +703,11 @@ export function DataNodeTableWidgetSettings({
         </div>
 
         <div className="space-y-3">
-          {resolvedColumns.length === 0 ? (
+          {displayedColumns.length === 0 ? (
             <p className={descriptionClass}>
-              No source fields are available yet. Select a Data Node widget or reset from the current live frame.
+              No source fields are available yet. Select a Data Node to load the current frame.
             </p>
-          ) : resolvedColumns.map((column, index) => {
+          ) : displayedColumns.map((column, index) => {
             const override = scopedDraft.columnOverrides?.[column.key] ?? {};
             return (
               <div

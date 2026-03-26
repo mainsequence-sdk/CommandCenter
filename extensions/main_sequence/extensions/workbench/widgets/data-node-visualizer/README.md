@@ -24,6 +24,8 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - The widget definition is reusable, but each chart instance now owns only chart mapping and display
   behavior such as axis selections, grouping, provider, chart type, normalization, and series
   styling.
+- Group visibility is also chart-local: the chart can include or exclude specific group values from
+  the incoming Data Node dataset without changing the upstream canonical rows.
 - Source selection, identifier filtering, date range, and reusable row transforms now belong to a
   sibling `Data Node` widget in the same dashboard.
 - Saved chart behavior also includes series normalization, an optional normalization anchor date, shared vs separate series axes, and per-series color overrides keyed by the resolved series id.
@@ -42,6 +44,8 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - Remote data is fetched by the `Data Node` from `dynamic_table/{id}/get_data_between_dates_from_remote/`.
 - The live chart only reads mapped `x/y/group` fields from the linked Data Node dataset instead of owning
   its own backend query.
+- Group include/exclude filtering happens after the chart resolves long-format rows from the linked
+  Data Node, so multiple charts can render different subsets from the same upstream dataset.
 - For a fixed node and time window, the settings preview fetches the available field set once and remaps chart axes, series normalization, and series colors locally so those changes do not trigger a new remote data request.
 - Each widget instance can either follow the current dashboard date or persist its own fixed `start/end` date.
 - The chart path is tolerant of Python-style datetime strings and can recover a usable X/Y pair from returned rows when metadata is incomplete.
@@ -59,6 +63,7 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - Table preview requests all available fields so the preview grid shows the full row shape, not only the mapped chart columns.
 - Fixed-date presets and inputs update the widget instance configuration directly.
 - The previewed series list also drives the per-series color editors, so overrides stay aligned with the current grouping output.
+- The preview summary also reports when chart-local group filters remove series before rendering.
 - In the mounted widget, the visualizer always stays on the chart so the table remains a settings-only inspection tool.
 - The mounted chart now sizes directly to the available widget body, so dashboard resizing should shrink the visualizer instead of cropping it behind hardcoded chart minimums.
 

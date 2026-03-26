@@ -22,6 +22,7 @@ export type DataNodeVisualizerChartType = "line" | "area" | "bar";
 export type DataNodeVisualizerViewMode = "chart" | "table";
 export type DataNodeVisualizerSeriesAxisMode = "shared" | "separate";
 export type DataNodeVisualizerDateRangeMode = ResolvedDataNodeWidgetSourceConfig["dateRangeMode"];
+export type DataNodeVisualizerGroupSelectionMode = "all" | "include" | "exclude";
 
 export interface DataNodeVisualizerSeriesOverride {
   color?: string;
@@ -34,6 +35,8 @@ export interface MainSequenceDataNodeVisualizerWidgetProps
     DataNodeWidgetSourceReferenceProps {
   chartType?: DataNodeVisualizerChartType;
   groupField?: string;
+  groupSelectionMode?: DataNodeVisualizerGroupSelectionMode;
+  selectedGroupValues?: string[];
   limit?: number;
   normalizeAtMs?: number;
   normalizeSeries?: boolean;
@@ -49,6 +52,8 @@ export type DataNodeVisualizerFieldOption = DataNodeFieldOption;
 export interface ResolvedDataNodeVisualizerConfig extends ResolvedDataNodeWidgetSourceConfig {
   chartType: DataNodeVisualizerChartType;
   groupField?: string;
+  groupSelectionMode: DataNodeVisualizerGroupSelectionMode;
+  selectedGroupValues?: string[];
   limit: number;
   normalizeAtMs?: number;
   normalizeSeries: boolean;
@@ -69,6 +74,8 @@ export interface DataNodeVisualizerSeries {
 
 export interface DataNodeVisualizerSeriesResult {
   droppedGroups: number;
+  filteredGroups: number;
+  totalGroups: number;
   series: DataNodeVisualizerSeries[];
 }
 
@@ -100,6 +107,22 @@ function normalizePositiveInteger(value: unknown) {
   }
 
   return Math.trunc(parsed);
+}
+
+function normalizeGroupSelectionMode(value: unknown): DataNodeVisualizerGroupSelectionMode {
+  return value === "include" || value === "exclude" ? value : "all";
+}
+
+function normalizeSelectedGroupValues(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = uniqueStrings(
+    value.map((entry) => (typeof entry === "string" ? entry.trim() : "")),
+  );
+
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function normalizeHexColor(value: unknown) {
@@ -180,6 +203,8 @@ export function resolveDataNodeVisualizerConfig(
   const xField = getValidFieldKey(props.xField, availableFields);
   const groupField = getValidFieldKey(props.groupField, availableFields);
   const yField = getValidFieldKey(props.yField, availableFields);
+  const groupSelectionMode = normalizeGroupSelectionMode(props.groupSelectionMode);
+  const selectedGroupValues = normalizeSelectedGroupValues(props.selectedGroupValues);
 
   return {
     ...sourceConfig,
@@ -190,6 +215,8 @@ export function resolveDataNodeVisualizerConfig(
     xField,
     yField,
     groupField,
+    groupSelectionMode,
+    selectedGroupValues,
     limit,
     normalizeSeries,
     normalizeAtMs,
@@ -216,6 +243,8 @@ export function normalizeDataNodeVisualizerProps(
     xField: resolved.xField,
     yField: resolved.yField,
     groupField: resolved.groupField,
+    groupSelectionMode: resolved.groupSelectionMode,
+    selectedGroupValues: resolved.selectedGroupValues,
     limit: resolved.limit,
     normalizeSeries: resolved.normalizeSeries,
     normalizeAtMs: resolved.normalizeAtMs,
@@ -420,17 +449,18 @@ export function buildDataNodeVisualizerSeries(
   rows: DataNodeRemoteDataRow[],
   config: Pick<
     ResolvedDataNodeVisualizerConfig,
-    "groupField" | "seriesOverrides" | "xField" | "yField"
+    "groupField" | "groupSelectionMode" | "selectedGroupValues" | "seriesOverrides" | "xField" | "yField"
   >,
   maxSeries = 8,
 ): DataNodeVisualizerSeriesResult {
   if (!config.xField || !config.yField) {
-    return { series: [], droppedGroups: 0 };
+    return { series: [], droppedGroups: 0, filteredGroups: 0, totalGroups: 0 };
   }
 
   const xField = config.xField;
   const yField = config.yField;
   const groupField = config.groupField;
+  const selectedGroups = new Set(config.selectedGroupValues ?? []);
   const groupedPoints = new Map<
     string,
     {
@@ -456,6 +486,25 @@ export function buildDataNodeVisualizerSeries(
     const groupKey = groupField
       ? String(row[groupField] ?? "__empty__")
       : yField;
+    const selectedGroupMatch = selectedGroups.has(groupKey);
+
+    if (
+      groupField &&
+      config.groupSelectionMode === "include" &&
+      selectedGroups.size > 0 &&
+      !selectedGroupMatch
+    ) {
+      return;
+    }
+
+    if (
+      groupField &&
+      config.groupSelectionMode === "exclude" &&
+      selectedGroups.size > 0 &&
+      selectedGroupMatch
+    ) {
+      return;
+    }
     const current =
       groupedPoints.get(groupKey) ??
       {
@@ -480,11 +529,46 @@ export function buildDataNodeVisualizerSeries(
       pointCount: series.pointMap.size,
     }))
     .sort((left, right) => right.pointCount - left.pointCount);
+  const totalGroups = groupField
+    ? uniqueStrings(rows.map((row) => String(row[groupField] ?? "__empty__"))).length
+    : sortedGroups.length;
+  const filteredGroups = Math.max(totalGroups - sortedGroups.length, 0);
 
   return {
     series: sortedGroups.slice(0, maxSeries),
     droppedGroups: Math.max(sortedGroups.length - maxSeries, 0),
+    filteredGroups,
+    totalGroups,
   };
+}
+
+export function buildDataNodeVisualizerGroupValueOptions(
+  rows: DataNodeRemoteDataRow[],
+  config: Pick<ResolvedDataNodeVisualizerConfig, "groupField">,
+) {
+  if (!config.groupField) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+
+  return rows.flatMap((row) => {
+    const rawValue = row[config.groupField!];
+    const value = String(rawValue ?? "__empty__");
+
+    if (seen.has(value)) {
+      return [];
+    }
+
+    seen.add(value);
+
+    return [{
+      value,
+      label: formatDataNodeVisualizerValue(rawValue),
+      description: value === "__empty__" ? "Empty value" : undefined,
+      keywords: [value, formatDataNodeVisualizerValue(rawValue)],
+    }];
+  });
 }
 
 export function buildDataNodeVisualizerTableColumns(

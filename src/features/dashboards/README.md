@@ -36,7 +36,7 @@ These flows are all part of one app surface, with instance state selected throug
 - Backend workspace ids may be numeric; the frontend normalizes them to strings before storing them in the dashboard model and route params.
 - In backend mode, workspace creation waits for the backend response and adopts the backend-assigned id instead of persisting a client-generated id.
 - The workspace index page renders from the backend-backed saved collection in backend mode, even if the editor currently has unsaved draft changes.
-- In backend mode, the editor autosaves changes to the backend and does not show save/reset draft controls.
+- In backend mode, the editor keeps a local draft and only persists changes when the user explicitly saves.
 - In backend mode, delete reloads the workspace collection from the backend after success instead of computing the next list locally.
 - Favorites can target both app surfaces and individual workspace instances.
 - Workspace labels are edited in settings as enter-to-add pills instead of a comma-separated text field.

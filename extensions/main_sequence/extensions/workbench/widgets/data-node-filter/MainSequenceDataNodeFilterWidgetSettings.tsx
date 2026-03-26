@@ -141,6 +141,14 @@ function normalizeStringArray(value: unknown) {
   );
 }
 
+function normalizeDraftTransformMode(value: unknown): DataNodeTransformMode {
+  return value === "aggregate" || value === "pivot" ? value : "none";
+}
+
+function normalizeDraftFieldValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 function renderFieldChips({
   values,
   onRemove,
@@ -292,6 +300,9 @@ export function MainSequenceDataNodeFilterWidgetSettings({
   const previewSourceRows = context?.isFilterWidgetSource
     ? (linkedNodeRuntime?.rows ?? [])
     : (previewQuery.data ?? []);
+  const draftTransformMode = normalizeDraftTransformMode(draftProps.transformMode);
+  const draftPivotField = normalizeDraftFieldValue(draftProps.pivotField);
+  const draftPivotValueField = normalizeDraftFieldValue(draftProps.pivotValueField);
   const sourceFieldOptions = useMemo<PickerOption[]>(
     () => {
       const runtimeOptions = buildDataNodeFieldOptionsFromRows({
@@ -310,49 +321,70 @@ export function MainSequenceDataNodeFilterWidgetSettings({
     },
     [previewSourceRows, resolvedConfig],
   );
-  const baseTransformedPreview = useMemo(
+  const selectedProjectFields = normalizeStringArray(draftProps.projectFields);
+  const selectedKeyFields = normalizeStringArray(draftProps.keyFields);
+  const draftPreviewConfig = useMemo(
     () =>
       resolvedConfig
+        ? {
+            ...resolvedConfig,
+            transformMode: draftTransformMode,
+            keyFields: selectedKeyFields.length > 0 ? selectedKeyFields : undefined,
+            pivotField: draftPivotField,
+            pivotValueField: draftPivotValueField,
+            projectFields: selectedProjectFields.length > 0 ? selectedProjectFields : undefined,
+          }
+        : null,
+    [
+      draftPivotField,
+      draftPivotValueField,
+      draftTransformMode,
+      resolvedConfig,
+      selectedKeyFields,
+      selectedProjectFields,
+    ],
+  );
+  const baseTransformedPreview = useMemo(
+    () =>
+      draftPreviewConfig
         ? buildDataNodeTransformedDataset(
             previewSourceRows,
             {
-              ...resolvedConfig,
+              ...draftPreviewConfig,
               projectFields: undefined,
             },
             uniqueStrings([
-              ...resolvedConfig.availableFields.map((field) => field.key),
+              ...draftPreviewConfig.availableFields.map((field) => field.key),
               ...previewSourceRows.flatMap((row) => Object.keys(row)),
             ]),
           )
         : { columns: [], rows: [] },
-    [previewSourceRows, resolvedConfig],
+    [draftPreviewConfig, previewSourceRows],
   );
   const transformedPreview = useMemo(
     () =>
-      resolvedConfig
+      draftPreviewConfig
         ? buildDataNodeTransformedDataset(
             previewSourceRows,
-            resolvedConfig,
+            draftPreviewConfig,
             uniqueStrings([
-              ...resolvedConfig.availableFields.map((field) => field.key),
+              ...draftPreviewConfig.availableFields.map((field) => field.key),
               ...previewSourceRows.flatMap((row) => Object.keys(row)),
             ]),
           )
         : { columns: [], rows: [] },
-    [previewSourceRows, resolvedConfig],
+    [draftPreviewConfig, previewSourceRows],
   );
   const previewColumns = useMemo(
     () => transformedPreview.columns,
     [transformedPreview.columns],
   );
-  const selectedProjectFields = normalizeStringArray(draftProps.projectFields);
-  const selectedKeyFields = normalizeStringArray(draftProps.keyFields);
   const previewRangeSummary =
     previewRange.rangeStartMs && previewRange.rangeEndMs
       ? formatRangeSummary(previewRange.rangeStartMs, previewRange.rangeEndMs)
       : "Select a valid date range to preview";
 
-  if (!resolvedConfig) {
+  if (!resolvedConfig || !draftPreviewConfig) {
     return null;
   }
 
@@ -365,8 +397,8 @@ export function MainSequenceDataNodeFilterWidgetSettings({
   const availableKeyFieldOptions = sourceFieldOptions.filter(
     (option) =>
       !selectedKeyFields.includes(option.value) &&
-      option.value !== resolvedConfig.pivotField &&
-      option.value !== resolvedConfig.pivotValueField,
+      option.value !== draftPivotField &&
+      option.value !== draftPivotValueField,
   );
 
   return (
@@ -408,7 +440,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
               Transform mode
             </label>
             <PickerField
-              value={resolvedConfig.transformMode}
+              value={draftTransformMode}
               onChange={(value) => {
                 const nextMode = (value as DataNodeTransformMode) || "none";
 
@@ -419,6 +451,8 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                   pivotField: nextMode === "pivot" ? draftProps.pivotField : undefined,
                   pivotValueField:
                     nextMode === "pivot" ? draftProps.pivotValueField : undefined,
+                  projectFields:
+                    nextMode === draftTransformMode ? draftProps.projectFields : undefined,
                 });
               }}
               options={transformModeOptions}
@@ -430,10 +464,10 @@ export function MainSequenceDataNodeFilterWidgetSettings({
             </p>
           </div>
 
-          {resolvedConfig.transformMode !== "none" ? (
+          {draftTransformMode !== "none" ? (
             <div className="space-y-2 md:col-span-2">
               <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                {resolvedConfig.transformMode === "pivot" ? "Row key fields" : "Key fields"}
+                {draftTransformMode === "pivot" ? "Row key fields" : "Key fields"}
               </label>
               {renderFieldChips({
                 values: selectedKeyFields,
@@ -448,7 +482,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
               })}
               {selectedKeyFields.length === 0 ? (
                 <div className="text-sm text-muted-foreground">
-                  {resolvedConfig.transformMode === "pivot"
+                  {draftTransformMode === "pivot"
                     ? "No row key fields. The pivot will collapse into a single row."
                     : "No key fields selected yet."}
                 </div>
@@ -494,7 +528,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
             </div>
           ) : null}
 
-          {resolvedConfig.transformMode !== "none" ? (
+          {draftTransformMode !== "none" ? (
             <div className="space-y-2">
               <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Aggregate mode
@@ -517,18 +551,20 @@ export function MainSequenceDataNodeFilterWidgetSettings({
             </div>
           ) : null}
 
-          {resolvedConfig.transformMode === "pivot" ? (
+          {draftTransformMode === "pivot" ? (
             <>
               <div className="space-y-2">
                 <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   Pivot field
                 </label>
                 <PickerField
-                  value={resolvedConfig.pivotField ?? ""}
+                  value={draftPivotField ?? ""}
                   onChange={(value) => {
                     onDraftPropsChange({
                       ...draftProps,
                       pivotField: value || undefined,
+                      projectFields:
+                        value === (draftPivotField ?? "") ? draftProps.projectFields : undefined,
                     });
                   }}
                   options={sourceFieldOptions}
@@ -547,15 +583,17 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                   Pivot value field
                 </label>
                 <PickerField
-                  value={resolvedConfig.pivotValueField ?? ""}
+                  value={draftPivotValueField ?? ""}
                   onChange={(value) => {
                     onDraftPropsChange({
                       ...draftProps,
                       pivotValueField: value || undefined,
+                      projectFields:
+                        value === (draftPivotValueField ?? "") ? draftProps.projectFields : undefined,
                     });
                   }}
                   options={sourceFieldOptions.filter(
-                    (option) => option.value !== resolvedConfig.pivotField,
+                    (option) => option.value !== draftPivotField,
                   )}
                   placeholder="Select value field"
                   searchPlaceholder="Search value fields"
@@ -642,7 +680,19 @@ export function MainSequenceDataNodeFilterWidgetSettings({
           <div className="space-y-4">
             {context?.isFilterWidgetSource && !context.hasResolvedFilterWidgetSource ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-                Select an upstream Data Node widget to enable the transformed preview.
+                Select an upstream Data Node to enable the transformed preview.
+              </div>
+            ) : null}
+            {context?.isFilterWidgetSource &&
+            context.hasResolvedFilterWidgetSource &&
+            linkedNodeRuntime?.status === "idle" ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
+                The upstream Data Node has not published a dataset yet.
+              </div>
+            ) : null}
+            {draftTransformMode === "pivot" && (!draftPivotField || !draftPivotValueField) ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                Pivot mode is selected. Choose both a pivot field and a pivot value field to reshape the dataset.
               </div>
             ) : null}
             {hasNoData ? (
@@ -702,25 +752,25 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                   <>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span>{transformedPreview.rows.length.toLocaleString()} preview rows</span>
-                      {resolvedConfig.transformMode === "aggregate" &&
-                      resolvedConfig.keyFields &&
-                      resolvedConfig.keyFields.length > 0 ? (
+                      {draftPreviewConfig.transformMode === "aggregate" &&
+                      draftPreviewConfig.keyFields &&
+                      draftPreviewConfig.keyFields.length > 0 ? (
                         <span>
-                          aggregated by {resolvedConfig.keyFields.join(", ")} using{" "}
-                          {resolvedConfig.aggregateMode}
+                          aggregated by {draftPreviewConfig.keyFields.join(", ")} using{" "}
+                          {draftPreviewConfig.aggregateMode}
                         </span>
                       ) : null}
-                      {resolvedConfig.transformMode === "pivot" &&
-                      resolvedConfig.pivotField &&
-                      resolvedConfig.pivotValueField ? (
+                      {draftPreviewConfig.transformMode === "pivot" &&
+                      draftPreviewConfig.pivotField &&
+                      draftPreviewConfig.pivotValueField ? (
                         <span>
-                          pivoted {resolvedConfig.pivotField} into columns from{" "}
-                          {resolvedConfig.pivotValueField}
+                          pivoted {draftPreviewConfig.pivotField} into columns from{" "}
+                          {draftPreviewConfig.pivotValueField}
                         </span>
                       ) : null}
-                      {resolvedConfig.projectFields && resolvedConfig.projectFields.length > 0 ? (
+                      {draftPreviewConfig.projectFields && draftPreviewConfig.projectFields.length > 0 ? (
                         <span>
-                          projecting {resolvedConfig.projectFields.length.toLocaleString()} columns
+                          projecting {draftPreviewConfig.projectFields.length.toLocaleString()} columns
                         </span>
                       ) : null}
                     </div>

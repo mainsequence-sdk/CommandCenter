@@ -174,7 +174,10 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
   const previewIsLoading = linkedFilterRuntime?.status === "loading" || linkedFilterRuntime == null;
 
   const previewSeriesResult = useMemo(
-    () => (resolvedConfig ? buildDataNodeVisualizerSeries(previewRows, resolvedConfig) : { series: [], droppedGroups: 0 }),
+    () =>
+      resolvedConfig
+        ? buildDataNodeVisualizerSeries(previewRows, resolvedConfig)
+        : { series: [], droppedGroups: 0, filteredGroups: 0, totalGroups: 0 },
     [previewRows, resolvedConfig],
   );
   const previewTableColumns = useMemo(
@@ -260,7 +263,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
       >
         {context?.isFilterWidgetSource && !context.hasResolvedFilterWidgetSource ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Select a Data Node widget in the data source section to enable the preview.
+            Select a Data Node in the data source section to enable the preview.
           </div>
         ) : resolvedConfig.dataNodeId ? (
           <div className="space-y-4">
@@ -332,6 +335,11 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                   <>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span>{previewRows.length.toLocaleString()} preview rows</span>
+                      {activePreviewMode === "chart" && previewSeriesResult.filteredGroups > 0 ? (
+                        <span>
+                          filtered out {previewSeriesResult.filteredGroups.toLocaleString()} groups
+                        </span>
+                      ) : null}
                       {activePreviewMode === "chart" && previewSeriesResult.droppedGroups > 0 ? (
                         <span>
                           showing top {previewSeriesResult.series.length.toLocaleString()} groups, hiding{" "}
@@ -365,7 +373,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
           </div>
         ) : (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Select a Data Node widget to enable the preview controls.
+            Select a Data Node to enable the preview controls.
           </div>
         )}
       </SettingsSection>

@@ -262,7 +262,7 @@ export function CustomWorkspaceSettingsPage() {
               <Badge variant="neutral">Loading</Badge>
             ) : isSaving ? (
               <Badge variant="neutral">Saving</Badge>
-            ) : !backendMode && dirty ? (
+            ) : dirty ? (
               <Badge variant="warning">Unsaved</Badge>
             ) : (
               <Badge variant="success">Saved</Badge>
@@ -280,18 +280,14 @@ export function CustomWorkspaceSettingsPage() {
               <LayoutTemplate className="h-4 w-4" />
               New workspace
             </Button>
-            {!backendMode ? (
-              <>
-                <Button variant="outline" onClick={resetWorkspaceDraft} disabled={!dirty}>
-                  <RotateCcw className="h-4 w-4" />
-                  Reset
-                </Button>
-                <Button onClick={saveWorkspaceDraft} disabled={!dirty || isSaving || isHydrating}>
-                  <Save className="h-4 w-4" />
-                  Save
-                </Button>
-              </>
-            ) : null}
+            <Button variant="outline" onClick={resetWorkspaceDraft} disabled={!dirty}>
+              <RotateCcw className="h-4 w-4" />
+              Reset
+            </Button>
+            <Button onClick={saveWorkspaceDraft} disabled={!dirty || isSaving || isHydrating}>
+              <Save className="h-4 w-4" />
+              Save
+            </Button>
           </div>
         </div>
 

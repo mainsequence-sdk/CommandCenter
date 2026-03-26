@@ -4,6 +4,7 @@ import type { WidgetController } from "@/widgets/types";
 
 import { type PickerOption } from "../../../../common/components/PickerField";
 import {
+  buildDataNodeVisualizerGroupValueOptions,
   buildDataNodeVisualizerFieldOptionsFromRuntime,
   normalizeDataNodeVisualizerProps,
   resolveDataNodeVisualizerConfig,
@@ -17,6 +18,7 @@ import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNod
 
 export interface DataNodeVisualizerControllerContext
   extends DataNodeWidgetSourceControllerContext<ReturnType<typeof resolveDataNodeVisualizerConfig>> {
+  groupValueOptions: PickerOption[];
   xAxisOptions: PickerOption[];
   yAxisOptions: PickerOption[];
   groupOptions: PickerOption[];
@@ -47,8 +49,10 @@ function toPickerOption(option: {
 
 export function useDataNodeVisualizerControllerContext({
   props,
+  instanceId,
 }: {
   props: MainSequenceDataNodeVisualizerWidgetProps;
+  instanceId?: string;
 }): DataNodeVisualizerControllerContext {
   const normalizedProps = useMemo(
     () => normalizeDataNodeVisualizerProps(props),
@@ -56,6 +60,7 @@ export function useDataNodeVisualizerControllerContext({
   );
   const sourceContext = useDataNodeWidgetSourceControllerContext({
     props: normalizedProps,
+    currentWidgetInstanceId: instanceId,
     queryKeyScope: "data_node_visualizer",
     resolveConfig: resolveDataNodeVisualizerConfig,
   });
@@ -87,6 +92,10 @@ export function useDataNodeVisualizerControllerContext({
   const fieldPickerOptions = useMemo<PickerOption[]>(
     () => resolvedConfig.availableFields.map(toPickerOption),
     [resolvedConfig.availableFields],
+  );
+  const groupValueOptions = useMemo<PickerOption[]>(
+    () => buildDataNodeVisualizerGroupValueOptions(linkedFilterRuntime?.rows ?? [], resolvedConfig),
+    [linkedFilterRuntime?.rows, resolvedConfig],
   );
   const xAxisOptions = useMemo<PickerOption[]>(
     () => [
@@ -126,6 +135,7 @@ export function useDataNodeVisualizerControllerContext({
     ...sourceContext,
     fieldPickerOptions,
     resolvedConfig,
+    groupValueOptions,
     xAxisOptions,
     yAxisOptions,
     groupOptions,
@@ -137,5 +147,6 @@ export const dataNodeVisualizerWidgetController: WidgetController<
   DataNodeVisualizerControllerContext
 > = {
   normalizeProps: (props) => normalizeDataNodeVisualizerProps(props),
-  useContext: ({ props }) => useDataNodeVisualizerControllerContext({ props }),
+  useContext: ({ props, instanceId }) =>
+    useDataNodeVisualizerControllerContext({ props, instanceId }),
 };

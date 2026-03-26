@@ -9,6 +9,6 @@ export const dataNodeFilterSettingsSchema = createDataNodeWidgetSourceSettingsSc
   enableFilterWidgetSource: true,
   dataNodeCanvasQueryScope: "data_node_filter_canvas",
   dataSourceSectionDescription:
-    "Pick a direct data node or another Data Node widget to use as the input dataset.",
+    "Pick a direct data node or another Data Node to use as the input dataset.",
   selectionHelpText: "Choose the table you want to inspect.",
 });

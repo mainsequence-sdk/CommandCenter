@@ -1498,7 +1498,7 @@ export function CustomDashboardStudioPage() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </WorkspaceToolbarButton>
-                    {editMode && !backendMode ? (
+                    {editMode ? (
                       <WorkspaceToolbarButton
                         active={dirty}
                         title="Save workspace"
@@ -1918,9 +1918,7 @@ export function CustomDashboardStudioPage() {
             widget={settingsWidgetDefinition}
             instance={settingsWidget}
             persistenceNote={
-              backendMode
-                ? "Changes sync to the backend automatically."
-                : "Changes apply to this workspace immediately. Save workspace if you want to persist them."
+              "Changes apply to this workspace draft immediately. Save workspace when you want to persist them."
             }
             onClose={() => {
               setSettingsInstanceId(null);

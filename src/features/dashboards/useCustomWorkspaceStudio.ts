@@ -69,22 +69,6 @@ export function useCustomWorkspaceStudio() {
     () => (persistenceMode === "backend" ? savedCollection : draftCollection),
     [draftCollection, persistenceMode, savedCollection],
   );
-  const backendMode = persistenceMode === "backend";
-
-  useEffect(() => {
-    if (!backendMode || !dirty || isSaving || isHydrating) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      void saveDraftCollection();
-    }, 400);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [backendMode, dirty, isHydrating, isSaving, saveDraftCollection]);
-
   function setSelectedWorkspaceId(workspaceId: string | null) {
     const nextParams = new URLSearchParams(searchParams);
 

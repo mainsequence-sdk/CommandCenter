@@ -12,7 +12,7 @@ import {
   formatMainSequenceError,
 } from "../../../../common/api";
 import {
-  buildDataNodeFieldOptions,
+  buildDataNodeFieldOptionsFromRows,
 } from "../data-node-shared/dataNodeShared";
 import {
   buildDataNodeRemoteRowsQueryKey,
@@ -114,9 +114,22 @@ export function MainSequenceDataNodeFilterWidget({
     enabled: Number.isFinite(dataNodeId) && dataNodeId > 0,
     staleTime: 300_000,
   });
+  const runtimeFieldOptions = useMemo(
+    () =>
+      buildDataNodeFieldOptionsFromRows({
+        columns: linkedNodeRuntime?.columns,
+        rows: linkedNodeRuntime?.rows,
+      }),
+    [linkedNodeRuntime?.columns, linkedNodeRuntime?.rows],
+  );
   const resolvedConfig = useMemo(
-    () => resolveDataNodeFilterConfig(effectiveProps, dataNodeDetailQuery.data),
-    [dataNodeDetailQuery.data, effectiveProps],
+    () =>
+      resolveDataNodeFilterConfig(
+        effectiveProps,
+        dataNodeDetailQuery.data,
+        runtimeFieldOptions.length > 0 ? runtimeFieldOptions : undefined,
+      ),
+    [dataNodeDetailQuery.data, effectiveProps, runtimeFieldOptions],
   );
   const resolvedRange = useMemo(
     () =>
