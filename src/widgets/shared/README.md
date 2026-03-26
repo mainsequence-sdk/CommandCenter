@@ -30,6 +30,8 @@ This directory contains reusable widget presentation primitives that are shared 
 - Workspace-style surfaces can reuse the shared duplicate trigger so every widget instance exposes the same copy affordance instead of implementing per-widget duplication controls.
 - Widget instances can hide their header in normal viewing through the shared `showHeader` chrome setting, while workspace edit mode forces the header visible so drag/settings controls stay available.
 - Widget instances can also choose a shared `surfaceMode` in presentation state. `default` keeps the normal card shell, while `transparent` removes the card fill/shadow so the widget sits flatter on the workspace canvas.
+- Widget instances can also choose a shared `placementMode` in presentation state. `canvas` keeps the normal mounted card in the dashboard grid, while `sidebar` keeps the widget mounted for runtime/state publication but hides its card from the workspace canvas so it lives only in the workspace widget rail.
+- Widget definitions can optionally provide `railIcon` and `railSummaryComponent` so workspace-style surfaces can show meaningful per-widget icons and hover summaries in the shared widget rail without hardcoding widget-specific logic into the canvas host.
 - The shared widget frame does not inject default body padding. Widget authors own internal spacing inside the widget implementation.
 - Missing-widget placeholders explain that the current client does not recognize the stored widget id. Customizable surfaces may attach a direct delete action so stale legacy instances can be removed.
 - Themes should target widget containers through the shared widget-shell markers from `chrome.ts` instead of hardcoding selectors against individual widget implementations.

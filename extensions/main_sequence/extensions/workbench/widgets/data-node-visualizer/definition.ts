@@ -1,3 +1,5 @@
+import { BarChart3 } from "lucide-react";
+
 import type { WidgetDefinition } from "@/widgets/types";
 
 import { MainSequenceDataNodeVisualizerWidget } from "./MainSequenceDataNodeVisualizerWidget";
@@ -28,6 +30,7 @@ export const mainSequenceDataNodeGraphWidget: WidgetDefinition<MainSequenceDataN
     chartType: "line",
     dateRangeMode: "dashboard",
   },
+  railIcon: BarChart3,
   schema: dataNodeVisualizerSettingsSchema,
   controller: dataNodeVisualizerWidgetController,
   settingsComponent: MainSequenceDataNodeVisualizerWidgetSettings,

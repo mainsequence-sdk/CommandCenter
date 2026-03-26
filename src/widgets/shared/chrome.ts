@@ -18,3 +18,9 @@ export function resolveWidgetTransparentSurface(
 ) {
   return presentation?.surfaceMode === "transparent";
 }
+
+export function resolveWidgetSidebarOnly(
+  presentation?: { placementMode?: string } | null,
+) {
+  return presentation?.placementMode === "sidebar";
+}

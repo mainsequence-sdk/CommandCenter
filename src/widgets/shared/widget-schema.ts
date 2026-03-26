@@ -55,6 +55,7 @@ export function normalizeWidgetPresentation(
     ...cloned,
     exposedFields: cloned.exposedFields,
     surfaceMode: cloned.surfaceMode === "transparent" ? "transparent" : "default",
+    placementMode: cloned.placementMode === "sidebar" ? "sidebar" : "canvas",
   };
 }
 

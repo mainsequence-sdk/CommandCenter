@@ -27,6 +27,7 @@ import {
   type DataNodeFilterRuntimeState,
   type MainSequenceDataNodeFilterWidgetProps,
 } from "./dataNodeFilterModel";
+import { DataNodeHoverPanel } from "./DataNodeHoverPanel";
 
 type Props = WidgetComponentProps<MainSequenceDataNodeFilterWidgetProps>;
 
@@ -540,57 +541,45 @@ export function MainSequenceDataNodeFilterWidget({
         />
       </div>
 
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[260px] -translate-x-1/2 translate-y-3 rounded-[calc(var(--radius)-4px)] border border-border/80 bg-popover/95 p-3 text-left opacity-0 shadow-xl backdrop-blur-sm transition-all duration-150 group-hover:translate-y-5 group-hover:opacity-100">
-        <div className="flex items-center gap-2">
-          <div className={`flex h-7 w-7 items-center justify-center rounded-full border ${iconToneClass}`}>
-            <Icon className={`h-3.5 w-3.5 ${status === "loading" ? "animate-spin" : ""}`} />
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-foreground">{hoverTitle}</div>
-            <div className="text-xs text-muted-foreground">Data Node</div>
-          </div>
-        </div>
-
-        <p className="mt-3 text-xs leading-5 text-muted-foreground">{hoverDescription}</p>
-
-        <div className="mt-3 space-y-1.5 text-xs">
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Data node</span>
-            <span className="max-w-[160px] text-right font-medium text-foreground">
-              {resolvedConfig.dataNodeLabel || (dataNodeId > 0 ? dataNodeId : "Not selected")}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Range</span>
-            <span className="max-w-[160px] text-right font-medium text-foreground">
-              {formatRangeSummary(resolvedRange.rangeStartMs, resolvedRange.rangeEndMs)}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Dataset</span>
-            <span className="max-w-[160px] text-right font-medium text-foreground">
-              {datasetSummary}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Transform</span>
-            <span className="max-w-[160px] text-right font-medium text-foreground">
-              {transformSummary}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Fields</span>
-            <span className="max-w-[160px] text-right font-medium text-foreground">
-              {(nextRuntimeState?.columns.length ?? requestedColumns.length).toLocaleString()} columns
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Identifiers</span>
-            <span className="max-w-[160px] text-right font-medium text-foreground">
-              {identifierSummary}
-            </span>
-          </div>
-        </div>
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-3 opacity-0 transition-all duration-150 group-hover:translate-y-5 group-hover:opacity-100">
+        <DataNodeHoverPanel
+          title={hoverTitle}
+          description={hoverDescription}
+          details={[
+            {
+              label: "Data node",
+              value:
+                resolvedConfig.dataNodeLabel ||
+                (dataNodeId > 0 ? dataNodeId : "Not selected"),
+            },
+            {
+              label: "Range",
+              value: formatRangeSummary(
+                resolvedRange.rangeStartMs,
+                resolvedRange.rangeEndMs,
+              ),
+            },
+            {
+              label: "Dataset",
+              value: datasetSummary,
+            },
+            {
+              label: "Transform",
+              value: transformSummary,
+            },
+            {
+              label: "Fields",
+              value: `${(nextRuntimeState?.columns.length ?? requestedColumns.length).toLocaleString()} columns`,
+            },
+            {
+              label: "Identifiers",
+              value: identifierSummary,
+            },
+          ]}
+          Icon={Icon}
+          iconToneClass={iconToneClass}
+          spinning={status === "loading"}
+        />
       </div>
     </div>
   );

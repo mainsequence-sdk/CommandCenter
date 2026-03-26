@@ -19,6 +19,16 @@ export interface WidgetExposedFieldState {
 export interface WidgetInstancePresentation {
   exposedFields?: Record<string, WidgetExposedFieldState>;
   surfaceMode?: "default" | "transparent";
+  placementMode?: "canvas" | "sidebar";
+}
+
+export interface WidgetRailSummaryComponentProps<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  title: string;
+  props: TProps;
+  presentation?: WidgetInstancePresentation;
+  runtimeState?: Record<string, unknown>;
 }
 
 export interface WidgetFieldSection {
@@ -140,6 +150,8 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   headerComponent?: ComponentType<WidgetHeaderComponentProps<TProps>>;
   headerActions?: ComponentType<WidgetHeaderActionsProps<TProps>>;
   settingsComponent?: ComponentType<WidgetSettingsComponentProps<TProps>>;
+  railIcon?: ComponentType<{ className?: string }>;
+  railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;
 }
 

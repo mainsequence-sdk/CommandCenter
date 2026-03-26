@@ -1,8 +1,11 @@
+import { Database } from "lucide-react";
+
 import type { WidgetDefinition } from "@/widgets/types";
 
 import { dataNodeFilterWidgetController } from "./controller";
 import { MainSequenceDataNodeFilterWidget } from "./MainSequenceDataNodeFilterWidget";
 import { MainSequenceDataNodeFilterWidgetSettings } from "./MainSequenceDataNodeFilterWidgetSettings";
+import { DataNodeRailSummary } from "./DataNodeRailSummary";
 import type { MainSequenceDataNodeFilterWidgetProps } from "./dataNodeFilterModel";
 import { dataNodeFilterSettingsSchema } from "./schema";
 
@@ -27,6 +30,8 @@ export const mainSequenceDataNodeFilterWidget: WidgetDefinition<MainSequenceData
     dateRangeMode: "dashboard",
     showHeader: false,
   },
+  railIcon: Database,
+  railSummaryComponent: DataNodeRailSummary,
   schema: dataNodeFilterSettingsSchema,
   controller: dataNodeFilterWidgetController,
   settingsComponent: MainSequenceDataNodeFilterWidgetSettings,

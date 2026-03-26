@@ -162,6 +162,7 @@ export function WidgetSettingsDialog<
       | undefined;
   const showHeader = resolveWidgetHeaderVisibility(draftProps);
   const transparentSurface = resolveWidgetTransparentSurface(draftPresentation);
+  const sidebarOnly = draftPresentation.placementMode === "sidebar";
   const controllerContext = useResolvedWidgetControllerContext(widget, {
     props: draftProps,
     instanceId: instance.id,
@@ -230,6 +231,13 @@ export function WidgetSettingsDialog<
     setDraftPresentation((current) => ({
       ...current,
       surfaceMode: nextValue,
+    }));
+  }
+
+  function handlePlacementModeChange(nextValue: "canvas" | "sidebar") {
+    setDraftPresentation((current) => ({
+      ...current,
+      placementMode: nextValue,
     }));
   }
 
@@ -320,6 +328,39 @@ export function WidgetSettingsDialog<
               disabled={!editable}
             >
               Hide header
+            </Button>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <div className="text-sm font-medium text-topbar-foreground">Placement</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose whether this widget renders on the canvas or stays mounted only in the widget rail.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={!sidebarOnly ? "default" : "outline"}
+              onClick={() => {
+                handlePlacementModeChange("canvas");
+              }}
+              disabled={!editable}
+            >
+              Canvas
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={sidebarOnly ? "default" : "outline"}
+              onClick={() => {
+                handlePlacementModeChange("sidebar");
+              }}
+              disabled={!editable}
+            >
+              Sidebar only
             </Button>
           </div>
         </section>

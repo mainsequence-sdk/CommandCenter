@@ -43,6 +43,9 @@ charts and tables.
 - The mounted widget is intentionally minimal: it renders as a small source icon and exposes its
   dataset summary on hover, so it can act as a composable configuration block without consuming
   dashboard space.
+- The same Data Node hover summary can also render from the workspace widget rail. That keeps the
+  rail status/hover information aligned with the mounted Data Node token instead of duplicating a
+  separate summary format.
 - New instances default to hidden header + minimal chrome, so the Data Node behaves like a compact
   source token rather than a full content card. In workspace edit mode, controls surface as floating
   actions in the same style as the row widget.

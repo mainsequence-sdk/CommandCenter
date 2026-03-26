@@ -1,3 +1,5 @@
+import { Table } from "lucide-react";
+
 import type { WidgetDefinition } from "@/widgets/types";
 
 import { DataNodeTableWidget } from "./DataNodeTableWidget";
@@ -19,6 +21,7 @@ export const mainSequenceDataNodeTableWidget: WidgetDefinition<DataNodeTableVisu
   tags: ["main-sequence", "data-node", "grid", "ag-grid", "formatter", "table"],
   exampleProps: dataNodeTableVisualizerDefaultProps,
   mockProps: dataNodeTableVisualizerDefaultProps,
+  railIcon: Table,
   settingsComponent: DataNodeTableWidgetSettings,
   component: DataNodeTableWidget,
 };

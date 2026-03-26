@@ -1,6 +1,7 @@
 import {
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -10,10 +11,13 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 import {
+  BarChart3,
   Clock3,
   ChevronUp,
+  Database,
   GripVertical,
   LayoutTemplate,
   MoveDiagonal2,
@@ -23,6 +27,7 @@ import {
   Search,
   Settings2,
   Star,
+  Table,
   Trash2,
   X,
 } from "lucide-react";
@@ -51,6 +56,7 @@ import { useShellStore } from "@/stores/shell-store";
 import {
   resolveWidgetHeaderVisibility,
   resolveWidgetMinimalChrome,
+  resolveWidgetSidebarOnly,
   resolveWidgetTransparentSurface,
   widgetShellClassName,
   widgetShellHeaderClassName,
@@ -118,6 +124,261 @@ function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
     gridColumn: `${layout.x + 1} / span ${layout.w}`,
     gridRow: `${layout.y + 1} / span ${layout.h}`,
   };
+}
+
+function resolveWidgetRailIcon(widget: WidgetDefinition) {
+  if (widget.railIcon) {
+    return widget.railIcon;
+  }
+
+  if (/data-node/i.test(widget.id) || /data node/i.test(widget.title)) {
+    return Database;
+  }
+
+  if (widget.kind === "chart") {
+    return BarChart3;
+  }
+
+  if (widget.kind === "table") {
+    return Table;
+  }
+
+  if (widget.kind === "feed") {
+    return Clock3;
+  }
+
+  return LayoutTemplate;
+}
+
+function resolveWidgetRailStatusDotClass(runtimeState?: Record<string, unknown>) {
+  const status = typeof runtimeState?.status === "string" ? runtimeState.status : null;
+
+  if (status === "error" || status === "data_error" || status === "detail_error") {
+    return "bg-danger";
+  }
+
+  if (status === "range") {
+    return "bg-warning";
+  }
+
+  if (status === "loading") {
+    return "bg-primary";
+  }
+
+  if (status === "ready") {
+    return "bg-success";
+  }
+
+  return "bg-muted-foreground/55";
+}
+
+function resolveWidgetRailStatusLabel(runtimeState?: Record<string, unknown>) {
+  const status = typeof runtimeState?.status === "string" ? runtimeState.status : null;
+
+  if (!status) {
+    return "Idle";
+  }
+
+  return titleCase(status.replaceAll("_", " "));
+}
+
+function isWidgetRailLoading(runtimeState?: Record<string, unknown>) {
+  return runtimeState?.status === "loading";
+}
+
+function RailHoverCard({
+  children,
+  content,
+}: {
+  children: ReactNode;
+  content: ReactNode;
+}) {
+  const anchorRef = useRef<HTMLSpanElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<CSSProperties>();
+
+  useLayoutEffect(() => {
+    if (!open || !anchorRef.current) {
+      return undefined;
+    }
+
+    function updatePosition() {
+      const rect = anchorRef.current?.getBoundingClientRect();
+
+      if (!rect) {
+        return;
+      }
+
+      setStyle({
+        left: rect.right + 12,
+        top: rect.top + rect.height / 2,
+        transform: "translateY(-50%)",
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
+
+  return (
+    <span
+      ref={anchorRef}
+      className="inline-flex"
+      onMouseEnter={() => {
+        setOpen(true);
+      }}
+      onMouseLeave={() => {
+        setOpen(false);
+      }}
+      onFocus={() => {
+        setOpen(true);
+      }}
+      onBlur={() => {
+        setOpen(false);
+      }}
+    >
+      {children}
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div style={style} className="pointer-events-none fixed z-[140]">
+              {content}
+            </div>,
+            document.body,
+          )
+        : null}
+    </span>
+  );
+}
+
+function DefaultWidgetRailSummary({
+  title,
+  widget,
+  runtimeState,
+}: {
+  title: string;
+  widget: WidgetDefinition;
+  runtimeState?: Record<string, unknown>;
+}) {
+  const statusLabel = resolveWidgetRailStatusLabel(runtimeState);
+
+  return (
+    <div className="pointer-events-none z-20 w-[220px] rounded-[calc(var(--radius)-4px)] border border-border/80 bg-popover/95 p-3 text-left shadow-xl backdrop-blur-sm">
+      <div className="truncate text-sm font-medium text-foreground">{title}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{widget.title}</div>
+      <div className="mt-3 space-y-1.5 text-xs">
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-muted-foreground">Status</span>
+          <span className="font-medium text-foreground">{statusLabel}</span>
+        </div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-muted-foreground">Kind</span>
+          <span className="font-medium text-foreground">{titleCase(widget.kind)}</span>
+        </div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-muted-foreground">Source</span>
+          <span className="max-w-[120px] text-right font-medium text-foreground">
+            {widget.source}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkspaceWidgetRail({
+  widgets,
+  activeInstanceId,
+  topOffsetClassName,
+  onOpenWidget,
+}: {
+  widgets: Array<{
+    id: string;
+    title?: string;
+    props?: Record<string, unknown>;
+    presentation?: WidgetInstancePresentation;
+    runtimeState?: Record<string, unknown>;
+    widget: WidgetDefinition;
+  }>;
+  activeInstanceId: string | null;
+  topOffsetClassName: string;
+  onOpenWidget: (instanceId: string) => void;
+}) {
+  if (widgets.length === 0) {
+    return null;
+  }
+
+  return (
+    <aside
+      className={cn(
+        "pointer-events-auto absolute left-2 bottom-4 z-30 flex w-8 flex-col items-center gap-1 overflow-hidden",
+        topOffsetClassName,
+      )}
+      aria-label="Canvas widget rail"
+    >
+      {widgets.map(({ id, title, props, presentation, runtimeState, widget }) => {
+        const Icon = resolveWidgetRailIcon(widget);
+        const active = activeInstanceId === id;
+        const dotClassName = resolveWidgetRailStatusDotClass(runtimeState);
+        const loading = isWidgetRailLoading(runtimeState);
+        const RailSummary =
+          widget.railSummaryComponent as
+            | ComponentType<{
+                title: string;
+                props: Record<string, unknown>;
+                presentation?: WidgetInstancePresentation;
+                runtimeState?: Record<string, unknown>;
+              }>
+            | undefined;
+        const displayTitle = title ?? widget.title;
+        const summaryContent = RailSummary ? (
+          <RailSummary
+            title={displayTitle}
+            props={(props ?? {}) as Record<string, unknown>}
+            presentation={presentation}
+            runtimeState={runtimeState}
+          />
+        ) : (
+          <DefaultWidgetRailSummary
+            title={displayTitle}
+            widget={widget}
+            runtimeState={runtimeState}
+          />
+        );
+
+        return (
+          <RailHoverCard key={id} content={summaryContent}>
+            <button
+              type="button"
+              className={cn(
+                "relative flex h-7 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground",
+                active ? "text-primary" : undefined,
+              )}
+              aria-label={`Open settings for ${displayTitle}`}
+              title={displayTitle}
+              onClick={() => {
+                onOpenWidget(id);
+              }}
+            >
+              <Icon className={cn("h-4 w-4", loading ? "animate-spin" : undefined)} />
+              <span
+                className={cn(
+                  "absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full",
+                  dotClassName,
+                  loading ? "animate-pulse" : undefined,
+                )}
+              />
+            </button>
+          </RailHoverCard>
+        );
+      })}
+    </aside>
+  );
 }
 
 interface GridMetrics {
@@ -1064,12 +1325,27 @@ export function CustomDashboardStudioPage() {
     });
   }, [catalogPreferencesUserId, favoriteWidgetIds, recentWidgetIds]);
 
+  const canvasWidgets = useMemo(
+    () =>
+      resolvedDashboard?.widgets.filter(
+        (widget) => !resolveWidgetSidebarOnly(widget.presentation),
+      ) ?? [],
+    [resolvedDashboard?.widgets],
+  );
+  const sidebarOnlyWidgets = useMemo(
+    () =>
+      resolvedDashboard?.widgets.filter((widget) =>
+        resolveWidgetSidebarOnly(widget.presentation),
+      ) ?? [],
+    [resolvedDashboard?.widgets],
+  );
+
   const selectedLayout = useMemo(
     () =>
       editMode
-        ? resolvedDashboard?.widgets.find((widget) => widget.id === selectedInstanceId)?.layout ?? null
+        ? canvasWidgets.find((widget) => widget.id === selectedInstanceId)?.layout ?? null
         : null,
-    [editMode, resolvedDashboard, selectedInstanceId],
+    [canvasWidgets, editMode, selectedInstanceId],
   );
 
   const settingsWidget = useMemo(
@@ -1467,6 +1743,27 @@ export function CustomDashboardStudioPage() {
     return null;
   }
 
+  const railWidgets = resolvedDashboard.widgets.flatMap((instance) => {
+    const widget = getWidgetById(instance.widgetId);
+    const required = [
+      ...(widget?.requiredPermissions ?? []),
+      ...(instance.requiredPermissions ?? []),
+    ];
+
+    return widget && hasAllPermissions(permissions, required)
+      ? [
+          {
+            id: instance.id,
+            title: instance.title,
+            props: instance.props,
+            presentation: instance.presentation,
+            runtimeState: instance.runtimeState,
+            widget,
+          },
+        ]
+      : [];
+  });
+
   return (
     <DashboardControlsProvider
       key={selectedDashboard.id}
@@ -1558,9 +1855,63 @@ export function CustomDashboardStudioPage() {
           </div>
         ) : null}
 
+        <WorkspaceWidgetRail
+          widgets={railWidgets}
+          activeInstanceId={settingsInstanceId ?? selectedInstanceId}
+          topOffsetClassName={dashboardMenuHidden ? "top-4" : "top-14"}
+          onOpenWidget={(instanceId) => {
+            setEditMode(true);
+            setSelectedInstanceId(instanceId);
+            setSettingsInstanceId(instanceId);
+          }}
+        />
+
+        <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
+          {sidebarOnlyWidgets.map((instance) => {
+            const widget = getWidgetById(instance.widgetId);
+
+            if (!widget) {
+              return null;
+            }
+
+            const required = [
+              ...(widget.requiredPermissions ?? []),
+              ...(instance.requiredPermissions ?? []),
+            ];
+
+            if (!hasAllPermissions(permissions, required)) {
+              return null;
+            }
+
+            const Component = widget.component as ComponentType<{
+              widget: typeof widget;
+              instanceTitle?: string;
+              props: Record<string, unknown>;
+              presentation?: WidgetInstancePresentation;
+              runtimeState?: Record<string, unknown>;
+              onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
+            }>;
+
+            return (
+              <div key={instance.id} className="h-px w-px overflow-hidden">
+                <Component
+                  widget={widget}
+                  instanceTitle={instance.title}
+                  props={instance.props ?? {}}
+                  presentation={instance.presentation}
+                  runtimeState={instance.runtimeState}
+                  onRuntimeStateChange={(state) => {
+                    handleWidgetRuntimeStateChange(instance.id, state);
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+
         <div
           className={cn(
-            "absolute inset-0 overflow-auto pl-2 pr-4 pb-4 transition-[padding] duration-200",
+            "absolute inset-0 overflow-auto pl-12 pr-4 pb-4 transition-[padding] duration-200",
             dashboardMenuHidden ? "pt-3" : "pt-12",
           )}
         >
@@ -1619,7 +1970,7 @@ export function CustomDashboardStudioPage() {
               </div>
             ) : null}
 
-            {resolvedDashboard.widgets.map((instance) => {
+            {canvasWidgets.map((instance) => {
               const widget = getWidgetById(instance.widgetId);
 
               if (!widget) {
