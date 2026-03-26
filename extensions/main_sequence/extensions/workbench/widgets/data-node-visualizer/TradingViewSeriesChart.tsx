@@ -34,6 +34,7 @@ export function TradingViewSeriesChart({
   normalizationTimeMs,
   series,
   seriesAxisMode = "shared",
+  transparentSurface = false,
 }: {
   chartType: DataNodeVisualizerChartType;
   className?: string;
@@ -41,6 +42,7 @@ export function TradingViewSeriesChart({
   normalizationTimeMs?: number | null;
   series: DataNodeVisualizerSeries[];
   seriesAxisMode?: DataNodeVisualizerSeriesAxisMode;
+  transparentSurface?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { resolvedTokens } = useTheme();
@@ -98,10 +100,12 @@ export function TradingViewSeriesChart({
         horzLines: { color: withAlpha(resolvedTokens["chart-grid"], 0.12) },
       },
       rightPriceScale: {
-        borderColor: resolvedTokens.border,
+        borderVisible: false,
+        borderColor: "transparent",
       },
       timeScale: {
-        borderColor: resolvedTokens.border,
+        borderVisible: false,
+        borderColor: "transparent",
         timeVisible: true,
         secondsVisible: false,
       },
@@ -201,13 +205,15 @@ export function TradingViewSeriesChart({
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [chartType, resolvedTokens, separateAxes, showPointMarkers, themedSeries]);
+  }, [chartType, resolvedTokens, separateAxes, showPointMarkers, themedSeries, transparentSurface]);
 
   if (themedSeries.length === 0) {
     return (
       <div
         className={cn(
-          "flex h-full min-h-0 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 text-sm text-muted-foreground",
+          transparentSurface
+            ? "flex h-full min-h-0 items-center justify-center rounded-none border-none bg-transparent px-4 text-sm text-muted-foreground"
+            : "flex h-full min-h-0 items-center justify-center rounded-none border-none bg-transparent px-4 text-sm text-muted-foreground",
           className,
         )}
       >
@@ -219,14 +225,23 @@ export function TradingViewSeriesChart({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35",
+        transparentSurface
+          ? "flex h-full min-h-0 flex-col overflow-visible rounded-none border-none bg-transparent"
+          : "flex h-full min-h-0 flex-col overflow-visible rounded-none border-none bg-transparent",
         className,
       )}
     >
       <div className="min-h-0 flex-1">
-        <div ref={containerRef} className="h-full min-h-0 w-full" />
+        <div className="h-full min-h-0 w-full pl-1">
+          <div ref={containerRef} className="h-full min-h-0 w-full" />
+        </div>
       </div>
-      <div className="shrink-0 flex flex-wrap items-center gap-3 border-t border-border/70 px-3 py-2">
+      <div
+        className={cn(
+          "shrink-0 flex flex-wrap items-center gap-3 px-3 py-2",
+          "border-t-0",
+        )}
+      >
         {themedSeries.map((entry) => (
           <div key={entry.id} className="flex items-center gap-2 text-xs text-muted-foreground">
             <span

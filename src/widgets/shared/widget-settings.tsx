@@ -15,7 +15,10 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { resolveWidgetHeaderVisibility } from "@/widgets/shared/chrome";
+import {
+  resolveWidgetHeaderVisibility,
+  resolveWidgetTransparentSurface,
+} from "@/widgets/shared/chrome";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
 import {
   normalizeWidgetPresentation,
@@ -158,6 +161,7 @@ export function WidgetSettingsDialog<
       | ComponentType<WidgetSettingsComponentProps<TProps>>
       | undefined;
   const showHeader = resolveWidgetHeaderVisibility(draftProps);
+  const transparentSurface = resolveWidgetTransparentSurface(draftPresentation);
   const controllerContext = useResolvedWidgetControllerContext(widget, {
     props: draftProps,
     instanceId: instance.id,
@@ -220,6 +224,13 @@ export function WidgetSettingsDialog<
       ...draftProps,
       showHeader: nextValue,
     } as TProps);
+  }
+
+  function handleSurfaceModeChange(nextValue: "default" | "transparent") {
+    setDraftPresentation((current) => ({
+      ...current,
+      surfaceMode: nextValue,
+    }));
   }
 
   function handleSave() {
@@ -309,6 +320,39 @@ export function WidgetSettingsDialog<
               disabled={!editable}
             >
               Hide header
+            </Button>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <div className="text-sm font-medium text-topbar-foreground">Surface</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Control whether this widget renders as a normal card or a flatter transparent surface.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={!transparentSurface ? "default" : "outline"}
+              onClick={() => {
+                handleSurfaceModeChange("default");
+              }}
+              disabled={!editable}
+            >
+              Card
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={transparentSurface ? "default" : "outline"}
+              onClick={() => {
+                handleSurfaceModeChange("transparent");
+              }}
+              disabled={!editable}
+            >
+              Transparent
             </Button>
           </div>
         </section>

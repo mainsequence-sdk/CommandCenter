@@ -49,11 +49,13 @@ function getDefaultFieldOffsetY(
 export function normalizeWidgetPresentation(
   value?: WidgetInstancePresentation | null,
 ): WidgetInstancePresentation {
-  if (!value?.exposedFields) {
-    return {};
-  }
+  const cloned = value ? cloneJson(value) : {};
 
-  return cloneJson(value);
+  return {
+    ...cloned,
+    exposedFields: cloned.exposedFields,
+    surfaceMode: cloned.surfaceMode === "transparent" ? "transparent" : "default",
+  };
 }
 
 export function resolveDefaultWidgetPresentation(

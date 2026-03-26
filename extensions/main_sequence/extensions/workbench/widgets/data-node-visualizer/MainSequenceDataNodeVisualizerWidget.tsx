@@ -5,6 +5,7 @@ import { BarChart3, CalendarClock, Database, Loader2 } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
+import { resolveWidgetTransparentSurface } from "@/widgets/shared/chrome";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -25,8 +26,9 @@ import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNod
 
 type Props = WidgetComponentProps<MainSequenceDataNodeVisualizerWidgetProps>;
 
-export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
+export function MainSequenceDataNodeVisualizerWidget({ props, presentation }: Props) {
   const { rangeStartMs, rangeEndMs } = useDashboardControls();
+  const transparentSurface = resolveWidgetTransparentSurface(presentation);
   const normalizedProps = useMemo(
     () => normalizeDataNodeVisualizerProps(props),
     [props],
@@ -200,6 +202,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props }: Props) {
               normalizationTimeMs={normalizationTimeMs}
               series={seriesResult.series}
               seriesAxisMode={resolvedConfig.seriesAxisMode}
+              transparentSurface={transparentSurface}
             />
           </div>
         </div>

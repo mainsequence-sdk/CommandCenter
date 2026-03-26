@@ -8,12 +8,13 @@ import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import { cn } from "@/lib/utils";
 import {
   resolveWidgetMinimalChrome,
+  resolveWidgetTransparentSurface,
   widgetShellClassName,
   widgetShellHeaderClassName,
 } from "@/widgets/shared/chrome";
 import { WidgetExplorerTrigger } from "@/widgets/shared/widget-explorer-trigger";
 import { WidgetSettingsTrigger } from "@/widgets/shared/widget-settings";
-import type { WidgetDefinition } from "@/widgets/types";
+import type { WidgetDefinition, WidgetInstancePresentation } from "@/widgets/types";
 
 export function WidgetFrame({
   widget,
@@ -22,6 +23,7 @@ export function WidgetFrame({
   onOpenSettings,
   showExplorerTrigger,
   showHeader,
+  presentation,
   style,
   children,
 }: {
@@ -31,11 +33,13 @@ export function WidgetFrame({
   onOpenSettings?: () => void;
   showExplorerTrigger?: boolean;
   showHeader?: boolean;
+  presentation?: WidgetInstancePresentation;
   style?: CSSProperties;
   children: ReactNode;
 }) {
   const headerVisible = showHeader ?? true;
   const minimalChrome = resolveWidgetMinimalChrome(instance.props);
+  const transparentSurface = resolveWidgetTransparentSurface(presentation);
   const dividerPresentation =
     (isWorkspaceRowWidgetId(widget.id) || minimalChrome) && !headerVisible;
 
@@ -47,7 +51,9 @@ export function WidgetFrame({
         widgetShellClassName,
         dividerPresentation
           ? "group flex h-full min-h-0 flex-col overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
-          : "group flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius)] border border-border/80 bg-card/88 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur",
+          : transparentSurface
+            ? "group flex h-full min-h-0 flex-col overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
+            : "group flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius)] border border-border/80 bg-card/88 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur",
       )}
     >
       {headerVisible ? (

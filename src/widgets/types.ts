@@ -18,6 +18,7 @@ export interface WidgetExposedFieldState {
 
 export interface WidgetInstancePresentation {
   exposedFields?: Record<string, WidgetExposedFieldState>;
+  surfaceMode?: "default" | "transparent";
 }
 
 export interface WidgetFieldSection {
@@ -146,6 +147,7 @@ export interface WidgetComponentProps<TProps extends Record<string, unknown> = R
   widget: WidgetDefinition<TProps>;
   props: TProps;
   instanceTitle?: string;
+  presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
 }

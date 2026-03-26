@@ -42,8 +42,11 @@ import {
   dataNodeTableVisualizerDefaultProps,
   dataNodeTableVisualizerDensityOptions,
   dataNodeTableVisualizerFormatOptions,
+  dataNodeTableVisualizerGaugeModeOptions,
+  dataNodeTableVisualizerGradientModeOptions,
   dataNodeTableVisualizerOperatorOptions,
   dataNodeTableVisualizerPinnedOptions,
+  dataNodeTableVisualizerRangeModeOptions,
   dataNodeTableVisualizerToneOptions,
   type DataNodeTableVisualizerColumnSchema,
   type DataNodeTableVisualizerColumnOverride,
@@ -118,6 +121,26 @@ function normalizeColumnOverride(override: DataNodeTableVisualizerColumnOverride
 
   if (override.barMode) {
     nextValue.barMode = override.barMode;
+  }
+
+  if (override.gradientMode) {
+    nextValue.gradientMode = override.gradientMode;
+  }
+
+  if (override.gaugeMode) {
+    nextValue.gaugeMode = override.gaugeMode;
+  }
+
+  if (override.visualRangeMode) {
+    nextValue.visualRangeMode = override.visualRangeMode;
+  }
+
+  if (typeof override.visualMin === "number" && Number.isFinite(override.visualMin)) {
+    nextValue.visualMin = override.visualMin;
+  }
+
+  if (typeof override.visualMax === "number" && Number.isFinite(override.visualMax)) {
+    nextValue.visualMax = override.visualMax;
   }
 
   if (override.align) {
@@ -914,7 +937,7 @@ export function DataNodeTableWidgetSettings({
                   </div>
                 </div>
 
-                <div className="grid gap-3 lg:grid-cols-5">
+                <div className="grid gap-3 lg:grid-cols-4">
                   <div className={fieldClass}>
                     <label className={labelClass}>
                       Prefix
@@ -987,42 +1010,6 @@ export function DataNodeTableWidgetSettings({
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className={labelClass}>
-                      Heatmap
-                    </label>
-                    <div className={widgetTightFormButtonGroupClass}>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={column.heatmap ? "default" : "outline"}
-                        disabled={!editable || column.format === "text"}
-                        onClick={() => {
-                          updateColumnOverride(column.key, (current) => ({
-                            ...current,
-                            heatmap: true,
-                          }));
-                        }}
-                      >
-                        On
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={!column.heatmap ? "default" : "outline"}
-                        disabled={!editable || column.format === "text"}
-                        onClick={() => {
-                          updateColumnOverride(column.key, (current) => ({
-                            ...current,
-                            heatmap: false,
-                          }));
-                        }}
-                      >
-                        Off
-                      </Button>
-                    </div>
-                  </div>
-
                   <div className={fieldClass}>
                     <label className={labelClass}>
                       Data bar
@@ -1044,6 +1031,139 @@ export function DataNodeTableWidgetSettings({
                         </option>
                       ))}
                     </Select>
+                  </div>
+
+                  <div className={fieldClass}>
+                    <label className={labelClass}>
+                      Heatmap
+                    </label>
+                    <Select
+                      className={selectClass}
+                      value={override.gradientMode ?? (override.heatmap ? "fill" : "none")}
+                      disabled={!editable || column.format === "text"}
+                      onChange={(event) => {
+                        updateColumnOverride(column.key, (current) => ({
+                          ...current,
+                          gradientMode:
+                            event.target.value as DataNodeTableVisualizerColumnOverride["gradientMode"],
+                          heatmap: event.target.value === "fill",
+                        }));
+                      }}
+                    >
+                      {dataNodeTableVisualizerGradientModeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  <div className={fieldClass}>
+                    <label className={labelClass}>
+                      Gauge
+                    </label>
+                    <Select
+                      className={selectClass}
+                      value={override.gaugeMode ?? "none"}
+                      disabled={!editable || column.format === "text"}
+                      onChange={(event) => {
+                        updateColumnOverride(column.key, (current) => ({
+                          ...current,
+                          gaugeMode:
+                            event.target.value as DataNodeTableVisualizerColumnOverride["gaugeMode"],
+                        }));
+                      }}
+                    >
+                      {dataNodeTableVisualizerGaugeModeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-3">
+                  <div className={fieldClass}>
+                    <label className={labelClass}>
+                      Numeric bounds
+                    </label>
+                    <Select
+                      className={selectClass}
+                      value={override.visualRangeMode ?? "auto"}
+                      disabled={
+                        !editable ||
+                        column.format === "text" ||
+                        ((override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none" &&
+                          (override.gaugeMode ?? "none") === "none" &&
+                          (override.barMode ?? "none") === "none")
+                      }
+                      onChange={(event) => {
+                        updateColumnOverride(column.key, (current) => ({
+                          ...current,
+                          visualRangeMode:
+                            event.target.value as DataNodeTableVisualizerColumnOverride["visualRangeMode"],
+                        }));
+                      }}
+                    >
+                      {dataNodeTableVisualizerRangeModeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  <div className={fieldClass}>
+                    <label className={labelClass}>
+                      Min bound
+                    </label>
+                    <Input
+                      className={inputClass}
+                      type="number"
+                      value={override.visualMin ?? ""}
+                      placeholder="auto"
+                      disabled={
+                        !editable ||
+                        column.format === "text" ||
+                        (override.visualRangeMode ?? "auto") !== "fixed"
+                      }
+                      onChange={(event) => {
+                        updateColumnOverride(column.key, (current) => ({
+                          ...current,
+                          visualMin:
+                            event.target.value === ""
+                              ? undefined
+                              : Number(event.target.value),
+                        }));
+                      }}
+                    />
+                  </div>
+
+                  <div className={fieldClass}>
+                    <label className={labelClass}>
+                      Max bound
+                    </label>
+                    <Input
+                      className={inputClass}
+                      type="number"
+                      value={override.visualMax ?? ""}
+                      placeholder="auto"
+                      disabled={
+                        !editable ||
+                        column.format === "text" ||
+                        (override.visualRangeMode ?? "auto") !== "fixed"
+                      }
+                      onChange={(event) => {
+                        updateColumnOverride(column.key, (current) => ({
+                          ...current,
+                          visualMax:
+                            event.target.value === ""
+                              ? undefined
+                              : Number(event.target.value),
+                        }));
+                      }}
+                    />
                   </div>
                 </div>
               </div>

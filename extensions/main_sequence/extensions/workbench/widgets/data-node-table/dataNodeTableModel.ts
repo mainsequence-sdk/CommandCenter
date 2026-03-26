@@ -19,6 +19,9 @@ export type DataNodeTableVisualizerColumnFormat =
   | "bps";
 export type DataNodeTableVisualizerDensity = "compact" | "comfortable";
 export type DataNodeTableVisualizerBarMode = "none" | "fill";
+export type DataNodeTableVisualizerGradientMode = "none" | "fill";
+export type DataNodeTableVisualizerGaugeMode = "none" | "ring";
+export type DataNodeTableVisualizerRangeMode = "auto" | "fixed";
 export type DataNodeTableVisualizerAlign = "auto" | "left" | "center" | "right";
 export type DataNodeTableVisualizerPinned = "none" | "left" | "right";
 export type DataNodeTableVisualizerOperator = "gt" | "gte" | "lt" | "lte" | "eq";
@@ -54,6 +57,11 @@ export interface DataNodeTableVisualizerColumnOverride {
   heatmap?: boolean;
   compact?: boolean;
   barMode?: DataNodeTableVisualizerBarMode;
+  gradientMode?: DataNodeTableVisualizerGradientMode;
+  gaugeMode?: DataNodeTableVisualizerGaugeMode;
+  visualRangeMode?: DataNodeTableVisualizerRangeMode;
+  visualMin?: number;
+  visualMax?: number;
   align?: DataNodeTableVisualizerAlign;
   pinned?: DataNodeTableVisualizerPinned;
 }
@@ -105,6 +113,11 @@ export interface ResolvedDataNodeTableVisualizerColumnConfig extends DataNodeTab
   align: Exclude<DataNodeTableVisualizerAlign, "auto">;
   heatmap: boolean;
   barMode: DataNodeTableVisualizerBarMode;
+  gradientMode: DataNodeTableVisualizerGradientMode;
+  gaugeMode: DataNodeTableVisualizerGaugeMode;
+  visualRangeMode: DataNodeTableVisualizerRangeMode;
+  visualMin?: number;
+  visualMax?: number;
   compact: boolean;
   pinned?: Exclude<DataNodeTableVisualizerPinned, "none">;
 }
@@ -572,6 +585,26 @@ function normalizeColumnOverride(value: unknown): DataNodeTableVisualizerColumnO
     nextValue.barMode = record.barMode;
   }
 
+  if (record.gradientMode === "fill" || record.gradientMode === "none") {
+    nextValue.gradientMode = record.gradientMode;
+  }
+
+  if (record.gaugeMode === "ring" || record.gaugeMode === "none") {
+    nextValue.gaugeMode = record.gaugeMode;
+  }
+
+  if (record.visualRangeMode === "auto" || record.visualRangeMode === "fixed") {
+    nextValue.visualRangeMode = record.visualRangeMode;
+  }
+
+  if (typeof record.visualMin === "number" && Number.isFinite(record.visualMin)) {
+    nextValue.visualMin = record.visualMin;
+  }
+
+  if (typeof record.visualMax === "number" && Number.isFinite(record.visualMax)) {
+    nextValue.visualMax = record.visualMax;
+  }
+
   if (
     record.align === "auto" ||
     record.align === "left" ||
@@ -939,6 +972,20 @@ export function resolveDataNodeTableVisualizerColumns(
       visible: override.visible ?? true,
       heatmap: effectiveFormat !== "text" ? (override.heatmap ?? false) : false,
       barMode: override.barMode ?? "none",
+      gradientMode:
+        effectiveFormat !== "text"
+          ? ((override.gradientMode ?? ((override.heatmap ?? false) ? "fill" : "none")) as DataNodeTableVisualizerGradientMode)
+          : "none",
+      gaugeMode: effectiveFormat !== "text" ? (override.gaugeMode ?? "none") : "none",
+      visualRangeMode: override.visualRangeMode ?? "auto",
+      visualMin:
+        typeof override.visualMin === "number" && Number.isFinite(override.visualMin)
+          ? override.visualMin
+          : undefined,
+      visualMax:
+        typeof override.visualMax === "number" && Number.isFinite(override.visualMax)
+          ? override.visualMax
+          : undefined,
       align:
         override.align && override.align !== "auto"
           ? override.align
@@ -1200,6 +1247,30 @@ export const dataNodeTableVisualizerBarModeOptions: Array<{
 }> = [
   { value: "none", label: "None" },
   { value: "fill", label: "Filled bar" },
+];
+
+export const dataNodeTableVisualizerGradientModeOptions: Array<{
+  value: DataNodeTableVisualizerGradientMode;
+  label: string;
+}> = [
+  { value: "none", label: "None" },
+  { value: "fill", label: "Gradient fill" },
+];
+
+export const dataNodeTableVisualizerGaugeModeOptions: Array<{
+  value: DataNodeTableVisualizerGaugeMode;
+  label: string;
+}> = [
+  { value: "none", label: "None" },
+  { value: "ring", label: "Ring gauge" },
+];
+
+export const dataNodeTableVisualizerRangeModeOptions: Array<{
+  value: DataNodeTableVisualizerRangeMode;
+  label: string;
+}> = [
+  { value: "auto", label: "Auto bounds" },
+  { value: "fixed", label: "Fixed bounds" },
 ];
 
 export const dataNodeTableVisualizerAlignOptions: Array<{

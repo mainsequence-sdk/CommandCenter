@@ -51,6 +51,7 @@ import { useShellStore } from "@/stores/shell-store";
 import {
   resolveWidgetHeaderVisibility,
   resolveWidgetMinimalChrome,
+  resolveWidgetTransparentSurface,
   widgetShellClassName,
   widgetShellHeaderClassName,
 } from "@/widgets/shared/chrome";
@@ -488,6 +489,7 @@ function BuilderWidgetCard({
     widget: typeof widget;
     instanceTitle?: string;
     props: Record<string, unknown>;
+    presentation?: WidgetInstancePresentation;
     runtimeState?: Record<string, unknown>;
     onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   }>;
@@ -496,6 +498,7 @@ function BuilderWidgetCard({
   const headerVisible = editable || resolveWidgetHeaderVisibility(widgetProps);
   const rowWidget = isWorkspaceRowWidgetId(widget.id);
   const minimalChrome = !rowWidget && resolveWidgetMinimalChrome(widgetProps);
+  const transparentSurface = resolveWidgetTransparentSurface(widgetPresentation);
   const floatingChromeWidget = rowWidget || minimalChrome;
   const structuralVisible = widgetProps.visible === true;
   const widgetRenderProps =
@@ -544,13 +547,15 @@ function BuilderWidgetCard({
           "relative z-10 flex h-full min-h-0 flex-col transition-colors",
           floatingChromeWidget
             ? "overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
-            : cn(
-                widgetShellClassName,
-                "overflow-hidden rounded-[20px] border bg-card/92 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl",
-                selected && editable
-                  ? "border-primary/70 ring-2 ring-primary/30"
-                : "border-border/70 hover:border-border",
-              ),
+            : transparentSurface
+              ? "overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
+              : cn(
+                  widgetShellClassName,
+                  "overflow-hidden rounded-[20px] border bg-card/92 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl",
+                  selected && editable
+                    ? "border-primary/70 ring-2 ring-primary/30"
+                    : "border-border/70 hover:border-border",
+                ),
           floatingChromeWidget && editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
         )}
         onPointerDown={(event) => {
@@ -745,6 +750,7 @@ function BuilderWidgetCard({
             widget={widget}
             instanceTitle={instanceTitle}
             props={widgetRenderProps}
+            presentation={widgetPresentation}
             runtimeState={widgetRuntimeState}
             onRuntimeStateChange={(state) => {
               onRuntimeStateChange(instanceId, state);

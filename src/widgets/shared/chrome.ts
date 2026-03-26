@@ -12,3 +12,9 @@ export function resolveWidgetMinimalChrome(
 ) {
   return props?.chromeMode === "minimal";
 }
+
+export function resolveWidgetTransparentSurface(
+  presentation?: { surfaceMode?: string } | null,
+) {
+  return presentation?.surfaceMode === "transparent";
+}

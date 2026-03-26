@@ -156,6 +156,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                   widget: typeof widget;
                   instanceTitle?: string;
                   props: Record<string, unknown>;
+                  presentation?: WidgetInstancePresentation;
                   runtimeState?: Record<string, unknown>;
                   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
                 }>;
@@ -206,6 +207,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                     <WidgetFrame
                       widget={widget}
                       instance={instance}
+                      presentation={instance.presentation}
                       showHeader={resolveWidgetHeaderVisibility(instance.props)}
                       headerActions={
                         HeaderActions ? (
@@ -229,12 +231,13 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                         setSettingsInstanceId(instance.id);
                       }}
                     >
-                      <Component
-                        widget={widget}
-                        instanceTitle={instance.title}
-                        props={instance.props ?? {}}
-                        runtimeState={instance.runtimeState}
-                        onRuntimeStateChange={(state) => {
+                        <Component
+                          widget={widget}
+                          instanceTitle={instance.title}
+                          props={instance.props ?? {}}
+                          presentation={instance.presentation}
+                          runtimeState={instance.runtimeState}
+                          onRuntimeStateChange={(state) => {
                           setWidgetOverrides((current) => ({
                             ...current,
                             [instance.id]: {

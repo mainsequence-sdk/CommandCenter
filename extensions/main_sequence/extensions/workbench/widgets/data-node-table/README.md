@@ -17,6 +17,7 @@ before the table sees the rows. The widget is intentionally configuration-heavy:
 - threshold rules such as `> 0`, `< -5`, or `> 80`
 - heatmap cell backgrounds controlled per column
 - inline filled bars that can be enabled from the formatter on any column
+- ring gauges for numeric columns
 - surface toggles like density, toolbar, zebra rows, and pagination
 
 ## Entry Points
@@ -121,9 +122,11 @@ assumes tabular frame data shaped like:
 - decimals
 - prefix
 - suffix
-- heatmap toggle
+- heatmap mode
 - compact-number toggle
 - inline bar mode
+- gauge mode
+- auto/fixed numeric bounds for visuals
 - alignment
 - pinning
 
@@ -131,7 +134,12 @@ The effective `format` is also the switch for which display treatments can rende
 
 - `Text`: supports value-label chips
 - `Number` / `Currency` / `Percent` / `Bps`: support decimals, compact numbers, heatmaps, data bars,
-  and conditional rules
+  gauges, and conditional rules
+
+Heatmaps, data bars, and gauges all read from the same numeric-bounds contract:
+
+- `Auto bounds`: derive min/max from the current live column values
+- `Fixed bounds`: use instance-owned `min` / `max` values instead
 
 The settings UI and resolved renderer both follow that effective format instead of hardcoding
 source-schema assumptions.

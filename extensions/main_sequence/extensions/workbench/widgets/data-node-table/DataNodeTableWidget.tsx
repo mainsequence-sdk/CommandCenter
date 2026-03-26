@@ -123,6 +123,30 @@ function getBarFillRatio(numericValue: number, range: ColumnRange) {
   return clamp(Math.abs(numericValue) / denominator);
 }
 
+function resolveColumnVisualRange(
+  columnConfig: Pick<
+    ResolvedDataNodeTableVisualizerColumnConfig,
+    "visualMax" | "visualMin" | "visualRangeMode"
+  >,
+  range: ColumnRange,
+): ColumnRange {
+  if (
+    columnConfig.visualRangeMode === "fixed" &&
+    typeof columnConfig.visualMin === "number" &&
+    Number.isFinite(columnConfig.visualMin) &&
+    typeof columnConfig.visualMax === "number" &&
+    Number.isFinite(columnConfig.visualMax) &&
+    columnConfig.visualMin < columnConfig.visualMax
+  ) {
+    return {
+      min: columnConfig.visualMin,
+      max: columnConfig.visualMax,
+    };
+  }
+
+  return range;
+}
+
 function getMatchingConditionalRule(
   resolvedProps: ResolvedDataNodeTableVisualizerProps,
   columnKey: string,
@@ -237,6 +261,7 @@ function createTableCellStyle({
     textAlign: columnConfig.align,
     color: conditionalRule?.textColor ?? tokens.foreground,
   };
+  const visualRange = resolveColumnVisualRange(columnConfig, range);
 
   if (conditionalRule?.backgroundColor) {
     style.background = `linear-gradient(90deg, ${withAlpha(conditionalRule.backgroundColor, 0.18)} 0%, ${withAlpha(
@@ -258,14 +283,18 @@ function createTableCellStyle({
     return style;
   }
 
-  if (!supportsNumericFormatting || !columnConfig.heatmap || numericValue === null) {
+  if (
+    !supportsNumericFormatting ||
+    (columnConfig.gradientMode !== "fill" && !columnConfig.heatmap) ||
+    numericValue === null
+  ) {
     return style;
   }
 
-  const tone = getColumnTone(numericValue, range, tokens);
+  const tone = getColumnTone(numericValue, visualRange, tokens);
   style.background = `linear-gradient(90deg, ${withAlpha(
     tone,
-    getHeatmapAlpha(numericValue, range),
+    getHeatmapAlpha(numericValue, visualRange),
   )} 0%, ${withAlpha(tone, 0.03)} 100%)`;
   style.boxShadow = `inset 1px 0 0 ${withAlpha(tone, 0.24)}`;
 
@@ -292,6 +321,7 @@ function DataNodeTableVisualizerCellRenderer({
       ? getDataNodeTableVisualizerValueLabel(resolvedProps, columnConfig.key, cellValue)
       : null;
   const alignmentClasses = getAlignmentClasses(columnConfig.align);
+  const visualRange = resolveColumnVisualRange(columnConfig, range);
 
   if (valueLabel) {
     const toneStyle = resolveLabelToneStyle(valueLabel, tokens);
@@ -313,10 +343,16 @@ function DataNodeTableVisualizerCellRenderer({
 
   const fillRatio =
     supportsNumericFormatting && numericValue !== null && columnConfig.barMode === "fill"
-      ? getBarFillRatio(numericValue, range)
+      ? getBarFillRatio(numericValue, visualRange)
       : 0;
   const fillTone =
-    numericValue !== null ? getColumnTone(numericValue, range, tokens) : tokens.primary;
+    numericValue !== null ? getColumnTone(numericValue, visualRange, tokens) : tokens.primary;
+  const gaugeRatio =
+    supportsNumericFormatting && numericValue !== null && columnConfig.gaugeMode === "ring"
+      ? getBarFillRatio(numericValue, visualRange)
+      : 0;
+  const gaugeCircumference = 2 * Math.PI * 9;
+  const gaugeStrokeOffset = gaugeCircumference * (1 - gaugeRatio);
 
   return (
     <div className={`relative flex h-full w-full items-center overflow-hidden ${alignmentClasses}`}>
@@ -332,6 +368,31 @@ function DataNodeTableVisualizerCellRenderer({
             boxShadow: `inset 0 0 0 1px ${withAlpha(fillTone, 0.22)}`,
           }}
         />
+      ) : null}
+      {columnConfig.gaugeMode === "ring" ? (
+        <span className="relative z-10 mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center">
+          <svg viewBox="0 0 24 24" className="h-5 w-5 -rotate-90">
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              fill="none"
+              stroke={withAlpha(tokens.border, 0.9)}
+              strokeWidth="3"
+            />
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              fill="none"
+              stroke={fillTone}
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={gaugeCircumference}
+              strokeDashoffset={gaugeStrokeOffset}
+            />
+          </svg>
+        </span>
       ) : null}
       <span
         className="relative z-10 w-full truncate font-medium tabular-nums"
