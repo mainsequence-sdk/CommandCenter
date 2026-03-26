@@ -1,0 +1,38 @@
+[
+  {
+    "id": 9,
+    "project_repo_hash": "abcdef1234567890",
+    "related_project": 81,
+    "base_image": {
+      "id": 1,
+      "latest_digest": "sha256:111111111111",
+      "description": "Python 3.11 image with analytics libraries.",
+      "title": "Python 3.11 Runtime"
+    },
+    "is_ready": true
+  },
+  {
+    "id": 10,
+    "project_repo_hash": "1234567890abcdef",
+    "related_project": 88,
+    "base_image": {
+      "id": 2,
+      "latest_digest": "sha256:222222222222",
+      "description": "Research runtime with notebook and scipy stack.",
+      "title": "Research Python Image"
+    },
+    "is_ready": true
+  },
+  {
+    "id": 11,
+    "project_repo_hash": "fedcba9876543210",
+    "related_project": 93,
+    "base_image": {
+      "id": 3,
+      "latest_digest": "sha256:333333333333",
+      "description": "Operational runtime for schedulers and monitors.",
+      "title": "Ops Python Image"
+    },
+    "is_ready": false
+  }
+]

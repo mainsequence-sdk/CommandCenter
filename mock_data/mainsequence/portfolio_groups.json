@@ -1,0 +1,32 @@
+[
+  {
+    "id": 41,
+    "name": "Rates Signal Stack",
+    "display_name": "Rates Signal Stack",
+    "portfolio_group_name": "Rates Signal Stack",
+    "unique_identifier": "rates_signal_stack",
+    "description": "Rates strategies grouped for allocation review.",
+    "portfolios": [901, 904],
+    "creation_date": "2026-02-14T09:00:00Z"
+  },
+  {
+    "id": 42,
+    "name": "Macro Overlay",
+    "display_name": "Macro Overlay",
+    "portfolio_group_name": "Macro Overlay",
+    "unique_identifier": "macro_overlay",
+    "description": "Macro sleeves across asset classes.",
+    "portfolios": [902],
+    "creation_date": "2026-02-18T11:30:00Z"
+  },
+  {
+    "id": 43,
+    "name": "Commodity Discretionary",
+    "display_name": "Commodity Discretionary",
+    "portfolio_group_name": "Commodity Discretionary",
+    "unique_identifier": "commodity_discretionary",
+    "description": "Discretionary commodity overlay strategies.",
+    "portfolios": [903],
+    "creation_date": "2026-03-01T08:20:00Z"
+  }
+]

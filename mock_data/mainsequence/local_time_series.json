@@ -1,0 +1,144 @@
+[
+  {
+    "id": 12001,
+    "project_id": 81,
+    "update_hash": "discount_curves_usd_update",
+    "build_configuration": { "kind": "bootstrap" },
+    "ogm_dependencies_linked": true,
+    "open_for_everyone": true,
+    "data_node_storage": { "id": 9101, "storage_hash": "discount_curves_usd", "identifier": "Discount Curves USD" },
+    "run_configuration": {
+      "local_time_serie_update_details": 12001,
+      "retry_on_error": true,
+      "seconds_wait_on_retry": 60,
+      "required_cpus": "1",
+      "required_gpus": null,
+      "execution_time_out_seconds": 1800,
+      "update_schedule": { "cron": "0 16 * * 1-5" }
+    },
+    "update_details": {
+      "related_table": 9101,
+      "active_update": false,
+      "update_pid": null,
+      "error_on_last_update": false,
+      "last_update": "2026-03-24T16:00:00Z",
+      "next_update": "2026-03-25T16:00:00Z",
+      "update_statistics": { "rows_written": 1200 },
+      "active_update_status": null,
+      "active_update_scheduler": null,
+      "update_priority": 5,
+      "last_updated_by_user": 1,
+      "run_configuration": {
+        "local_time_serie_update_details": 12001,
+        "retry_on_error": true,
+        "seconds_wait_on_retry": 60,
+        "required_cpus": "1",
+        "required_gpus": null,
+        "execution_time_out_seconds": 1800,
+        "update_schedule": { "cron": "0 16 * * 1-5" }
+      }
+    },
+    "historical_updates": [
+      { "id": 1, "related_table": 9101, "update_time_start": "2026-03-23T16:00:00Z", "update_time_end": "2026-03-23T16:04:00Z", "error_on_update": false, "trace_id": "lts-12001-1", "updated_by_user": 1 },
+      { "id": 2, "related_table": 9101, "update_time_start": "2026-03-24T16:00:00Z", "update_time_end": "2026-03-24T16:05:00Z", "error_on_update": false, "trace_id": "lts-12001-2", "updated_by_user": 1 }
+    ],
+    "logs": [
+      { "timestamp": "2026-03-24T16:00:10Z", "level": "info", "event": "start", "message": "Update started." },
+      { "timestamp": "2026-03-24T16:04:58Z", "level": "info", "event": "finish", "message": "Rows written successfully." }
+    ]
+  },
+  {
+    "id": 12002,
+    "project_id": 81,
+    "update_hash": "reference_fixings_usd_update",
+    "build_configuration": { "kind": "loader" },
+    "ogm_dependencies_linked": true,
+    "open_for_everyone": true,
+    "data_node_storage": { "id": 9102, "storage_hash": "reference_fixings_usd", "identifier": "Reference Rate Fixings USD" },
+    "run_configuration": {
+      "local_time_serie_update_details": 12002,
+      "retry_on_error": true,
+      "seconds_wait_on_retry": 60,
+      "required_cpus": "1",
+      "required_gpus": null,
+      "execution_time_out_seconds": 1200,
+      "update_schedule": { "cron": "30 16 * * 1-5" }
+    },
+    "update_details": {
+      "related_table": 9102,
+      "active_update": false,
+      "update_pid": null,
+      "error_on_last_update": false,
+      "last_update": "2026-03-24T16:30:00Z",
+      "next_update": "2026-03-25T16:30:00Z",
+      "update_statistics": { "rows_written": 100 },
+      "active_update_status": null,
+      "active_update_scheduler": null,
+      "update_priority": 5,
+      "last_updated_by_user": 1,
+      "run_configuration": {
+        "local_time_serie_update_details": 12002,
+        "retry_on_error": true,
+        "seconds_wait_on_retry": 60,
+        "required_cpus": "1",
+        "required_gpus": null,
+        "execution_time_out_seconds": 1200,
+        "update_schedule": { "cron": "30 16 * * 1-5" }
+      }
+    },
+    "historical_updates": [
+      { "id": 3, "related_table": 9102, "update_time_start": "2026-03-24T16:30:00Z", "update_time_end": "2026-03-24T16:31:10Z", "error_on_update": false, "trace_id": "lts-12002-1", "updated_by_user": 1 }
+    ],
+    "logs": [
+      { "timestamp": "2026-03-24T16:30:02Z", "level": "info", "event": "start", "message": "Fixings update started." },
+      { "timestamp": "2026-03-24T16:31:08Z", "level": "info", "event": "finish", "message": "Fixings loaded successfully." }
+    ]
+  },
+  {
+    "id": 13001,
+    "project_id": 88,
+    "update_hash": "macro_factor_panel_update",
+    "build_configuration": { "kind": "panel" },
+    "ogm_dependencies_linked": true,
+    "open_for_everyone": true,
+    "data_node_storage": { "id": 9301, "storage_hash": "macro_factor_panel", "identifier": "Macro Factor Panel" },
+    "run_configuration": {
+      "local_time_serie_update_details": 13001,
+      "retry_on_error": true,
+      "seconds_wait_on_retry": 120,
+      "required_cpus": "2",
+      "required_gpus": null,
+      "execution_time_out_seconds": 2400,
+      "update_schedule": { "cron": "0 */4 * * *" }
+    },
+    "update_details": {
+      "related_table": 9301,
+      "active_update": true,
+      "update_pid": 4444,
+      "error_on_last_update": false,
+      "last_update": "2026-03-24T12:00:00Z",
+      "next_update": "2026-03-24T16:00:00Z",
+      "update_statistics": { "rows_written": 450 },
+      "active_update_status": "running",
+      "active_update_scheduler": 1,
+      "update_priority": 8,
+      "last_updated_by_user": 1,
+      "run_configuration": {
+        "local_time_serie_update_details": 13001,
+        "retry_on_error": true,
+        "seconds_wait_on_retry": 120,
+        "required_cpus": "2",
+        "required_gpus": null,
+        "execution_time_out_seconds": 2400,
+        "update_schedule": { "cron": "0 */4 * * *" }
+      }
+    },
+    "historical_updates": [
+      { "id": 4, "related_table": 9301, "update_time_start": "2026-03-24T08:00:00Z", "update_time_end": "2026-03-24T08:07:00Z", "error_on_update": false, "trace_id": "lts-13001-1", "updated_by_user": 1 }
+    ],
+    "logs": [
+      { "timestamp": "2026-03-24T12:00:03Z", "level": "info", "event": "start", "message": "Macro panel update started." },
+      { "timestamp": "2026-03-24T12:06:55Z", "level": "info", "event": "finish", "message": "Macro factors recalculated." }
+    ]
+  }
+]

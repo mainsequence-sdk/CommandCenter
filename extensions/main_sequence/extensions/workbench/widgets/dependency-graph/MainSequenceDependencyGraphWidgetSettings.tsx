@@ -1,10 +1,10 @@
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import type { MainSequenceDependencyGraphWidgetProps } from "./MainSequenceDependencyGraphWidget";
+import { LocalTimeSerieQuickSearchPicker } from "../data-node-shared/LocalTimeSerieQuickSearchPicker";
 
 function normalizeLocalTimeSerieId(value: string) {
   const parsed = Number(value);
@@ -42,24 +42,20 @@ export function MainSequenceDependencyGraphWidgetSettings({
           <span className="text-sm font-medium text-topbar-foreground">
             {t("mainSequenceDependencyGraph.settings.localTimeSerieId")}
           </span>
-          <Input
-            type="number"
-            min="1"
-            step="1"
-            inputMode="numeric"
-            placeholder="716"
-            value={localTimeSerieId}
-            readOnly={!editable}
-            onChange={(event) => {
+          <LocalTimeSerieQuickSearchPicker
+            value={localTimeSerieId ? Number(localTimeSerieId) : undefined}
+            onChange={(nextId) => {
               onDraftPropsChange({
                 ...draftProps,
-                localTimeSerieId: normalizeLocalTimeSerieId(event.target.value),
+                localTimeSerieId: nextId,
               });
             }}
+            editable={editable}
+            queryScope="dependency_graph_widget"
+            placeholder="Select a local update"
+            searchPlaceholder="Search local updates"
+            selectionHelpText={t("mainSequenceDependencyGraph.settings.localTimeSerieIdHelp")}
           />
-          <p className="text-sm text-muted-foreground">
-            {t("mainSequenceDependencyGraph.settings.localTimeSerieIdHelp")}
-          </p>
         </label>
 
         <label className="space-y-2">

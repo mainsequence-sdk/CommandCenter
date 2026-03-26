@@ -46,6 +46,11 @@ export function AppShell() {
   const routePathKey = location.pathname;
 
   useEffect(() => {
+    if (!env.includeWebsockets) {
+      setLiveState("disconnected");
+      return;
+    }
+
     const unsubscribe = terminalSocket.onStatusChange((state) => {
       setLiveState(state);
     });

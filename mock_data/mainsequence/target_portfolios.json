@@ -1,0 +1,106 @@
+[
+  {
+    "id": 901,
+    "portfolio_name": "Rates Carry Sleeve",
+    "creation_date": "2026-01-08T10:00:00Z",
+    "description": "Front-end rates sleeve optimized for carry and rolldown.",
+    "signal_name": "Rates Carry Composite",
+    "rebalance_strategy_name": "Weekly signal rebalance",
+    "index_asset": {
+      "id": 101,
+      "current_snapshot": {
+        "id": 5001,
+        "name": "US Treasury 2Y",
+        "ticker": "UST2Y"
+      }
+    },
+    "weights_date": "2026-03-24T16:00:00Z",
+    "weights": [
+      { "label": "Front End", "value": 0.48 },
+      { "label": "Belly", "value": 0.32 },
+      { "label": "Long End", "value": 0.20 }
+    ],
+    "weight_rows": [
+      { "asset_ticker": "UST2Y", "asset_name": "US Treasury 2Y", "position_value": 0.28 },
+      { "asset_ticker": "UST5Y", "asset_name": "US Treasury 5Y", "position_value": 0.22 },
+      { "asset_ticker": "UST10Y", "asset_name": "US Treasury 10Y", "position_value": 0.18 }
+    ]
+  },
+  {
+    "id": 902,
+    "portfolio_name": "Macro Rotation Sleeve",
+    "creation_date": "2026-01-21T14:20:00Z",
+    "description": "Cross-asset macro sleeve driven by growth and inflation regimes.",
+    "signal_name": "Macro Regime Rotation",
+    "rebalance_strategy_name": "Daily constrained rebalance",
+    "index_asset": {
+      "id": 201,
+      "current_snapshot": {
+        "id": 5003,
+        "name": "S&P 500 Index",
+        "ticker": "SPX"
+      }
+    },
+    "weights_date": "2026-03-24T16:00:00Z",
+    "weights": [
+      { "label": "Equities", "value": 0.44 },
+      { "label": "Rates", "value": 0.34 },
+      { "label": "FX", "value": 0.22 }
+    ],
+    "weight_rows": [
+      { "asset_ticker": "SPX", "asset_name": "S&P 500 Index", "position_value": 0.20 },
+      { "asset_ticker": "UST10Y", "asset_name": "US Treasury 10Y", "position_value": 0.18 },
+      { "asset_ticker": "DXY", "asset_name": "US Dollar Index", "position_value": 0.14 }
+    ]
+  },
+  {
+    "id": 903,
+    "portfolio_name": "Energy Tactical Sleeve",
+    "creation_date": "2026-02-03T12:05:00Z",
+    "description": "Short-horizon energy sleeve with event-driven overlays.",
+    "signal_name": "Energy Demand/Supply Blend",
+    "rebalance_strategy_name": "Twice weekly tactical rebalance",
+    "index_asset": {
+      "id": 301,
+      "current_snapshot": {
+        "id": 5004,
+        "name": "WTI Front Month",
+        "ticker": "CL1"
+      }
+    },
+    "weights_date": "2026-03-24T16:00:00Z",
+    "weights": [
+      { "label": "Crude", "value": 0.70 },
+      { "label": "Refined", "value": 0.30 }
+    ],
+    "weight_rows": [
+      { "asset_ticker": "CL1", "asset_name": "WTI Front Month", "position_value": 0.40 },
+      { "asset_ticker": "RB1", "asset_name": "RBOB Gasoline", "position_value": 0.30 }
+    ]
+  },
+  {
+    "id": 904,
+    "portfolio_name": "Curve RV Sleeve",
+    "creation_date": "2026-02-12T09:10:00Z",
+    "description": "Relative value curve trades across US rates.",
+    "signal_name": "Curve Relative Value",
+    "rebalance_strategy_name": "Signal threshold rebalance",
+    "index_asset": {
+      "id": 102,
+      "current_snapshot": {
+        "id": 5002,
+        "name": "US Treasury 10Y",
+        "ticker": "UST10Y"
+      }
+    },
+    "weights_date": "2026-03-24T16:00:00Z",
+    "weights": [
+      { "label": "2s10s", "value": 0.55 },
+      { "label": "5s30s", "value": 0.45 }
+    ],
+    "weight_rows": [
+      { "asset_ticker": "UST2Y", "asset_name": "US Treasury 2Y", "position_value": 0.25 },
+      { "asset_ticker": "UST10Y", "asset_name": "US Treasury 10Y", "position_value": 0.30 }
+    ]
+  }
+]

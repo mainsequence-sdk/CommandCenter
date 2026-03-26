@@ -1,0 +1,41 @@
+[
+  {
+    "id": 301,
+    "display_name": "Warehouse Lakehouse",
+    "is_default_data_source": true,
+    "related_resource": {
+      "id": 701,
+      "label": "Warehouse Lakehouse",
+      "class_type": "timescale_db",
+      "status": "healthy"
+    },
+    "creation_date": "2026-01-05T09:00:00Z",
+    "creation_date_display": "Jan 5, 2026"
+  },
+  {
+    "id": 302,
+    "display_name": "Macro Research Store",
+    "is_default_data_source": true,
+    "related_resource": {
+      "id": 702,
+      "label": "Macro Research Store",
+      "class_type": "duck_db",
+      "status": "healthy"
+    },
+    "creation_date": "2026-01-11T10:00:00Z",
+    "creation_date_display": "Jan 11, 2026"
+  },
+  {
+    "id": 303,
+    "display_name": "Operations Event Store",
+    "is_default_data_source": false,
+    "related_resource": {
+      "id": 703,
+      "label": "Operations Event Store",
+      "class_type": "timescale_db_gcp_cloud",
+      "status": "healthy"
+    },
+    "creation_date": "2026-01-18T11:00:00Z",
+    "creation_date_display": "Jan 18, 2026"
+  }
+]

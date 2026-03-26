@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import { cn } from "@/lib/utils";
 import {
+  resolveWidgetMinimalChrome,
   widgetShellClassName,
   widgetShellHeaderClassName,
 } from "@/widgets/shared/chrome";
@@ -25,7 +26,7 @@ export function WidgetFrame({
   children,
 }: {
   widget: WidgetDefinition;
-  instance: { title?: string };
+  instance: { title?: string; props?: Record<string, unknown> };
   headerActions?: ReactNode;
   onOpenSettings?: () => void;
   showExplorerTrigger?: boolean;
@@ -34,7 +35,9 @@ export function WidgetFrame({
   children: ReactNode;
 }) {
   const headerVisible = showHeader ?? true;
-  const dividerPresentation = isWorkspaceRowWidgetId(widget.id) && !headerVisible;
+  const minimalChrome = resolveWidgetMinimalChrome(instance.props);
+  const dividerPresentation =
+    (isWorkspaceRowWidgetId(widget.id) || minimalChrome) && !headerVisible;
 
   return (
     <section
@@ -135,16 +138,31 @@ export function MissingWidgetFrame({
       style={style}
       className={cn(
         widgetShellClassName,
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius)] border border-dashed border-danger/40 bg-danger/5 p-4 text-card-foreground",
+        "relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius)] border border-dashed border-danger/40 bg-danger/5 p-3 text-card-foreground",
       )}
     >
-      <div className="flex h-full flex-col items-center justify-center gap-4 rounded-[calc(var(--radius)-6px)] border border-danger/20 bg-danger/8 p-6 text-center">
-        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-danger/12 text-danger">
+      {onRemove ? (
+        <div className="absolute right-2 top-2 z-10">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 rounded-full border border-danger/25 bg-background/75 text-danger hover:bg-danger/12"
+            onClick={onRemove}
+            title="Delete legacy widget"
+            aria-label="Delete legacy widget"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-danger/20 bg-danger/8 p-4 text-center">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-danger/12 text-danger">
           <AlertTriangle className="h-5 w-5" />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div className="font-medium text-foreground">Legacy widget unavailable</div>
-          <p className="max-w-md text-sm text-muted-foreground">
+          <p className="max-w-md text-xs text-muted-foreground sm:text-sm">
             This widget instance points to{" "}
             <span className="font-mono text-foreground">{widgetId}</span>, but that widget definition is
             not registered in the current client. It usually means the widget was removed, renamed, or
@@ -152,7 +170,7 @@ export function MissingWidgetFrame({
           </p>
         </div>
         {onRemove ? (
-          <Button size="sm" variant="danger" onClick={onRemove}>
+          <Button size="sm" variant="danger" onClick={onRemove} className="max-sm:hidden">
             <Trash2 className="h-3.5 w-3.5" />
             Delete legacy widget
           </Button>

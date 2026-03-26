@@ -1,0 +1,6 @@
+[
+  { "id": 1, "username": "jose", "email": "jose@main-sequence.io", "first_name": "Jose", "last_name": "Main" },
+  { "id": 2, "username": "ada", "email": "ada@main-sequence.io", "first_name": "Ada", "last_name": "Lovelace" },
+  { "id": 3, "username": "grace", "email": "grace@main-sequence.io", "first_name": "Grace", "last_name": "Hopper" },
+  { "id": 4, "username": "linus", "email": "linus@main-sequence.io", "first_name": "Linus", "last_name": "Torvalds" }
+]

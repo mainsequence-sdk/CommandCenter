@@ -1,0 +1,6 @@
+[
+  { "id": 1, "symbol": "OTC", "name": "Over The Counter" },
+  { "id": 2, "symbol": "CME", "name": "Chicago Mercantile Exchange" },
+  { "id": 3, "symbol": "NYSE", "name": "New York Stock Exchange" },
+  { "id": 4, "symbol": "NYMEX", "name": "New York Mercantile Exchange" }
+]

@@ -1,0 +1,19 @@
+[
+  { "project_id": 81, "path": "README.md", "type": "file", "content": "# Analytics\n\nThis is the analytics project." },
+  { "project_id": 81, "path": "dashboards", "type": "folder" },
+  { "project_id": 81, "path": "dashboards/revenue_dashboard", "type": "folder" },
+  { "project_id": 81, "path": "dashboards/revenue_dashboard/app.py", "type": "file", "content": "import streamlit as st\n\nst.title('Revenue Dashboard')\n" },
+  { "project_id": 81, "path": "jobs", "type": "folder" },
+  { "project_id": 81, "path": "jobs/revenue_job.py", "type": "file", "content": "def main():\n    return 'revenue refresh'\n" },
+  { "project_id": 88, "path": "README.md", "type": "file", "content": "# Macro\n\nMacro research workflows." },
+  { "project_id": 88, "path": "dashboards", "type": "folder" },
+  { "project_id": 88, "path": "dashboards/macro_dashboard", "type": "folder" },
+  { "project_id": 88, "path": "dashboards/macro_dashboard/app.py", "type": "file", "content": "import streamlit as st\n\nst.title('Macro Dashboard')\n" },
+  { "project_id": 88, "path": "jobs", "type": "folder" },
+  { "project_id": 88, "path": "jobs/macro_job.py", "type": "file", "content": "def main():\n    return 'macro refresh'\n" },
+  { "project_id": 88, "path": "jobs/research_agent.py", "type": "file", "content": "def main():\n    return 'agent run'\n" },
+  { "project_id": 93, "path": "README.md", "type": "file", "content": "# Ops Control\n\nOperational monitors and services." },
+  { "project_id": 93, "path": "dashboards", "type": "folder" },
+  { "project_id": 93, "path": "dashboards/ops_status", "type": "folder" },
+  { "project_id": 93, "path": "dashboards/ops_status/app.py", "type": "file", "content": "import streamlit as st\n\nst.title('Ops Status Board')\n" }
+]

@@ -99,6 +99,7 @@ export interface WidgetFieldDefinition<
   label: string;
   description?: string;
   sectionId: string;
+  settingsColumnSpan?: 1 | 2;
   category?: string;
   tags?: string[];
   pop?: WidgetFieldPopConfig;
@@ -131,8 +132,10 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   exampleProps?: TProps;
   mockProps?: TProps;
   mockRuntimeState?: Record<string, unknown>;
+  bodyMode?: "default" | "none";
   schema?: WidgetSettingsSchema<TProps, unknown>;
   controller?: WidgetController<TProps, unknown>;
+  headerComponent?: ComponentType<WidgetHeaderComponentProps<TProps>>;
   headerActions?: ComponentType<WidgetHeaderActionsProps<TProps>>;
   settingsComponent?: ComponentType<WidgetSettingsComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;
@@ -151,6 +154,16 @@ export interface WidgetHeaderActionsProps<
 > {
   widget: WidgetDefinition<TProps>;
   props: TProps;
+  runtimeState?: Record<string, unknown>;
+  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
+}
+
+export interface WidgetHeaderComponentProps<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  widget: WidgetDefinition<TProps>;
+  props: TProps;
+  instanceTitle?: string;
   runtimeState?: Record<string, unknown>;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
 }

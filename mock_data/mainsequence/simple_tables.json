@@ -1,0 +1,35 @@
+[
+  {
+    "id": 14001,
+    "storage_hash": "analytics_revenue_summary",
+    "creation_date": "2026-01-10T08:00:00Z",
+    "source_class_name": "analytics.tables.RevenueSummary",
+    "identifier": "Revenue Summary",
+    "description": "Aggregated revenue summary table for dashboard consumption.",
+    "data_frequency_id": "daily",
+    "data_source": null,
+    "open_for_everyone": true,
+    "columns": [
+      { "id": 1, "attr_name": "date", "column_name": "date", "db_type": "date", "is_pk": true, "nullable": false, "is_unique": false },
+      { "id": 2, "attr_name": "desk", "column_name": "desk", "db_type": "text", "is_pk": false, "nullable": false, "is_unique": false },
+      { "id": 3, "attr_name": "revenue", "column_name": "revenue", "db_type": "float", "is_pk": false, "nullable": false, "is_unique": false }
+    ],
+    "foreign_keys": []
+  },
+  {
+    "id": 14002,
+    "storage_hash": "macro_regime_snapshot",
+    "creation_date": "2026-01-22T08:00:00Z",
+    "source_class_name": "macro.tables.RegimeSnapshot",
+    "identifier": "Macro Regime Snapshot",
+    "description": "Current macro regime classifications.",
+    "data_frequency_id": "daily",
+    "data_source": null,
+    "open_for_everyone": true,
+    "columns": [
+      { "id": 4, "attr_name": "date", "column_name": "date", "db_type": "date", "is_pk": true, "nullable": false, "is_unique": false },
+      { "id": 5, "attr_name": "regime", "column_name": "regime", "db_type": "text", "is_pk": false, "nullable": false, "is_unique": false }
+    ],
+    "foreign_keys": []
+  }
+]

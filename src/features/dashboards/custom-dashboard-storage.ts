@@ -680,6 +680,10 @@ export function updateDashboardWidgetSettings(
           "presentation" in settings
             ? cloneJson(settings.presentation ?? {})
             : widget.presentation,
+        runtimeState:
+          "props" in settings
+            ? undefined
+            : widget.runtimeState,
       };
     }),
   });
@@ -689,6 +693,41 @@ export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId
   return materializeDashboardLayout({
     ...dashboard,
     widgets: dashboard.widgets.filter((widget) => widget.id !== instanceId),
+  });
+}
+
+export function duplicateDashboardWidget(
+  dashboard: DashboardDefinition,
+  instanceId: string,
+) {
+  const current = dashboard.widgets.find((widget) => widget.id === instanceId);
+
+  if (!current) {
+    return dashboard;
+  }
+
+  const cols = getLayoutCols(current.layout);
+  const rows = getLayoutRows(current.layout);
+  const currentX = current.position?.x ?? 0;
+  const currentY = current.position?.y ?? 0;
+  const duplicatedWidget: DashboardWidgetInstance = {
+    ...cloneJson(current),
+    id: createId("custom-widget"),
+    runtimeState: undefined,
+    position: isWorkspaceRowWidgetId(current.widgetId)
+      ? {
+          x: 0,
+          y: currentY + rows,
+        }
+      : {
+          x: Math.max(0, Math.min(currentX + 2, DEFAULT_WORKSPACE_COLUMNS - cols)),
+          y: currentY + 2,
+        },
+  };
+
+  return materializeDashboardLayout({
+    ...dashboard,
+    widgets: [...dashboard.widgets, duplicatedWidget],
   });
 }
 

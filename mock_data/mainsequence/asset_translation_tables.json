@@ -1,0 +1,12 @@
+[
+  {
+    "id": 71,
+    "unique_identifier": "bloomberg_global_assets",
+    "creation_date": "2026-01-15T09:30:00Z"
+  },
+  {
+    "id": 72,
+    "unique_identifier": "internal_energy_series",
+    "creation_date": "2026-02-11T10:45:00Z"
+  }
+]

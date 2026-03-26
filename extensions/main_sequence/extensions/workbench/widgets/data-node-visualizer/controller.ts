@@ -1,45 +1,48 @@
 import { useMemo } from "react";
 
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-
 import type { WidgetController } from "@/widgets/types";
 
 import { type PickerOption } from "../../../../common/components/PickerField";
-import { fetchDataNodeDetail, type DataNodeDetail } from "../../../../common/api";
 import {
+  buildDataNodeVisualizerFieldOptionsFromRuntime,
   normalizeDataNodeVisualizerProps,
   resolveDataNodeVisualizerConfig,
-  type DataNodeVisualizerFieldOption,
   type MainSequenceDataNodeVisualizerWidgetProps,
 } from "./dataNodeVisualizerModel";
+import {
+  useDataNodeWidgetSourceControllerContext,
+  type DataNodeWidgetSourceControllerContext,
+} from "../data-node-shared/dataNodeWidgetSource";
+import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 
-function toFieldPickerOption(field: DataNodeVisualizerFieldOption): PickerOption {
-  const metadata = [
-    field.dtype,
-    field.isTime ? "Time" : null,
-    field.isIndex ? "Index" : null,
-    field.description ?? null,
-  ].filter((value): value is string => Boolean(value && value.trim()));
-
-  return {
-    value: field.key,
-    label: field.label,
-    description: metadata.join(" • ") || undefined,
-    keywords: [field.key, field.label, field.dtype ?? "", field.description ?? ""],
-  };
-}
-
-export interface DataNodeVisualizerControllerContext {
-  selectedDataNodeId: number;
-  selectedDataNodeDetailQuery: UseQueryResult<DataNodeDetail>;
-  resolvedConfig: ReturnType<typeof resolveDataNodeVisualizerConfig>;
-  fieldPickerOptions: PickerOption[];
+export interface DataNodeVisualizerControllerContext
+  extends DataNodeWidgetSourceControllerContext<ReturnType<typeof resolveDataNodeVisualizerConfig>> {
   xAxisOptions: PickerOption[];
   yAxisOptions: PickerOption[];
   groupOptions: PickerOption[];
-  hasLoadedDataNodeDetail: boolean;
-  hasNoData: boolean;
-  supportsUniqueIdentifierList: boolean;
+}
+
+function toPickerOption(option: {
+  key: string;
+  label: string;
+  description?: string | null;
+  dtype?: string | null;
+  isTime?: boolean;
+  isIndex?: boolean;
+}) {
+  const metadata = [
+    option.dtype ?? null,
+    option.isTime ? "Time" : null,
+    option.isIndex ? "Index" : null,
+    option.description ?? null,
+  ].filter((value): value is string => Boolean(value && value.trim()));
+
+  return {
+    value: option.key,
+    label: option.label,
+    description: metadata.join(" • ") || undefined,
+    keywords: [option.key, option.label, option.dtype ?? "", option.description ?? ""],
+  } satisfies PickerOption;
 }
 
 export function useDataNodeVisualizerControllerContext({
@@ -47,20 +50,42 @@ export function useDataNodeVisualizerControllerContext({
 }: {
   props: MainSequenceDataNodeVisualizerWidgetProps;
 }): DataNodeVisualizerControllerContext {
-  const selectedDataNodeId = Number(props.dataNodeId ?? 0);
-  const selectedDataNodeDetailQuery = useQuery({
-    queryKey: ["main_sequence", "widgets", "data_node_visualizer", "detail", selectedDataNodeId],
-    queryFn: () => fetchDataNodeDetail(selectedDataNodeId),
-    enabled: Number.isFinite(selectedDataNodeId) && selectedDataNodeId > 0,
-    staleTime: 300_000,
+  const normalizedProps = useMemo(
+    () => normalizeDataNodeVisualizerProps(props),
+    [props],
+  );
+  const sourceContext = useDataNodeWidgetSourceControllerContext({
+    props: normalizedProps,
+    queryKeyScope: "data_node_visualizer",
+    resolveConfig: resolveDataNodeVisualizerConfig,
   });
-
+  const linkedFilterRuntime = useMemo(
+    () => normalizeDataNodeFilterRuntimeState(sourceContext.referencedFilterWidget?.runtimeState),
+    [sourceContext.referencedFilterWidget?.runtimeState],
+  );
+  const runtimeFieldOptions = useMemo(
+    () => buildDataNodeVisualizerFieldOptionsFromRuntime(linkedFilterRuntime),
+    [linkedFilterRuntime],
+  );
   const resolvedConfig = useMemo(
-    () => resolveDataNodeVisualizerConfig(props, selectedDataNodeDetailQuery.data),
-    [props, selectedDataNodeDetailQuery.data],
+    () =>
+      resolveDataNodeVisualizerConfig(
+        {
+          ...normalizedProps,
+          ...sourceContext.resolvedSourceProps,
+        },
+        sourceContext.selectedDataNodeDetailQuery.data,
+        runtimeFieldOptions.length > 0 ? runtimeFieldOptions : undefined,
+      ),
+    [
+      normalizedProps,
+      runtimeFieldOptions,
+      sourceContext.resolvedSourceProps,
+      sourceContext.selectedDataNodeDetailQuery.data,
+    ],
   );
   const fieldPickerOptions = useMemo<PickerOption[]>(
-    () => resolvedConfig.availableFields.map(toFieldPickerOption),
+    () => resolvedConfig.availableFields.map(toPickerOption),
     [resolvedConfig.availableFields],
   );
   const xAxisOptions = useMemo<PickerOption[]>(
@@ -97,22 +122,13 @@ export function useDataNodeVisualizerControllerContext({
     [fieldPickerOptions],
   );
 
-  const hasLoadedDataNodeDetail = Boolean(selectedDataNodeDetailQuery.data);
-  const hasSourceTableConfiguration = Boolean(
-    selectedDataNodeDetailQuery.data?.sourcetableconfiguration,
-  );
-
   return {
-    selectedDataNodeId,
-    selectedDataNodeDetailQuery,
-    resolvedConfig,
+    ...sourceContext,
     fieldPickerOptions,
+    resolvedConfig,
     xAxisOptions,
     yAxisOptions,
     groupOptions,
-    hasLoadedDataNodeDetail,
-    hasNoData: hasLoadedDataNodeDetail && !hasSourceTableConfiguration,
-    supportsUniqueIdentifierList: resolvedConfig.supportsUniqueIdentifierList,
   };
 }
 

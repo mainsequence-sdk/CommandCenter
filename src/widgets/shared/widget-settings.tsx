@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { Settings2 } from "lucide-react";
+import { Copy } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,29 @@ export function WidgetSettingsTrigger({
   );
 }
 
+export function WidgetDuplicateTrigger({
+  className,
+  widgetTitle,
+  ...props
+}: {
+  widgetTitle: string;
+} & ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      aria-label={`Duplicate ${widgetTitle}`}
+      title={`Duplicate ${widgetTitle}`}
+      className={cn(
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-topbar-foreground",
+        className,
+      )}
+      {...props}
+    >
+      <Copy className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
 interface WidgetSettingsDialogProps<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
@@ -149,7 +173,7 @@ export function WidgetSettingsDialog<
     setDraftPresentation(initialPresentation);
     setRawPropsValue(serializeWidgetProps(initialProps));
     setJsonError(null);
-  }, [initialPresentation, initialProps, initialTitle, open, instance.id]);
+  }, [open, instance.id]);
 
   const dirty =
     instanceTitle !== initialTitle ||

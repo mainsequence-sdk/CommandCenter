@@ -117,7 +117,10 @@ function formatCreationDate(value?: string | null) {
 }
 
 function getTableIndexNames(dataNode: DataNodeSummary) {
-  const rawValue = dataNode.table_index_names as unknown;
+  const rawValue =
+    (dataNode.table_index_names as unknown) ??
+    (dataNode.index_names as unknown) ??
+    (dataNode.sourcetableconfiguration?.index_names as unknown);
 
   if (Array.isArray(rawValue)) {
     return rawValue.filter((value): value is string => typeof value === "string" && value.trim().length > 0);

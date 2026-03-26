@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "unique_identifier": "rates",
+    "display_name": "Rates",
+    "description": "Government bonds, swaps, and curve instruments.",
+    "assets": [101, 102]
+  },
+  {
+    "id": 2,
+    "unique_identifier": "equities",
+    "display_name": "Equities",
+    "description": "Index and equity benchmark instruments.",
+    "assets": [201]
+  },
+  {
+    "id": 3,
+    "unique_identifier": "commodities",
+    "display_name": "Commodities",
+    "description": "Energy and commodity futures instruments.",
+    "assets": [301]
+  }
+]

@@ -16,6 +16,10 @@ import type {
 } from "./types";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
+const mockNotificationJsonModules = import.meta.glob("/mock_data/command_center/notifications.json", {
+  eager: true,
+  import: "default",
+}) as Record<string, unknown>;
 
 type QueryValue = AppNotificationQueryValue;
 
@@ -46,6 +50,30 @@ export class NotificationsApiError extends Error {
   }
 }
 
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeMockNotificationState() {
+  const dataset = mockNotificationJsonModules["/mock_data/command_center/notifications.json"];
+
+  if (Array.isArray(dataset)) {
+    return cloneJson(dataset as VisibleNotificationContract[]);
+  }
+
+  if (isRecord(dataset) && Array.isArray(dataset.results)) {
+    return cloneJson(dataset.results as VisibleNotificationContract[]);
+  }
+
+  return [] as VisibleNotificationContract[];
+}
+
+let mockNotificationsState = normalizeMockNotificationState();
+
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
 }
@@ -72,6 +100,91 @@ function buildEndpointUrl(
   }
 
   return url.toString();
+}
+
+function normalizeMockNotificationPath(path: string, baseUrl = env.apiBaseUrl) {
+  const pathname = new URL(path, baseUrl).pathname;
+
+  if (!pathname.startsWith(devAuthProxyPrefix)) {
+    return pathname;
+  }
+
+  const normalizedPathname = pathname.slice(devAuthProxyPrefix.length);
+  return normalizedPathname || "/";
+}
+
+function buildMockNotificationsListPayload() {
+  return {
+    results: sortVisibleNotifications(cloneJson(mockNotificationsState)),
+  };
+}
+
+function handleMockNotificationsRequest<T>(
+  endpoint: NotificationEndpointRequest,
+  init?: RequestInit,
+  _search?: Record<string, QueryValue>,
+) {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const pathname = normalizeMockNotificationPath(endpoint.path, endpoint.baseUrl);
+  const listPathname = normalizeMockNotificationPath(commandCenterConfig.notifications.listUrl);
+  const markAllReadPathname = normalizeMockNotificationPath(commandCenterConfig.notifications.markAllReadUrl);
+  const dismissAllPathname = normalizeMockNotificationPath(commandCenterConfig.notifications.dismissAllUrl);
+
+  if (pathname === listPathname && method === "GET") {
+    return buildMockNotificationsListPayload() as T;
+  }
+
+  if (pathname === markAllReadPathname && method === "POST") {
+    mockNotificationsState = mockNotificationsState.map((notification) => ({
+      ...notification,
+      is_read: true,
+    }));
+    return null as T;
+  }
+
+  if (pathname === dismissAllPathname && method === "POST") {
+    mockNotificationsState = [];
+    return null as T;
+  }
+
+  const markReadMatch = pathname.match(/^\/user\/api\/notifications\/([^/]+)\/mark-read\/$/);
+
+  if (markReadMatch && method === "POST") {
+    const notificationId = decodeURIComponent(markReadMatch[1] ?? "");
+    mockNotificationsState = mockNotificationsState.map((entry) =>
+      String(entry.id) === notificationId ? { ...entry, is_read: true } : entry,
+    );
+    return cloneJson(mockNotificationsState.find((entry) => String(entry.id) === notificationId) ?? null) as T;
+  }
+
+  const dismissMatch = pathname.match(/^\/user\/api\/notifications\/([^/]+)\/dismiss\/$/);
+
+  if (dismissMatch && method === "POST") {
+    const notificationId = decodeURIComponent(dismissMatch[1] ?? "");
+    mockNotificationsState = mockNotificationsState.filter((entry) => String(entry.id) !== notificationId);
+    return null as T;
+  }
+
+  const detailMatch = pathname.match(/^\/user\/api\/notifications\/([^/]+)\/$/);
+
+  if (!detailMatch) {
+    return undefined;
+  }
+
+  const notificationId = decodeURIComponent(detailMatch[1] ?? "");
+  const notificationIndex = mockNotificationsState.findIndex(
+    (entry) => String(entry.id) === notificationId,
+  );
+
+  if (notificationIndex < 0) {
+    throw new NotificationsApiError("Notification not found.", 404, { detail: "Notification not found." });
+  }
+
+  if (method === "GET") {
+    return cloneJson(mockNotificationsState[notificationIndex]) as T;
+  }
+
+  return undefined;
 }
 
 async function readResponsePayload(response: Response) {
@@ -124,6 +237,14 @@ async function requestNotificationsJson<T>(
   init?: RequestInit,
   search?: Record<string, QueryValue>,
 ) {
+  if (env.useMockData) {
+    const mockResponse = handleMockNotificationsRequest<T>(endpoint, init, search);
+
+    if (mockResponse !== undefined) {
+      return mockResponse;
+    }
+  }
+
   const requestUrl = buildEndpointUrl(endpoint.path, search, endpoint.baseUrl);
 
   async function sendRequest() {

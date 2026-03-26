@@ -1,0 +1,128 @@
+[
+  {
+    "id": 81,
+    "project_name": "Analytics",
+    "data_source": {
+      "id": 301,
+      "related_resource": {
+        "id": 701,
+        "display_name": "Warehouse Lakehouse",
+        "organization": 1,
+        "class_type": "timescale_db",
+        "status": "healthy"
+      },
+      "related_resource_class_type": "timescale_db"
+    },
+    "git_ssh_url": "git@github.com:mainsequence/analytics.git",
+    "is_initialized": true,
+    "created_by": "jose@main-sequence.io",
+    "description": "Shared analytics project used for dashboards and derived datasets.",
+    "latest_commit": {
+      "sha": "abcdef1234567890",
+      "short": "abcdef1",
+      "date": "2026-03-20T14:30:00Z",
+      "ago": "6 days ago",
+      "branch": "main"
+    },
+    "base_image": {
+      "title": "Python 3.11 Runtime",
+      "description": "Base image with pandas, polars, and db adapters.",
+      "is_default": true,
+      "badge_class": "success"
+    },
+    "stats": {
+      "jobs": 2,
+      "images": 2,
+      "releases": 2
+    },
+    "resource_usage_chart_data": [
+      { "time": 1711305600, "cpu_cores": 2.1, "memory_gib": 5.4, "disk_gib": 3.2 },
+      { "time": 1711392000, "cpu_cores": 2.4, "memory_gib": 5.8, "disk_gib": 3.4 },
+      { "time": 1711478400, "cpu_cores": 1.9, "memory_gib": 5.1, "disk_gib": 3.1 }
+    ]
+  },
+  {
+    "id": 88,
+    "project_name": "Macro",
+    "data_source": {
+      "id": 302,
+      "related_resource": {
+        "id": 702,
+        "display_name": "Macro Research Store",
+        "organization": 1,
+        "class_type": "duck_db",
+        "status": "healthy"
+      },
+      "related_resource_class_type": "duck_db"
+    },
+    "git_ssh_url": "git@github.com:mainsequence/macro.git",
+    "is_initialized": true,
+    "created_by": "jose@main-sequence.io",
+    "description": "Macro research workspace with jobs, images, and streamlit releases.",
+    "latest_commit": {
+      "sha": "1234567890abcdef",
+      "short": "1234567",
+      "date": "2026-03-21T09:15:00Z",
+      "ago": "5 days ago",
+      "branch": "main"
+    },
+    "base_image": {
+      "title": "Research Python Image",
+      "description": "Main research runtime with notebooks and stats libraries.",
+      "is_default": true,
+      "badge_class": "success"
+    },
+    "stats": {
+      "jobs": 2,
+      "images": 1,
+      "releases": 1
+    },
+    "resource_usage_chart_data": [
+      { "time": 1711305600, "cpu_cores": 1.3, "memory_gib": 3.2, "disk_gib": 2.0 },
+      { "time": 1711392000, "cpu_cores": 1.7, "memory_gib": 3.8, "disk_gib": 2.2 },
+      { "time": 1711478400, "cpu_cores": 1.5, "memory_gib": 3.5, "disk_gib": 2.1 }
+    ]
+  },
+  {
+    "id": 93,
+    "project_name": "Ops Control",
+    "data_source": {
+      "id": 303,
+      "related_resource": {
+        "id": 703,
+        "display_name": "Operations Event Store",
+        "organization": 1,
+        "class_type": "timescale_db_gcp_cloud",
+        "status": "healthy"
+      },
+      "related_resource_class_type": "timescale_db_gcp_cloud"
+    },
+    "git_ssh_url": "git@github.com:mainsequence/ops-control.git",
+    "is_initialized": false,
+    "created_by": "ops@main-sequence.io",
+    "description": "Operational monitoring workloads and service resources.",
+    "latest_commit": {
+      "sha": "fedcba9876543210",
+      "short": "fedcba9",
+      "date": "2026-03-18T16:05:00Z",
+      "ago": "8 days ago",
+      "branch": "develop"
+    },
+    "base_image": {
+      "title": "Ops Python Image",
+      "description": "Runtime for schedulers and operational monitors.",
+      "is_default": true,
+      "badge_class": "warning"
+    },
+    "stats": {
+      "jobs": 1,
+      "images": 1,
+      "releases": 1
+    },
+    "resource_usage_chart_data": [
+      { "time": 1711305600, "cpu_cores": 0.9, "memory_gib": 1.8, "disk_gib": 1.1 },
+      { "time": 1711392000, "cpu_cores": 1.1, "memory_gib": 2.0, "disk_gib": 1.2 },
+      { "time": 1711478400, "cpu_cores": 1.0, "memory_gib": 1.9, "disk_gib": 1.2 }
+    ]
+  }
+]

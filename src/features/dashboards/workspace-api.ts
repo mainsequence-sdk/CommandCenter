@@ -9,6 +9,11 @@ import {
 } from "./custom-dashboard-storage";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
+const mockWorkspaceStorageKeyPrefix = "ms.command-center.mock-workspaces";
+const mockWorkspaceJsonModules = import.meta.glob("/mock_data/workspaces/workspaces.json", {
+  eager: true,
+  import: "default",
+}) as Record<string, unknown>;
 
 class WorkspaceBackendRequestError extends Error {
   status: number;
@@ -26,6 +31,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function canUseLocalStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
 function normalizeWorkspaceId(value: unknown) {
   if (typeof value === "string" && value.trim()) {
     return value;
@@ -36,6 +49,97 @@ function normalizeWorkspaceId(value: unknown) {
   }
 
   return null;
+}
+
+function readMockWorkspaceSeed(): Partial<UserDashboardCollection> {
+  const dataset = mockWorkspaceJsonModules["/mock_data/workspaces/workspaces.json"];
+
+  if (Array.isArray(dataset)) {
+    return {
+      dashboards: dataset
+        .map((entry) => coerceDashboardDefinition(entry))
+        .filter((dashboard): dashboard is DashboardDefinition => dashboard !== null),
+      selectedDashboardId: null,
+      savedAt: null,
+    };
+  }
+
+  if (!isRecord(dataset)) {
+    return {
+      dashboards: [],
+      selectedDashboardId: null,
+      savedAt: null,
+    };
+  }
+
+  return cloneJson(dataset as Partial<UserDashboardCollection>);
+}
+
+function buildMockWorkspaceStorageKey(userId: string | null | undefined) {
+  return `${mockWorkspaceStorageKeyPrefix}:${userId ?? "anonymous"}`;
+}
+
+function readStoredMockWorkspaceCollection(
+  userId: string | null | undefined,
+): UserDashboardCollection | null {
+  if (!canUseLocalStorage()) {
+    return null;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(buildMockWorkspaceStorageKey(userId));
+
+    if (!rawValue) {
+      return null;
+    }
+
+    return normalizeUserDashboardCollection(JSON.parse(rawValue) as Partial<UserDashboardCollection>, {
+      allowEmpty: true,
+    });
+  } catch {
+    return null;
+  }
+}
+
+function readMockWorkspaceCollection(
+  userId: string | null | undefined,
+): UserDashboardCollection {
+  const storedCollection = readStoredMockWorkspaceCollection(userId);
+
+  if (storedCollection) {
+    return storedCollection;
+  }
+
+  return normalizeUserDashboardCollection(readMockWorkspaceSeed(), {
+    allowEmpty: true,
+  });
+}
+
+function writeMockWorkspaceCollection(
+  userId: string | null | undefined,
+  collection: UserDashboardCollection,
+) {
+  const normalizedCollection = normalizeUserDashboardCollection(collection, {
+    allowEmpty: true,
+    fallbackSavedAt: collection.savedAt ?? new Date().toISOString(),
+  });
+
+  if (canUseLocalStorage()) {
+    try {
+      window.localStorage.setItem(
+        buildMockWorkspaceStorageKey(userId),
+        JSON.stringify(normalizedCollection),
+      );
+    } catch {
+      // Ignore localStorage write failures in mock mode and continue with the in-memory value.
+    }
+  }
+
+  return normalizedCollection;
+}
+
+function getCurrentMockWorkspaceUserId() {
+  return useAuthStore.getState().session?.user.id ?? null;
 }
 
 function isLoopbackHostname(hostname: string) {
@@ -50,6 +154,27 @@ function buildEndpointUrl(path: string) {
   }
 
   return url.toString();
+}
+
+function normalizeMockWorkspacePath(path: string) {
+  const pathname = new URL(path, window.location.origin).pathname;
+
+  if (!pathname.startsWith(devAuthProxyPrefix)) {
+    return pathname;
+  }
+
+  const normalizedPathname = pathname.slice(devAuthProxyPrefix.length);
+  return normalizedPathname || "/";
+}
+
+function createMockWorkspaceId() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+
+  if (uuid) {
+    return `workspace-${uuid}`;
+  }
+
+  return `workspace-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function coerceDashboardDefinition(value: unknown): DashboardDefinition | null {
@@ -92,6 +217,18 @@ function resolveWorkspaceDetailPath(workspaceId: string) {
   return template.endsWith("/") ? `${template}${encodedId}/` : `${template}/${encodedId}/`;
 }
 
+function parseRequestJsonBody(body: RequestInit["body"]) {
+  if (!body || typeof body !== "string") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeWorkspaceListPayload(payload: unknown): DashboardDefinition[] {
   if (Array.isArray(payload)) {
     return payload
@@ -116,6 +253,200 @@ function normalizeWorkspaceListPayload(payload: unknown): DashboardDefinition[] 
   }
 
   return [];
+}
+
+function buildMockWorkspacePayload() {
+  const mockWorkspaceCollection = readMockWorkspaceCollection(getCurrentMockWorkspaceUserId());
+
+  return {
+    results: cloneJson(mockWorkspaceCollection.dashboards),
+    selectedDashboardId: mockWorkspaceCollection.selectedDashboardId,
+    savedAt: mockWorkspaceCollection.savedAt,
+  };
+}
+
+function extractWorkspaceIdFromPath(pathname: string, listPathname: string) {
+  if (!pathname.startsWith(listPathname)) {
+    return null;
+  }
+
+  const remainder = pathname.slice(listPathname.length).replace(/^\/+|\/+$/g, "");
+
+  if (!remainder) {
+    return null;
+  }
+
+  return decodeURIComponent(remainder.split("/")[0] ?? "");
+}
+
+function buildMockWorkspaceFromPayload(payload: unknown): DashboardDefinition {
+  const source = isRecord(payload) ? payload : {};
+  const normalizedId = normalizeWorkspaceId(source.id) ?? createMockWorkspaceId();
+
+  return normalizeDashboardDefinition({
+    id: normalizedId,
+    title: typeof source.title === "string" && source.title.trim() ? source.title : "My Workspace",
+    description:
+      typeof source.description === "string" && source.description.trim()
+        ? source.description
+        : "User-scoped workspace managed in Command Center.",
+    labels: Array.isArray(source.labels)
+      ? source.labels.filter((label): label is string => typeof label === "string")
+      : [],
+    category: typeof source.category === "string" && source.category.trim() ? source.category : "Custom",
+    source: typeof source.source === "string" && source.source.trim() ? source.source : "user",
+    requiredPermissions: Array.isArray(source.requiredPermissions)
+      ? source.requiredPermissions.filter((permission): permission is string => typeof permission === "string")
+      : undefined,
+    grid: isRecord(source.grid) ? (source.grid as DashboardDefinition["grid"]) : undefined,
+    controls: isRecord(source.controls) ? (source.controls as DashboardDefinition["controls"]) : undefined,
+    widgets: Array.isArray(source.widgets) ? (source.widgets as DashboardDefinition["widgets"]) : [],
+  });
+}
+
+function updateMockWorkspaceCollection(
+  userId: string | null | undefined,
+  dashboards: DashboardDefinition[],
+  selectedDashboardId: string | null,
+) {
+  const savedAt = new Date().toISOString();
+
+  return writeMockWorkspaceCollection(
+    userId,
+    {
+      ...readMockWorkspaceCollection(userId),
+      dashboards,
+      selectedDashboardId,
+      savedAt,
+    },
+  );
+}
+
+function persistMockWorkspaceCollection(
+  collection: UserDashboardCollection,
+) {
+  return writeMockWorkspaceCollection(getCurrentMockWorkspaceUserId(), collection);
+}
+
+function createMockWorkspace(
+  dashboard: DashboardDefinition,
+) {
+  const userId = getCurrentMockWorkspaceUserId();
+  const currentCollection = readMockWorkspaceCollection(userId);
+  const createdWorkspace = normalizeDashboardDefinition({
+    ...dashboard,
+    id: dashboard.id?.trim() ? dashboard.id : createMockWorkspaceId(),
+  });
+
+  updateMockWorkspaceCollection(
+    userId,
+    [createdWorkspace, ...currentCollection.dashboards.filter((entry) => entry.id !== createdWorkspace.id)],
+    createdWorkspace.id,
+  );
+
+  return createdWorkspace;
+}
+
+function deleteMockWorkspace(workspaceId: string) {
+  const userId = getCurrentMockWorkspaceUserId();
+  const currentCollection = readMockWorkspaceCollection(userId);
+  const nextDashboards = currentCollection.dashboards.filter((dashboard) => dashboard.id !== workspaceId);
+  const nextSelectedDashboardId =
+    currentCollection.selectedDashboardId === workspaceId
+      ? nextDashboards[0]?.id ?? null
+      : currentCollection.selectedDashboardId;
+
+  updateMockWorkspaceCollection(userId, nextDashboards, nextSelectedDashboardId);
+}
+
+function handleMockWorkspaceRequest(path: string, init?: RequestInit) {
+  const listPath = commandCenterConfig.workspaces.listUrl.trim();
+
+  if (!listPath) {
+    return undefined;
+  }
+
+  const method = (init?.method ?? "GET").toUpperCase();
+  const pathname = normalizeMockWorkspacePath(path);
+  const listPathname = new URL(listPath, window.location.origin).pathname;
+  const currentUserId = getCurrentMockWorkspaceUserId();
+  const mockWorkspaceCollection = readMockWorkspaceCollection(currentUserId);
+
+  if (pathname === listPathname) {
+    if (method === "GET") {
+      return buildMockWorkspacePayload();
+    }
+
+    if (method === "POST") {
+      const createdWorkspace = buildMockWorkspaceFromPayload(parseRequestJsonBody(init?.body));
+      updateMockWorkspaceCollection(
+        currentUserId,
+        [createdWorkspace, ...mockWorkspaceCollection.dashboards],
+        createdWorkspace.id,
+      );
+      return cloneJson(createdWorkspace);
+    }
+
+    return undefined;
+  }
+
+  const workspaceId = extractWorkspaceIdFromPath(pathname, listPathname);
+
+  if (!workspaceId) {
+    return undefined;
+  }
+
+  const currentWorkspace =
+    mockWorkspaceCollection.dashboards.find((dashboard) => dashboard.id === workspaceId) ?? null;
+
+  if (method === "GET") {
+    if (!currentWorkspace) {
+      throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
+    }
+
+    return cloneJson(currentWorkspace);
+  }
+
+  if (method === "PUT") {
+    if (!currentWorkspace) {
+      throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
+    }
+
+    const updatedWorkspace = normalizeDashboardDefinition({
+      ...buildMockWorkspaceFromPayload(parseRequestJsonBody(init?.body)),
+      id: workspaceId,
+    });
+    const nextDashboards = mockWorkspaceCollection.dashboards.map((dashboard) =>
+      dashboard.id === workspaceId ? updatedWorkspace : dashboard,
+    );
+    updateMockWorkspaceCollection(
+      currentUserId,
+      nextDashboards,
+      mockWorkspaceCollection.selectedDashboardId === workspaceId
+        ? workspaceId
+        : mockWorkspaceCollection.selectedDashboardId,
+    );
+    return cloneJson(updatedWorkspace);
+  }
+
+  if (method === "DELETE") {
+    if (!currentWorkspace) {
+      throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
+    }
+
+    const nextDashboards = mockWorkspaceCollection.dashboards.filter(
+      (dashboard) => dashboard.id !== workspaceId,
+    );
+    const nextSelectedDashboardId =
+      mockWorkspaceCollection.selectedDashboardId === workspaceId
+        ? nextDashboards[0]?.id ?? null
+        : mockWorkspaceCollection.selectedDashboardId;
+
+    updateMockWorkspaceCollection(currentUserId, nextDashboards, nextSelectedDashboardId);
+    return null;
+  }
+
+  return undefined;
 }
 
 function readSavedAtFromDashboard(dashboard: unknown) {
@@ -204,6 +535,14 @@ function readErrorMessage(payload: unknown) {
 }
 
 async function requestWorkspaceBackend(path: string, init?: RequestInit) {
+  if (env.useMockData) {
+    const mockResponse = handleMockWorkspaceRequest(path, init);
+
+    if (mockResponse !== undefined) {
+      return mockResponse;
+    }
+  }
+
   const requestUrl = buildEndpointUrl(path);
 
   async function sendRequest() {
@@ -252,6 +591,11 @@ async function requestWorkspaceBackend(path: string, init?: RequestInit) {
 }
 
 export async function deleteWorkspaceInBackend(workspaceId: string) {
+  if (env.useMockData) {
+    deleteMockWorkspace(workspaceId);
+    return;
+  }
+
   await requestWorkspaceBackend(resolveWorkspaceDetailPath(workspaceId), {
     method: "DELETE",
   });
@@ -301,6 +645,10 @@ export async function fetchWorkspaceCollectionFromBackend() {
     throw new Error("Command Center workspaces list endpoint is not configured.");
   }
 
+  if (env.useMockData) {
+    return readMockWorkspaceCollection(getCurrentMockWorkspaceUserId());
+  }
+
   const payload = await requestWorkspaceBackend(listPath);
   const dashboards = normalizeWorkspaceListPayload(payload);
 
@@ -327,6 +675,10 @@ export async function createWorkspaceInBackend(dashboard: DashboardDefinition) {
     throw new Error("Command Center workspaces list endpoint is not configured.");
   }
 
+  if (env.useMockData) {
+    return createMockWorkspace(dashboard);
+  }
+
   const payload = await requestWorkspaceBackend(listPath, {
     method: "POST",
     body: serializeWorkspaceMutationPayload(dashboard),
@@ -343,6 +695,15 @@ export async function saveWorkspaceCollectionToBackend(
 
   if (!listPath || !commandCenterConfig.workspaces.detailUrl.trim()) {
     throw new Error("Command Center workspaces backend is not fully configured.");
+  }
+
+  if (env.useMockData) {
+    return persistMockWorkspaceCollection(
+      normalizeUserDashboardCollection(nextCollection, {
+        allowEmpty: true,
+        fallbackSavedAt: new Date().toISOString(),
+      }),
+    );
   }
 
   const normalizedPrevious = normalizeUserDashboardCollection(previousCollection);

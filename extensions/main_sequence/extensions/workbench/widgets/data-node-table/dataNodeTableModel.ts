@@ -3,6 +3,11 @@ import {
   buildDataNodeFieldOptions,
   formatDataNodeLabel,
 } from "../data-node-shared/dataNodeShared";
+import {
+  normalizeDataNodeWidgetSourceReferenceProps,
+  type DataNodeWidgetSourceReferenceProps,
+  type DataNodeWidgetSourceMode,
+} from "../data-node-shared/dataNodeWidgetSource";
 
 export type DataNodeTableVisualizerDateRangeMode = "dashboard" | "fixed";
 export type DataNodeTableVisualizerColumnFormat =
@@ -72,7 +77,9 @@ export interface DataNodeTableVisualizerConditionalRule {
   backgroundColor?: string;
 }
 
-export interface DataNodeTableVisualizerProps extends Record<string, unknown> {
+export interface DataNodeTableVisualizerProps
+  extends Record<string, unknown>,
+    DataNodeWidgetSourceReferenceProps {
   dataNodeId?: number;
   dateRangeMode?: DataNodeTableVisualizerDateRangeMode;
   fixedEndMs?: number;
@@ -108,6 +115,8 @@ export interface ResolvedDataNodeTableVisualizerProps {
   dateRangeMode: DataNodeTableVisualizerDateRangeMode;
   fixedEndMs?: number;
   fixedStartMs?: number;
+  sourceMode: DataNodeWidgetSourceMode;
+  sourceWidgetId?: string;
   uniqueIdentifierList?: string[];
   limit: number;
   supportsUniqueIdentifierList: boolean;
@@ -822,6 +831,7 @@ export function resolveDataNodeTableVisualizerPropsWithFrame(
   frameInput?: DataNodeTableVisualizerResolvedFrameInput | null,
 ): ResolvedDataNodeTableVisualizerProps {
   const migratedProps = stripLegacyDataNodeTableVisualizerDisplayConfig(props);
+  const normalizedSourceReference = normalizeDataNodeWidgetSourceReferenceProps(migratedProps);
   const normalizedDataNodeId = normalizePositiveInteger(migratedProps.dataNodeId);
   const normalizedFixedStartMs = normalizeTimestampMs(migratedProps.fixedStartMs);
   const normalizedFixedEndMs = normalizeTimestampMs(migratedProps.fixedEndMs);
@@ -851,6 +861,8 @@ export function resolveDataNodeTableVisualizerPropsWithFrame(
     dateRangeMode: normalizeDateRangeMode(migratedProps.dateRangeMode),
     fixedStartMs: normalizedFixedStartMs,
     fixedEndMs: normalizedFixedEndMs,
+    sourceMode: "filter_widget",
+    sourceWidgetId: normalizedSourceReference.sourceWidgetId,
     uniqueIdentifierList: normalizedUniqueIdentifierList,
     limit: normalizedLimit,
     supportsUniqueIdentifierList: Boolean(frameInput?.supportsUniqueIdentifierList),
@@ -1208,6 +1220,7 @@ export const dataNodeTableVisualizerToneOptions: Array<{
 ];
 
 export const dataNodeTableVisualizerDefaultProps: DataNodeTableVisualizerProps = {
+  sourceMode: "filter_widget",
   dateRangeMode: "dashboard",
   limit: defaultRemoteLimit,
   schema: [],

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -11,10 +11,7 @@ import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
   type DataNodeLastObservation,
-  type DataNodeRemoteDataRow,
-  fetchDataNodeDataBetweenDatesFromRemote,
   fetchDataNodeLastObservation,
-  formatMainSequenceError,
 } from "../../../../common/api";
 import { DataNodeVisualizerTable } from "./DataNodeVisualizerTable";
 import type { DataNodeVisualizerControllerContext } from "./controller";
@@ -23,11 +20,15 @@ import {
   buildDataNodeVisualizerTableColumns,
   resolveDataNodeVisualizerDateRange,
   resolveDataNodeVisualizerNormalizationTimeMs,
-  resolveDataNodeVisualizerPreviewAnchorMs,
   type DataNodeVisualizerViewMode,
   type MainSequenceDataNodeVisualizerWidgetProps,
 } from "./dataNodeVisualizerModel";
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
+import {
+  resolveDataNodeWidgetPrefilledFixedRange,
+  resolveDataNodeWidgetPreviewAnchorMs,
+} from "../data-node-shared/dataNodeWidgetSource";
+import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 
 const previewRowLimit = 2_500;
 
@@ -91,6 +92,10 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
   const selectedDataNodeId = context?.selectedDataNodeId ?? Number(draftProps.dataNodeId ?? 0);
   const selectedDetail = context?.selectedDataNodeDetailQuery.data;
   const hasNoData = context?.hasNoData ?? false;
+  const linkedFilterRuntime = useMemo(
+    () => normalizeDataNodeFilterRuntimeState(context?.referencedFilterWidget?.runtimeState),
+    [context?.referencedFilterWidget?.runtimeState],
+  );
   const [previewModeOverride, setPreviewModeOverride] = useState<DataNodeVisualizerViewMode | null>(
     null,
   );
@@ -111,9 +116,45 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
   });
 
   const previewAnchorMs = useMemo(
-    () => resolveDataNodeVisualizerPreviewAnchorMs(selectedDetail, lastObservationQuery.data),
+    () => resolveDataNodeWidgetPreviewAnchorMs(selectedDetail, lastObservationQuery.data),
     [lastObservationQuery.data, selectedDetail],
   );
+  useEffect(() => {
+    if (!editable || !resolvedConfig) {
+      return;
+    }
+
+    const prefilledRange = resolveDataNodeWidgetPrefilledFixedRange(resolvedConfig, {
+      previewAnchorMs,
+      dashboardStartMs: dashboardRangeStartMs,
+      dashboardEndMs: dashboardRangeEndMs,
+    });
+
+    if (!prefilledRange) {
+      return;
+    }
+
+    if (
+      draftProps.fixedStartMs === prefilledRange.fixedStartMs &&
+      draftProps.fixedEndMs === prefilledRange.fixedEndMs
+    ) {
+      return;
+    }
+
+    onDraftPropsChange({
+      ...draftProps,
+      fixedStartMs: prefilledRange.fixedStartMs,
+      fixedEndMs: prefilledRange.fixedEndMs,
+    });
+  }, [
+    dashboardRangeEndMs,
+    dashboardRangeStartMs,
+    draftProps,
+    editable,
+    onDraftPropsChange,
+    previewAnchorMs,
+    resolvedConfig,
+  ]);
   const previewRange = useMemo(
     () =>
       resolvedConfig
@@ -125,52 +166,23 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
         : { hasValidRange: false, rangeStartMs: null, rangeEndMs: null },
     [dashboardRangeEndMs, dashboardRangeStartMs, resolvedConfig],
   );
-  const previewQuery = useQuery<DataNodeRemoteDataRow[]>({
-    queryKey: [
-      "main_sequence",
-      "widgets",
-      "data_node_visualizer",
-      "preview",
-      selectedDataNodeId,
-      JSON.stringify(draftProps),
-      previewRange.rangeStartMs,
-      previewRange.rangeEndMs,
-      activePreviewMode,
-    ],
-    queryFn: async () => {
-      if (!resolvedConfig?.dataNodeId || !previewRange.hasValidRange) {
-        return [];
-      }
-
-      const previewColumns =
-        activePreviewMode === "table"
-          ? resolvedConfig.availableFields.map((field) => field.key)
-          : buildDataNodeVisualizerTableColumns([], resolvedConfig);
-
-      return fetchDataNodeDataBetweenDatesFromRemote(resolvedConfig.dataNodeId, {
-        start_date: Math.floor((previewRange.rangeStartMs ?? 0) / 1000),
-        end_date: Math.floor((previewRange.rangeEndMs ?? 0) / 1000),
-        columns: previewColumns,
-        unique_identifier_list: resolvedConfig.uniqueIdentifierList,
-        great_or_equal: true,
-        less_or_equal: true,
-        limit: previewRowLimit,
-        offset: 0,
-      });
-    },
-    enabled: Boolean(resolvedConfig?.dataNodeId) && previewRange.hasValidRange && !hasNoData,
-  });
+  const previewRows = linkedFilterRuntime?.rows ?? [];
+  const previewErrorMessage =
+    linkedFilterRuntime?.status === "error"
+      ? linkedFilterRuntime.error ?? "The linked Data Node failed to load rows."
+      : null;
+  const previewIsLoading = linkedFilterRuntime?.status === "loading" || linkedFilterRuntime == null;
 
   const previewSeriesResult = useMemo(
-    () => (resolvedConfig ? buildDataNodeVisualizerSeries(previewQuery.data ?? [], resolvedConfig) : { series: [], droppedGroups: 0 }),
-    [previewQuery.data, resolvedConfig],
+    () => (resolvedConfig ? buildDataNodeVisualizerSeries(previewRows, resolvedConfig) : { series: [], droppedGroups: 0 }),
+    [previewRows, resolvedConfig],
   );
   const previewTableColumns = useMemo(
     () =>
       resolvedConfig
-        ? buildDataNodeVisualizerTableColumns(previewQuery.data ?? [], resolvedConfig)
+        ? buildDataNodeVisualizerTableColumns(previewRows, resolvedConfig)
         : [],
-    [previewQuery.data, resolvedConfig],
+    [previewRows, resolvedConfig],
   );
   const previewNormalizationTimeMs = useMemo(
     () =>
@@ -187,7 +199,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
       ? formatRangeSummary(previewRange.rangeStartMs, previewRange.rangeEndMs)
       : "Select a valid date range to preview";
   const previewChartEmptyMessage =
-    (previewQuery.data?.length ?? 0) > 0
+    previewRows.length > 0
       ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
       : "No chartable rows are available for the selected range.";
   const canRenderChartPreview = Boolean(resolvedConfig?.xField && resolvedConfig?.yField);
@@ -246,7 +258,11 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
         title="Preview"
         description="Check the current mapping against the current range. Table mode stays inside settings only."
       >
-        {resolvedConfig.dataNodeId ? (
+        {context?.isFilterWidgetSource && !context.hasResolvedFilterWidgetSource ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
+            Select a Data Node widget in the data source section to enable the preview.
+          </div>
+        ) : resolvedConfig.dataNodeId ? (
           <div className="space-y-4">
             {hasNoData ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
@@ -296,26 +312,26 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                   </div>
                 ) : null}
 
-                {previewQuery.isLoading ? (
+                {previewIsLoading ? (
                   <div className="grid gap-3">
                     <Skeleton className="h-6 w-48 rounded-[calc(var(--radius)-8px)]" />
                     <Skeleton className="h-[280px] rounded-[calc(var(--radius)-6px)]" />
                   </div>
                 ) : null}
 
-                {previewQuery.isError ? (
+                {previewErrorMessage ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                    {formatMainSequenceError(previewQuery.error)}
+                    {previewErrorMessage}
                   </div>
                 ) : null}
 
-                {!previewQuery.isLoading &&
-                !previewQuery.isError &&
+                {!previewIsLoading &&
+                !previewErrorMessage &&
                 previewRange.hasValidRange &&
                 (activePreviewMode === "table" || canRenderChartPreview) ? (
                   <>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{(previewQuery.data?.length ?? 0).toLocaleString()} preview rows</span>
+                      <span>{previewRows.length.toLocaleString()} preview rows</span>
                       {activePreviewMode === "chart" && previewSeriesResult.droppedGroups > 0 ? (
                         <span>
                           showing top {previewSeriesResult.series.length.toLocaleString()} groups, hiding{" "}
@@ -329,8 +345,8 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                         className="min-h-[280px]"
                         columns={previewTableColumns}
                         emptyMessage="No rows are available for the preview window."
-                        maxRows={40}
-                        rows={previewQuery.data ?? []}
+                        maxRows={20}
+                        rows={previewRows}
                       />
                     ) : (
                       <TradingViewSeriesChart
@@ -349,7 +365,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
           </div>
         ) : (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Select a data node to enable the preview controls.
+            Select a Data Node widget to enable the preview controls.
           </div>
         )}
       </SettingsSection>
@@ -360,9 +376,9 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
       >
         {!resolvedConfig.dataNodeId || hasNoData ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Select a chartable data node to configure per-series colors.
+            Select a chartable Data Node dataset to configure per-series colors.
           </div>
-        ) : previewQuery.isLoading ? (
+        ) : previewIsLoading ? (
           <div className="grid gap-3 md:grid-cols-2">
             <Skeleton className="h-24 rounded-[calc(var(--radius)-6px)]" />
             <Skeleton className="h-24 rounded-[calc(var(--radius)-6px)]" />

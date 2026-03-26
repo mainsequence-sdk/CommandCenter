@@ -6,3 +6,9 @@ export function resolveWidgetHeaderVisibility(
 ) {
   return props?.showHeader !== false;
 }
+
+export function resolveWidgetMinimalChrome(
+  props?: Record<string, unknown> | null,
+) {
+  return props?.chromeMode === "minimal";
+}

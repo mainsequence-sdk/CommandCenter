@@ -17,12 +17,13 @@ export const mainSequenceDataNodeGraphWidget: WidgetDefinition<MainSequenceDataN
   requiredPermissions: ["dashboard:view"],
   tags: ["main-sequence", "data-node", "visualization", "tradingview", "table"],
   exampleProps: {
+    sourceMode: "filter_widget",
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
   },
   mockProps: {
-    dataNodeId: 1084,
+    sourceMode: "filter_widget",
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",

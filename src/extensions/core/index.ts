@@ -1,13 +1,11 @@
 import {
   KeyRound,
-  LayoutDashboard,
   LayoutTemplate,
   ShieldCheck,
 } from "lucide-react";
 
 import type { AppExtension } from "@/app/registry/types";
 import type { AppDefinition } from "@/apps/types";
-import type { DashboardDefinition } from "@/dashboards/types";
 import { AccessRbacAssignmentsPage } from "@/extensions/core/apps/access-rbac/AccessRbacAssignmentsPage";
 import { AccessRbacCoveragePage } from "@/extensions/core/apps/access-rbac/AccessRbacCoveragePage";
 import { AccessRbacInspectorPage } from "@/extensions/core/apps/access-rbac/AccessRbacInspectorPage";
@@ -20,7 +18,6 @@ import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/Admin
 import { AdminInvoicesPage } from "@/extensions/core/apps/admin/AdminInvoicesPage";
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
-import { MarketBriefApp } from "@/features/applications/MarketBriefApp";
 import { cyberpunkTheme } from "@/themes/presets/cyberpunk";
 import { draculaTheme } from "@/themes/presets/dracula";
 import { grandpaTheme } from "@/themes/presets/grandpa";
@@ -32,159 +29,6 @@ import { quartzLightTheme } from "@/themes/presets/quartz-light";
 import { sapphireTheme } from "@/themes/presets/sapphire";
 import { newsFeedWidget } from "@/widgets/core/news-feed/definition";
 import { workspaceRowWidget } from "@/widgets/core/workspace-row/definition";
-
-const overviewDashboard: DashboardDefinition = {
-  id: "overview",
-  title: "Demo Overview",
-  description: "Default demo dashboard using only shared widgets and theme primitives.",
-  category: "Demo",
-  source: "core",
-  requiredPermissions: ["dashboard:view"],
-  widgets: [
-    {
-      id: "overview-curve-ust",
-      widgetId: "yield-curve-plot",
-      title: "US Treasury Curve",
-      props: { market: "ust", scenario: "desk", comparisonMode: "historical" },
-      layout: { cols: 6, rows: 6 },
-      position: { x: 0 },
-    },
-    {
-      id: "overview-curve-bund",
-      widgetId: "yield-curve-plot",
-      title: "Bund Curve",
-      props: { market: "bund", scenario: "desk", comparisonMode: "historical" },
-      layout: { cols: 6, rows: 6 },
-      position: { x: 6 },
-    },
-    {
-      id: "overview-curve-sofr",
-      widgetId: "yield-curve-plot",
-      title: "SOFR Curve",
-      props: { market: "sofr", scenario: "desk", comparisonMode: "session" },
-      layout: { cols: 12, rows: 6 },
-    },
-  ],
-};
-
-const crossAssetDashboard: DashboardDefinition = {
-  id: "cross-asset",
-  title: "Cross-Asset",
-  description: "Secondary demo dashboard focused on macro pulse and cross-asset signals.",
-  category: "Demo",
-  source: "core",
-  requiredPermissions: ["dashboard:view"],
-  widgets: [
-    {
-      id: "cross-asset-curve-ust",
-      widgetId: "yield-curve-plot",
-      title: "UST Historical Gradient",
-      props: { market: "ust", scenario: "desk", comparisonMode: "historical" },
-      layout: { cols: 4, rows: 6 },
-      position: { x: 0 },
-    },
-    {
-      id: "cross-asset-curve-bull",
-      widgetId: "yield-curve-plot",
-      title: "SOFR Bull Steepener",
-      props: { market: "sofr", scenario: "bull-steepener", comparisonMode: "session" },
-      layout: { cols: 4, rows: 6 },
-      position: { x: 4 },
-    },
-    {
-      id: "cross-asset-curve-flat",
-      widgetId: "yield-curve-plot",
-      title: "Bund Bear Flattener",
-      props: { market: "bund", scenario: "bear-flattener", comparisonMode: "session" },
-      layout: { cols: 4, rows: 6 },
-      position: { x: 8 },
-    },
-    {
-      id: "cross-asset-curve-inverted",
-      widgetId: "yield-curve-plot",
-      title: "UST Inverted",
-      props: { market: "ust", scenario: "inverted", comparisonMode: "historical" },
-      layout: { cols: 12, rows: 6 },
-    },
-  ],
-};
-
-const orderflowLabDashboard: DashboardDefinition = {
-  id: "orderflow-lab",
-  title: "Flow Lab",
-  description: "Experimental demo dashboard that mixes extension-owned widgets into the core app.",
-  category: "Demo",
-  source: "core",
-  requiredPermissions: ["orders:read"],
-  controls: {
-    enabled: false,
-  },
-  widgets: [
-    {
-      id: "flow-positions",
-      widgetId: "data-node-table-visualizer",
-      title: "Data Node Table",
-      props: {},
-      layout: { cols: 12, rows: 7 },
-      position: { x: 0 },
-    },
-    {
-      id: "flow-rates",
-      widgetId: "yield-curve-plot",
-      title: "Rates Overlay",
-      props: { market: "ust", scenario: "desk", comparisonMode: "historical" },
-      layout: { cols: 12, rows: 6 },
-    },
-  ],
-};
-
-const demoApp: AppDefinition = {
-  id: "demo",
-  title: "Demo",
-  description: "Demo dashboards, briefing surfaces, and extension-backed shell examples.",
-  source: "core",
-  icon: LayoutDashboard,
-  requiredPermissions: ["dashboard:view"],
-  defaultSurfaceId: "overview",
-  surfaces: [
-    {
-      id: "overview",
-      title: "Overview",
-      navLabel: "Overview",
-      description: "Summary dashboard for the default demo monitoring surface.",
-      kind: "dashboard",
-      requiredPermissions: ["dashboard:view"],
-      dashboard: overviewDashboard,
-    },
-    {
-      id: "cross-asset",
-      title: "Cross-Asset",
-      navLabel: "Cross-Asset",
-      description: "Secondary demo dashboard for macro pulse and cross-asset monitoring.",
-      kind: "dashboard",
-      requiredPermissions: ["dashboard:view"],
-      dashboard: crossAssetDashboard,
-    },
-    {
-      id: "orderflow-lab",
-      title: "Flow Lab",
-      navLabel: "Flow Lab",
-      description: "Extension-backed demo dashboard narrowed to the strategy book and yield-curve widgets.",
-      kind: "dashboard",
-      requiredPermissions: ["orders:read"],
-      dashboard: orderflowLabDashboard,
-    },
-    {
-      id: "market-brief",
-      title: "Demo Brief",
-      navLabel: "Brief",
-      description: "Narrative demo briefing with catalysts, notes, and operator context.",
-      kind: "page",
-      requiredPermissions: ["dashboard:view"],
-      component: MarketBriefApp,
-    },
-  ],
-};
 
 const workspaceStudioApp: AppDefinition = {
   id: "workspace-studio",
@@ -409,7 +253,7 @@ const coreExtension: AppExtension = {
   title: "Core Extension",
   description: "Built-in terminal apps, dashboard surfaces, and theme presets.",
   widgets: [newsFeedWidget, workspaceRowWidget],
-  apps: [demoApp, workspaceStudioApp, adminApp, accessRbacApp],
+  apps: [workspaceStudioApp, adminApp, accessRbacApp],
   themes: [
     mainSequenceSpaceTheme,
     mainSequenceTheme,

@@ -1,0 +1,158 @@
+[
+  {
+    "id": 101,
+    "unique_identifier": "UST_2Y",
+    "figi": "BBG0002Y",
+    "name": "US Treasury 2Y",
+    "ticker": "UST2Y",
+    "exchange_code": "OTC",
+    "security_market_sector": "Rates",
+    "security_type": "Government Bond",
+    "is_custom_by_organization": false,
+    "category_ids": [1],
+    "current_snapshot": {
+      "id": 5001,
+      "name": "US Treasury 2Y",
+      "ticker": "UST2Y"
+    },
+    "details": [
+      { "key": "issuer", "label": "Issuer", "value": "United States", "value_type": "text" },
+      { "key": "currency", "label": "Currency", "value": "USD", "value_type": "text" },
+      { "key": "tenor", "label": "Tenor", "value": "2Y", "value_type": "text" }
+    ],
+    "trading_view": {
+      "enabled": true,
+      "symbol": "TVC:US02Y",
+      "alerts": [
+        { "id": "alert-1", "title": "Carry compression", "message": "2Y carry moved below threshold." }
+      ]
+    },
+    "order_form": {
+      "order_types": ["market", "limit"],
+      "default_order_type": "market"
+    },
+    "order_form_fields": {
+      "market": [
+        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
+        { "key": "quantity", "label": "Quantity", "editor": "number", "required": true, "value": 1000000 }
+      ],
+      "limit": [
+        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
+        { "key": "quantity", "label": "Quantity", "editor": "number", "required": true, "value": 1000000 },
+        { "key": "limit_price", "label": "Limit price", "editor": "number", "required": true, "value": 99.85 }
+      ]
+    }
+  },
+  {
+    "id": 102,
+    "unique_identifier": "UST_10Y",
+    "figi": "BBG0010Y",
+    "name": "US Treasury 10Y",
+    "ticker": "UST10Y",
+    "exchange_code": "OTC",
+    "security_market_sector": "Rates",
+    "security_type": "Government Bond",
+    "is_custom_by_organization": false,
+    "category_ids": [1],
+    "current_snapshot": {
+      "id": 5002,
+      "name": "US Treasury 10Y",
+      "ticker": "UST10Y"
+    },
+    "details": [
+      { "key": "issuer", "label": "Issuer", "value": "United States", "value_type": "text" },
+      { "key": "currency", "label": "Currency", "value": "USD", "value_type": "text" },
+      { "key": "tenor", "label": "Tenor", "value": "10Y", "value_type": "text" }
+    ],
+    "trading_view": {
+      "enabled": true,
+      "symbol": "TVC:US10Y",
+      "alerts": []
+    },
+    "order_form": {
+      "order_types": ["market", "limit"],
+      "default_order_type": "market"
+    },
+    "order_form_fields": {
+      "market": [
+        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
+        { "key": "quantity", "label": "Quantity", "editor": "number", "required": true, "value": 500000 }
+      ]
+    }
+  },
+  {
+    "id": 201,
+    "unique_identifier": "SPX_INDEX",
+    "figi": "BBG000SPX",
+    "name": "S&P 500 Index",
+    "ticker": "SPX",
+    "exchange_code": "INDEX",
+    "security_market_sector": "Equity",
+    "security_type": "Index",
+    "is_custom_by_organization": false,
+    "category_ids": [2],
+    "current_snapshot": {
+      "id": 5003,
+      "name": "S&P 500 Index",
+      "ticker": "SPX"
+    },
+    "details": [
+      { "key": "provider", "label": "Provider", "value": "S&P Dow Jones", "value_type": "text" },
+      { "key": "currency", "label": "Currency", "value": "USD", "value_type": "text" }
+    ],
+    "trading_view": {
+      "enabled": true,
+      "symbol": "SP:SPX",
+      "alerts": [
+        { "id": "alert-2", "title": "Breakout", "message": "Index moved through the 30d range." }
+      ]
+    },
+    "order_form": {
+      "order_types": ["market"],
+      "default_order_type": "market"
+    },
+    "order_form_fields": {
+      "market": [
+        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
+        { "key": "quantity", "label": "Contracts", "editor": "number", "required": true, "value": 25 }
+      ]
+    }
+  },
+  {
+    "id": 301,
+    "unique_identifier": "WTI_CL1",
+    "figi": "BBG00WTI1",
+    "name": "WTI Front Month",
+    "ticker": "CL1",
+    "exchange_code": "NYMEX",
+    "security_market_sector": "Commodities",
+    "security_type": "Future",
+    "is_custom_by_organization": true,
+    "category_ids": [3],
+    "current_snapshot": {
+      "id": 5004,
+      "name": "WTI Front Month",
+      "ticker": "CL1"
+    },
+    "details": [
+      { "key": "exchange", "label": "Exchange", "value": "NYMEX", "value_type": "text" },
+      { "key": "currency", "label": "Currency", "value": "USD", "value_type": "text" }
+    ],
+    "trading_view": {
+      "enabled": false,
+      "symbol": null,
+      "alerts": []
+    },
+    "order_form": {
+      "order_types": ["limit"],
+      "default_order_type": "limit"
+    },
+    "order_form_fields": {
+      "limit": [
+        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
+        { "key": "quantity", "label": "Contracts", "editor": "number", "required": true, "value": 10 },
+        { "key": "limit_price", "label": "Limit price", "editor": "number", "required": true, "value": 78.25 }
+      ]
+    }
+  }
+]

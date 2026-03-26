@@ -1,6 +1,8 @@
 import type {
   DataNodeDetail,
+  DataNodeRemoteDataRow,
   DataNodeSummary,
+  LocalTimeSerieQuickSearchRecord,
 } from "../../../../common/api";
 
 export type DataNodeDateRangeMode = "dashboard" | "fixed";
@@ -58,6 +60,43 @@ function isTimeDtype(dtype: string | null | undefined) {
   return /date|time|timestamp/i.test(dtype);
 }
 
+function isNumericValue(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return false;
+  }
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed);
+}
+
+function isTimeValue(value: unknown) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return false;
+  }
+
+  if (!/[T:\-\/ ]/.test(trimmed) && !/time|date/i.test(trimmed)) {
+    return false;
+  }
+
+  return !Number.isNaN(Date.parse(trimmed));
+}
+
 function getFieldOptionLabel(
   key: string,
   detail?: DataNodeDetail | null,
@@ -108,6 +147,36 @@ export function formatDataNodeLabel(
   return dataNode.storage_hash || `Data node ${dataNode.id}`;
 }
 
+export function formatLocalTimeSerieLabel(
+  localTimeSerie?:
+    | Pick<LocalTimeSerieQuickSearchRecord, "id" | "update_hash" | "data_node_storage">
+    | null,
+) {
+  if (!localTimeSerie) {
+    return "Local update";
+  }
+
+  const updateHash = localTimeSerie.update_hash?.trim();
+
+  if (updateHash) {
+    return updateHash;
+  }
+
+  const dataNodeIdentifier = localTimeSerie.data_node_storage?.identifier?.trim();
+
+  if (dataNodeIdentifier) {
+    return dataNodeIdentifier;
+  }
+
+  const dataNodeStorageHash = localTimeSerie.data_node_storage?.storage_hash?.trim();
+
+  if (dataNodeStorageHash) {
+    return dataNodeStorageHash;
+  }
+
+  return `Local update ${localTimeSerie.id}`;
+}
+
 export function buildDataNodeFieldOptions(detail?: DataNodeDetail | null) {
   const sourceConfig = detail?.sourcetableconfiguration;
   const orderedKeys = uniqueStrings([
@@ -128,6 +197,32 @@ export function buildDataNodeFieldOptions(detail?: DataNodeDetail | null) {
       isIndex: (sourceConfig?.index_names ?? []).includes(key),
       isNumeric: isNumericDtype(dtype),
       isTime: key === sourceConfig?.time_index_name || isTimeDtype(dtype),
+    };
+  });
+}
+
+export function buildDataNodeFieldOptionsFromRows(input: {
+  columns?: string[];
+  rows?: readonly DataNodeRemoteDataRow[];
+}) {
+  const orderedKeys = uniqueStrings([
+    ...(input.columns ?? []),
+    ...((input.rows ?? []).flatMap((row) => Object.keys(row))),
+  ]);
+
+  return orderedKeys.map<DataNodeFieldOption>((key) => {
+    const samples = (input.rows ?? [])
+      .map((row) => row[key])
+      .filter((value) => value !== null && value !== undefined && value !== "");
+
+    return {
+      key,
+      label: key,
+      description: null,
+      dtype: null,
+      isIndex: /^(unique_identifier|identifier)$/i.test(key),
+      isNumeric: samples.some((value) => isNumericValue(value)),
+      isTime: /date|time|timestamp/i.test(key) || samples.some((value) => isTimeValue(value)),
     };
   });
 }

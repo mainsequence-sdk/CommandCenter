@@ -6,6 +6,11 @@ import {
   type Permission,
   type Session,
 } from "@/auth/types";
+import {
+  handleMockAuthRequest,
+  handleMockJwtAuthorizedGet,
+  handleMockJwtPost,
+} from "@/auth/mock-jwt-auth";
 import { getPermissionsForRole, normalizeBuiltinRole } from "@/auth/permissions";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
@@ -372,6 +377,14 @@ async function extractErrorMessage(response: Response) {
 }
 
 async function postJson<T>(url: string, payload: Record<string, unknown>, requestLabel: string) {
+  if (env.useMockData) {
+    const mockResponse = handleMockJwtPost(url, payload);
+
+    if (mockResponse !== undefined) {
+      return mockResponse as T;
+    }
+  }
+
   let response: Response;
 
   try {
@@ -406,6 +419,16 @@ async function fetchJsonAuthorized<T>(
   tokenType: string,
   requestLabel: string,
 ) {
+  if (env.useMockData) {
+    const mockResponse =
+      handleMockJwtAuthorizedGet(url, token) ??
+      handleMockAuthRequest(url, "GET", null, token);
+
+    if (mockResponse !== undefined) {
+      return mockResponse as T;
+    }
+  }
+
   let response: Response;
 
   try {

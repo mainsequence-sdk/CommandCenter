@@ -1,0 +1,14 @@
+{
+  "id": 1,
+  "discount_curves_storage_node": 9101,
+  "reference_rates_fixings_storage_node": 9102,
+  "discount_nodes": [
+    { "id": 9101, "label": "Discount Curves USD" },
+    { "id": 9103, "label": "Discount Curves EUR" }
+  ],
+  "fixings_nodes": [
+    { "id": 9102, "label": "Reference Rate Fixings USD" },
+    { "id": 9104, "label": "Reference Rate Fixings EUR" }
+  ],
+  "can_edit": true
+}

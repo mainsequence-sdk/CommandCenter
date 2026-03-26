@@ -1,0 +1,5 @@
+[
+  { "id": 1, "name": "Research", "description": "Research team", "member_count": 8 },
+  { "id": 2, "name": "Platform", "description": "Platform engineering", "member_count": 6 },
+  { "id": 3, "name": "Operations", "description": "Operations and production support", "member_count": 5 }
+]

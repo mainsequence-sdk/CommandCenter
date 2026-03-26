@@ -237,7 +237,7 @@ const brandingAssets = import.meta.glob("../../config/branding/*", {
 
 const defaultRawConfig: DefaultCommandCenterConfig = {
   app: {
-    name: "Main Sequence Command Center",
+    name: "Main Sequence",
     short_name: "Main Sequence",
     notifications_refresh_interval_ms: 300_000,
   },

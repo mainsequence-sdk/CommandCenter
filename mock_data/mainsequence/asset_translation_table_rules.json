@@ -1,0 +1,41 @@
+[
+  {
+    "id": 7001,
+    "table_id": 71,
+    "security_type": "Government Bond",
+    "security_market_sector": "Rates",
+    "markets_time_serie_unique_identifier": "bbg_rates_generic",
+    "target_exchange_code": "OTC",
+    "default_column_name": "px_last",
+    "creation_date": "2026-01-16T08:00:00Z",
+    "detail_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7001/",
+    "update_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7001/",
+    "delete_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7001/"
+  },
+  {
+    "id": 7002,
+    "table_id": 71,
+    "security_type": "Index",
+    "security_market_sector": "Equity",
+    "markets_time_serie_unique_identifier": "bbg_index_series",
+    "target_exchange_code": "INDEX",
+    "default_column_name": "close",
+    "creation_date": "2026-01-16T08:10:00Z",
+    "detail_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7002/",
+    "update_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7002/",
+    "delete_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7002/"
+  },
+  {
+    "id": 7201,
+    "table_id": 72,
+    "security_type": "Future",
+    "security_market_sector": "Commodities",
+    "markets_time_serie_unique_identifier": "internal_energy_curve",
+    "target_exchange_code": "NYMEX",
+    "default_column_name": "settlement",
+    "creation_date": "2026-02-12T09:00:00Z",
+    "detail_endpoint": "/orm/api/assets/asset-translation-tables/72/rules/7201/",
+    "update_endpoint": "/orm/api/assets/asset-translation-tables/72/rules/7201/",
+    "delete_endpoint": "/orm/api/assets/asset-translation-tables/72/rules/7201/"
+  }
+]

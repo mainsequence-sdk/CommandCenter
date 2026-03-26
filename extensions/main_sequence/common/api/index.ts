@@ -2,6 +2,7 @@ import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
+import { getMainSequenceMockResponse } from "./mockData";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const dynamicTableDataSourceEndpoint = "/orm/api/ts_manager/dynamic_table_data_source/";
@@ -1203,7 +1204,9 @@ export interface DataNodeSummary {
   created_by_user: number | null;
   open_for_everyone: boolean;
   data_source: DynamicTableDataSourceOption | null;
-  table_index_names: string[] | null;
+  table_index_names?: string[] | null;
+  index_names?: string[] | null;
+  sourcetableconfiguration?: Pick<DataNodeSourceTableConfiguration, "index_names"> | null;
   data_source_open_for_everyone: boolean;
   identifier: string | null;
   description: string | null;
@@ -1214,6 +1217,17 @@ export interface DataNodeQuickSearchRecord {
   id: number;
   storage_hash: string;
   identifier: string | null;
+}
+
+export interface LocalTimeSerieQuickSearchRecord {
+  id: number;
+  update_hash: string;
+  project_id?: number | null;
+  data_node_storage: {
+    id: number;
+    storage_hash: string;
+    identifier: string | null;
+  } | null;
 }
 
 export interface DataNodeColumnMetadata {
@@ -1583,7 +1597,6 @@ function buildWidgetPreviewDataNodeDetail(dataNodeId: number): DataNodeDetail {
     created_by_user: null,
     open_for_everyone: false,
     data_source: null,
-    table_index_names: ["observation_time", "unique_identifier"],
     data_source_open_for_everyone: false,
     identifier: "UST Curve Preview Node",
     description: "Synthetic rates observations for widget explorer previews.",
@@ -1592,15 +1605,15 @@ function buildWidgetPreviewDataNodeDetail(dataNodeId: number): DataNodeDetail {
     build_meta_data: null,
     sourcetableconfiguration: {
       related_table: dataNodeId,
-      time_index_name: "observation_time",
+      time_index_name: "time_index",
       column_dtypes_map: {
-        observation_time: "timestamp",
+        time_index: "timestamp",
         unique_identifier: "text",
         mid_yield: "float",
         carry_bp: "float",
         dv01: "float",
       },
-      index_names: ["observation_time", "unique_identifier"],
+      index_names: ["time_index", "unique_identifier"],
       last_time_index_value: buildWidgetPreviewIsoTimestamp(),
       earliest_index_value: buildWidgetPreviewIsoTimestamp(-45 * 24 * 60 * 60 * 1000),
       table_partition: null,
@@ -1608,9 +1621,9 @@ function buildWidgetPreviewDataNodeDetail(dataNodeId: number): DataNodeDetail {
       columns_metadata: [
         {
           source_config_id: dataNodeId,
-          column_name: "observation_time",
+          column_name: "time_index",
           dtype: "timestamp",
-          label: "Observation Time",
+          label: "Time Index",
           description: "Synthetic observation timestamp.",
         },
         {
@@ -1650,7 +1663,7 @@ function buildWidgetPreviewDataNodeRows(
   input: DataNodeRemoteDataRequest,
 ): DataNodeRemoteDataRow[] {
   const requestedColumns = new Set(input.columns.length > 0 ? input.columns : [
-    "observation_time",
+    "time_index",
     "unique_identifier",
     "mid_yield",
     "carry_bp",
@@ -1679,7 +1692,7 @@ function buildWidgetPreviewDataNodeRows(
       const wave = Math.sin((27 - dayIndex + seriesIndex) / 3.4) * 0.11;
       const drift = (27 - dayIndex) * 0.004;
       const row: Record<string, unknown> = {
-        observation_time: new Date(observationDateMs).toISOString(),
+        time_index: new Date(observationDateMs).toISOString(),
         unique_identifier: identifier,
         mid_yield: Number((baseValue + wave + drift).toFixed(4)),
         carry_bp: Number((12 + seriesIndex * 3 + Math.cos(dayIndex / 4) * 4).toFixed(2)),
@@ -2739,6 +2752,27 @@ async function requestJson<T>(
   search?: Record<string, QueryValue>,
 ) {
   const requestUrl = buildEndpointUrl(endpoint, path, search);
+
+  if (env.useMockData) {
+    const mockPayload = getMainSequenceMockResponse<T>({
+      requestUrl,
+      init,
+    });
+
+    if (mockPayload !== undefined) {
+      return mockPayload;
+    }
+
+    throw new MainSequenceApiError(
+      `Main Sequence mock data is missing for ${(init?.method ?? "GET").toUpperCase()} ${requestUrl}.`,
+      404,
+      {
+        endpoint,
+        path,
+        search,
+      },
+    );
+  }
 
   async function sendRequest() {
     const session = useAuthStore.getState().session;
@@ -4585,6 +4619,39 @@ export async function quickSearchDataNodes({
   );
 
   return Array.isArray(payload) ? payload : [];
+}
+
+export async function quickSearchLocalTimeSeries({
+  limit = 50,
+  q,
+}: {
+  limit?: number;
+  q: string;
+}) {
+  const payload = await requestJson<
+    PaginatedResponse<LocalTimeSerieRecord> | LocalTimeSerieRecord[]
+  >(localTimeSerieEndpoint, "", undefined, {
+    limit,
+    q: q.trim(),
+  });
+
+  const rows = normalizeListResponse(payload);
+
+  return rows.map<LocalTimeSerieQuickSearchRecord>((row) => ({
+    id: row.id,
+    update_hash: row.update_hash,
+    project_id:
+      "project_id" in row && typeof row.project_id === "number" && Number.isFinite(row.project_id)
+        ? row.project_id
+        : null,
+    data_node_storage: row.data_node_storage
+      ? {
+          id: row.data_node_storage.id,
+          storage_hash: row.data_node_storage.storage_hash,
+          identifier: row.data_node_storage.identifier,
+        }
+      : null,
+  }));
 }
 
 export async function listLocalTimeSeries(

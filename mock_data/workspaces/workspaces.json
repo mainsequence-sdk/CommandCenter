@@ -1,0 +1,149 @@
+{
+  "savedAt": "2026-03-26T10:00:00Z",
+  "selectedDashboardId": "workspace-global-macro",
+  "dashboards": [
+    {
+      "id": "workspace-global-macro",
+      "title": "Global Macro Desk",
+      "description": "Cross-asset monitoring workspace for rates, headlines, and portfolio positioning.",
+      "labels": ["macro", "rates", "desk"],
+      "category": "Trading",
+      "source": "user",
+      "grid": {
+        "columns": 96,
+        "rowHeight": 18,
+        "gap": 2
+      },
+      "controls": {
+        "enabled": true,
+        "timeRange": {
+          "enabled": true,
+          "defaultRange": "24h",
+          "options": ["15m", "1h", "6h", "24h", "7d", "30d", "90d"]
+        },
+        "refresh": {
+          "enabled": true,
+          "defaultIntervalMs": 300000,
+          "intervals": [null, 30000, 60000, 300000, 600000, 3600000]
+        },
+        "actions": {
+          "enabled": true,
+          "share": false,
+          "view": true
+        }
+      },
+      "widgets": [
+        {
+          "id": "workspace-global-macro-chart",
+          "widgetId": "price-chart",
+          "title": "Rates Proxy",
+          "props": {
+            "symbol": "IEF"
+          },
+          "layout": {
+            "cols": 48,
+            "rows": 16
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "workspace-global-macro-news",
+          "widgetId": "news-feed",
+          "title": "Macro Headlines",
+          "props": {
+            "limit": 8
+          },
+          "layout": {
+            "cols": 24,
+            "rows": 16
+          },
+          "position": {
+            "x": 48,
+            "y": 0
+          }
+        },
+        {
+          "id": "workspace-global-macro-positions",
+          "widgetId": "positions-table",
+          "title": "Exposure Watch",
+          "layout": {
+            "cols": 72,
+            "rows": 18
+          },
+          "position": {
+            "x": 0,
+            "y": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "workspace-event-risk",
+      "title": "Event Risk Monitor",
+      "description": "Workspace for intraday monitoring around releases, catalysts, and position changes.",
+      "labels": ["intraday", "risk"],
+      "category": "Execution",
+      "source": "user",
+      "grid": {
+        "columns": 96,
+        "rowHeight": 18,
+        "gap": 2
+      },
+      "controls": {
+        "enabled": true,
+        "timeRange": {
+          "enabled": true,
+          "defaultRange": "6h",
+          "options": ["15m", "1h", "6h", "24h", "7d", "30d", "90d"]
+        },
+        "refresh": {
+          "enabled": true,
+          "defaultIntervalMs": 60000,
+          "intervals": [null, 30000, 60000, 300000, 600000, 3600000]
+        },
+        "actions": {
+          "enabled": true,
+          "share": false,
+          "view": true
+        }
+      },
+      "widgets": [
+        {
+          "id": "workspace-event-risk-news",
+          "widgetId": "news-feed",
+          "title": "Live Headlines",
+          "props": {
+            "limit": 10
+          },
+          "layout": {
+            "cols": 32,
+            "rows": 18
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "workspace-event-risk-chart",
+          "widgetId": "price-chart",
+          "title": "Equity Index Proxy",
+          "props": {
+            "symbol": "SPY"
+          },
+          "layout": {
+            "cols": 40,
+            "rows": 18
+          },
+          "position": {
+            "x": 32,
+            "y": 0
+          }
+        }
+      ]
+    }
+  ]
+}

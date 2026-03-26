@@ -1,0 +1,94 @@
+[
+  {
+    "id": 1,
+    "uuid": "cluster-prod-1",
+    "cluster_name": "gke-analytics-prod",
+    "cluster_description": "Primary analytics production cluster.",
+    "cluster_status": "healthy",
+    "cluster_status_color": "green",
+    "cloud_provider_label": "Google Cloud",
+    "location": "europe-west1",
+    "cluster_configuration_name": "prod-standard",
+    "allow_to_run_jupyter_hub": true,
+    "allow_to_run_data_sources": true,
+    "is_auto_pilot_cluster": false,
+    "stats_items": [
+      { "key": "nodes", "label": "Nodes", "display": "8", "value": 8, "tone": "info" },
+      { "key": "pods", "label": "Pods", "display": "124", "value": 124, "tone": "info" }
+    ],
+    "node_pools": [
+      { "name": "general", "status": "healthy", "version": "1.29", "machine_type": "n2-standard-8", "disk_size_gb": 200, "nodes": 4, "pods": 64 },
+      { "name": "compute", "status": "healthy", "version": "1.29", "machine_type": "n2-highmem-16", "disk_size_gb": 300, "nodes": 4, "pods": 60 }
+    ],
+    "nodes": [
+      { "name": "analytics-prod-general-1", "status": "Ready", "node_pool": "general", "machine_type": "n2-standard-8", "zone": "europe-west1-b", "version": "1.29", "age": "14d" },
+      { "name": "analytics-prod-compute-1", "status": "Ready", "node_pool": "compute", "machine_type": "n2-highmem-16", "zone": "europe-west1-c", "version": "1.29", "age": "12d" }
+    ],
+    "namespaces": [
+      { "name": "default", "status": "Active", "pods": 22, "deployments": 6, "services": 5, "pvcs": 4, "knative_services": 1, "age": "120d" },
+      { "name": "jobs", "status": "Active", "pods": 38, "deployments": 4, "services": 2, "pvcs": 8, "knative_services": 0, "age": "120d" }
+    ],
+    "pods": [
+      { "name": "revenue-dashboard-refresh-abc", "namespace": "jobs", "status": "Running", "node_pool": "compute", "node": "analytics-prod-compute-1", "owner_kind": "Job", "owner_name": "revenue-dashboard-refresh", "age": "2h" },
+      { "name": "curve-update-batch-def", "namespace": "jobs", "status": "Completed", "node_pool": "general", "node": "analytics-prod-general-1", "owner_kind": "Job", "owner_name": "curve-update-batch", "age": "30m" }
+    ],
+    "deployments": [
+      { "name": "dashboard-api", "namespace": "default", "ready": "3/3", "up_to_date": 3, "available": 3, "strategy": "RollingUpdate", "age": "60d" }
+    ],
+    "services": [
+      { "name": "dashboard-api", "namespace": "default", "type": "ClusterIP", "cluster_ip": "10.0.1.15", "external_ip": null, "ports": "80/TCP", "age": "60d" }
+    ],
+    "storage": [
+      { "kind": "PVC", "name": "analytics-cache", "namespace": "default", "status": "Bound", "storage_class": "standard-rwo", "size_gib": 80, "volume": "pvc-analytics-cache", "access_modes": "RWO", "age": "60d" }
+    ],
+    "knative": [
+      { "name": "analytics-service", "namespace": "default", "ready": "True", "url": "https://analytics-service.run", "latest_created_revision": "analytics-service-00012", "latest_ready_revision": "analytics-service-00012", "age": "18d" }
+    ]
+  },
+  {
+    "id": 2,
+    "uuid": "cluster-prod-2",
+    "cluster_name": "gke-research-prod",
+    "cluster_description": "Research and macro workloads cluster.",
+    "cluster_status": "healthy",
+    "cluster_status_color": "green",
+    "cloud_provider_label": "Google Cloud",
+    "location": "us-central1",
+    "cluster_configuration_name": "prod-gpu",
+    "allow_to_run_jupyter_hub": true,
+    "allow_to_run_data_sources": true,
+    "is_auto_pilot_cluster": false,
+    "stats_items": [
+      { "key": "nodes", "label": "Nodes", "display": "6", "value": 6, "tone": "info" },
+      { "key": "pods", "label": "Pods", "display": "98", "value": 98, "tone": "info" }
+    ],
+    "node_pools": [
+      { "name": "research", "status": "healthy", "version": "1.29", "machine_type": "n2-standard-16", "disk_size_gb": 250, "nodes": 4, "pods": 70 },
+      { "name": "gpu", "status": "healthy", "version": "1.29", "machine_type": "g2-standard-8", "disk_size_gb": 200, "nodes": 2, "pods": 28 }
+    ],
+    "nodes": [
+      { "name": "research-prod-1", "status": "Ready", "node_pool": "research", "machine_type": "n2-standard-16", "zone": "us-central1-a", "version": "1.29", "age": "21d" },
+      { "name": "research-gpu-1", "status": "Ready", "node_pool": "gpu", "machine_type": "g2-standard-8", "zone": "us-central1-b", "version": "1.29", "age": "21d" }
+    ],
+    "namespaces": [
+      { "name": "default", "status": "Active", "pods": 18, "deployments": 5, "services": 4, "pvcs": 3, "knative_services": 1, "age": "140d" },
+      { "name": "research", "status": "Active", "pods": 34, "deployments": 6, "services": 2, "pvcs": 7, "knative_services": 1, "age": "140d" }
+    ],
+    "pods": [
+      { "name": "macro-dashboard-refresh-xyz", "namespace": "research", "status": "Running", "node_pool": "research", "node": "research-prod-1", "owner_kind": "Job", "owner_name": "macro-dashboard-refresh", "age": "4h" },
+      { "name": "macro-research-agent-uvw", "namespace": "research", "status": "Running", "node_pool": "gpu", "node": "research-gpu-1", "owner_kind": "Job", "owner_name": "macro-research-agent", "age": "8h" }
+    ],
+    "deployments": [
+      { "name": "research-api", "namespace": "default", "ready": "2/2", "up_to_date": 2, "available": 2, "strategy": "RollingUpdate", "age": "75d" }
+    ],
+    "services": [
+      { "name": "research-api", "namespace": "default", "type": "ClusterIP", "cluster_ip": "10.0.2.19", "external_ip": null, "ports": "80/TCP", "age": "75d" }
+    ],
+    "storage": [
+      { "kind": "PVC", "name": "research-cache", "namespace": "research", "status": "Bound", "storage_class": "balanced-rwo", "size_gib": 120, "volume": "pvc-research-cache", "access_modes": "RWO", "age": "75d" }
+    ],
+    "knative": [
+      { "name": "research-agent", "namespace": "research", "ready": "True", "url": "https://research-agent.run", "latest_created_revision": "research-agent-00008", "latest_ready_revision": "research-agent-00008", "age": "20d" }
+    ]
+  }
+]

@@ -1,0 +1,65 @@
+[
+  {
+    "id": 1001,
+    "bucket_id": 1,
+    "kind": "folder",
+    "name": "dashboards",
+    "prefix": "dashboards",
+    "count_files": 2,
+    "count_subfolders": 1
+  },
+  {
+    "id": 1002,
+    "bucket_id": 1,
+    "kind": "file",
+    "name": "revenue_snapshot.parquet",
+    "display_name": "revenue_snapshot.parquet",
+    "prefix": "",
+    "created_by_pod": "revenue-dashboard-refresh",
+    "created_by_resource_name": "Revenue Dashboard",
+    "creation_date": "2026-03-24T16:09:00Z",
+    "creation_date_display": "Mar 24, 2026 16:09",
+    "size_bytes": 7340032,
+    "size_display": "7 MB",
+    "content_url": "https://files.main-sequence.app/revenue_snapshot.parquet"
+  },
+  {
+    "id": 1003,
+    "bucket_id": 2,
+    "kind": "folder",
+    "name": "signals",
+    "prefix": "signals",
+    "count_files": 3,
+    "count_subfolders": 0
+  },
+  {
+    "id": 1004,
+    "bucket_id": 2,
+    "kind": "file",
+    "name": "macro_regimes.json",
+    "display_name": "macro_regimes.json",
+    "prefix": "",
+    "created_by_pod": "macro-dashboard-refresh",
+    "created_by_resource_name": "Macro Dashboard",
+    "creation_date": "2026-03-24T12:18:00Z",
+    "creation_date_display": "Mar 24, 2026 12:18",
+    "size_bytes": 1048576,
+    "size_display": "1 MB",
+    "content_url": "https://files.main-sequence.app/macro_regimes.json"
+  },
+  {
+    "id": 1005,
+    "bucket_id": 3,
+    "kind": "file",
+    "name": "incident_playbook.md",
+    "display_name": "incident_playbook.md",
+    "prefix": "",
+    "created_by_pod": "ops-monitor",
+    "created_by_resource_name": "Ops Status Board",
+    "creation_date": "2026-03-18T16:06:00Z",
+    "creation_date_display": "Mar 18, 2026 16:06",
+    "size_bytes": 262144,
+    "size_display": "256 KB",
+    "content_url": "https://files.main-sequence.app/incident_playbook.md"
+  }
+]

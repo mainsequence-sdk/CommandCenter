@@ -75,7 +75,7 @@ export function WidgetSchemaForm<
               ) : null}
             </div>
 
-            <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
               {sectionFields.map((field, index) => {
                 const SettingsRenderer = field.renderSettings;
 
@@ -89,7 +89,10 @@ export function WidgetSchemaForm<
                 return (
                   <div
                     key={field.id}
-                    className="space-y-2 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3"
+                    className={cn(
+                      "space-y-2 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3",
+                      field.settingsColumnSpan === 1 ? "md:col-span-1" : "md:col-span-2",
+                    )}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">

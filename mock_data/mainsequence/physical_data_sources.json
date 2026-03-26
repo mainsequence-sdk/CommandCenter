@@ -1,0 +1,38 @@
+[
+  {
+    "id": 701,
+    "display_name": "Warehouse Lakehouse",
+    "source_logo": "database",
+    "class_type": "timescale_db",
+    "class_type_label": "TimescaleDB",
+    "status": "healthy",
+    "status_label": "Healthy",
+    "status_tone": "success",
+    "creation_date": "2026-01-05T09:00:00Z",
+    "creation_date_display": "Jan 5, 2026"
+  },
+  {
+    "id": 702,
+    "display_name": "Macro Research Store",
+    "source_logo": "database",
+    "class_type": "duck_db",
+    "class_type_label": "DuckDB",
+    "status": "healthy",
+    "status_label": "Healthy",
+    "status_tone": "success",
+    "creation_date": "2026-01-11T10:00:00Z",
+    "creation_date_display": "Jan 11, 2026"
+  },
+  {
+    "id": 703,
+    "display_name": "Operations Event Store",
+    "source_logo": "database",
+    "class_type": "timescale_db_gcp_cloud",
+    "class_type_label": "TimescaleDB GCP Cloud",
+    "status": "healthy",
+    "status_label": "Healthy",
+    "status_tone": "success",
+    "creation_date": "2026-01-18T11:00:00Z",
+    "creation_date_display": "Jan 18, 2026"
+  }
+]

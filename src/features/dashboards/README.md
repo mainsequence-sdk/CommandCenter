@@ -42,6 +42,7 @@ These flows are all part of one app surface, with instance state selected throug
 - Workspace labels are edited in settings as enter-to-add pills instead of a comma-separated text field.
 - Workspace settings also expose versioned JSON export/import for full workspace snapshots.
 - Widget runtime state can persist in the workspace model when a widget reports it through the shared widget contract.
+- In canvas edit mode, widget instances expose shared header actions for settings, duplication, and removal. Duplicated widgets receive a fresh instance id, keep their props/presentation, and drop runtime state so they republish from their own mounted lifecycle.
 - In canvas edit mode, widget cards keep the same header height as view mode; drag uses the existing header band and edit actions fade in without adding extra layout chrome.
 - Widget instances can hide their header in normal viewing, but the workspace canvas forces headers back on during edit mode so drag and settings controls remain available.
 - The canvas `Components` browser is optimized for large catalogs: dense rows, category/kind/source filters, favorites, recent widgets, and grouped category browse when search is empty.

@@ -4,17 +4,24 @@ import type {
 } from "../../../../common/api";
 import {
   buildDataNodeFieldOptions,
-  formatDataNodeLabel,
+  buildDataNodeFieldOptionsFromRows,
   resolveDataNodeDateRange,
-  type DataNodeDateRangeMode,
   type DataNodeFieldOption,
 } from "../data-node-shared/dataNodeShared";
+import {
+  normalizeDataNodeWidgetSourceProps,
+  normalizeDataNodeWidgetSourceReferenceProps,
+  resolveDataNodeWidgetSourceConfig,
+  type DataNodeWidgetSourceProps,
+  type DataNodeWidgetSourceReferenceProps,
+  type ResolvedDataNodeWidgetSourceConfig,
+} from "../data-node-shared/dataNodeWidgetSource";
 
 export type DataNodeVisualizerProvider = "tradingview";
 export type DataNodeVisualizerChartType = "line" | "area" | "bar";
 export type DataNodeVisualizerViewMode = "chart" | "table";
 export type DataNodeVisualizerSeriesAxisMode = "shared" | "separate";
-export type DataNodeVisualizerDateRangeMode = DataNodeDateRangeMode;
+export type DataNodeVisualizerDateRangeMode = ResolvedDataNodeWidgetSourceConfig["dateRangeMode"];
 
 export interface DataNodeVisualizerSeriesOverride {
   color?: string;
@@ -22,12 +29,10 @@ export interface DataNodeVisualizerSeriesOverride {
 
 export type DataNodeVisualizerSeriesOverrides = Record<string, DataNodeVisualizerSeriesOverride>;
 
-export interface MainSequenceDataNodeVisualizerWidgetProps extends Record<string, unknown> {
+export interface MainSequenceDataNodeVisualizerWidgetProps
+  extends DataNodeWidgetSourceProps,
+    DataNodeWidgetSourceReferenceProps {
   chartType?: DataNodeVisualizerChartType;
-  dataNodeId?: number;
-  dateRangeMode?: DataNodeVisualizerDateRangeMode;
-  fixedEndMs?: number;
-  fixedStartMs?: number;
   groupField?: string;
   limit?: number;
   normalizeAtMs?: number;
@@ -35,21 +40,14 @@ export interface MainSequenceDataNodeVisualizerWidgetProps extends Record<string
   provider?: DataNodeVisualizerProvider;
   seriesAxisMode?: DataNodeVisualizerSeriesAxisMode;
   seriesOverrides?: DataNodeVisualizerSeriesOverrides;
-  uniqueIdentifierList?: string[];
   xField?: string;
   yField?: string;
 }
 
 export type DataNodeVisualizerFieldOption = DataNodeFieldOption;
 
-export interface ResolvedDataNodeVisualizerConfig {
-  availableFields: DataNodeVisualizerFieldOption[];
+export interface ResolvedDataNodeVisualizerConfig extends ResolvedDataNodeWidgetSourceConfig {
   chartType: DataNodeVisualizerChartType;
-  dataNodeId?: number;
-  dataNodeLabel: string;
-  dateRangeMode: DataNodeVisualizerDateRangeMode;
-  fixedEndMs?: number;
-  fixedStartMs?: number;
   groupField?: string;
   limit: number;
   normalizeAtMs?: number;
@@ -57,8 +55,6 @@ export interface ResolvedDataNodeVisualizerConfig {
   provider: DataNodeVisualizerProvider;
   seriesAxisMode: DataNodeVisualizerSeriesAxisMode;
   seriesOverrides?: DataNodeVisualizerSeriesOverrides;
-  supportsUniqueIdentifierList: boolean;
-  uniqueIdentifierList?: string[];
   xField?: string;
   yField?: string;
 }
@@ -141,76 +137,8 @@ function normalizeSeriesOverrides(value: unknown) {
   return Object.fromEntries(normalizedEntries) satisfies DataNodeVisualizerSeriesOverrides;
 }
 
-function normalizeUniqueIdentifierList(value: unknown) {
-  if (typeof value === "string") {
-    return uniqueStrings(value.split(/[\n,]+/).map((item) => item.trim()));
-  }
-
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-
-  const normalizedValues = uniqueStrings(
-    value.map((item) => (typeof item === "string" ? item.trim() : "")),
-  );
-
-  return normalizedValues.length > 0 ? normalizedValues : undefined;
-}
-
-function normalizeTimestampMs(value: unknown) {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed)) {
-    return undefined;
-  }
-
-  return Math.trunc(parsed);
-}
-
 export function buildDataNodeVisualizerFieldOptions(detail?: DataNodeDetail | null) {
   return buildDataNodeFieldOptions(detail);
-}
-
-function getDefaultXField(
-  fieldOptions: DataNodeVisualizerFieldOption[],
-  detail?: DataNodeDetail | null,
-) {
-  const sourceConfig = detail?.sourcetableconfiguration;
-
-  return (
-    sourceConfig?.time_index_name ||
-    fieldOptions.find((field) => field.isTime)?.key ||
-    sourceConfig?.index_names?.[0] ||
-    fieldOptions[0]?.key
-  );
-}
-
-function getDefaultGroupField(
-  fieldOptions: DataNodeVisualizerFieldOption[],
-  detail: DataNodeDetail | null | undefined,
-  xField?: string,
-) {
-  const indexNames = detail?.sourcetableconfiguration?.index_names ?? [];
-
-  return (
-    indexNames.find((field) => field !== xField) ||
-    fieldOptions.find((field) => field.isIndex && field.key !== xField)?.key ||
-    undefined
-  );
-}
-
-function getDefaultYField(
-  fieldOptions: DataNodeVisualizerFieldOption[],
-  xField?: string,
-  groupField?: string,
-) {
-  return (
-    fieldOptions.find(
-      (field) => field.isNumeric && field.key !== xField && field.key !== groupField,
-    )?.key ||
-    fieldOptions.find((field) => field.key !== xField && field.key !== groupField)?.key ||
-    undefined
-  );
 }
 
 function getValidFieldKey(
@@ -221,23 +149,24 @@ function getValidFieldKey(
     return undefined;
   }
 
-  return fieldOptions.some((field) => field.key === requestedKey) ? requestedKey : undefined;
-}
+  if (fieldOptions.length === 0) {
+    return requestedKey.trim();
+  }
 
-function supportsUniqueIdentifierList(detail?: DataNodeDetail | null) {
-  return detail?.sourcetableconfiguration?.index_names?.[1] === "unique_identifier";
+  return fieldOptions.some((field) => field.key === requestedKey) ? requestedKey : undefined;
 }
 
 export function resolveDataNodeVisualizerConfig(
   props: MainSequenceDataNodeVisualizerWidgetProps,
   detail?: DataNodeDetail | null,
+  fieldOptionsOverride?: DataNodeVisualizerFieldOption[],
 ): ResolvedDataNodeVisualizerConfig {
-  const dataNodeId = normalizePositiveInteger(props.dataNodeId);
-  const dateRangeMode: DataNodeVisualizerDateRangeMode =
-    props.dateRangeMode === "fixed" ? "fixed" : "dashboard";
-  const fixedStartMs = normalizeTimestampMs(props.fixedStartMs);
-  const fixedEndMs = normalizeTimestampMs(props.fixedEndMs);
-  const availableFields = buildDataNodeVisualizerFieldOptions(detail);
+  const normalizedReference = normalizeDataNodeWidgetSourceReferenceProps(props);
+  const sourceConfig = resolveDataNodeWidgetSourceConfig(props, detail);
+  const availableFields =
+    fieldOptionsOverride && fieldOptionsOverride.length > 0
+      ? fieldOptionsOverride
+      : sourceConfig.availableFields;
   const provider: DataNodeVisualizerProvider = "tradingview";
   const chartType: DataNodeVisualizerChartType =
     props.chartType === "area" || props.chartType === "bar" ? props.chartType : "line";
@@ -247,28 +176,17 @@ export function resolveDataNodeVisualizerConfig(
   const seriesAxisMode: DataNodeVisualizerSeriesAxisMode =
     props.seriesAxisMode === "separate" ? "separate" : "shared";
   const seriesOverrides = normalizeSeriesOverrides(props.seriesOverrides);
-  const supportsIdentifierList = supportsUniqueIdentifierList(detail);
-  const uniqueIdentifierList = supportsIdentifierList
-    ? normalizeUniqueIdentifierList(props.uniqueIdentifierList)
-    : undefined;
 
-  const xField =
-    getValidFieldKey(props.xField, availableFields) ||
-    getDefaultXField(availableFields, detail);
-  const groupField =
-    getValidFieldKey(props.groupField, availableFields) ||
-    getDefaultGroupField(availableFields, detail, xField);
-  const yField =
-    getValidFieldKey(props.yField, availableFields) ||
-    getDefaultYField(availableFields, xField, groupField);
+  const xField = getValidFieldKey(props.xField, availableFields);
+  const groupField = getValidFieldKey(props.groupField, availableFields);
+  const yField = getValidFieldKey(props.yField, availableFields);
 
   return {
-    dataNodeId,
-    dateRangeMode,
+    ...sourceConfig,
+    sourceMode: "filter_widget",
+    sourceWidgetId: normalizedReference.sourceWidgetId,
     provider,
     chartType,
-    fixedStartMs,
-    fixedEndMs,
     xField,
     yField,
     groupField,
@@ -277,10 +195,7 @@ export function resolveDataNodeVisualizerConfig(
     normalizeAtMs,
     seriesAxisMode,
     seriesOverrides,
-    supportsUniqueIdentifierList: supportsIdentifierList,
-    uniqueIdentifierList,
     availableFields,
-    dataNodeLabel: formatDataNodeLabel(detail ?? (dataNodeId ? { id: dataNodeId, storage_hash: "", identifier: null } : null)),
   };
 }
 
@@ -289,15 +204,15 @@ export function normalizeDataNodeVisualizerProps(
   detail?: DataNodeDetail | null,
 ) {
   const resolved = resolveDataNodeVisualizerConfig(props, detail);
+  const sourceProps = normalizeDataNodeWidgetSourceProps(props, detail);
+  const sourceReferenceProps = normalizeDataNodeWidgetSourceReferenceProps(props);
 
   return {
-    ...props,
-    dataNodeId: resolved.dataNodeId,
-    dateRangeMode: resolved.dateRangeMode,
+    ...sourceProps,
+    sourceMode: "filter_widget",
+    sourceWidgetId: sourceReferenceProps.sourceWidgetId,
     provider: resolved.provider,
     chartType: resolved.chartType,
-    fixedStartMs: resolved.fixedStartMs,
-    fixedEndMs: resolved.fixedEndMs,
     xField: resolved.xField,
     yField: resolved.yField,
     groupField: resolved.groupField,
@@ -306,7 +221,6 @@ export function normalizeDataNodeVisualizerProps(
     normalizeAtMs: resolved.normalizeAtMs,
     seriesAxisMode: resolved.seriesAxisMode,
     seriesOverrides: resolved.seriesOverrides,
-    uniqueIdentifierList: resolved.uniqueIdentifierList,
   } satisfies MainSequenceDataNodeVisualizerWidgetProps;
 }
 
@@ -437,44 +351,50 @@ function fieldHasParsableValue(
   return rows.some((row) => parser(row[key]) !== null);
 }
 
-export function resolveDataNodeVisualizerRenderableFields(
-  rows: DataNodeRemoteDataRow[],
-  config: Pick<ResolvedDataNodeVisualizerConfig, "availableFields" | "groupField" | "xField" | "yField">,
+export function buildDataNodeVisualizerFieldOptionsFromRuntime(
+  runtimeState?: {
+    columns?: string[];
+    rows?: readonly DataNodeRemoteDataRow[];
+  } | null,
 ) {
-  if (rows.length === 0) {
-    return {
-      xField: config.xField,
-      yField: config.yField,
-      groupField: config.groupField,
-    };
+  return buildDataNodeFieldOptionsFromRows({
+    columns: runtimeState?.columns,
+    rows: runtimeState?.rows,
+  });
+}
+
+export function hasDataNodeVisualizerDuplicateTimes(
+  rows: DataNodeRemoteDataRow[],
+  config: Pick<ResolvedDataNodeVisualizerConfig, "groupField" | "xField" | "yField">,
+) {
+  if (!config.xField || !config.yField) {
+    return false;
   }
 
-  const rowKeys = uniqueStrings(rows.flatMap((row) => Object.keys(row)));
-  const xField =
-    uniqueStrings([
-      config.xField,
-      ...config.availableFields.filter((field) => field.isTime).map((field) => field.key),
-      ...rowKeys,
-    ]).find((key) => fieldHasParsableValue(rows, key, parseDataNodeVisualizerTimeValue)) ??
-    config.xField;
-  const yField =
-    uniqueStrings([
-      config.yField,
-      ...config.availableFields.filter((field) => field.isNumeric).map((field) => field.key),
-      ...rowKeys,
-    ])
-      .filter((key) => key !== xField && key !== config.groupField)
-      .find((key) => fieldHasParsableValue(rows, key, parseNumericValue)) ?? config.yField;
-  const groupField =
-    config.groupField && config.groupField !== xField && config.groupField !== yField
-      ? config.groupField
-      : undefined;
+  const seenBySeries = new Map<string, Set<number>>();
 
-  return {
-    xField,
-    yField,
-    groupField,
-  };
+  for (const row of rows) {
+    const time = parseDataNodeVisualizerTimeValue(row[config.xField]);
+    const value = parseNumericValue(row[config.yField]);
+
+    if (time === null || value === null) {
+      continue;
+    }
+
+    const seriesKey = config.groupField
+      ? String(row[config.groupField] ?? "__empty__")
+      : "__default__";
+    const seenTimes = seenBySeries.get(seriesKey) ?? new Set<number>();
+
+    if (seenTimes.has(time)) {
+      return true;
+    }
+
+    seenTimes.add(time);
+    seenBySeries.set(seriesKey, seenTimes);
+  }
+
+  return false;
 }
 
 export function resolveDataNodeVisualizerPreviewAnchorMs(
@@ -500,20 +420,26 @@ export function buildDataNodeVisualizerSeries(
   rows: DataNodeRemoteDataRow[],
   config: Pick<
     ResolvedDataNodeVisualizerConfig,
-    "availableFields" | "groupField" | "seriesOverrides" | "xField" | "yField"
+    "groupField" | "seriesOverrides" | "xField" | "yField"
   >,
   maxSeries = 8,
 ): DataNodeVisualizerSeriesResult {
-  const renderableFields = resolveDataNodeVisualizerRenderableFields(rows, config);
-
-  if (!renderableFields.xField || !renderableFields.yField) {
+  if (!config.xField || !config.yField) {
     return { series: [], droppedGroups: 0 };
   }
 
-  const xField = renderableFields.xField;
-  const yField = renderableFields.yField;
-  const groupField = renderableFields.groupField;
-  const groupedPoints = new Map<string, DataNodeVisualizerSeries>();
+  const xField = config.xField;
+  const yField = config.yField;
+  const groupField = config.groupField;
+  const groupedPoints = new Map<
+    string,
+    {
+      color?: string;
+      id: string;
+      label: string;
+      pointMap: Map<number, number>;
+    }
+  >();
 
   rows.forEach((row) => {
     const time = parseDataNodeVisualizerTimeValue(row[xField]);
@@ -530,25 +456,28 @@ export function buildDataNodeVisualizerSeries(
     const groupKey = groupField
       ? String(row[groupField] ?? "__empty__")
       : yField;
-    const current: DataNodeVisualizerSeries =
+    const current =
       groupedPoints.get(groupKey) ??
       {
         id: groupKey,
         label: groupLabel,
-        pointCount: 0,
-        points: [],
+        pointMap: new Map<number, number>(),
+        color: config.seriesOverrides?.[groupKey]?.color,
       };
 
-    current.points.push({ time, value });
-    current.pointCount += 1;
+    current.pointMap.set(time, value);
     groupedPoints.set(groupKey, current);
   });
 
   const sortedGroups = [...groupedPoints.values()]
     .map((series) => ({
-      ...series,
-      points: [...series.points].sort((left, right) => left.time - right.time),
-      color: config.seriesOverrides?.[series.id]?.color,
+      id: series.id,
+      label: series.label,
+      color: series.color,
+      points: [...series.pointMap.entries()]
+        .sort((left, right) => left[0] - right[0])
+        .map(([time, value]) => ({ time, value })),
+      pointCount: series.pointMap.size,
     }))
     .sort((left, right) => right.pointCount - left.pointCount);
 

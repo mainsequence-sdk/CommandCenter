@@ -1,0 +1,57 @@
+[
+  {
+    "id": 6,
+    "project": 81,
+    "name": "Revenue Dashboard",
+    "resource_type": "streamlit_dashboard",
+    "path": "dashboards/revenue_dashboard/app.py",
+    "last_modified": "2026-03-20T14:31:00Z",
+    "created_at": "2026-03-10T10:00:00Z",
+    "updated_at": "2026-03-20T14:31:00Z",
+    "repo_commit_sha": "abcdef1234567890"
+  },
+  {
+    "id": 7,
+    "project": 88,
+    "name": "Macro Dashboard",
+    "resource_type": "streamlit_dashboard",
+    "path": "dashboards/macro_dashboard/app.py",
+    "last_modified": "2026-03-21T09:16:00Z",
+    "created_at": "2026-03-11T08:00:00Z",
+    "updated_at": "2026-03-21T09:16:00Z",
+    "repo_commit_sha": "1234567890abcdef"
+  },
+  {
+    "id": 8,
+    "project": 93,
+    "name": "Ops Status Board",
+    "resource_type": "streamlit_dashboard",
+    "path": "dashboards/ops_status/app.py",
+    "last_modified": "2026-03-18T16:06:00Z",
+    "created_at": "2026-03-12T08:00:00Z",
+    "updated_at": "2026-03-18T16:06:00Z",
+    "repo_commit_sha": "fedcba9876543210"
+  },
+  {
+    "id": 21,
+    "project": 81,
+    "name": "revenue_job.py",
+    "resource_type": "python_module",
+    "path": "jobs/revenue_job.py",
+    "last_modified": "2026-03-20T14:31:00Z",
+    "created_at": "2026-03-10T10:00:00Z",
+    "updated_at": "2026-03-20T14:31:00Z",
+    "repo_commit_sha": "abcdef1234567890"
+  },
+  {
+    "id": 22,
+    "project": 88,
+    "name": "macro_job.py",
+    "resource_type": "python_module",
+    "path": "jobs/macro_job.py",
+    "last_modified": "2026-03-21T09:16:00Z",
+    "created_at": "2026-03-11T08:00:00Z",
+    "updated_at": "2026-03-21T09:16:00Z",
+    "repo_commit_sha": "1234567890abcdef"
+  }
+]

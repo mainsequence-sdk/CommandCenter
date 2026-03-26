@@ -1,0 +1,5 @@
+[
+  { "id": 1, "name": "analytics-artifacts" },
+  { "id": 2, "name": "macro-models" },
+  { "id": 3, "name": "ops-runbooks" }
+]

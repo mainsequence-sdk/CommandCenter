@@ -1,7 +1,7 @@
 import { env } from "@/config/env";
 import * as liveApi from "@/data/live/rest-api";
-import * as mockApi from "@/data/demo-api";
 import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
+import * as mockApi from "../../extensions/demo/data/mock-api";
 
 type DataApi = typeof mockApi;
 

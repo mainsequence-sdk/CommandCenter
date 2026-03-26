@@ -5,13 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { PickerField } from "../../../../common/components/PickerField";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import {
-  fetchDataNodeDataBetweenDatesFromRemote,
   fetchDataNodeDetail,
-  formatMainSequenceError,
 } from "../../../../common/api";
 import { useTheme } from "@/themes/ThemeProvider";
 import {
@@ -28,8 +26,8 @@ import {
 } from "@/widgets/shared/form-density";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
-import { DataNodeDateTimeField } from "../data-node-shared/DataNodeDateTimeField";
-import { DataNodeQuickSearchPicker } from "../data-node-shared/DataNodeQuickSearchPicker";
+import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
+import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 import {
   buildDataNodeTableVisualizerFrameFromRemoteData,
   buildDataNodeTableVisualizerRowObjects,
@@ -40,7 +38,6 @@ import {
   resolveDataNodeTableVisualizerProps,
   resolveDataNodeTableVisualizerPropsWithFrame,
   validateDataNodeTableVisualizerSchema,
-  dataNodeTableVisualizerDateRangeModeOptions,
   dataNodeTableVisualizerAlignOptions,
   dataNodeTableVisualizerBarModeOptions,
   dataNodeTableVisualizerDefaultProps,
@@ -57,10 +54,6 @@ import {
   type DataNodeTableVisualizerTone,
   type DataNodeTableVisualizerValueLabel,
 } from "./dataNodeTableModel";
-import {
-  buildDataNodeFieldOptions,
-  resolveDataNodeDateRange,
-} from "../data-node-shared/dataNodeShared";
 
 const sectionClass = widgetTightFormSectionClass;
 const insetSectionClass = widgetTightFormInsetSectionClass;
@@ -72,17 +65,6 @@ const inputClass = widgetTightFormInputClass;
 const selectClass = widgetTightFormSelectClass;
 const colorInputClass = widgetTightFormColorInputClass;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
-const dataNodeFramePreviewLimit = 500;
-
-function normalizeUniqueIdentifierText(value: string) {
-  const items = value
-    .split(/[\n,]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  return items.length > 0 ? items : undefined;
-}
-
 function toColorInputValue(value: string | undefined, fallback: string) {
   if (value && hexColorPattern.test(value.trim())) {
     return value.trim().toLowerCase();
@@ -225,7 +207,6 @@ function stripLegacyTableSourceFields(
   delete nextValue.columns;
   delete nextValue.rows;
   delete nextValue.datasetId;
-  delete nextValue.sourceMode;
   return nextValue;
 }
 
@@ -240,7 +221,28 @@ export function DataNodeTableWidgetSettings({
   } = useDashboardControls();
   const { resolvedTokens } = useTheme();
   const resolvedDraft = resolveDataNodeTableVisualizerProps(draftProps);
-  const selectedDataNodeId = Number(resolvedDraft.dataNodeId ?? 0);
+  const sourceReferenceProps = useMemo<DataNodeTableVisualizerProps>(
+    () => ({
+      sourceMode: "filter_widget",
+      sourceWidgetId: resolvedDraft.sourceWidgetId,
+    }),
+    [resolvedDraft.sourceWidgetId],
+  );
+  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
+    props: sourceReferenceProps,
+  });
+  const linkedFilterRuntime = useMemo(
+    () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
+    [sourceBinding.referencedFilterWidget?.runtimeState],
+  );
+  const effectiveDraftProps = useMemo(
+    () => ({
+      ...resolvedDraft,
+      ...sourceBinding.resolvedSourceProps,
+    }),
+    [resolvedDraft, sourceBinding.resolvedSourceProps],
+  );
+  const selectedDataNodeId = Number(sourceBinding.resolvedSourceProps.dataNodeId ?? 0);
 
   const dataNodeDetailQuery = useQuery({
     queryKey: [
@@ -255,71 +257,33 @@ export function DataNodeTableWidgetSettings({
     staleTime: 300_000,
   });
 
-  const resolvedRange = useMemo(
-    () =>
-      resolveDataNodeDateRange(
-        resolvedDraft,
-        dashboardRangeStartMs,
-        dashboardRangeEndMs,
-      ),
-    [dashboardRangeEndMs, dashboardRangeStartMs, resolvedDraft],
-  );
-  const requestedRemoteColumns = useMemo(
-    () => buildDataNodeFieldOptions(dataNodeDetailQuery.data).map((field) => field.key),
-    [dataNodeDetailQuery.data],
-  );
   const hasSourceTableConfiguration = Boolean(
     dataNodeDetailQuery.data?.sourcetableconfiguration,
   );
-
-  const dataNodeFrameQuery = useQuery({
-    queryKey: [
-      "main_sequence",
-      "widgets",
-      "data_node_table_visualizer",
-      "preview_frame",
-      selectedDataNodeId,
-      requestedRemoteColumns.join("|"),
-      (resolvedDraft.uniqueIdentifierList ?? []).join("|"),
-      resolvedRange.mode,
-      resolvedRange.rangeStartMs,
-      resolvedRange.rangeEndMs,
-      Math.min(resolvedDraft.limit, dataNodeFramePreviewLimit),
-    ],
-    queryFn: () =>
-      fetchDataNodeDataBetweenDatesFromRemote(selectedDataNodeId, {
-        start_date: Math.floor((resolvedRange.rangeStartMs ?? 0) / 1000),
-        end_date: Math.floor((resolvedRange.rangeEndMs ?? 0) / 1000),
-        columns: requestedRemoteColumns,
-        unique_identifier_list: resolvedDraft.uniqueIdentifierList,
-        great_or_equal: true,
-        less_or_equal: true,
-        limit: Math.min(resolvedDraft.limit, dataNodeFramePreviewLimit),
-        offset: 0,
-      }),
-    enabled:
-      Boolean(selectedDataNodeId) &&
-      hasSourceTableConfiguration &&
-      requestedRemoteColumns.length > 0 &&
-      resolvedRange.hasValidRange,
-    staleTime: 60_000,
-  });
+  const frameRowsSource = linkedFilterRuntime?.rows ?? [];
 
   const remoteFrameInput = useMemo(
     () =>
       buildDataNodeTableVisualizerFrameFromRemoteData(
         dataNodeDetailQuery.data,
-        dataNodeFrameQuery.data ?? [],
+        frameRowsSource,
       ),
-    [dataNodeDetailQuery.data, dataNodeFrameQuery.data],
+    [dataNodeDetailQuery.data, frameRowsSource],
   );
   const scopedDraft = useMemo(
     () => stripLegacyTableSourceFields(draftProps),
     [draftProps],
   );
   const resolvedScopedDraft = useMemo(
-    () => resolveDataNodeTableVisualizerPropsWithFrame(scopedDraft, remoteFrameInput),
-    [remoteFrameInput, scopedDraft],
+    () =>
+      resolveDataNodeTableVisualizerPropsWithFrame(
+        {
+          ...scopedDraft,
+          ...sourceBinding.resolvedSourceProps,
+        },
+        remoteFrameInput,
+      ),
+    [remoteFrameInput, scopedDraft, sourceBinding.resolvedSourceProps],
   );
   const frameRows = buildDataNodeTableVisualizerRowObjects(
     resolvedScopedDraft.columns,
@@ -521,150 +485,42 @@ export function DataNodeTableWidgetSettings({
         <div>
           <div className={titleClass}>Table options</div>
           <p className={descriptionClass}>
-            Select a live data node, resolve its frame preview, then control how those fields should
-            render in the table.
+            Point the table at a Data Node widget, then control how the incoming fields
+            should render.
           </p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
-            <label className={labelClass}>
-              Data node
-            </label>
-            <DataNodeQuickSearchPicker
-              value={selectedDataNodeId}
-              onChange={(nextId) => {
+            <label className={labelClass}>Filter widget</label>
+            <PickerField
+              value={resolvedDraft.sourceWidgetId ?? ""}
+              onChange={(value) => {
                 commit({
                   ...scopedDraft,
-                  dataNodeId: nextId,
-                  uniqueIdentifierList: undefined,
-                  schema: undefined,
-                  columnOverrides: {},
-                  valueLabels: [],
-                  conditionalRules: [],
+                  sourceMode: "filter_widget",
+                  sourceWidgetId: value || undefined,
                 });
               }}
-              editable={editable}
-              queryScope="data_node_table"
-              selectedDataNode={dataNodeDetailQuery.data}
-              detailError={dataNodeDetailQuery.error}
-              selectionHelpText="Choose the source table that should feed this widget."
-            />
-          </div>
-
-          <div className={fieldClass}>
-            <label className={labelClass}>
-              Date source
-            </label>
-            <Select
-              className={selectClass}
-              value={resolvedDraft.dateRangeMode}
-              disabled={!editable}
-              onChange={(event) => {
-                commit({
-                  ...scopedDraft,
-                  dateRangeMode: event.target.value as DataNodeTableVisualizerProps["dateRangeMode"],
-                });
-              }}
-            >
-              {dataNodeTableVisualizerDateRangeModeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-            <p className={descriptionClass}>
-              {dataNodeTableVisualizerDateRangeModeOptions.find(
-                (option) => option.value === resolvedDraft.dateRangeMode,
-              )?.description ?? ""}
-            </p>
-          </div>
-
-          <div className={fieldClass}>
-            <label className={labelClass}>
-              Remote row limit
-            </label>
-            <Input
-              className={inputClass}
-              type="number"
-              min={50}
-              max={10000}
-              value={resolvedDraft.limit}
-              disabled={!editable}
-              onChange={(event) => {
-                commit({
-                  ...scopedDraft,
-                  limit: Number(event.target.value),
-                });
-              }}
+              options={sourceBinding.filterWidgetOptions}
+              placeholder={
+                sourceBinding.filterWidgetOptions.length > 0
+                  ? "Select a Data Node widget"
+                  : "No Data Node widgets are available"
+              }
+              searchPlaceholder="Search data nodes"
+              emptyMessage="No Data Node widgets are available in this dashboard."
+              disabled={!editable || sourceBinding.filterWidgetOptions.length === 0}
             />
             <p className={descriptionClass}>
-              Controls how many rows the live query can return at runtime.
+              The filter owns data-node selection, identifier filtering, and date range. This table only formats the incoming dataset.
             </p>
           </div>
-
-          {resolvedDraft.dateRangeMode === "fixed" ? (
-            <>
-              <div className={fieldClass}>
-                <label className={labelClass}>
-                  Fixed start
-                </label>
-                <DataNodeDateTimeField
-                  valueMs={resolvedDraft.fixedStartMs}
-                  editable={editable}
-                  onChangeValue={(nextValue) => {
-                    commit({
-                      ...scopedDraft,
-                      fixedStartMs: nextValue,
-                    });
-                  }}
-                />
-              </div>
-
-              <div className={fieldClass}>
-                <label className={labelClass}>
-                  Fixed end
-                </label>
-                <DataNodeDateTimeField
-                  valueMs={resolvedDraft.fixedEndMs}
-                  editable={editable}
-                  onChangeValue={(nextValue) => {
-                    commit({
-                      ...scopedDraft,
-                      fixedEndMs: nextValue,
-                    });
-                  }}
-                />
-              </div>
-            </>
-          ) : null}
-
-          {resolvedScopedDraft.supportsUniqueIdentifierList ? (
-            <div className="space-y-2 md:col-span-2">
-              <label className={labelClass}>
-                Unique identifiers
-              </label>
-              <Textarea
-                className="min-h-[92px] text-sm"
-                value={(resolvedDraft.uniqueIdentifierList ?? []).join("\n")}
-                placeholder="One identifier per line"
-                readOnly={!editable}
-                onChange={(event) => {
-                  commit({
-                    ...scopedDraft,
-                    uniqueIdentifierList: normalizeUniqueIdentifierText(event.target.value),
-                  });
-                }}
-              />
-              <p className={descriptionClass}>
-                Optional filter for the `unique_identifier` index. Leave blank to include every series.
-              </p>
-            </div>
-          ) : selectedDataNodeId > 0 && hasSourceTableConfiguration ? (
-            <div className="md:col-span-2 rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/20 px-3 py-2 text-sm text-muted-foreground">
-              This data node does not expose a `unique_identifier` index, so row filtering by identifier is not available.
-            </div>
-          ) : null}
+          <div className="md:col-span-2 rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/20 px-3 py-2 text-sm text-muted-foreground">
+            {sourceBinding.hasResolvedFilterWidgetSource
+              ? "This widget inherits its data node, identifier filter, and date range from the selected Data Node widget."
+              : "Select a Data Node widget to resolve the source preview."}
+          </div>
 
           <div className={fieldClass}>
             <label className={labelClass}>
@@ -675,19 +531,25 @@ export function DataNodeTableWidgetSettings({
             ) : (
               <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-3 py-2 text-sm text-muted-foreground">
                 {!selectedDataNodeId
-                  ? "Select a data node."
+                  ? "Select a Data Node widget."
                   : `${resolvedScopedDraft.columns.length} columns, ${resolvedScopedDraft.rows.length} preview rows`}
               </div>
             )}
             <p className={descriptionClass}>
-              Field formatting below binds to this live frame preview.
+              Field formatting below binds to the dataset owned by the linked Data Node.
             </p>
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            {dataNodeFrameQuery.isError ? (
+            {sourceBinding.isFilterWidgetSource && linkedFilterRuntime?.status === "error" ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                {formatMainSequenceError(dataNodeFrameQuery.error)}
+                {linkedFilterRuntime.error ?? "The linked Data Node failed to load rows."}
+              </div>
+            ) : null}
+
+            {resolvedDraft.sourceMode === "filter_widget" && !sourceBinding.hasResolvedFilterWidgetSource ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                Select a Data Node widget in this dashboard to resolve the table source.
               </div>
             ) : null}
 
@@ -843,7 +705,7 @@ export function DataNodeTableWidgetSettings({
         <div className="space-y-3">
           {resolvedColumns.length === 0 ? (
             <p className={descriptionClass}>
-              No source fields are available yet. Select a data node or reset from the current live frame.
+              No source fields are available yet. Select a Data Node widget or reset from the current live frame.
             </p>
           ) : resolvedColumns.map((column, index) => {
             const override = scopedDraft.columnOverrides?.[column.key] ?? {};

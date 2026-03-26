@@ -23,3 +23,6 @@ export const widgetTightFormColorInputClass =
   "h-8 w-10 cursor-pointer rounded-[calc(var(--radius)-7px)] border border-border bg-transparent p-1 disabled:cursor-not-allowed disabled:opacity-50";
 
 export const widgetTightFormButtonGroupClass = "flex flex-wrap gap-1.5";
+
+export const widgetExtraTightTableClass =
+  "[--table-compact-header-padding-y:0.3rem] [--table-compact-cell-padding-y:0.25rem]";

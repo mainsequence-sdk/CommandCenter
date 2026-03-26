@@ -1,0 +1,12 @@
+{
+  "language": "en",
+  "themeId": "main-sequence-space",
+  "favoriteSurfaceIds": [
+    "main_sequence_workbench:projects",
+    "main_sequence_workbench:streamlit",
+    "workspace-studio:workspaces"
+  ],
+  "favoriteWorkspaceIds": [
+    "workspace-global-macro"
+  ]
+}

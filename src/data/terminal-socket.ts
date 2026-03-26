@@ -4,8 +4,8 @@ import { LiveTerminalSocket } from "@/data/live/terminal-socket";
 import { MockTerminalSocket } from "@/data/mock/terminal-socket";
 import type { TerminalSocket } from "@/data/terminal-socket-types";
 
-const mockTerminalSocket = new MockTerminalSocket();
-const liveTerminalSocket = new LiveTerminalSocket(env.wsUrl);
+let mockTerminalSocket: MockTerminalSocket | null = null;
+let liveTerminalSocket: LiveTerminalSocket | null = null;
 const disabledTerminalSocket: TerminalSocket = {
   async connect() {},
   disconnect() {},
@@ -18,12 +18,28 @@ const disabledTerminalSocket: TerminalSocket = {
   },
 };
 
+function getMockTerminalSocket() {
+  if (!mockTerminalSocket) {
+    mockTerminalSocket = new MockTerminalSocket();
+  }
+
+  return mockTerminalSocket;
+}
+
+function getLiveTerminalSocket() {
+  if (!liveTerminalSocket) {
+    liveTerminalSocket = new LiveTerminalSocket(env.wsUrl);
+  }
+
+  return liveTerminalSocket;
+}
+
 function getPrimaryTerminalSocket() {
   if (!env.includeWebsockets) {
     return disabledTerminalSocket;
   }
 
-  return env.useMockData ? mockTerminalSocket : liveTerminalSocket;
+  return env.useMockData ? getMockTerminalSocket() : getLiveTerminalSocket();
 }
 
 export const terminalSocket: TerminalSocket = {
@@ -34,8 +50,8 @@ export const terminalSocket: TerminalSocket = {
     (!env.includeWebsockets
       ? disabledTerminalSocket
       : env.useMockData || isWidgetPreviewMode()
-        ? mockTerminalSocket
-        : liveTerminalSocket
+        ? getMockTerminalSocket()
+        : getLiveTerminalSocket()
     ).subscribePrice(symbol, listener),
 };
 

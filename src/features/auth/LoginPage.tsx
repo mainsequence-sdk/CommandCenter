@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/auth/auth-store";
+import { getMockAuthHint } from "@/auth/mock-jwt-auth";
 import { getRoleLabel } from "@/auth/permissions";
 import { builtinAppRoles, type BuiltinAppRole } from "@/auth/types";
 import { BrandWordmark } from "@/components/brand/BrandWordmark";
@@ -27,11 +28,19 @@ export function LoginPage() {
   const error = useAuthStore((state) => state.error);
   const { app, auth } = useCommandCenterConfig();
   const isBypassAuth = env.bypassAuth;
+  const isMockAuth = env.useMockData && !isBypassAuth;
+  const mockAuthHint = getMockAuthHint();
 
   const [identifier, setIdentifier] = useState(
-    isBypassAuth ? "admin@mainsequence.local" : "",
+    isBypassAuth
+      ? "admin@mainsequence.local"
+      : isMockAuth
+        ? mockAuthHint?.identifier ?? ""
+        : "",
   );
-  const [password, setPassword] = useState(isBypassAuth ? "demo" : "");
+  const [password, setPassword] = useState(
+    isBypassAuth ? "demo" : isMockAuth ? mockAuthHint?.password ?? "" : "",
+  );
   const [role, setRole] = useState<BuiltinAppRole>("admin");
 
   const redirectTarget =
@@ -70,6 +79,10 @@ export function LoginPage() {
               {isBypassAuth ? (
                 <CardDescription>
                   {`Bypass auth for local development in ${app.shortName}.`}
+                </CardDescription>
+              ) : isMockAuth ? (
+                <CardDescription>
+                  {`Mock auth is enabled for ${app.shortName}.`}
                 </CardDescription>
               ) : null}
             </div>
@@ -161,6 +174,12 @@ export function LoginPage() {
                 <span className="font-mono text-foreground">VITE_BYPASS_AUTH=true</span> is
                 enabled. Authentication is bypassed locally and the selected built-in role is used
                 for RBAC.
+              </div>
+            ) : isMockAuth && mockAuthHint ? (
+              <div className="mt-5 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
+                <span className="font-mono text-foreground">VITE_USE_MOCK_DATA=true</span> is
+                enabled. Mock sign-in uses <span className="font-mono text-foreground">{mockAuthHint.identifier}</span> /{" "}
+                <span className="font-mono text-foreground">{mockAuthHint.password}</span>.
               </div>
             ) : null}
           </CardContent>

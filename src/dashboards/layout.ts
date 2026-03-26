@@ -13,6 +13,7 @@ import {
   isWorkspaceRowWidgetId,
   WORKSPACE_ROW_HEIGHT_ROWS,
 } from "@/dashboards/structural-widgets";
+import { resolveWidgetMinimalChrome } from "@/widgets/shared/chrome";
 
 const DEFAULT_GRID: ResolvedDashboardGridConfig = {
   columns: 12,
@@ -61,6 +62,10 @@ function normalizeWidgetLayout(
   issues: DashboardLayoutIssue[],
 ): NormalizedWidgetLayout {
   const isWorkspaceRow = isWorkspaceRowWidgetId(instance.widgetId);
+  const isMinimalChrome = resolveWidgetMinimalChrome(instance.props);
+  const isCompactFilterWidget =
+    instance.widgetId === "main-sequence-data-node" &&
+    (isMinimalChrome || instance.props?.chromeMode == null);
   const rawSpan: DashboardWidgetSpan = isLegacyLayout(instance.layout)
     ? {
         cols: instance.layout.w,
@@ -75,10 +80,18 @@ function normalizeWidgetLayout(
       }
     : instance.position ?? {};
 
-  const w = isWorkspaceRow ? columns : clampInteger(rawSpan.cols, 1, 1);
+  const compactWidth = columns >= 48 ? 8 : 1;
+  const compactHeight = columns >= 48 ? 4 : 1;
+  const w = isWorkspaceRow
+    ? columns
+    : isCompactFilterWidget
+      ? compactWidth
+      : clampInteger(rawSpan.cols, 1, 1);
   const h = isWorkspaceRow
     ? WORKSPACE_ROW_HEIGHT_ROWS
-    : clampInteger(rawSpan.rows, 1, 1);
+    : isCompactFilterWidget
+      ? compactHeight
+      : clampInteger(rawSpan.rows, 1, 1);
   const boundedWidth = isWorkspaceRow ? columns : Math.min(w, columns);
 
   if (!isWorkspaceRow && w !== boundedWidth) {

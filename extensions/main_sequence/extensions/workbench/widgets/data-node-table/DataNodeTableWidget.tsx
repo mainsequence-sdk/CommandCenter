@@ -15,14 +15,16 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import {
-  fetchDataNodeDataBetweenDatesFromRemote,
   fetchDataNodeDetail,
   formatMainSequenceError,
 } from "../../../../common/api";
 import {
-  buildDataNodeFieldOptions,
   resolveDataNodeDateRange,
 } from "../data-node-shared/dataNodeShared";
+import {
+  useResolvedDataNodeWidgetSourceBinding,
+} from "../data-node-shared/dataNodeWidgetSource";
+import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
@@ -345,8 +347,36 @@ export function DataNodeTableWidget({ props }: Props) {
   const { rangeStartMs, rangeEndMs } = useDashboardControls();
   const { resolvedTokens, tightness } = useTheme();
   const tightnessMetrics = useMemo(() => getThemeTightnessMetrics(tightness), [tightness]);
-  const baseResolvedProps = useMemo(() => resolveDataNodeTableVisualizerProps(props), [props]);
-  const dataNodeId = Number(baseResolvedProps.dataNodeId ?? 0);
+  const normalizedProps = useMemo(
+    () => resolveDataNodeTableVisualizerProps(props),
+    [props],
+  );
+  const sourceReferenceProps = useMemo<DataNodeTableVisualizerProps>(
+    () => ({
+      sourceMode: "filter_widget",
+      sourceWidgetId: normalizedProps.sourceWidgetId,
+    }),
+    [normalizedProps.sourceWidgetId],
+  );
+  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
+    props: sourceReferenceProps,
+  });
+  const linkedFilterRuntime = useMemo(
+    () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
+    [sourceBinding.referencedFilterWidget?.runtimeState],
+  );
+  const effectiveProps = useMemo(
+    () => ({
+      ...normalizedProps,
+      ...sourceBinding.resolvedSourceProps,
+    }),
+    [normalizedProps, sourceBinding.resolvedSourceProps],
+  );
+  const baseResolvedProps = useMemo(
+    () => resolveDataNodeTableVisualizerProps(effectiveProps),
+    [effectiveProps],
+  );
+  const dataNodeId = Number(sourceBinding.resolvedSourceProps.dataNodeId ?? 0);
 
   const dataNodeDetailQuery = useQuery({
     queryKey: ["main_sequence", "widgets", "data_node_table_visualizer", "detail", dataNodeId],
@@ -355,10 +385,6 @@ export function DataNodeTableWidget({ props }: Props) {
     staleTime: 300_000,
   });
 
-  const requestedColumns = useMemo(
-    () => buildDataNodeFieldOptions(dataNodeDetailQuery.data).map((field) => field.key),
-    [dataNodeDetailQuery.data],
-  );
   const resolvedRange = useMemo(
     () =>
       resolveDataNodeDateRange(
@@ -371,50 +397,19 @@ export function DataNodeTableWidget({ props }: Props) {
   const hasSourceTableConfiguration = Boolean(
     dataNodeDetailQuery.data?.sourcetableconfiguration,
   );
-
-  const dataQuery = useQuery({
-    queryKey: [
-      "main_sequence",
-      "widgets",
-      "data_node_table_visualizer",
-      dataNodeId,
-      requestedColumns.join("|"),
-      (baseResolvedProps.uniqueIdentifierList ?? []).join("|"),
-      resolvedRange.mode,
-      resolvedRange.rangeStartMs,
-      resolvedRange.rangeEndMs,
-      baseResolvedProps.limit,
-    ],
-    queryFn: () =>
-      fetchDataNodeDataBetweenDatesFromRemote(dataNodeId, {
-        start_date: Math.floor((resolvedRange.rangeStartMs ?? 0) / 1000),
-        end_date: Math.floor((resolvedRange.rangeEndMs ?? 0) / 1000),
-        columns: requestedColumns,
-        unique_identifier_list: baseResolvedProps.uniqueIdentifierList,
-        great_or_equal: true,
-        less_or_equal: true,
-        limit: baseResolvedProps.limit,
-        offset: 0,
-      }),
-    enabled:
-      Boolean(dataNodeId) &&
-      hasSourceTableConfiguration &&
-      requestedColumns.length > 0 &&
-      resolvedRange.hasValidRange,
-    staleTime: 60_000,
-  });
+  const sourceRows = linkedFilterRuntime?.rows ?? [];
 
   const remoteFrame = useMemo(
     () =>
       buildDataNodeTableVisualizerFrameFromRemoteData(
         dataNodeDetailQuery.data,
-        dataQuery.data ?? [],
+        sourceRows,
       ),
-    [dataNodeDetailQuery.data, dataQuery.data],
+    [dataNodeDetailQuery.data, sourceRows],
   );
   const resolvedProps = useMemo(
-    () => resolveDataNodeTableVisualizerPropsWithFrame(props, remoteFrame),
-    [props, remoteFrame],
+    () => resolveDataNodeTableVisualizerPropsWithFrame(effectiveProps, remoteFrame),
+    [effectiveProps, remoteFrame],
   );
   const rowObjects = useMemo(
     () => buildDataNodeTableVisualizerRowObjects(resolvedProps.columns, resolvedProps.rows),
@@ -428,6 +423,11 @@ export function DataNodeTableWidget({ props }: Props) {
     () => validateDataNodeTableVisualizerSchema(rowObjects, columns),
     [columns, rowObjects],
   );
+  const dataErrorMessage =
+    linkedFilterRuntime?.status === "error"
+      ? linkedFilterRuntime.error ?? "The linked Data Node failed to load rows."
+      : null;
+  const isDataLoading = linkedFilterRuntime?.status === "loading" || linkedFilterRuntime == null;
   const [quickFilter, setQuickFilter] = useState("");
   const deferredQuickFilter = useDeferredValue(quickFilter);
 
@@ -508,6 +508,22 @@ export function DataNodeTableWidget({ props }: Props) {
     }
   }, [quickFilter, resolvedProps.showSearch]);
 
+  if (sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
+          <p className="text-sm text-muted-foreground">
+            Open widget settings and point this table to a Data Node widget in the dashboard.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (!resolvedProps.dataNodeId) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
@@ -515,9 +531,9 @@ export function DataNodeTableWidget({ props }: Props) {
           <Database className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Select a data node</div>
+          <div className="text-sm font-medium text-foreground">Configure the linked Data Node</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and choose the data node that should feed this table.
+            This table only renders the dataset coming from its Data Node source.
           </p>
         </div>
       </div>
@@ -559,23 +575,23 @@ export function DataNodeTableWidget({ props }: Props) {
           <CalendarClock className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Pick a fixed date range</div>
+          <div className="text-sm font-medium text-foreground">Fix the Data Node date range</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and choose both a start and end date for this table.
+            The linked Data Node needs both a start and end date for its fixed dataset window.
           </p>
         </div>
       </div>
     );
   }
 
-  if (dataQuery.isLoading && !dataQuery.data) {
+  if (isDataLoading && sourceRows.length === 0) {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
 
-  if (dataQuery.isError) {
+  if (dataErrorMessage) {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-        {formatMainSequenceError(dataQuery.error)}
+        {dataErrorMessage}
       </div>
     );
   }
@@ -652,8 +668,8 @@ export function DataNodeTableWidget({ props }: Props) {
           </div>
         )}
 
-        {!dataQuery.isLoading &&
-        !dataQuery.isError &&
+        {!isDataLoading &&
+        !dataErrorMessage &&
         rowObjects.length === 0 ? (
           <div className="border-t border-border/70 bg-background/22 px-4 py-3 text-sm text-muted-foreground">
             No rows were returned for the selected period.

@@ -26,14 +26,11 @@ function uniqueById<T extends { id: string }>(items: T[]) {
 
 const extensions = Object.values(modules)
   .map((module) => (module as { default?: AppExtension }).default)
-  .filter((module): module is AppExtension => Boolean(module));
+  .filter((module): module is AppExtension => Boolean(module))
+  .filter((extension) => env.useMockData || extension.id !== "demo");
 
 const widgets = uniqueById(extensions.flatMap((extension) => extension.widgets ?? []));
 const apps = uniqueById(extensions.flatMap((extension) => extension.apps ?? [])).filter((app) => {
-  if (!env.useMockData && app.id === "demo") {
-    return false;
-  }
-
   if (!env.includeWorkspaces && app.id === "workspace-studio") {
     return false;
   }

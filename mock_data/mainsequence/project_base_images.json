@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "latest_digest": "sha256:111111111111",
+    "description": "Python 3.11 image with analytics libraries.",
+    "title": "Python 3.11 Runtime"
+  },
+  {
+    "id": 2,
+    "latest_digest": "sha256:222222222222",
+    "description": "Research runtime with notebook and scipy stack.",
+    "title": "Research Python Image"
+  },
+  {
+    "id": 3,
+    "latest_digest": "sha256:333333333333",
+    "description": "Operational runtime for schedulers and monitors.",
+    "title": "Ops Python Image"
+  }
+]

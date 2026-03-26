@@ -9,7 +9,6 @@ This extension owns the built-in registry entries that ship with Command Center 
 
 ## Current Responsibilities
 
-- the `Demo` app and its shipped surfaces
 - the `Workspaces` app and its local-development workspace builder flows
 - the admin-facing built-in apps
 - the live core widget catalog, currently `news-feed` and `workspace-row`
@@ -19,14 +18,12 @@ This extension owns the built-in registry entries that ship with Command Center 
 
 - Core widget source still lives under `src/widgets/core/`.
 - This extension currently registers `news-feed` and `workspace-row` in the live widget catalog.
-- The shipped dashboards now depend on only two registered widget ids:
-  `data-node-table-visualizer` from `main_sequence_workbench` and `yield-curve-plot` from
-  `main_sequence_markets`.
+- The core app shell composes optional capabilities through the shared registry instead of
+  re-owning them locally.
 
 ## Maintenance Notes
 
 - Keep core focused on shell-level building blocks and default sample surfaces.
-- The `Demo` app is only registered while `VITE_USE_MOCK_DATA=true`; keep the registry filter and this README aligned if mock-mode scope changes.
 - Workspaces feature implementation lives in `src/features/dashboards/`; keep that folder's
   `README.md` and `docs/workspaces.md` updated when the workspace model or UX changes.
 - The `Workspaces` app is feature-flagged at runtime through `VITE_INCLUDE_WORKSPACES`; keep registry behavior and docs aligned if that flag changes scope.

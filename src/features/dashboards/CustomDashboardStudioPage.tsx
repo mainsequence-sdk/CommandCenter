@@ -40,6 +40,7 @@ import {
   DashboardDataControls,
   DashboardRefreshProgressLine,
 } from "@/dashboards/DashboardControls";
+import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import {
   isWorkspaceRowWidgetId,
   WORKSPACE_ROW_HEIGHT_ROWS,
@@ -49,6 +50,7 @@ import { cn, titleCase } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import {
   resolveWidgetHeaderVisibility,
+  resolveWidgetMinimalChrome,
   widgetShellClassName,
   widgetShellHeaderClassName,
 } from "@/widgets/shared/chrome";
@@ -57,6 +59,7 @@ import {
   appendCatalogWidget,
   CUSTOM_WORKSPACE_COLUMN_SCALE,
   CUSTOM_WORKSPACE_ROW_SCALE,
+  duplicateDashboardWidget,
   placeCatalogWidget,
   removeDashboardWidget,
   setDashboardWidgetGeometry,
@@ -71,6 +74,7 @@ import {
   saveWidgetCatalogPreferences,
 } from "./widget-catalog-preferences";
 import {
+  WidgetDuplicateTrigger,
   WidgetSettingsDialog,
   WidgetSettingsTrigger,
 } from "@/widgets/shared/widget-settings";
@@ -444,6 +448,7 @@ function BuilderWidgetCard({
   widgetPresentation,
   widgetRuntimeState,
   onRemove,
+  onDuplicate,
   onPropsChange,
   onPresentationChange,
   onRuntimeStateChange,
@@ -464,6 +469,7 @@ function BuilderWidgetCard({
   widgetPresentation?: WidgetInstancePresentation;
   widgetRuntimeState?: Record<string, unknown>;
   onRemove: (instanceId: string) => void;
+  onDuplicate: (instanceId: string) => void;
   onPropsChange: (instanceId: string, props: Record<string, unknown>) => void;
   onPresentationChange: (
     instanceId: string,
@@ -489,6 +495,8 @@ function BuilderWidgetCard({
   const title = instanceTitle ?? widget.title;
   const headerVisible = editable || resolveWidgetHeaderVisibility(widgetProps);
   const rowWidget = isWorkspaceRowWidgetId(widget.id);
+  const minimalChrome = !rowWidget && resolveWidgetMinimalChrome(widgetProps);
+  const floatingChromeWidget = rowWidget || minimalChrome;
   const structuralVisible = widgetProps.visible === true;
   const widgetRenderProps =
     rowWidget && editable && !structuralVisible
@@ -534,7 +542,7 @@ function BuilderWidgetCard({
         data-widget-shell="default"
         className={cn(
           "relative z-10 flex h-full min-h-0 flex-col transition-colors",
-          rowWidget
+          floatingChromeWidget
             ? "overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
             : cn(
                 widgetShellClassName,
@@ -543,10 +551,10 @@ function BuilderWidgetCard({
                   ? "border-primary/70 ring-2 ring-primary/30"
                 : "border-border/70 hover:border-border",
               ),
-          rowWidget && editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
+          floatingChromeWidget && editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
         )}
         onPointerDown={(event) => {
-          if (!editable || !rowWidget) {
+          if (!editable || !floatingChromeWidget) {
             return;
           }
 
@@ -559,7 +567,7 @@ function BuilderWidgetCard({
           onStartDrag(event);
         }}
       >
-        {headerVisible && !rowWidget ? (
+        {headerVisible && !floatingChromeWidget ? (
         <header
           data-widget-shell-header=""
           className={cn(
@@ -622,6 +630,20 @@ function BuilderWidgetCard({
                 tabIndex={editable ? 0 : -1}
                 aria-hidden={!editable}
               />
+              <WidgetDuplicateTrigger
+                widgetTitle={title}
+                className="h-7 w-7 rounded-md border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                data-no-widget-drag="true"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDuplicate(instanceId);
+                }}
+                tabIndex={editable ? 0 : -1}
+                aria-hidden={!editable}
+              />
               <button
                 type="button"
                 className="flex h-7 w-7 items-center justify-center rounded-md border border-danger/30 bg-danger/8 text-danger transition-colors hover:bg-danger/16"
@@ -644,7 +666,7 @@ function BuilderWidgetCard({
         </header>
         ) : null}
 
-        {rowWidget ? (
+        {floatingChromeWidget ? (
         <div
           className={cn(
             "absolute z-20 flex items-center gap-1 rounded-full border border-border/70 bg-background/88 px-1.5 py-1 shadow-[var(--shadow-panel)] backdrop-blur-md transition-opacity",
@@ -675,6 +697,20 @@ function BuilderWidgetCard({
             onClick={(event) => {
               event.stopPropagation();
               onOpenSettings(instanceId);
+            }}
+            tabIndex={editable ? 0 : -1}
+            aria-hidden={!editable}
+          />
+          <WidgetDuplicateTrigger
+            widgetTitle={title}
+            className="h-7 w-7 rounded-full border border-border/70 bg-background/40 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            data-no-widget-drag="true"
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDuplicate(instanceId);
             }}
             tabIndex={editable ? 0 : -1}
             aria-hidden={!editable}
@@ -716,7 +752,7 @@ function BuilderWidgetCard({
           />
         </div>
 
-        {selected && editable && !rowWidget ? (
+        {selected && editable && !floatingChromeWidget ? (
           <button
             type="button"
             className="absolute right-3 bottom-3 flex h-8 w-8 cursor-se-resize items-center justify-center rounded-full border border-primary/40 bg-background/88 text-primary shadow-[var(--shadow-panel)] transition-colors hover:bg-muted/55"
@@ -1433,10 +1469,11 @@ export function CustomDashboardStudioPage() {
         updateSelectedWorkspace((dashboard) => updateDashboardControlsState(dashboard, state));
       }}
     >
-      <div
-        className="relative h-full min-h-full overflow-hidden"
-        style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
-      >
+      <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
+        <div
+          className="relative h-full min-h-full overflow-hidden"
+          style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
+        >
         <DashboardRefreshProgressLine />
         <div
           className="pointer-events-none absolute inset-0"
@@ -1631,6 +1668,11 @@ export function CustomDashboardStudioPage() {
                       removeDashboardWidget(dashboard, instanceId),
                     );
                     setSelectedInstanceId((current) => (current === instanceId ? null : current));
+                  }}
+                  onDuplicate={(instanceId) => {
+                    updateSelectedWorkspace((dashboard) =>
+                      duplicateDashboardWidget(dashboard, instanceId),
+                    );
                   }}
                   onPropsChange={(instanceId, props) => {
                     updateSelectedWorkspace((dashboard) =>
@@ -1914,7 +1956,8 @@ export function CustomDashboardStudioPage() {
             </div>
           </div>
         ) : null}
-      </div>
+        </div>
+      </DashboardWidgetRegistryProvider>
     </DashboardControlsProvider>
   );
 }

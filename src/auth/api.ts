@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/auth/auth-store";
+import { handleMockAuthRequest } from "@/auth/mock-jwt-auth";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 
@@ -164,6 +165,31 @@ async function requestAuthJson<T>(
   } = {},
 ) {
   const requestUrl = buildEndpointUrl(path);
+
+  if (env.useMockData) {
+    const session = useAuthStore.getState().session;
+    const body =
+      init?.body && typeof init.body === "string"
+        ? (() => {
+            try {
+              return JSON.parse(init.body) as Record<string, unknown>;
+            } catch {
+              return null;
+            }
+          })()
+        : null;
+
+    const mockResponse = handleMockAuthRequest(
+      requestUrl,
+      (init?.method ?? "GET").toUpperCase(),
+      body,
+      requiresAuth ? session?.token ?? null : null,
+    );
+
+    if (mockResponse !== undefined) {
+      return mockResponse as T;
+    }
+  }
 
   async function sendRequest() {
     const session = useAuthStore.getState().session;

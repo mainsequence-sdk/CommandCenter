@@ -9,6 +9,10 @@ import {
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const preferencesCacheStorageKeyPrefix = "ms.command-center.preferences";
+const mockPreferencesJsonModules = import.meta.glob("/mock_data/command_center/preferences.json", {
+  eager: true,
+  import: "default",
+}) as Record<string, unknown>;
 
 export interface CommandCenterPreferencesSnapshot {
   language: SupportedLanguage;
@@ -19,6 +23,10 @@ export interface CommandCenterPreferencesSnapshot {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function isLoopbackHostname(hostname: string) {
@@ -33,6 +41,17 @@ function buildEndpointUrl(path: string) {
   }
 
   return url.toString();
+}
+
+function normalizeMockPreferencesPath(path: string) {
+  const pathname = new URL(path, window.location.origin).pathname;
+
+  if (!pathname.startsWith(devAuthProxyPrefix)) {
+    return pathname;
+  }
+
+  const normalizedPathname = pathname.slice(devAuthProxyPrefix.length);
+  return normalizedPathname || "/";
 }
 
 function normalizeFavoriteIds(value: unknown) {
@@ -62,6 +81,13 @@ function normalizePreferencesPayload(payload: unknown): CommandCenterPreferences
     favoriteWorkspaceIds: normalizeFavoriteIds(source.favoriteWorkspaceIds),
   };
 }
+
+function readMockPreferencesSeed(): CommandCenterPreferencesSnapshot {
+  const dataset = mockPreferencesJsonModules["/mock_data/command_center/preferences.json"];
+  return normalizePreferencesPayload(dataset);
+}
+
+let mockPreferencesState = readMockPreferencesSeed();
 
 function canUseLocalStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -165,6 +191,40 @@ async function requestPreferences(
 
   if (!configuredPath) {
     throw new Error("Command Center preferences endpoint is not configured.");
+  }
+
+  if (env.useMockData) {
+    const session = useAuthStore.getState().session;
+
+    if (!session?.token) {
+      throw new Error("Authentication credentials were not provided.");
+    }
+
+    const method = (init?.method ?? "GET").toUpperCase();
+    const pathname = normalizeMockPreferencesPath(configuredPath);
+    const configuredPathname = new URL(commandCenterConfig.preferences.url, window.location.origin).pathname;
+
+    if (pathname === configuredPathname) {
+      if (method === "GET") {
+        return cloneJson(mockPreferencesState);
+      }
+
+      if (method === "PUT") {
+        const body =
+          init?.body && typeof init.body === "string"
+            ? (() => {
+                try {
+                  return JSON.parse(init.body) as unknown;
+                } catch {
+                  return null;
+                }
+              })()
+            : null;
+
+        mockPreferencesState = normalizePreferencesPayload(body);
+        return cloneJson(mockPreferencesState);
+      }
+    }
   }
 
   const requestUrl = buildEndpointUrl(configuredPath);

@@ -5,10 +5,10 @@ settings are built as a reusable AG Grid Community table formatter around live d
 
 ## Purpose
 
-`Data Node Table` is the table-formatting surface for live data-node rows fetched from the backend.
-The widget is intentionally configuration-heavy:
+`Data Node Table` is the table-formatting surface for the canonical row dataset owned by a sibling
+`Data Node` widget. That upstream Data Node may already be filtered, grouped, pivoted, or projected
+before the table sees the rows. The widget is intentionally configuration-heavy:
 
-- data-node selection, date range selection, row limit, and optional `unique_identifier` filtering
 - raw-frame input shaped as `columns[]` plus `rows[][]`
 - per-instance schema control for keys, labels, descriptions, and base formats
 - per-column visibility, pinning, alignment, and numeric display formatting
@@ -23,9 +23,9 @@ The widget is intentionally configuration-heavy:
 
 - `definition.ts`: widget registry definition, default props, and settings registration.
 - `DataNodeTableWidget.tsx`: runtime renderer that maps the resolved config into AG Grid Community.
-- `DataNodeTableWidgetSettings.tsx`: widget settings editor for data-node selection, date range,
-  columns, value labels, and numeric rules. Column schema and display formatting are edited together
-  inside each per-column card. The form uses the shared
+- `DataNodeTableWidgetSettings.tsx`: widget settings editor for linked-filter selection, columns,
+  value labels, and numeric rules. Column schema and display formatting are edited together inside
+  each per-column card. The form uses the shared
   tight-density widget settings classes so large table configs stay compact.
 - `dataNodeTableModel.ts`: shared config model, live frame helpers, defaults, formatters, and helper
   functions used by both renderer and settings.
@@ -59,29 +59,25 @@ widget. The current intent is to keep this formatter removable and license-light
 
 ## Data Sources
 
-The widget fetches source-table metadata plus remote rows from a selected data node, then adapts
-them into a common frame contract:
+The widget resolves source-table metadata from the linked Data Node source and adapts the Data Node's
+runtime rows into a common frame contract:
 
 - `columns[]`
 - `rows[][]`
 - schema fallback inferred from column metadata and sampled rows
 
 The settings editor resolves against that live frame preview, so field formatting still happens in the
-same per-instance schema/override pipeline on top of the remote data.
+same per-instance schema/override pipeline on top of the incoming Data Node-owned data.
 
 If the instance schema no longer matches the available row shape, the widget and settings both surface
 an explicit schema-mismatch error instead of silently rendering a broken grid.
 
 ## Config Surface
 
-The widget props are intentionally data-node-only:
+The widget props are intentionally consumer-focused:
 
-- `dataNodeId`
-- `dateRangeMode`
-- `fixedStartMs`
-- `fixedEndMs`
-- `uniqueIdentifierList`
-- `limit`
+- `sourceMode`
+- `sourceWidgetId`
 - `columns`
 - `rows`
 - `schema`
@@ -146,6 +142,6 @@ to any non-text display column from settings; non-numeric cells are ignored at r
 - If the source adapters or formatter contract changes, update both
   `dataNodeTableModel.ts` and this README in the same change.
 - Keep this widget free of shipped mock datasets. Explorer/demo previews should tolerate the empty
-  "Select a data node" state instead of reintroducing fake row shapes here.
-- Live data-node mode should keep the per-instance schema and formatter helpers stable so existing
-  saved widget props continue to render after backend changes.
+  "Select a Data Node widget" state instead of reintroducing fake row shapes here.
+- The linked Data Node owns backend fetch shape and row limits. Keep this widget focused on formatting
+  and local slicing of the incoming frame.

@@ -1,0 +1,104 @@
+[
+  {
+    "id": 9101,
+    "storage_hash": "discount_curves_usd",
+    "creation_date": "2026-01-12T08:00:00Z",
+    "source_class_name": "rates.curves.DiscountCurveSource",
+    "protect_from_deletion": false,
+    "time_serie_source_code_git_hash": "abcdef1234567890",
+    "created_by_user": 1,
+    "open_for_everyone": true,
+    "data_source": null,
+    "data_source_open_for_everyone": true,
+    "identifier": "Discount Curves USD",
+    "description": "USD discount curves used by pricing and portfolio construction.",
+    "data_frequency_id": "daily",
+    "build_configuration": { "builder": "curve_bootstrap", "currency": "USD" },
+    "build_meta_data": { "owner": "rates" },
+    "compression_policy": { "compress_after": "7 days", "schedule_interval": "1 day", "initial_start": "2026-01-13T00:00:00Z", "timezone": "UTC" },
+    "retention_policy": { "drop_after": "365 days", "schedule_interval": "1 day", "initial_start": "2026-01-13T00:00:00Z", "timezone": "UTC" },
+    "sourcetableconfiguration": {
+      "related_table": 9101,
+      "time_index_name": "time_index",
+      "column_dtypes_map": { "time_index": "timestamp", "curve": "text", "value": "float" },
+      "index_names": ["time_index", "curve"],
+      "last_time_index_value": "2026-03-24T16:00:00Z",
+      "earliest_index_value": "2026-01-12T08:00:00Z",
+      "table_partition": null,
+      "open_for_everyone": true,
+      "columns_metadata": [
+        { "source_config_id": 9101, "column_name": "time_index", "dtype": "timestamp", "label": "Time Index", "description": "Curve observation timestamp." },
+        { "source_config_id": 9101, "column_name": "curve", "dtype": "text", "label": "Curve", "description": "Curve name." },
+        { "source_config_id": 9101, "column_name": "value", "dtype": "float", "label": "Value", "description": "Curve value." }
+      ]
+    }
+  },
+  {
+    "id": 9102,
+    "storage_hash": "reference_fixings_usd",
+    "creation_date": "2026-01-12T08:05:00Z",
+    "source_class_name": "rates.fixings.ReferenceFixingSource",
+    "protect_from_deletion": false,
+    "time_serie_source_code_git_hash": "abcdef1234567890",
+    "created_by_user": 1,
+    "open_for_everyone": true,
+    "data_source": null,
+    "data_source_open_for_everyone": true,
+    "identifier": "Reference Rate Fixings USD",
+    "description": "Daily USD reference rate fixings.",
+    "data_frequency_id": "daily",
+    "build_configuration": { "builder": "fixing_loader", "currency": "USD" },
+    "build_meta_data": { "owner": "rates" },
+    "compression_policy": { "compress_after": "14 days", "schedule_interval": "1 day", "initial_start": "2026-01-13T00:00:00Z", "timezone": "UTC" },
+    "retention_policy": { "drop_after": "730 days", "schedule_interval": "1 day", "initial_start": "2026-01-13T00:00:00Z", "timezone": "UTC" },
+    "sourcetableconfiguration": {
+      "related_table": 9102,
+      "time_index_name": "time_index",
+      "column_dtypes_map": { "time_index": "timestamp", "fixing_name": "text", "value": "float" },
+      "index_names": ["time_index", "fixing_name"],
+      "last_time_index_value": "2026-03-24T16:00:00Z",
+      "earliest_index_value": "2026-01-12T08:05:00Z",
+      "table_partition": null,
+      "open_for_everyone": true,
+      "columns_metadata": [
+        { "source_config_id": 9102, "column_name": "time_index", "dtype": "timestamp", "label": "Time Index", "description": "Fixing timestamp." },
+        { "source_config_id": 9102, "column_name": "fixing_name", "dtype": "text", "label": "Fixing", "description": "Fixing name." },
+        { "source_config_id": 9102, "column_name": "value", "dtype": "float", "label": "Value", "description": "Fixing value." }
+      ]
+    }
+  },
+  {
+    "id": 9301,
+    "storage_hash": "macro_factor_panel",
+    "creation_date": "2026-02-01T08:00:00Z",
+    "source_class_name": "macro.factors.PanelSource",
+    "protect_from_deletion": false,
+    "time_serie_source_code_git_hash": "1234567890abcdef",
+    "created_by_user": 1,
+    "open_for_everyone": true,
+    "data_source": null,
+    "data_source_open_for_everyone": true,
+    "identifier": "Macro Factor Panel",
+    "description": "Derived macro factor panel for dashboards and research.",
+    "data_frequency_id": "daily",
+    "build_configuration": { "builder": "macro_factor_panel" },
+    "build_meta_data": { "owner": "macro" },
+    "compression_policy": { "compress_after": "14 days", "schedule_interval": "1 day", "initial_start": "2026-02-02T00:00:00Z", "timezone": "UTC" },
+    "retention_policy": { "drop_after": "365 days", "schedule_interval": "1 day", "initial_start": "2026-02-02T00:00:00Z", "timezone": "UTC" },
+    "sourcetableconfiguration": {
+      "related_table": 9301,
+      "time_index_name": "time_index",
+      "column_dtypes_map": { "time_index": "timestamp", "factor": "text", "score": "float" },
+      "index_names": ["time_index", "factor"],
+      "last_time_index_value": "2026-03-24T12:00:00Z",
+      "earliest_index_value": "2026-02-01T08:00:00Z",
+      "table_partition": null,
+      "open_for_everyone": true,
+      "columns_metadata": [
+        { "source_config_id": 9301, "column_name": "time_index", "dtype": "timestamp", "label": "Time Index", "description": "Factor timestamp." },
+        { "source_config_id": 9301, "column_name": "factor", "dtype": "text", "label": "Factor", "description": "Factor name." },
+        { "source_config_id": 9301, "column_name": "score", "dtype": "float", "label": "Score", "description": "Factor score." }
+      ]
+    }
+  }
+]

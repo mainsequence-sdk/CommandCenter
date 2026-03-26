@@ -1,0 +1,5 @@
+[
+  { "value": "nvidia-l4", "label": "NVIDIA L4" },
+  { "value": "nvidia-t4", "label": "NVIDIA T4" },
+  { "value": "nvidia-a100", "label": "NVIDIA A100" }
+]

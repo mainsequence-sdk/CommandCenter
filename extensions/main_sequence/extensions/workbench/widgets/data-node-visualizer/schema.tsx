@@ -1,33 +1,11 @@
-import { useState } from "react";
-
-import { RefreshCw, X } from "lucide-react";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type {
-  WidgetFieldCanvasRendererProps,
-  WidgetFieldSettingsRendererProps,
-  WidgetSettingsSchema,
-} from "@/widgets/types";
+import type { WidgetSettingsSchema } from "@/widgets/types";
 
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
 import type { DataNodeVisualizerControllerContext } from "./controller";
 import type { MainSequenceDataNodeVisualizerWidgetProps } from "./dataNodeVisualizerModel";
 import { DataNodeDateTimeField } from "../data-node-shared/DataNodeDateTimeField";
-import { DataNodeQuickSearchPicker } from "../data-node-shared/DataNodeQuickSearchPicker";
-
-const dateRangeModeOptions: PickerOption[] = [
-  {
-    value: "dashboard",
-    label: "Dashboard date",
-    description: "Keep this widget in sync with the current dashboard date.",
-  },
-  {
-    value: "fixed",
-    label: "Fixed date",
-    description: "Give this widget its own saved start and end date.",
-  },
-];
+import { createDataNodeWidgetSourceSettingsSchema } from "../data-node-shared/dataNodeWidgetSource";
 
 const chartTypeOptions: PickerOption[] = [
   { value: "line", label: "Line", description: "Standard time-series line chart." },
@@ -43,298 +21,6 @@ const axisModeOptions: PickerOption[] = [
     description: "Render each series in aligned panes.",
   },
 ];
-
-function tokenizeUniqueIdentifierValues(values: string) {
-  return values
-    .split(/[\n,]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function mergeUniqueIdentifierValues(existingValues: string[], nextValues: string[]) {
-  const seen = new Set(existingValues);
-  const mergedValues = [...existingValues];
-
-  nextValues.forEach((value) => {
-    if (!seen.has(value)) {
-      seen.add(value);
-      mergedValues.push(value);
-    }
-  });
-
-  return mergedValues;
-}
-
-function toUniqueIdentifierList(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-    : [];
-}
-
-function DataNodePickerField({
-  draftProps,
-  onDraftPropsChange,
-  editable,
-  context,
-}: WidgetFieldSettingsRendererProps<
-  MainSequenceDataNodeVisualizerWidgetProps,
-  DataNodeVisualizerControllerContext
->) {
-  return (
-    <DataNodeQuickSearchPicker
-      value={context.selectedDataNodeId}
-      onChange={(nextId) => {
-        onDraftPropsChange({
-          ...draftProps,
-          dataNodeId: nextId,
-          xField: undefined,
-          yField: undefined,
-          groupField: undefined,
-          seriesOverrides: undefined,
-          uniqueIdentifierList: undefined,
-        });
-      }}
-      editable={editable}
-      queryScope="data_node_visualizer"
-      selectedDataNode={context.selectedDataNodeDetailQuery.data}
-      detailError={context.selectedDataNodeDetailQuery.error}
-      hasNoData={context.hasNoData}
-      selectionHelpText="Choose the table you want to visualize."
-    />
-  );
-}
-
-function DataNodePickerCanvasField({
-  props,
-  onPropsChange,
-  editable,
-  context,
-}: WidgetFieldCanvasRendererProps<
-  MainSequenceDataNodeVisualizerWidgetProps,
-  DataNodeVisualizerControllerContext
->) {
-  return (
-    <div className="space-y-2">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        Data node
-      </div>
-      <DataNodeQuickSearchPicker
-        value={context.selectedDataNodeId}
-        onChange={(nextId) => {
-          onPropsChange({
-            ...props,
-            dataNodeId: nextId,
-            xField: undefined,
-            yField: undefined,
-            groupField: undefined,
-            seriesOverrides: undefined,
-            uniqueIdentifierList: undefined,
-          });
-        }}
-        editable={editable}
-        queryScope="data_node_graph_canvas"
-        selectedDataNode={context.selectedDataNodeDetailQuery.data}
-        showStatus={false}
-      />
-    </div>
-  );
-}
-
-function UniqueIdentifierField({
-  draftProps,
-  onDraftPropsChange,
-  editable,
-}: WidgetFieldSettingsRendererProps<
-  MainSequenceDataNodeVisualizerWidgetProps,
-  DataNodeVisualizerControllerContext
->) {
-  const [inputValue, setInputValue] = useState("");
-  const uniqueIdentifierList = toUniqueIdentifierList(draftProps.uniqueIdentifierList);
-
-  function commitIdentifierInput(rawValue?: string) {
-    const nextInputValue = rawValue ?? inputValue;
-    const nextTokens = tokenizeUniqueIdentifierValues(nextInputValue);
-
-    if (nextTokens.length === 0) {
-      setInputValue("");
-      return;
-    }
-
-    onDraftPropsChange({
-      ...draftProps,
-      uniqueIdentifierList: mergeUniqueIdentifierValues(uniqueIdentifierList, nextTokens),
-    });
-    setInputValue("");
-  }
-
-  function removeIdentifier(identifier: string) {
-    onDraftPropsChange({
-      ...draftProps,
-      uniqueIdentifierList: uniqueIdentifierList.filter((value) => value !== identifier),
-    });
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/35 px-3 py-3 shadow-sm transition-colors focus-within:border-ring/70 focus-within:ring-2 focus-within:ring-ring/20">
-        <div className="flex flex-wrap items-center gap-2">
-          {uniqueIdentifierList.map((identifier) => (
-            <Badge
-              key={identifier}
-              variant="neutral"
-              className="border border-border/70 bg-card/80 px-2.5 py-1 text-[11px] text-foreground"
-            >
-              <span>{identifier}</span>
-              <button
-                type="button"
-                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
-                aria-label={`Remove ${identifier}`}
-                title={`Remove ${identifier}`}
-                onClick={() => {
-                  removeIdentifier(identifier);
-                }}
-                disabled={!editable}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-
-          <input
-            value={inputValue}
-            onChange={(event) => {
-              setInputValue(event.target.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === ",") {
-                event.preventDefault();
-                commitIdentifierInput();
-                return;
-              }
-
-          if (event.key === "Backspace" && !inputValue && uniqueIdentifierList.length > 0) {
-            event.preventDefault();
-            removeIdentifier(uniqueIdentifierList[uniqueIdentifierList.length - 1]!);
-          }
-        }}
-            onBlur={() => {
-              commitIdentifierInput();
-            }}
-            placeholder={
-              uniqueIdentifierList.length > 0
-                ? "Add another identifier"
-                : "Type an identifier and press Enter"
-            }
-            className="h-8 min-w-[180px] flex-1 border-0 bg-transparent px-0 text-sm text-foreground outline-none placeholder:text-muted-foreground"
-            disabled={!editable}
-          />
-        </div>
-      </div>
-      <div className="text-xs text-muted-foreground">
-        Use Backspace on an empty field to remove the last identifier.
-      </div>
-    </div>
-  );
-}
-
-function UniqueIdentifierCanvasField({
-  props,
-  onPropsChange,
-}: WidgetFieldCanvasRendererProps<
-  MainSequenceDataNodeVisualizerWidgetProps,
-  DataNodeVisualizerControllerContext
->) {
-  const [inputValue, setInputValue] = useState("");
-  const uniqueIdentifierList = toUniqueIdentifierList(props.uniqueIdentifierList);
-
-  function commitIdentifierInput(rawValue?: string) {
-    const nextInputValue = rawValue ?? inputValue;
-    const nextTokens = tokenizeUniqueIdentifierValues(nextInputValue);
-
-    if (nextTokens.length === 0) {
-      setInputValue("");
-      return;
-    }
-
-    onPropsChange({
-      ...props,
-      uniqueIdentifierList: mergeUniqueIdentifierValues(uniqueIdentifierList, nextTokens),
-    });
-    setInputValue("");
-  }
-
-  function removeIdentifier(identifier: string) {
-    onPropsChange({
-      ...props,
-      uniqueIdentifierList: uniqueIdentifierList.filter((value) => value !== identifier),
-    });
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Unique identifiers
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-6 px-2 text-[11px]"
-          disabled={uniqueIdentifierList.length === 0}
-          onClick={() => {
-            onPropsChange({
-              ...props,
-              uniqueIdentifierList: undefined,
-            });
-          }}
-        >
-          Clear
-        </Button>
-      </div>
-
-      <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/35 px-2.5 py-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {uniqueIdentifierList.map((identifier) => (
-            <Badge
-              key={identifier}
-              variant="neutral"
-              className="border border-border/70 bg-card/80 px-2 py-1 text-[10px] text-foreground"
-            >
-              <span>{identifier}</span>
-              <button
-                type="button"
-                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
-                onClick={() => {
-                  removeIdentifier(identifier);
-                }}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-          <input
-            value={inputValue}
-            onChange={(event) => {
-              setInputValue(event.target.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === ",") {
-                event.preventDefault();
-                commitIdentifierInput();
-              }
-            }}
-            onBlur={() => {
-              commitIdentifierInput();
-            }}
-            placeholder={uniqueIdentifierList.length > 0 ? "Add identifier" : "Filter series"}
-            className="h-7 min-w-[120px] flex-1 border-0 bg-transparent px-0 text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function PickerFieldSetting({
   value,
@@ -404,18 +90,25 @@ function ToggleButtonField({
 export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
   MainSequenceDataNodeVisualizerWidgetProps,
   DataNodeVisualizerControllerContext
-> = {
-  sections: [
-    {
-      id: "data-source",
-      title: "Data source",
-      description: "Pick the data node and optional series identifiers to visualize.",
-    },
-    {
-      id: "date-range",
-      title: "Date range",
-      description: "Choose whether this widget follows the dashboard date or keeps its own range.",
-    },
+> = createDataNodeWidgetSourceSettingsSchema<
+  MainSequenceDataNodeVisualizerWidgetProps,
+  DataNodeVisualizerControllerContext
+>({
+  enableFilterWidgetSource: true,
+  filterWidgetOnly: true,
+  dataNodeCanvasQueryScope: "data_node_graph_canvas",
+  dataSourceSectionDescription: "Point this chart at a Data Node widget that owns the canonical row dataset.",
+  mapDataNodeChange: (nextDataNodeId, currentProps) => ({
+    ...currentProps,
+    dataNodeId: nextDataNodeId,
+    xField: undefined,
+    yField: undefined,
+    groupField: undefined,
+    seriesOverrides: undefined,
+    uniqueIdentifierList: undefined,
+  }),
+  selectionHelpText: "Choose the table you want to visualize.",
+  additionalSections: [
     {
       id: "visualization",
       title: "Visualization",
@@ -427,102 +120,12 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
       description: "Map the table fields to chart axes and grouping.",
     },
   ],
-  fields: [
-    {
-      id: "dataNodeId",
-      label: "Data node",
-      description: "Choose the table you want to visualize.",
-      sectionId: "data-source",
-      pop: {
-        canPop: true,
-        defaultPopped: false,
-        anchor: "top",
-        mode: "inline",
-        defaultWidth: 340,
-        defaultHeight: 96,
-      },
-      renderSettings: DataNodePickerField,
-      renderCanvas: DataNodePickerCanvasField,
-    },
-    {
-      id: "uniqueIdentifierList",
-      label: "Unique identifiers",
-      description: "Filter the widget to a saved list of identifiers.",
-      sectionId: "data-source",
-      pop: {
-        canPop: true,
-        defaultPopped: true,
-        anchor: "top",
-        mode: "token-list",
-        defaultWidth: 360,
-        defaultHeight: 116,
-      },
-      isVisible: ({ context }) => context.supportsUniqueIdentifierList && !context.hasNoData,
-      renderSettings: UniqueIdentifierField,
-      renderCanvas: UniqueIdentifierCanvasField,
-    },
-    {
-      id: "dateRangeMode",
-      label: "Mode",
-      description: "Follow the dashboard range or save an independent fixed range.",
-      sectionId: "date-range",
-      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
-        <PickerFieldSetting
-          value={context.resolvedConfig.dateRangeMode}
-          onChange={(value) => {
-            onDraftPropsChange({
-              ...draftProps,
-              dateRangeMode: value === "fixed" ? "fixed" : "dashboard",
-            });
-          }}
-          options={dateRangeModeOptions}
-          placeholder="Select a date mode"
-          disabled={!editable}
-        />
-      ),
-    },
-    {
-      id: "fixedStartMs",
-      label: "From",
-      description: "Saved fixed range start for this widget.",
-      sectionId: "date-range",
-      isVisible: ({ context }) => context.resolvedConfig.dateRangeMode === "fixed",
-      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
-        <DataNodeDateTimeField
-          valueMs={context.resolvedConfig.fixedStartMs}
-          editable={editable}
-          onChangeValue={(nextValue) => {
-            onDraftPropsChange({
-              ...draftProps,
-              fixedStartMs: nextValue,
-            });
-          }}
-        />
-      ),
-    },
-    {
-      id: "fixedEndMs",
-      label: "To",
-      description: "Saved fixed range end for this widget.",
-      sectionId: "date-range",
-      isVisible: ({ context }) => context.resolvedConfig.dateRangeMode === "fixed",
-      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
-        <DataNodeDateTimeField
-          valueMs={context.resolvedConfig.fixedEndMs}
-          editable={editable}
-          onChangeValue={(nextValue) => {
-            onDraftPropsChange({
-              ...draftProps,
-              fixedEndMs: nextValue,
-            });
-          }}
-        />
-      ),
-    },
+  additionalFields: [
     {
       id: "chartType",
       label: "Chart type",
       description: "Choose the primary chart renderer mode.",
+      settingsColumnSpan: 1,
       sectionId: "visualization",
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
         <PickerFieldSetting
@@ -543,6 +146,7 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
       id: "seriesAxisMode",
       label: "Series axes",
       description: "Use separate panes when series need independent scales.",
+      settingsColumnSpan: 1,
       sectionId: "visualization",
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
         <PickerFieldSetting
@@ -665,4 +269,4 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
       ),
     },
   ],
-};
+});
