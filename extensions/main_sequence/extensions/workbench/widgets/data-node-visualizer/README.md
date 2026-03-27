@@ -26,6 +26,9 @@ This widget turns Main Sequence data-node table data into configurable charts, w
   styling.
 - Group visibility is also chart-local: the chart can include or exclude specific group values from
   the incoming Data Node dataset without changing the upstream canonical rows.
+- The graph consumes the shared Data Node published dataset contract:
+  `status`, `dataNodeId`, `columns: string[]`, and `rows: Record<string, unknown>[]`. It then
+  derives chart series locally from that standard table-shaped input.
 - Source selection, identifier filtering, date range, and reusable row transforms now belong to a
   sibling `Data Node` widget in the same dashboard.
 - Saved chart behavior also includes series normalization, an optional normalization anchor date, shared vs separate series axes, and per-series color overrides keyed by the resolved series id.

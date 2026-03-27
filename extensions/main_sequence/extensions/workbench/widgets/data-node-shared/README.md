@@ -7,6 +7,10 @@ data-node metadata and remote rows.
 
 - `dataNodeShared.ts`: shared metadata helpers such as field inference, date-range resolution,
   and label formatting for data nodes and local updates.
+- `dataNodePublishedDataset.ts`: the shared published runtime contract for Data Node consumers.
+  This is the standard hop-local dataset shape used by `Data Node Graph`, `Data Node Table`, and
+  `Statistic`: `status`, `dataNodeId`, `columns: string[]`, `rows: Record<string, unknown>[]`,
+  plus range metadata, identifiers, and update timestamps.
 - `dataNodeWidgetSource.tsx`: reusable source/date-range widget contract used by workbench widgets
   that select a data node, expose optional `unique_identifier` filters, and save a fixed or
   dashboard-driven date range. It also resolves latest-observation anchors used to prefill missing
@@ -35,6 +39,13 @@ For chained `Data Node` pipelines, keep the contract hop-local: source binding r
 upstream widget, then downstream widgets consume that upstream widget's published runtime dataset.
 Do not add special cases for chain depth; the same `published dataset -> local transform/render`
 pattern should hold no matter how many Data Nodes are linked together.
+
+Keep the consumer contract explicit:
+
+- `Data Node` owns querying and reusable transforms.
+- `Graph`, `Table`, and `Statistic` consume the published `columns + rows` dataset.
+- Consumer widgets may derive local series, frames, or KPI cards, but they should not mutate the
+  upstream transport shape.
 
 Shared source/date-range widgets should keep fixed-date editing compact. If the shared source schema
 adds more small controls in the future, prefer the same `settingsColumnSpan` contract instead of

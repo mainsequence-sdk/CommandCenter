@@ -9,17 +9,21 @@ import {
   type CSSProperties,
   type ComponentType,
   type PointerEvent as ReactPointerEvent,
+  type RefObject,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 
 import {
   BarChart3,
+  BookOpenText,
   Clock3,
   ChevronUp,
+  Copy,
   Database,
   GripVertical,
   LayoutTemplate,
+  MoreVertical,
   MoveDiagonal2,
   Pencil,
   Plus,
@@ -82,13 +86,11 @@ import {
   saveWidgetCatalogPreferences,
 } from "./widget-catalog-preferences";
 import {
-  WidgetDuplicateTrigger,
   WidgetSettingsDialog,
-  WidgetSettingsTrigger,
 } from "@/widgets/shared/widget-settings";
 import { WidgetCanvasControls } from "@/widgets/shared/widget-canvas-controls";
 import { MissingWidgetFrame } from "@/widgets/shared/widget-frame";
-import { WidgetExplorerTrigger } from "@/widgets/shared/widget-explorer-trigger";
+import { getWidgetExplorerPath } from "@/features/widgets/widget-explorer";
 import type { WidgetInstancePresentation } from "@/widgets/types";
 
 interface CatalogDragPayload {
@@ -254,6 +256,225 @@ function RailHoverCard({
           )
         : null}
     </span>
+  );
+}
+
+function useDismissibleMenu(
+  open: boolean,
+  refs: Array<RefObject<HTMLElement | null>>,
+  onClose: () => void,
+) {
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node;
+
+      if (refs.some((ref) => ref.current?.contains(target))) {
+        return;
+      }
+
+      onClose();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose, open, refs]);
+}
+
+function WidgetActionMenu({
+  editable,
+  floating = false,
+  onDuplicate,
+  onOpenSettings,
+  onRemove,
+  widgetId,
+  widgetTitle,
+}: {
+  editable: boolean;
+  floating?: boolean;
+  onDuplicate: () => void;
+  onOpenSettings: () => void;
+  onRemove: () => void;
+  widgetId: string;
+  widgetTitle: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [portalStyle, setPortalStyle] = useState<CSSProperties>();
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useDismissibleMenu(open, [rootRef, menuRef], () => {
+    setOpen(false);
+  });
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPortalStyle(undefined);
+      return undefined;
+    }
+
+    let frameId = 0;
+
+    function updatePortalPosition() {
+      const triggerRect = triggerRef.current?.getBoundingClientRect();
+
+      if (!triggerRect) {
+        return;
+      }
+
+      const menuWidth = menuRef.current?.offsetWidth ?? 220;
+      const menuHeight = menuRef.current?.offsetHeight ?? 220;
+      const horizontalPadding = 12;
+      const verticalPadding = 12;
+      const maxLeft = Math.max(horizontalPadding, window.innerWidth - menuWidth - horizontalPadding);
+      const maxTop = Math.max(verticalPadding, window.innerHeight - menuHeight - verticalPadding);
+      const preferredLeft = triggerRect.right - menuWidth;
+      const preferredTop = triggerRect.bottom + 8;
+
+      setPortalStyle({
+        left: Math.max(horizontalPadding, Math.min(preferredLeft, maxLeft)),
+        top: Math.max(verticalPadding, Math.min(preferredTop, maxTop)),
+      });
+    }
+
+    updatePortalPosition();
+    frameId = window.requestAnimationFrame(updatePortalPosition);
+
+    window.addEventListener("resize", updatePortalPosition);
+    window.addEventListener("scroll", updatePortalPosition, true);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", updatePortalPosition);
+      window.removeEventListener("scroll", updatePortalPosition, true);
+    };
+  }, [open]);
+
+  const triggerClassName = cn(
+    "inline-flex h-7 w-7 items-center justify-center border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+    floating ? "rounded-full bg-background/40" : "rounded-md",
+    open ? "border-primary/55 bg-muted/45 text-foreground" : undefined,
+  );
+  const itemClassName =
+    "flex w-full items-center gap-2.5 rounded-[calc(var(--radius)-6px)] px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/45";
+
+  return (
+    <div ref={rootRef} className="relative" data-no-widget-drag="true">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Open actions for ${widgetTitle}`}
+        title={`Open actions for ${widgetTitle}`}
+        className={triggerClassName}
+        data-no-widget-drag="true"
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+      >
+        <MoreVertical className="h-3.5 w-3.5" />
+      </button>
+
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
+              style={portalStyle}
+              className="pointer-events-auto fixed z-[165] w-[220px] overflow-hidden rounded-[calc(var(--radius)+2px)] border border-border/80 bg-card/96 p-2 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur"
+              role="menu"
+              data-no-widget-drag="true"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+            >
+              <div className="px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                Widget actions
+              </div>
+              <div className="mt-1 flex flex-col gap-1">
+                <a
+                  href={getWidgetExplorerPath(widgetId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  role="menuitem"
+                  className={itemClassName}
+                  onClick={() => {
+                    setOpen(false);
+                  }}
+                >
+                  <BookOpenText className="h-4 w-4 text-muted-foreground" />
+                  <span className="flex-1">Open guide</span>
+                </a>
+
+                {editable ? (
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={itemClassName}
+                      onClick={() => {
+                        setOpen(false);
+                        onOpenSettings();
+                      }}
+                    >
+                      <Settings2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1">Settings</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={itemClassName}
+                      onClick={() => {
+                        setOpen(false);
+                        onDuplicate();
+                      }}
+                    >
+                      <Copy className="h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1">Duplicate</span>
+                    </button>
+                    <div className="my-1 border-t border-border/70" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={cn(itemClassName, "text-danger hover:bg-danger/10")}
+                      onClick={() => {
+                        setOpen(false);
+                        onRemove();
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-danger" />
+                      <span className="flex-1">Remove</span>
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
   );
 }
 
@@ -867,68 +1088,21 @@ function BuilderWidgetCard({
                 {headerActions}
               </div>
             ) : null}
-
-            <WidgetExplorerTrigger
-              widgetId={widget.id}
-              widgetTitle={title}
-              className="h-7 w-7 rounded-md border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-              data-no-widget-drag="true"
-              onPointerDown={(event) => {
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
-            />
-
-            <div
-              className={cn("flex items-center gap-1 transition-opacity", editControlsVisibilityClass)}
-            >
-              <WidgetSettingsTrigger
+            <div className={cn("transition-opacity", editControlsVisibilityClass)}>
+              <WidgetActionMenu
+                editable={editable}
+                widgetId={widget.id}
                 widgetTitle={title}
-                className="h-7 w-7 rounded-md border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                data-no-widget-drag="true"
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                }}
-                onClick={(event) => {
-                  event.stopPropagation();
+                onOpenSettings={() => {
                   onOpenSettings(instanceId);
                 }}
-                tabIndex={editable ? 0 : -1}
-                aria-hidden={!editable}
-              />
-              <WidgetDuplicateTrigger
-                widgetTitle={title}
-                className="h-7 w-7 rounded-md border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                data-no-widget-drag="true"
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                }}
-                onClick={(event) => {
-                  event.stopPropagation();
+                onDuplicate={() => {
                   onDuplicate(instanceId);
                 }}
-                tabIndex={editable ? 0 : -1}
-                aria-hidden={!editable}
-              />
-              <button
-                type="button"
-                className="flex h-7 w-7 items-center justify-center rounded-md border border-danger/30 bg-danger/8 text-danger transition-colors hover:bg-danger/16"
-                aria-label={`Remove ${title}`}
-                data-no-widget-drag="true"
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                }}
-                onClick={(event) => {
-                  event.stopPropagation();
+                onRemove={() => {
                   onRemove(instanceId);
                 }}
-                tabIndex={editable ? 0 : -1}
-                aria-hidden={!editable}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              />
             </div>
           </div>
         </header>
@@ -943,63 +1117,21 @@ function BuilderWidgetCard({
           )}
           data-no-widget-drag="true"
         >
-          <WidgetExplorerTrigger
+          <WidgetActionMenu
+            editable={editable}
+            floating
             widgetId={widget.id}
             widgetTitle={title}
-            className="h-7 w-7 rounded-full border border-border/70 bg-background/40 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            data-no-widget-drag="true"
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-            }}
-          />
-          <WidgetSettingsTrigger
-            widgetTitle={title}
-            className="h-7 w-7 rounded-full border border-border/70 bg-background/40 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            data-no-widget-drag="true"
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
+            onOpenSettings={() => {
               onOpenSettings(instanceId);
             }}
-            tabIndex={editable ? 0 : -1}
-            aria-hidden={!editable}
-          />
-          <WidgetDuplicateTrigger
-            widgetTitle={title}
-            className="h-7 w-7 rounded-full border border-border/70 bg-background/40 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            data-no-widget-drag="true"
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
+            onDuplicate={() => {
               onDuplicate(instanceId);
             }}
-            tabIndex={editable ? 0 : -1}
-            aria-hidden={!editable}
-          />
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-danger/30 bg-danger/8 text-danger transition-colors hover:bg-danger/16"
-            aria-label={`Remove ${title}`}
-            data-no-widget-drag="true"
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
+            onRemove={() => {
               onRemove(instanceId);
             }}
-            tabIndex={editable ? 0 : -1}
-            aria-hidden={!editable}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
         ) : null}
 
@@ -1485,12 +1617,15 @@ export function CustomDashboardStudioPage() {
       return null;
     }
 
+    const dotStepX = measuredGridMetrics.stepX / 2;
+    const dotStepY = measuredGridMetrics.stepY / 2;
+
     return {
       backgroundImage:
         "radial-gradient(circle at 0 0, var(--workspace-grid-dot) 0, var(--workspace-grid-dot) 1.55px, transparent 1.9px)",
       backgroundPosition: "0 0",
       backgroundRepeat: "repeat",
-      backgroundSize: `${measuredGridMetrics.stepX}px ${measuredGridMetrics.stepY}px`,
+      backgroundSize: `${dotStepX}px ${dotStepY}px`,
     };
   }, [measuredGridMetrics]);
 

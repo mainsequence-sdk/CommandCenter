@@ -61,8 +61,8 @@ charts and tables.
 - For upstream sources, the preview reads the upstream Data Node runtime dataset and shows the
   transformed output locally.
 - Chaining is intentionally one rule repeated at every hop: a Data Node reads the immediate upstream
-  Data Node's published `columns + rows + dataNodeId`, applies its own transform, and republishes a
-  new dataset. That means `Node A -> Node B -> Node C -> Table/Graph` uses the same contract as
-  `Node A -> Table/Graph`.
+  Data Node's published `DataNodePublishedDataset`, applies its own transform, and republishes a new
+  dataset. That means `Node A -> Node B -> Node C -> Table/Graph/Statistic` uses the same contract
+  as `Node A -> Table/Graph/Statistic`.
 - Consumers should never try to reconstruct earlier nodes in the chain. They should only consume the
   final published dataset from the selected upstream Data Node.

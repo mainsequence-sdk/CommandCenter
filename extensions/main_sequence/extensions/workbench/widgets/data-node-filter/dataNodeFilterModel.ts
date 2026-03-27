@@ -5,6 +5,11 @@ import {
   type DataNodeFieldOption,
 } from "../data-node-shared/dataNodeShared";
 import {
+  defaultDataNodePublishedDatasetLimit,
+  normalizeDataNodePublishedDataset,
+  type DataNodePublishedDataset,
+} from "../data-node-shared/dataNodePublishedDataset";
+import {
   normalizeDataNodeWidgetSourceReferenceProps,
   normalizeDataNodeWidgetSourceProps,
   resolveDataNodeWidgetSourceConfig,
@@ -13,7 +18,7 @@ import {
   type ResolvedDataNodeWidgetSourceConfig,
 } from "../data-node-shared/dataNodeWidgetSource";
 
-const defaultDataNodeFilterLimit = 2_500;
+const defaultDataNodeFilterLimit = defaultDataNodePublishedDatasetLimit;
 
 export type DataNodeFilterChromeMode = "default" | "minimal";
 export type DataNodeGroupAggregateMode = "first" | "last" | "sum" | "mean" | "min" | "max";
@@ -136,90 +141,12 @@ export interface ResolvedDataNodeFilterConfig extends ResolvedDataNodeWidgetSour
   transformMode: DataNodeTransformMode;
 }
 
-export interface DataNodeFilterRuntimeState {
-  columns: string[];
-  dataNodeId?: number;
-  error?: string;
-  limit: number;
-  rangeEndMs?: number | null;
-  rangeStartMs?: number | null;
-  rows: DataNodeRemoteDataRow[];
-  status: "idle" | "loading" | "error" | "ready";
-  uniqueIdentifierList?: string[];
-  updatedAtMs?: number;
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function normalizeColumns(value: unknown) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  const seen = new Set<string>();
-  return value.flatMap((entry) => {
-    if (typeof entry !== "string" || !entry.trim()) {
-      return [];
-    }
-
-    const nextValue = entry.trim();
-
-    if (seen.has(nextValue)) {
-      return [];
-    }
-
-    seen.add(nextValue);
-    return [nextValue];
-  });
-}
-
-function normalizeRows(value: unknown) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((entry): entry is DataNodeRemoteDataRow => isPlainRecord(entry));
-}
-
-function normalizeTimestampMs(value: unknown) {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed)) {
-    return undefined;
-  }
-
-  return Math.trunc(parsed);
-}
-
-function normalizeStatus(value: unknown): DataNodeFilterRuntimeState["status"] {
-  return value === "loading" || value === "error" || value === "ready" ? value : "idle";
-}
+export type DataNodeFilterRuntimeState = DataNodePublishedDataset;
 
 export function normalizeDataNodeFilterRuntimeState(
   value: unknown,
 ): DataNodeFilterRuntimeState | null {
-  if (!isPlainRecord(value)) {
-    return null;
-  }
-
-  return {
-    columns: normalizeColumns(value.columns),
-    dataNodeId: normalizePositiveInteger(value.dataNodeId),
-    error: typeof value.error === "string" && value.error.trim() ? value.error.trim() : undefined,
-    limit: normalizePositiveInteger(value.limit) ?? defaultDataNodeFilterLimit,
-    rangeEndMs: normalizeTimestampMs(value.rangeEndMs) ?? null,
-    rangeStartMs: normalizeTimestampMs(value.rangeStartMs) ?? null,
-    rows: normalizeRows(value.rows),
-    status: normalizeStatus(value.status),
-    uniqueIdentifierList: Array.isArray(value.uniqueIdentifierList)
-      ? value.uniqueIdentifierList.filter(
-          (entry): entry is string => typeof entry === "string" && entry.trim().length > 0,
-        )
-      : undefined,
-    updatedAtMs: normalizeTimestampMs(value.updatedAtMs),
-  };
+  return normalizeDataNodePublishedDataset(value);
 }
 
 export function resolveDataNodeFilterConfig(

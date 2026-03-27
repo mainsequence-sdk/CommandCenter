@@ -29,6 +29,9 @@ This directory contains reusable widget presentation primitives that are shared 
 - The settings trigger should only be treated as the affordance for configurable widget instances. Preconfigured app-owned instances may choose to hide or lock that affordance at the surface level.
 - Header actions belong in the shared widget chrome when the control should live beside title/settings instead of consuming space inside the widget body.
 - Workspace-style surfaces can reuse the shared duplicate trigger so every widget instance exposes the same copy affordance instead of implementing per-widget duplication controls.
+- Workspace edit surfaces should keep generic widget chrome actions compact. In the studio canvas,
+  guide/settings/duplicate/remove are now grouped under one overflow menu instead of rendering as
+  four separate header buttons on every widget card.
 - Widget instances can hide their header in normal viewing through the shared `showHeader` chrome setting, while workspace edit mode forces the header visible so drag/settings controls stay available.
 - Widget instances can also choose a shared `surfaceMode` in presentation state. `default` keeps the normal card shell, while `transparent` removes the card fill/shadow so the widget sits flatter on the workspace canvas.
 - Widget instances can also choose a shared `placementMode` in presentation state. `canvas` keeps the normal mounted card in the dashboard grid, while `sidebar` keeps the widget mounted for runtime/state publication but hides its card from the workspace canvas so it lives only in the workspace widget rail.

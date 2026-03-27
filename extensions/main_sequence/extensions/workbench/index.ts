@@ -3,6 +3,7 @@ import type { AppExtension } from "@/app/registry/types";
 import { mainSequenceDataNodeFilterWidget } from "./widgets/data-node-filter/definition";
 import { mainSequenceWorkbenchApp } from "./app";
 import { mainSequenceDataNodeGraphWidget } from "./widgets/data-node-visualizer/definition";
+import { mainSequenceDataNodeStatisticWidget } from "./widgets/data-node-statistic/definition";
 import { mainSequenceDataNodeTableWidget } from "./widgets/data-node-table/definition";
 
 const mainSequenceWorkbenchExtension: AppExtension = {
@@ -12,6 +13,7 @@ const mainSequenceWorkbenchExtension: AppExtension = {
   widgets: [
     mainSequenceDataNodeGraphWidget,
     mainSequenceDataNodeFilterWidget,
+    mainSequenceDataNodeStatisticWidget,
     mainSequenceDataNodeTableWidget,
   ],
   apps: [mainSequenceWorkbenchApp],
