@@ -1,10 +1,10 @@
-# Main Sequence Workbench
+# Main Sequence Forge
 
-This nested extension owns the administrative and operational Main Sequence surfaces.
+This nested extension owns the administrative and operational Main Sequence Forge surfaces.
 
 ## Entry Points
 
-- `index.ts`: registers the Workbench extension with the shell registry.
+- `index.ts`: registers the Forge extension with the shell registry.
 - `app.ts`: declares the `AppDefinition` for `main_sequence_workbench`.
 - `features/`: page surfaces and feature-owned workflows.
 - `widgets/`: widget definitions and widget-specific rendering code.
@@ -16,8 +16,13 @@ This nested extension owns the administrative and operational Main Sequence surf
 
 ## Rules
 
-- Keep Workbench-only pages, routes, and widgets here.
+- Keep Forge-only pages, routes, and widgets here.
 - Move code into `../../common/` only when it is meant to be reused by another Main Sequence extension.
-- `index.ts` currently registers `main-sequence-data-node-visualizer`,
-  `main-sequence-data-node`, `main-sequence-data-node-statistic`, and
-  `data-node-table-visualizer` in the live widget catalog.
+- `index.ts` currently registers `main-sequence-dependency-graph`,
+  `main-sequence-data-node-visualizer`, `main-sequence-data-node`,
+  `main-sequence-data-node-statistic`, and `data-node-table-visualizer` in the live widget
+  catalog.
+
+## Naming note
+
+- The folder and internal ids still use `workbench` for compatibility, but the user-facing application name is now `Main Sequence Forge`.

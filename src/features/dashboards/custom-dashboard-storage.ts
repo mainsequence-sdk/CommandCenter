@@ -27,6 +27,8 @@ const PREVIOUS_WORKSPACE_COLUMNS = 48;
 const PREVIOUS_WORKSPACE_ROW_HEIGHT = 38;
 const LEGACY_WORKSPACE_ROW_HEIGHT = 78;
 const LEGACY_WORKSPACE_GAP = 8;
+const MIN_WORKSPACE_WIDGET_COLS = 8;
+const MIN_WORKSPACE_WIDGET_ROWS = 6;
 
 const DEFAULT_TIME_RANGE_OPTIONS = ["15m", "1h", "6h", "24h", "7d", "30d", "90d"] as const;
 const DEFAULT_REFRESH_INTERVAL_MS = 300_000;
@@ -121,6 +123,46 @@ function getLayoutCols(layout: DashboardWidgetInstance["layout"]) {
 
 function getLayoutRows(layout: DashboardWidgetInstance["layout"]) {
   return isLegacyLayout(layout) ? layout.h : layout.rows;
+}
+
+function clampWidgetMinimumLayout(
+  widget: DashboardWidgetInstance,
+  maxColumns: number,
+): DashboardWidgetInstance {
+  if (isWorkspaceRowWidgetId(widget.widgetId)) {
+    return {
+      ...widget,
+      layout: {
+        cols: maxColumns,
+        rows: WORKSPACE_ROW_HEIGHT_ROWS,
+      },
+      position: {
+        x: 0,
+        y: widget.position?.y,
+      },
+    };
+  }
+
+  const cols = Math.min(Math.max(getLayoutCols(widget.layout), MIN_WORKSPACE_WIDGET_COLS), maxColumns);
+  const rows = Math.max(getLayoutRows(widget.layout), MIN_WORKSPACE_WIDGET_ROWS);
+  const currentX = widget.position?.x;
+
+  return {
+    ...widget,
+    layout: {
+      cols,
+      rows,
+    },
+    position: widget.position
+      ? {
+          x:
+            typeof currentX === "number"
+              ? Math.max(0, Math.min(currentX, Math.max(0, maxColumns - cols)))
+              : undefined,
+          y: widget.position.y,
+        }
+      : undefined,
+  };
 }
 
 function resolveWorkspaceRowScale(rawRowHeight: number) {
@@ -273,7 +315,11 @@ export function cloneDashboardCollection(collection: UserDashboardCollection) {
 }
 
 export function materializeDashboardLayout(dashboard: DashboardDefinition): DashboardDefinition {
-  const resolved = resolveDashboardLayout(dashboard);
+  const maxColumns = dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS;
+  const resolved = resolveDashboardLayout({
+    ...dashboard,
+    widgets: dashboard.widgets.map((widget) => clampWidgetMinimumLayout(widget, maxColumns)),
+  });
 
   return {
     ...dashboard,

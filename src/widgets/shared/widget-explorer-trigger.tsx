@@ -22,12 +22,12 @@ export function WidgetExplorerTrigger({
       aria-label={`Open widget guide for ${widgetTitle} in a new tab`}
       title={`Open widget guide for ${widgetTitle} in a new tab`}
       className={cn(
-        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-topbar-foreground",
+        "flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-[6px] border-none bg-transparent text-muted-foreground transition-colors hover:bg-muted/45 hover:text-topbar-foreground",
         className,
       )}
       {...props}
     >
-      <BookOpenText className="h-3.5 w-3.5" />
+      <BookOpenText className="h-3.25 w-3.25" />
     </a>
   );
 }

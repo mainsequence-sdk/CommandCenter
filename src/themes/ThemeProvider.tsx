@@ -9,6 +9,7 @@ import {
 
 import { appRegistry } from "@/app/registry";
 import { commandCenterConfig } from "@/config/command-center";
+import { env } from "@/config/env";
 import { readCachedCurrentCommandCenterPreferences } from "@/preferences/api";
 import { getThemeSurfaceHierarchyMetrics } from "@/themes/surface-hierarchy";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
@@ -38,7 +39,8 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-const backendPreferencesEnabled = Boolean(commandCenterConfig.preferences.url.trim());
+const backendPreferencesEnabled =
+  !env.useMockData && Boolean(commandCenterConfig.preferences.url.trim());
 export const themeStorageKey = "ms.command-center.theme";
 export const DEFAULT_THEME_ID = "main-sequence-space";
 

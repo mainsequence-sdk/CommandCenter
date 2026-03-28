@@ -24,3 +24,6 @@ into other apps.
 - Keep `source: "flow-lab"` aligned across Flow Lab-owned assets defined here.
 - This extension no longer registers its own app; app-level navigation stays in the demo
   extension.
+- This extension is also marked `mockOnly` in its `AppExtension` definition because its widgets
+  and theme are only used by demo/mock surfaces. When `VITE_USE_MOCK_DATA=false`, the registry
+  removes Flow Lab entirely so its widgets do not appear in the live workspace catalog.

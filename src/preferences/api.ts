@@ -273,7 +273,7 @@ async function requestPreferences(
 }
 
 export function hasConfiguredPreferencesEndpoint() {
-  return Boolean(commandCenterConfig.preferences.url.trim());
+  return !env.useMockData && Boolean(commandCenterConfig.preferences.url.trim());
 }
 
 export function fetchCommandCenterPreferences() {

@@ -24,10 +24,18 @@ function uniqueById<T extends { id: string }>(items: T[]) {
   return [...map.values()];
 }
 
+function isExtensionEnabled(extension: AppExtension) {
+  if (extension.mockOnly && !env.useMockData) {
+    return false;
+  }
+
+  return true;
+}
+
 const extensions = Object.values(modules)
   .map((module) => (module as { default?: AppExtension }).default)
   .filter((module): module is AppExtension => Boolean(module))
-  .filter((extension) => env.useMockData || extension.id !== "demo");
+  .filter(isExtensionEnabled);
 
 const widgets = uniqueById(extensions.flatMap((extension) => extension.widgets ?? []));
 const apps = uniqueById(extensions.flatMap((extension) => extension.apps ?? [])).filter((app) => {

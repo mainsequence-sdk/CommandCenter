@@ -1,144 +1,355 @@
-[
-  {
-    "id": 12001,
-    "project_id": 81,
-    "update_hash": "discount_curves_usd_update",
-    "build_configuration": { "kind": "bootstrap" },
-    "ogm_dependencies_linked": true,
-    "open_for_everyone": true,
-    "data_node_storage": { "id": 9101, "storage_hash": "discount_curves_usd", "identifier": "Discount Curves USD" },
-    "run_configuration": {
-      "local_time_serie_update_details": 12001,
-      "retry_on_error": true,
-      "seconds_wait_on_retry": 60,
-      "required_cpus": "1",
-      "required_gpus": null,
-      "execution_time_out_seconds": 1800,
-      "update_schedule": { "cron": "0 16 * * 1-5" }
-    },
-    "update_details": {
-      "related_table": 9101,
-      "active_update": false,
-      "update_pid": null,
-      "error_on_last_update": false,
-      "last_update": "2026-03-24T16:00:00Z",
-      "next_update": "2026-03-25T16:00:00Z",
-      "update_statistics": { "rows_written": 1200 },
-      "active_update_status": null,
-      "active_update_scheduler": null,
-      "update_priority": 5,
-      "last_updated_by_user": 1,
-      "run_configuration": {
-        "local_time_serie_update_details": 12001,
-        "retry_on_error": true,
-        "seconds_wait_on_retry": 60,
-        "required_cpus": "1",
-        "required_gpus": null,
-        "execution_time_out_seconds": 1800,
-        "update_schedule": { "cron": "0 16 * * 1-5" }
-      }
-    },
-    "historical_updates": [
-      { "id": 1, "related_table": 9101, "update_time_start": "2026-03-23T16:00:00Z", "update_time_end": "2026-03-23T16:04:00Z", "error_on_update": false, "trace_id": "lts-12001-1", "updated_by_user": 1 },
-      { "id": 2, "related_table": 9101, "update_time_start": "2026-03-24T16:00:00Z", "update_time_end": "2026-03-24T16:05:00Z", "error_on_update": false, "trace_id": "lts-12001-2", "updated_by_user": 1 }
-    ],
-    "logs": [
-      { "timestamp": "2026-03-24T16:00:10Z", "level": "info", "event": "start", "message": "Update started." },
-      { "timestamp": "2026-03-24T16:04:58Z", "level": "info", "event": "finish", "message": "Rows written successfully." }
+{
+    "count": 1,
+    "next": null,
+    "previous": null,
+    "results": [
+        {
+            "id": 1167,
+            "update_hash": "algoseekdailyohlcfigi_a93cfd55f6d3e912050e9ea7d4125b49",
+            "build_configuration": {
+                "is_demo": true,
+                "daily_dir": "/home/jose/Downloads/demo_data/us-equity-daily-ohlc-primary-secid-20220101-20220630",
+                "security_master_path": "/home/jose/Downloads/demo_data/sp500_equity_security_master.csv",
+                "time_series_class_import_path": {
+                    "module": "__main__",
+                    "qualname": "AlgoSeekDailyOHLCFIGI"
+                },
+                "arguments_to_ignore_from_storage_hash": [
+                    "daily_dir",
+                    "security_master_path"
+                ]
+            },
+            "update_details": {
+                "related_table": 1167,
+                "active_update": false,
+                "update_pid": 0,
+                "error_on_last_update": false,
+                "last_update": "2025-10-31T14:28:57.569800Z",
+                "next_update": "2025-10-31T14:29:00Z",
+                "update_statistics": null,
+                "active_update_status": "S",
+                "active_update_scheduler": 537,
+                "update_priority": 0,
+                "last_updated_by_user": null,
+                "run_configuration": {
+                    "local_time_serie_update_details": 1167,
+                    "update_schedule": "*/1 * * * *"
+                }
+            },
+            "ogm_dependencies_linked": true,
+            "data_node_storage": {
+                "id": 714,
+                "storage_hash": "algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14",
+                "creation_date": "2025-10-31T13:48:15.032954Z",
+                "build_configuration": {
+                    "is_demo": true,
+                    "daily_dir": "/home/jose/Downloads/demo_data/us-equity-daily-ohlc-primary-secid-20220101-20220630",
+                    "security_master_path": "/home/jose/Downloads/demo_data/sp500_equity_security_master.csv",
+                    "time_series_class_import_path": {
+                        "module": "__main__",
+                        "qualname": "AlgoSeekDailyOHLCFIGI"
+                    },
+                    "arguments_to_ignore_from_storage_hash": [
+                        "daily_dir",
+                        "security_master_path"
+                    ]
+                },
+                "sourcetableconfiguration": {
+                    "related_table": 714,
+                    "time_index_name": "time_index",
+                    "column_dtypes_map": {
+                        "low": "float64",
+                        "high": "float64",
+                        "isin": "object",
+                        "name": "object",
+                        "open": "float64",
+                        "vwap": "float64",
+                        "close": "float64",
+                        "secid": "int64",
+                        "ticker": "object",
+                        "volume": "int64",
+                        "lowtime": "object",
+                        "hightime": "object",
+                        "opensize": "int64",
+                        "closesize": "int64",
+                        "dailyvwap": "float64",
+                        "open_time": "int64",
+                        "tradedate": "int64",
+                        "time_index": "datetime64[ns, UTC]",
+                        "primaryexchange": "object",
+                        "adjustmentfactor": "float64",
+                        "adjustmentreason": "object",
+                        "finratotaltrades": "int64",
+                        "finratotalvolume": "int64",
+                        "listedtotaltrades": "int64",
+                        "unique_identifier": "object",
+                        "cumulativepricefactor": "float64",
+                        "cumulativevolumefactor": "float64",
+                        "finramarkethourstrades": "int64",
+                        "finramarkethoursvolume": "int64",
+                        "listedmarkethourstrades": "int64",
+                        "listedmarkethoursvolume": "int64"
+                    },
+                    "index_names": [
+                        "time_index",
+                        "unique_identifier"
+                    ],
+                    "last_time_index_value": null,
+                    "earliest_index_value": null,
+                    "table_partition": {
+                        "time_idx": {
+                            "type": "INDEX",
+                            "query": "USING BRIN (time_index)"
+                        },
+                        "unique_identifier_idx": {
+                            "type": "INDEX",
+                            "query": "USING BTREE (unique_identifier)"
+                        },
+                        "time_identifier_ev_idx": {
+                            "type": "UNIQUE INDEX",
+                            "query": "(time_index, unique_identifier)"
+                        }
+                    },
+                    "open_for_everyone": true,
+                    "columns_metadata": [
+                        {
+                            "source_config_id": 714,
+                            "column_name": "adjustmentfactor",
+                            "dtype": "float64",
+                            "label": "Adjustment Factor",
+                            "description": "Adjustment factor"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "adjustmentreason",
+                            "dtype": "object",
+                            "label": "Adjustment Reason",
+                            "description": "Adjustment reason"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "close",
+                            "dtype": "float64",
+                            "label": "Close Price",
+                            "description": "Primary exchange closing trade"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "closesize",
+                            "dtype": "int64",
+                            "label": "Close Size",
+                            "description": "Primary exchange close trade size"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "cumulativepricefactor",
+                            "dtype": "float64",
+                            "label": "Cumulative Price Factor",
+                            "description": "Cumulative price factor"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "cumulativevolumefactor",
+                            "dtype": "float64",
+                            "label": "Cumulative Volume Factor",
+                            "description": "Cumulative volume factor"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "dailyvwap",
+                            "dtype": "float64",
+                            "label": "Daily VWAP",
+                            "description": "VWAP for the whole day"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "finramarkethourstrades",
+                            "dtype": "int64",
+                            "label": "FINRA Market Hours Trades",
+                            "description": "Number of FINRA/TRF trades during regular market hours"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "finramarkethoursvolume",
+                            "dtype": "int64",
+                            "label": "FINRA Market Hours Volume",
+                            "description": "FINRA/TRF trading volume during regular market hours"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "finratotaltrades",
+                            "dtype": "int64",
+                            "label": "FINRA Total Trades",
+                            "description": "Total number of FINRA/TRF trades for the trade date"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "finratotalvolume",
+                            "dtype": "int64",
+                            "label": "FINRA Total Volume",
+                            "description": "FINRA/TRF trading volume for the whole day"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "high",
+                            "dtype": "float64",
+                            "label": "High Price",
+                            "description": "Highest trade price from any exchange or TRF"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "hightime",
+                            "dtype": "object",
+                            "label": "High Time",
+                            "description": "Time of the highest trade"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "isin",
+                            "dtype": "object",
+                            "label": "ISIN",
+                            "description": "ISIN as of this trade date (optional)"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "listedmarkethourstrades",
+                            "dtype": "int64",
+                            "label": "Listed Market Hours Trades",
+                            "description": "Number of trades during regular market hours in public listed exchanges"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "listedmarkethoursvolume",
+                            "dtype": "int64",
+                            "label": "Listed Market Hours Volume",
+                            "description": "Public listed exchanges volume during regular hours"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "listedtotaltrades",
+                            "dtype": "int64",
+                            "label": "Listed Total Trades",
+                            "description": "Total number of trades for the trade date (listed exchanges)"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "low",
+                            "dtype": "float64",
+                            "label": "Low Price",
+                            "description": "Lowest trade price from any exchange or TRF"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "lowtime",
+                            "dtype": "object",
+                            "label": "Low Time",
+                            "description": "Time of the lowest trade"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "name",
+                            "dtype": "object",
+                            "label": "Name",
+                            "description": "Name of equity security"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "open",
+                            "dtype": "float64",
+                            "label": "Open Price",
+                            "description": "Primary exchange opening trade"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "opensize",
+                            "dtype": "int64",
+                            "label": "Open Size",
+                            "description": "Primary exchange open trade size"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "open_time",
+                            "dtype": "int64",
+                            "label": "Open Time",
+                            "description": "Time of the Primary exchange opening trade"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "primaryexchange",
+                            "dtype": "object",
+                            "label": "Primary Exchange",
+                            "description": "Primary listing exchange on this TradeDate"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "secid",
+                            "dtype": "int64",
+                            "label": "Algoseek SecId",
+                            "description": "Algoseek unique Security ID"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "ticker",
+                            "dtype": "object",
+                            "label": "Ticker",
+                            "description": "Symbol name"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "volume",
+                            "dtype": "int64",
+                            "label": "Listed Total Volume",
+                            "description": "Public listed exchanges volume for the whole day"
+                        },
+                        {
+                            "source_config_id": 714,
+                            "column_name": "vwap",
+                            "dtype": "float64",
+                            "label": "Market VWAP",
+                            "description": "VWAP during regular hours incl. Open/Close cross"
+                        }
+                    ]
+                },
+                "source_class_name": "AlgoSeekDailyOHLCFIGI",
+                "protect_from_deletion": false,
+                "time_serie_source_code_git_hash": "0bb842ea483e48858b6c96c9651bab37daeda07c",
+                "created_by_user": null,
+                "open_for_everyone": true,
+                "data_source": {
+                    "id": 2,
+                    "related_resource": {
+                        "id": 2,
+                        "display_name": "Default DB",
+                        "organization": 2,
+                        "class_type": "timescale_db",
+                        "status": "AVAILABLE"
+                    },
+                    "related_resource_class_type": "timescale_db"
+                },
+                "table_index_names": {
+                    "time_idx_algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14": {
+                        "type": "INDEX",
+                        "query": "USING BRIN (time_index)"
+                    },
+                    "unique_identifier_idx_algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14": {
+                        "type": "INDEX",
+                        "query": "USING BTREE (unique_identifier)"
+                    },
+                    "time_identifier_ev_idx_algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14": {
+                        "type": "UNIQUE INDEX",
+                        "query": "(time_index, unique_identifier)"
+                    }
+                },
+                "data_source_open_for_everyone": false,
+                "identifier": "algoseek_daily_ohlc_DEMO",
+                "description": "Algoseek Primary Exchange Daily OHLC (official open/close), FIGI-indexed; scans all CSVs in daily_dir.",
+                "data_frequency_id": "1d"
+            },
+            "run_configuration": {
+                "local_time_serie_update_details": 1167,
+                "update_schedule": "*/1 * * * *"
+            },
+            "open_for_everyone": true
+        }
     ]
-  },
-  {
-    "id": 12002,
-    "project_id": 81,
-    "update_hash": "reference_fixings_usd_update",
-    "build_configuration": { "kind": "loader" },
-    "ogm_dependencies_linked": true,
-    "open_for_everyone": true,
-    "data_node_storage": { "id": 9102, "storage_hash": "reference_fixings_usd", "identifier": "Reference Rate Fixings USD" },
-    "run_configuration": {
-      "local_time_serie_update_details": 12002,
-      "retry_on_error": true,
-      "seconds_wait_on_retry": 60,
-      "required_cpus": "1",
-      "required_gpus": null,
-      "execution_time_out_seconds": 1200,
-      "update_schedule": { "cron": "30 16 * * 1-5" }
-    },
-    "update_details": {
-      "related_table": 9102,
-      "active_update": false,
-      "update_pid": null,
-      "error_on_last_update": false,
-      "last_update": "2026-03-24T16:30:00Z",
-      "next_update": "2026-03-25T16:30:00Z",
-      "update_statistics": { "rows_written": 100 },
-      "active_update_status": null,
-      "active_update_scheduler": null,
-      "update_priority": 5,
-      "last_updated_by_user": 1,
-      "run_configuration": {
-        "local_time_serie_update_details": 12002,
-        "retry_on_error": true,
-        "seconds_wait_on_retry": 60,
-        "required_cpus": "1",
-        "required_gpus": null,
-        "execution_time_out_seconds": 1200,
-        "update_schedule": { "cron": "30 16 * * 1-5" }
-      }
-    },
-    "historical_updates": [
-      { "id": 3, "related_table": 9102, "update_time_start": "2026-03-24T16:30:00Z", "update_time_end": "2026-03-24T16:31:10Z", "error_on_update": false, "trace_id": "lts-12002-1", "updated_by_user": 1 }
-    ],
-    "logs": [
-      { "timestamp": "2026-03-24T16:30:02Z", "level": "info", "event": "start", "message": "Fixings update started." },
-      { "timestamp": "2026-03-24T16:31:08Z", "level": "info", "event": "finish", "message": "Fixings loaded successfully." }
-    ]
-  },
-  {
-    "id": 13001,
-    "project_id": 88,
-    "update_hash": "macro_factor_panel_update",
-    "build_configuration": { "kind": "panel" },
-    "ogm_dependencies_linked": true,
-    "open_for_everyone": true,
-    "data_node_storage": { "id": 9301, "storage_hash": "macro_factor_panel", "identifier": "Macro Factor Panel" },
-    "run_configuration": {
-      "local_time_serie_update_details": 13001,
-      "retry_on_error": true,
-      "seconds_wait_on_retry": 120,
-      "required_cpus": "2",
-      "required_gpus": null,
-      "execution_time_out_seconds": 2400,
-      "update_schedule": { "cron": "0 */4 * * *" }
-    },
-    "update_details": {
-      "related_table": 9301,
-      "active_update": true,
-      "update_pid": 4444,
-      "error_on_last_update": false,
-      "last_update": "2026-03-24T12:00:00Z",
-      "next_update": "2026-03-24T16:00:00Z",
-      "update_statistics": { "rows_written": 450 },
-      "active_update_status": "running",
-      "active_update_scheduler": 1,
-      "update_priority": 8,
-      "last_updated_by_user": 1,
-      "run_configuration": {
-        "local_time_serie_update_details": 13001,
-        "retry_on_error": true,
-        "seconds_wait_on_retry": 120,
-        "required_cpus": "2",
-        "required_gpus": null,
-        "execution_time_out_seconds": 2400,
-        "update_schedule": { "cron": "0 */4 * * *" }
-      }
-    },
-    "historical_updates": [
-      { "id": 4, "related_table": 9301, "update_time_start": "2026-03-24T08:00:00Z", "update_time_end": "2026-03-24T08:07:00Z", "error_on_update": false, "trace_id": "lts-13001-1", "updated_by_user": 1 }
-    ],
-    "logs": [
-      { "timestamp": "2026-03-24T12:00:03Z", "level": "info", "event": "start", "message": "Macro panel update started." },
-      { "timestamp": "2026-03-24T12:06:55Z", "level": "info", "event": "finish", "message": "Macro factors recalculated." }
-    ]
-  }
-]
+}

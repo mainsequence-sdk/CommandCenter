@@ -26,6 +26,38 @@ function readDataset<T>(name: string): T {
   return cloneValue(dataset as T);
 }
 
+function readOptionalDataset<T>(name: string): T | undefined {
+  const path = `/mock_data/mainsequence/${name}.json`;
+  const dataset = mockJsonModules[path];
+
+  if (dataset === undefined) {
+    return undefined;
+  }
+
+  return cloneValue(dataset as T);
+}
+
+function readCollectionDataset(name: string): Array<Record<string, unknown>> {
+  const dataset = readDataset<unknown>(name);
+
+  if (Array.isArray(dataset)) {
+    return dataset as Array<Record<string, unknown>>;
+  }
+
+  if (
+    dataset &&
+    typeof dataset === "object" &&
+    "results" in dataset &&
+    Array.isArray((dataset as { results?: unknown }).results)
+  ) {
+    return cloneValue((dataset as { results: Array<Record<string, unknown>> }).results);
+  }
+
+  throw new Error(
+    `Main Sequence mock dataset /mock_data/mainsequence/${name}.json must be an array or a paginated object with results.`,
+  );
+}
+
 type MockState = {
   assets: Array<Record<string, unknown>>;
   assetCategories: Array<Record<string, unknown>>;
@@ -62,6 +94,9 @@ type MockState = {
   availableGpuTypes: Array<Record<string, unknown>>;
   projectRepositories: Array<Record<string, unknown>>;
   dataNodeRemoteRows: Record<string, Array<Record<string, unknown>>>;
+  dataNodeRowsByEndpoint?: unknown;
+  dataNodeLastObservationByEndpoint?: unknown;
+  dependencyGraphsByEndpoint?: unknown;
 };
 
 function createMockState(): MockState {
@@ -92,15 +127,18 @@ function createMockState(): MockState {
     clusters: readDataset("clusters"),
     projectDataSources: readDataset("project_data_sources"),
     physicalDataSources: readDataset("physical_data_sources"),
-    dataNodes: readDataset("data_nodes"),
-    localTimeSeries: readDataset("local_time_series"),
-    simpleTables: readDataset("simple_tables"),
-    simpleTableUpdates: readDataset("simple_table_updates"),
+    dataNodes: readCollectionDataset("data_nodes"),
+    localTimeSeries: readCollectionDataset("local_time_series"),
+    simpleTables: readCollectionDataset("simple_tables"),
+    simpleTableUpdates: readCollectionDataset("simple_table_updates"),
     permissionCandidateUsers: readDataset("permission_candidate_users"),
     teams: readDataset("teams"),
     availableGpuTypes: readDataset("available_gpu_types"),
     projectRepositories: readDataset("project_repositories"),
     dataNodeRemoteRows: readDataset("data_node_remote_rows"),
+    dataNodeRowsByEndpoint: readOptionalDataset("get_data_between_dates_from_remote"),
+    dataNodeLastObservationByEndpoint: readOptionalDataset("get_last_observation"),
+    dependencyGraphsByEndpoint: readOptionalDataset("dependencies-graph"),
   };
 }
 
@@ -133,6 +171,159 @@ function readNumber(value: unknown) {
 
 function readArray<T = Record<string, unknown>>(value: unknown) {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeRecordArrayPayload(payload: unknown) {
+  if (Array.isArray(payload)) {
+    return payload.filter(isRecord);
+  }
+
+  if (!isRecord(payload)) {
+    return [] as Array<Record<string, unknown>>;
+  }
+
+  for (const key of ["results", "rows", "data", "items"]) {
+    const candidate = payload[key];
+
+    if (Array.isArray(candidate)) {
+      return candidate.filter(isRecord);
+    }
+  }
+
+  return [] as Array<Record<string, unknown>>;
+}
+
+function normalizeSingleRecordPayload(payload: unknown) {
+  if (isRecord(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.find(isRecord) ?? null;
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  for (const key of ["last_observation", "observation", "row", "result", "data"]) {
+    const candidate = (payload as Record<string, unknown>)[key];
+
+    if (isRecord(candidate)) {
+      return candidate;
+    }
+
+    if (Array.isArray(candidate)) {
+      return candidate.find(isRecord) ?? null;
+    }
+  }
+
+  return null;
+}
+
+function isDependencyGraphPayload(payload: unknown): payload is Record<string, unknown> {
+  return (
+    isRecord(payload) &&
+    Array.isArray(payload.nodes) &&
+    Array.isArray(payload.edges)
+  );
+}
+
+function resolveMockDependencyGraph(input: {
+  sourceKind: "local_time_serie" | "simple_table_update";
+  sourceId: string;
+  direction?: string | null;
+}) {
+  const payload = state.dependencyGraphsByEndpoint;
+
+  if (isDependencyGraphPayload(payload)) {
+    return cloneValue(payload);
+  }
+
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  const direction = input.direction?.trim() || "";
+  const candidatePath = [
+    payload[input.sourceKind],
+    payload[input.sourceId],
+    direction ? payload[direction] : undefined,
+    direction ? payload[`${input.sourceKind}:${direction}`] : undefined,
+    payload[`${input.sourceKind}:${input.sourceId}`],
+    direction ? payload[`${input.sourceKind}:${input.sourceId}:${direction}`] : undefined,
+  ];
+
+  for (const candidate of candidatePath) {
+    if (isDependencyGraphPayload(candidate)) {
+      return cloneValue(candidate);
+    }
+
+    if (!isRecord(candidate)) {
+      continue;
+    }
+
+    const nestedCandidates = [
+      candidate[input.sourceId],
+      direction ? candidate[direction] : undefined,
+      direction ? candidate[`${input.sourceId}:${direction}`] : undefined,
+    ];
+
+    for (const nestedCandidate of nestedCandidates) {
+      if (isDependencyGraphPayload(nestedCandidate)) {
+        return cloneValue(nestedCandidate);
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveMockDataNodeRemoteRows(dataNodeId: string) {
+  const keyedRows = readArray<Record<string, unknown>>(state.dataNodeRemoteRows[dataNodeId]);
+
+  if (keyedRows.length > 0) {
+    return keyedRows;
+  }
+
+  const endpointPayload = state.dataNodeRowsByEndpoint;
+
+  if (isRecord(endpointPayload) && dataNodeId in endpointPayload) {
+    const keyedPayload = endpointPayload[dataNodeId];
+    const keyedPayloadRows = normalizeRecordArrayPayload(keyedPayload);
+
+    if (keyedPayloadRows.length > 0) {
+      return keyedPayloadRows;
+    }
+  }
+
+  return normalizeRecordArrayPayload(endpointPayload);
+}
+
+function resolveMockDataNodeLastObservation(dataNodeId: string) {
+  const endpointPayload = state.dataNodeLastObservationByEndpoint;
+
+  if (isRecord(endpointPayload) && dataNodeId in endpointPayload) {
+    const keyedPayload = endpointPayload[dataNodeId];
+    const keyedObservation = normalizeSingleRecordPayload(keyedPayload);
+
+    if (keyedObservation) {
+      return keyedObservation;
+    }
+  }
+
+  const explicitObservation = normalizeSingleRecordPayload(endpointPayload);
+
+  if (explicitObservation) {
+    return explicitObservation;
+  }
+
+  const rows = resolveMockDataNodeRemoteRows(dataNodeId);
+  return rows.at(-1) ?? null;
 }
 
 function lowerNeedle(value: string | null | undefined) {
@@ -930,36 +1121,6 @@ function buildPermissionResponse(objectId: number, accessLevel: "view" | "edit")
     access_level: accessLevel,
     users,
     teams,
-  };
-}
-
-function buildSimpleDependencyGraph(nodeTitle: string, centerId: string | number) {
-  return {
-    nodes: [
-      {
-        id: `source-${centerId}`,
-        node_type: "source",
-        card_title: "Source",
-        card_subtitle: "Inbound dependency",
-      },
-      {
-        id: centerId,
-        node_type: "update",
-        card_title: nodeTitle,
-        card_subtitle: "Selected update",
-      },
-      {
-        id: `target-${centerId}`,
-        node_type: "consumer",
-        card_title: "Consumer",
-        card_subtitle: "Downstream consumer",
-      },
-    ],
-    edges: [
-      { source: `source-${centerId}`, target: centerId },
-      { source: centerId, target: `target-${centerId}` },
-    ],
-    groups: [],
   };
 }
 
@@ -2154,10 +2315,23 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
 
   if (route === "/orm/api/ts_manager/simple_table/update/" && method === "GET") {
     const simpleTableId = Number(searchParams.get("remote_table") ?? "");
+    const query = searchParams.get("q");
     const filtered = sortDescendingById(
       state.simpleTableUpdates.filter(
         (update) =>
-          readNumber((update.remote_table as Record<string, unknown> | null)?.id) === simpleTableId,
+          (Number.isFinite(simpleTableId) && simpleTableId > 0
+            ? readNumber((update.remote_table as Record<string, unknown> | null)?.id) === simpleTableId
+            : true) &&
+          matchesSearch(
+            [
+              update.id,
+              update.update_hash,
+              (update.remote_table as Record<string, unknown> | null)?.id,
+              (update.remote_table as Record<string, unknown> | null)?.storage_hash,
+              (update.remote_table as Record<string, unknown> | null)?.identifier,
+            ],
+            query,
+          ),
       ),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
@@ -2188,7 +2362,19 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
 
   const updateGraphMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/(\d+)\/dependencies-graph\/$/);
   if (updateGraphMatch && method === "GET") {
-    return buildSimpleDependencyGraph(`Simple Table Update ${updateGraphMatch[1]}`, `stu-${updateGraphMatch[1]}`);
+    const graph = resolveMockDependencyGraph({
+      sourceKind: "simple_table_update",
+      sourceId: updateGraphMatch[1] ?? "",
+      direction: searchParams.get("direction"),
+    });
+
+    if (!graph) {
+      throw new Error(
+        `Missing Main Sequence mock dependency graph payload for simple_table_update/${updateGraphMatch[1]}.`,
+      );
+    }
+
+    return graph;
   }
 
   return undefined;
@@ -2231,15 +2417,14 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
 
   const lastObservationMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/get_last_observation\/$/);
   if (lastObservationMatch && method === "POST") {
-    const rows = readArray<Record<string, unknown>>(state.dataNodeRemoteRows[lastObservationMatch[1] ?? ""]);
-    return rows.at(-1) ?? null;
+    return resolveMockDataNodeLastObservation(lastObservationMatch[1] ?? "");
   }
 
   const dataBetweenDatesMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/get_data_between_dates_from_remote\/$/);
   if (dataBetweenDatesMatch && method === "POST") {
     const body = parseBody(init);
     const columns = new Set(readArray<string>(body?.columns));
-    const rows = readArray<Record<string, unknown>>(state.dataNodeRemoteRows[dataBetweenDatesMatch[1] ?? ""]).map((row) =>
+    const rows = resolveMockDataNodeRemoteRows(dataBetweenDatesMatch[1] ?? "").map((row) =>
       columns.size === 0
         ? row
         : Object.fromEntries(Object.entries(row).filter(([key]) => columns.has(key))),
@@ -2470,7 +2655,19 @@ function handleLocalTimeSeries(route: string, method: string, searchParams: URLS
 
   const graphMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/(\d+)\/dependencies-graph\/$/);
   if (graphMatch && method === "GET") {
-    return buildSimpleDependencyGraph(`Local Update ${graphMatch[1]}`, `lts-${graphMatch[1]}`);
+    const graph = resolveMockDependencyGraph({
+      sourceKind: "local_time_serie",
+      sourceId: graphMatch[1] ?? "",
+      direction: searchParams.get("direction"),
+    });
+
+    if (!graph) {
+      throw new Error(
+        `Missing Main Sequence mock dependency graph payload for local_time_serie/${graphMatch[1]}.`,
+      );
+    }
+
+    return graph;
   }
 
   const historicalMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/(\d+)\/historical-updates\/$/);

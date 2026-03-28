@@ -2,7 +2,6 @@ import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
-import { getMainSequenceMockResponse } from "./mockData";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const dynamicTableDataSourceEndpoint = "/orm/api/ts_manager/dynamic_table_data_source/";
@@ -1226,6 +1225,16 @@ export interface LocalTimeSerieQuickSearchRecord {
   data_node_storage: {
     id: number;
     storage_hash: string;
+    identifier: string | null;
+  } | null;
+}
+
+export interface SimpleTableUpdateQuickSearchRecord {
+  id: number;
+  update_hash: string;
+  remote_table: {
+    id: number;
+    storage_hash: string | null;
     identifier: string | null;
   } | null;
 }
@@ -2754,6 +2763,7 @@ async function requestJson<T>(
   const requestUrl = buildEndpointUrl(endpoint, path, search);
 
   if (env.useMockData) {
+    const { getMainSequenceMockResponse } = await import("./mockData");
     const mockPayload = getMainSequenceMockResponse<T>({
       requestUrl,
       init,
@@ -4649,6 +4659,37 @@ export async function quickSearchLocalTimeSeries({
           id: row.data_node_storage.id,
           storage_hash: row.data_node_storage.storage_hash,
           identifier: row.data_node_storage.identifier,
+        }
+      : null,
+  }));
+}
+
+export async function quickSearchSimpleTableUpdates({
+  limit = 50,
+  q,
+}: {
+  limit?: number;
+  q: string;
+}) {
+  const payload = await requestJson<
+    PaginatedResponse<SimpleTableUpdateRecord> | SimpleTableUpdateRecord[]
+  >(simpleTableEndpoint, "update/", undefined, {
+    limit,
+    q: q.trim(),
+  });
+
+  const rows = normalizeListResponse(payload);
+
+  return rows.map<SimpleTableUpdateQuickSearchRecord>((row) => ({
+    id: row.id,
+    update_hash: row.update_hash,
+    remote_table: row.remote_table
+      ? {
+          id: row.remote_table.id,
+          storage_hash:
+            typeof row.remote_table.storage_hash === "string" ? row.remote_table.storage_hash : null,
+          identifier:
+            typeof row.remote_table.identifier === "string" ? row.remote_table.identifier : null,
         }
       : null,
   }));

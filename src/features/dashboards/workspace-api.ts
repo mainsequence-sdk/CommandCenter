@@ -101,6 +101,24 @@ function readStoredMockWorkspaceCollection(
   }
 }
 
+export function readLegacyMockWorkspaceCollection(
+  userId: string | null | undefined,
+): UserDashboardCollection | null {
+  return readStoredMockWorkspaceCollection(userId);
+}
+
+export function clearLegacyMockWorkspaceCollection(userId: string | null | undefined) {
+  if (!canUseLocalStorage()) {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(buildMockWorkspaceStorageKey(userId));
+  } catch {
+    // Ignore mock storage cleanup failures; the migrated local store remains authoritative.
+  }
+}
+
 function readMockWorkspaceCollection(
   userId: string | null | undefined,
 ): UserDashboardCollection {

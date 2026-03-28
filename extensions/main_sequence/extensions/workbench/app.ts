@@ -41,7 +41,7 @@ const dataSection: AppSurfaceNavigationSection = {
 
 export const mainSequenceWorkbenchApp: AppDefinition = {
   id: "main_sequence_workbench",
-  title: "Main Sequence Workbench",
+  title: "Main Sequence Forge",
   description: "CRUD console for Main Sequence backend resources.",
   source: "main_sequence_workbench",
   icon: Command,
@@ -49,35 +49,35 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
   permissionDefinitions: [
     {
       id: "main_sequence:view",
-      label: "Main Sequence Workbench / open",
-      description: "Open the Main Sequence Workbench application in the shell.",
-      category: "Main Sequence Workbench",
+      label: "Main Sequence Forge / open",
+      description: "Open the Main Sequence Forge application in the shell.",
+      category: "Main Sequence Forge",
     },
     {
       id: "main_sequence.workspace:view",
-      label: "Workbench workspace / view",
+      label: "Forge workspace / view",
       description:
         "Open workspace surfaces such as Projects, Streamlit, Constants, and Secrets.",
-      category: "Main Sequence Workbench",
+      category: "Main Sequence Forge",
     },
     {
       id: "main_sequence.operations:view",
-      label: "Workbench operations / view",
+      label: "Forge operations / view",
       description: "Open operational surfaces such as Jobs.",
-      category: "Main Sequence Workbench",
+      category: "Main Sequence Forge",
     },
     {
       id: "main_sequence.data:view",
-      label: "Workbench data / view",
+      label: "Forge data / view",
       description: "Open data-facing surfaces such as Buckets and DataNodes.",
-      category: "Main Sequence Workbench",
+      category: "Main Sequence Forge",
     },
   ],
   defaultSurfaceId: "projects",
   notificationSources: [
     {
       id: "main-sequence-workbench-notifications",
-      title: "Main Sequence Workbench",
+      title: "Main Sequence Forge",
       listPath: commandCenterConfig.notifications.listUrl,
       detailPath: commandCenterConfig.notifications.detailUrl,
       markReadPath: commandCenterConfig.notifications.markReadUrl,

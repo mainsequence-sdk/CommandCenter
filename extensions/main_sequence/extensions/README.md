@@ -4,7 +4,9 @@ This directory contains independently registered Main Sequence extensions.
 
 ## Current Extensions
 
-- `workbench/`: operational and CRUD-heavy Main Sequence administration surfaces.
+- `workbench/`: operational and CRUD-heavy Main Sequence Forge administration surfaces, including the
+  registered `Dependency Graph`, `Data Node`, `Data Node Graph`, `Statistic`, and `Data Node Table`
+  widgets.
 - `markets/`: market-facing Main Sequence app surfaces.
 
 ## Rules

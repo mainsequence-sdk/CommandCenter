@@ -1,35 +1,892 @@
-[
-  {
-    "id": 14001,
-    "storage_hash": "analytics_revenue_summary",
-    "creation_date": "2026-01-10T08:00:00Z",
-    "source_class_name": "analytics.tables.RevenueSummary",
-    "identifier": "Revenue Summary",
-    "description": "Aggregated revenue summary table for dashboard consumption.",
-    "data_frequency_id": "daily",
-    "data_source": null,
-    "open_for_everyone": true,
-    "columns": [
-      { "id": 1, "attr_name": "date", "column_name": "date", "db_type": "date", "is_pk": true, "nullable": false, "is_unique": false },
-      { "id": 2, "attr_name": "desk", "column_name": "desk", "db_type": "text", "is_pk": false, "nullable": false, "is_unique": false },
-      { "id": 3, "attr_name": "revenue", "column_name": "revenue", "db_type": "float", "is_pk": false, "nullable": false, "is_unique": false }
-    ],
-    "foreign_keys": []
-  },
-  {
-    "id": 14002,
-    "storage_hash": "macro_regime_snapshot",
-    "creation_date": "2026-01-22T08:00:00Z",
-    "source_class_name": "macro.tables.RegimeSnapshot",
-    "identifier": "Macro Regime Snapshot",
-    "description": "Current macro regime classifications.",
-    "data_frequency_id": "daily",
-    "data_source": null,
-    "open_for_everyone": true,
-    "columns": [
-      { "id": 4, "attr_name": "date", "column_name": "date", "db_type": "date", "is_pk": true, "nullable": false, "is_unique": false },
-      { "id": 5, "attr_name": "regime", "column_name": "regime", "db_type": "text", "is_pk": false, "nullable": false, "is_unique": false }
-    ],
-    "foreign_keys": []
-  }
-]
+{
+    "count": 3,
+    "next": null,
+    "previous": null,
+    "results": [
+        {
+            "id": 56,
+            "schema": {
+                "model": "__main__.CustomerBalanceRecord",
+                "fields": [
+                    {
+                        "ops": {
+                            "order": false,
+                            "filter": true,
+                            "insert": true,
+                            "update": true
+                        },
+                        "name": "customer_id",
+                        "index": {
+                            "name": null,
+                            "unique": false
+                        },
+                        "default": null,
+                        "nullable": false,
+                        "required": true,
+                        "annotation": "int",
+                        "foreign_key": {
+                            "target": 55,
+                            "on_delete": "cascade"
+                        },
+                        "primary_key": false
+                    },
+                    {
+                        "ops": {
+                            "order": true,
+                            "filter": true,
+                            "insert": true,
+                            "update": true
+                        },
+                        "name": "as_of_date",
+                        "index": null,
+                        "default": null,
+                        "nullable": false,
+                        "required": true,
+                        "annotation": "date",
+                        "foreign_key": null,
+                        "primary_key": false
+                    },
+                    {
+                        "ops": {
+                            "order": true,
+                            "filter": true,
+                            "insert": true,
+                            "update": true
+                        },
+                        "name": "balance_usd",
+                        "index": null,
+                        "default": null,
+                        "nullable": false,
+                        "required": true,
+                        "annotation": "float",
+                        "foreign_key": null,
+                        "primary_key": false
+                    }
+                ]
+            },
+            "data_source": {
+                "id": 2,
+                "related_resource": {
+                    "id": 2,
+                    "display_name": "Default DB",
+                    "organization": 2,
+                    "class_type": "timescale_db",
+                    "status": "AVAILABLE"
+                },
+                "related_resource_class_type": "timescale_db"
+            },
+            "storage_hash": "customerbalancerecord_3e3952666eaf41ca757f514b3f2daa3d",
+            "identifier": null,
+            "source_class_name": "CustomerBalanceRecord",
+            "sourcetableconfiguration": {
+                "related_table": 56,
+                "column_dtypes_map": {
+                    "id": "int64",
+                    "as_of_date": "date",
+                    "balance_usd": "float",
+                    "customer_id": "int"
+                },
+                "index_names": [
+                    "id",
+                    "customer_id"
+                ],
+                "columns_metadata": [
+                    {
+                        "source_config_id": 56,
+                        "column_name": "as_of_date",
+                        "dtype": "date",
+                        "label": "as_of_date",
+                        "description": ""
+                    },
+                    {
+                        "source_config_id": 56,
+                        "column_name": "balance_usd",
+                        "dtype": "float",
+                        "label": "balance_usd",
+                        "description": ""
+                    },
+                    {
+                        "source_config_id": 56,
+                        "column_name": "customer_id",
+                        "dtype": "int",
+                        "label": "customer_id",
+                        "description": ""
+                    },
+                    {
+                        "source_config_id": 56,
+                        "column_name": "id",
+                        "dtype": "int64",
+                        "label": "id",
+                        "description": "Auto-generated row identifier."
+                    }
+                ]
+            },
+            "build_configuration": {
+                "test_node": false,
+                "configuration": {
+                    "update_only": [],
+                    "runtime_only": [
+                        "open_to_public",
+                        "run_label"
+                    ],
+                    "serialized_model": {
+                        "run_label": "Simple-table balance seed",
+                        "open_to_public": false
+                    },
+                    "pydantic_model_import_path": {
+                        "module": "__main__",
+                        "qualname": "CustomerBalancesUpdaterConfiguration"
+                    }
+                },
+                "hash_namespace": null,
+                "customers_updater": {
+                    "update_hash": "customersupdater_0f098cf484a210c83672bbc71f698637",
+                    "is_time_serie_instance": true
+                },
+                "simple_table_schema": {
+                    "model": "__main__.CustomerBalanceRecord",
+                    "fields": [
+                        {
+                            "ops": {
+                                "order": false,
+                                "filter": true,
+                                "insert": true,
+                                "update": true
+                            },
+                            "name": "customer_id",
+                            "index": {
+                                "name": null,
+                                "unique": false
+                            },
+                            "default": null,
+                            "nullable": false,
+                            "required": true,
+                            "annotation": "int",
+                            "foreign_key": {
+                                "target": 55,
+                                "on_delete": "cascade"
+                            },
+                            "primary_key": false
+                        },
+                        {
+                            "ops": {
+                                "order": true,
+                                "filter": true,
+                                "insert": true,
+                                "update": true
+                            },
+                            "name": "as_of_date",
+                            "index": null,
+                            "default": null,
+                            "nullable": false,
+                            "required": true,
+                            "annotation": "date",
+                            "foreign_key": null,
+                            "primary_key": false
+                        },
+                        {
+                            "ops": {
+                                "order": true,
+                                "filter": true,
+                                "insert": true,
+                                "update": true
+                            },
+                            "name": "balance_usd",
+                            "index": null,
+                            "default": null,
+                            "nullable": false,
+                            "required": true,
+                            "annotation": "float",
+                            "foreign_key": null,
+                            "primary_key": false
+                        }
+                    ]
+                },
+                "time_series_class_import_path": {
+                    "module": "__main__",
+                    "qualname": "CustomerBalancesUpdater"
+                }
+            },
+            "build_configuration_json_schema": {
+                "configuration": {
+                    "type": "object",
+                    "title": "CustomerBalancesUpdaterConfiguration",
+                    "properties": {
+                        "run_label": {
+                            "type": "string",
+                            "title": "Run Label",
+                            "default": "Simple-table balance seed",
+                            "description": "Human-readable run label for logs and demos.",
+                            "runtime_only": true
+                        },
+                        "open_to_public": {
+                            "type": "boolean",
+                            "title": "Open To Public",
+                            "default": false,
+                            "description": "Optional publication flag for exposing the node publicly. This is runtime-only operational metadata and does not affect hashes.",
+                            "runtime_only": true
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "protect_from_deletion": false,
+            "description": null,
+            "columns": [
+                {
+                    "id": 221,
+                    "attr_name": "id",
+                    "column_name": "id",
+                    "db_type": "int64",
+                    "is_pk": true,
+                    "nullable": false,
+                    "is_unique": true
+                },
+                {
+                    "id": 222,
+                    "attr_name": "customer_id",
+                    "column_name": "customer_id",
+                    "db_type": "int",
+                    "is_pk": false,
+                    "nullable": false,
+                    "is_unique": false
+                },
+                {
+                    "id": 223,
+                    "attr_name": "as_of_date",
+                    "column_name": "as_of_date",
+                    "db_type": "date",
+                    "is_pk": false,
+                    "nullable": false,
+                    "is_unique": false
+                },
+                {
+                    "id": 224,
+                    "attr_name": "balance_usd",
+                    "column_name": "balance_usd",
+                    "db_type": "float",
+                    "is_pk": false,
+                    "nullable": false,
+                    "is_unique": false
+                }
+            ],
+            "foreign_keys": [
+                {
+                    "id": 21,
+                    "source_column": "customer_id",
+                    "target_table": 55,
+                    "target_column": "id",
+                    "on_delete": "cascade"
+                }
+            ],
+            "incoming_fks": [
+                {
+                    "id": 22,
+                    "source_column": "balance_id",
+                    "target_table": 56,
+                    "target_column": "id",
+                    "on_delete": "cascade"
+                }
+            ],
+            "indexes_meta": [
+                {
+                    "id": 91,
+                    "name": "idx_customer_id",
+                    "columns": [
+                        "customer_id"
+                    ]
+                }
+            ],
+            "creation_date": "2026-03-24T19:21:12.894649Z",
+            "created_by_user": 4,
+            "organization_owner": 2,
+            "open_for_everyone": false
+        },
+        {
+            "id": 57,
+            "schema": {
+                "model": "__main__.CustomerDebtRecord",
+                "fields": [
+                    {
+                        "ops": {
+                            "order": false,
+                            "filter": true,
+                            "insert": true,
+                            "update": true
+                        },
+                        "name": "balance_id",
+                        "index": {
+                            "name": null,
+                            "unique": false
+                        },
+                        "default": null,
+                        "nullable": false,
+                        "required": true,
+                        "annotation": "int",
+                        "foreign_key": {
+                            "target": 56,
+                            "on_delete": "cascade"
+                        },
+                        "primary_key": false
+                    },
+                    {
+                        "ops": {
+                            "order": true,
+                            "filter": true,
+                            "insert": true,
+                            "update": true
+                        },
+                        "name": "debt_type",
+                        "index": null,
+                        "default": null,
+                        "nullable": false,
+                        "required": true,
+                        "annotation": "str",
+                        "foreign_key": null,
+                        "primary_key": false
+                    },
+                    {
+                        "ops": {
+                            "order": true,
+                            "filter": true,
+                            "insert": true,
+                            "update": true
+                        },
+                        "name": "debt_usd",
+                        "index": null,
+                        "default": null,
+                        "nullable": false,
+                        "required": true,
+                        "annotation": "float",
+                        "foreign_key": null,
+                        "primary_key": false
+                    }
+                ]
+            },
+            "data_source": {
+                "id": 2,
+                "related_resource": {
+                    "id": 2,
+                    "display_name": "Default DB",
+                    "organization": 2,
+                    "class_type": "timescale_db",
+                    "status": "AVAILABLE"
+                },
+                "related_resource_class_type": "timescale_db"
+            },
+            "storage_hash": "customerdebtrecord_53c3502e84fdd52e1403d6065dfa08d0",
+            "identifier": null,
+            "source_class_name": "CustomerDebtRecord",
+            "sourcetableconfiguration": {
+                "related_table": 57,
+                "column_dtypes_map": {
+                    "id": "int64",
+                    "debt_usd": "float",
+                    "debt_type": "str",
+                    "balance_id": "int"
+                },
+                "index_names": [
+                    "id",
+                    "balance_id"
+                ],
+                "columns_metadata": [
+                    {
+                        "source_config_id": 57,
+                        "column_name": "balance_id",
+                        "dtype": "int",
+                        "label": "balance_id",
+                        "description": ""
+                    },
+                    {
+                        "source_config_id": 57,
+                        "column_name": "debt_type",
+                        "dtype": "str",
+                        "label": "debt_type",
+                        "description": ""
+                    },
+                    {
+                        "source_config_id": 57,
+                        "column_name": "debt_usd",
+                        "dtype": "float",
+                        "label": "debt_usd",
+                        "description": ""
+                    },
+                    {
+                        "source_config_id": 57,
+                        "column_name": "id",
+                        "dtype": "int64",
+                        "label": "id",
+                        "description": "Auto-generated row identifier."
+                    }
+                ]
+            },
+            "build_configuration": {
+                "test_node": false,
+                "configuration": {
+                    "update_only": [],
+                    "runtime_only": [
+                        "open_to_public",
+                        "run_label"
+                    ],
+                    "serialized_model": {
+                        "run_label": "Simple-table debt seed",
+                        "open_to_public": false
+                    },
+                    "pydantic_model_import_path": {
+                        "module": "__main__",
+                        "qualname": "CustomerDebtsUpdaterConfiguration"
+                    }
+                },
+                "hash_namespace": null,
+                "balances_updater": {
+                    "update_hash": "customerbalancesupdater_6998d97666cfea3131f636f75ffabba0",
+                    "is_time_serie_instance": true
+                },
+                "simple_table_schema": {
+                    "model": "__main__.CustomerDebtRecord",
+                    "fields": [
+                        {
+                            "ops": {
+                                "order": false,
+                                "filter": true,
+                                "insert": true,
+                                "update": true
+                            },
+                            "name": "balance_id",
+                            "index": {
+                                "name": null,
+                                "unique": false
+                            },
+                            "default": null,
+                            "nullable": false,
+                            "required": true,
+                            "annotation": "int",
+                            "foreign_key": {
+                                "target": 56,
+                                "on_delete": "cascade"
+                            },
+                            "primary_key": false
+                        },
+                        {
+                            "ops": {
+                                "order": true,
+                                "filter": true,
+                                "insert": true,
+                                "update": true
+                            },
+                            "name": "debt_type",
+                            "index": null,
+                            "default": null,
+                            "nullable": false,
+                            "required": true,
+                            "annotation": "str",
+                            "foreign_key": null,
+                            "primary_key": false
+                        },
+                        {
+                            "ops": {
+                                "order": true,
+                                "filter": true,
+                                "insert": true,
+                                "update": true
+                            },
+                            "name": "debt_usd",
+                            "index": null,
+                            "default": null,
+                            "nullable": false,
+                            "required": true,
+                            "annotation": "float",
+                            "foreign_key": null,
+                            "primary_key": false
+                        }
+                    ]
+                },
+                "time_series_class_import_path": {
+                    "module": "__main__",
+                    "qualname": "CustomerDebtsUpdater"
+                }
+            },
+            "build_configuration_json_schema": {
+                "configuration": {
+                    "type": "object",
+                    "title": "CustomerDebtsUpdaterConfiguration",
+                    "properties": {
+                        "run_label": {
+                            "type": "string",
+                            "title": "Run Label",
+                            "default": "Simple-table debt seed",
+                            "description": "Human-readable run label for logs and demos.",
+                            "runtime_only": true
+                        },
+                        "open_to_public": {
+                            "type": "boolean",
+                            "title": "Open To Public",
+                            "default": false,
+                            "description": "Optional publication flag for exposing the node publicly. This is runtime-only operational metadata and does not affect hashes.",
+                            "runtime_only": true
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "protect_from_deletion": false,
+            "description": null,
+            "columns": [
+                {
+                    "id": 225,
+                    "attr_name": "id",
+                    "column_name": "id",
+                    "db_type": "int64",
+                    "is_pk": true,
+                    "nullable": false,
+                    "is_unique": true
+                },
+                {
+                    "id": 226,
+                    "attr_name": "balance_id",
+                    "column_name": "balance_id",
+                    "db_type": "int",
+                    "is_pk": false,
+                    "nullable": false,
+                    "is_unique": false
+                },
+                {
+                    "id": 227,
+                    "attr_name": "debt_type",
+                    "column_name": "debt_type",
+                    "db_type": "str",
+                    "is_pk": false,
+                    "nullable": false,
+                    "is_unique": false
+                },
+                {
+                    "id": 228,
+                    "attr_name": "debt_usd",
+                    "column_name": "debt_usd",
+                    "db_type": "float",
+                    "is_pk": false,
+                    "nullable": false,
+                    "is_unique": false
+                }
+            ],
+            "foreign_keys": [
+                {
+                    "id": 22,
+                    "source_column": "balance_id",
+                    "target_table": 56,
+                    "target_column": "id",
+                    "on_delete": "cascade"
+                }
+            ],
+            "incoming_fks": [],
+            "indexes_meta": [
+                {
+                    "id": 92,
+                    "name": "idx_balance_id",
+                    "columns": [
+                        "balance_id"
+                    ]
+                }
+            ],
+            "creation_date": "2026-03-24T20:01:19.272805Z",
+            "created_by_user": 4,
+            "organization_owner": 2,
+            "open_for_everyone": false
+        },
+        {
+            "id": 55,
+            "schema": {
+                "model": "__main__.CustomerRecord",
+                "fields": [
+                    {
+                        "ops": {
+                            "order": true,
+                            "filter": true,
+                            "insert": true,
+                            "update": true
+                        },
+                        "name": "customer_code",
+                        "index": {
+                            "name": null,
+                            "unique": true
+                        },
+                        "default": null,
+                        "nullable": false,
+                        "required": true,
+                        "annotation": "str",
+                        "foreign_key": null,
+                        "primary_key": false
+                    },
+                    {
+                        "ops": {
+                            "order": true,
+                            "filter": true,
+                            "insert": true,
+                            "update": true
+                        },
+                        "name": "name",
+                        "index": null,
+                        "default": null,
+                        "nullable": false,
+                        "required": true,
+                        "annotation": "str",
+                        "foreign_key": null,
+                        "primary_key": false
+                    },
+                    {
+                        "ops": {
+                            "order": false,
+                            "filter": true,
+                            "insert": true,
+                            "update": true
+                        },
+                        "name": "region",
+                        "index": {
+                            "name": null,
+                            "unique": false
+                        },
+                        "default": null,
+                        "nullable": false,
+                        "required": true,
+                        "annotation": "str",
+                        "foreign_key": null,
+                        "primary_key": false
+                    }
+                ]
+            },
+            "data_source": {
+                "id": 2,
+                "related_resource": {
+                    "id": 2,
+                    "display_name": "Default DB",
+                    "organization": 2,
+                    "class_type": "timescale_db",
+                    "status": "AVAILABLE"
+                },
+                "related_resource_class_type": "timescale_db"
+            },
+            "storage_hash": "customerrecord_9c079432b8534983a0a63082a3db78a9",
+            "identifier": null,
+            "source_class_name": "CustomerRecord",
+            "sourcetableconfiguration": {
+                "related_table": 55,
+                "column_dtypes_map": {
+                    "id": "int64",
+                    "name": "str",
+                    "region": "str",
+                    "customer_code": "str"
+                },
+                "index_names": [
+                    "id",
+                    "customer_code",
+                    "region"
+                ],
+                "columns_metadata": [
+                    {
+                        "source_config_id": 55,
+                        "column_name": "customer_code",
+                        "dtype": "str",
+                        "label": "customer_code",
+                        "description": ""
+                    },
+                    {
+                        "source_config_id": 55,
+                        "column_name": "id",
+                        "dtype": "int64",
+                        "label": "id",
+                        "description": "Auto-generated row identifier."
+                    },
+                    {
+                        "source_config_id": 55,
+                        "column_name": "name",
+                        "dtype": "str",
+                        "label": "name",
+                        "description": ""
+                    },
+                    {
+                        "source_config_id": 55,
+                        "column_name": "region",
+                        "dtype": "str",
+                        "label": "region",
+                        "description": ""
+                    }
+                ]
+            },
+            "build_configuration": {
+                "test_node": false,
+                "configuration": {
+                    "update_only": [],
+                    "runtime_only": [
+                        "open_to_public",
+                        "run_label"
+                    ],
+                    "serialized_model": {
+                        "run_label": "Simple-table customer seed",
+                        "open_to_public": false
+                    },
+                    "pydantic_model_import_path": {
+                        "module": "__main__",
+                        "qualname": "CustomersUpdaterConfiguration"
+                    }
+                },
+                "hash_namespace": null,
+                "simple_table_schema": {
+                    "model": "__main__.CustomerRecord",
+                    "fields": [
+                        {
+                            "ops": {
+                                "order": true,
+                                "filter": true,
+                                "insert": true,
+                                "update": true
+                            },
+                            "name": "customer_code",
+                            "index": {
+                                "name": null,
+                                "unique": true
+                            },
+                            "default": null,
+                            "nullable": false,
+                            "required": true,
+                            "annotation": "str",
+                            "foreign_key": null,
+                            "primary_key": false
+                        },
+                        {
+                            "ops": {
+                                "order": true,
+                                "filter": true,
+                                "insert": true,
+                                "update": true
+                            },
+                            "name": "name",
+                            "index": null,
+                            "default": null,
+                            "nullable": false,
+                            "required": true,
+                            "annotation": "str",
+                            "foreign_key": null,
+                            "primary_key": false
+                        },
+                        {
+                            "ops": {
+                                "order": false,
+                                "filter": true,
+                                "insert": true,
+                                "update": true
+                            },
+                            "name": "region",
+                            "index": {
+                                "name": null,
+                                "unique": false
+                            },
+                            "default": null,
+                            "nullable": false,
+                            "required": true,
+                            "annotation": "str",
+                            "foreign_key": null,
+                            "primary_key": false
+                        }
+                    ]
+                },
+                "time_series_class_import_path": {
+                    "module": "__main__",
+                    "qualname": "CustomersUpdater"
+                }
+            },
+            "build_configuration_json_schema": {
+                "configuration": {
+                    "type": "object",
+                    "title": "CustomersUpdaterConfiguration",
+                    "properties": {
+                        "run_label": {
+                            "type": "string",
+                            "title": "Run Label",
+                            "default": "Simple-table customer seed",
+                            "description": "Human-readable run label for logs and demos.",
+                            "runtime_only": true
+                        },
+                        "open_to_public": {
+                            "type": "boolean",
+                            "title": "Open To Public",
+                            "default": false,
+                            "description": "Optional publication flag for exposing the node publicly. This is runtime-only operational metadata and does not affect hashes.",
+                            "runtime_only": true
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "protect_from_deletion": false,
+            "description": null,
+            "columns": [
+                {
+                    "id": 217,
+                    "attr_name": "id",
+                    "column_name": "id",
+                    "db_type": "int64",
+                    "is_pk": true,
+                    "nullable": false,
+                    "is_unique": true
+                },
+                {
+                    "id": 218,
+                    "attr_name": "customer_code",
+                    "column_name": "customer_code",
+                    "db_type": "str",
+                    "is_pk": false,
+                    "nullable": false,
+                    "is_unique": true
+                },
+                {
+                    "id": 219,
+                    "attr_name": "name",
+                    "column_name": "name",
+                    "db_type": "str",
+                    "is_pk": false,
+                    "nullable": false,
+                    "is_unique": false
+                },
+                {
+                    "id": 220,
+                    "attr_name": "region",
+                    "column_name": "region",
+                    "db_type": "str",
+                    "is_pk": false,
+                    "nullable": false,
+                    "is_unique": false
+                }
+            ],
+            "foreign_keys": [],
+            "incoming_fks": [
+                {
+                    "id": 21,
+                    "source_column": "customer_id",
+                    "target_table": 55,
+                    "target_column": "id",
+                    "on_delete": "cascade"
+                }
+            ],
+            "indexes_meta": [
+                {
+                    "id": 89,
+                    "name": "uq_customer_code",
+                    "columns": [
+                        "customer_code"
+                    ]
+                },
+                {
+                    "id": 90,
+                    "name": "idx_region",
+                    "columns": [
+                        "region"
+                    ]
+                }
+            ],
+            "creation_date": "2026-03-24T19:13:59.740402Z",
+            "created_by_user": 4,
+            "organization_owner": 2,
+            "open_for_everyone": false
+        }
+    ]
+}

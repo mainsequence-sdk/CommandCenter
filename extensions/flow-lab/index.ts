@@ -7,6 +7,7 @@ const flowLabExtension: AppExtension = {
   id: "flow-lab",
   title: "Flow Lab",
   description: "Example extension that ships a custom widget and theme for demo surfaces.",
+  mockOnly: true,
   widgets: [orderBookWidget, orderBookDepthWidget],
   themes: [neonMintTheme],
 };

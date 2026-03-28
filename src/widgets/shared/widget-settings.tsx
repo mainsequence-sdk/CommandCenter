@@ -2,6 +2,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
   type ButtonHTMLAttributes,
   type ComponentType,
 } from "react";
@@ -10,7 +11,6 @@ import { Copy, Settings2, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -74,12 +74,12 @@ export function WidgetSettingsTrigger({
       aria-label={`Open settings for ${widgetTitle}`}
       title={`Open settings for ${widgetTitle}`}
       className={cn(
-        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-topbar-foreground",
+        "flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-[6px] border-none bg-transparent text-muted-foreground transition-colors hover:bg-muted/45 hover:text-topbar-foreground",
         className,
       )}
       {...props}
     >
-      <Settings2 className="h-3.5 w-3.5" />
+      <Settings2 className="h-3.25 w-3.25" />
     </button>
   );
 }
@@ -97,20 +97,22 @@ export function WidgetDuplicateTrigger({
       aria-label={`Duplicate ${widgetTitle}`}
       title={`Duplicate ${widgetTitle}`}
       className={cn(
-        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/35 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-topbar-foreground",
+        "flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-[6px] border-none bg-transparent text-muted-foreground transition-colors hover:bg-muted/45 hover:text-topbar-foreground",
         className,
       )}
       {...props}
     >
-      <Copy className="h-3.5 w-3.5" />
+      <Copy className="h-3.25 w-3.25" />
     </button>
   );
 }
 
-interface WidgetSettingsDialogProps<
+interface WidgetSettingsPanelProps<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
   editable?: boolean;
+  closeOnSave?: boolean;
+  footerActions?: ReactNode;
   instance: {
     id: string;
     title?: string;
@@ -124,31 +126,51 @@ interface WidgetSettingsDialogProps<
     props: TProps;
     presentation: WidgetInstancePresentation;
   }) => void;
-  open: boolean;
+  panelDescription?: string;
+  panelTitle?: string;
   persistenceNote?: string;
+  secondaryActionLabel?: string;
   widget: WidgetDefinition<TProps>;
 }
 
-export function WidgetSettingsDialog<
+export function WidgetSettingsPanel<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 >({
   editable = true,
+  closeOnSave = false,
+  footerActions,
   instance,
   onClose,
   onRemove,
   onSave,
-  open,
+  panelDescription = "Adjust the display title and widget props for this instance.",
+  panelTitle,
   persistenceNote,
+  secondaryActionLabel,
   widget,
-}: WidgetSettingsDialogProps<TProps>) {
-  const initialProps = useMemo(
+}: WidgetSettingsPanelProps<TProps>) {
+  const resolvedPanelTitle = panelTitle ?? `${instance.title ?? widget.title} Settings`;
+  const resolvedInitialProps = useMemo(
     () => cloneWidgetProps((instance.props ?? widget.exampleProps ?? {}) as TProps),
     [instance.props, widget.exampleProps],
   );
   const initialTitle = instance.title ?? "";
-  const initialPresentation = useMemo(
+  const resolvedInitialPresentation = useMemo(
     () => resolveWidgetInstancePresentation(widget, instance.presentation),
     [instance.presentation, widget],
+  );
+  const initialPropsJson = useMemo(
+    () => serializeWidgetProps(resolvedInitialProps),
+    [resolvedInitialProps],
+  );
+  const initialProps = useMemo(() => JSON.parse(initialPropsJson) as TProps, [initialPropsJson]);
+  const initialPresentationJson = useMemo(
+    () => JSON.stringify(resolvedInitialPresentation),
+    [resolvedInitialPresentation],
+  );
+  const initialPresentation = useMemo(
+    () => JSON.parse(initialPresentationJson) as WidgetInstancePresentation,
+    [initialPresentationJson],
   );
   const [instanceTitle, setInstanceTitle] = useState(initialTitle);
   const [draftProps, setDraftProps] = useState<TProps>(initialProps);
@@ -171,21 +193,17 @@ export function WidgetSettingsDialog<
   });
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
     setInstanceTitle(initialTitle);
     setDraftProps(initialProps);
     setDraftPresentation(initialPresentation);
-    setRawPropsValue(serializeWidgetProps(initialProps));
+    setRawPropsValue(initialPropsJson);
     setJsonError(null);
-  }, [open, instance.id]);
+  }, [initialPresentation, initialProps, initialPropsJson, initialTitle, instance.id]);
 
   const dirty =
     instanceTitle !== initialTitle ||
-    serializeWidgetProps(draftProps) !== serializeWidgetProps(initialProps) ||
-    JSON.stringify(draftPresentation) !== JSON.stringify(initialPresentation);
+    serializeWidgetProps(draftProps) !== initialPropsJson ||
+    JSON.stringify(draftPresentation) !== initialPresentationJson;
 
   function handleDraftPropsChange(nextProps: TProps) {
     const cloned = cloneWidgetProps(nextProps);
@@ -255,7 +273,10 @@ export function WidgetSettingsDialog<
       props: parsed.props,
       presentation: draftPresentation,
     });
-    onClose();
+
+    if (closeOnSave) {
+      onClose();
+    }
   }
 
   function handleRemove() {
@@ -264,15 +285,14 @@ export function WidgetSettingsDialog<
   }
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title={`${instance.title ?? widget.title} Settings`}
-      description="Adjust the display title and widget props for this instance."
-      className="max-w-[min(880px,calc(100vw-24px))]"
-      contentClassName="px-5 py-5 md:px-6 md:py-6"
-    >
-      <div className="space-y-6">
+    <section className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/88 shadow-[var(--shadow-panel)] backdrop-blur">
+      <div className="border-b border-border/70 px-5 py-5 md:px-6 md:py-6">
+        <div className="space-y-2">
+          <div className="text-xl font-semibold tracking-tight text-foreground">{resolvedPanelTitle}</div>
+          <p className="max-w-3xl text-sm text-muted-foreground">{panelDescription}</p>
+        </div>
+      </div>
+      <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="neutral">{widget.kind}</Badge>
           <Badge variant="neutral">{widget.source}</Badge>
@@ -467,10 +487,11 @@ export function WidgetSettingsDialog<
                 Remove widget
               </Button>
             ) : null}
+            {footerActions}
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={onClose}>
-              {editable ? "Cancel" : "Close"}
+              {secondaryActionLabel ?? (editable ? "Cancel" : "Close")}
             </Button>
             {editable ? (
               <Button onClick={handleSave} disabled={Boolean(jsonError) || !dirty}>
@@ -480,6 +501,6 @@ export function WidgetSettingsDialog<
           </div>
         </div>
       </div>
-    </Dialog>
+    </section>
   );
 }

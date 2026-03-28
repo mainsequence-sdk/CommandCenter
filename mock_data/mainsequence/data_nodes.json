@@ -1,104 +1,310 @@
 [
-  {
-    "id": 9101,
-    "storage_hash": "discount_curves_usd",
-    "creation_date": "2026-01-12T08:00:00Z",
-    "source_class_name": "rates.curves.DiscountCurveSource",
-    "protect_from_deletion": false,
-    "time_serie_source_code_git_hash": "abcdef1234567890",
-    "created_by_user": 1,
-    "open_for_everyone": true,
-    "data_source": null,
-    "data_source_open_for_everyone": true,
-    "identifier": "Discount Curves USD",
-    "description": "USD discount curves used by pricing and portfolio construction.",
-    "data_frequency_id": "daily",
-    "build_configuration": { "builder": "curve_bootstrap", "currency": "USD" },
-    "build_meta_data": { "owner": "rates" },
-    "compression_policy": { "compress_after": "7 days", "schedule_interval": "1 day", "initial_start": "2026-01-13T00:00:00Z", "timezone": "UTC" },
-    "retention_policy": { "drop_after": "365 days", "schedule_interval": "1 day", "initial_start": "2026-01-13T00:00:00Z", "timezone": "UTC" },
+{
+    "id": 714,
+    "storage_hash": "algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14",
+    "creation_date": "2025-10-31T13:48:15.032954Z",
+    "build_configuration": {
+        "is_demo": true,
+        "daily_dir": "/home/jose/Downloads/demo_data/us-equity-daily-ohlc-primary-secid-20220101-20220630",
+        "security_master_path": "/home/jose/Downloads/demo_data/sp500_equity_security_master.csv",
+        "time_series_class_import_path": {
+            "module": "__main__",
+            "qualname": "AlgoSeekDailyOHLCFIGI"
+        },
+        "arguments_to_ignore_from_storage_hash": [
+            "daily_dir",
+            "security_master_path"
+        ]
+    },
     "sourcetableconfiguration": {
-      "related_table": 9101,
-      "time_index_name": "time_index",
-      "column_dtypes_map": { "time_index": "timestamp", "curve": "text", "value": "float" },
-      "index_names": ["time_index", "curve"],
-      "last_time_index_value": "2026-03-24T16:00:00Z",
-      "earliest_index_value": "2026-01-12T08:00:00Z",
-      "table_partition": null,
-      "open_for_everyone": true,
-      "columns_metadata": [
-        { "source_config_id": 9101, "column_name": "time_index", "dtype": "timestamp", "label": "Time Index", "description": "Curve observation timestamp." },
-        { "source_config_id": 9101, "column_name": "curve", "dtype": "text", "label": "Curve", "description": "Curve name." },
-        { "source_config_id": 9101, "column_name": "value", "dtype": "float", "label": "Value", "description": "Curve value." }
-      ]
-    }
-  },
-  {
-    "id": 9102,
-    "storage_hash": "reference_fixings_usd",
-    "creation_date": "2026-01-12T08:05:00Z",
-    "source_class_name": "rates.fixings.ReferenceFixingSource",
+        "related_table": 714,
+        "time_index_name": "time_index",
+        "column_dtypes_map": {
+            "low": "float64",
+            "high": "float64",
+            "isin": "object",
+            "name": "object",
+            "open": "float64",
+            "vwap": "float64",
+            "close": "float64",
+            "secid": "int64",
+            "ticker": "object",
+            "volume": "int64",
+            "lowtime": "object",
+            "hightime": "object",
+            "opensize": "int64",
+            "closesize": "int64",
+            "dailyvwap": "float64",
+            "open_time": "int64",
+            "tradedate": "int64",
+            "time_index": "datetime64[ns, UTC]",
+            "primaryexchange": "object",
+            "adjustmentfactor": "float64",
+            "adjustmentreason": "object",
+            "finratotaltrades": "int64",
+            "finratotalvolume": "int64",
+            "listedtotaltrades": "int64",
+            "unique_identifier": "object",
+            "cumulativepricefactor": "float64",
+            "cumulativevolumefactor": "float64",
+            "finramarkethourstrades": "int64",
+            "finramarkethoursvolume": "int64",
+            "listedmarkethourstrades": "int64",
+            "listedmarkethoursvolume": "int64"
+        },
+        "index_names": [
+            "time_index",
+            "unique_identifier"
+        ],
+        "last_time_index_value": null,
+        "earliest_index_value": null,
+        "table_partition": {
+            "time_idx": {
+                "type": "INDEX",
+                "query": "USING BRIN (time_index)"
+            },
+            "unique_identifier_idx": {
+                "type": "INDEX",
+                "query": "USING BTREE (unique_identifier)"
+            },
+            "time_identifier_ev_idx": {
+                "type": "UNIQUE INDEX",
+                "query": "(time_index, unique_identifier)"
+            }
+        },
+        "open_for_everyone": true,
+        "columns_metadata": [
+            {
+                "source_config_id": 714,
+                "column_name": "adjustmentfactor",
+                "dtype": "float64",
+                "label": "Adjustment Factor",
+                "description": "Adjustment factor"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "adjustmentreason",
+                "dtype": "object",
+                "label": "Adjustment Reason",
+                "description": "Adjustment reason"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "close",
+                "dtype": "float64",
+                "label": "Close Price",
+                "description": "Primary exchange closing trade"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "closesize",
+                "dtype": "int64",
+                "label": "Close Size",
+                "description": "Primary exchange close trade size"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "cumulativepricefactor",
+                "dtype": "float64",
+                "label": "Cumulative Price Factor",
+                "description": "Cumulative price factor"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "cumulativevolumefactor",
+                "dtype": "float64",
+                "label": "Cumulative Volume Factor",
+                "description": "Cumulative volume factor"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "dailyvwap",
+                "dtype": "float64",
+                "label": "Daily VWAP",
+                "description": "VWAP for the whole day"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "finramarkethourstrades",
+                "dtype": "int64",
+                "label": "FINRA Market Hours Trades",
+                "description": "Number of FINRA/TRF trades during regular market hours"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "finramarkethoursvolume",
+                "dtype": "int64",
+                "label": "FINRA Market Hours Volume",
+                "description": "FINRA/TRF trading volume during regular market hours"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "finratotaltrades",
+                "dtype": "int64",
+                "label": "FINRA Total Trades",
+                "description": "Total number of FINRA/TRF trades for the trade date"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "finratotalvolume",
+                "dtype": "int64",
+                "label": "FINRA Total Volume",
+                "description": "FINRA/TRF trading volume for the whole day"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "high",
+                "dtype": "float64",
+                "label": "High Price",
+                "description": "Highest trade price from any exchange or TRF"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "hightime",
+                "dtype": "object",
+                "label": "High Time",
+                "description": "Time of the highest trade"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "isin",
+                "dtype": "object",
+                "label": "ISIN",
+                "description": "ISIN as of this trade date (optional)"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "listedmarkethourstrades",
+                "dtype": "int64",
+                "label": "Listed Market Hours Trades",
+                "description": "Number of trades during regular market hours in public listed exchanges"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "listedmarkethoursvolume",
+                "dtype": "int64",
+                "label": "Listed Market Hours Volume",
+                "description": "Public listed exchanges volume during regular hours"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "listedtotaltrades",
+                "dtype": "int64",
+                "label": "Listed Total Trades",
+                "description": "Total number of trades for the trade date (listed exchanges)"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "low",
+                "dtype": "float64",
+                "label": "Low Price",
+                "description": "Lowest trade price from any exchange or TRF"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "lowtime",
+                "dtype": "object",
+                "label": "Low Time",
+                "description": "Time of the lowest trade"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "name",
+                "dtype": "object",
+                "label": "Name",
+                "description": "Name of equity security"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "open",
+                "dtype": "float64",
+                "label": "Open Price",
+                "description": "Primary exchange opening trade"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "opensize",
+                "dtype": "int64",
+                "label": "Open Size",
+                "description": "Primary exchange open trade size"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "open_time",
+                "dtype": "int64",
+                "label": "Open Time",
+                "description": "Time of the Primary exchange opening trade"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "primaryexchange",
+                "dtype": "object",
+                "label": "Primary Exchange",
+                "description": "Primary listing exchange on this TradeDate"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "secid",
+                "dtype": "int64",
+                "label": "Algoseek SecId",
+                "description": "Algoseek unique Security ID"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "ticker",
+                "dtype": "object",
+                "label": "Ticker",
+                "description": "Symbol name"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "volume",
+                "dtype": "int64",
+                "label": "Listed Total Volume",
+                "description": "Public listed exchanges volume for the whole day"
+            },
+            {
+                "source_config_id": 714,
+                "column_name": "vwap",
+                "dtype": "float64",
+                "label": "Market VWAP",
+                "description": "VWAP during regular hours incl. Open/Close cross"
+            }
+        ]
+    },
+    "source_class_name": "AlgoSeekDailyOHLCFIGI",
     "protect_from_deletion": false,
-    "time_serie_source_code_git_hash": "abcdef1234567890",
-    "created_by_user": 1,
+    "time_serie_source_code_git_hash": "0bb842ea483e48858b6c96c9651bab37daeda07c",
+    "created_by_user": null,
     "open_for_everyone": true,
-    "data_source": null,
-    "data_source_open_for_everyone": true,
-    "identifier": "Reference Rate Fixings USD",
-    "description": "Daily USD reference rate fixings.",
-    "data_frequency_id": "daily",
-    "build_configuration": { "builder": "fixing_loader", "currency": "USD" },
-    "build_meta_data": { "owner": "rates" },
-    "compression_policy": { "compress_after": "14 days", "schedule_interval": "1 day", "initial_start": "2026-01-13T00:00:00Z", "timezone": "UTC" },
-    "retention_policy": { "drop_after": "730 days", "schedule_interval": "1 day", "initial_start": "2026-01-13T00:00:00Z", "timezone": "UTC" },
-    "sourcetableconfiguration": {
-      "related_table": 9102,
-      "time_index_name": "time_index",
-      "column_dtypes_map": { "time_index": "timestamp", "fixing_name": "text", "value": "float" },
-      "index_names": ["time_index", "fixing_name"],
-      "last_time_index_value": "2026-03-24T16:00:00Z",
-      "earliest_index_value": "2026-01-12T08:05:00Z",
-      "table_partition": null,
-      "open_for_everyone": true,
-      "columns_metadata": [
-        { "source_config_id": 9102, "column_name": "time_index", "dtype": "timestamp", "label": "Time Index", "description": "Fixing timestamp." },
-        { "source_config_id": 9102, "column_name": "fixing_name", "dtype": "text", "label": "Fixing", "description": "Fixing name." },
-        { "source_config_id": 9102, "column_name": "value", "dtype": "float", "label": "Value", "description": "Fixing value." }
-      ]
-    }
-  },
-  {
-    "id": 9301,
-    "storage_hash": "macro_factor_panel",
-    "creation_date": "2026-02-01T08:00:00Z",
-    "source_class_name": "macro.factors.PanelSource",
-    "protect_from_deletion": false,
-    "time_serie_source_code_git_hash": "1234567890abcdef",
-    "created_by_user": 1,
-    "open_for_everyone": true,
-    "data_source": null,
-    "data_source_open_for_everyone": true,
-    "identifier": "Macro Factor Panel",
-    "description": "Derived macro factor panel for dashboards and research.",
-    "data_frequency_id": "daily",
-    "build_configuration": { "builder": "macro_factor_panel" },
-    "build_meta_data": { "owner": "macro" },
-    "compression_policy": { "compress_after": "14 days", "schedule_interval": "1 day", "initial_start": "2026-02-02T00:00:00Z", "timezone": "UTC" },
-    "retention_policy": { "drop_after": "365 days", "schedule_interval": "1 day", "initial_start": "2026-02-02T00:00:00Z", "timezone": "UTC" },
-    "sourcetableconfiguration": {
-      "related_table": 9301,
-      "time_index_name": "time_index",
-      "column_dtypes_map": { "time_index": "timestamp", "factor": "text", "score": "float" },
-      "index_names": ["time_index", "factor"],
-      "last_time_index_value": "2026-03-24T12:00:00Z",
-      "earliest_index_value": "2026-02-01T08:00:00Z",
-      "table_partition": null,
-      "open_for_everyone": true,
-      "columns_metadata": [
-        { "source_config_id": 9301, "column_name": "time_index", "dtype": "timestamp", "label": "Time Index", "description": "Factor timestamp." },
-        { "source_config_id": 9301, "column_name": "factor", "dtype": "text", "label": "Factor", "description": "Factor name." },
-        { "source_config_id": 9301, "column_name": "score", "dtype": "float", "label": "Score", "description": "Factor score." }
-      ]
-    }
-  }
+    "data_source": {
+        "id": 2,
+        "related_resource": {
+            "id": 2,
+            "display_name": "Default DB",
+            "organization": 2,
+            "class_type": "timescale_db",
+            "status": "AVAILABLE"
+        },
+        "related_resource_class_type": "timescale_db"
+    },
+    "table_index_names": {
+        "time_idx_algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14": {
+            "type": "INDEX",
+            "query": "USING BRIN (time_index)"
+        },
+        "unique_identifier_idx_algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14": {
+            "type": "INDEX",
+            "query": "USING BTREE (unique_identifier)"
+        },
+        "time_identifier_ev_idx_algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14": {
+            "type": "UNIQUE INDEX",
+            "query": "(time_index, unique_identifier)"
+        }
+    },
+    "data_source_open_for_everyone": false,
+    "identifier": "algoseek_daily_ohlc_DEMO",
+    "description": "Algoseek Primary Exchange Daily OHLC (official open/close), FIGI-indexed; scans all CSVs in daily_dir.",
+    "data_frequency_id": "1d"
+}
 ]

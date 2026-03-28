@@ -1,11 +1,12 @@
 import { ArrowRight, LayoutTemplate, Settings2 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { SurfaceFavoriteButton } from "@/app/layout/SurfaceFavoriteButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useShellStore } from "@/stores/shell-store";
 import { CustomDashboardStudioPage } from "./CustomDashboardStudioPage";
+import { CustomWidgetSettingsPage } from "./CustomWidgetSettingsPage";
 import { CustomWorkspaceSettingsPage } from "./CustomWorkspaceSettingsPage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import {
@@ -91,7 +92,6 @@ function formatWorkspaceRefresh(workspace: { controls?: { refresh?: {
 }
 
 export function WorkspacesPage() {
-  const location = useLocation();
   const navigate = useNavigate();
   const favoriteWorkspaceIds = useShellStore((state) => state.favoriteWorkspaceIds);
   const toggleWorkspaceFavorite = useShellStore((state) => state.toggleWorkspaceFavorite);
@@ -107,8 +107,8 @@ export function WorkspacesPage() {
     persistenceMode,
     createWorkspace,
     requestedWorkspaceId,
+    selectedWorkspaceView,
   } = useCustomWorkspaceStudio();
-  const selectedWorkspaceView = new URLSearchParams(location.search).get("view");
   const backendMode = persistenceMode === "backend";
 
   if (!user) {
@@ -120,9 +120,13 @@ export function WorkspacesPage() {
   }
 
   if (requestedWorkspaceId && selectedDashboard) {
-    return selectedWorkspaceView === "settings"
-      ? <CustomWorkspaceSettingsPage />
-      : <CustomDashboardStudioPage />;
+    return selectedWorkspaceView === "settings" ? (
+      <CustomWorkspaceSettingsPage />
+    ) : selectedWorkspaceView === "widget-settings" ? (
+      <CustomWidgetSettingsPage />
+    ) : (
+      <CustomDashboardStudioPage />
+    );
   }
 
   return (

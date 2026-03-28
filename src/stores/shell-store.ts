@@ -2,10 +2,12 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { commandCenterConfig } from "@/config/command-center";
+import { env } from "@/config/env";
 
 export type LiveState = "connecting" | "connected" | "disconnected";
 
-const backendPreferencesEnabled = Boolean(commandCenterConfig.preferences.url.trim());
+const backendPreferencesEnabled =
+  !env.useMockData && Boolean(commandCenterConfig.preferences.url.trim());
 
 const noopStorage = {
   getItem: () => null,

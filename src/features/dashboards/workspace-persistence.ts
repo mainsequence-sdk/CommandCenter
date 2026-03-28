@@ -3,15 +3,22 @@ import {
   saveUserDashboardCollection,
   type UserDashboardCollection,
 } from "./custom-dashboard-storage";
+import { env } from "@/config/env";
 import {
   fetchWorkspaceCollectionFromBackend,
+  clearLegacyMockWorkspaceCollection,
   hasConfiguredWorkspaceBackend,
+  readLegacyMockWorkspaceCollection,
   saveWorkspaceCollectionToBackend,
 } from "./workspace-api";
 
 export type WorkspacePersistenceMode = "backend" | "local";
 
 export function getWorkspacePersistenceMode(): WorkspacePersistenceMode {
+  if (env.useMockData) {
+    return "local";
+  }
+
   return hasConfiguredWorkspaceBackend() ? "backend" : "local";
 }
 
@@ -21,7 +28,19 @@ export function isWorkspaceBackendEnabled() {
 
 export async function loadPersistedWorkspaceCollection(userId: string) {
   if (!isWorkspaceBackendEnabled()) {
-    return loadUserDashboardCollection(userId);
+    const localCollection = loadUserDashboardCollection(userId);
+
+    if (env.useMockData && localCollection.dashboards.length === 0) {
+      const legacyMockCollection = readLegacyMockWorkspaceCollection(userId);
+
+      if (legacyMockCollection?.dashboards.length) {
+        const migratedCollection = saveUserDashboardCollection(userId, legacyMockCollection);
+        clearLegacyMockWorkspaceCollection(userId);
+        return migratedCollection;
+      }
+    }
+
+    return localCollection;
   }
 
   return fetchWorkspaceCollectionFromBackend();

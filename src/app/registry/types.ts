@@ -7,6 +7,7 @@ export interface AppExtension {
   id: string;
   title: string;
   description?: string;
+  mockOnly?: boolean;
   widgets?: WidgetDefinition[];
   apps?: AppDefinition[];
   themes?: ThemePreset[];

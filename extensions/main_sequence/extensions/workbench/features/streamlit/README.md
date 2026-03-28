@@ -1,6 +1,6 @@
 # Streamlit Feature
 
-This feature owns the Workbench gallery page for published Streamlit resource releases.
+This feature owns the Forge gallery page for published Streamlit resource releases.
 
 ## Files
 

@@ -60,7 +60,7 @@ export function MainSequenceUpdateDependencyGraph({
               <span>{directionLabel(direction, t)}</span>
             </div>
             <div className="mt-1 text-sm text-muted-foreground">
-              {t("mainSequenceDependencyGraph.widget.summaryDescription")}
+              Interactive dependency explorer for Main Sequence update graphs.
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -105,7 +105,7 @@ export function MainSequenceUpdateDependencyGraph({
               {directionLabel(direction, t)}
             </CardTitle>
             <CardDescription>
-              {t("mainSequenceDependencyGraph.widget.legacyDescription")}
+              Interactive dependency explorer aligned with Main Sequence update graphs.
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">

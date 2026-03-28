@@ -1,0 +1,81 @@
+{
+    "edges": [
+        {
+            "source": 1167,
+            "target": 1166
+        }
+    ],
+    "nodes": [
+        {
+            "id": 1167,
+            "node_type": "data_node_update",
+            "update_hash": "algoseekdailyohlcfigi_a93cfd55f6d3e912050e9ea7d4125b49",
+            "card_title": "AlgoSeekDailyOHLCFIGI",
+            "depth": 0,
+            "color": "#4CAF50",
+            "background_color": "#4CAF50",
+            "icon": "",
+            "remote_table_type": "dynamic_table_metadata",
+            "properties": {
+                "update_hash": "algoseekdailyohlcfigi_a93cfd55f6d3e912050e9ea7d4125b49",
+                "human_readable": "algoseek_daily_ohlc_DEMO",
+                "data_node_update_id": 1167.0,
+                "simple_table_update_id": null,
+                "update_node_id": 1167,
+                "node_type": "data_node_update",
+                "remote_table_hash_id": "algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14",
+                "remote_table_id": 714,
+                "remote_table_type": "dynamic_table_metadata",
+                "data_source_id": 2,
+                "build_configuration": {
+                    "is_demo": true,
+                    "daily_dir": "/home/jose/Downloads/demo_data/us-equity-daily-ohlc-primary-secid-20220101-20220630",
+                    "security_master_path": "/home/jose/Downloads/demo_data/sp500_equity_security_master.csv",
+                    "time_series_class_import_path": {
+                        "module": "__main__",
+                        "qualname": "AlgoSeekDailyOHLCFIGI"
+                    },
+                    "arguments_to_ignore_from_storage_hash": [
+                        "daily_dir",
+                        "security_master_path"
+                    ]
+                },
+                "error_on_last_update": false,
+                "last_update": "2025-10-31T14:28:57.569800Z",
+                "next_update": "2025-10-31T14:29:00Z"
+            },
+            "card_subtitle": "",
+            "badges": []
+        },
+        {
+            "id": 1166,
+            "node_type": null,
+            "update_hash": "algoseeksecuritymaster_df245e4f3309145765ef5af26b47ef42",
+            "card_title": "AlgoSeekSecurityMaster",
+            "depth": 1,
+            "color": "#9E9E9E",
+            "background_color": "#9E9E9E",
+            "icon": "",
+            "remote_table_type": null,
+            "properties": {
+                "update_hash": "algoseeksecuritymaster_df245e4f3309145765ef5af26b47ef42",
+                "human_readable": "algoseek_security_master_DEMO",
+                "data_node_update_id": null,
+                "simple_table_update_id": null,
+                "update_node_id": 1166,
+                "node_type": null,
+                "remote_table_hash_id": "algoseeksecuritymaster_7580fbd7021bb3fb56c16ae142f6dacf",
+                "remote_table_id": 713,
+                "remote_table_type": null,
+                "data_source_id": 2,
+                "build_configuration": null,
+                "error_on_last_update": false,
+                "last_update": "2025-10-31T13:48:09.614305Z",
+                "next_update": "2025-10-31T13:49:00Z"
+            },
+            "card_subtitle": "",
+            "badges": []
+        }
+    ],
+    "groups": []
+}

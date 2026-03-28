@@ -777,14 +777,20 @@ export function MainSequenceDataNodeLocalUpdateDetail({
 
           {activeTabId === "graphs" ? (
             <div className="grid gap-4 xl:grid-cols-2">
-              <MainSequenceLocalUpdateDependencyGraph
-                direction="downstream"
-                localTimeSerieId={localTimeSerieId}
-              />
-              <MainSequenceLocalUpdateDependencyGraph
-                direction="upstream"
-                localTimeSerieId={localTimeSerieId}
-              />
+              <div className="min-h-[720px]">
+                <MainSequenceLocalUpdateDependencyGraph
+                  direction="downstream"
+                  localTimeSerieId={localTimeSerieId}
+                  variant="widget"
+                />
+              </div>
+              <div className="min-h-[720px]">
+                <MainSequenceLocalUpdateDependencyGraph
+                  direction="upstream"
+                  localTimeSerieId={localTimeSerieId}
+                  variant="widget"
+                />
+              </div>
             </div>
           ) : null}
 

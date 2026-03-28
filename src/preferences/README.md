@@ -54,6 +54,7 @@ Expected payload shape:
 - Theme preset selection now follows the same snapshot contract, so a backend-backed session rehydrates the last saved `themeId`.
 - The cache is only a startup optimization. The app still issues the backend `GET` on every load and replaces the cache with the normalized server response.
 - The dedicated favorites endpoints are also available in config so the frontend can move to per-favorite mutations later without changing the runtime config shape again.
+- `VITE_USE_MOCK_DATA=true` disables backend preference persistence and keeps the existing browser-local language/theme/favorites behavior, even if `preferences.url` is configured.
 - When `preferences.url` is blank or omitted, the app keeps the pre-existing browser-local behavior:
   - language persists through `localStorage`
   - theme preset persists through `localStorage`

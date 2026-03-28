@@ -22,5 +22,6 @@ This extension owns the mock application boundary for Command Center.
 
 - Keep all mock-only application code here instead of re-homing it under `core` or live vendor
   extensions.
-- The registry filters this extension out entirely when `VITE_USE_MOCK_DATA=false`; if new assets
-  are added here, they must be safe to disappear in live mode.
+- This extension is explicitly marked `mockOnly` in its `AppExtension` definition. The registry
+  removes mock-only extensions entirely when `VITE_USE_MOCK_DATA=false`, so none of this folder's
+  apps, widgets, or themes should appear in live mode.

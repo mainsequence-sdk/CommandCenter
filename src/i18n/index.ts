@@ -2,6 +2,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
 import { commandCenterConfig } from "@/config/command-center";
+import { env } from "@/config/env";
 import { readCachedCurrentCommandCenterPreferences } from "@/preferences/api";
 import {
   defaultLanguage,
@@ -11,7 +12,8 @@ import {
 } from "@/i18n/config";
 import { resources } from "@/i18n/resources";
 
-const backendPreferencesEnabled = Boolean(commandCenterConfig.preferences.url.trim());
+const backendPreferencesEnabled =
+  !env.useMockData && Boolean(commandCenterConfig.preferences.url.trim());
 
 function resolveInitialLanguage() {
   if (typeof window === "undefined") {

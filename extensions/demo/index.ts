@@ -10,6 +10,7 @@ const demoExtension: AppExtension = {
   id: "demo",
   title: "Demo Extension",
   description: "Mock application surfaces and mock-only widgets used for demo-mode builds.",
+  mockOnly: true,
   widgets: [yieldCurvePlotWidget, heatmapMatrixWidget, marketKpisWidget, activityFeedWidget],
   apps: [demoApp],
 };

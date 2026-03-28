@@ -24,6 +24,9 @@ data-node metadata and remote rows.
   widget settings or companion-card controls.
 - `LocalTimeSerieQuickSearchPicker.tsx`: reusable remote-search picker for selecting a
   `local_time_serie` update from widget settings.
+- `SimpleTableUpdateQuickSearchPicker.tsx`: reusable remote-search picker for selecting a
+  `simple_table_update` when a widget needs to bind to a Simple Table run rather than a Data Node
+  run.
 - `DataNodeDateTimeField.tsx`: shared local datetime input used by data-node widgets that support
   fixed saved ranges.
 

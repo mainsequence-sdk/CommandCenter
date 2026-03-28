@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import { GripHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -217,6 +224,8 @@ export function WidgetCanvasControls<
   onRuntimeStateChange,
   onPresentationChange,
   editable = false,
+  containerClassName,
+  containerStyle,
 }: {
   widget: WidgetDefinition<TProps>;
   props: TProps;
@@ -226,6 +235,8 @@ export function WidgetCanvasControls<
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   onPresentationChange?: (presentation: WidgetInstancePresentation) => void;
   editable?: boolean;
+  containerClassName?: string;
+  containerStyle?: CSSProperties;
 }) {
   const presentationRef = useRef(presentation);
   const [interaction, setInteraction] = useState<CompanionInteraction<TProps> | null>(null);
@@ -368,7 +379,7 @@ export function WidgetCanvasControls<
     });
   }
 
-  return (
+  const content = (
     <>
       {exposedFields.map((entry) =>
         renderCompanionField(
@@ -386,4 +397,14 @@ export function WidgetCanvasControls<
       )}
     </>
   );
+
+  if (containerClassName || containerStyle) {
+    return (
+      <div className={containerClassName} style={containerStyle}>
+        {content}
+      </div>
+    );
+  }
+
+  return content;
 }

@@ -561,14 +561,20 @@ export function MainSequenceSimpleTableUpdateDetail({
 
           {activeTabId === "graphs" ? (
             <div className="grid gap-4 xl:grid-cols-2">
-              <MainSequenceSimpleTableUpdateDependencyGraph
-                direction="downstream"
-                simpleTableUpdateId={simpleTableUpdateId}
-              />
-              <MainSequenceSimpleTableUpdateDependencyGraph
-                direction="upstream"
-                simpleTableUpdateId={simpleTableUpdateId}
-              />
+              <div className="min-h-[720px]">
+                <MainSequenceSimpleTableUpdateDependencyGraph
+                  direction="downstream"
+                  simpleTableUpdateId={simpleTableUpdateId}
+                  variant="widget"
+                />
+              </div>
+              <div className="min-h-[720px]">
+                <MainSequenceSimpleTableUpdateDependencyGraph
+                  direction="upstream"
+                  simpleTableUpdateId={simpleTableUpdateId}
+                  variant="widget"
+                />
+              </div>
             </div>
           ) : null}
 

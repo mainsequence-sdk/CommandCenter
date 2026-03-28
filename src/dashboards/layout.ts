@@ -13,7 +13,10 @@ import {
   isWorkspaceRowWidgetId,
   WORKSPACE_ROW_HEIGHT_ROWS,
 } from "@/dashboards/structural-widgets";
-import { resolveWidgetMinimalChrome } from "@/widgets/shared/chrome";
+import {
+  resolveWidgetMinimalChrome,
+  resolveWidgetSidebarOnly,
+} from "@/widgets/shared/chrome";
 
 const DEFAULT_GRID: ResolvedDashboardGridConfig = {
   columns: 12,
@@ -407,10 +410,22 @@ export function resolveDashboardLayout(
 ): ResolvedDashboardDefinition {
   const grid = resolveGridConfig(dashboard);
   const occupied = new Set<string>();
+  const sidebarOccupied = new Set<string>();
   const issues: DashboardLayoutIssue[] = [];
   const resolvedLayouts = new Map<string, ResolvedDashboardWidgetLayout>();
-  const rowWidgets = dashboard.widgets.filter((instance) => isWorkspaceRowWidgetId(instance.widgetId));
-  const contentWidgets = dashboard.widgets.filter((instance) => !isWorkspaceRowWidgetId(instance.widgetId));
+  const rowWidgets = dashboard.widgets.filter(
+    (instance) =>
+      isWorkspaceRowWidgetId(instance.widgetId) &&
+      !resolveWidgetSidebarOnly(instance.presentation),
+  );
+  const contentWidgets = dashboard.widgets.filter(
+    (instance) =>
+      !isWorkspaceRowWidgetId(instance.widgetId) &&
+      !resolveWidgetSidebarOnly(instance.presentation),
+  );
+  const sidebarWidgets = dashboard.widgets.filter((instance) =>
+    resolveWidgetSidebarOnly(instance.presentation),
+  );
 
   rowWidgets.forEach((instance) => {
     const normalized = normalizeWidgetLayout(instance, grid.columns, issues);
@@ -478,6 +493,20 @@ export function resolveDashboardLayout(
     }
 
     reserveCells(occupied, resolvedLayout);
+    resolvedLayouts.set(instance.id, resolvedLayout);
+  });
+
+  sidebarWidgets.forEach((instance) => {
+    const normalized = normalizeWidgetLayout(instance, grid.columns, issues);
+    const resolvedLayout = resolveWidgetPlacement(
+      sidebarOccupied,
+      grid.columns,
+      normalized.span,
+      normalized.position,
+      segments,
+    );
+
+    reserveCells(sidebarOccupied, resolvedLayout);
     resolvedLayouts.set(instance.id, resolvedLayout);
   });
 

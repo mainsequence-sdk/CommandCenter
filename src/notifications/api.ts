@@ -119,6 +119,15 @@ function buildMockNotificationsListPayload() {
   };
 }
 
+function isConfiguredNotificationRequest(
+  endpoint: NotificationEndpointRequest,
+) {
+  const pathname = normalizeMockNotificationPath(endpoint.path, endpoint.baseUrl);
+  const listPathname = normalizeMockNotificationPath(commandCenterConfig.notifications.listUrl);
+
+  return pathname === listPathname || pathname.startsWith(listPathname);
+}
+
 function handleMockNotificationsRequest<T>(
   endpoint: NotificationEndpointRequest,
   init?: RequestInit,
@@ -242,6 +251,17 @@ async function requestNotificationsJson<T>(
 
     if (mockResponse !== undefined) {
       return mockResponse;
+    }
+
+    if (isConfiguredNotificationRequest(endpoint)) {
+      throw new NotificationsApiError(
+        "Mock notifications handler could not resolve the request.",
+        500,
+        {
+          path: endpoint.path,
+          method: (init?.method ?? "GET").toUpperCase(),
+        },
+      );
     }
   }
 

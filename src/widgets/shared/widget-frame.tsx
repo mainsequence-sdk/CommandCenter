@@ -62,21 +62,23 @@ export function WidgetFrame({
           data-widget-shell-header=""
           className={cn(
             widgetShellHeaderClassName,
-            "flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3",
+            "flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5",
           )}
         >
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-card-foreground">
+            <div className="truncate text-[13px] font-semibold leading-5 text-card-foreground">
               {instance.title ?? widget.title}
             </div>
-            <div className="mt-1 flex items-center gap-2">
-              <Badge variant="neutral">{widget.kind}</Badge>
-              <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <Badge variant="neutral" className="px-1.5 py-0.5 text-[9px] tracking-[0.12em]">
+                {widget.kind}
+              </Badge>
+              <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                 {widget.source}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {headerActions}
             {showExplorerTrigger !== false ? (
               <WidgetExplorerTrigger
@@ -90,7 +92,7 @@ export function WidgetFrame({
                 onClick={onOpenSettings}
               />
             ) : null}
-            <GripHorizontal className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            <GripHorizontal className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         </header>
       ) : null}
