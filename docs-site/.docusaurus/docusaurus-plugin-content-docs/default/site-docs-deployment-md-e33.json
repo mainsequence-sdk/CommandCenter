@@ -1,0 +1,15 @@
+{
+  "id": "deployment",
+  "title": "Deployment",
+  "description": "This repository intentionally does not hardcode host-specific SPA fallback rules for static",
+  "source": "@site/../docs/deployment.md",
+  "sourceDirName": ".",
+  "slug": "/deployment",
+  "permalink": "/docs/deployment",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/deployment.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

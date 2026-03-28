@@ -50,6 +50,10 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "deployment",
+              "path": "/docs/deployment"
+            },
+            {
               "id": "extensions",
               "path": "/docs/extensions",
               "sidebar": "docsSidebar"

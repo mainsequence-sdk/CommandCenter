@@ -11,7 +11,14 @@ const sidebars = {
       type: "category",
       label: "Platform Foundation",
       collapsed: false,
-      items: ["architecture", "configuration", "backend-and-auth", "theming", "internationalization"],
+      items: [
+        "architecture",
+        "configuration",
+        "backend-and-auth",
+        "deployment",
+        "theming",
+        "internationalization",
+      ],
     },
     {
       type: "category",

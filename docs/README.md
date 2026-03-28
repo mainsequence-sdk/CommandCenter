@@ -21,9 +21,10 @@ product surface that feels deliberate, fast, and deeply customized to your own d
 10. [Extensions](./extensions.md)
 11. [Theming](./theming.md)
 12. [Backend and Auth Integration](./backend-and-auth.md)
-13. [Notifications](./notifications.md)
-14. [RBAC Assignment Matrix](./rbac-assignment-matrix.md)
-15. [Access & RBAC App](./access-rbac-app.md)
+13. [Deployment](./deployment.md)
+14. [Notifications](./notifications.md)
+15. [RBAC Assignment Matrix](./rbac-assignment-matrix.md)
+16. [Access & RBAC App](./access-rbac-app.md)
 
 ## Why it exists
 
