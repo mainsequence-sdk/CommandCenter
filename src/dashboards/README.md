@@ -6,7 +6,7 @@ surfaces and the editable workspace studio.
 ## Entry Points
 
 - `types.ts`: canonical dashboard, widget-instance, and resolved-layout types.
-- `layout.ts`: current collision-safe dashboard layout resolver, including Grafana-style row
+- `layout.ts`: current collision-safe dashboard layout resolver, including collapsible row
   sequencing, sidebar-only widget exclusion from canvas occupancy, and normalized grid resolution.
 - `DashboardControls.tsx`: shared dashboard controls and time-range/refresh coordination.
 - `DashboardWidgetRegistry.tsx`: runtime widget-instance registry used for linked-widget
@@ -24,7 +24,7 @@ surfaces and the editable workspace studio.
   materialization re-resolves the full layout.
 - Row widgets are now first-class grid-managed items. They stay full-width, fixed-height, and
   non-resizable, and they only allow dragging while collapsed.
-- Row ownership now follows the Grafana pattern: expanded rows are represented by sequence in the
+- Row ownership now follows the current row model: expanded rows are represented by sequence in the
   top-level widget list, while collapsed rows serialize their hidden children into
   `DashboardWidgetInstance.row.children`.
 - Companion canvas cards still belong to widget presentation state rather than the dashboard grid

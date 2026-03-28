@@ -1,6 +1,6 @@
 # Workspace Row Widget
 
-This widget is a workspace layout primitive modeled after Grafana rows rather than a normal content panel.
+This widget is a workspace layout primitive modeled after collapsible dashboard rows rather than a normal content panel.
 
 ## Purpose
 

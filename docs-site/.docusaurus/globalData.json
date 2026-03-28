@@ -16,6 +16,10 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "adr-shared-workspace-state",
+              "path": "/docs/adr-shared-workspace-state"
+            },
+            {
               "id": "apps-and-surfaces",
               "path": "/docs/apps-and-surfaces",
               "sidebar": "docsSidebar"
@@ -74,6 +78,14 @@
               "id": "theming",
               "path": "/docs/theming",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "workspace-backend-model",
+              "path": "/docs/workspace-backend-model"
+            },
+            {
+              "id": "workspaces",
+              "path": "/docs/workspaces"
             }
           ],
           "draftIds": [],

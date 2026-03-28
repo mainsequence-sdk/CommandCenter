@@ -1,0 +1,15 @@
+{
+  "id": "adr-shared-workspace-state",
+  "title": "ADR: Shared Workspace Content vs Per-User View State",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr-shared-workspace-state.md",
+  "sourceDirName": ".",
+  "slug": "/adr-shared-workspace-state",
+  "permalink": "/docs/adr-shared-workspace-state",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr-shared-workspace-state.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

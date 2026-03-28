@@ -1,0 +1,15 @@
+{
+  "id": "workspace-backend-model",
+  "title": "Workspace Backend Model",
+  "description": "Purpose",
+  "source": "@site/../docs/workspace-backend-model.md",
+  "sourceDirName": ".",
+  "slug": "/workspace-backend-model",
+  "permalink": "/docs/workspace-backend-model",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/workspace-backend-model.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

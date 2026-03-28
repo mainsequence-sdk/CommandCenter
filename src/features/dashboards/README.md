@@ -68,7 +68,7 @@ These flows are all part of one app surface, with instance state selected throug
 - Sidebar-only widgets can still expose selected schema fields on the canvas through the shared companion-field system. The widget remains the single owner of props/runtime, while the canvas cards are only projections of that sidebar-owned instance.
 - Sidebar-only widgets must not reserve grid cells in the main canvas layout. They stay mounted for runtime publication, but only visible companion cards are allowed to create actual canvas DOM or consume placement space.
 - In the studio canvas, exposed companion fields now render as first-class `react-grid-layout` items instead of floating absolute overlays. Their grid geometry persists into widget presentation state, so they move and resize through the same layout engine as normal widgets while still remaining owned by the original widget instance.
-- Workspace rows now follow a Grafana-style model instead of the old divider-band model. A row is a
+- Workspace rows now follow a collapsible row model instead of the old divider-band model. A row is a
   full-width header item in the main grid; when expanded, its children are simply the following
   sibling widgets until the next row, and when collapsed those child widgets are serialized into
   the row instance itself.

@@ -1,14 +1,23 @@
 // @ts-check
 
+const githubRepositoryOwner = process.env.GITHUB_REPOSITORY_OWNER || "mainsequence-sdk";
+const githubRepositoryName =
+  process.env.GITHUB_REPOSITORY?.split("/")[1] || "CommandCenter";
+const isGitHubPagesBuild = process.env.GITHUB_ACTIONS === "true";
+const docsSiteUrl = process.env.DOCS_SITE_URL || `https://${githubRepositoryOwner}.github.io`;
+const docsBaseUrl =
+  process.env.DOCS_BASE_URL || (isGitHubPagesBuild ? `/${githubRepositoryName}/` : "/docs/");
+const appUrl = process.env.COMMAND_CENTER_APP_URL || "http://localhost:5173/app";
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Main Sequence Command Center",
   tagline: "Launch branded command surfaces faster.",
   favicon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1017'/%3E%3Cpath d='M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z' fill='%23f1e7c9'/%3E%3C/svg%3E",
-  url: "http://localhost:3000",
-  baseUrl: "/docs/",
-  organizationName: "main-sequence",
-  projectName: "command-center",
+  url: docsSiteUrl,
+  baseUrl: docsBaseUrl,
+  organizationName: githubRepositoryOwner,
+  projectName: githubRepositoryName,
   onBrokenLinks: "throw",
   markdown: {
     hooks: {
@@ -53,7 +62,7 @@ const config = {
             label: "Documentation",
           },
           {
-            href: "http://localhost:5173/app",
+            href: appUrl,
             label: "Open App",
             position: "right",
           },
@@ -84,7 +93,7 @@ const config = {
             items: [
               {
                 label: "Command Center App",
-                href: "http://localhost:5173/app",
+                href: appUrl,
               },
               {
                 label: "Extensions",
@@ -97,8 +106,8 @@ const config = {
       },
       colorMode: {
         defaultMode: "dark",
-        disableSwitch: false,
-        respectPrefersColorScheme: true,
+        disableSwitch: true,
+        respectPrefersColorScheme: false,
       },
     }),
 };

@@ -1,20 +1,24 @@
 {
-  "/docs/-e24": {
+  "/docs/-024": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "aba21aa0"
     }
   },
-  "/docs/-51e": {
+  "/docs/-4e7": {
     "__comp": "a7bd4aaa",
     "__props": "11b43341"
   },
-  "/docs/-6ae": {
+  "/docs/-415": {
     "__comp": "a94703ab"
   },
   "/docs/access-rbac-app-f1f": {
     "__comp": "17896441",
     "content": "d424c00a"
+  },
+  "/docs/adr-shared-workspace-state-edd": {
+    "__comp": "17896441",
+    "content": "c25ffb0d"
   },
   "/docs/apps-and-surfaces-7ef": {
     "__comp": "17896441",
@@ -59,6 +63,14 @@
   "/docs/theming-4c1": {
     "__comp": "17896441",
     "content": "5a0f8180"
+  },
+  "/docs/workspace-backend-model-f87": {
+    "__comp": "17896441",
+    "content": "012b6ed1"
+  },
+  "/docs/workspaces-aa3": {
+    "__comp": "17896441",
+    "content": "2e1a73b3"
   },
   "/docs/-597": {
     "__comp": "17896441",

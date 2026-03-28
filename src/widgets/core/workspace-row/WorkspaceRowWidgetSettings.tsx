@@ -31,7 +31,7 @@ export function WorkspaceRowWidgetSettings({
       </div>
 
       <div className="text-sm text-muted-foreground">
-        Rows now behave like Grafana rows: a full-width header in the main grid that can collapse its
+        Rows now behave like collapsible dashboard rows: a full-width header in the main grid that can collapse its
         child widgets into the row model. Collapse and expand from the row header on the canvas.
       </div>
 

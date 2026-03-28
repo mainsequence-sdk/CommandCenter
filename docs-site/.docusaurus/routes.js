@@ -4,21 +4,26 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 export default [
   {
     path: '/docs/',
-    component: ComponentCreator('/docs/', 'e24'),
+    component: ComponentCreator('/docs/', '024'),
     routes: [
       {
         path: '/docs/',
-        component: ComponentCreator('/docs/', '51e'),
+        component: ComponentCreator('/docs/', '4e7'),
         routes: [
           {
             path: '/docs/',
-            component: ComponentCreator('/docs/', '6ae'),
+            component: ComponentCreator('/docs/', '415'),
             routes: [
               {
                 path: '/docs/access-rbac-app',
                 component: ComponentCreator('/docs/access-rbac-app', 'f1f'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr-shared-workspace-state',
+                component: ComponentCreator('/docs/adr-shared-workspace-state', 'edd'),
+                exact: true
               },
               {
                 path: '/docs/apps-and-surfaces',
@@ -85,6 +90,16 @@ export default [
                 component: ComponentCreator('/docs/theming', '4c1'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/workspace-backend-model',
+                component: ComponentCreator('/docs/workspace-backend-model', 'f87'),
+                exact: true
+              },
+              {
+                path: '/docs/workspaces',
+                component: ComponentCreator('/docs/workspaces', 'aa3'),
+                exact: true
               },
               {
                 path: '/docs/',

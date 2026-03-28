@@ -1,8 +1,10 @@
 export default {
+  "012b6ed1": [() => import(/* webpackChunkName: "012b6ed1" */ "@site/../docs/workspace-backend-model.md"), "@site/../docs/workspace-backend-model.md", require.resolveWeak("@site/../docs/workspace-backend-model.md")],
   "11b43341": [() => import(/* webpackChunkName: "11b43341" */ "@generated/docusaurus-plugin-content-docs/default/p/docs-7fc.json"), "@generated/docusaurus-plugin-content-docs/default/p/docs-7fc.json", require.resolveWeak("@generated/docusaurus-plugin-content-docs/default/p/docs-7fc.json")],
   "17896441": [() => import(/* webpackChunkName: "17896441" */ "@theme/DocItem"), "@theme/DocItem", require.resolveWeak("@theme/DocItem")],
   "23c664e3": [() => import(/* webpackChunkName: "23c664e3" */ "@site/../docs/architecture.md"), "@site/../docs/architecture.md", require.resolveWeak("@site/../docs/architecture.md")],
   "2bbf879d": [() => import(/* webpackChunkName: "2bbf879d" */ "@site/../docs/configuration.md"), "@site/../docs/configuration.md", require.resolveWeak("@site/../docs/configuration.md")],
+  "2e1a73b3": [() => import(/* webpackChunkName: "2e1a73b3" */ "@site/../docs/workspaces.md"), "@site/../docs/workspaces.md", require.resolveWeak("@site/../docs/workspaces.md")],
   "383f4ad8": [() => import(/* webpackChunkName: "383f4ad8" */ "@site/../docs/backend-and-auth.md"), "@site/../docs/backend-and-auth.md", require.resolveWeak("@site/../docs/backend-and-auth.md")],
   "3b5e5b84": [() => import(/* webpackChunkName: "3b5e5b84" */ "@site/../docs/extensions.md"), "@site/../docs/extensions.md", require.resolveWeak("@site/../docs/extensions.md")],
   "40c60018": [() => import(/* webpackChunkName: "40c60018" */ "@site/../docs/dashboard-layouts.md"), "@site/../docs/dashboard-layouts.md", require.resolveWeak("@site/../docs/dashboard-layouts.md")],
@@ -16,5 +18,6 @@ export default {
   "a96ec439": [() => import(/* webpackChunkName: "a96ec439" */ "@site/../docs/notifications.md"), "@site/../docs/notifications.md", require.resolveWeak("@site/../docs/notifications.md")],
   "aba21aa0": [() => import(/* webpackChunkName: "aba21aa0" */ "@generated/docusaurus-plugin-content-docs/default/__plugin.json"), "@generated/docusaurus-plugin-content-docs/default/__plugin.json", require.resolveWeak("@generated/docusaurus-plugin-content-docs/default/__plugin.json")],
   "ae6eefca": [() => import(/* webpackChunkName: "ae6eefca" */ "@site/../docs/rbac-assignment-matrix.md"), "@site/../docs/rbac-assignment-matrix.md", require.resolveWeak("@site/../docs/rbac-assignment-matrix.md")],
+  "c25ffb0d": [() => import(/* webpackChunkName: "c25ffb0d" */ "@site/../docs/adr-shared-workspace-state.md"), "@site/../docs/adr-shared-workspace-state.md", require.resolveWeak("@site/../docs/adr-shared-workspace-state.md")],
   "d424c00a": [() => import(/* webpackChunkName: "d424c00a" */ "@site/../docs/access-rbac-app.md"), "@site/../docs/access-rbac-app.md", require.resolveWeak("@site/../docs/access-rbac-app.md")],
   "d505d09c": [() => import(/* webpackChunkName: "d505d09c" */ "@site/../docs/internationalization.md"), "@site/../docs/internationalization.md", require.resolveWeak("@site/../docs/internationalization.md")],};

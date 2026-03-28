@@ -101,7 +101,7 @@ Dashboards can also render a shared control strip for time range selection and r
 
 By default, dashboards render:
 
-- a Grafana-style time range menu
+- a shared time range menu
 - a manual refresh button with auto-refresh interval menu
 - a share button that copies the current dashboard state
 - a view menu with kiosk mode and open-in-new-tab actions

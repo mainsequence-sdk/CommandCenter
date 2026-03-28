@@ -8,7 +8,7 @@ export const workspaceRowWidget: WidgetDefinition<WorkspaceRowWidgetProps> = {
   id: WORKSPACE_ROW_WIDGET_ID,
   title: "Row",
   description:
-    "Grafana-style workspace row header that can collapse or expand the following sibling widgets.",
+    "Workspace row header that can collapse or expand the following sibling widgets.",
   category: "Workspace",
   kind: "custom",
   source: "core",
