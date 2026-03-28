@@ -1,15 +1,21 @@
-<p align="center">
-  <img
-    src="./config/branding/logo_lightmode.png#gh-dark-mode-only"
-    alt="Main Sequence Command Center"
-    width="420"
-  />
-  <img
-    src="./config/branding/logo_darkmode.png#gh-light-mode-only"
-    alt="Main Sequence Command Center"
-    width="420"
-  />
-</p>
+<table align="center">
+  <tr>
+    <td align="center" bgcolor="#020409" width="520">
+      <br />
+      <img
+        src="./config/branding/logo_darkmode.png#gh-dark-mode-only"
+        alt="Main Sequence Command Center"
+        width="420"
+      />
+      <img
+        src="./config/branding/logo_lightmode.png#gh-light-mode-only"
+        alt="Main Sequence Command Center"
+        width="420"
+      />
+      <br />
+    </td>
+  </tr>
+</table>
 
 <p align="center">
   <a href="https://github.com/mainsequence-sdk/CommandCenter/actions/workflows/ci.yml">
