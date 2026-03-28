@@ -6,6 +6,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 const devAuthProxyPrefix = "/__command_center_auth__";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,7 +32,7 @@ function readLoopbackAuthProxyTarget() {
 const loopbackAuthProxyTarget = readLoopbackAuthProxyTarget();
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), cloudflare()],
   resolve: {
     alias: {
       "@": new URL("./src", import.meta.url).pathname,
