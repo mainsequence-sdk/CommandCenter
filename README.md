@@ -1,9 +1,80 @@
 <p align="center">
   <img
-    src="./config/branding/logo_lightmode.png"
-    alt="Main Sequence"
-    width="320"
+    src="./config/branding/logo_lightmode.png#gh-dark-mode-only"
+    alt="Main Sequence Command Center"
+    width="420"
   />
+  <img
+    src="./config/branding/logo_darkmode.png#gh-light-mode-only"
+    alt="Main Sequence Command Center"
+    width="420"
+  />
+</p>
+
+<p align="center">
+  <a href="https://github.com/mainsequence-sdk/CommandCenter/actions/workflows/ci.yml">
+    <img
+      src="https://img.shields.io/github/actions/workflow/status/mainsequence-sdk/CommandCenter/ci.yml?branch=main&style=flat-square&label=CI"
+      alt="CI"
+    />
+  </a>
+  <a href="https://mainsequence-sdk.github.io/CommandCenter/">
+    <img
+      src="https://img.shields.io/badge/docs-Docusaurus-5FB4FF?style=flat-square&logo=docusaurus&logoColor=white"
+      alt="Documentation"
+    />
+  </a>
+  <a href="https://github.com/mainsequence-sdk/CommandCenter/pulls">
+    <img
+      src="https://img.shields.io/badge/PRs-welcome-61C8FF?style=flat-square"
+      alt="PRs welcome"
+    />
+  </a>
+  <a href="https://github.com/mainsequence-sdk/CommandCenter/issues">
+    <img
+      src="https://img.shields.io/github/issues/mainsequence-sdk/CommandCenter?style=flat-square&label=Open%20Issues"
+      alt="Open issues"
+    />
+  </a>
+  <a href="https://github.com/mainsequence-sdk/CommandCenter/commits/main">
+    <img
+      src="https://img.shields.io/github/last-commit/mainsequence-sdk/CommandCenter?style=flat-square&label=Last%20commit"
+      alt="Last commit"
+    />
+  </a>
+  <a href="https://github.com/mainsequence-sdk/CommandCenter/pulse">
+    <img
+      src="https://img.shields.io/badge/Maintained-actively-5FB4FF?style=flat-square"
+      alt="Actively maintained"
+    />
+  </a>
+</p>
+
+<p align="center">
+  <a href="./LICENSE">
+    <img
+      src="https://img.shields.io/badge/license-Apache%202.0-121A29?style=flat-square"
+      alt="Apache 2.0 license"
+    />
+  </a>
+  <a href="./CONTRIBUTING.md">
+    <img
+      src="https://img.shields.io/badge/Contributing-guide-121A29?style=flat-square"
+      alt="Contributing guide"
+    />
+  </a>
+  <a href="./CODE_OF_CONDUCT.md">
+    <img
+      src="https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant-121A29?style=flat-square"
+      alt="Code of Conduct"
+    />
+  </a>
+  <a href="https://github.com/mainsequence-sdk/CommandCenter#run-it">
+    <img
+      src="https://img.shields.io/badge/App-Run%20Locally-121A29?style=flat-square&logo=react&logoColor=white"
+      alt="Run locally"
+    />
+  </a>
 </p>
 
 # Main Sequence Command Center

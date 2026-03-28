@@ -6,7 +6,12 @@ on:
       - main
     paths:
       - "docs/**"
-      - "docs-site/**"
+      - "docs-site/docusaurus.config.js"
+      - "docs-site/sidebars.js"
+      - "docs-site/package.json"
+      - "docs-site/package-lock.json"
+      - "docs-site/src/**"
+      - "docs-site/static/**"
       - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
 
