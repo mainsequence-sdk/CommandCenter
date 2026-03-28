@@ -81,9 +81,7 @@ export function LoginPage() {
                   {`Bypass auth for local development in ${app.shortName}.`}
                 </CardDescription>
               ) : isMockAuth ? (
-                <CardDescription>
-                  {`Mock auth is enabled for ${app.shortName}.`}
-                </CardDescription>
+                <CardDescription>Demo version of {app.shortName}.</CardDescription>
               ) : null}
             </div>
           </CardHeader>
@@ -176,10 +174,8 @@ export function LoginPage() {
                 for RBAC.
               </div>
             ) : isMockAuth && mockAuthHint ? (
-              <div className="mt-5 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
-                <span className="font-mono text-foreground">VITE_USE_MOCK_DATA=true</span> is
-                enabled. Mock sign-in uses <span className="font-mono text-foreground">{mockAuthHint.identifier}</span> /{" "}
-                <span className="font-mono text-foreground">{mockAuthHint.password}</span>.
+              <div className="mt-5 rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
+                <span className="font-semibold uppercase tracking-[0.16em]">Demo version</span>
               </div>
             ) : null}
           </CardContent>

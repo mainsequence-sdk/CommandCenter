@@ -30,6 +30,12 @@
       alt="Documentation"
     />
   </a>
+  <a href="https://commandcenterdemo.jose-f0b.workers.dev/login">
+    <img
+      src="https://img.shields.io/badge/live-demo-E8A23C?style=flat-square&logo=cloudflare&logoColor=white"
+      alt="Live demo"
+    />
+  </a>
   <a href="https://github.com/mainsequence-sdk/CommandCenter/pulls">
     <img
       src="https://img.shields.io/badge/PRs-welcome-61C8FF?style=flat-square"
@@ -158,6 +164,10 @@ cp .env.example .env
 `VITE_INCLUDE_WORKSPACES=true` keeps the `Workspaces` application registered. Set `VITE_INCLUDE_WORKSPACES=false` to remove the `workspace-studio` app from navigation, search, topbar favorites, and routed app resolution.
 
 Authentication is configured separately in `config/command-center.yaml` with the JWT token, refresh, and user-details endpoints.
+
+## Live demo
+
+[Open the demo login](https://commandcenterdemo.jose-f0b.workers.dev/login)
 
 ## Documentation
 
