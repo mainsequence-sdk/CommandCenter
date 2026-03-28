@@ -6,6 +6,8 @@ import { router } from "@/app/router";
 import { AppProviders } from "@/app/providers/AppProviders";
 import { commandCenterConfig } from "@/config/command-center";
 import "@/i18n";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 import "@/styles/globals.css";
 import { initializeDocumentTheme } from "@/themes/ThemeProvider";
 

@@ -14,7 +14,6 @@ This extension owns the mock application boundary for Command Center.
 ## Owned Assets
 
 - the `demo` application surfaces
-- the narrative market brief page
 - the mock-only `yield-curve-plot` widget
 - the mock-only `heatmap-matrix-chart` widget
 

@@ -16,6 +16,7 @@ import {
 import { DataNodeVisualizerTable } from "./DataNodeVisualizerTable";
 import type { DataNodeVisualizerControllerContext } from "./controller";
 import {
+  buildDataNodeVisualizerChartSeries,
   buildDataNodeVisualizerSeries,
   buildDataNodeVisualizerTableColumns,
   resolveDataNodeVisualizerDateRange,
@@ -24,6 +25,7 @@ import {
   type MainSequenceDataNodeVisualizerWidgetProps,
 } from "./dataNodeVisualizerModel";
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
+import { DataNodeVisualizerChartErrorBoundary } from "./DataNodeVisualizerChartErrorBoundary";
 import {
   resolveDataNodeWidgetPrefilledFixedRange,
   resolveDataNodeWidgetPreviewAnchorMs,
@@ -180,6 +182,10 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
         : { series: [], droppedGroups: 0, filteredGroups: 0, totalGroups: 0 },
     [previewRows, resolvedConfig],
   );
+  const previewChartSeriesResult = useMemo(
+    () => buildDataNodeVisualizerChartSeries(previewSeriesResult.series),
+    [previewSeriesResult.series],
+  );
   const previewTableColumns = useMemo(
     () =>
       resolvedConfig
@@ -206,6 +212,35 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
       ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
       : "No chartable rows are available for the selected range.";
   const canRenderChartPreview = Boolean(resolvedConfig?.xField && resolvedConfig?.yField);
+  const suggestedGroupField = useMemo(() => {
+    if (!resolvedConfig || resolvedConfig.groupField) {
+      return null;
+    }
+
+    const fallbackGroupField = selectedDetail?.sourcetableconfiguration?.index_names?.[1];
+
+    return typeof fallbackGroupField === "string" && fallbackGroupField.trim()
+      ? fallbackGroupField
+      : null;
+  }, [resolvedConfig, selectedDetail?.sourcetableconfiguration?.index_names]);
+  const previewChartCollisionMessage = useMemo(() => {
+    if (previewChartSeriesResult.collapsedPointCount <= 0) {
+      return null;
+    }
+
+    const baseMessage = `Merged ${previewChartSeriesResult.collapsedPointCount.toLocaleString()} preview row ${
+      previewChartSeriesResult.collapsedPointCount === 1 ? "collision" : "collisions"
+    } that resolved to the same chart second. The preview keeps the latest point per second.`;
+
+    if (suggestedGroupField) {
+      return `${baseMessage} Consider grouping by ${suggestedGroupField}.`;
+    }
+
+    return baseMessage;
+  }, [
+    previewChartSeriesResult.collapsedPointCount,
+    suggestedGroupField,
+  ]);
 
   const seriesStyleRows = useMemo(() => {
     const palette = [
@@ -330,6 +365,15 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
 
                 {!previewIsLoading &&
                 !previewErrorMessage &&
+                activePreviewMode === "chart" &&
+                previewChartCollisionMessage ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                    {previewChartCollisionMessage}
+                  </div>
+                ) : null}
+
+                {!previewIsLoading &&
+                !previewErrorMessage &&
                 previewRange.hasValidRange &&
                 (activePreviewMode === "table" || canRenderChartPreview) ? (
                   <>
@@ -357,14 +401,22 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                         rows={previewRows}
                       />
                     ) : (
-                      <TradingViewSeriesChart
-                        chartType={resolvedConfig.chartType}
-                        className="min-h-[280px]"
-                        emptyMessage={previewChartEmptyMessage}
-                        normalizationTimeMs={previewNormalizationTimeMs}
-                        series={previewSeriesResult.series}
-                        seriesAxisMode={resolvedConfig.seriesAxisMode}
-                      />
+                      <DataNodeVisualizerChartErrorBoundary
+                        fallback={(
+                          <div className="flex min-h-[280px] items-center justify-center rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/10 px-4 py-6 text-center text-sm text-danger">
+                            The preview chart could not be rendered. Try grouping the rows into separate series or choosing a different time field.
+                          </div>
+                        )}
+                      >
+                        <TradingViewSeriesChart
+                          chartType={resolvedConfig.chartType}
+                          className="min-h-[280px]"
+                          emptyMessage={previewChartEmptyMessage}
+                          normalizationTimeMs={previewNormalizationTimeMs}
+                          series={previewChartSeriesResult.series}
+                          seriesAxisMode={resolvedConfig.seriesAxisMode}
+                        />
+                      </DataNodeVisualizerChartErrorBoundary>
                     )}
                   </>
                 ) : null}

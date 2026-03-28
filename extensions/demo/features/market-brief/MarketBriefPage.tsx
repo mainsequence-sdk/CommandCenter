@@ -78,7 +78,7 @@ export function MarketBriefPage() {
             {[
               "Review overnight risk alerts before the open.",
               "Confirm routing limits and restricted-symbol controls.",
-              "Scan catalyst tape before switching into the Flow Lab surface.",
+              "Scan the catalyst tape before moving into the live monitoring workflow.",
             ].map((item) => (
               <div
                 key={item}

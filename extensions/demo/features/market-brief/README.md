@@ -1,6 +1,6 @@
 # Demo Market Brief
 
-This feature owns the narrative page surface used by the Demo extension.
+This feature owns the narrative page surface retained by the Demo extension.
 
 Main entry point:
 
@@ -14,4 +14,5 @@ Dependencies:
 Maintenance notes:
 
 - Keep this page inside the Demo extension because it only exists for the shipped mock application.
+- This page is not currently registered in the default Demo app navigation.
 - If the Demo app is retired or replaced, remove this feature with the extension instead of re-homing it under generic `src/features/`.

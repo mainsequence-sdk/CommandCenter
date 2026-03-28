@@ -79,6 +79,12 @@ export interface DataNodeVisualizerSeriesResult {
   series: DataNodeVisualizerSeries[];
 }
 
+export interface DataNodeVisualizerChartSeriesResult {
+  affectedSeriesCount: number;
+  collapsedPointCount: number;
+  series: DataNodeVisualizerSeries[];
+}
+
 const defaultVisualizerLimit = 14_000;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
 
@@ -569,6 +575,51 @@ export function buildDataNodeVisualizerGroupValueOptions(
       keywords: [value, formatDataNodeVisualizerValue(rawValue)],
     }];
   });
+}
+
+export function buildDataNodeVisualizerChartSeries(
+  series: DataNodeVisualizerSeries[],
+): DataNodeVisualizerChartSeriesResult {
+  let affectedSeriesCount = 0;
+  let collapsedPointCount = 0;
+
+  const normalizedSeries = series.map((entry) => {
+    const pointsBySecond = new Map<number, { time: number; value: number }>();
+    const sortedPoints = [...entry.points].sort((left, right) => left.time - right.time);
+
+    sortedPoints.forEach((point) => {
+      const normalizedSecond = Math.floor(point.time / 1000);
+
+      if (pointsBySecond.has(normalizedSecond)) {
+        collapsedPointCount += 1;
+      }
+
+      pointsBySecond.set(normalizedSecond, {
+        time: normalizedSecond * 1000,
+        value: point.value,
+      });
+    });
+
+    const points = [...pointsBySecond.entries()]
+      .sort((left, right) => left[0] - right[0])
+      .map(([, point]) => point);
+
+    if (points.length !== entry.points.length) {
+      affectedSeriesCount += 1;
+    }
+
+    return {
+      ...entry,
+      pointCount: points.length,
+      points,
+    };
+  });
+
+  return {
+    series: normalizedSeries,
+    affectedSeriesCount,
+    collapsedPointCount,
+  };
 }
 
 export function buildDataNodeVisualizerTableColumns(

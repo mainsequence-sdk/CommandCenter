@@ -1,6 +1,6 @@
 # Main Sequence Dependency Graph Widget
 
-This widget folder owns the reusable update dependency graph renderer used by dashboard widgets and Forge detail tabs.
+This widget folder owns the reusable update dependency graph renderer used by dashboard widgets and Foundry detail tabs.
 
 ## Files
 

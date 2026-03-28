@@ -13,6 +13,7 @@ import {
   formatMainSequenceError,
 } from "../../../../common/api";
 import {
+  buildDataNodeVisualizerChartSeries,
   buildDataNodeVisualizerSeries,
   normalizeDataNodeVisualizerProps,
   resolveDataNodeVisualizerDateRange,
@@ -21,6 +22,7 @@ import {
   type MainSequenceDataNodeVisualizerWidgetProps,
 } from "./dataNodeVisualizerModel";
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
+import { DataNodeVisualizerChartErrorBoundary } from "./DataNodeVisualizerChartErrorBoundary";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
 import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 
@@ -68,6 +70,10 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation }: Pr
     () => buildDataNodeVisualizerSeries(sourceRows, resolvedConfig),
     [resolvedConfig, sourceRows],
   );
+  const chartSeriesResult = useMemo(
+    () => buildDataNodeVisualizerChartSeries(seriesResult.series),
+    [seriesResult.series],
+  );
   const normalizationTimeMs = useMemo(
     () =>
       resolveDataNodeVisualizerNormalizationTimeMs(
@@ -81,6 +87,38 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation }: Pr
     sourceRows.length > 0
       ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
       : "No chartable rows are available for the selected range.";
+  const suggestedGroupField = useMemo(() => {
+    if (resolvedConfig.groupField) {
+      return null;
+    }
+
+    const fallbackGroupField = dataNodeDetailQuery.data?.sourcetableconfiguration?.index_names?.[1];
+
+    return typeof fallbackGroupField === "string" && fallbackGroupField.trim()
+      ? fallbackGroupField
+      : null;
+  }, [dataNodeDetailQuery.data?.sourcetableconfiguration?.index_names, resolvedConfig.groupField]);
+  const chartCollisionMessage = useMemo(() => {
+    if (chartSeriesResult.collapsedPointCount <= 0) {
+      return null;
+    }
+
+    const baseMessage = `Merged ${chartSeriesResult.collapsedPointCount.toLocaleString()} row ${
+      chartSeriesResult.collapsedPointCount === 1 ? "collision" : "collisions"
+    } that resolved to the same chart second across ${chartSeriesResult.affectedSeriesCount.toLocaleString()} ${
+      chartSeriesResult.affectedSeriesCount === 1 ? "series" : "series"
+    }. The chart keeps the latest point per second.`;
+
+    if (suggestedGroupField) {
+      return `${baseMessage} Consider grouping by ${suggestedGroupField}.`;
+    }
+
+    return baseMessage;
+  }, [
+    chartSeriesResult.affectedSeriesCount,
+    chartSeriesResult.collapsedPointCount,
+    suggestedGroupField,
+  ]);
   const isDataLoading = linkedFilterRuntime?.status === "loading" || linkedFilterRuntime == null;
   const dataErrorMessage =
     linkedFilterRuntime?.status === "error"
@@ -193,17 +231,31 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation }: Pr
         </div>
       ) : null}
 
+      {!isDataLoading && !dataErrorMessage && chartCollisionMessage ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          {chartCollisionMessage}
+        </div>
+      ) : null}
+
       {!isDataLoading && !dataErrorMessage ? (
         <div className="min-h-0 flex-1">
           <div className="h-full min-h-0">
-            <TradingViewSeriesChart
-              chartType={resolvedConfig.chartType}
-              emptyMessage={chartEmptyMessage}
-              normalizationTimeMs={normalizationTimeMs}
-              series={seriesResult.series}
-              seriesAxisMode={resolvedConfig.seriesAxisMode}
-              transparentSurface={transparentSurface}
-            />
+            <DataNodeVisualizerChartErrorBoundary
+              fallback={(
+                <div className="flex h-full min-h-0 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/10 px-4 py-6 text-center text-sm text-danger">
+                  The chart could not be rendered. Try grouping the rows into separate series or choosing a different time field.
+                </div>
+              )}
+            >
+              <TradingViewSeriesChart
+                chartType={resolvedConfig.chartType}
+                emptyMessage={chartEmptyMessage}
+                normalizationTimeMs={normalizationTimeMs}
+                series={chartSeriesResult.series}
+                seriesAxisMode={resolvedConfig.seriesAxisMode}
+                transparentSurface={transparentSurface}
+              />
+            </DataNodeVisualizerChartErrorBoundary>
           </div>
         </div>
       ) : null}

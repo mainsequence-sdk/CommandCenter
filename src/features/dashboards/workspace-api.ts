@@ -10,7 +10,7 @@ import {
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const mockWorkspaceStorageKeyPrefix = "ms.command-center.mock-workspaces";
-const mockWorkspaceJsonModules = import.meta.glob("/mock_data/workspaces/workspaces.json", {
+const mockWorkspaceJsonModules = import.meta.glob("/mock_data/workspaces/demo_workspace.json", {
   eager: true,
   import: "default",
 }) as Record<string, unknown>;
@@ -52,7 +52,17 @@ function normalizeWorkspaceId(value: unknown) {
 }
 
 function readMockWorkspaceSeed(): Partial<UserDashboardCollection> {
-  const dataset = mockWorkspaceJsonModules["/mock_data/workspaces/workspaces.json"];
+  const dataset = mockWorkspaceJsonModules["/mock_data/workspaces/demo_workspace.json"];
+
+  const seededDashboard = coerceDashboardDefinition(dataset);
+
+  if (seededDashboard) {
+    return {
+      dashboards: [seededDashboard],
+      selectedDashboardId: seededDashboard.id,
+      savedAt: null,
+    };
+  }
 
   if (Array.isArray(dataset)) {
     return {
@@ -73,6 +83,12 @@ function readMockWorkspaceSeed(): Partial<UserDashboardCollection> {
   }
 
   return cloneJson(dataset as Partial<UserDashboardCollection>);
+}
+
+export function readBundledMockWorkspaceCollection() {
+  return normalizeUserDashboardCollection(readMockWorkspaceSeed(), {
+    allowEmpty: true,
+  });
 }
 
 function buildMockWorkspaceStorageKey(userId: string | null | undefined) {
@@ -128,9 +144,7 @@ function readMockWorkspaceCollection(
     return storedCollection;
   }
 
-  return normalizeUserDashboardCollection(readMockWorkspaceSeed(), {
-    allowEmpty: true,
-  });
+  return readBundledMockWorkspaceCollection();
 }
 
 function writeMockWorkspaceCollection(

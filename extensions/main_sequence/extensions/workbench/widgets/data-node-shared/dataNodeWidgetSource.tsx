@@ -294,7 +294,7 @@ export function buildDataNodeRemoteRowsQueryKey(input: {
   return [
     "main_sequence",
     "widgets",
-    "data_node_remote_rows",
+    "data_node_remote_data",
     input.sourceMode ?? "direct",
     input.sourceWidgetId ?? "",
     input.dataNodeId ?? 0,

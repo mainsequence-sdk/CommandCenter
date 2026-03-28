@@ -11,7 +11,7 @@ This extension owns the built-in registry entries that ship with Command Center 
 
 - the `Workspaces` app and its local-development workspace builder flows
 - the admin-facing built-in apps
-- the live core widget catalog, currently `news-feed` and `workspace-row`
+- the live core widget catalog, currently `news-feed` and the Grafana-style `workspace-row`
 - bundled theme presets that belong to the shell
 
 ## Dependencies

@@ -14,6 +14,10 @@ export interface WidgetExposedFieldState {
   y?: number;
   width?: number;
   height?: number;
+  gridX?: number;
+  gridY?: number;
+  gridW?: number;
+  gridH?: number;
 }
 
 export interface WidgetInstancePresentation {

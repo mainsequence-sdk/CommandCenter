@@ -63,6 +63,11 @@ export interface DashboardWidgetLegacyLayout {
 
 export type DashboardWidgetLayout = DashboardWidgetSpan | DashboardWidgetLegacyLayout;
 
+export interface DashboardWidgetRowState {
+  collapsed?: boolean;
+  children?: DashboardWidgetInstance[];
+}
+
 export interface DashboardWidgetInstance {
   id: string;
   widgetId: string;
@@ -70,6 +75,7 @@ export interface DashboardWidgetInstance {
   props?: Record<string, unknown>;
   runtimeState?: Record<string, unknown>;
   presentation?: WidgetInstancePresentation;
+  row?: DashboardWidgetRowState;
   layout: DashboardWidgetLayout;
   position?: DashboardWidgetPlacement;
   requiredPermissions?: string[];

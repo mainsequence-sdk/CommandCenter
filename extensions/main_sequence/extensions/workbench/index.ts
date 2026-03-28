@@ -9,8 +9,8 @@ import { mainSequenceDependencyGraphWidget } from "./widgets/dependency-graph/de
 
 const mainSequenceWorkbenchExtension: AppExtension = {
   id: "main_sequence_workbench",
-  title: "Main Sequence Forge",
-  description: "Forge surfaces and widgets for Main Sequence backend administration.",
+  title: "Main Sequence Foundry",
+  description: "Foundry surfaces and widgets for Main Sequence backend administration.",
   widgets: [
     mainSequenceDependencyGraphWidget,
     mainSequenceDataNodeGraphWidget,

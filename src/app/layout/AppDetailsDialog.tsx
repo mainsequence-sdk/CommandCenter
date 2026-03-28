@@ -100,6 +100,7 @@ export function AppDetailsDialog({
               ))}
             </div>
           </div>
+
         </section>
 
         <aside className="space-y-4">

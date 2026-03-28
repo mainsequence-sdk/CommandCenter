@@ -10,10 +10,14 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - `controller.ts`: graph-specific controller layer that builds axis/group options on top of the
   shared data-node source controller from `../data-node-shared/`.
 - `MainSequenceDataNodeVisualizerWidget.tsx`: widget shell that resolves configuration, consumes the
-  linked Data Node's canonical row dataset, and always renders the mounted chart.
+  linked Data Node's canonical row dataset, sanitizes second-level chart collisions, and renders
+  the mounted chart with widget-local fallback messaging.
 - `MainSequenceDataNodeVisualizerWidgetSettings.tsx`: advanced settings panel for preview and
   series styling, rendered below the shared schema-driven settings form.
-- `TradingViewSeriesChart.tsx`: TradingView Lightweight Charts renderer for line, area, and bar visualizations.
+- `TradingViewSeriesChart.tsx`: TradingView Lightweight Charts renderer for line, area, and bar
+  visualizations, with an internal fallback when the chart library rejects a dataset.
+- `DataNodeVisualizerChartErrorBoundary.tsx`: local boundary that prevents chart failures from
+  crashing the whole route.
 - `DataNodeVisualizerTable.tsx`: compatibility export for the shared settings preview table now
   owned by `../data-node-shared/DataNodePreviewTable.tsx`.
 - `dataNodeVisualizerModel.ts`: graph-specific configuration defaults, mapped-field inference,
@@ -47,12 +51,17 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - Remote data is fetched by the `Data Node` from `dynamic_table/{id}/get_data_between_dates_from_remote/`.
 - The live chart only reads mapped `x/y/group` fields from the linked Data Node dataset instead of owning
   its own backend query.
+- Before rendering, chart series are normalized to chart-second precision so multiple rows that land
+  in the same second collapse deterministically to the latest point instead of crashing the chart
+  renderer.
 - Group include/exclude filtering happens after the chart resolves long-format rows from the linked
   Data Node, so multiple charts can render different subsets from the same upstream dataset.
 - For a fixed node and time window, the settings preview fetches the available field set once and remaps chart axes, series normalization, and series colors locally so those changes do not trigger a new remote data request.
 - Each widget instance can either follow the current dashboard date or persist its own fixed `start/end` date.
 - The chart path is tolerant of Python-style datetime strings and can recover a usable X/Y pair from returned rows when metadata is incomplete.
 - When a grouped line or area chart resolves to one point per series, the TradingView renderer enables point markers so sparse daily snapshots stay visible.
+- If the incoming dataset still triggers a chart-library failure, the widget shows a local recovery
+  message instead of surfacing a route-level application error.
 
 ## Settings preview
 

@@ -4,7 +4,8 @@ This folder contains page-level features owned by the Demo extension.
 
 ## Modules
 
-- `market-brief/`: narrative mock market briefing page used by the Demo app.
+- `market-brief/`: narrative mock market briefing page retained in the extension, but no longer
+  registered in the main Demo app navigation.
 
 ## Maintenance Notes
 

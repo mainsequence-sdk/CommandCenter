@@ -130,6 +130,10 @@ export function resolveWidgetFieldState(
     y: current?.y ?? getDefaultFieldOffsetY(field, fieldIndex),
     width: current?.width ?? getDefaultFieldCardWidth(field),
     height: current?.height ?? getDefaultFieldCardHeight(field),
+    gridX: current?.gridX,
+    gridY: current?.gridY,
+    gridW: current?.gridW,
+    gridH: current?.gridH,
   };
 }
 

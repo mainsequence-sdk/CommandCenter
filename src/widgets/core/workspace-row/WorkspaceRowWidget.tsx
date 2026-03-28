@@ -15,33 +15,32 @@ function normalizeWorkspaceRowColor(value: unknown) {
 
 export interface WorkspaceRowWidgetProps extends Record<string, unknown> {
   color?: string;
-  showHeader?: boolean;
-  visible?: boolean;
 }
 
 type WorkspaceRowWidgetComponentProps = WidgetComponentProps<WorkspaceRowWidgetProps>;
 
-export function WorkspaceRowWidget({ props }: WorkspaceRowWidgetComponentProps) {
+export function WorkspaceRowWidget({
+  instanceTitle,
+  props,
+}: WorkspaceRowWidgetComponentProps) {
   const { resolvedTokens } = useTheme();
-  const visible = props.visible === true;
   const rowColor = normalizeWorkspaceRowColor(props.color) ?? resolvedTokens.primary;
 
-  if (!visible) {
-    return null;
-  }
-
   return (
-    <div className="w-full overflow-visible">
+    <div className="relative flex h-full min-h-0 items-center px-1.5">
       <div
-        className="h-px w-full"
+        className="pointer-events-none absolute inset-x-0 bottom-0 border-b"
         style={{
-          background: `linear-gradient(90deg, ${withAlpha(rowColor, 0.18)} 0%, ${withAlpha(
-            rowColor,
-            0.58,
-          )} 42%, ${withAlpha(rowColor, 0.78)} 100%)`,
-          boxShadow: `0 0 18px ${withAlpha(rowColor, 0.14)}`,
+          borderColor: withAlpha(rowColor, 0.42),
+          boxShadow: `inset 0 -1px 0 ${withAlpha(rowColor, 0.22)}`,
         }}
       />
+      <span
+        className="relative z-10 truncate text-[10px] font-medium uppercase tracking-[0.15em] text-foreground"
+        style={{ color: rowColor }}
+      >
+        {instanceTitle ?? "Row"}
+      </span>
     </div>
   );
 }

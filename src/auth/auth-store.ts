@@ -20,6 +20,33 @@ let refreshTimer: number | null = null;
 let loginPromise: Promise<boolean> | null = null;
 let refreshPromise: Promise<boolean> | null = null;
 
+function readErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message.trim() : "";
+}
+
+function isSessionExpiryError(error: unknown) {
+  const message = readErrorMessage(error).toLowerCase();
+
+  return (
+    message.includes("token is expired") ||
+    message.includes("token has expired") ||
+    message.includes("expired token") ||
+    message.includes("token not valid") ||
+    message.includes("jwt access token is malformed") ||
+    message.includes("jwt access token payload is invalid")
+  );
+}
+
+function getLoginErrorMessage(error: unknown) {
+  if (isSessionExpiryError(error)) {
+    return "Your session expired. Please sign in again.";
+  }
+
+  return error instanceof Error && error.message
+    ? error.message
+    : "Unable to sign in with the provided credentials.";
+}
+
 function clearRefreshTimer() {
   if (refreshTimer) {
     window.clearTimeout(refreshTimer);
@@ -91,10 +118,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return true;
       } catch (error) {
         set({
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to sign in with the provided credentials.",
+          error: getLoginErrorMessage(error),
           session: null,
           refreshToken: null,
           status: "anonymous",
@@ -144,10 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           session: null,
           refreshToken: null,
           status: "anonymous",
-          error:
-            error instanceof Error
-              ? error.message
-              : "The session expired and could not be refreshed.",
+          error: "Your session expired. Please sign in again.",
         });
         return false;
       } finally {
@@ -199,10 +220,9 @@ if (restoredJwtSession) {
           session: null,
           refreshToken: null,
           status: "anonymous",
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to restore the user session.",
+          error: isSessionExpiryError(error)
+            ? null
+            : "Unable to restore the user session.",
         });
       }
     })();

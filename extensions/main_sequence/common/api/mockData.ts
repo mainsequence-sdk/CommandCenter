@@ -93,7 +93,6 @@ type MockState = {
   teams: Array<Record<string, unknown>>;
   availableGpuTypes: Array<Record<string, unknown>>;
   projectRepositories: Array<Record<string, unknown>>;
-  dataNodeRemoteRows: Record<string, Array<Record<string, unknown>>>;
   dataNodeRowsByEndpoint?: unknown;
   dataNodeLastObservationByEndpoint?: unknown;
   dependencyGraphsByEndpoint?: unknown;
@@ -135,7 +134,6 @@ function createMockState(): MockState {
     teams: readDataset("teams"),
     availableGpuTypes: readDataset("available_gpu_types"),
     projectRepositories: readDataset("project_repositories"),
-    dataNodeRemoteRows: readDataset("data_node_remote_rows"),
     dataNodeRowsByEndpoint: readOptionalDataset("get_data_between_dates_from_remote"),
     dataNodeLastObservationByEndpoint: readOptionalDataset("get_last_observation"),
     dependencyGraphsByEndpoint: readOptionalDataset("dependencies-graph"),
@@ -225,6 +223,34 @@ function normalizeSingleRecordPayload(payload: unknown) {
   return null;
 }
 
+function hasSingleMatchingMockDataNode(dataNodeId: string) {
+  return (
+    state.dataNodes.length === 1 &&
+    String(readNumber(state.dataNodes[0]?.id)) === dataNodeId
+  );
+}
+
+function getLatestRecordByTimeIndex(rows: Array<Record<string, unknown>>) {
+  let latestRow: Record<string, unknown> | null = null;
+  let latestTime = Number.NEGATIVE_INFINITY;
+
+  for (const row of rows) {
+    const rawTimeIndex = row.time_index;
+    const parsedTime = typeof rawTimeIndex === "string" ? Date.parse(rawTimeIndex) : Number.NaN;
+
+    if (Number.isNaN(parsedTime)) {
+      continue;
+    }
+
+    if (parsedTime >= latestTime) {
+      latestTime = parsedTime;
+      latestRow = row;
+    }
+  }
+
+  return latestRow;
+}
+
 function isDependencyGraphPayload(payload: unknown): payload is Record<string, unknown> {
   return (
     isRecord(payload) &&
@@ -284,12 +310,6 @@ function resolveMockDependencyGraph(input: {
 }
 
 function resolveMockDataNodeRemoteRows(dataNodeId: string) {
-  const keyedRows = readArray<Record<string, unknown>>(state.dataNodeRemoteRows[dataNodeId]);
-
-  if (keyedRows.length > 0) {
-    return keyedRows;
-  }
-
   const endpointPayload = state.dataNodeRowsByEndpoint;
 
   if (isRecord(endpointPayload) && dataNodeId in endpointPayload) {
@@ -301,7 +321,11 @@ function resolveMockDataNodeRemoteRows(dataNodeId: string) {
     }
   }
 
-  return normalizeRecordArrayPayload(endpointPayload);
+  if (hasSingleMatchingMockDataNode(dataNodeId)) {
+    return normalizeRecordArrayPayload(endpointPayload);
+  }
+
+  return [];
 }
 
 function resolveMockDataNodeLastObservation(dataNodeId: string) {
@@ -318,12 +342,21 @@ function resolveMockDataNodeLastObservation(dataNodeId: string) {
 
   const explicitObservation = normalizeSingleRecordPayload(endpointPayload);
 
-  if (explicitObservation) {
+  if (explicitObservation && !isRecord(endpointPayload) && hasSingleMatchingMockDataNode(dataNodeId)) {
     return explicitObservation;
   }
 
+  if (hasSingleMatchingMockDataNode(dataNodeId)) {
+    const endpointRows = normalizeRecordArrayPayload(endpointPayload);
+    const latestEndpointRow = getLatestRecordByTimeIndex(endpointRows);
+
+    if (latestEndpointRow) {
+      return latestEndpointRow;
+    }
+  }
+
   const rows = resolveMockDataNodeRemoteRows(dataNodeId);
-  return rows.at(-1) ?? null;
+  return getLatestRecordByTimeIndex(rows) ?? rows.at(-1) ?? null;
 }
 
 function lowerNeedle(value: string | null | undefined) {

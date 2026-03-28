@@ -1,6 +1,6 @@
 # Simple Tables Feature
 
-This feature owns the Main Sequence Forge registry screen for `ts_manager/simple_table/`.
+This feature owns the Main Sequence Foundry registry screen for `ts_manager/simple_table/`.
 
 ## Entry Points
 

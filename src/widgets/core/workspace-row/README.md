@@ -1,22 +1,24 @@
 # Workspace Row Widget
 
-This widget is a workspace layout primitive rather than a content widget.
+This widget is a workspace layout primitive modeled after Grafana rows rather than a normal content panel.
 
 ## Purpose
 
-- Renders a horizontal divider inside a workspace canvas.
-- Splits the canvas into vertical bands so normal widgets stay fully above or below the divider.
-- Acts as a structural marker for the workspace layout resolver and editor geometry logic.
+- Renders a full-width row header inside the main workspace grid.
+- Groups the following sibling widgets until the next row.
+- Collapses by serializing those child widgets into `row.children` on the row instance.
+- Expands by restoring the serialized child widgets back into the top-level dashboard widget list.
 
 ## Entry Points
 
 - `definition.ts`: widget metadata and registry definition.
-- `WorkspaceRowWidget.tsx`: visual divider rendering for runtime and preview contexts.
+- `WorkspaceRowWidget.tsx`: passive row header rendering used outside the studio host-specific row shell.
+- `WorkspaceRowWidgetSettings.tsx`: row accent-color settings and behavior notes.
 
 ## Maintenance Notes
 
-- The divider behavior is enforced in the dashboard layout helpers, not in the render component.
-- Width and height are intentionally fixed by the workspace geometry logic.
-- This widget should keep `showHeader: false` by default.
-- `visible` defaults to `false`, so the row behaves as a structural separator and is only discoverable in edit mode until explicitly shown.
-- `color` optionally overrides the divider tint; when omitted, the row uses the current theme color.
+- Row structure is owned by the dashboard model, not by generic widget props.
+- Collapsed child widgets are stored in `DashboardWidgetInstance.row.children`.
+- Rows stay full width and fixed height through the dashboard layout helpers and the RGL adapter.
+- In the workspace studio, collapse/expand is controlled from the row header on the canvas.
+- `color` optionally tints the row header accent; when omitted, the row uses the current theme color.

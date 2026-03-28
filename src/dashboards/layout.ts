@@ -32,11 +32,6 @@ interface NormalizedWidgetLayout {
   position: DashboardWidgetPlacement;
 }
 
-interface LayoutSegment {
-  endY: number | null;
-  startY: number;
-}
-
 function isLegacyLayout(
   layout: DashboardWidgetInstance["layout"],
 ): layout is DashboardWidgetLegacyLayout {
@@ -165,20 +160,9 @@ function canPlaceWidget(
   occupied: Set<string>,
   columns: number,
   layout: ResolvedDashboardWidgetLayout,
-  segment?: LayoutSegment,
 ) {
   if (layout.x < 0 || layout.y < 0 || layout.x + layout.w > columns) {
     return false;
-  }
-
-  if (segment) {
-    if (layout.y < segment.startY) {
-      return false;
-    }
-
-    if (segment.endY !== null && layout.y + layout.h > segment.endY) {
-      return false;
-    }
   }
 
   for (let x = layout.x; x < layout.x + layout.w; x += 1) {
@@ -205,10 +189,9 @@ function findPlacement(
   columns: number,
   span: { w: number; h: number },
   position: DashboardWidgetPlacement,
-  segment?: LayoutSegment,
 ) {
   const preferredX = position.x;
-  const startY = Math.max(position.y ?? 0, segment?.startY ?? 0);
+  const startY = Math.max(position.y ?? 0, 0);
 
   function tryRange(rangeStartY: number, rangeEndYExclusive: number | null) {
     if (preferredX !== undefined) {
@@ -220,7 +203,7 @@ function findPlacement(
           h: span.h,
         };
 
-        if (canPlaceWidget(occupied, columns, layout, segment)) {
+        if (canPlaceWidget(occupied, columns, layout)) {
           return layout;
         }
       }
@@ -237,7 +220,7 @@ function findPlacement(
           h: span.h,
         };
 
-        if (canPlaceWidget(occupied, columns, layout, segment)) {
+        if (canPlaceWidget(occupied, columns, layout)) {
           return layout;
         }
       }
@@ -246,153 +229,15 @@ function findPlacement(
     return null;
   }
 
-  const primaryRange = tryRange(startY, segment?.endY ?? null);
+  const primaryRange = tryRange(startY, null);
 
   if (primaryRange) {
     return primaryRange;
   }
 
-  if (segment && startY > segment.startY) {
-    return tryRange(segment.startY, startY + span.h - 1);
-  }
-
   return null;
 }
 
-function buildLayoutSegments(rowLayouts: ResolvedDashboardWidgetLayout[]): LayoutSegment[] {
-  if (rowLayouts.length === 0) {
-    return [{ startY: 0, endY: null }];
-  }
-
-  const segments: LayoutSegment[] = [];
-  const sortedRows = [...rowLayouts].sort((left, right) => left.y - right.y);
-  let nextStartY = 0;
-
-  sortedRows.forEach((rowLayout) => {
-    if (rowLayout.y > nextStartY) {
-      segments.push({
-        startY: nextStartY,
-        endY: rowLayout.y,
-      });
-    }
-
-    nextStartY = Math.max(nextStartY, rowLayout.y + rowLayout.h);
-  });
-
-  segments.push({
-    startY: nextStartY,
-    endY: null,
-  });
-
-  return segments;
-}
-
-function getSegmentDistance(segment: LayoutSegment, y: number) {
-  if (y < segment.startY) {
-    return segment.startY - y;
-  }
-
-  if (segment.endY !== null && y >= segment.endY) {
-    return y - segment.endY + 1;
-  }
-
-  return 0;
-}
-
-function getPreferredSegmentOrder(segments: LayoutSegment[], preferredY: number | undefined) {
-  if (segments.length <= 1 || preferredY === undefined) {
-    return segments;
-  }
-
-  const rankedSegments = segments
-    .map((segment) => ({
-      segment,
-      distance: getSegmentDistance(segment, preferredY),
-    }))
-    .sort((left, right) => left.distance - right.distance);
-
-  return rankedSegments.map((entry) => entry.segment);
-}
-
-function fitSpanToSegment(
-  occupied: Set<string>,
-  columns: number,
-  span: { w: number; h: number },
-  position: DashboardWidgetPlacement,
-  segment: LayoutSegment,
-) {
-  const maxSegmentHeight =
-    segment.endY === null
-      ? span.h
-      : Math.max(segment.endY - segment.startY, 0);
-  const fittedHeight = Math.max(1, Math.min(span.h, maxSegmentHeight || 1));
-
-  for (let nextWidth = span.w; nextWidth >= 1; nextWidth -= 1) {
-    const maxX =
-      position.x !== undefined
-        ? Math.max(0, Math.min(position.x, columns - nextWidth))
-        : undefined;
-
-    const layout = findPlacement(
-      occupied,
-      columns,
-      { w: nextWidth, h: fittedHeight },
-      {
-        ...position,
-        x: maxX,
-      },
-      segment,
-    );
-
-    if (layout) {
-      return layout;
-    }
-  }
-
-  return null;
-}
-
-function resolveWidgetPlacement(
-  occupied: Set<string>,
-  columns: number,
-  span: { w: number; h: number },
-  position: DashboardWidgetPlacement,
-  segments: LayoutSegment[],
-) {
-  if (position.y === undefined) {
-    for (const segment of segments) {
-      const layout = findPlacement(occupied, columns, span, position, segment);
-
-      if (layout) {
-        return layout;
-      }
-    }
-
-    return findPlacement(occupied, columns, span, position) ?? {
-      x: position.x ?? 0,
-      y: position.y ?? 0,
-      w: span.w,
-      h: span.h,
-    };
-  }
-
-  const orderedSegments = getPreferredSegmentOrder(segments, position.y);
-
-  for (const segment of orderedSegments) {
-    const fittedLayout = fitSpanToSegment(occupied, columns, span, position, segment);
-
-    if (fittedLayout) {
-      return fittedLayout;
-    }
-  }
-
-  return findPlacement(occupied, columns, span, position) ?? {
-    x: position.x ?? 0,
-    y: position.y ?? 0,
-    w: span.w,
-    h: span.h,
-  };
-}
 
 function warnLayoutIssues(dashboardId: string, issues: DashboardLayoutIssue[]) {
   if (!import.meta.env.DEV || issues.length === 0) {
@@ -413,31 +258,29 @@ export function resolveDashboardLayout(
   const sidebarOccupied = new Set<string>();
   const issues: DashboardLayoutIssue[] = [];
   const resolvedLayouts = new Map<string, ResolvedDashboardWidgetLayout>();
-  const rowWidgets = dashboard.widgets.filter(
-    (instance) =>
-      isWorkspaceRowWidgetId(instance.widgetId) &&
-      !resolveWidgetSidebarOnly(instance.presentation),
-  );
-  const contentWidgets = dashboard.widgets.filter(
-    (instance) =>
-      !isWorkspaceRowWidgetId(instance.widgetId) &&
-      !resolveWidgetSidebarOnly(instance.presentation),
+  const canvasWidgets = dashboard.widgets.filter(
+    (instance) => !resolveWidgetSidebarOnly(instance.presentation),
   );
   const sidebarWidgets = dashboard.widgets.filter((instance) =>
     resolveWidgetSidebarOnly(instance.presentation),
   );
+  let activeRowFloorY = 0;
 
-  rowWidgets.forEach((instance) => {
+  canvasWidgets.forEach((instance) => {
     const normalized = normalizeWidgetLayout(instance, grid.columns, issues);
+    const minimumY = Math.max(normalized.position.y ?? activeRowFloorY, activeRowFloorY);
     const resolvedLayout =
       findPlacement(
         occupied,
         grid.columns,
         normalized.span,
-        normalized.position,
+        {
+          ...normalized.position,
+          y: minimumY,
+        },
       ) ?? {
-        x: 0,
-        y: normalized.position.y ?? 0,
+        x: normalized.position.x ?? 0,
+        y: minimumY,
         w: normalized.span.w,
         h: normalized.span.h,
       };
@@ -448,37 +291,9 @@ export function resolveDashboardLayout(
     ) {
       issues.push({
         widgetId: instance.id,
-        message: `Requested y position ${normalized.position.y} was shifted to ${resolvedLayout.y} to keep row dividers collision-free.`,
-      });
-    }
-
-    reserveCells(occupied, resolvedLayout);
-    resolvedLayouts.set(instance.id, resolvedLayout);
-  });
-
-  const segments = buildLayoutSegments(
-    rowWidgets
-      .map((instance) => resolvedLayouts.get(instance.id))
-      .filter((layout): layout is ResolvedDashboardWidgetLayout => Boolean(layout)),
-  );
-
-  contentWidgets.forEach((instance) => {
-    const normalized = normalizeWidgetLayout(instance, grid.columns, issues);
-    const resolvedLayout = resolveWidgetPlacement(
-      occupied,
-      grid.columns,
-      normalized.span,
-      normalized.position,
-      segments,
-    );
-
-    if (
-      typeof normalized.position.y === "number" &&
-      normalized.position.y !== resolvedLayout.y
-    ) {
-      issues.push({
-        widgetId: instance.id,
-        message: `Requested y position ${normalized.position.y} was shifted to ${resolvedLayout.y} to stay within its row band.`,
+        message: isWorkspaceRowWidgetId(instance.widgetId)
+          ? `Requested y position ${normalized.position.y} was shifted to ${resolvedLayout.y} to keep row order collision-free.`
+          : `Requested y position ${normalized.position.y} was shifted to ${resolvedLayout.y} to preserve row sequence.`,
       });
     }
 
@@ -494,17 +309,26 @@ export function resolveDashboardLayout(
 
     reserveCells(occupied, resolvedLayout);
     resolvedLayouts.set(instance.id, resolvedLayout);
+
+    if (isWorkspaceRowWidgetId(instance.widgetId)) {
+      activeRowFloorY = resolvedLayout.y + resolvedLayout.h;
+    }
   });
 
   sidebarWidgets.forEach((instance) => {
     const normalized = normalizeWidgetLayout(instance, grid.columns, issues);
-    const resolvedLayout = resolveWidgetPlacement(
-      sidebarOccupied,
-      grid.columns,
-      normalized.span,
-      normalized.position,
-      segments,
-    );
+    const resolvedLayout =
+      findPlacement(
+        sidebarOccupied,
+        grid.columns,
+        normalized.span,
+        normalized.position,
+      ) ?? {
+        x: normalized.position.x ?? 0,
+        y: normalized.position.y ?? 0,
+        w: normalized.span.w,
+        h: normalized.span.h,
+      };
 
     reserveCells(sidebarOccupied, resolvedLayout);
     resolvedLayouts.set(instance.id, resolvedLayout);

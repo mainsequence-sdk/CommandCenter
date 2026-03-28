@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AreaSeries,
@@ -45,6 +45,7 @@ export function TradingViewSeriesChart({
   transparentSurface?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [chartError, setChartError] = useState<string | null>(null);
   const { resolvedTokens } = useTheme();
 
   const normalizedSeries = useMemo(
@@ -87,59 +88,103 @@ export function TradingViewSeriesChart({
     const container = containerRef.current;
 
     if (!container || themedSeries.length === 0) {
+      setChartError(null);
       return;
     }
+    setChartError(null);
 
-    const chart = createChart(container, {
-      layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: resolvedTokens["muted-foreground"],
-      },
-      grid: {
-        vertLines: { color: withAlpha(resolvedTokens["chart-grid"], 0.12) },
-        horzLines: { color: withAlpha(resolvedTokens["chart-grid"], 0.12) },
-      },
-      rightPriceScale: {
-        borderVisible: false,
-        borderColor: "transparent",
-      },
-      timeScale: {
-        borderVisible: false,
-        borderColor: "transparent",
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      crosshair: {
-        vertLine: {
-          color: withAlpha(resolvedTokens.primary, 0.2),
-          width: 1,
+    let chart: ReturnType<typeof createChart> | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+
+    try {
+      chart = createChart(container, {
+        layout: {
+          background: { type: ColorType.Solid, color: "transparent" },
+          textColor: resolvedTokens["muted-foreground"],
         },
-        horzLine: {
-          color: withAlpha(resolvedTokens.primary, 0.2),
-          width: 1,
+        grid: {
+          vertLines: { color: withAlpha(resolvedTokens["chart-grid"], 0.12) },
+          horzLines: { color: withAlpha(resolvedTokens["chart-grid"], 0.12) },
         },
-      },
-      ...getChartSize(container),
-    });
+        rightPriceScale: {
+          borderVisible: false,
+          borderColor: "transparent",
+        },
+        timeScale: {
+          borderVisible: false,
+          borderColor: "transparent",
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        crosshair: {
+          vertLine: {
+            color: withAlpha(resolvedTokens.primary, 0.2),
+            width: 1,
+          },
+          horzLine: {
+            color: withAlpha(resolvedTokens.primary, 0.2),
+            width: 1,
+          },
+        },
+        ...getChartSize(container),
+      });
 
-    themedSeries.forEach((entry, index) => {
-      const normalizedPoints = entry.points.map((point) => ({
-        time: Math.floor(point.time / 1000) as UTCTimestamp,
-        value: point.value,
-      }));
-      const paneIndex = separateAxes ? index : 0;
+      themedSeries.forEach((entry, index) => {
+        const normalizedPoints = entry.points.map((point) => ({
+          time: Math.floor(point.time / 1000) as UTCTimestamp,
+          value: point.value,
+        }));
+        const paneIndex = separateAxes ? index : 0;
 
-      while (chart.panes().length <= paneIndex) {
-        chart.addPane();
-      }
+        while (chart && chart.panes().length <= paneIndex) {
+          chart.addPane();
+        }
 
-      if (chartType === "area") {
-        const areaSeries = chart.addSeries(
-          AreaSeries,
+        if (!chart) {
+          return;
+        }
+
+        if (chartType === "area") {
+          const areaSeries = chart.addSeries(
+            AreaSeries,
+            {
+              lineColor: entry.color,
+              topColor: withAlpha(entry.color, 0.22),
+              bottomColor: withAlpha(entry.color, 0.03),
+              lineWidth: 2,
+              priceLineVisible: false,
+              lastValueVisible: false,
+              pointMarkersVisible: showPointMarkers,
+              pointMarkersRadius: showPointMarkers ? 5 : undefined,
+              title: entry.label,
+            },
+            paneIndex,
+          );
+
+          areaSeries.setData(normalizedPoints);
+          return;
+        }
+
+        if (chartType === "bar") {
+          const histogramSeries = chart.addSeries(
+            HistogramSeries,
+            {
+              color: withAlpha(entry.color, 0.8),
+              priceLineVisible: false,
+              lastValueVisible: false,
+              title: entry.label,
+            },
+            paneIndex,
+          );
+
+          histogramSeries.setData(normalizedPoints);
+          return;
+        }
+
+        const lineSeries = chart.addSeries(
+          LineSeries,
           {
-            lineColor: entry.color,
-            topColor: withAlpha(entry.color, 0.22),
-            bottomColor: withAlpha(entry.color, 0.03),
+            color: entry.color,
             lineWidth: 2,
             priceLineVisible: false,
             lastValueVisible: false,
@@ -150,60 +195,36 @@ export function TradingViewSeriesChart({
           paneIndex,
         );
 
-        areaSeries.setData(normalizedPoints);
-        return;
-      }
-
-      if (chartType === "bar") {
-        const histogramSeries = chart.addSeries(
-          HistogramSeries,
-          {
-            color: withAlpha(entry.color, 0.8),
-            priceLineVisible: false,
-            lastValueVisible: false,
-            title: entry.label,
-          },
-          paneIndex,
-        );
-
-        histogramSeries.setData(normalizedPoints);
-        return;
-      }
-
-      const lineSeries = chart.addSeries(
-        LineSeries,
-        {
-          color: entry.color,
-          lineWidth: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          pointMarkersVisible: showPointMarkers,
-          pointMarkersRadius: showPointMarkers ? 5 : undefined,
-          title: entry.label,
-        },
-        paneIndex,
-      );
-
-      lineSeries.setData(normalizedPoints);
-    });
-
-    if (separateAxes) {
-      chart.panes().forEach((pane) => {
-        pane.setStretchFactor(1);
+        lineSeries.setData(normalizedPoints);
       });
+
+      if (separateAxes) {
+        chart.panes().forEach((pane) => {
+          pane.setStretchFactor(1);
+        });
+      }
+
+      chart.timeScale().fitContent();
+
+      resizeObserver = new ResizeObserver(() => {
+        chart?.applyOptions(getChartSize(container));
+      });
+
+      resizeObserver.observe(container);
+    } catch (error) {
+      resizeObserver?.disconnect();
+      chart?.remove();
+      setChartError(
+        error instanceof Error
+          ? error.message
+          : "The chart library rejected the current series data.",
+      );
+      return;
     }
 
-    chart.timeScale().fitContent();
-
-    const resizeObserver = new ResizeObserver(() => {
-      chart.applyOptions(getChartSize(container));
-    });
-
-    resizeObserver.observe(container);
-
     return () => {
-      resizeObserver.disconnect();
-      chart.remove();
+      resizeObserver?.disconnect();
+      chart?.remove();
     };
   }, [chartType, resolvedTokens, separateAxes, showPointMarkers, themedSeries, transparentSurface]);
 
@@ -218,6 +239,19 @@ export function TradingViewSeriesChart({
         )}
       >
         {emptyMessage}
+      </div>
+    );
+  }
+
+  if (chartError) {
+    return (
+      <div
+        className={cn(
+          "flex h-full min-h-0 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/10 px-4 py-6 text-center text-sm text-danger",
+          className,
+        )}
+      >
+        {chartError}
       </div>
     );
   }

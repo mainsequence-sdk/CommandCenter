@@ -1,5 +1,4 @@
 import {
-  loadUserDashboardCollection,
   saveUserDashboardCollection,
   type UserDashboardCollection,
 } from "./custom-dashboard-storage";
@@ -8,6 +7,7 @@ import {
   fetchWorkspaceCollectionFromBackend,
   clearLegacyMockWorkspaceCollection,
   hasConfiguredWorkspaceBackend,
+  readBundledMockWorkspaceCollection,
   readLegacyMockWorkspaceCollection,
   saveWorkspaceCollectionToBackend,
 } from "./workspace-api";
@@ -27,10 +27,15 @@ export function isWorkspaceBackendEnabled() {
 }
 
 export async function loadPersistedWorkspaceCollection(userId: string) {
+  if (env.useMockData) {
+    return readBundledMockWorkspaceCollection();
+  }
+
   if (!isWorkspaceBackendEnabled()) {
+    const { loadUserDashboardCollection } = await import("./custom-dashboard-storage");
     const localCollection = loadUserDashboardCollection(userId);
 
-    if (env.useMockData && localCollection.dashboards.length === 0) {
+    if (localCollection.dashboards.length === 0) {
       const legacyMockCollection = readLegacyMockWorkspaceCollection(userId);
 
       if (legacyMockCollection?.dashboards.length) {

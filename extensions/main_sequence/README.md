@@ -5,7 +5,7 @@ This directory is a namespace for multiple Main Sequence extensions plus the sha
 ## Structure
 
 - `common/`: shared Main Sequence API helpers, reusable UI, hooks, and shared assets.
-- `extensions/workbench/`: the Main Sequence Forge app extension. It currently ships the
+- `extensions/workbench/`: the Main Sequence Foundry app extension. It currently ships the
   composable `Dependency Graph`, `Data Node`, `Data Node Graph`, `Statistic`, and `Data Node Table`
   widgets.
 - `extensions/markets/`: the Main Sequence Markets app extension.

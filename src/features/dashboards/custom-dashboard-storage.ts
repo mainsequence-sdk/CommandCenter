@@ -1,11 +1,19 @@
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import {
+  applyGridLayoutToDashboardWidgets,
+  sortWidgetsByGridOrder,
+  type WorkspaceGridLayoutItem,
+} from "@/dashboards/react-grid-layout-adapter";
+import {
+  getExpandedWorkspaceRowChildren,
+  isWorkspaceRowCollapsed,
   isWorkspaceRowWidgetId,
   WORKSPACE_ROW_HEIGHT_ROWS,
 } from "@/dashboards/structural-widgets";
 import type {
   DashboardControlsState,
   DashboardDefinition,
+  DashboardWidgetRowState,
   DashboardWidgetInstance,
   DashboardWidgetLegacyLayout,
   DashboardWidgetPlacement,
@@ -23,12 +31,16 @@ const DEFAULT_WORKSPACE_GAP = 2;
 const LEGACY_WORKSPACE_COLUMNS = 12;
 const WORKSPACE_COLUMN_SCALE = DEFAULT_WORKSPACE_COLUMNS / LEGACY_WORKSPACE_COLUMNS;
 const WORKSPACE_ROW_SCALE = 4;
+const WORKSPACE_WIDGET_SPAWN_COLUMN_SCALE = 0.75;
+const WORKSPACE_WIDGET_SPAWN_ROW_SCALE = 0.5;
+const MAX_WORKSPACE_WIDGET_SPAWN_COLS = 12;
+const MAX_WORKSPACE_WIDGET_SPAWN_ROWS = 6;
 const PREVIOUS_WORKSPACE_COLUMNS = 48;
 const PREVIOUS_WORKSPACE_ROW_HEIGHT = 38;
 const LEGACY_WORKSPACE_ROW_HEIGHT = 78;
 const LEGACY_WORKSPACE_GAP = 8;
-const MIN_WORKSPACE_WIDGET_COLS = 8;
-const MIN_WORKSPACE_WIDGET_ROWS = 6;
+const MIN_WORKSPACE_WIDGET_COLS = 4;
+const MIN_WORKSPACE_WIDGET_ROWS = 3;
 
 const DEFAULT_TIME_RANGE_OPTIONS = ["15m", "1h", "6h", "24h", "7d", "30d", "90d"] as const;
 const DEFAULT_REFRESH_INTERVAL_MS = 300_000;
@@ -111,6 +123,33 @@ function normalizeWidgetRuntimeState(
   return cloneJson(runtimeState);
 }
 
+function normalizeDashboardRowState(
+  rowState: DashboardWidgetRowState | undefined,
+  columnScale: number,
+  rowScale: number,
+): DashboardWidgetRowState | undefined {
+  if (!isPlainRecord(rowState)) {
+    return undefined;
+  }
+
+  const legacyRowState = rowState as DashboardWidgetRowState & {
+    panels?: DashboardWidgetInstance[];
+  };
+  const rawChildren: DashboardWidgetInstance[] = Array.isArray(rowState.children)
+    ? rowState.children
+    : Array.isArray(legacyRowState.panels)
+      ? legacyRowState.panels
+      : [];
+  const children = rawChildren.map((child) =>
+    normalizeDashboardWidgetInstance(child, columnScale, rowScale),
+  );
+
+  return {
+    collapsed: rowState.collapsed === true,
+    children,
+  };
+}
+
 function isLegacyLayout(
   layout: DashboardWidgetInstance["layout"],
 ): layout is DashboardWidgetLegacyLayout {
@@ -129,39 +168,56 @@ function clampWidgetMinimumLayout(
   widget: DashboardWidgetInstance,
   maxColumns: number,
 ): DashboardWidgetInstance {
-  if (isWorkspaceRowWidgetId(widget.widgetId)) {
-    return {
-      ...widget,
-      layout: {
-        cols: maxColumns,
-        rows: WORKSPACE_ROW_HEIGHT_ROWS,
-      },
-      position: {
-        x: 0,
-        y: widget.position?.y,
-      },
-    };
+  const nextWidget = isWorkspaceRowWidgetId(widget.widgetId)
+    ? {
+        ...widget,
+        layout: {
+          cols: maxColumns,
+          rows: WORKSPACE_ROW_HEIGHT_ROWS,
+        },
+        position: {
+          x: 0,
+          y: widget.position?.y,
+        },
+      }
+    : (() => {
+        const cols = Math.min(
+          Math.max(getLayoutCols(widget.layout), MIN_WORKSPACE_WIDGET_COLS),
+          maxColumns,
+        );
+        const rows = Math.max(getLayoutRows(widget.layout), MIN_WORKSPACE_WIDGET_ROWS);
+        const currentX = widget.position?.x;
+
+        return {
+          ...widget,
+          layout: {
+            cols,
+            rows,
+          },
+          position: widget.position
+            ? {
+                x:
+                  typeof currentX === "number"
+                    ? Math.max(0, Math.min(currentX, Math.max(0, maxColumns - cols)))
+                    : undefined,
+                y: widget.position.y,
+              }
+            : undefined,
+        };
+      })();
+
+  if (!nextWidget.row?.children?.length) {
+    return nextWidget;
   }
 
-  const cols = Math.min(Math.max(getLayoutCols(widget.layout), MIN_WORKSPACE_WIDGET_COLS), maxColumns);
-  const rows = Math.max(getLayoutRows(widget.layout), MIN_WORKSPACE_WIDGET_ROWS);
-  const currentX = widget.position?.x;
-
   return {
-    ...widget,
-    layout: {
-      cols,
-      rows,
+    ...nextWidget,
+    row: {
+      ...nextWidget.row,
+      children: nextWidget.row.children.map((child) =>
+        clampWidgetMinimumLayout(child, maxColumns),
+      ),
     },
-    position: widget.position
-      ? {
-          x:
-            typeof currentX === "number"
-              ? Math.max(0, Math.min(currentX, Math.max(0, maxColumns - cols)))
-              : undefined,
-          y: widget.position.y,
-        }
-      : undefined,
   };
 }
 
@@ -210,6 +266,38 @@ function scaleWidgetForFineGrid(
   };
 }
 
+function normalizeDashboardWidgetInstance(
+  instance: DashboardWidgetInstance,
+  columnScale: number,
+  rowScale: number,
+): DashboardWidgetInstance {
+  const scaled = scaleWidgetForFineGrid(
+    {
+      ...instance,
+      runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
+    },
+    columnScale,
+    rowScale,
+  );
+
+  const normalizedRowState = isWorkspaceRowWidgetId(instance.widgetId)
+    ? normalizeDashboardRowState(instance.row, columnScale, rowScale) ?? {
+        collapsed: false,
+        children: [],
+      }
+    : undefined;
+
+  return normalizedRowState
+    ? {
+        ...scaled,
+        row: normalizedRowState,
+      }
+    : {
+        ...scaled,
+        row: undefined,
+      };
+}
+
 export function ensureUserDashboardCollectionSelection(
   collection: UserDashboardCollection,
   options?: {
@@ -255,14 +343,7 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
   const rowScale = resolveWorkspaceRowScale(rawRowHeight);
   const widgets = Array.isArray(dashboard.widgets)
     ? dashboard.widgets.map((instance) =>
-        scaleWidgetForFineGrid(
-          {
-            ...instance,
-            runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
-          },
-          columnScale,
-          rowScale,
-        ),
+        normalizeDashboardWidgetInstance(instance, columnScale, rowScale),
       )
     : [];
 
@@ -456,15 +537,37 @@ function buildWidgetInstance(
   >,
   position?: DashboardWidgetPlacement,
 ): DashboardWidgetInstance {
+  const spawnCols = Math.min(
+    Math.max(
+      Math.ceil(widget.defaultSize.w * WORKSPACE_WIDGET_SPAWN_COLUMN_SCALE),
+      MIN_WORKSPACE_WIDGET_COLS,
+    ),
+    MAX_WORKSPACE_WIDGET_SPAWN_COLS,
+    DEFAULT_WORKSPACE_COLUMNS,
+  );
+  const spawnRows = Math.min(
+    Math.max(
+      Math.ceil(widget.defaultSize.h * WORKSPACE_WIDGET_SPAWN_ROW_SCALE),
+      MIN_WORKSPACE_WIDGET_ROWS,
+    ),
+    MAX_WORKSPACE_WIDGET_SPAWN_ROWS,
+  );
+
   return {
     id: createId("custom-widget"),
     widgetId: widget.id,
     title: widget.title,
     props: cloneJson(widget.exampleProps ?? {}),
     presentation: resolveDefaultWidgetPresentation(widget),
+    row: isWorkspaceRowWidgetId(widget.id)
+      ? {
+          collapsed: false,
+          children: [],
+        }
+      : undefined,
     layout: {
-      cols: Math.min(widget.defaultSize.w * WORKSPACE_COLUMN_SCALE, DEFAULT_WORKSPACE_COLUMNS),
-      rows: widget.defaultSize.h * WORKSPACE_ROW_SCALE,
+      cols: spawnCols,
+      rows: spawnRows,
     },
     position,
   };
@@ -477,6 +580,160 @@ function getDashboardBottomY(dashboard: DashboardDefinition) {
     (bottomY, instance) => Math.max(bottomY, instance.layout.y + instance.layout.h),
     0,
   );
+}
+
+function cloneDashboardWidgetTree(
+  widget: DashboardWidgetInstance,
+  options?: {
+    refreshIds?: boolean;
+  },
+): DashboardWidgetInstance {
+  const cloned = cloneJson(widget);
+
+  if (options?.refreshIds) {
+    cloned.id = createId("custom-widget");
+  }
+
+  if (cloned.row?.children?.length) {
+    cloned.row = {
+      ...cloned.row,
+      children: cloned.row.children.map((child) =>
+        cloneDashboardWidgetTree(child, options),
+      ),
+    };
+  }
+
+  return cloned;
+}
+
+function shiftDashboardWidgetTreeY(
+  widget: DashboardWidgetInstance,
+  deltaY: number,
+): DashboardWidgetInstance {
+  const nextWidget: DashboardWidgetInstance = {
+    ...widget,
+    position: widget.position
+      ? {
+          ...widget.position,
+          y:
+            typeof widget.position.y === "number"
+              ? widget.position.y + deltaY
+              : widget.position.y,
+        }
+      : widget.position,
+  };
+
+  if (!widget.row?.children?.length) {
+    return nextWidget;
+  }
+
+  return {
+    ...nextWidget,
+    row: {
+      ...widget.row,
+      children: widget.row.children.map((child) =>
+        shiftDashboardWidgetTreeY(child, deltaY),
+      ),
+    },
+  };
+}
+
+function expandCollapsedRowChildrenIntoTopLevel(
+  row: DashboardWidgetInstance,
+) {
+  const rowY = row.position?.y ?? 0;
+  const storedChildren = row.row?.children ?? [];
+
+  if (storedChildren.length === 0) {
+    return [];
+  }
+
+  const clonedChildren = storedChildren.map((child) => cloneDashboardWidgetTree(child));
+  const topMostChildY = clonedChildren.reduce((minimumY, child) => {
+    const childY = child.position?.y;
+
+    return typeof childY === "number"
+      ? Math.min(minimumY, childY)
+      : minimumY;
+  }, Number.POSITIVE_INFINITY);
+  const targetStartY = rowY + WORKSPACE_ROW_HEIGHT_ROWS;
+  const deltaY = Number.isFinite(topMostChildY) ? targetStartY - topMostChildY : 0;
+
+  return deltaY === 0
+    ? clonedChildren
+    : clonedChildren.map((child) => shiftDashboardWidgetTreeY(child, deltaY));
+}
+
+export function collapseDashboardRow(
+  dashboard: DashboardDefinition,
+  instanceId: string,
+) {
+  const rowIndex = dashboard.widgets.findIndex((widget) => widget.id === instanceId);
+
+  if (rowIndex < 0) {
+    return dashboard;
+  }
+
+  const row = dashboard.widgets[rowIndex];
+
+  if (!isWorkspaceRowWidgetId(row.widgetId) || isWorkspaceRowCollapsed(row)) {
+    return dashboard;
+  }
+
+  const childWidgets = getExpandedWorkspaceRowChildren(dashboard.widgets, rowIndex);
+  const afterIndex = rowIndex + 1 + childWidgets.length;
+  const nextRow: DashboardWidgetInstance = {
+    ...row,
+    row: {
+      collapsed: true,
+      children: childWidgets.map((child) => cloneDashboardWidgetTree(child)),
+    },
+  };
+
+  return materializeDashboardLayout({
+    ...dashboard,
+    widgets: [
+      ...dashboard.widgets.slice(0, rowIndex),
+      nextRow,
+      ...dashboard.widgets.slice(afterIndex),
+    ],
+  });
+}
+
+export function expandDashboardRow(
+  dashboard: DashboardDefinition,
+  instanceId: string,
+) {
+  const rowIndex = dashboard.widgets.findIndex((widget) => widget.id === instanceId);
+
+  if (rowIndex < 0) {
+    return dashboard;
+  }
+
+  const row = dashboard.widgets[rowIndex];
+
+  if (!isWorkspaceRowWidgetId(row.widgetId) || !isWorkspaceRowCollapsed(row)) {
+    return dashboard;
+  }
+
+  const restoredChildren = expandCollapsedRowChildrenIntoTopLevel(row);
+  const expandedRow: DashboardWidgetInstance = {
+    ...row,
+    row: {
+      collapsed: false,
+      children: [],
+    },
+  };
+
+  return materializeDashboardLayout({
+    ...dashboard,
+    widgets: [
+      ...dashboard.widgets.slice(0, rowIndex),
+      expandedRow,
+      ...restoredChildren,
+      ...dashboard.widgets.slice(rowIndex + 1),
+    ],
+  });
 }
 
 export function appendCatalogWidget(
@@ -509,7 +766,22 @@ export function placeCatalogWidget(
 ) {
   return materializeDashboardLayout({
     ...dashboard,
-    widgets: [buildWidgetInstance(widget, position), ...dashboard.widgets],
+    widgets: [...dashboard.widgets, buildWidgetInstance(widget, position)],
+  });
+}
+
+export function commitDashboardGridLayout(
+  dashboard: DashboardDefinition,
+  layout: Array<Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">>,
+) {
+  const nextWidgets = sortWidgetsByGridOrder(
+    applyGridLayoutToDashboardWidgets(dashboard.widgets, layout),
+    layout,
+  );
+
+  return materializeDashboardLayout({
+    ...dashboard,
+    widgets: nextWidgets,
   });
 }
 
@@ -745,9 +1017,30 @@ export function updateDashboardWidgetSettings(
 }
 
 export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId: string) {
+  const removeIndex = dashboard.widgets.findIndex((widget) => widget.id === instanceId);
+
+  if (removeIndex < 0) {
+    return dashboard;
+  }
+
+  const widget = dashboard.widgets[removeIndex];
+
+  if (isWorkspaceRowCollapsed(widget)) {
+    const restoredChildren = expandCollapsedRowChildrenIntoTopLevel(widget);
+
+    return materializeDashboardLayout({
+      ...dashboard,
+      widgets: [
+        ...dashboard.widgets.slice(0, removeIndex),
+        ...restoredChildren,
+        ...dashboard.widgets.slice(removeIndex + 1),
+      ],
+    });
+  }
+
   return materializeDashboardLayout({
     ...dashboard,
-    widgets: dashboard.widgets.filter((widget) => widget.id !== instanceId),
+    widgets: dashboard.widgets.filter((entry) => entry.id !== instanceId),
   });
 }
 
@@ -766,8 +1059,9 @@ export function duplicateDashboardWidget(
   const currentX = current.position?.x ?? 0;
   const currentY = current.position?.y ?? 0;
   const duplicatedWidget: DashboardWidgetInstance = {
-    ...cloneJson(current),
-    id: createId("custom-widget"),
+    ...cloneDashboardWidgetTree(current, {
+      refreshIds: true,
+    }),
     runtimeState: undefined,
     position: isWorkspaceRowWidgetId(current.widgetId)
       ? {

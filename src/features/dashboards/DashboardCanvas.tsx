@@ -14,6 +14,7 @@ import {
 } from "@/dashboards/DashboardControls";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { resolveDashboardLayout } from "@/dashboards/layout";
+import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import type {
   DashboardDefinition,
   ResolvedDashboardWidgetInstance,
@@ -334,7 +335,11 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                         widget={widget}
                         instance={instance}
                         presentation={instance.presentation}
-                        showHeader={resolveWidgetHeaderVisibility(instance.props)}
+                        showHeader={
+                          isWorkspaceRowWidgetId(widget.id)
+                            ? false
+                            : resolveWidgetHeaderVisibility(instance.props)
+                        }
                         headerActions={
                           HeaderActions ? (
                             <HeaderActions

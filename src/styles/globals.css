@@ -663,3 +663,40 @@ button:disabled,
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.react-grid-layout {
+  position: relative;
+  transition: none !important;
+}
+
+.react-grid-item {
+  transition: none !important;
+}
+
+.react-grid-item.cssTransforms,
+.react-grid-item.resizing,
+.react-grid-item.react-draggable-dragging,
+.react-grid-item.react-grid-placeholder {
+  transition: none !important;
+}
+
+.react-grid-item.react-grid-placeholder {
+  border-radius: 0;
+  border: 1px dashed color-mix(in srgb, var(--primary) 82%, transparent);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.react-resizable-handle {
+  width: 18px;
+  height: 18px;
+  right: 8px;
+  bottom: 8px;
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+
+.react-grid-item:hover > .react-resizable-handle,
+.react-grid-item.react-grid-item-resizing > .react-resizable-handle,
+.react-grid-item:focus-within > .react-resizable-handle {
+  opacity: 1;
+}
