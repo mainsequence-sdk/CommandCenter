@@ -11,7 +11,7 @@ This directory contains reusable widget presentation primitives that are shared 
 - `widget-schema-form.tsx`: generic settings form renderer for schema-based widget fields. The form
   now supports per-field layout width through `WidgetFieldDefinition.settingsColumnSpan`, so shared
   schemas can place small controls side by side instead of forcing every field onto its own row.
-- `widget-canvas-controls.tsx`: host for schema fields that are exposed as external companion cards beside a widget instance. Read-only surfaces still use its absolute overlay renderer, while the workspace studio now promotes those companion fields into the main canvas grid and persists their grid geometry back into widget presentation state.
+- `widget-canvas-controls.tsx`: host for schema fields that are exposed as external companion cards beside a widget instance. The workspace studio still uses it to edit exposed-field state, while the shared dashboard viewer now renders companion fields through the dashboard canvas-item/runtime layout path instead of widget-local overlays.
 - `form-density.ts`: shared spacing and control-density classes for widget settings forms that need a tighter configuration surface.
   It also exposes reusable compact table-density classes for settings previews.
 
@@ -39,7 +39,7 @@ This directory contains reusable widget presentation primitives that are shared 
 - Widget instances can also choose a shared `surfaceMode` in presentation state. `default` keeps the normal card shell, while `transparent` removes the card fill/shadow so the widget sits flatter on the workspace canvas.
 - Widget instances can also choose a shared `placementMode` in presentation state. `canvas` keeps the normal mounted card in the dashboard grid, while `sidebar` keeps the widget mounted for runtime/state publication but hides its card from the workspace canvas so it lives only in the workspace widget rail.
 - Canvas companion fields from `presentation.exposedFields` remain independent from card placement. A sidebar-only widget can still project selected schema fields onto the canvas as companion cards while the owning widget instance stays in the rail.
-- Workspace-style canvases may choose to render exposed companion fields as first-class layout items instead of floating overlays. The shared presentation state now supports optional `gridX/gridY/gridW/gridH` geometry on exposed fields for that use case.
+- Workspace-style canvases may choose to render exposed companion fields as first-class layout items instead of floating overlays. The shared presentation state now supports optional `gridX/gridY/gridW/gridH` geometry on exposed fields for that use case, and the read-only dashboard viewer now also participates in that same runtime canvas-item model.
 - Companion-field hosts should only create a canvas wrapper when at least one field is actually visible. Sidebar-only widgets with no exposed canvas fields must not leave behind empty grid items or invisible hit areas.
 - Widget definitions can optionally provide `railIcon` and `railSummaryComponent` so workspace-style surfaces can show meaningful per-widget icons and hover summaries in the shared widget rail without hardcoding widget-specific logic into the canvas host.
 - Widget definitions can also provide `defaultPresentation`. This is the shared way to make a widget start as `sidebar` or `canvas` by default, or to seed other presentation defaults, without hardcoding per-widget behavior in the dashboard hosts.

@@ -5,7 +5,8 @@ This extension owns the mock application boundary for Command Center.
 ## Entry Points
 
 - `index.ts`: registers the Demo app and the mock-only widget catalog entries.
-- `app.ts`: defines the Demo app surfaces and dashboard layouts.
+- `app.ts`: defines the Demo app surfaces, including the landing overview page and the separate
+  Financial Markets monitor dashboard.
 - `LegacyDemoRedirect.tsx`: preserves legacy `/app/markets` routes by redirecting them into the
   Demo app shell.
 - `features/`: page-level Demo features.
@@ -14,6 +15,7 @@ This extension owns the mock application boundary for Command Center.
 ## Owned Assets
 
 - the `demo` application surfaces
+- the landing-page experience for the mock demo
 - the mock-only `yield-curve-plot` widget
 - the mock-only `heatmap-matrix-chart` widget
 

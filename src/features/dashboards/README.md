@@ -62,6 +62,9 @@ These flows are all part of one app surface, with instance state selected throug
   instances start from a reduced width and an even smaller reduced height, with hard spawn caps, so
   a single new card does not overwhelm a predefined dashboard.
 - Widget instances can hide their header in normal viewing, but the workspace canvas forces headers back on during edit mode so drag and settings controls remain available.
+- The workspace studio canvas now keeps one canonical `react-grid-layout` layout in both view and
+  edit mode. Entering edit mode should not reshuffle cards; the only intended differences are edit
+  chrome plus drag/resize interactivity.
 - Widget instances can also switch their surface to a transparent mode through shared presentation settings, which removes the default card fill/shadow for flatter workspace compositions.
 - The workspace canvas also exposes a thin in-canvas widget rail on the left side: one plain icon per mounted widget instance, with direct access to that widget's settings, a small runtime-status dot, and hover summaries. Widgets can opt into richer rail hover content through shared widget-definition metadata.
 - Workspace widget presentation now also supports `placementMode`. `canvas` keeps the instance visible in the grid, while `sidebar` keeps it mounted only in the rail. This is intended for composable source widgets such as `Data Node` instances that should keep publishing runtime state without consuming canvas area.
@@ -83,6 +86,10 @@ These flows are all part of one app surface, with instance state selected throug
 ## Important Dependencies
 
 - `@/dashboards/*`: dashboard layout types, grid resolution, and shared dashboard controls.
+- `DashboardCanvas.tsx` now derives a width-driven responsive runtime layout for read-only
+  dashboard surfaces. It keeps the saved workspace layout canonical, but repacks widget cards and
+  exposed companion cards from actual canvas width so narrow viewports collapse columns instead of
+  merely shrinking every cell.
 - `@/dashboards/react-grid-layout-adapter.ts`: adapter utilities for the studio's
   `react-grid-layout` integration. The main workspace canvas now uses it to map widget instances
   into grid items, write committed drag/resize results back into dashboard state, and share the
@@ -98,5 +105,8 @@ These flows are all part of one app surface, with instance state selected throug
 - Keep this README aligned with the actual canvas ownership split. The current studio uses
   `react-grid-layout` for normal canvas widgets, row headers, and exposed companion cards, while
   sidebar-only runtime mounts remain structural concerns outside that main grid.
+- Keep this README aligned with the viewer/studio split: the studio still edits the canonical
+  desktop layout, while read-only viewing uses runtime-only responsive repacking without changing
+  saved geometry.
 - Update `docs/workspaces.md` whenever the user-facing Workspaces behavior changes in a meaningful way.
 - If this folder splits into smaller feature directories later, add nested `README.md` files near the new ownership boundaries.

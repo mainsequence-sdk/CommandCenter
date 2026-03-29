@@ -15,6 +15,9 @@ This directory contains the Command Center widget platform, including the shared
 ## Notable behavior
 
 - A `WidgetDefinition` is the reusable widget type: metadata, render component, and optional typed settings UI.
+- `WidgetDefinition` can also declare optional responsive constraints. `responsive.minWidthPx`
+  gives dashboard viewers a stable lower bound when they derive runtime column counts from actual
+  canvas width.
 - A dashboard or app mounts widget instances. Each instance has its own `title` and `props`.
 - Widget instances can also carry optional `runtimeState` when the widget needs to persist view-level state separately from props.
 - Widget settings are instance-scoped, not global to the widget definition. Two surfaces can use the same widget definition with different props.

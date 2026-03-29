@@ -2,6 +2,7 @@ import { LayoutDashboard } from "lucide-react";
 
 import type { AppDefinition } from "@/apps/types";
 import type { DashboardDefinition } from "@/dashboards/types";
+import { DemoOverviewPage } from "./features/DemoOverviewPage";
 import { HealthcareOperationsPage } from "./features/HealthcareOperationsPage";
 import { SupplyChainControlTowerPage } from "./features/SupplyChainControlTowerPage";
 
@@ -26,10 +27,10 @@ const healthcareSection = {
   order: 30,
 };
 
-const overviewDashboard: DashboardDefinition = {
-  id: "overview",
-  title: "Demo Overview",
-  description: "Mixed mock dashboard with KPIs, charts, portfolio state, and live-looking feeds.",
+const financialMarketsMonitorDashboard: DashboardDefinition = {
+  id: "financial-markets-monitor",
+  title: "Financial Markets Monitor",
+  description: "Market monitoring workspace with KPIs, charts, portfolio state, and live-looking feeds.",
   category: "Demo",
   source: "demo",
   requiredPermissions: ["dashboard:view"],
@@ -89,11 +90,21 @@ export const demoApp: AppDefinition = {
       id: "overview",
       title: "Overview",
       navLabel: "Overview",
-      description: "Summary dashboard for the default demo monitoring surface.",
+      description: "Landing page for the demo application, workspaces, and Main Sequence widget story.",
+      kind: "page",
+      navigationSection: financialMarketsSection,
+      requiredPermissions: ["dashboard:view"],
+      component: DemoOverviewPage,
+    },
+    {
+      id: "markets-monitor",
+      title: "Markets Monitor",
+      navLabel: "Markets Monitor",
+      description: "Financial-markets monitoring surface powered by mock widgets and reusable layouts.",
       kind: "dashboard",
       navigationSection: financialMarketsSection,
       requiredPermissions: ["dashboard:view"],
-      dashboard: overviewDashboard,
+      dashboard: financialMarketsMonitorDashboard,
     },
     {
       id: "supply-chain-control-tower",

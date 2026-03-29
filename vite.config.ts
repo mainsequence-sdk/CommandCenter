@@ -4,12 +4,23 @@ import { fileURLToPath } from "node:url";
 
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "vite";
-
-import { cloudflare } from "@cloudflare/vite-plugin";
+import { defineConfig, type PluginOption } from "vite";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const cloudflareMode = "cloudflare";
+
+async function loadOptionalCloudflarePlugin(): Promise<PluginOption | null> {
+  try {
+    const moduleName = "@cloudflare/vite-plugin";
+    const { cloudflare } = (await import(moduleName)) as {
+      cloudflare: () => PluginOption;
+    };
+    return cloudflare();
+  } catch {
+    return null;
+  }
+}
 
 function readLoopbackAuthProxyTarget() {
   const configPath = path.resolve(projectRoot, "config/command-center.yaml");
@@ -31,22 +42,26 @@ function readLoopbackAuthProxyTarget() {
 
 const loopbackAuthProxyTarget = readLoopbackAuthProxyTarget();
 
-export default defineConfig({
-  plugins: [react(), tailwindcss(), cloudflare()],
-  resolve: {
-    alias: {
-      "@": new URL("./src", import.meta.url).pathname,
-    },
-  },
-  server: {
-    port: 5173,
-    proxy: {
-      [devAuthProxyPrefix]: {
-        target: loopbackAuthProxyTarget,
-        changeOrigin: true,
-        secure: false,
-        rewrite: (requestPath) => requestPath.replace(new RegExp(`^${devAuthProxyPrefix}`), ""),
+export default defineConfig(async ({ mode }) => {
+  const cloudflarePlugin = mode === cloudflareMode ? await loadOptionalCloudflarePlugin() : null;
+
+  return {
+    plugins: [react(), tailwindcss(), ...(cloudflarePlugin ? [cloudflarePlugin] : [])],
+    resolve: {
+      alias: {
+        "@": new URL("./src", import.meta.url).pathname,
       },
     },
-  },
+    server: {
+      port: 5173,
+      proxy: {
+        [devAuthProxyPrefix]: {
+          target: loopbackAuthProxyTarget,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (requestPath: string) => requestPath.replace(new RegExp(`^${devAuthProxyPrefix}`), ""),
+        },
+      },
+    },
+  };
 });

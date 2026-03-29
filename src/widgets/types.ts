@@ -143,6 +143,9 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
     w: number;
     h: number;
   };
+  responsive?: {
+    minWidthPx?: number;
+  };
   requiredPermissions?: string[];
   tags?: string[];
   exampleProps?: TProps;
