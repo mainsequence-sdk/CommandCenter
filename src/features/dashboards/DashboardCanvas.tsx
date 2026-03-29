@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { ComponentType } from "react";
 
 import { ArrowLeft } from "lucide-react";
@@ -21,7 +21,10 @@ import {
 } from "@/dashboards/DashboardControls";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { resolveDashboardLayout } from "@/dashboards/layout";
-import { resolveAutoGridTemplateColumns } from "@/dashboards/responsive-layout";
+import {
+  resolveAutoGridTemplateColumns,
+  resolveCustomRuntimeGridLayout,
+} from "@/dashboards/responsive-layout";
 import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import type {
   DashboardDefinition,
@@ -178,6 +181,7 @@ function DashboardCanvasCompanionCard({
 
 export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition }) {
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
     {},
   );
@@ -185,6 +189,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
     {},
   );
+  const [canvasWidth, setCanvasWidth] = useState<number | null>(null);
   const resolvedDashboard = useMemo(
     () => resolveDashboardLayout(dashboard),
     [dashboard],
@@ -273,14 +278,48 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
       companionCandidates.filter((candidate) => companionVisibilityById[candidate.itemId] !== false),
     [companionCandidates, companionVisibilityById],
   );
-  const customCanvasLayoutById = useMemo(
+  const customRuntimeLayout = useMemo(
     () =>
-      new Map<string, ResolvedDashboardWidgetLayout>([
-        ...canvasWidgetEntries.map(({ instance }) => [instance.id, instance.layout] as const),
-        ...missingCanvasWidgets.map((instance) => [instance.id, instance.layout] as const),
-        ...visibleCompanionCandidates.map((candidate) => [candidate.itemId, candidate.layout] as const),
-      ]),
-    [canvasWidgetEntries, missingCanvasWidgets, visibleCompanionCandidates],
+      resolveCustomRuntimeGridLayout(
+        [
+          ...canvasWidgetEntries.map(({ instance }) => ({
+            i: instance.id,
+            ...instance.layout,
+          })),
+          ...missingCanvasWidgets.map((instance) => ({
+            i: instance.id,
+            ...instance.layout,
+          })),
+          ...visibleCompanionCandidates.map((candidate) => ({
+            i: candidate.itemId,
+            ...candidate.layout,
+          })),
+        ],
+        resolvedDashboard.grid.columns,
+        canvasWidth,
+      ),
+    [
+      canvasWidgetEntries,
+      canvasWidth,
+      missingCanvasWidgets,
+      resolvedDashboard.grid.columns,
+      visibleCompanionCandidates,
+    ],
+  );
+  const customRuntimeLayoutById = useMemo(
+    () =>
+      new Map<string, ResolvedDashboardWidgetLayout>(
+        customRuntimeLayout.layout.map((item) => [
+          item.i,
+          {
+            x: item.x,
+            y: item.y,
+            w: item.w,
+            h: item.h,
+          } satisfies ResolvedDashboardWidgetLayout,
+        ]),
+      ),
+    [customRuntimeLayout.layout],
   );
   const canvasMinHeight = useMemo(
     () => layoutKind === "custom"
@@ -288,11 +327,11 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
       resolveCanvasMinHeight(
         [
           ...canvasWidgetEntries
-            .map(({ instance }) => customCanvasLayoutById.get(instance.id) ?? instance.layout),
+            .map(({ instance }) => customRuntimeLayoutById.get(instance.id) ?? instance.layout),
           ...missingCanvasWidgets
-            .map((instance) => customCanvasLayoutById.get(instance.id) ?? instance.layout),
+            .map((instance) => customRuntimeLayoutById.get(instance.id) ?? instance.layout),
           ...visibleCompanionCandidates
-            .map((candidate) => customCanvasLayoutById.get(candidate.itemId) ?? candidate.layout),
+            .map((candidate) => customRuntimeLayoutById.get(candidate.itemId) ?? candidate.layout),
         ],
         {
           gap: resolvedDashboard.grid.gap,
@@ -302,7 +341,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
       : 0,
     [
       canvasWidgetEntries,
-      customCanvasLayoutById,
+      customRuntimeLayoutById,
       layoutKind,
       missingCanvasWidgets,
       resolvedDashboard.grid.gap,
@@ -373,10 +412,38 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
     }
   }, [resolvedRenderedWidgets, settingsInstanceId]);
 
+  useEffect(() => {
+    if (!canvasRef.current) {
+      setCanvasWidth(null);
+      return undefined;
+    }
+
+    const element = canvasRef.current;
+
+    function updateCanvasWidth() {
+      const nextWidth = element.getBoundingClientRect().width;
+      setCanvasWidth(nextWidth > 0 ? nextWidth : null);
+    }
+
+    updateCanvasWidth();
+
+    const observer = new ResizeObserver(() => {
+      updateCanvasWidth();
+    });
+
+    observer.observe(element);
+    window.addEventListener("resize", updateCanvasWidth);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateCanvasWidth);
+    };
+  }, []);
+
   return (
     <DashboardControlsProvider key={dashboard.id} controls={dashboard.controls}>
       <DashboardWidgetRegistryProvider widgets={renderedWidgets}>
-        <div className="relative">
+        <div ref={canvasRef} className="relative">
           <DashboardRefreshProgressLine />
           <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
             {sidebarOnlyWidgetEntries.map(({ instance, widget }) => {
@@ -640,7 +707,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                 >
                 {canvasWidgetEntries.map(({ instance, widget }) => {
                   const style = layoutToStyle(
-                    customCanvasLayoutById.get(instance.id) ?? instance.layout,
+                    customRuntimeLayoutById.get(instance.id) ?? instance.layout,
                   );
                   const required = [
                     ...(widget.requiredPermissions ?? []),
@@ -731,7 +798,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
                 {missingCanvasWidgets.map((instance) => {
                   const style = layoutToStyle(
-                    customCanvasLayoutById.get(instance.id) ?? instance.layout,
+                    customRuntimeLayoutById.get(instance.id) ?? instance.layout,
                   );
 
                   return (
@@ -745,7 +812,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
                 {visibleCompanionCandidates.map((candidate) => {
                   const style = layoutToStyle(
-                    customCanvasLayoutById.get(candidate.itemId) ?? candidate.layout,
+                    customRuntimeLayoutById.get(candidate.itemId) ?? candidate.layout,
                   );
 
                   return (

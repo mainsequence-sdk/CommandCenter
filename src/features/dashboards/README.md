@@ -69,6 +69,9 @@ These flows are all part of one app surface, with instance state selected throug
 - The workspace studio canvas now keeps one canonical `react-grid-layout` layout in both view and
   edit mode. Entering edit mode should not reshuffle cards; the only intended differences are edit
   chrome plus drag/resize interactivity.
+- For `custom` workspaces, smaller screens now follow a Grafana-style runtime mobile rewrite below
+  `769px`: cards temporarily stack full width while preserving their stored row spans, and that
+  temporary mobile layout is never persisted back into the workspace model.
 - When a workspace switches to `auto-grid`, the studio renders the runtime auto-grid placement and
   keeps manual resize/free placement disabled. `Custom` remains the only manual authoring mode,
   while Auto grid edit mode now supports order-only drag reordering.
@@ -99,8 +102,9 @@ These flows are all part of one app surface, with instance state selected throug
 
 - `@/dashboards/*`: dashboard layout types, grid resolution, and shared dashboard controls.
 - `DashboardCanvas.tsx` now preserves canonical `custom` layout semantics for read-only dashboard
-  surfaces. `auto-grid` read-only rendering now uses the rules-based runtime layout adapter instead
-  of changing the meaning of `custom`.
+  surfaces while also applying the shared temporary small-screen full-width rewrite below `769px`.
+  `auto-grid` read-only rendering now uses the rules-based runtime layout adapter instead of
+  changing the meaning of `custom`.
 - `auto-grid` no longer uses the studio's RGL placement path. `custom` remains the only manual
   authoring mode. Auto grid now renders through CSS Grid `auto-fit` columns in both viewer and
   studio, using only workspace-level Auto grid rules.

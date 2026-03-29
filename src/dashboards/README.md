@@ -11,10 +11,9 @@ surfaces and the editable workspace studio.
 - `canvas-items.ts`: shared derivation for workspace canvas items that are not just normal widgets,
   including companion-card ids, dashboard-owned companion layout resolution, legacy presentation
   fallback, and companion candidate resolution.
-- `responsive-layout.ts`: shared Auto grid CSS helper. It now builds the Grafana-style
-  `grid-template-columns` string from dashboard-level Auto grid rules instead of doing JS panel
-  placement. Canonical `custom` dashboards should render from their saved `x/y/w/h` semantics
-  instead of being proportionally repacked.
+- `responsive-layout.ts`: shared responsive layout helpers. It builds the Grafana-style
+  `grid-template-columns` string for Auto grid and also provides the temporary runtime rewrite used
+  when `custom` dashboards collapse to full-width cards on smaller screens.
 - `DashboardControls.tsx`: shared dashboard controls and time-range/refresh coordination.
 - `DashboardWidgetRegistry.tsx`: runtime widget-instance registry used for linked-widget
   composition.
@@ -53,9 +52,16 @@ surfaces and the editable workspace studio.
   reserved set of slots. The container uses `repeat(auto-fit, minmax(..., 1fr))`, so empty tracks
   collapse naturally:
   1 item fills the row, 2 items render as 2 equal columns, and so on up to `maxColumns`.
+- `custom` now also has a Grafana-style mobile runtime rewrite. Below the shared `769px`
+  breakpoint, runtime rendering keeps each item height but temporarily rewrites the layout so every
+  item spans the full dashboard width. That rewrite is view/runtime only and must never be written
+  back into saved widget geometry.
 - In the workspace studio, Auto grid is still a rules-based layout, but edit mode now allows
   order-only drag reordering. That reorder updates dashboard widget sequence without writing custom
   `x/y/w/h` geometry back into the Auto grid mode.
+- In the workspace studio, `custom` drag/resize is disabled under that same small-screen breakpoint
+  so the temporary full-width runtime layout is not accidentally committed back into the canonical
+  saved layout.
 - Row widgets remain full-width items in Auto grid through `grid-column: 1 / -1`.
 - `custom` should mean explicit saved layout semantics. Responsive or rules-based behavior should
   be introduced under a separate `auto-grid` mode instead of changing what `custom` means.

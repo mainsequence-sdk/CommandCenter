@@ -37,6 +37,10 @@ Implemented:
   Normal content widgets now inherit one canonical default size, while structural exceptions such
   as the workspace row keep an explicit override. Route/app-owned surfaces remain responsible for
   their own local size overrides.
+- Added a shared `custom` small-screen runtime rewrite modeled on Grafana. Below the shared
+  `769px` breakpoint, `custom` dashboards/workspaces temporarily render every item full width while
+  preserving stored row spans. The workspace studio now also disables `custom` drag/resize under
+  that breakpoint so the mobile rewrite never gets committed back into saved layout geometry.
 
 Still missing:
 - Keep `Data Node` sidebar-only by product decision. Do not remove its effective compact/sidebar policy from the workspace model.
