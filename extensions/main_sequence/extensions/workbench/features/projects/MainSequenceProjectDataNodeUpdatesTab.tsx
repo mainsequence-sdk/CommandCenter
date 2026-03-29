@@ -206,9 +206,6 @@ export function MainSequenceProjectDataNodeUpdatesTab({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="text-sm font-medium text-foreground">Data node updates</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            LocalTimeSerie rows linked to this project through the `project__id` filter.
-          </p>
         </div>
         <MainSequenceRegistrySearch
           accessory={

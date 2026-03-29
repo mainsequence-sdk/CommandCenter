@@ -42,6 +42,10 @@ These flows are all part of one app surface, with instance state selected throug
 - Older mock-mode workspaces that were saved through the previous mock backend storage key are migrated into the normal browser-local workspace store the first time mock mode loads an otherwise empty local collection.
 - Blank, `null`, or `None` workspace URLs keep the browser-local fallback active for local development.
 - Backend workspace ids may be numeric; the frontend normalizes them to strings before storing them in the dashboard model and route params.
+- Dashboard definitions now support a backward-compatible `layoutKind`, with existing workspaces
+  defaulting to `custom`.
+- Workspace settings now expose a `Custom` vs `Auto grid` layout selector. `Auto grid` currently
+  supports `maxColumns`, `minColumnWidthPx`, `rowHeight`, and `fillScreen`.
 - In backend mode, workspace creation waits for the backend response and adopts the backend-assigned id instead of persisting a client-generated id.
 - The workspace index page renders from the backend-backed saved collection in backend mode, even if the editor currently has unsaved draft changes.
 - In backend mode, the editor keeps a local draft and only persists changes when the user explicitly saves.
@@ -65,12 +69,18 @@ These flows are all part of one app surface, with instance state selected throug
 - The workspace studio canvas now keeps one canonical `react-grid-layout` layout in both view and
   edit mode. Entering edit mode should not reshuffle cards; the only intended differences are edit
   chrome plus drag/resize interactivity.
+- When a workspace switches to `auto-grid`, the studio renders the runtime auto-grid placement and
+  keeps manual resize/free placement disabled. `Custom` remains the only manual authoring mode,
+  while Auto grid edit mode now supports order-only drag reordering.
 - Widget instances can also switch their surface to a transparent mode through shared presentation settings, which removes the default card fill/shadow for flatter workspace compositions.
 - The workspace canvas also exposes a thin in-canvas widget rail on the left side: one plain icon per mounted widget instance, with direct access to that widget's settings, a small runtime-status dot, and hover summaries. Widgets can opt into richer rail hover content through shared widget-definition metadata.
 - Workspace widget presentation now also supports `placementMode`. `canvas` keeps the instance visible in the grid, while `sidebar` keeps it mounted only in the rail. This is intended for composable source widgets such as `Data Node` instances that should keep publishing runtime state without consuming canvas area.
 - Sidebar-only widgets can still expose selected schema fields on the canvas through the shared companion-field system. The widget remains the single owner of props/runtime, while the canvas cards are only projections of that sidebar-owned instance.
 - Sidebar-only widgets must not reserve grid cells in the main canvas layout. They stay mounted for runtime publication, but only visible companion cards are allowed to create actual canvas DOM or consume placement space.
-- In the studio canvas, exposed companion fields now render as first-class `react-grid-layout` items instead of floating absolute overlays. Their grid geometry persists into widget presentation state, so they move and resize through the same layout engine as normal widgets while still remaining owned by the original widget instance.
+- In the studio canvas, exposed companion fields now render as first-class `react-grid-layout`
+  items instead of floating absolute overlays. Their committed layout now persists at the dashboard
+  level through `dashboard.companions`, while widget presentation still owns only visibility and
+  exposure state.
 - Workspace rows now follow a collapsible row model instead of the old divider-band model. A row is a
   full-width header item in the main grid; when expanded, its children are simply the following
   sibling widgets until the next row, and when collapsed those child widgets are serialized into
@@ -78,6 +88,8 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget definitions can set shared presentation defaults. `Data Node` now uses this to default new and existing instances into sidebar placement unless that instance explicitly saved a different placement.
 - The workspace settings dialog now also includes a remove action, so sidebar-only widgets remain deletable even when they do not render a normal on-canvas card with header chrome.
 - Widget settings in Workspaces no longer open in a modal. They now use a dedicated route-level view with a shared full-width settings panel and an explicit `Return to dashboard` action.
+- The dedicated workspace settings page now uses the same scrollable full-page container model as
+  the widget settings view, so long workspace configuration pages can be reached fully.
 - The canvas `Components` browser is optimized for large catalogs: dense rows, category/kind/source filters, favorites, recent widgets, and grouped category browse when search is empty.
 - If a workspace still references a widget id that is no longer registered, the canvas explains that the widget is legacy/unavailable and lets the user delete that stale instance directly.
 - Workspace deletion from settings uses the shared destructive confirmation dialog. In backend mode, the UI removes the workspace only after the backend confirms the delete.
@@ -86,10 +98,15 @@ These flows are all part of one app surface, with instance state selected throug
 ## Important Dependencies
 
 - `@/dashboards/*`: dashboard layout types, grid resolution, and shared dashboard controls.
-- `DashboardCanvas.tsx` now derives a width-driven responsive runtime layout for read-only
-  dashboard surfaces. It keeps the saved workspace layout canonical, but repacks widget cards and
-  exposed companion cards from actual canvas width so narrow viewports collapse columns instead of
-  merely shrinking every cell.
+- `DashboardCanvas.tsx` now preserves canonical `custom` layout semantics for read-only dashboard
+  surfaces. `auto-grid` read-only rendering now uses the rules-based runtime layout adapter instead
+  of changing the meaning of `custom`.
+- `auto-grid` no longer uses the studio's RGL placement path. `custom` remains the only manual
+  authoring mode. Auto grid now renders through CSS Grid `auto-fit` columns in both viewer and
+  studio, using only workspace-level Auto grid rules.
+- The canvas controls bar now lives inside the scrollable canvas flow as a sticky straight strip
+  instead of an absolute floating card, so it stays visually inside the workspace surface and clear
+  of the left widget rail.
 - `@/dashboards/react-grid-layout-adapter.ts`: adapter utilities for the studio's
   `react-grid-layout` integration. The main workspace canvas now uses it to map widget instances
   into grid items, write committed drag/resize results back into dashboard state, and share the
@@ -105,8 +122,13 @@ These flows are all part of one app surface, with instance state selected throug
 - Keep this README aligned with the actual canvas ownership split. The current studio uses
   `react-grid-layout` for normal canvas widgets, row headers, and exposed companion cards, while
   sidebar-only runtime mounts remain structural concerns outside that main grid.
-- Keep this README aligned with the viewer/studio split: the studio still edits the canonical
-  desktop layout, while read-only viewing uses runtime-only responsive repacking without changing
-  saved geometry.
+- Keep this README aligned with companion ownership. Companion-card placement is now dashboard
+  state, not widget-presentation geometry, even though exposure/visibility is still controlled from
+  widget presentation.
+- Keep this README aligned with the layout-mode split: `custom` should remain the canonical saved
+  grid contract, while future `auto-grid` behavior should live in a separate mode.
+- Keep this README aligned with the current Auto grid policy: `maxColumns` is an upper bound, not
+  a fixed reserved slot count. Auto grid width should come from CSS Grid `auto-fit` behavior, while
+  `custom` remains canonical RGL.
 - Update `docs/workspaces.md` whenever the user-facing Workspaces behavior changes in a meaningful way.
 - If this folder splits into smaller feature directories later, add nested `README.md` files near the new ownership boundaries.

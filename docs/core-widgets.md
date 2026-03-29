@@ -6,9 +6,9 @@ to start from a blank screen.
 
 The current built-in widget set is intentionally opinionated:
 
-- fast summary surfaces for operators
 - feed-based situational awareness
-- quantitative showcase widgets for richer analytical experiences
+- narrative context and note-taking
+- structural workspace composition
 
 All of them are registered by the core extension in `src/extensions/core/index.ts`.
 
@@ -35,38 +35,6 @@ That means each widget can be:
 - documented once and composed many times
 
 ## Shipped core widgets
-
-### Market KPIs
-
-- **Widget id:** `market-kpis`
-- **Category:** `Market`
-- **Kind:** `kpi`
-- **Default size:** `4 x 4`
-- **Permissions:** `dashboard:view`
-- **Example props:** `{ symbol: "AAPL" }`
-
-What it is:
-
-`Market KPIs` is the platform's compact summary-card widget. It is the fastest way to anchor a
-dashboard with numbers that operators can parse in seconds.
-
-What it is good for:
-
-- desk metrics
-- exposure snapshots
-- top-line alert counts
-- cross-asset summary bands
-
-Where it is used now:
-
-- `Demo / Overview`
-- `Demo / Cross-Asset`
-- `Admin / Admin Console`
-
-Why it matters:
-
-Most command surfaces need a strong numerical header. This widget gives teams a reusable summary
-language before they add more domain-specific panels.
 
 ### News Feed
 
@@ -99,162 +67,73 @@ Why it matters:
 Strong operational dashboards are rarely just numbers. The news feed gives the platform a reusable
 context layer so users understand why a surface is moving, not only that it moved.
 
-### Activity Feed
+### Markdown
 
-- **Widget id:** `activity-feed`
-- **Category:** `Feeds`
-- **Kind:** `feed`
-- **Default size:** `4 x 5`
-- **Permissions:** `dashboard:view`
-- **Example props:** `{ limit: 6 }`
-
-What it is:
-
-`Activity Feed` is the operational event stream for warnings, operator actions, workflow state, and
-platform events.
-
-What it is good for:
-
-- desk actions
-- incident or warning streams
-- workflow progress
-- platform operations surfaces
-
-Where it is used now:
-
-- `Demo / Overview`
-- `Demo / Cross-Asset`
-- `Demo / Flow Lab`
-- `Admin / Admin Console`
-
-Why it matters:
-
-This is the widget that makes a dashboard feel alive. It gives teams a reusable event timeline
-pattern without forcing every product to invent its own feed design.
-
-### Causal Graph
-
-- **Widget id:** `causal-graph`
-- **Category:** `Quant`
-- **Kind:** `custom`
-- **Default size:** `7 x 8`
-- **Permissions:** `dashboard:view`
-
-What it is:
-
-`Causal Graph` is the hero analytical widget for regime transmission and factor propagation.
-
-What it is good for:
-
-- quant showcase dashboards
-- factor interaction storytelling
-- lead-lag exploration
-- strategy or research demonstrations
-
-Where it is used now:
-
-- Not currently mounted in a shipped dashboard.
-
-Why it matters:
-
-This widget shows that the platform is not limited to plain cards and lists. It remains available
-through the widget registry for richer analytical surfaces even when it is not mounted by default.
-
-### Factor Heatmap
-
-- **Widget id:** `factor-heatmap`
-- **Category:** `Quant`
-- **Kind:** `custom`
-- **Default size:** `5 x 8`
-- **Permissions:** `dashboard:view`
-
-What it is:
-
-`Factor Heatmap` is a dense cross-impact grid for reinforcing and opposing factor pressure.
-
-What it is good for:
-
-- quant scanning
-- cross-impact analysis
-- correlation storytelling
-- compact high-density research views
-
-Where it is used now:
-
-- Not currently mounted in a shipped dashboard.
-
-Why it matters:
-
-It gives the platform a high-information surface that complements narrative dashboards and summary
-cards. Teams can still use it as a template for other dense grid-based analytical widgets.
-
-### Distribution Lab
-
-- **Widget id:** `distribution-lab`
-- **Category:** `Quant`
+- **Widget id:** `markdown-note`
+- **Category:** `Content`
 - **Kind:** `custom`
 - **Default size:** `6 x 6`
 - **Permissions:** `dashboard:view`
+- **Example props:** narrative markdown note content
 
 What it is:
 
-`Distribution Lab` visualizes baseline, live, and stress distributions in one compact panel.
+`Markdown` renders structured narrative content inside a widget using regular markdown.
 
 What it is good for:
 
-- scenario comparison
-- stress diagnostics
-- regime-shift storytelling
-- research dashboards
+- runbooks
+- operator notes
+- dashboard context
+- embedded documentation
 
 Where it is used now:
 
-- Not currently mounted in a shipped dashboard.
+- available through the widget catalog for narrative and documentation-heavy surfaces
 
 Why it matters:
 
-This widget brings a more research-heavy visual language into the platform and remains available
-for future demo or product-specific dashboards without changing the core dashboard model.
+Not every useful dashboard panel is a chart or a feed. This widget gives the platform a reusable
+way to mix explanation, instructions, and lightweight tables into operational surfaces.
 
-### Scenario Cones
+### Row
 
-- **Widget id:** `scenario-cones`
-- **Category:** `Quant`
+- **Widget id:** `workspace-row`
+- **Category:** `Workspace`
 - **Kind:** `custom`
-- **Default size:** `6 x 6`
+- **Default size:** `12 x 1`
 - **Permissions:** `dashboard:view`
 
 What it is:
 
-`Scenario Cones` renders competing market paths as probability cones.
+`Row` is a structural workspace widget used to divide a workspace into horizontal sections.
 
 What it is good for:
 
-- regime path communication
-- risk narrative overlays
-- research and planning surfaces
-- visually strong showcase dashboards
+- grouping widgets into bands
+- separating dashboard sections
+- organizing large workspace canvases
+- creating optional visible or hidden row boundaries
 
 Where it is used now:
 
-- Not currently mounted in a shipped dashboard.
+- workspace composition and layout structuring in the workspace studio
 
 Why it matters:
 
-It gives the platform a reusable forward-looking visual pattern, not just historical and current
-state panels, even when it is not mounted in the default demo app.
+This widget extends the platform beyond pure content panels. It gives the workspace builder a
+first-class structural primitive instead of forcing layout grouping to be inferred from arbitrary
+widget positions.
 
 ## Current platform composition
 
-The core extension currently uses the widget set in four ways:
+The core extension currently uses the widget set in three ways:
 
-1. `Market KPIs`, `News Feed`, and `Activity Feed` establish the default operating language for
-   demo and admin dashboards.
-2. `Activity Feed` also appears inside `Demo / Flow Lab`, proving extension widgets and core
-   widgets can coexist in the same app.
-3. `Causal Graph`, `Factor Heatmap`, `Distribution Lab`, and `Scenario Cones` remain available in
-   the widget registry even though they are not mounted in a shipped dashboard right now.
-4. Repetition across dashboards proves widgets are meant to be reused, not handcrafted per screen.
+1. `News Feed` provides a reusable narrative/event context pattern for shipped surfaces.
+2. `Markdown` gives the platform a built-in narrative and documentation widget for operator-facing
+   dashboards.
+3. `Row` adds structural workspace composition as a first-class primitive inside the workspace
+   studio.
 
 ## When to build a new widget instead of reusing core
 
@@ -267,9 +146,9 @@ Build a new widget when:
 
 Reuse core widgets when:
 
-- you need summary cards
 - you need a narrative or event feed
-- you need a high-density quant showcase pattern close to what already ships
+- you need markdown-based documentation or notes
+- you need structural row grouping in workspaces
 
 ## Related docs
 

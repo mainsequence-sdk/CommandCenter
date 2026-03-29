@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 export type WidgetKind = "kpi" | "chart" | "table" | "feed" | "custom";
 export type WidgetFieldAnchor = "top" | "right" | "bottom" | "left";
 export type WidgetFieldPopMode = "inline" | "chip-group" | "token-list" | "panel";
+export const DEFAULT_WIDGET_SIZE = { w: 8, h: 6 } as const;
 
 export interface WidgetExposedFieldState {
   visible: boolean;
@@ -161,6 +162,21 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;
+}
+
+export type WidgetDefinitionInput<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> = Omit<WidgetDefinition<TProps>, "defaultSize"> & {
+  defaultSize?: WidgetDefinition<TProps>["defaultSize"];
+};
+
+export function defineWidget<TProps extends Record<string, unknown> = Record<string, unknown>>(
+  definition: WidgetDefinitionInput<TProps>,
+): WidgetDefinition<TProps> {
+  return {
+    ...definition,
+    defaultSize: definition.defaultSize ?? { ...DEFAULT_WIDGET_SIZE },
+  };
 }
 
 export interface WidgetComponentProps<TProps extends Record<string, unknown> = Record<string, unknown>> {

@@ -9,10 +9,12 @@ surfaces and the editable workspace studio.
 - `layout.ts`: current collision-safe dashboard layout resolver, including collapsible row
   sequencing, sidebar-only widget exclusion from canvas occupancy, and normalized grid resolution.
 - `canvas-items.ts`: shared derivation for workspace canvas items that are not just normal widgets,
-  including companion-card ids, default companion layouts, and companion candidate resolution.
-- `responsive-layout.ts`: width-driven runtime layout adapter for read-only dashboard surfaces. It
-  derives effective columns from actual canvas width, applies per-widget minimum widths, and
-  repacks items without mutating the saved canonical layout.
+  including companion-card ids, dashboard-owned companion layout resolution, legacy presentation
+  fallback, and companion candidate resolution.
+- `responsive-layout.ts`: shared Auto grid CSS helper. It now builds the Grafana-style
+  `grid-template-columns` string from dashboard-level Auto grid rules instead of doing JS panel
+  placement. Canonical `custom` dashboards should render from their saved `x/y/w/h` semantics
+  instead of being proportionally repacked.
 - `DashboardControls.tsx`: shared dashboard controls and time-range/refresh coordination.
 - `DashboardWidgetRegistry.tsx`: runtime widget-instance registry used for linked-widget
   composition.
@@ -30,15 +32,33 @@ surfaces and the editable workspace studio.
 - The workspace studio itself should not run an extra responsive remap layer during edit
   interactions. Its RGL `cols` and item geometry should stay canonical so resize/drag behavior is
   predictable.
+- Dashboard definitions now carry a backward-compatible `layoutKind`, defaulting existing
+  dashboards to `custom`.
+- Dashboard definitions now also carry `companions`, which are first-class layout items for exposed
+  companion cards. Older workspaces that only stored companion geometry in widget presentation are
+  normalized into this dashboard-owned shape on load.
+- `auto-grid` now has an initial rules-based config contract on the dashboard model:
+  `maxColumns`, `minColumnWidthPx`, `rowHeight`, and `fillScreen`. Runtime placement is computed
+  from widget order plus the layout-level grid rules, rather than saved widget coordinates.
 - Row widgets are now first-class grid-managed items. They stay full-width, fixed-height, and
   non-resizable, and they only allow dragging while collapsed.
 - Row ownership now follows the current row model: expanded rows are represented by sequence in the
   top-level widget list, while collapsed rows serialize their hidden children into
   `DashboardWidgetInstance.row.children`.
-- Companion canvas cards still belong to widget presentation state rather than the dashboard grid
-  model, but both the workspace studio and the shared read-only dashboard canvas now materialize
-  them as first-class runtime canvas items instead of leaving them as widget-local overlays.
-- Responsive viewing is now width-driven rather than breakpoint-authored. Dashboard surfaces keep
-  one canonical saved layout, derive effective runtime columns from available canvas width, then
-  repack widgets and companion cards while respecting widget minimum widths and preserving the
-  authored widget size model.
+- Companion canvas cards are now dashboard-owned layout items rather than presentation-owned grid
+  geometry. Widget presentation still owns exposure/visibility, but committed companion placement
+  lives in the dashboard model so both `custom` and `auto-grid` can treat companions as real
+  canvas items.
+- Auto grid now uses Grafana-style CSS Grid behavior. `maxColumns` is an upper bound, not a fixed
+  reserved set of slots. The container uses `repeat(auto-fit, minmax(..., 1fr))`, so empty tracks
+  collapse naturally:
+  1 item fills the row, 2 items render as 2 equal columns, and so on up to `maxColumns`.
+- In the workspace studio, Auto grid is still a rules-based layout, but edit mode now allows
+  order-only drag reordering. That reorder updates dashboard widget sequence without writing custom
+  `x/y/w/h` geometry back into the Auto grid mode.
+- Row widgets remain full-width items in Auto grid through `grid-column: 1 / -1`.
+- `custom` should mean explicit saved layout semantics. Responsive or rules-based behavior should
+  be introduced under a separate `auto-grid` mode instead of changing what `custom` means.
+- Current limitation: `auto-grid` is now layout-rule driven, but it is still a top-level mode
+  only. Rows are still special full-width items, and there is not yet a nested layout-mode system
+  like Grafana rows/tabs.

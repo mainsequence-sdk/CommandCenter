@@ -1,4 +1,4 @@
-import type { WidgetDefinition } from "@/widgets/types";
+import { defineWidget } from "@/widgets/types";
 
 import {
   MainSequenceDependencyGraphWidget,
@@ -6,14 +6,13 @@ import {
 } from "./MainSequenceDependencyGraphWidget";
 import { MainSequenceDependencyGraphWidgetSettings } from "./MainSequenceDependencyGraphWidgetSettings";
 
-export const mainSequenceDependencyGraphWidget: WidgetDefinition<MainSequenceDependencyGraphWidgetProps> = {
+export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDependencyGraphWidgetProps>({
   id: "main-sequence-dependency-graph",
   title: "Dependency Graph",
   description: "Main Sequence dependency graph widget for Data Node and Simple Table updates.",
   category: "Main Sequence",
   kind: "chart",
   source: "main_sequence_workbench",
-  defaultSize: { w: 6, h: 8 },
   requiredPermissions: ["dashboard:view"],
   tags: ["main-sequence", "data-node", "simple-table", "dependency", "graph"],
   exampleProps: {
@@ -26,4 +25,4 @@ export const mainSequenceDependencyGraphWidget: WidgetDefinition<MainSequenceDep
   },
   settingsComponent: MainSequenceDependencyGraphWidgetSettings,
   component: MainSequenceDependencyGraphWidget,
-};
+});

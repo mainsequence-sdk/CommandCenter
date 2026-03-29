@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { DEFAULT_WIDGET_SIZE } from "@/widgets/types";
 import { Textarea } from "@/components/ui/textarea";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
@@ -190,7 +191,7 @@ export function MarkdownNoteWidgetSettings({
                 category: "Content",
                 kind: "custom",
                 source: "core",
-                defaultSize: { w: 6, h: 6 },
+                defaultSize: { ...DEFAULT_WIDGET_SIZE },
                 component: MarkdownNoteWidget,
               }}
               props={previewProps}

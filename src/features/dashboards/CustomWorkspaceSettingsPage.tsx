@@ -54,6 +54,27 @@ function buildWorkspaceExportFilename(title: string) {
   return `${slug || "workspace"}.workspace.json`;
 }
 
+function parsePositiveInteger(
+  value: string,
+  fallback: number,
+  options?: {
+    min?: number;
+    max?: number;
+  },
+) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  const minimum = options?.min ?? 1;
+  const maximum = options?.max;
+  const bounded = Math.max(minimum, parsed);
+
+  return typeof maximum === "number" ? Math.min(bounded, maximum) : bounded;
+}
+
 export function CustomWorkspaceSettingsPage() {
   const navigate = useNavigate();
   const [labelInput, setLabelInput] = useState("");
@@ -233,79 +254,81 @@ export function CustomWorkspaceSettingsPage() {
 
   return (
     <>
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                navigate(`${getAppPath("workspace-studio", "workspaces")}?workspace=${encodeURIComponent(workspace.id)}`);
-              }}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Canvas
-            </Button>
-            <Select
-              className="min-w-[220px]"
-              value={workspace.id}
-              onChange={(event) => {
-                setSelectedWorkspaceId(event.target.value);
-              }}
-            >
-              {workspaceListCollection.dashboards.map((dashboard) => (
-                <option key={dashboard.id} value={dashboard.id}>
-                  {dashboard.title}
-                </option>
-              ))}
-            </Select>
-            {isHydrating ? (
-              <Badge variant="neutral">Loading</Badge>
-            ) : isSaving ? (
-              <Badge variant="neutral">Saving</Badge>
-            ) : dirty ? (
-              <Badge variant="warning">Unsaved</Badge>
-            ) : (
-              <Badge variant="success">Saved</Badge>
-            )}
+      <div className="relative h-full overflow-hidden">
+        <div className="h-full overflow-y-auto px-4 py-4 pb-10 md:px-6 md:py-6">
+          <div className="mx-auto max-w-5xl space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  navigate(`${getAppPath("workspace-studio", "workspaces")}?workspace=${encodeURIComponent(workspace.id)}`);
+                }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Canvas
+              </Button>
+              <Select
+                className="min-w-[220px]"
+                value={workspace.id}
+                onChange={(event) => {
+                  setSelectedWorkspaceId(event.target.value);
+                }}
+              >
+                {workspaceListCollection.dashboards.map((dashboard) => (
+                  <option key={dashboard.id} value={dashboard.id}>
+                    {dashboard.title}
+                  </option>
+                ))}
+              </Select>
+              {isHydrating ? (
+                <Badge variant="neutral">Loading</Badge>
+              ) : isSaving ? (
+                <Badge variant="neutral">Saving</Badge>
+              ) : dirty ? (
+                <Badge variant="warning">Unsaved</Badge>
+              ) : (
+                <Badge variant="success">Saved</Badge>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  void createWorkspace();
+                }}
+                disabled={isHydrating || isSaving}
+              >
+                <LayoutTemplate className="h-4 w-4" />
+                New workspace
+              </Button>
+              <Button variant="outline" onClick={resetWorkspaceDraft} disabled={!dirty}>
+                <RotateCcw className="h-4 w-4" />
+                Reset
+              </Button>
+              <Button onClick={saveWorkspaceDraft} disabled={!dirty || isSaving || isHydrating}>
+                <Save className="h-4 w-4" />
+                Save
+              </Button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                void createWorkspace();
-              }}
-              disabled={isHydrating || isSaving}
-            >
-              <LayoutTemplate className="h-4 w-4" />
-              New workspace
-            </Button>
-            <Button variant="outline" onClick={resetWorkspaceDraft} disabled={!dirty}>
-              <RotateCcw className="h-4 w-4" />
-              Reset
-            </Button>
-            <Button onClick={saveWorkspaceDraft} disabled={!dirty || isSaving || isHydrating}>
-              <Save className="h-4 w-4" />
-              Save
-            </Button>
-          </div>
-        </div>
+          {error ? (
+            <div className="rounded-[var(--radius)] border border-danger/30 bg-danger/8 px-4 py-3 text-sm text-danger">
+              {error}
+            </div>
+          ) : null}
 
-        {error ? (
-          <div className="rounded-[var(--radius)] border border-danger/30 bg-danger/8 px-4 py-3 text-sm text-danger">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <Card>
-            <CardHeader>
-              <CardTitle>Workspace configuration</CardTitle>
-              <CardDescription>
-                This page edits the selected workspace model instead of overlaying controls on the canvas.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Workspace configuration</CardTitle>
+                  <CardDescription>
+                    This page edits the selected workspace model instead of overlaying controls on the canvas.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
               <div className="space-y-2">
                 <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                   Workspace title
@@ -389,15 +412,155 @@ export function CustomWorkspaceSettingsPage() {
                   Press Enter to add a label. Use Backspace on an empty field to remove the last one.
                 </div>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Model details</CardTitle>
-              <CardDescription>Current data for the selected workspace.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              <div className="space-y-4 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/24 p-4">
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                    Layout mode
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Custom keeps explicit widget placement. Auto grid computes placement from layout rules.
+                  </div>
+                </div>
+
+                <Select
+                  value={workspace.layoutKind ?? "custom"}
+                  onChange={(event) => {
+                    const nextLayoutKind = event.target.value === "auto-grid" ? "auto-grid" : "custom";
+                    updateSelectedWorkspace((dashboard) => ({
+                      ...dashboard,
+                      layoutKind: nextLayoutKind,
+                    }));
+                  }}
+                >
+                  <option value="custom">Custom</option>
+                  <option value="auto-grid">Auto grid</option>
+                </Select>
+
+                {(workspace.layoutKind ?? "custom") === "auto-grid" ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        Fill screen
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={workspace.autoGrid?.fillScreen === true ? "default" : "outline"}
+                          onClick={() => {
+                            updateSelectedWorkspace((dashboard) => ({
+                              ...dashboard,
+                              autoGrid: {
+                                ...dashboard.autoGrid,
+                                fillScreen: true,
+                              },
+                            }));
+                          }}
+                        >
+                          Fill
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={workspace.autoGrid?.fillScreen === true ? "outline" : "default"}
+                          onClick={() => {
+                            updateSelectedWorkspace((dashboard) => ({
+                              ...dashboard,
+                              autoGrid: {
+                                ...dashboard.autoGrid,
+                                fillScreen: false,
+                              },
+                            }));
+                          }}
+                        >
+                          Natural
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        Max columns
+                      </div>
+                      <Input
+                        inputMode="numeric"
+                        value={String(workspace.autoGrid?.maxColumns ?? 4)}
+                        onChange={(event) => {
+                          const current = workspace.autoGrid?.maxColumns ?? 4;
+                          updateSelectedWorkspace((dashboard) => ({
+                            ...dashboard,
+                            autoGrid: {
+                              ...dashboard.autoGrid,
+                              maxColumns: parsePositiveInteger(event.target.value, current, {
+                                min: 1,
+                                max: 10,
+                              }),
+                            },
+                          }));
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        Min column width
+                      </div>
+                      <Input
+                        inputMode="numeric"
+                        value={String(workspace.autoGrid?.minColumnWidthPx ?? 320)}
+                        onChange={(event) => {
+                          const current = workspace.autoGrid?.minColumnWidthPx ?? 320;
+                          updateSelectedWorkspace((dashboard) => ({
+                            ...dashboard,
+                            autoGrid: {
+                              ...dashboard.autoGrid,
+                              minColumnWidthPx: parsePositiveInteger(event.target.value, current, {
+                                min: 120,
+                                max: 1200,
+                              }),
+                            },
+                          }));
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        Row height
+                      </div>
+                      <Input
+                        inputMode="numeric"
+                        value={String(workspace.autoGrid?.rowHeight ?? resolvedDashboard?.grid.rowHeight ?? 18)}
+                        onChange={(event) => {
+                          const current = workspace.autoGrid?.rowHeight ?? resolvedDashboard?.grid.rowHeight ?? 18;
+                          updateSelectedWorkspace((dashboard) => ({
+                            ...dashboard,
+                            autoGrid: {
+                              ...dashboard.autoGrid,
+                              rowHeight: parsePositiveInteger(event.target.value, current, {
+                                min: 8,
+                                max: 240,
+                              }),
+                            },
+                          }));
+                        }}
+                      />
+                    </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Model details</CardTitle>
+                  <CardDescription>Current data for the selected workspace.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
               <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
                 <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                   Storage scope
@@ -410,6 +573,7 @@ export function CustomWorkspaceSettingsPage() {
                   Layout
                 </div>
                 <div className="mt-2 space-y-1 text-foreground">
+                  <div>Mode: {workspace.layoutKind ?? "custom"}</div>
                   <div>{workspace.widgets.length} widgets</div>
                   <div>{resolvedDashboard?.grid.columns ?? 12} columns</div>
                   <div>Last saved {formatSavedAt(savedCollection.savedAt)}</div>
@@ -455,8 +619,10 @@ export function CustomWorkspaceSettingsPage() {
                   <Trash2 className="h-4 w-4" />
                   Delete workspace
                 </Button>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
 

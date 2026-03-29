@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { ComponentType } from "react";
 
 import { ArrowLeft } from "lucide-react";
@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   resolveDashboardCanvasCompanionCandidates,
+  resolveDashboardCompanionMap,
+  resolveDashboardCompanionLayoutMap,
   type DashboardCanvasCompanionCandidate,
   type ResolvedDashboardWidgetEntry,
 } from "@/dashboards/canvas-items";
@@ -19,13 +21,11 @@ import {
 } from "@/dashboards/DashboardControls";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { resolveDashboardLayout } from "@/dashboards/layout";
-import {
-  resolveResponsiveCanvasLayout,
-  resolveWidgetResponsiveMinWidthPx,
-} from "@/dashboards/responsive-layout";
+import { resolveAutoGridTemplateColumns } from "@/dashboards/responsive-layout";
 import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import type {
   DashboardDefinition,
+  DashboardLayoutKind,
   ResolvedDashboardWidgetInstance,
   ResolvedDashboardWidgetLayout,
 } from "@/dashboards/types";
@@ -53,6 +53,17 @@ function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
   return {
     gridColumn: `${layout.x + 1} / span ${layout.w}`,
     gridRow: `${layout.y + 1} / span ${layout.h}`,
+  };
+}
+
+function autoGridItemStyle(
+  layout: Pick<ResolvedDashboardWidgetLayout, "h">,
+  options?: { fullWidth?: boolean },
+): CSSProperties {
+  return {
+    minWidth: 0,
+    gridRow: `span ${Math.max(1, layout.h)}`,
+    gridColumn: options?.fullWidth ? "1 / -1" : undefined,
   };
 }
 
@@ -167,12 +178,10 @@ function DashboardCanvasCompanionCard({
 
 export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition }) {
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
-  const canvasRef = useRef<HTMLDivElement | null>(null);
   const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
     {},
   );
   const [settingsInstanceId, setSettingsInstanceId] = useState<string | null>(null);
-  const [canvasWidth, setCanvasWidth] = useState(0);
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
     {},
   );
@@ -236,75 +245,112 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
     () => widgetEntries.filter(({ instance }) => resolveWidgetSidebarOnly(instance.presentation)),
     [widgetEntries],
   );
+  const layoutKind: DashboardLayoutKind = resolvedDashboard.layoutKind ?? "custom";
+  const runtimeRowHeight =
+    layoutKind === "auto-grid"
+      ? Math.max(1, resolvedDashboard.autoGrid?.rowHeight ?? resolvedDashboard.grid.rowHeight)
+      : resolvedDashboard.grid.rowHeight;
+  const autoGridFillScreen = layoutKind === "auto-grid" && resolvedDashboard.autoGrid?.fillScreen === true;
+  const storedCompanionLayoutById = useMemo(
+    () => resolveDashboardCompanionLayoutMap(resolvedDashboard.companions),
+    [resolvedDashboard.companions],
+  );
+  const storedCompanionById = useMemo(
+    () => resolveDashboardCompanionMap(resolvedDashboard.companions),
+    [resolvedDashboard.companions],
+  );
   const companionCandidates = useMemo(
     () =>
       resolveDashboardCanvasCompanionCandidates(widgetEntries, {
         columns: resolvedDashboard.grid.columns,
+        storedCompanionLayoutById,
+        storedCompanionById,
       }),
-    [resolvedDashboard.grid.columns, widgetEntries],
+    [resolvedDashboard.grid.columns, storedCompanionById, storedCompanionLayoutById, widgetEntries],
   );
   const visibleCompanionCandidates = useMemo(
     () =>
       companionCandidates.filter((candidate) => companionVisibilityById[candidate.itemId] !== false),
     [companionCandidates, companionVisibilityById],
   );
-  const responsiveCanvasLayout = useMemo(
+  const customCanvasLayoutById = useMemo(
     () =>
-      resolveResponsiveCanvasLayout(
-        [
-          ...canvasWidgetEntries.map(({ instance, widget }) => ({
-            id: instance.id,
-            widgetId: widget.id,
-            layout: instance.layout,
-            minWidthPx: resolveWidgetResponsiveMinWidthPx(widget),
-          })),
-          ...missingCanvasWidgets.map((instance) => ({
-            id: instance.id,
-            widgetId: instance.widgetId,
-            layout: instance.layout,
-            minWidthPx: 220,
-          })),
-          ...visibleCompanionCandidates.map((candidate) => ({
-            id: candidate.itemId,
-            layout: candidate.layout,
-            minWidthPx: candidate.minWidthPx,
-          })),
-        ],
-        {
-          availableWidth: canvasWidth,
-          canonicalColumns: resolvedDashboard.grid.columns,
-          gap: resolvedDashboard.grid.gap,
-        },
-      ),
-    [
-      canvasWidth,
-      canvasWidgetEntries,
-      missingCanvasWidgets,
-      resolvedDashboard.grid.columns,
-      resolvedDashboard.grid.gap,
-      visibleCompanionCandidates,
-    ],
+      new Map<string, ResolvedDashboardWidgetLayout>([
+        ...canvasWidgetEntries.map(({ instance }) => [instance.id, instance.layout] as const),
+        ...missingCanvasWidgets.map((instance) => [instance.id, instance.layout] as const),
+        ...visibleCompanionCandidates.map((candidate) => [candidate.itemId, candidate.layout] as const),
+      ]),
+    [canvasWidgetEntries, missingCanvasWidgets, visibleCompanionCandidates],
   );
   const canvasMinHeight = useMemo(
-    () =>
+    () => layoutKind === "custom"
+      ?
       resolveCanvasMinHeight(
         [
           ...canvasWidgetEntries
-            .map(({ instance }) => responsiveCanvasLayout.layoutById.get(instance.id) ?? instance.layout),
+            .map(({ instance }) => customCanvasLayoutById.get(instance.id) ?? instance.layout),
           ...missingCanvasWidgets
-            .map((instance) => responsiveCanvasLayout.layoutById.get(instance.id) ?? instance.layout),
+            .map((instance) => customCanvasLayoutById.get(instance.id) ?? instance.layout),
           ...visibleCompanionCandidates
-            .map((candidate) => responsiveCanvasLayout.layoutById.get(candidate.itemId) ?? candidate.layout),
+            .map((candidate) => customCanvasLayoutById.get(candidate.itemId) ?? candidate.layout),
         ],
-        resolvedDashboard.grid,
-      ),
+        {
+          gap: resolvedDashboard.grid.gap,
+          rowHeight: runtimeRowHeight,
+        },
+      )
+      : 0,
     [
       canvasWidgetEntries,
+      customCanvasLayoutById,
+      layoutKind,
       missingCanvasWidgets,
-      responsiveCanvasLayout.layoutById,
-      resolvedDashboard.grid,
+      resolvedDashboard.grid.gap,
+      runtimeRowHeight,
       visibleCompanionCandidates,
     ],
+  );
+  const autoGridTemplateColumns = useMemo(
+    () =>
+      resolveAutoGridTemplateColumns({
+        maxColumns: resolvedDashboard.autoGrid?.maxColumns,
+        minColumnWidthPx: resolvedDashboard.autoGrid?.minColumnWidthPx,
+        gap: resolvedDashboard.grid.gap,
+      }),
+    [
+      resolvedDashboard.autoGrid?.maxColumns,
+      resolvedDashboard.autoGrid?.minColumnWidthPx,
+      resolvedDashboard.grid.gap,
+    ],
+  );
+  const visibleCompanionsByInstanceId = useMemo(() => {
+    const map = new Map<string, DashboardCanvasCompanionCandidate[]>();
+
+    visibleCompanionCandidates.forEach((candidate) => {
+      const current = map.get(candidate.instanceId) ?? [];
+      current.push(candidate);
+      map.set(candidate.instanceId, current);
+    });
+
+    return map;
+  }, [visibleCompanionCandidates]);
+  const autoGridRenderItems = useMemo(
+    () =>
+      resolvedRenderedWidgets
+        .filter((instance) => !resolveWidgetSidebarOnly(instance.presentation))
+        .flatMap((instance) => {
+          const baseItem =
+            getWidgetById(instance.widgetId) == null
+              ? [{ kind: "missing" as const, instance }]
+              : [{ kind: "widget" as const, instance, widget: getWidgetById(instance.widgetId)! }];
+          const companionItems = (visibleCompanionsByInstanceId.get(instance.id) ?? []).map((candidate) => ({
+            kind: "companion" as const,
+            candidate,
+          }));
+
+          return [...baseItem, ...companionItems];
+        }),
+    [resolvedRenderedWidgets, visibleCompanionsByInstanceId],
   );
   const settingsInstance = useMemo(
     () => resolvedRenderedWidgets.find((instance) => instance.id === settingsInstanceId) ?? null,
@@ -326,33 +372,6 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
       setSettingsInstanceId(null);
     }
   }, [resolvedRenderedWidgets, settingsInstanceId]);
-
-  useEffect(() => {
-    if (!canvasRef.current) {
-      setCanvasWidth(0);
-      return undefined;
-    }
-
-    const element = canvasRef.current;
-
-    function updateWidth() {
-      setCanvasWidth(element.getBoundingClientRect().width);
-    }
-
-    updateWidth();
-
-    const observer = new ResizeObserver(() => {
-      updateWidth();
-    });
-
-    observer.observe(element);
-    window.addEventListener("resize", updateWidth);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateWidth);
-    };
-  }, [settingsInstanceId]);
 
   return (
     <DashboardControlsProvider key={dashboard.id} controls={dashboard.controls}>
@@ -451,19 +470,177 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
           ) : (
             <div className="space-y-3">
               <DashboardDataControls controls={dashboard.controls} />
-              <div
-                ref={canvasRef}
-                className="grid"
-                style={{
-                  gap: `${resolvedDashboard.grid.gap}px`,
-                  gridAutoRows: `${resolvedDashboard.grid.rowHeight}px`,
-                  gridTemplateColumns: `repeat(${responsiveCanvasLayout.columns}, minmax(0, 1fr))`,
-                  minHeight: `${canvasMinHeight}px`,
-                }}
-              >
+              {layoutKind === "auto-grid" ? (
+                <div
+                  className="grid"
+                  style={{
+                    gap: `${resolvedDashboard.grid.gap}px`,
+                    gridAutoRows: `${runtimeRowHeight}px`,
+                    gridTemplateColumns: autoGridTemplateColumns,
+                    minHeight: autoGridFillScreen ? "calc(100vh - 17rem)" : undefined,
+                  }}
+                >
+                  {autoGridRenderItems.map((item) => {
+                    if (item.kind === "companion") {
+                      return (
+                        <div
+                          key={item.candidate.itemId}
+                          style={autoGridItemStyle(item.candidate.layout)}
+                          className="relative isolate h-full min-w-0 overflow-visible"
+                        >
+                          <DashboardCanvasCompanionCard
+                            candidate={item.candidate}
+                            onPropsChange={(props) => {
+                              setWidgetOverrides((current) => ({
+                                ...current,
+                                [item.candidate.instanceId]: {
+                                  ...current[item.candidate.instanceId],
+                                  props,
+                                },
+                              }));
+                            }}
+                            onRuntimeStateChange={(state) => {
+                              setWidgetOverrides((current) => ({
+                                ...current,
+                                [item.candidate.instanceId]: {
+                                  ...current[item.candidate.instanceId],
+                                  runtimeState: state ?? null,
+                                },
+                              }));
+                            }}
+                            onVisibilityChange={(itemId, visible) => {
+                              setCompanionVisibilityById((current) => {
+                                if (current[itemId] === visible) {
+                                  return current;
+                                }
+
+                                return {
+                                  ...current,
+                                  [itemId]: visible,
+                                };
+                              });
+                            }}
+                          />
+                        </div>
+                      );
+                    }
+
+                    if (item.kind === "missing") {
+                      return (
+                        <MissingWidgetFrame
+                          key={item.instance.id}
+                          widgetId={item.instance.widgetId}
+                          style={autoGridItemStyle(item.instance.layout, {
+                            fullWidth: isWorkspaceRowWidgetId(item.instance.widgetId),
+                          })}
+                        />
+                      );
+                    }
+
+                    const { instance, widget } = item;
+                    const style = autoGridItemStyle(instance.layout, {
+                      fullWidth: isWorkspaceRowWidgetId(widget.id),
+                    });
+                    const required = [
+                      ...(widget.requiredPermissions ?? []),
+                      ...(instance.requiredPermissions ?? []),
+                    ];
+
+                    if (!hasAllPermissions(permissions, required)) {
+                      return (
+                        <LockedWidgetFrame
+                          key={instance.id}
+                          style={style}
+                          title={instance.title ?? widget.title}
+                          description={`Missing permissions: ${required.join(", ")}`}
+                        />
+                      );
+                    }
+
+                    const Component = widget.component as ComponentType<{
+                      widget: typeof widget;
+                      instanceTitle?: string;
+                      props: Record<string, unknown>;
+                      presentation?: WidgetInstancePresentation;
+                      runtimeState?: Record<string, unknown>;
+                      onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
+                    }>;
+                    const HeaderActions =
+                      widget.headerActions as
+                        | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
+                        | undefined;
+
+                    return (
+                      <div
+                        key={instance.id}
+                        style={style}
+                        className="relative isolate h-full min-w-0 overflow-visible"
+                      >
+                        <WidgetFrame
+                          widget={widget}
+                          instance={instance}
+                          presentation={instance.presentation}
+                          showHeader={
+                            isWorkspaceRowWidgetId(widget.id)
+                              ? false
+                              : resolveWidgetHeaderVisibility(instance.props)
+                          }
+                          headerActions={
+                            HeaderActions ? (
+                              <HeaderActions
+                                widget={widget}
+                                props={instance.props ?? {}}
+                                runtimeState={instance.runtimeState}
+                                onRuntimeStateChange={(state) => {
+                                  setWidgetOverrides((current) => ({
+                                    ...current,
+                                    [instance.id]: {
+                                      ...current[instance.id],
+                                      runtimeState: state ?? null,
+                                    },
+                                  }));
+                                }}
+                              />
+                            ) : undefined
+                          }
+                          onOpenSettings={() => {
+                            setSettingsInstanceId(instance.id);
+                          }}
+                        >
+                          <Component
+                            widget={widget}
+                            instanceTitle={instance.title}
+                            props={instance.props ?? {}}
+                            presentation={instance.presentation}
+                            runtimeState={instance.runtimeState}
+                            onRuntimeStateChange={(state) => {
+                              setWidgetOverrides((current) => ({
+                                ...current,
+                                [instance.id]: {
+                                  ...current[instance.id],
+                                  runtimeState: state ?? null,
+                                },
+                              }));
+                            }}
+                          />
+                        </WidgetFrame>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  className="grid"
+                  style={{
+                    gap: `${resolvedDashboard.grid.gap}px`,
+                    gridAutoRows: `${runtimeRowHeight}px`,
+                    gridTemplateColumns: `repeat(${resolvedDashboard.grid.columns}, minmax(0, 1fr))`,
+                    minHeight: `${canvasMinHeight}px`,
+                  }}
+                >
                 {canvasWidgetEntries.map(({ instance, widget }) => {
                   const style = layoutToStyle(
-                    responsiveCanvasLayout.layoutById.get(instance.id) ?? instance.layout,
+                    customCanvasLayoutById.get(instance.id) ?? instance.layout,
                   );
                   const required = [
                     ...(widget.requiredPermissions ?? []),
@@ -554,7 +731,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
                 {missingCanvasWidgets.map((instance) => {
                   const style = layoutToStyle(
-                    responsiveCanvasLayout.layoutById.get(instance.id) ?? instance.layout,
+                    customCanvasLayoutById.get(instance.id) ?? instance.layout,
                   );
 
                   return (
@@ -568,7 +745,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
                 {visibleCompanionCandidates.map((candidate) => {
                   const style = layoutToStyle(
-                    responsiveCanvasLayout.layoutById.get(candidate.itemId) ?? candidate.layout,
+                    customCanvasLayoutById.get(candidate.itemId) ?? candidate.layout,
                   );
 
                   return (
@@ -614,6 +791,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                   );
                 })}
               </div>
+              )}
             </div>
           )}
         </div>

@@ -1,10 +1,10 @@
 import { WORKSPACE_ROW_WIDGET_ID } from "@/dashboards/structural-widgets";
-import type { WidgetDefinition } from "@/widgets/types";
+import { defineWidget } from "@/widgets/types";
 
 import { WorkspaceRowWidget, type WorkspaceRowWidgetProps } from "./WorkspaceRowWidget";
 import { WorkspaceRowWidgetSettings } from "./WorkspaceRowWidgetSettings";
 
-export const workspaceRowWidget: WidgetDefinition<WorkspaceRowWidgetProps> = {
+export const workspaceRowWidget = defineWidget<WorkspaceRowWidgetProps>({
   id: WORKSPACE_ROW_WIDGET_ID,
   title: "Row",
   description:
@@ -23,4 +23,4 @@ export const workspaceRowWidget: WidgetDefinition<WorkspaceRowWidgetProps> = {
   },
   settingsComponent: WorkspaceRowWidgetSettings,
   component: WorkspaceRowWidget,
-};
+});

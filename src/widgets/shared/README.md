@@ -39,7 +39,11 @@ This directory contains reusable widget presentation primitives that are shared 
 - Widget instances can also choose a shared `surfaceMode` in presentation state. `default` keeps the normal card shell, while `transparent` removes the card fill/shadow so the widget sits flatter on the workspace canvas.
 - Widget instances can also choose a shared `placementMode` in presentation state. `canvas` keeps the normal mounted card in the dashboard grid, while `sidebar` keeps the widget mounted for runtime/state publication but hides its card from the workspace canvas so it lives only in the workspace widget rail.
 - Canvas companion fields from `presentation.exposedFields` remain independent from card placement. A sidebar-only widget can still project selected schema fields onto the canvas as companion cards while the owning widget instance stays in the rail.
-- Workspace-style canvases may choose to render exposed companion fields as first-class layout items instead of floating overlays. The shared presentation state now supports optional `gridX/gridY/gridW/gridH` geometry on exposed fields for that use case, and the read-only dashboard viewer now also participates in that same runtime canvas-item model.
+- Workspace-style canvases may choose to render exposed companion fields as first-class layout
+  items instead of floating overlays. Visibility/exposure still comes from shared presentation
+  state, but committed companion-card placement now belongs to the dashboard model. The optional
+  `gridX/gridY/gridW/gridH` presentation fields remain only as a backward-compatible migration
+  fallback for older stored workspaces.
 - Companion-field hosts should only create a canvas wrapper when at least one field is actually visible. Sidebar-only widgets with no exposed canvas fields must not leave behind empty grid items or invisible hit areas.
 - Widget definitions can optionally provide `railIcon` and `railSummaryComponent` so workspace-style surfaces can show meaningful per-widget icons and hover summaries in the shared widget rail without hardcoding widget-specific logic into the canvas host.
 - Widget definitions can also provide `defaultPresentation`. This is the shared way to make a widget start as `sidebar` or `canvas` by default, or to seed other presentation defaults, without hardcoding per-widget behavior in the dashboard hosts.

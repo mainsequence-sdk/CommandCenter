@@ -6,6 +6,15 @@ export interface DashboardGridConfig {
   gap?: number;
 }
 
+export type DashboardLayoutKind = "custom" | "auto-grid";
+
+export interface DashboardAutoGridConfig {
+  maxColumns?: number;
+  minColumnWidthPx?: number;
+  rowHeight?: number;
+  fillScreen?: boolean;
+}
+
 export type DashboardTimeRangeKey = "15m" | "1h" | "6h" | "24h" | "7d" | "30d" | "90d";
 
 export interface DashboardTimeRangeConfig {
@@ -54,6 +63,13 @@ export interface DashboardWidgetPlacement {
   y?: number;
 }
 
+export interface DashboardCanvasItemLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface DashboardWidgetLegacyLayout {
   x?: number;
   y?: number;
@@ -62,6 +78,13 @@ export interface DashboardWidgetLegacyLayout {
 }
 
 export type DashboardWidgetLayout = DashboardWidgetSpan | DashboardWidgetLegacyLayout;
+
+export interface DashboardCompanionLayoutItem {
+  id: string;
+  instanceId: string;
+  fieldId: string;
+  layout: DashboardCanvasItemLayout;
+}
 
 export interface DashboardWidgetRowState {
   collapsed?: boolean;
@@ -88,6 +111,9 @@ export interface DashboardDefinition {
   labels?: string[];
   category?: string;
   source: string;
+  layoutKind?: DashboardLayoutKind;
+  autoGrid?: DashboardAutoGridConfig;
+  companions?: DashboardCompanionLayoutItem[];
   requiredPermissions?: string[];
   grid?: DashboardGridConfig;
   controls?: DashboardControlsConfig;

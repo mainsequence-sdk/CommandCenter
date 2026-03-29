@@ -1,4 +1,5 @@
 import type {
+  DashboardCompanionLayoutItem,
   ResolvedDashboardWidgetInstance,
   ResolvedDashboardWidgetLayout,
 } from "@/dashboards/types";
@@ -32,7 +33,28 @@ export interface DashboardCanvasCompanionCandidate {
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
   widget: WidgetDefinition;
-  minWidthPx: number;
+}
+
+export function resolveDashboardCompanionLayoutMap(
+  companions: readonly DashboardCompanionLayoutItem[] | undefined,
+) {
+  return new Map(
+    (companions ?? []).map((item) => [
+      item.id,
+      {
+        x: item.layout.x,
+        y: item.layout.y,
+        w: item.layout.w,
+        h: item.layout.h,
+      } satisfies ResolvedDashboardWidgetLayout,
+    ] as const),
+  );
+}
+
+export function resolveDashboardCompanionMap(
+  companions: readonly DashboardCompanionLayoutItem[] | undefined,
+) {
+  return new Map((companions ?? []).map((item) => [item.id, item] as const));
 }
 
 export function buildCompanionItemId(instanceId: string, fieldId: string) {
@@ -61,7 +83,17 @@ export function resolveCompanionGridLayout(
   field: Pick<WidgetFieldDefinition, "pop">,
   fieldState: ReturnType<typeof resolveWidgetFieldState>,
   columns: number,
+  storedLayout?: ResolvedDashboardWidgetLayout,
 ): ResolvedDashboardWidgetLayout {
+  if (storedLayout) {
+    return {
+      x: Math.max(0, Math.min(storedLayout.x, Math.max(0, columns - storedLayout.w))),
+      y: Math.max(0, storedLayout.y),
+      w: Math.max(1, Math.min(storedLayout.w, columns)),
+      h: Math.max(1, storedLayout.h),
+    };
+  }
+
   if (
     typeof fieldState.gridX === "number" &&
     typeof fieldState.gridY === "number" &&
@@ -125,6 +157,8 @@ export function resolveDashboardCanvasCompanionCandidates(
   options: {
     columns: number;
     layoutOverrideById?: ReadonlyMap<string, ResolvedDashboardWidgetLayout>;
+    storedCompanionLayoutById?: ReadonlyMap<string, ResolvedDashboardWidgetLayout>;
+    storedCompanionById?: ReadonlyMap<string, DashboardCompanionLayoutItem>;
   },
 ): DashboardCanvasCompanionCandidate[] {
   return widgetEntries.flatMap(({ instance, widget }) => {
@@ -140,7 +174,7 @@ export function resolveDashboardCanvasCompanionCandidates(
       }
 
       const fieldState = resolveWidgetFieldState(instance.presentation, field, fieldIndex);
-
+      const itemId = buildCompanionItemId(instance.id, field.id);
       if (!fieldState.visible) {
         return [];
       }
@@ -150,11 +184,12 @@ export function resolveDashboardCanvasCompanionCandidates(
         field,
         fieldState,
         options.columns,
+        options.storedCompanionLayoutById?.get(itemId),
       );
 
       return [
         {
-          itemId: buildCompanionItemId(instance.id, field.id),
+          itemId,
           instanceId: instance.id,
           fieldId: field.id,
           field,
@@ -166,10 +201,6 @@ export function resolveDashboardCanvasCompanionCandidates(
           presentation: instance.presentation,
           runtimeState: instance.runtimeState,
           widget,
-          minWidthPx: Math.max(
-            220,
-            Math.min(560, fieldState.width ?? field.pop?.defaultWidth ?? 320),
-          ),
         },
       ] satisfies DashboardCanvasCompanionCandidate[];
     });

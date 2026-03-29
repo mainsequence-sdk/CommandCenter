@@ -7,6 +7,9 @@ table widgets in the live widget catalog.
 ## Rules
 
 - Each widget must follow the platform `WidgetDefinition` contract when it is re-enabled from `extensions/main_sequence/extensions/workbench/index.ts`.
+- Main Sequence widget definitions now inherit the shared platform default widget size. If a
+  Main Sequence route needs a larger or smaller presentation, override that at the app/route
+  surface instead of baking a route-specific size into the reusable widget definition.
 - Each widget folder should document both the reusable widget definition and the expected instance-level configuration model.
 - Main Sequence apps may mount preconfigured widget instances, while dashboard/workspace builders may expose instance settings for the same widget definition.
 - Current widget folders include `dependency-graph/` for mixed update dependency-graph rendering,

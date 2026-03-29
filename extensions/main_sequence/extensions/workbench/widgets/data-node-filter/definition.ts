@@ -1,6 +1,6 @@
 import { Database } from "lucide-react";
 
-import type { WidgetDefinition } from "@/widgets/types";
+import { defineWidget } from "@/widgets/types";
 
 import { dataNodeFilterWidgetController } from "./controller";
 import { MainSequenceDataNodeFilterWidget } from "./MainSequenceDataNodeFilterWidget";
@@ -9,14 +9,13 @@ import { DataNodeRailSummary } from "./DataNodeRailSummary";
 import type { MainSequenceDataNodeFilterWidgetProps } from "./dataNodeFilterModel";
 import { dataNodeFilterSettingsSchema } from "./schema";
 
-export const mainSequenceDataNodeFilterWidget: WidgetDefinition<MainSequenceDataNodeFilterWidgetProps> = {
+export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNodeFilterWidgetProps>({
   id: "main-sequence-data-node",
   title: "Data Node",
   description: "Stores a reusable Main Sequence dataset node, with a settings-only table preview.",
   category: "DataNodes",
   kind: "custom",
   source: "main_sequence_workbench",
-  defaultSize: { w: 1, h: 1 },
   requiredPermissions: ["dashboard:view"],
   tags: ["main-sequence", "data-node", "filter", "preview", "table"],
   exampleProps: {
@@ -39,4 +38,4 @@ export const mainSequenceDataNodeFilterWidget: WidgetDefinition<MainSequenceData
   controller: dataNodeFilterWidgetController,
   settingsComponent: MainSequenceDataNodeFilterWidgetSettings,
   component: MainSequenceDataNodeFilterWidget,
-};
+});

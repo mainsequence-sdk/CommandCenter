@@ -1,6 +1,6 @@
 import { FileText } from "lucide-react";
 
-import type { WidgetDefinition } from "@/widgets/types";
+import { defineWidget } from "@/widgets/types";
 
 import { MarkdownNoteWidget, type MarkdownNoteWidgetProps } from "./MarkdownNoteWidget";
 import { MarkdownNoteWidgetSettings } from "./MarkdownNoteWidgetSettings";
@@ -21,14 +21,13 @@ const exampleContent = `# Daily Brief
 > Keep this panel for text that needs structure, not just a one-line title.
 `;
 
-export const markdownNoteWidget: WidgetDefinition<MarkdownNoteWidgetProps> = {
+export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
   id: "markdown-note",
   title: "Markdown",
   description: "Render Markdown notes, runbooks, and narrative context inside a dashboard widget.",
   category: "Content",
   kind: "custom",
   source: "core",
-  defaultSize: { w: 6, h: 6 },
   requiredPermissions: ["dashboard:view"],
   tags: ["markdown", "notes", "documentation", "content"],
   exampleProps: {
@@ -44,4 +43,4 @@ export const markdownNoteWidget: WidgetDefinition<MarkdownNoteWidgetProps> = {
   settingsComponent: MarkdownNoteWidgetSettings,
   railIcon: FileText,
   component: MarkdownNoteWidget,
-};
+});

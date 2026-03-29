@@ -1,3 +1,4 @@
+import { buildCompanionItemId } from "@/dashboards/canvas-items";
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import {
   applyGridLayoutToDashboardWidgets,
@@ -11,6 +12,7 @@ import {
   WORKSPACE_ROW_HEIGHT_ROWS,
 } from "@/dashboards/structural-widgets";
 import type {
+  DashboardCompanionLayoutItem,
   DashboardControlsState,
   DashboardDefinition,
   DashboardWidgetRowState,
@@ -28,6 +30,9 @@ const WORKSPACE_SNAPSHOT_VERSION = 1;
 const DEFAULT_WORKSPACE_COLUMNS = 96;
 const DEFAULT_WORKSPACE_ROW_HEIGHT = 18;
 const DEFAULT_WORKSPACE_GAP = 2;
+const DEFAULT_AUTO_GRID_MAX_COLUMNS = 4;
+const DEFAULT_AUTO_GRID_MIN_COLUMN_WIDTH_PX = 320;
+const DEFAULT_AUTO_GRID_FILL_SCREEN = false;
 const LEGACY_WORKSPACE_COLUMNS = 12;
 const WORKSPACE_COLUMN_SCALE = DEFAULT_WORKSPACE_COLUMNS / LEGACY_WORKSPACE_COLUMNS;
 const WORKSPACE_ROW_SCALE = 4;
@@ -121,6 +126,120 @@ function normalizeWidgetRuntimeState(
   }
 
   return cloneJson(runtimeState);
+}
+
+function collectDashboardWidgetTreeIds(widget: DashboardWidgetInstance): string[] {
+  return [
+    widget.id,
+    ...(widget.row?.children?.flatMap((child) => collectDashboardWidgetTreeIds(child)) ?? []),
+  ];
+}
+
+function collectDashboardWidgetIds(widgets: DashboardWidgetInstance[]) {
+  return new Set(widgets.flatMap((widget) => collectDashboardWidgetTreeIds(widget)));
+}
+
+function normalizeDashboardCompanionLayoutItem(
+  item: DashboardCompanionLayoutItem,
+  columnScale: number,
+  rowScale: number,
+): DashboardCompanionLayoutItem | null {
+  if (
+    !item ||
+    typeof item.instanceId !== "string" ||
+    !item.instanceId ||
+    typeof item.fieldId !== "string" ||
+    !item.fieldId ||
+    !isPlainRecord(item.layout)
+  ) {
+    return null;
+  }
+
+  const rawLayout = item.layout;
+  const rawX = typeof rawLayout.x === "number" ? rawLayout.x : 0;
+  const rawY = typeof rawLayout.y === "number" ? rawLayout.y : 0;
+  const rawW = typeof rawLayout.w === "number" ? rawLayout.w : 0;
+  const rawH = typeof rawLayout.h === "number" ? rawLayout.h : 0;
+
+  if (rawW <= 0 || rawH <= 0) {
+    return null;
+  }
+
+  return {
+    id: buildCompanionItemId(item.instanceId, item.fieldId),
+    instanceId: item.instanceId,
+    fieldId: item.fieldId,
+    layout: {
+      x: Math.max(0, Math.round(rawX * columnScale)),
+      y: Math.max(0, Math.round(rawY * rowScale)),
+      w: Math.max(1, Math.round(rawW * columnScale)),
+      h: Math.max(1, Math.round(rawH * rowScale)),
+    },
+  };
+}
+
+function extractLegacyCompanionLayoutItems(
+  widgets: DashboardWidgetInstance[],
+  columnScale: number,
+  rowScale: number,
+): DashboardCompanionLayoutItem[] {
+  return widgets.flatMap((widget) => {
+    const ownItems = Object.entries(widget.presentation?.exposedFields ?? {}).flatMap(
+      ([fieldId, fieldState]) => {
+        if (
+          typeof fieldState?.gridX !== "number" ||
+          typeof fieldState?.gridY !== "number" ||
+          typeof fieldState?.gridW !== "number" ||
+          typeof fieldState?.gridH !== "number"
+        ) {
+          return [];
+        }
+
+        return [{
+          id: buildCompanionItemId(widget.id, fieldId),
+          instanceId: widget.id,
+          fieldId,
+          layout: {
+            x: Math.max(0, Math.round(fieldState.gridX * columnScale)),
+            y: Math.max(0, Math.round(fieldState.gridY * rowScale)),
+            w: Math.max(1, Math.round(fieldState.gridW * columnScale)),
+            h: Math.max(1, Math.round(fieldState.gridH * rowScale)),
+          },
+        } satisfies DashboardCompanionLayoutItem];
+      },
+    );
+
+    if (!widget.row?.children?.length) {
+      return ownItems;
+    }
+
+    return [...ownItems, ...extractLegacyCompanionLayoutItems(widget.row.children, columnScale, rowScale)];
+  });
+}
+
+function sanitizeDashboardCompanionLayoutItems(
+  companionItems: DashboardCompanionLayoutItem[] | undefined,
+  widgets: DashboardWidgetInstance[],
+  columnScale: number,
+  rowScale: number,
+): DashboardCompanionLayoutItem[] {
+  const normalizedItems = Array.isArray(companionItems)
+    ? companionItems
+        .map((item) => normalizeDashboardCompanionLayoutItem(item, columnScale, rowScale))
+        .filter((item): item is DashboardCompanionLayoutItem => item !== null)
+    : extractLegacyCompanionLayoutItems(widgets, columnScale, rowScale);
+  const widgetIds = collectDashboardWidgetIds(widgets);
+  const dedupedById = new Map<string, DashboardCompanionLayoutItem>();
+
+  normalizedItems.forEach((item) => {
+    if (!widgetIds.has(item.instanceId)) {
+      return;
+    }
+
+    dedupedById.set(item.id, item);
+  });
+
+  return [...dedupedById.values()].sort((left, right) => left.id.localeCompare(right.id));
 }
 
 function normalizeDashboardRowState(
@@ -271,9 +390,11 @@ function normalizeDashboardWidgetInstance(
   columnScale: number,
   rowScale: number,
 ): DashboardWidgetInstance {
+  const { autoGrid: _legacyAutoGrid, ...instanceWithoutLegacyAutoGrid } =
+    instance as DashboardWidgetInstance & { autoGrid?: unknown };
   const scaled = scaleWidgetForFineGrid(
     {
-      ...instance,
+      ...instanceWithoutLegacyAutoGrid,
       runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
     },
     columnScale,
@@ -346,6 +467,12 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
         normalizeDashboardWidgetInstance(instance, columnScale, rowScale),
       )
     : [];
+  const companions = sanitizeDashboardCompanionLayoutItems(
+    dashboard.companions,
+    widgets,
+    columnScale,
+    rowScale,
+  );
 
   return materializeDashboardLayout({
     ...dashboard,
@@ -354,6 +481,23 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
     labels: normalizeWorkspaceLabels(dashboard.labels),
     category: dashboard.category || "Custom",
     source: dashboard.source || "user",
+    layoutKind: dashboard.layoutKind ?? "custom",
+    autoGrid: {
+      maxColumns:
+        typeof dashboard.autoGrid?.maxColumns === "number" && dashboard.autoGrid.maxColumns > 0
+          ? Math.round(dashboard.autoGrid.maxColumns)
+          : DEFAULT_AUTO_GRID_MAX_COLUMNS,
+      minColumnWidthPx:
+        typeof dashboard.autoGrid?.minColumnWidthPx === "number" && dashboard.autoGrid.minColumnWidthPx > 0
+          ? Math.round(dashboard.autoGrid.minColumnWidthPx)
+          : DEFAULT_AUTO_GRID_MIN_COLUMN_WIDTH_PX,
+      rowHeight:
+        typeof dashboard.autoGrid?.rowHeight === "number" && dashboard.autoGrid.rowHeight > 0
+          ? Math.round(dashboard.autoGrid.rowHeight)
+          : DEFAULT_WORKSPACE_ROW_HEIGHT,
+      fillScreen: dashboard.autoGrid?.fillScreen === true ? true : DEFAULT_AUTO_GRID_FILL_SCREEN,
+    },
+    companions,
     widgets,
     controls: dashboard.controls ?? {
       enabled: true,
@@ -401,10 +545,24 @@ export function materializeDashboardLayout(dashboard: DashboardDefinition): Dash
     ...dashboard,
     widgets: dashboard.widgets.map((widget) => clampWidgetMinimumLayout(widget, maxColumns)),
   });
+  const widgetIds = collectDashboardWidgetIds(dashboard.widgets);
+  const companions = (dashboard.companions ?? [])
+    .filter((item) => widgetIds.has(item.instanceId))
+    .map((item) => ({
+      ...item,
+      id: buildCompanionItemId(item.instanceId, item.fieldId),
+      layout: {
+        x: Math.max(0, item.layout.x),
+        y: Math.max(0, item.layout.y),
+        w: Math.max(1, Math.min(item.layout.w, resolved.grid.columns)),
+        h: Math.max(1, item.layout.h),
+      },
+    }));
 
   return {
     ...dashboard,
     grid: resolved.grid,
+    companions,
     widgets: resolved.widgets.map((instance) => ({
       ...instance,
       layout: {
@@ -427,6 +585,13 @@ export function createBlankDashboard(title = "My Workspace"): DashboardDefinitio
     labels: [],
     category: "Custom",
     source: "user",
+    layoutKind: "custom",
+    autoGrid: {
+      maxColumns: DEFAULT_AUTO_GRID_MAX_COLUMNS,
+      minColumnWidthPx: DEFAULT_AUTO_GRID_MIN_COLUMN_WIDTH_PX,
+      rowHeight: DEFAULT_WORKSPACE_ROW_HEIGHT,
+      fillScreen: DEFAULT_AUTO_GRID_FILL_SCREEN,
+    },
     grid: {
       columns: DEFAULT_WORKSPACE_COLUMNS,
       rowHeight: DEFAULT_WORKSPACE_ROW_HEIGHT,
@@ -586,12 +751,15 @@ function cloneDashboardWidgetTree(
   widget: DashboardWidgetInstance,
   options?: {
     refreshIds?: boolean;
+    idMap?: Map<string, string>;
   },
 ): DashboardWidgetInstance {
   const cloned = cloneJson(widget);
+  const previousId = cloned.id;
 
   if (options?.refreshIds) {
     cloned.id = createId("custom-widget");
+    options.idMap?.set(previousId, cloned.id);
   }
 
   if (cloned.row?.children?.length) {
@@ -662,6 +830,20 @@ function expandCollapsedRowChildrenIntoTopLevel(
   return deltaY === 0
     ? clonedChildren
     : clonedChildren.map((child) => shiftDashboardWidgetTreeY(child, deltaY));
+}
+
+function removeDashboardCompanionsForInstanceIds(
+  dashboard: DashboardDefinition,
+  instanceIds: Set<string>,
+) {
+  if (instanceIds.size === 0 || !dashboard.companions?.length) {
+    return dashboard;
+  }
+
+  return {
+    ...dashboard,
+    companions: dashboard.companions.filter((item) => !instanceIds.has(item.instanceId)),
+  };
 }
 
 export function collapseDashboardRow(
@@ -770,6 +952,61 @@ export function placeCatalogWidget(
   });
 }
 
+export function commitDashboardCompanionLayout(
+  dashboard: DashboardDefinition,
+  layout: Array<Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">>,
+) {
+  const upserts = new Map(
+    layout.flatMap((item) => {
+      const parsed = item.i.startsWith("widget-companion:") ? item.i.split(":") : null;
+
+      if (!parsed || parsed.length !== 3) {
+        return [];
+      }
+
+      const [, instanceId, fieldId] = parsed;
+
+      if (!instanceId || !fieldId) {
+        return [];
+      }
+
+      return [[
+        item.i,
+        {
+          id: item.i,
+          instanceId,
+          fieldId,
+          layout: {
+            x: item.x,
+            y: item.y,
+            w: item.w,
+            h: item.h,
+          },
+        } satisfies DashboardCompanionLayoutItem,
+      ] as const];
+    }),
+  );
+
+  if (upserts.size === 0) {
+    return dashboard;
+  }
+
+  const nextCompanions = new Map(
+    (dashboard.companions ?? []).map((item) => [item.id, item] as const),
+  );
+
+  upserts.forEach((item, id) => {
+    nextCompanions.set(id, {
+      ...item,
+    });
+  });
+
+  return materializeDashboardLayout({
+    ...dashboard,
+    companions: [...nextCompanions.values()],
+  });
+}
+
 export function commitDashboardGridLayout(
   dashboard: DashboardDefinition,
   layout: Array<Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">>,
@@ -778,6 +1015,84 @@ export function commitDashboardGridLayout(
     applyGridLayoutToDashboardWidgets(dashboard.widgets, layout),
     layout,
   );
+
+  return materializeDashboardLayout({
+    ...dashboard,
+    widgets: nextWidgets,
+  });
+}
+
+function resolveWidgetReorderBlockRange(
+  widgets: DashboardDefinition["widgets"],
+  startIndex: number,
+) {
+  const widget = widgets[startIndex];
+
+  if (!widget || !isWorkspaceRowWidgetId(widget.widgetId) || isWorkspaceRowCollapsed(widget)) {
+    return {
+      start: startIndex,
+      end: startIndex,
+    };
+  }
+
+  let end = startIndex;
+
+  for (let index = startIndex + 1; index < widgets.length; index += 1) {
+    if (isWorkspaceRowWidgetId(widgets[index]?.widgetId)) {
+      break;
+    }
+
+    end = index;
+  }
+
+  return {
+    start: startIndex,
+    end,
+  };
+}
+
+export function reorderDashboardWidgets(
+  dashboard: DashboardDefinition,
+  draggedInstanceId: string,
+  targetInstanceId: string,
+  position: "before" | "after",
+) {
+  if (draggedInstanceId === targetInstanceId) {
+    return dashboard;
+  }
+
+  const draggedIndex = dashboard.widgets.findIndex((widget) => widget.id === draggedInstanceId);
+  const targetIndex = dashboard.widgets.findIndex((widget) => widget.id === targetInstanceId);
+
+  if (draggedIndex < 0 || targetIndex < 0) {
+    return dashboard;
+  }
+
+  const nextWidgets = [...dashboard.widgets];
+  const draggedRange = resolveWidgetReorderBlockRange(nextWidgets, draggedIndex);
+
+  if (targetIndex >= draggedRange.start && targetIndex <= draggedRange.end) {
+    return dashboard;
+  }
+
+  const draggedWidgets = nextWidgets.splice(
+    draggedRange.start,
+    draggedRange.end - draggedRange.start + 1,
+  );
+
+  if (draggedWidgets.length === 0) {
+    return dashboard;
+  }
+
+  const baseTargetIndex = nextWidgets.findIndex((widget) => widget.id === targetInstanceId);
+
+  if (baseTargetIndex < 0) {
+    return dashboard;
+  }
+
+  const targetRange = resolveWidgetReorderBlockRange(nextWidgets, baseTargetIndex);
+  const insertionIndex = position === "after" ? targetRange.end + 1 : targetRange.start;
+  nextWidgets.splice(insertionIndex, 0, ...draggedWidgets);
 
   return materializeDashboardLayout({
     ...dashboard,
@@ -1027,21 +1342,32 @@ export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId
 
   if (isWorkspaceRowCollapsed(widget)) {
     const restoredChildren = expandCollapsedRowChildrenIntoTopLevel(widget);
+    const nextDashboard = removeDashboardCompanionsForInstanceIds(
+      {
+        ...dashboard,
+        widgets: [
+          ...dashboard.widgets.slice(0, removeIndex),
+          ...restoredChildren,
+          ...dashboard.widgets.slice(removeIndex + 1),
+        ],
+      },
+      new Set([widget.id]),
+    );
 
-    return materializeDashboardLayout({
-      ...dashboard,
-      widgets: [
-        ...dashboard.widgets.slice(0, removeIndex),
-        ...restoredChildren,
-        ...dashboard.widgets.slice(removeIndex + 1),
-      ],
-    });
+    return materializeDashboardLayout(nextDashboard);
   }
 
-  return materializeDashboardLayout({
-    ...dashboard,
-    widgets: dashboard.widgets.filter((entry) => entry.id !== instanceId),
-  });
+  const removedIds = new Set(collectDashboardWidgetTreeIds(widget));
+
+  return materializeDashboardLayout(
+    removeDashboardCompanionsForInstanceIds(
+      {
+        ...dashboard,
+        widgets: dashboard.widgets.filter((entry) => entry.id !== instanceId),
+      },
+      removedIds,
+    ),
+  );
 }
 
 export function duplicateDashboardWidget(
@@ -1058,9 +1384,11 @@ export function duplicateDashboardWidget(
   const rows = getLayoutRows(current.layout);
   const currentX = current.position?.x ?? 0;
   const currentY = current.position?.y ?? 0;
+  const idMap = new Map<string, string>();
   const duplicatedWidget: DashboardWidgetInstance = {
     ...cloneDashboardWidgetTree(current, {
       refreshIds: true,
+      idMap,
     }),
     runtimeState: undefined,
     position: isWorkspaceRowWidgetId(current.widgetId)
@@ -1073,9 +1401,29 @@ export function duplicateDashboardWidget(
           y: currentY + 2,
         },
   };
+  const duplicatedCompanions = (dashboard.companions ?? []).flatMap((item) => {
+    const nextInstanceId = idMap.get(item.instanceId);
+
+    if (!nextInstanceId) {
+      return [];
+    }
+
+    return [{
+      id: buildCompanionItemId(nextInstanceId, item.fieldId),
+      instanceId: nextInstanceId,
+      fieldId: item.fieldId,
+      layout: {
+        x: item.layout.x,
+        y: item.layout.y,
+        w: item.layout.w,
+        h: item.layout.h,
+      },
+    } satisfies DashboardCompanionLayoutItem];
+  });
 
   return materializeDashboardLayout({
     ...dashboard,
+    companions: [...(dashboard.companions ?? []), ...duplicatedCompanions],
     widgets: [...dashboard.widgets, duplicatedWidget],
   });
 }

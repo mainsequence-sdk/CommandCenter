@@ -1111,7 +1111,7 @@ export function MainSequenceDataNodesPage() {
                       <label htmlFor="data-node-delete-override" className="space-y-1">
                         <div>Override protection</div>
                         <div className="text-xs text-muted-foreground">
-                          Staff/admin only. Use this when protected rows must be removed.
+                          Staff/admin only. Use this when protected DataNodes must be removed.
                         </div>
                       </label>
                     </div>
