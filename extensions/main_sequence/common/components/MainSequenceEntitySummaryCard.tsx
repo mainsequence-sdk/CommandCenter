@@ -7,16 +7,19 @@ import {
   Calendar,
   Cloud,
   Code2,
+  Database,
   Fingerprint,
   GitBranch,
   GitCommitHorizontal,
   GitFork,
   Globe,
+  HardDrive,
   Info,
   Link as LinkIcon,
   Package,
   PencilLine,
   PlaySquare,
+  Server,
   TimerReset,
   type LucideIcon,
 } from "lucide-react";
@@ -25,7 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-import type { EntitySummaryHeader, SummaryField, SummaryStat } from "../api";
+import type { SummaryField, SummaryResponse, SummaryStat } from "../api";
 import { MainSequenceEntitySummaryEditorDialog } from "./MainSequenceEntitySummaryEditorDialog";
 
 function truncateMiddle(value: string, maxLength = 56) {
@@ -87,8 +90,11 @@ const summaryFieldIconMap: Record<string, LucideIcon> = {
   fingerprint: Fingerprint,
   cloud: Cloud,
   code: Code2,
+  database: Database,
   globe: Globe,
+  bucket: HardDrive,
   link: LinkIcon,
+  server: Server,
   "warning-2": AlertTriangle,
 };
 
@@ -102,7 +108,31 @@ function getSummaryValue(value: SummaryField["value"] | SummaryStat["value"]) {
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry) => String(entry)).join(", ");
+    return value
+      .map((entry) => {
+        if (entry === null || entry === undefined || entry === "") {
+          return "Not available";
+        }
+
+        if (typeof entry === "object") {
+          try {
+            return JSON.stringify(entry);
+          } catch {
+            return "[object]";
+          }
+        }
+
+        return String(entry);
+      })
+      .join(", ");
+  }
+
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[object]";
+    }
   }
 
   return String(value);
@@ -214,7 +244,7 @@ export function MainSequenceEntitySummaryCard({
   actions?: ReactNode;
   onFieldLinkClick?: (field: SummaryField) => void;
   onSummaryUpdated?: () => Promise<void> | void;
-  summary: EntitySummaryHeader;
+  summary: SummaryResponse;
 }) {
   const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
   const editableItems = [...summary.inline_fields, ...summary.highlight_fields, ...summary.stats];
@@ -286,6 +316,13 @@ export function MainSequenceEntitySummaryCard({
               </div>
             </div>
           </div>
+
+          {summary.summary_warning ? (
+            <div className="mt-3 flex items-start gap-2 rounded-[calc(var(--radius)-8px)] border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
+              <span>{summary.summary_warning}</span>
+            </div>
+          ) : null}
 
           {summary.highlight_fields.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-[var(--summary-highlight-gap)]">

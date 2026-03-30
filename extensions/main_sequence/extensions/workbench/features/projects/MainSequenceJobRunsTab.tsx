@@ -372,7 +372,7 @@ export function MainSequenceJobRunsTab({
             />
 
             <MainSequenceJobRunResourceUsageSection
-              points={jobRunSummary.extra?.resource_usage_chart_data ?? []}
+              points={jobRunSummary.extensions?.resource_usage_chart_data ?? []}
             />
 
             <Card>

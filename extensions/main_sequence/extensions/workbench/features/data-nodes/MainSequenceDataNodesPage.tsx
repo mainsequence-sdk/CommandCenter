@@ -186,8 +186,7 @@ function buildFallbackDataNodeSummary(dataNode: DataNodeSummary): EntitySummaryH
 }
 
 function getGeneratedSearchDocument(summary?: EntitySummaryHeader | null) {
-  const rawValue =
-    summary?.extra?.generated_search_document ?? summary?.extras?.generated_search_document ?? null;
+  const rawValue = summary?.extensions?.generated_search_document ?? null;
 
   return typeof rawValue === "string" && rawValue.trim() ? rawValue.trim() : null;
 }

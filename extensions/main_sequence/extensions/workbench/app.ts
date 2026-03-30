@@ -14,6 +14,7 @@ import { MainSequenceProjectsPage } from "./features/projects/MainSequenceProjec
 import { MainSequenceSecretsPage } from "./features/secrets/MainSequenceSecretsPage";
 import { MainSequenceSimpleTablesPage } from "./features/simple-tables/MainSequenceSimpleTablesPage";
 import { MainSequenceStreamlitPage } from "./features/streamlit/MainSequenceStreamlitPage";
+import { MainSequenceTimeScaleDbServicesPage } from "./features/timescaledb-services/MainSequenceTimeScaleDbServicesPage";
 
 const workspaceSection: AppSurfaceNavigationSection = {
   id: "workspace",
@@ -37,6 +38,12 @@ const dataSection: AppSurfaceNavigationSection = {
   id: "data",
   label: "Data",
   order: 30,
+};
+
+const deploymentServicesSection: AppSurfaceNavigationSection = {
+  id: "deployment-services",
+  label: "Deployment Services",
+  order: 25,
 };
 
 export const mainSequenceWorkbenchApp: AppDefinition = {
@@ -119,6 +126,16 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence.workspace:view"],
       component: MainSequenceStreamlitPage,
+    },
+    {
+      id: "timescaledb-services",
+      title: "TimeScaleDB Services",
+      navLabel: "TimeScaleDB Services",
+      description: "Browse read-only deployment services backed by the pods TimeScaleDB service endpoints.",
+      navigationSection: deploymentServicesSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence.operations:view"],
+      component: MainSequenceTimeScaleDbServicesPage,
     },
     {
       id: "clusters",

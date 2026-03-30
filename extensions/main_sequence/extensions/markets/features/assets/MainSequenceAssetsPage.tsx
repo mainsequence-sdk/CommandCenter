@@ -9,12 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PageHeader } from "@/components/ui/page-header";
 
 import {
+  fetchAssetSummary,
   formatMainSequenceError,
   listAssets,
   mainSequenceRegistryPageSize,
   type AssetListFilters,
   type AssetListRow,
 } from "../../../../common/api";
+import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
@@ -89,10 +91,21 @@ export function MainSequenceAssetsPage() {
       }) satisfies AssetListFilters,
     [deferredSearchValue, limit, offset, page, pageSize],
   );
+  const assetSummaryFilters = useMemo(
+    () =>
+      ({
+        search: deferredSearchValue,
+      }) satisfies AssetListFilters,
+    [deferredSearchValue],
+  );
 
   const assetsQuery = useQuery({
     queryKey: ["main_sequence", "assets", "list", assetFilters],
     queryFn: () => listAssets(assetFilters),
+  });
+  const assetSummaryQuery = useQuery({
+    queryKey: ["main_sequence", "assets", "summary", assetSummaryFilters],
+    queryFn: () => fetchAssetSummary(assetSummaryFilters),
   });
 
   const pageRows = assetsQuery.data?.results ?? [];
@@ -215,6 +228,18 @@ export function MainSequenceAssetsPage() {
         description="Browse market assets with the shared Main Sequence registry pattern."
         actions={<Badge variant="neutral">{`${totalCount} assets`}</Badge>}
       />
+
+      {assetSummaryQuery.data ? <MainSequenceEntitySummaryCard summary={assetSummaryQuery.data} /> : null}
+
+      {assetSummaryQuery.isError ? (
+        <Card>
+          <CardContent className="p-5">
+            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+              {formatMainSequenceError(assetSummaryQuery.error)}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader className="border-b border-border/70">

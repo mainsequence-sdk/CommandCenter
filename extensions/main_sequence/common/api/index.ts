@@ -185,8 +185,10 @@ export interface PhysicalDataSourceListRow {
   status: string;
   status_label: string;
   status_tone: "success" | "warning" | "danger" | "neutral" | "info";
+  provisioned_size_gb?: number | null;
   creation_date: string | null;
   creation_date_display: string;
+  [key: string]: unknown;
 }
 
 export interface PhysicalDataSourceListPagination {
@@ -299,6 +301,36 @@ export interface PhysicalDataSourceDeleteResponse {
   detail: string;
   id: number;
   redirect_path: string;
+}
+
+export interface TimeScaleDBServiceRecord {
+  id: number;
+  namespace: string | null;
+  release_name: string | null;
+  helm_release_info: unknown;
+  persistence_size: string | null;
+  backup_bucket: string | null;
+  load_balancer_ip: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  creation_date: string | null;
+  created_by_user: unknown;
+  organization_owner: unknown;
+  open_for_everyone: boolean;
+  has_postgres_password: boolean;
+  linked_data_sources_count: number;
+}
+
+export interface TimeScaleDBServiceDataSourceListResponse {
+  service: {
+    id: number;
+    release_name: string;
+    namespace: string;
+  };
+  search: string;
+  class_type: string;
+  rows: PhysicalDataSourceListRow[];
+  pagination: PhysicalDataSourceListPagination;
 }
 
 export interface AssetListRow {
@@ -531,7 +563,16 @@ export interface TargetPortfolioSearchOption {
   creation_date?: string | null;
 }
 
-export interface TargetPortfolioSummaryExtra extends EntitySummaryExtra {
+export interface SummaryExtensions {
+  [key: string]: unknown;
+}
+
+export interface MainSequenceSummaryExtensions extends SummaryExtensions {
+  resource_usage_chart_data?: ResourceUsageChartPoint[];
+  generated_search_document?: string;
+}
+
+export interface TargetPortfolioSummaryExtensions extends MainSequenceSummaryExtensions {
   description?: string;
   signal_name?: string;
   signal_description?: string;
@@ -541,12 +582,6 @@ export interface TargetPortfolioSummaryExtra extends EntitySummaryExtra {
   portfolio_weights?: unknown;
   target_weights?: unknown;
   weight_rows?: unknown;
-  [key: string]: unknown;
-}
-
-export interface TargetPortfolioSummaryHeader extends EntitySummaryHeader {
-  extra?: TargetPortfolioSummaryExtra;
-  extras?: TargetPortfolioSummaryExtra;
 }
 
 export interface TargetPortfolioWeightsPositionColumnDef {
@@ -2011,7 +2046,7 @@ export interface SummaryEditConfig {
 export interface SummaryField {
   key: string;
   label: string;
-  value: string | number | boolean | Array<string | number> | null;
+  value: unknown;
   kind: string;
   meta?: string;
   icon?: string;
@@ -2025,7 +2060,7 @@ export interface SummaryStat {
   key: string;
   label: string;
   display: string;
-  value: string | number | boolean | null;
+  value: unknown;
   kind: string;
   info?: string;
   edit?: SummaryEditConfig;
@@ -2038,27 +2073,27 @@ export interface ResourceUsageChartPoint {
   disk_gib: number;
 }
 
-export interface EntitySummaryExtra {
-  resource_usage_chart_data?: ResourceUsageChartPoint[];
-  generated_search_document?: string;
-}
-
-export interface EntitySummaryHeader {
+export interface SummaryResponse<
+  TExtensions extends SummaryExtensions = MainSequenceSummaryExtensions,
+> {
   entity: SummaryEntity;
   badges: SummaryBadge[];
   inline_fields: SummaryField[];
   highlight_fields: SummaryField[];
   stats: SummaryStat[];
-  extra?: EntitySummaryExtra;
-  extras?: EntitySummaryExtra;
+  extensions?: TExtensions;
+  summary_warning?: string | null;
 }
 
-export type ProjectSummaryHeader = EntitySummaryHeader;
-export type DataNodeSummaryHeader = EntitySummaryHeader;
-export type LocalTimeSerieSummaryHeader = EntitySummaryHeader;
-export interface ResourceReleaseSummaryHeader extends EntitySummaryHeader {
+export type EntitySummaryHeader = SummaryResponse;
+export type ProjectSummaryHeader = SummaryResponse;
+export type DataNodeSummaryHeader = SummaryResponse;
+export type LocalTimeSerieSummaryHeader = SummaryResponse;
+export interface ResourceReleaseSummaryExtensions extends MainSequenceSummaryExtensions {
   readme?: ResourceReleaseReadmeSummary;
 }
+export type ResourceReleaseSummaryResponse = SummaryResponse<ResourceReleaseSummaryExtensions>;
+export type TargetPortfolioSummaryResponse = SummaryResponse<TargetPortfolioSummaryExtensions>;
 
 export interface ProjectRepositoryBrowserResponse {
   project_id: number;
@@ -2839,22 +2874,6 @@ async function requestJson<T>(
   return payload as T;
 }
 
-function isEntitySummaryHeaderPayload(payload: unknown): payload is EntitySummaryHeader {
-  if (!payload || typeof payload !== "object") {
-    return false;
-  }
-
-  const candidate = payload as Record<string, unknown>;
-
-  return (
-    !!candidate.entity &&
-    Array.isArray(candidate.badges) &&
-    Array.isArray(candidate.inline_fields) &&
-    Array.isArray(candidate.highlight_fields) &&
-    Array.isArray(candidate.stats)
-  );
-}
-
 function buildAssetCategorySearchFilterValue(categoryId?: number) {
   return typeof categoryId === "number" && Number.isFinite(categoryId) && categoryId > 0
     ? categoryId
@@ -3062,10 +3081,6 @@ export async function listAssets({
 
 export function fetchAssetSummary({
   search,
-  page = 1,
-  pageSize = mainSequenceRegistryPageSize,
-  limit = pageSize,
-  offset = (page - 1) * pageSize,
   categoryId,
   ticker,
   name,
@@ -3073,26 +3088,19 @@ export function fetchAssetSummary({
   isCustomByOrganization,
   currentSnapshotFilters,
 }: AssetListFilters = {}) {
-  return requestJson<EntitySummaryHeader>(
+  return requestJson<SummaryResponse>(
     assetEndpoint,
     "summary/",
     undefined,
-    buildAssetListSearch(
-      {
-        search,
-        page,
-        pageSize,
-        limit,
-        offset,
-        categoryId,
-        ticker,
-        name,
-        exchangeCode,
-        isCustomByOrganization,
-        currentSnapshotFilters,
-      },
-      false,
-    ),
+    {
+      search: search?.trim() || undefined,
+      categories__id: buildAssetCategorySearchFilterValue(categoryId),
+      ticker: ticker?.trim() || undefined,
+      name: name?.trim() || undefined,
+      exchange_code: exchangeCode?.trim() || undefined,
+      is_custom_by_organization: isCustomByOrganization,
+      ...(currentSnapshotFilters ?? {}),
+    },
   );
 }
 
@@ -3448,7 +3456,7 @@ export function bulkDeleteTargetPortfolios(input: TargetPortfolioBulkDeleteInput
 }
 
 export function fetchTargetPortfolioSummary(targetPortfolioId: number) {
-  return requestJson<TargetPortfolioSummaryHeader>(
+  return requestJson<TargetPortfolioSummaryResponse>(
     targetPortfolioEndpoint,
     `${targetPortfolioId}/summary/`,
   );
@@ -3832,6 +3840,13 @@ export function fetchPhysicalDataSourceEditor(physicalDataSourceId: number) {
   );
 }
 
+export function fetchPhysicalDataSourceSummary(physicalDataSourceId: number) {
+  return requestJson<SummaryResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `data_source/${physicalDataSourceId}/summary/`,
+  );
+}
+
 export function createPhysicalDataSourceEditor(input: PhysicalDataSourceEditorCreateInput) {
   return requestJson<PhysicalDataSourceEditorWriteResponse>(
     commandCenterConfig.mainSequence.endpoint,
@@ -3866,6 +3881,72 @@ export function deletePhysicalDataSourceEditor(physicalDataSourceId: number) {
     {
       method: "POST",
       body: JSON.stringify({}),
+    },
+  );
+}
+
+export async function listTimeScaleDBServices({
+  page = 1,
+  pageSize = mainSequenceRegistryPageSize,
+  search,
+}: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+} = {}) {
+  const payload = await requestJson<
+    PaginatedResponse<TimeScaleDBServiceRecord> | TimeScaleDBServiceRecord[]
+  >(
+    commandCenterConfig.mainSequence.endpoint,
+    "timescaledb-service/",
+    undefined,
+    {
+      search: search?.trim() || undefined,
+      page,
+      page_size: pageSize,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, pageSize, (page - 1) * pageSize);
+}
+
+export function fetchTimeScaleDBServiceDetail(timeScaleDBServiceId: number) {
+  return requestJson<TimeScaleDBServiceRecord>(
+    commandCenterConfig.mainSequence.endpoint,
+    `timescaledb-service/${timeScaleDBServiceId}/`,
+  );
+}
+
+export function fetchTimeScaleDBServiceSummary(timeScaleDBServiceId: number) {
+  return requestJson<SummaryResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `timescaledb-service/${timeScaleDBServiceId}/summary/`,
+  );
+}
+
+export function listTimeScaleDBServiceDataSources(
+  timeScaleDBServiceId: number,
+  {
+    page = 1,
+    pageSize = mainSequenceRegistryPageSize,
+    search,
+    classType,
+  }: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    classType?: string;
+  } = {},
+) {
+  return requestJson<TimeScaleDBServiceDataSourceListResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `timescaledb-service/${timeScaleDBServiceId}/data-sources/`,
+    undefined,
+    {
+      search: search?.trim() || undefined,
+      class_type: classType?.trim() || undefined,
+      page,
+      page_size: pageSize,
     },
   );
 }
@@ -4318,176 +4399,11 @@ export function bulkRefreshSimpleTableSearchIndex(ids: number[]) {
   );
 }
 
-interface SimpleTableSummaryPayload {
-  summary: {
-    id: number;
-    identifier?: string | null;
-    storage_hash?: string | null;
-    description?: string | null;
-    schema?: unknown;
-    data_source?:
-      | {
-          id?: number | null;
-          label?: string | null;
-        }
-      | null
-      | Record<string, unknown>;
-    column_count?: number | null;
-    foreign_key_count?: number | null;
-    index_count?: number | null;
-    update_count?: number | null;
-    active_update_count?: number | null;
-    latest_update?: string | null;
-    protect_from_deletion?: boolean;
-    open_for_everyone?: boolean;
-    updates?: SimpleTableUpdateRecord[];
-  };
-}
-
-function isSimpleTableSummaryPayload(payload: unknown): payload is SimpleTableSummaryPayload {
-  if (!payload || typeof payload !== "object") {
-    return false;
-  }
-
-  const candidate = payload as Record<string, unknown>;
-
-  return Boolean(candidate.summary) && typeof candidate.summary === "object";
-}
-
-function getSimpleTableSummaryDataSourceLabel(summary: SimpleTableSummaryPayload["summary"]) {
-  const dataSource = summary.data_source;
-
-  if (!dataSource || typeof dataSource !== "object") {
-    return "No data source";
-  }
-
-  const label = "label" in dataSource ? dataSource.label : null;
-
-  return typeof label === "string" && label.trim() ? label.trim() : "No data source";
-}
-
-function getSimpleTableSchemaModelLabel(schema: unknown) {
-  if (schema && typeof schema === "object" && !Array.isArray(schema)) {
-    const model = (schema as Record<string, unknown>).model;
-
-    if (typeof model === "string" && model.trim()) {
-      return model.trim();
-    }
-  }
-
-  return "Not set";
-}
-
-function buildSimpleTableSummaryHeader(payload: SimpleTableSummaryPayload): EntitySummaryHeader {
-  const summary = payload.summary;
-
-  return {
-    entity: {
-      id: summary.id,
-      type: "simple_table",
-      title: summary.storage_hash?.trim() || `Simple Table ${summary.id}`,
-    },
-    badges: [
-      {
-        key: "visibility",
-        label: summary.open_for_everyone ? "Public" : "Private",
-        tone: summary.open_for_everyone ? "success" : "neutral",
-      },
-      {
-        key: "protection",
-        label: summary.protect_from_deletion ? "Protected" : "Deletable",
-        tone: summary.protect_from_deletion ? "warning" : "info",
-      },
-    ],
-    inline_fields: [
-      {
-        key: "identifier",
-        label: "Identifier",
-        value: summary.identifier?.trim() || "Not set",
-        kind: "text",
-      },
-      {
-        key: "data_source",
-        label: "Data Source",
-        value: getSimpleTableSummaryDataSourceLabel(summary),
-        kind: "text",
-      },
-      {
-        key: "latest_update",
-        label: "Latest Update",
-        value: summary.latest_update ?? "Not set",
-        kind: "datetime",
-      },
-    ],
-    highlight_fields: [
-      {
-        key: "schema_model",
-        label: "Schema Model",
-        value: getSimpleTableSchemaModelLabel(summary.schema),
-        kind: "code",
-      },
-      {
-        key: "description",
-        label: "Description",
-        value: summary.description?.trim() || "Not set",
-        kind: "text",
-      },
-    ],
-    stats: [
-      {
-        key: "column_count",
-        label: "Columns",
-        display: String(summary.column_count ?? 0),
-        value: summary.column_count ?? 0,
-        kind: "number",
-      },
-      {
-        key: "foreign_key_count",
-        label: "Foreign Keys",
-        display: String(summary.foreign_key_count ?? 0),
-        value: summary.foreign_key_count ?? 0,
-        kind: "number",
-      },
-      {
-        key: "index_count",
-        label: "Indexes",
-        display: String(summary.index_count ?? 0),
-        value: summary.index_count ?? 0,
-        kind: "number",
-      },
-      {
-        key: "update_count",
-        label: "Updates",
-        display: String(summary.update_count ?? 0),
-        value: summary.update_count ?? 0,
-        kind: "number",
-      },
-      {
-        key: "active_update_count",
-        label: "Active Updates",
-        display: String(summary.active_update_count ?? 0),
-        value: summary.active_update_count ?? 0,
-        kind: "number",
-      },
-    ],
-  };
-}
-
-export async function fetchSimpleTableSummary(simpleTableId: number) {
-  const payload = await requestJson<unknown>(
+export function fetchSimpleTableSummary(simpleTableId: number) {
+  return requestJson<SummaryResponse>(
     simpleTableEndpoint,
     `${simpleTableId}/summary/`,
   );
-
-  if (isEntitySummaryHeaderPayload(payload)) {
-    return payload;
-  }
-
-  if (isSimpleTableSummaryPayload(payload)) {
-    return buildSimpleTableSummaryHeader(payload);
-  }
-
-  return null;
 }
 
 export function fetchSimpleTableDetail(simpleTableId: number) {
@@ -5480,38 +5396,10 @@ export async function fetchDataNodeDataBetweenDatesFromRemote(
 }
 
 export function fetchLocalTimeSerieSummary(localTimeSerieId: number) {
-  async function requestStructuredSummary(search: Record<string, QueryValue>) {
-    try {
-      return await requestJson<unknown>(
-        localTimeSerieEndpoint,
-        `${localTimeSerieId}/summary/`,
-        undefined,
-        search,
-      );
-    } catch (error) {
-      if (error instanceof MainSequenceApiError && error.status === 404) {
-        return null;
-      }
-
-      throw error;
-    }
-  }
-
-  return (async () => {
-    const responseFormatPayload = await requestStructuredSummary({ response_format: "structured" });
-
-    if (isEntitySummaryHeaderPayload(responseFormatPayload)) {
-      return responseFormatPayload;
-    }
-
-    const formatPayload = await requestStructuredSummary({ format: "structured" });
-
-    if (isEntitySummaryHeaderPayload(formatPayload)) {
-      return formatPayload;
-    }
-
-    return null;
-  })();
+  return requestJson<LocalTimeSerieSummaryHeader>(
+    localTimeSerieEndpoint,
+    `${localTimeSerieId}/summary/`,
+  );
 }
 
 export function fetchLocalTimeSerieDetail(localTimeSerieId: number) {
@@ -5638,14 +5526,14 @@ export function saveDataNodeRetentionPolicy(
 }
 
 export function fetchResourceReleaseSummary(resourceReleaseId: number) {
-  return requestJson<ResourceReleaseSummaryHeader>(
+  return requestJson<ResourceReleaseSummaryResponse>(
     commandCenterConfig.mainSequence.endpoint,
     `resource-release/${resourceReleaseId}/summary/`,
   );
 }
 
 export function fetchJobRunSummary(jobRunId: number) {
-  return requestJson<EntitySummaryHeader>(
+  return requestJson<SummaryResponse>(
     commandCenterConfig.mainSequence.endpoint,
     `job-run/${jobRunId}/summary/`,
   );

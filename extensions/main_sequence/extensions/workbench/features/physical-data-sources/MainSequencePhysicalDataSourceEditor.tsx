@@ -17,12 +17,14 @@ import {
   deletePhysicalDataSourceEditor,
   fetchPhysicalDataSourceEditor,
   fetchPhysicalDataSourceEditorConfig,
+  fetchPhysicalDataSourceSummary,
   formatMainSequenceError,
   updatePhysicalDataSourceEditor,
   type PhysicalDataSourceEditorField,
   type PhysicalDataSourceEditorPayload,
   type PhysicalDataSourceEditorWriteResponse,
 } from "../../../../common/api";
+import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 
 type PhysicalDataSourceCreateSourceType =
   | "duck_db"
@@ -113,6 +115,15 @@ export function MainSequencePhysicalDataSourceEditor({
       ? Number.isFinite(physicalDataSourceId) && (physicalDataSourceId ?? 0) > 0
       : !!createSourceType,
   });
+  const summaryQueryKey = useMemo(
+    () => ["main_sequence", "physical_data_sources", "summary", physicalDataSourceId ?? null],
+    [physicalDataSourceId],
+  );
+  const summaryQuery = useQuery({
+    queryKey: summaryQueryKey,
+    queryFn: () => fetchPhysicalDataSourceSummary(physicalDataSourceId!),
+    enabled: isEditMode && Number.isFinite(physicalDataSourceId) && (physicalDataSourceId ?? 0) > 0,
+  });
 
   useEffect(() => {
     const payload = editorQuery.data;
@@ -189,9 +200,12 @@ export function MainSequencePhysicalDataSourceEditor({
 
       if (isEditMode) {
         await queryClient.invalidateQueries({
+          queryKey: summaryQueryKey,
+        });
+        await queryClient.invalidateQueries({
           queryKey: editorQueryKey,
         });
-        await editorQuery.refetch();
+        await Promise.all([editorQuery.refetch(), summaryQuery.refetch()]);
 
         toast({
           variant: "success",
@@ -314,6 +328,34 @@ export function MainSequencePhysicalDataSourceEditor({
           </>
         }
       />
+
+      {isEditMode ? (
+        summaryQuery.isError && !summaryQuery.data ? (
+          <Card>
+            <CardContent className="p-5">
+              <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                {formatMainSequenceError(summaryQuery.error)}
+              </div>
+            </CardContent>
+          </Card>
+        ) : summaryQuery.data ? (
+          <MainSequenceEntitySummaryCard
+            summary={summaryQuery.data}
+            onSummaryUpdated={async () => {
+              await Promise.all([summaryQuery.refetch(), editorQuery.refetch()]);
+            }}
+          />
+        ) : (
+          <Card>
+            <CardContent className="flex min-h-40 items-center justify-center">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading physical data source summary
+              </div>
+            </CardContent>
+          </Card>
+        )
+      ) : null}
 
       <Card>
         <CardHeader className="border-b border-border/70">

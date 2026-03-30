@@ -29,14 +29,38 @@ function isSupportedEditor(item: EditableSummaryItem) {
 }
 
 function toEditableString(
-  value: string | number | boolean | Array<string | number> | null | undefined,
+  value: unknown,
 ) {
   if (value === null || value === undefined) {
     return "";
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry) => String(entry)).join(", ");
+    return value
+      .map((entry) => {
+        if (entry === null || entry === undefined) {
+          return "";
+        }
+
+        if (typeof entry === "object") {
+          try {
+            return JSON.stringify(entry);
+          } catch {
+            return "[object]";
+          }
+        }
+
+        return String(entry);
+      })
+      .join(", ");
+  }
+
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[object]";
+    }
   }
 
   return String(value);
@@ -68,11 +92,23 @@ function resolveSubmittedValue(
   item: EditableSummaryItem,
   formValue: string,
   options: SummaryEditChoiceOption[],
-) {
+): string | number | boolean | null {
   const edit = item.edit;
 
   if (!edit) {
-    return Array.isArray(item.value) ? item.value.map((entry) => String(entry)).join(", ") : item.value;
+    if (
+      typeof item.value === "string" ||
+      typeof item.value === "number" ||
+      typeof item.value === "boolean"
+    ) {
+      return item.value;
+    }
+
+    if (item.value === null || item.value === undefined) {
+      return null;
+    }
+
+    return toEditableString(item.value);
   }
 
   if (edit.editor === "toggle") {

@@ -14,10 +14,10 @@ import {
   fetchTargetPortfolioWeightsPositionDetails,
   fetchTargetPortfolioSummary,
   formatMainSequenceError,
-  type EntitySummaryHeader,
   type SummaryField,
-  type TargetPortfolioSummaryExtra,
-  type TargetPortfolioSummaryHeader,
+  type SummaryResponse,
+  type TargetPortfolioSummaryExtensions,
+  type TargetPortfolioSummaryResponse,
   type TargetPortfolioListRow,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
@@ -61,30 +61,25 @@ function getPortfolioTicker(row: TargetPortfolioListRow | null) {
   return typeof ticker === "string" && ticker.trim() ? ticker.trim() : "";
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
 function readTrimmedString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function getTargetPortfolioSummaryExtra(
-  summary: TargetPortfolioSummaryHeader | EntitySummaryHeader | null,
-): TargetPortfolioSummaryExtra | null {
-  const extra = summary?.extra ?? summary?.extras ?? null;
-  return isRecord(extra) ? (extra as TargetPortfolioSummaryExtra) : null;
+function getTargetPortfolioSummaryExtensions(
+  summary: TargetPortfolioSummaryResponse | null,
+) {
+  return summary?.extensions;
 }
 
-function getTargetPortfolioDetailContent(summary: TargetPortfolioSummaryHeader | null) {
-  const extra = getTargetPortfolioSummaryExtra(summary);
+function getTargetPortfolioDetailContent(summary: TargetPortfolioSummaryResponse | null) {
+  const extensions = getTargetPortfolioSummaryExtensions(summary);
 
   return {
-    description: readTrimmedString(extra?.description),
-    signalName: readTrimmedString(extra?.signal_name),
-    signalDescription: readTrimmedString(extra?.signal_description),
-    rebalanceStrategyName: readTrimmedString(extra?.rebalance_strategy_name),
-    rebalanceStrategyDescription: readTrimmedString(extra?.rebalance_strategy_description),
+    description: readTrimmedString(extensions?.description),
+    signalName: readTrimmedString(extensions?.signal_name),
+    signalDescription: readTrimmedString(extensions?.signal_description),
+    rebalanceStrategyName: readTrimmedString(extensions?.rebalance_strategy_name),
+    rebalanceStrategyDescription: readTrimmedString(extensions?.rebalance_strategy_description),
   };
 }
 
@@ -127,18 +122,20 @@ function normalizePortfolioSummaryField(field: SummaryField): SummaryField {
   };
 }
 
-function normalizePortfolioSummary(summary: EntitySummaryHeader): EntitySummaryHeader {
+function normalizePortfolioSummary<T extends SummaryResponse>(
+  summary: T,
+): T {
   return {
     ...summary,
     inline_fields: summary.inline_fields.map(normalizePortfolioSummaryField),
     highlight_fields: summary.highlight_fields.map(normalizePortfolioSummaryField),
-  };
+  } as T;
 }
 
 function buildFallbackPortfolioSummary(
   portfolioId: number,
   portfolio: TargetPortfolioListRow | null,
-): EntitySummaryHeader | null {
+): SummaryResponse<TargetPortfolioSummaryExtensions> | null {
   if (!portfolio) {
     return null;
   }

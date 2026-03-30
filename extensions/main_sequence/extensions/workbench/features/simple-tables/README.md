@@ -20,5 +20,5 @@ This feature owns the Main Sequence Foundry registry screen for `ts_manager/simp
 
 - Top-level detail navigation is URL-backed with `msSimpleTableId` and `msSimpleTableTab`. Nested SimpleTableUpdate detail uses `msSimpleTableUpdateId` and `msSimpleTableUpdateTab`.
 - The `ULM diagram` tab calls `/{id}/schema-graph/` and currently exposes two query controls: `depth` and `include_incoming`.
-- The top-level summary endpoint returns a custom payload rather than the shared entity-summary contract, so this feature normalizes it into the shared summary card shape locally.
+- The top-level summary endpoint now uses the shared `SummaryResponse` contract directly, so this feature consumes the summary payload without local shape adapters.
 - The update detail intentionally exposes only the views supported by the current backend surface: details, dependency graphs, run configuration, and historical updates.

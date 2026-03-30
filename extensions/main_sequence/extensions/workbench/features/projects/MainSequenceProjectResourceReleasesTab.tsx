@@ -40,6 +40,7 @@ import {
   type ProjectResourceRecord,
   type ResourceReleaseRecord,
   type ResourceReleaseReadmeSummary,
+  type ResourceReleaseSummaryExtensions,
   type ShareableAccessLevel,
   type ShareablePrincipalsResponse,
   type ShareablePrincipalType,
@@ -260,10 +261,10 @@ function buildFallbackResourceReleaseSummary(release: ResourceReleaseRecord): En
   };
 }
 
-function hasResourceReleaseReadme(
-  summary: unknown,
-): summary is { readme?: ResourceReleaseReadmeSummary } {
-  return Boolean(summary && typeof summary === "object" && "readme" in summary);
+function getResourceReleaseReadme(
+  extensions?: ResourceReleaseSummaryExtensions,
+): ResourceReleaseReadmeSummary | undefined {
+  return extensions?.readme;
 }
 
 function mergeRbacIds(...lists: Array<Array<string | number>>) {
@@ -991,9 +992,7 @@ export function MainSequenceProjectResourceReleasesTab({
   const createDialogTitle = createReleaseKind
     ? `Create ${formatReleaseKind(createReleaseKind).toLowerCase()} release`
     : "Create resource release";
-  const releaseReadme = hasResourceReleaseReadme(resourceReleaseSummary)
-    ? resourceReleaseSummary.readme
-    : undefined;
+  const releaseReadme = getResourceReleaseReadme(resourceReleaseSummaryQuery.data?.extensions);
   const readmeFilesize = formatReadmeFilesize(releaseReadme?.filesize);
 
   useEffect(() => {

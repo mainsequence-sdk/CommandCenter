@@ -30,14 +30,10 @@ const mainSequencePhysicalDataSourceViewParam = "msPhysicalDataSourceView";
 
 const physicalDataSourceCreateFlows = [
   { id: "create-timescale-db", label: "Create Timescale DB" },
-  { id: "create-managed-data-source", label: "Create Managed Data Source" },
-  { id: "create-duck-db", label: "Create Duck DB" },
 ] as const;
 
 const createViewToSourceType = {
   "create-timescale-db": "timescale_db",
-  "create-managed-data-source": "timescale_db_gcp_cloud",
-  "create-duck-db": "duck_db",
 } as const;
 
 const classTypeFilterOptions = [

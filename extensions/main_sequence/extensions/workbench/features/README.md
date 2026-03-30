@@ -15,6 +15,7 @@ Feature folders group screens and supporting components by domain instead of by 
 - `secrets/`: secret-management surfaces.
 - `simple-tables/`: `ts_manager/simple_table` registry, detail routing, and SimpleTableUpdate workflows.
 - `streamlit/`: gallery view for published Streamlit resource releases.
+- `timescaledb-services/`: read-only deployment service registry and summary-backed detail view.
 
 ## Rules
 

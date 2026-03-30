@@ -5,7 +5,7 @@ This folder contains reusable UI building blocks shared by nested Main Sequence 
 ## Components
 
 - `MainSequenceDataGrid.tsx`: reusable TanStack-based data grid for namespace-scoped tabular payloads such as weights and other backend-driven result sets.
-- `MainSequenceEntitySummaryCard.tsx`: renders summary header payloads returned by entity summary endpoints.
+- `MainSequenceEntitySummaryCard.tsx`: renders the shared `SummaryResponse` contract returned by entity and list summary endpoints, including optional warning banners from `summary_warning`.
 - `MainSequenceEntitySummaryEditorDialog.tsx`: shared dialog wrapper for editing summary-backed entities.
 - `MainSequencePermissionsTab.tsx`: permissions management UI for shareable entities, backed by searchable transfer lists for view and edit assignment workflows.
 - `MainSequenceRegistryPagination.tsx`: pagination control used by registry-style tables.
