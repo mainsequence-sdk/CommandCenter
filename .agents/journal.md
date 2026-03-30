@@ -41,6 +41,14 @@ Implemented:
   `769px` breakpoint, `custom` dashboards/workspaces temporarily render every item full width while
   preserving stored row spans. The workspace studio now also disables `custom` drag/resize under
   that breakpoint so the mobile rewrite never gets committed back into saved layout geometry.
+- Fixed shell kiosk eligibility for the workspace canvas. `AppShell` now keeps kiosk mode active
+  on `/app/workspace-studio/workspaces?workspace=...` canvas routes instead of immediately
+  resetting it because the surface is registered as a `page`. Workspace list and settings routes
+  still exit kiosk mode.
+- Fixed the kiosk full-bleed container path for the workspace canvas. Even when kiosk is active,
+  the workspace canvas route now stays on the full-height, zero-padding shell container instead of
+  falling back to the generic padded page layout, which was causing the workspace canvas to render
+  as effectively blank.
 
 Still missing:
 - Keep `Data Node` sidebar-only by product decision. Do not remove its effective compact/sidebar policy from the workspace model.

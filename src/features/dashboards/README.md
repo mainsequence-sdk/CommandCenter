@@ -72,6 +72,12 @@ These flows are all part of one app surface, with instance state selected throug
 - For `custom` workspaces, smaller screens now follow a Grafana-style runtime mobile rewrite below
   `769px`: cards temporarily stack full width while preserving their stored row spans, and that
   temporary mobile layout is never persisted back into the workspace model.
+- The workspace canvas route now also counts as kiosk-eligible shell content. When a specific
+  workspace canvas is open, kiosk mode can hide the global sidebar and topbar there without
+  affecting the workspace list or settings routes.
+- The workspace canvas also keeps its full-bleed parent layout while kiosk is active. This is
+  required because the canvas host expects a full-height, zero-padding container; dropping it into
+  the generic padded page shell would collapse the workspace rendering.
 - When a workspace switches to `auto-grid`, the studio renders the runtime auto-grid placement and
   keeps manual resize/free placement disabled. `Custom` remains the only manual authoring mode,
   while Auto grid edit mode now supports order-only drag reordering.

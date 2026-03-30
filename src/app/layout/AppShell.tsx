@@ -18,6 +18,20 @@ import { ChatMount, ChatProvider } from "@/features/chat";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 
+function isWorkspaceCanvasRoute(pathname: string, search: string) {
+  const routeSegments = pathname.split("/").filter(Boolean);
+
+  if (routeSegments[1] !== "workspace-studio" || routeSegments[2] !== "workspaces") {
+    return false;
+  }
+
+  const searchParams = new URLSearchParams(search);
+  const workspaceId = searchParams.get("workspace");
+  const view = searchParams.get("view");
+
+  return Boolean(workspaceId) && view !== "settings" && view !== "widget-settings";
+}
+
 export function AppShell() {
   const location = useLocation();
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
@@ -40,7 +54,11 @@ export function AppShell() {
   const routeApp = routeSegments[1] ? getAppById(routeSegments[1]) : undefined;
   const routeSurface =
     routeApp && routeSegments[2] ? getAppSurfaceById(routeApp.id, routeSegments[2]) : undefined;
-  const fullBleedSurface = Boolean(routeSurface?.fullBleed) && !kioskMode;
+  const workspaceCanvasRoute = isWorkspaceCanvasRoute(location.pathname, location.search);
+  const kioskEligibleRoute =
+    routeSurface?.kind === "dashboard" ||
+    workspaceCanvasRoute;
+  const fullBleedSurface = Boolean(routeSurface?.fullBleed) || workspaceCanvasRoute;
   const showAppPanel = !kioskMode && Boolean(panelApp && panelAppSurfaceGroups.length > 0);
   const sidebarWidth = kioskMode ? 0 : sidebarCollapsed ? 52 : 248;
   const routePathKey = location.pathname;
@@ -76,10 +94,10 @@ export function AppShell() {
   }, [closeAppPanel, routePathKey]);
 
   useEffect(() => {
-    if (kioskMode && routeSurface?.kind !== "dashboard") {
+    if (kioskMode && !kioskEligibleRoute) {
       setKioskMode(false);
     }
-  }, [kioskMode, routeSurface?.kind, setKioskMode]);
+  }, [kioskEligibleRoute, kioskMode, setKioskMode]);
 
   useEffect(() => {
     if (!showAppPanel) {
@@ -155,10 +173,10 @@ export function AppShell() {
           <main
             className={cn(
               "min-h-0",
-              kioskMode
-                ? "overflow-auto px-3 py-3 md:px-4 md:py-4"
-                : fullBleedSurface
-                  ? "overflow-hidden p-0"
+              fullBleedSurface
+                ? "overflow-hidden p-0"
+                : kioskMode
+                  ? "overflow-auto px-3 py-3 md:px-4 md:py-4"
                   : "overflow-auto px-2 py-3 md:px-3 md:py-4",
             )}
           >
