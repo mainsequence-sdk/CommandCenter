@@ -151,6 +151,10 @@ function projectStatusLabel(project: { is_initialized: boolean }) {
   return project.is_initialized ? "Initialized" : "Initializing";
 }
 
+function hasUninitializedProjects(projects: ProjectSummary[] | undefined) {
+  return (projects ?? []).some((project) => !project.is_initialized);
+}
+
 function truncateMiddle(value: string, maxLength = 56) {
   if (value.length <= maxLength) {
     return value;
@@ -261,6 +265,9 @@ export function MainSequenceProjectsPage() {
         limit: mainSequenceRegistryPageSize,
         offset: projectsPageIndex * mainSequenceRegistryPageSize,
       }),
+    refetchInterval: (query) =>
+      hasUninitializedProjects(query.state.data?.results) ? 60_000 : false,
+    refetchIntervalInBackground: true,
   });
 
   const projectSummaryQuery = useQuery({
@@ -275,6 +282,43 @@ export function MainSequenceProjectsPage() {
     enabled: createDialogOpen,
     staleTime: 300_000,
   });
+
+  useEffect(() => {
+    if (!createDialogOpen) {
+      return;
+    }
+
+    const firstDataSourceId = formOptionsQuery.data?.dataSources?.[0]?.id;
+    const firstBaseImageId = formOptionsQuery.data?.projectBaseImages?.[0]?.id;
+
+    if (!firstDataSourceId && !firstBaseImageId) {
+      return;
+    }
+
+    setFormState((current) => {
+      const nextDataSourceId =
+        current.dataSourceId || (firstDataSourceId ? String(firstDataSourceId) : "");
+      const nextDefaultBaseImageId =
+        current.defaultBaseImageId || (firstBaseImageId ? String(firstBaseImageId) : "");
+
+      if (
+        nextDataSourceId === current.dataSourceId &&
+        nextDefaultBaseImageId === current.defaultBaseImageId
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        dataSourceId: nextDataSourceId,
+        defaultBaseImageId: nextDefaultBaseImageId,
+      };
+    });
+  }, [
+    createDialogOpen,
+    formOptionsQuery.data?.dataSources,
+    formOptionsQuery.data?.projectBaseImages,
+  ]);
 
   const createProjectMutation = useMutation({
     mutationFn: createProject,
@@ -915,9 +959,14 @@ export function MainSequenceProjectsPage() {
                                   </div>
                                 </td>
                                 <td className={getRegistryTableCellClassName(selected, "right")}>
-                                  <Badge variant={project.is_initialized ? "success" : "warning"}>
-                                    {projectStatusLabel(project)}
-                                  </Badge>
+                                  {project.is_initialized ? (
+                                    <Badge variant="success">{projectStatusLabel(project)}</Badge>
+                                  ) : (
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/35 px-3 py-1 text-xs font-medium text-muted-foreground">
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      <span>Initializing</span>
+                                    </div>
+                                  )}
                                 </td>
                               </tr>
                             );

@@ -22,3 +22,5 @@ This feature owns the Main Sequence project registry and project detail experien
 - The settings tab reuses the shared project form-options query and writes through the project detail `PATCH` endpoint.
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.
 - The resource releases tab supports project resource release creation flows for dashboard, agent, and fastapi release kinds.
+- The project registry polls every 60 seconds only while the current page still contains an uninitialized project, and those rows render a spinner instead of a warning pill.
+- The create-project dialog auto-selects the first available data source and default base image once form options load.
