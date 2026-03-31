@@ -58,6 +58,7 @@ const projectResourceReleaseFetchLimit = 500;
 const releaseKindToProjectResourceType = {
   streamlit_dashboard: "dashboard",
   agent: "agent",
+  fastapi: "fastapi",
 } as const;
 const emptyPermissionAssignments: RbacAssignmentValue = {
   view: { userIds: [], teamIds: [] },
@@ -104,6 +105,10 @@ function formatReleaseKind(releaseKind: string) {
     return "Agent";
   }
 
+  if (releaseKind === "fastapi") {
+    return "Fast API";
+  }
+
   return releaseKind.replaceAll("_", " ");
 }
 
@@ -116,16 +121,39 @@ function getReleaseKindBadgeVariant(releaseKind: string) {
     return "secondary" as const;
   }
 
+  if (releaseKind === "fastapi") {
+    return "primary" as const;
+  }
+
   return "neutral" as const;
 }
 
 function formatProjectImageLabel(image: ProjectImageOption) {
+  const createdDisplay =
+    image.creation_date_display?.trim() ||
+    (() => {
+      if (!image.creation_date) {
+        return "";
+      }
+
+      const parsed = Date.parse(image.creation_date);
+
+      if (Number.isNaN(parsed)) {
+        return image.creation_date;
+      }
+
+      return new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(parsed));
+    })();
+
   if (!image.project_repo_hash?.trim()) {
-    return `Image ${image.id} - Latest`;
+    return createdDisplay ? `Latest -- ${createdDisplay}` : "Latest";
   }
 
   const shortHash = image.project_repo_hash.slice(0, 7);
-  return `Image ${image.id} - ${shortHash}`;
+  return createdDisplay ? `${shortHash} -- ${createdDisplay}` : shortHash;
 }
 
 function formatReadmeFilesize(filesize?: number | null) {
@@ -157,8 +185,13 @@ function toProjectImageOption(image: ProjectImageOption) {
   return {
     value: String(image.id),
     label: formatProjectImageLabel(image),
-    description: image.base_image?.title ?? "Default base image",
-    keywords: [image.project_repo_hash ?? "", image.base_image?.title ?? ""],
+    description: `Base image - ${image.base_image?.title ?? "Default base image"}`,
+    keywords: [
+      image.project_repo_hash ?? "",
+      image.base_image?.title ?? "",
+      image.creation_date ?? "",
+      image.creation_date_display ?? "",
+    ],
   };
 }
 
@@ -1223,6 +1256,18 @@ export function MainSequenceProjectResourceReleasesTab({
                   >
                     <Plus className="h-4 w-4" />
                     Create Agent Release
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      createResourceReleaseMutation.reset();
+                      setCreateReleaseKind("fastapi");
+                      setComputeState(createDefaultReleaseComputeState());
+                      setCreateDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Fast Api Release
                   </Button>
                 </>
               }

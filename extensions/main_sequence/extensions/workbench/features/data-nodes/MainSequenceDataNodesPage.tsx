@@ -38,6 +38,7 @@ import {
 } from "./MainSequenceDataNodeLocalUpdateDetail";
 import { MainSequenceDataNodeLocalTimeSeriesTab } from "./MainSequenceDataNodeLocalTimeSeriesTab";
 import { MainSequenceDataNodePoliciesTab } from "./MainSequenceDataNodePoliciesTab";
+import { MainSequenceDataNodeSnapshotTab } from "./MainSequenceDataNodeSnapshotTab";
 
 const mainSequenceDataNodeIdParam = "msDataNodeId";
 const mainSequenceDataNodeTabParam = "msDataNodeTab";
@@ -46,6 +47,7 @@ const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
 const dataNodeDetailTabs = [
   { id: "details", label: "Details" },
   { id: "description", label: "Description" },
+  { id: "data-snapshot", label: "Data Snapshot" },
   { id: "local-time-series", label: "Local Update" },
   { id: "policies", label: "Policies" },
 ] as const;
@@ -836,6 +838,8 @@ export function MainSequenceDataNodesPage() {
                         )}
                       </CardContent>
                     </Card>
+                  ) : selectedDetailTabId === "data-snapshot" ? (
+                    <MainSequenceDataNodeSnapshotTab dataNodeId={selectedDataNodeId} />
                   ) : selectedDetailTabId === "local-time-series" ? (
                     <MainSequenceDataNodeLocalTimeSeriesTab
                       dataNodeId={selectedDataNodeId}

@@ -412,15 +412,28 @@ export function DataNodeTableWidget({ props }: Props) {
     () => resolveDataNodeTableVisualizerProps(props),
     [props],
   );
-  const sourceReferenceProps = useMemo<DataNodeTableVisualizerProps>(
+  const sourceBindingProps = useMemo<DataNodeTableVisualizerProps>(
     () => ({
-      sourceMode: "filter_widget",
+      sourceMode: normalizedProps.sourceMode,
       sourceWidgetId: normalizedProps.sourceWidgetId,
+      dataNodeId: normalizedProps.dataNodeId,
+      dateRangeMode: normalizedProps.dateRangeMode,
+      fixedStartMs: normalizedProps.fixedStartMs,
+      fixedEndMs: normalizedProps.fixedEndMs,
+      uniqueIdentifierList: normalizedProps.uniqueIdentifierList,
     }),
-    [normalizedProps.sourceWidgetId],
+    [
+      normalizedProps.dataNodeId,
+      normalizedProps.dateRangeMode,
+      normalizedProps.fixedEndMs,
+      normalizedProps.fixedStartMs,
+      normalizedProps.sourceMode,
+      normalizedProps.sourceWidgetId,
+      normalizedProps.uniqueIdentifierList,
+    ],
   );
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
-    props: sourceReferenceProps,
+    props: sourceBindingProps,
   });
   const linkedFilterRuntime = useMemo(
     () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),

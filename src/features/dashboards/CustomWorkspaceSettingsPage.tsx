@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { ArrowLeft, LayoutTemplate, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { ArrowLeft, LayoutTemplate, RotateCcw, Save, Shield, Trash2, X } from "lucide-react";
 
+import { MainSequencePermissionsTab } from "../../../extensions/main_sequence/common/components/MainSequencePermissionsTab";
 import { getAppPath } from "@/apps/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,12 +13,15 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { commandCenterConfig } from "@/config/command-center";
 import {
   parseWorkspaceSnapshot,
   restoreWorkspaceFromSnapshot,
   stringifyWorkspaceSnapshot,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
+
+type WorkspaceSettingsTabId = "configuration" | "permissions";
 
 function formatSavedAt(savedAt: string | null) {
   if (!savedAt) {
@@ -77,6 +81,7 @@ function parsePositiveInteger(
 
 export function CustomWorkspaceSettingsPage() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<WorkspaceSettingsTabId>("configuration");
   const [labelInput, setLabelInput] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jsonDialogMode, setJsonDialogMode] = useState<"export" | "import" | null>(null);
@@ -106,6 +111,7 @@ export function CustomWorkspaceSettingsPage() {
   const backendMode = persistenceMode === "backend";
 
   useEffect(() => {
+    setActiveTab("configuration");
     setLabelInput("");
     setJsonDialogMode(null);
     setJsonImportValue("");
@@ -120,6 +126,10 @@ export function CustomWorkspaceSettingsPage() {
     () => parseWorkspaceSnapshot(jsonImportValue),
     [jsonImportValue],
   );
+  const workspacePermissionsObjectUrl = useMemo(() => {
+    const listUrl = commandCenterConfig.workspaces.listUrl.trim();
+    return listUrl || null;
+  }, []);
 
   if (!user) {
     return (
@@ -134,6 +144,75 @@ export function CustomWorkspaceSettingsPage() {
   }
 
   const workspace = selectedDashboard;
+  const sharingAvailable = backendMode && Boolean(workspacePermissionsObjectUrl);
+  const modelDetailsCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Model details</CardTitle>
+        <CardDescription>Current data for the selected workspace.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
+          <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+            Storage scope
+          </div>
+          <div className="mt-2 text-foreground">{persistenceMode} / {user.id}</div>
+        </div>
+
+        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
+          <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+            Layout
+          </div>
+          <div className="mt-2 space-y-1 text-foreground">
+            <div>Mode: {workspace.layoutKind ?? "custom"}</div>
+            <div>{workspace.widgets.length} widgets</div>
+            <div>{resolvedDashboard?.grid.columns ?? 12} columns</div>
+            <div>Last saved {formatSavedAt(savedCollection.savedAt)}</div>
+          </div>
+        </div>
+
+        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
+          <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+            JSON snapshot
+          </div>
+          <div className="mt-2 text-muted-foreground">
+            Export or recover this workspace as versioned JSON. The snapshot includes controls, widget props, layout, and widget runtime state when the widget supports it.
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setJsonDialogMode("export");
+              }}
+            >
+              Export JSON
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setJsonDialogMode("import");
+              }}
+            >
+              Import JSON
+            </Button>
+          </div>
+        </div>
+
+        <Button
+          variant="danger"
+          className="w-full"
+          onClick={() => {
+            setDeleteDialogOpen(true);
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete workspace
+        </Button>
+      </CardContent>
+    </Card>
+  );
 
   function closeJsonDialog() {
     setJsonDialogMode(null);
@@ -320,6 +399,35 @@ export function CustomWorkspaceSettingsPage() {
             </div>
           ) : null}
 
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={activeTab === "configuration"
+                  ? "inline-flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-foreground"
+                  : "inline-flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border bg-card/80 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"}
+                onClick={() => {
+                  setActiveTab("configuration");
+                }}
+              >
+                <LayoutTemplate className="h-4 w-4" />
+                Configuration
+              </button>
+              <button
+                type="button"
+                className={activeTab === "permissions"
+                  ? "inline-flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-foreground"
+                  : "inline-flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border bg-card/80 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"}
+                onClick={() => {
+                  setActiveTab("permissions");
+                }}
+              >
+                <Shield className="h-4 w-4" />
+                Permissions
+                {!backendMode ? <Badge variant="neutral">Backend only</Badge> : null}
+              </button>
+            </div>
+
+            {activeTab === "configuration" ? (
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
               <Card>
                 <CardHeader>
@@ -555,73 +663,41 @@ export function CustomWorkspaceSettingsPage() {
                 </CardContent>
               </Card>
 
+              {modelDetailsCard}
+            </div>
+            ) : (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
               <Card>
                 <CardHeader>
-                  <CardTitle>Model details</CardTitle>
-                  <CardDescription>Current data for the selected workspace.</CardDescription>
+                  <CardTitle>Workspace sharing</CardTitle>
+                  <CardDescription>
+                    Use view and edit assignments to control who can access this workspace record.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
-                <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  Storage scope
-                </div>
-                <div className="mt-2 text-foreground">{persistenceMode} / {user.id}</div>
-              </div>
-
-              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
-                <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  Layout
-                </div>
-                <div className="mt-2 space-y-1 text-foreground">
-                  <div>Mode: {workspace.layoutKind ?? "custom"}</div>
-                  <div>{workspace.widgets.length} widgets</div>
-                  <div>{resolvedDashboard?.grid.columns ?? 12} columns</div>
-                  <div>Last saved {formatSavedAt(savedCollection.savedAt)}</div>
-                </div>
-              </div>
-
-              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
-                <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  JSON snapshot
-                </div>
-                <div className="mt-2 text-muted-foreground">
-                  Export or recover this workspace as versioned JSON. The snapshot includes controls, widget props, layout, and widget runtime state when the widget supports it.
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setJsonDialogMode("export");
-                    }}
-                  >
-                    Export JSON
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setJsonDialogMode("import");
-                    }}
-                  >
-                    Import JSON
-                  </Button>
-                </div>
-              </div>
-
-                <Button
-                  variant="danger"
-                  className="w-full"
-                  onClick={() => {
-                    setDeleteDialogOpen(true);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete workspace
-                </Button>
+                  {!backendMode ? (
+                    <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28 px-4 py-3 text-sm text-muted-foreground">
+                      Workspace sharing is available only when Workspaces uses backend persistence.
+                      Browser-local workspaces cannot be shared through RBAC.
+                    </div>
+                  ) : !workspacePermissionsObjectUrl ? (
+                    <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28 px-4 py-3 text-sm text-muted-foreground">
+                      Workspace sharing is unavailable because the workspace backend list endpoint is not configured.
+                    </div>
+                  ) : (
+                    <MainSequencePermissionsTab
+                      objectId={workspace.id}
+                      objectUrl={workspacePermissionsObjectUrl}
+                      entityLabel="Workspace"
+                      enabled={sharingAvailable}
+                    />
+                  )}
                 </CardContent>
               </Card>
+
+              {modelDetailsCard}
             </div>
+            )}
           </div>
         </div>
       </div>

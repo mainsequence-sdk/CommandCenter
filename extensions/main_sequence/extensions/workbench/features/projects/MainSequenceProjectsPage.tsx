@@ -40,6 +40,8 @@ import { MainSequenceProjectDataNodeUpdatesTab } from "./MainSequenceProjectData
 import { MainSequenceProjectImagesTab } from "./MainSequenceProjectImagesTab";
 import { MainSequenceProjectJobsTab } from "./MainSequenceProjectJobsTab";
 import { MainSequenceProjectResourceReleasesTab } from "./MainSequenceProjectResourceReleasesTab";
+import { MainSequenceProjectSettingsTab } from "./MainSequenceProjectSettingsTab";
+import { MainSequencePermissionsTab } from "../../../../common/components/MainSequencePermissionsTab";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
@@ -112,16 +114,15 @@ const projectDetailTabs = [
     title: "Settings",
     body: "Coming soon.",
   },
+  {
+    id: "permissions",
+    label: "Permissions",
+    title: "Permissions",
+    body: "Coming soon.",
+  },
 ] as const;
 
 const defaultProjectDetailTabId = "code";
-
-const projectHeaderActions = [
-  {
-    id: "create-job-api",
-    label: "Create Job Api",
-  },
-] as const;
 
 function toOptionalNumber(value: string) {
   const trimmed = value.trim();
@@ -666,18 +667,6 @@ export function MainSequenceProjectsPage() {
             <>
               <MainSequenceEntitySummaryCard
                 summary={projectHeader}
-                actions={projectHeaderActions.map((action) => (
-                  <Button
-                    key={action.id}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 whitespace-nowrap border-border/70 bg-background/24"
-                    disabled
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    {action.label}
-                  </Button>
-                ))}
                 onFieldLinkClick={(field) => {
                   const linkedProjectId = getProjectIdFromSummaryHref(field.href);
 
@@ -754,6 +743,19 @@ export function MainSequenceProjectsPage() {
                       projectId={selectedProjectId}
                       selectedLocalUpdateId={isLocalUpdateDetailOpen ? selectedLocalUpdateId : null}
                       selectedLocalUpdateTabId={selectedLocalUpdateTabId}
+                    />
+                  ) : activeTab.id === "settings" && selectedProjectId > 0 ? (
+                    <MainSequenceProjectSettingsTab
+                      key={selectedProjectId}
+                      projectId={selectedProjectId}
+                      projectSummary={projectHeader}
+                    />
+                  ) : activeTab.id === "permissions" && selectedProjectId > 0 ? (
+                    <MainSequencePermissionsTab
+                      objectUrl="projects"
+                      objectId={selectedProjectId}
+                      entityLabel="Project"
+                      enabled={activeTab.id === "permissions"}
                     />
                   ) : (
                     <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/18 px-5 py-12">

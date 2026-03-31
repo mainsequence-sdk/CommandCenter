@@ -49,6 +49,15 @@ Implemented:
   the workspace canvas route now stays on the full-height, zero-padding shell container instead of
   falling back to the generic padded page layout, which was causing the workspace canvas to render
   as effectively blank.
+- Added a backend-only `Permissions` tab to workspace settings. The tab reuses
+  `MainSequencePermissionsTab` against the workspace collection endpoint root so Workspaces can use
+  the same standard object-sharing API contract as Resource Releases and Teams. The shared
+  permissions helpers now accept string or numeric object ids, which matches the frontend's
+  normalized workspace id model.
+- Added a direct `Copy` action to the workspace index. It clones the selected workspace through the
+  existing snapshot/restore helpers to guarantee a fresh workspace id, then routes through the
+  normal workspace create flow so backend persistence creates a new workspace instance instead of
+  modifying the source workspace.
 
 Still missing:
 - Keep `Data Node` sidebar-only by product decision. Do not remove its effective compact/sidebar policy from the workspace model.

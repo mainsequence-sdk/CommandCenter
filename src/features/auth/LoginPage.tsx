@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
 import { env } from "@/config/env";
 
@@ -106,9 +107,8 @@ export function LoginPage() {
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-foreground">Password</label>
-                <Input
+                <PasswordInput
                   name="auth-password"
-                  type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder={isBypassAuth ? "demo" : "Enter your password"}

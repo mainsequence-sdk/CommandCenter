@@ -977,6 +977,12 @@ export interface ProjectSummary {
   created_by: string;
 }
 
+export interface ProjectDetail extends ProjectSummary {
+  repository_branch?: string | null;
+  default_base_image?: ProjectBaseImageOption | null;
+  github_organization?: GithubOrganizationOption | null;
+}
+
 export interface ConstantRecord {
   id: number;
   name: string;
@@ -993,6 +999,22 @@ export interface SecretRecord {
   id: number;
   name: string;
   value: string;
+}
+
+export interface ProjectSecretRecord {
+  id: number;
+  project: number;
+  project_name: string;
+  secret: number;
+  secret_name: string;
+  alias: string;
+  created_at: string;
+}
+
+export interface CreateProjectSecretInput {
+  project: number;
+  secret: number;
+  alias?: string;
 }
 
 export interface CreateSecretInput {
@@ -2180,6 +2202,8 @@ export interface ProjectImageOption {
   related_project: number;
   base_image: ProjectBaseImageOption | null;
   is_ready: boolean;
+  creation_date?: string | null;
+  creation_date_display?: string | null;
 }
 
 export interface CreateProjectImageInput {
@@ -2410,6 +2434,12 @@ export interface CreateProjectInput {
   github_org_id?: number;
 }
 
+export interface UpdateProjectSettingsInput {
+  projectId: number;
+  defaultDataSourceId?: number | null;
+  defaultBaseImageId?: number | null;
+}
+
 export interface CreateJobInput {
   name: string;
   project: number;
@@ -2501,10 +2531,11 @@ export interface AssetTranslationTableRuleListFilters {
 }
 export type ShareableAccessLevel = "view" | "edit";
 export type ShareablePrincipalType = "user" | "team";
+export type ShareableObjectId = number | string;
 
 export interface UpdateShareablePermissionInput {
   objectUrl: string;
-  objectId: number;
+  objectId: ShareableObjectId;
   principalType: ShareablePrincipalType;
   accessLevel: ShareableAccessLevel;
   operation: "add" | "remove";
@@ -2677,11 +2708,12 @@ function resolveRequestTarget(path: string) {
   };
 }
 
-function joinPermissionObjectPath(objectUrl: string, objectId: number, suffix: string) {
+function joinPermissionObjectPath(objectUrl: string, objectId: ShareableObjectId, suffix: string) {
   const normalizedObjectUrl = objectUrl.replace(/\/+$/, "");
+  const normalizedObjectId = String(objectId).trim();
   const normalizedSuffix = suffix.replace(/^\/+/, "");
 
-  return `${normalizedObjectUrl}/${objectId}/${normalizedSuffix}`;
+  return `${normalizedObjectUrl}/${normalizedObjectId}/${normalizedSuffix}`;
 }
 
 function getPermissionSuffix(
@@ -4192,15 +4224,17 @@ export function bulkDeleteConstants(ids: number[]) {
 export async function listSecrets({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
+  search,
 }: {
   limit?: number;
   offset?: number;
+  search?: string;
 } = {}) {
   const payload = await requestJson<PaginatedResponse<SecretRecord> | SecretRecord[]>(
     commandCenterConfig.mainSequence.endpoint,
     "secret/",
     undefined,
-    { limit, offset },
+    { limit, offset, search: search?.trim() || undefined },
   );
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -4209,6 +4243,34 @@ export async function listSecrets({
     ...page,
     results: [...page.results].sort((left, right) => right.id - left.id),
   };
+}
+
+export async function listProjectSecrets(projectId: number) {
+  const payload = await requestJson<
+    PaginatedResponse<ProjectSecretRecord> | ProjectSecretRecord[]
+  >(commandCenterConfig.mainSequence.endpoint, "project-secret/", undefined, {
+    limit: 200,
+    project: projectId,
+  });
+
+  return normalizeListResponse(payload).sort((left, right) => right.id - left.id);
+}
+
+export function createProjectSecret(input: CreateProjectSecretInput) {
+  return requestJson<ProjectSecretRecord>(commandCenterConfig.mainSequence.endpoint, "project-secret/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteProjectSecret(projectSecretId: number) {
+  return requestJson<null>(
+    commandCenterConfig.mainSequence.endpoint,
+    `project-secret/${projectSecretId}/`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export function fetchSecret(secretId: number) {
@@ -4767,6 +4829,35 @@ export function createProject(input: CreateProjectInput) {
   });
 }
 
+export function fetchProjectDetail(projectId: number) {
+  return requestJson<ProjectDetail>(
+    commandCenterConfig.mainSequence.endpoint,
+    `projects/${projectId}/`,
+  );
+}
+
+export function updateProjectSettings({
+  projectId,
+  defaultDataSourceId,
+  defaultBaseImageId,
+}: UpdateProjectSettingsInput) {
+  return requestJson<ProjectDetail>(
+    commandCenterConfig.mainSequence.endpoint,
+    `projects/${projectId}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        ...(defaultDataSourceId !== undefined
+          ? { default_data_source_id: defaultDataSourceId }
+          : {}),
+        ...(defaultBaseImageId !== undefined
+          ? { default_base_image_id: defaultBaseImageId }
+          : {}),
+      }),
+    },
+  );
+}
+
 export async function fetchProjectImages(projectId: number) {
   const payload = await requestJson<PaginatedResponse<ProjectImageOption> | ProjectImageOption[]>(
     commandCenterConfig.mainSequence.endpoint,
@@ -5197,7 +5288,7 @@ export function bulkDeleteProjects(
 
 async function fetchShareablePrincipals(
   objectUrl: string,
-  objectId: number,
+  objectId: ShareableObjectId,
   accessLevel: ShareableAccessLevel,
 ) {
   const permissionsConfig = commandCenterConfig.mainSequence.permissions;
@@ -5219,7 +5310,7 @@ async function fetchShareablePrincipals(
 
 export async function listPermissionCandidateUsers(
   objectUrl: string,
-  objectId: number,
+  objectId: ShareableObjectId,
   {
   limit = 200,
   offset = 0,
@@ -5247,11 +5338,11 @@ export async function listPermissionCandidateUsers(
   );
 }
 
-export function fetchObjectCanView(objectUrl: string, objectId: number) {
+export function fetchObjectCanView(objectUrl: string, objectId: ShareableObjectId) {
   return fetchShareablePrincipals(objectUrl, objectId, "view");
 }
 
-export function fetchObjectCanEdit(objectUrl: string, objectId: number) {
+export function fetchObjectCanEdit(objectUrl: string, objectId: ShareableObjectId) {
   return fetchShareablePrincipals(objectUrl, objectId, "edit");
 }
 

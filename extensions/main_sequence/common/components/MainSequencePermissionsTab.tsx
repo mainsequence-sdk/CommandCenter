@@ -18,6 +18,7 @@ import {
   fetchObjectCanView,
   formatMainSequenceError,
   listPermissionCandidateUsers,
+  type ShareableObjectId,
   updateShareableObjectPermission,
   type PermissionCandidateUserRecord,
   type ShareableAccessLevel,
@@ -62,6 +63,15 @@ function normalizePermissionEntityId(id: string | number) {
   }
 
   return trimmed;
+}
+
+function normalizeShareableObjectId(objectId: ShareableObjectId) {
+  if (typeof objectId === "number") {
+    return Number.isFinite(objectId) && objectId > 0 ? objectId : null;
+  }
+
+  const trimmed = objectId.trim();
+  return trimmed ? trimmed : null;
 }
 
 function mergeRbacIds(...lists: Array<Array<string | number>>) {
@@ -228,7 +238,7 @@ export function MainSequencePermissionsTab({
   entityLabel,
   enabled = true,
 }: {
-  objectId: number;
+  objectId: ShareableObjectId;
   objectUrl: string;
   entityLabel: string;
   enabled?: boolean;
@@ -236,33 +246,37 @@ export function MainSequencePermissionsTab({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const sessionUser = useAuthStore((state) => state.session?.user ?? null);
+  const normalizedObjectId = useMemo(
+    () => normalizeShareableObjectId(objectId),
+    [objectId],
+  );
   const [permissionsValue, setPermissionsValue] =
     useState<RbacAssignmentValue>(emptyPermissionAssignments);
 
   const canViewQuery = useQuery({
-    queryKey: ["main_sequence", "permissions", objectUrl, objectId, "view"],
-    queryFn: () => fetchObjectCanView(objectUrl, objectId),
-    enabled: enabled && objectId > 0,
+    queryKey: ["main_sequence", "permissions", objectUrl, normalizedObjectId, "view"],
+    queryFn: () => fetchObjectCanView(objectUrl, normalizedObjectId!),
+    enabled: enabled && normalizedObjectId !== null,
     staleTime: 60_000,
   });
 
   const canEditQuery = useQuery({
-    queryKey: ["main_sequence", "permissions", objectUrl, objectId, "edit"],
-    queryFn: () => fetchObjectCanEdit(objectUrl, objectId),
-    enabled: enabled && objectId > 0,
+    queryKey: ["main_sequence", "permissions", objectUrl, normalizedObjectId, "edit"],
+    queryFn: () => fetchObjectCanEdit(objectUrl, normalizedObjectId!),
+    enabled: enabled && normalizedObjectId !== null,
     staleTime: 60_000,
   });
 
   const permissionCandidateUsersQuery = useQuery({
-    queryKey: ["main_sequence", "permissions", objectUrl, objectId, "candidate-users"],
-    queryFn: () => listPermissionCandidateUsers(objectUrl, objectId),
-    enabled: enabled && objectId > 0,
+    queryKey: ["main_sequence", "permissions", objectUrl, normalizedObjectId, "candidate-users"],
+    queryFn: () => listPermissionCandidateUsers(objectUrl, normalizedObjectId!),
+    enabled: enabled && normalizedObjectId !== null,
     staleTime: 300_000,
   });
   const permissionTeamsQuery = useQuery({
     queryKey: ["main_sequence", "permissions", "teams"],
     queryFn: () => listTeams(),
-    enabled: enabled && objectId > 0,
+    enabled: enabled && normalizedObjectId !== null,
     staleTime: 300_000,
   });
 
@@ -355,7 +369,7 @@ export function MainSequencePermissionsTab({
       for (const operation of operations) {
         await updateShareableObjectPermission({
           objectUrl,
-          objectId,
+          objectId: normalizedObjectId!,
           principalType: operation.principalType,
           accessLevel: operation.accessLevel,
           operation: operation.operation,
@@ -377,10 +391,10 @@ export function MainSequencePermissionsTab({
 
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "permissions", objectUrl, objectId, "view"],
+          queryKey: ["main_sequence", "permissions", objectUrl, normalizedObjectId, "view"],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "permissions", objectUrl, objectId, "edit"],
+          queryKey: ["main_sequence", "permissions", objectUrl, normalizedObjectId, "edit"],
         }),
       ]);
 
@@ -401,17 +415,17 @@ export function MainSequencePermissionsTab({
 
   useEffect(() => {
     setPermissionsValue(emptyPermissionAssignments);
-  }, [objectId]);
+  }, [normalizedObjectId]);
 
   useEffect(() => {
-    if (!enabled || !objectId || !canViewQuery.data || !canEditQuery.data) {
+    if (!enabled || normalizedObjectId === null || !canViewQuery.data || !canEditQuery.data) {
       return;
     }
 
     setPermissionsValue(persistedPermissionsValue);
-  }, [canEditQuery.data, canViewQuery.data, enabled, objectId, persistedPermissionsValue]);
+  }, [canEditQuery.data, canViewQuery.data, enabled, normalizedObjectId, persistedPermissionsValue]);
 
-  if (!enabled || objectId <= 0) {
+  if (!enabled || normalizedObjectId === null) {
     return null;
   }
 

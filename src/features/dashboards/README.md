@@ -16,7 +16,7 @@ These flows are all part of one app surface, with instance state selected throug
 - `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance.
 - `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize, controls, and save flow.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
-- `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, and labels.
+- `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, labels, and backend-only sharing permissions.
 - `useCustomWorkspaceStudio.ts`: route-aware hook that resolves the requested workspace instance and exposes shared actions.
 - `custom-workspace-studio-store.ts`: shared draft/saved workspace state used across the list, canvas, and settings views.
 - `custom-dashboard-storage.ts`: local-storage persistence, workspace creation helpers, grid migration logic, and widget mutation helpers.
@@ -99,9 +99,15 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget settings in Workspaces no longer open in a modal. They now use a dedicated route-level view with a shared full-width settings panel and an explicit `Return to dashboard` action.
 - The dedicated workspace settings page now uses the same scrollable full-page container model as
   the widget settings view, so long workspace configuration pages can be reached fully.
+- In backend mode, workspace settings also expose a `Permissions` tab that reuses the shared
+  object-sharing assignment UI against the configured workspace backend endpoint root. Local
+  browser-only workspaces keep the tab but explain that RBAC sharing requires backend persistence.
 - The canvas `Components` browser is optimized for large catalogs: dense rows, category/kind/source filters, favorites, recent widgets, and grouped category browse when search is empty.
 - If a workspace still references a widget id that is no longer registered, the canvas explains that the widget is legacy/unavailable and lets the user delete that stale instance directly.
 - Workspace deletion from settings uses the shared destructive confirmation dialog. In backend mode, the UI removes the workspace only after the backend confirms the delete.
+- The workspace index now also exposes a direct `Copy` action. It clones the selected workspace
+  model into a new workspace instance and routes through the normal create flow, so backend mode
+  creates a brand-new backend workspace row rather than overwriting the source workspace.
 - For a shared production backend, keep shared workspace content separate from per-user view state. See `docs/workspace-backend-model.md` and `docs/adr-shared-workspace-state.md`.
 
 ## Important Dependencies

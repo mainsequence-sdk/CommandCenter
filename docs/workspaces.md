@@ -67,6 +67,9 @@ In backend mode, the editor autosaves changes to the backend and does not expose
 controls.
 In backend mode, delete reloads the workspace collection from the backend after success instead of
 computing the next list locally.
+In backend mode, workspace settings also expose a `Permissions` tab backed by the standard
+object-sharing endpoints for the workspace object itself. Browser-local workspaces cannot be shared
+through RBAC and show an explanatory backend-only message instead.
 
 For the recommended production backend model for shared workspaces, see:
 
@@ -141,6 +144,19 @@ That means users can:
 
 Workspace favorites are stored in shell-local persisted state, then resolved against the current
 workspace collection.
+
+## Copying Workspaces
+
+The workspace index also exposes a direct `Copy` action for each workspace row.
+
+Copy works by cloning the current workspace document into a fresh workspace instance and then
+routing through the normal create flow:
+
+- local mode creates a new browser-local workspace
+- backend mode issues a normal workspace create request, so the copy is stored as a new backend
+  workspace rather than updating the original one
+
+The copied workspace gets a fresh workspace id and a default title prefixed with `Copy of`.
 
 ## Recommended Production Split
 

@@ -1,4 +1,4 @@
-import { ArrowRight, LayoutTemplate, Settings2 } from "lucide-react";
+import { ArrowRight, Copy, LayoutTemplate, Settings2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { SurfaceFavoriteButton } from "@/app/layout/SurfaceFavoriteButton";
@@ -8,6 +8,10 @@ import { useShellStore } from "@/stores/shell-store";
 import { CustomDashboardStudioPage } from "./CustomDashboardStudioPage";
 import { CustomWidgetSettingsPage } from "./CustomWidgetSettingsPage";
 import { CustomWorkspaceSettingsPage } from "./CustomWorkspaceSettingsPage";
+import {
+  createWorkspaceSnapshot,
+  restoreWorkspaceFromSnapshot,
+} from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import {
   getWorkspaceFavoriteId,
@@ -91,6 +95,11 @@ function formatWorkspaceRefresh(workspace: { controls?: { refresh?: {
   return `${Math.round(refreshIntervalMs / 60_000)}m`;
 }
 
+function buildCopiedWorkspaceTitle(title: string) {
+  const trimmed = title.trim();
+  return trimmed ? `Copy of ${trimmed}` : "Copy of Workspace";
+}
+
 export function WorkspacesPage() {
   const navigate = useNavigate();
   const favoriteWorkspaceIds = useShellStore((state) => state.favoriteWorkspaceIds);
@@ -106,6 +115,7 @@ export function WorkspacesPage() {
     error,
     persistenceMode,
     createWorkspace,
+    createWorkspaceFromDefinition,
     requestedWorkspaceId,
     selectedWorkspaceView,
   } = useCustomWorkspaceStudio();
@@ -281,6 +291,23 @@ export function WorkspacesPage() {
                         >
                           <ArrowRight className="h-4 w-4" />
                           Open
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const duplicatedWorkspace = restoreWorkspaceFromSnapshot(
+                              createWorkspaceSnapshot(workspace),
+                            );
+
+                            duplicatedWorkspace.title = buildCopiedWorkspaceTitle(workspace.title);
+
+                            void createWorkspaceFromDefinition(duplicatedWorkspace);
+                          }}
+                          disabled={isHydrating || isSaving}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy
                         </Button>
                         <Button
                           size="sm"
