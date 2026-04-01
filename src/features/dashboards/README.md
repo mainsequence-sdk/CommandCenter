@@ -75,6 +75,9 @@ These flows are all part of one app surface, with instance state selected throug
 - The studio now uses the root `react-grid-layout` v2 API directly. `CustomDashboardStudioPage`
   passes grouped `gridConfig`, `dragConfig`, `resizeConfig`, and `compactor` props instead of the
   old flat v1 prop surface.
+- In `custom` edit mode, resize uses a single bottom-right `se` handle on purpose. This is the
+  current desired UX and should not be expanded back into separate edge-only resize handles unless
+  the workspace interaction model is intentionally changed.
 - For `custom` workspaces, smaller screens now follow a Grafana-style runtime mobile rewrite below
   `769px`: cards temporarily stack full width while preserving their stored row spans, and that
   temporary mobile layout is never persisted back into the workspace model.

@@ -51,10 +51,12 @@ The studio now:
 
 1. Passes layout measurement through `gridConfig`, `dragConfig`, and `resizeConfig`.
 2. Uses `verticalCompactor` explicitly instead of `compactType="vertical"`.
-3. Keeps the existing dashboard layout model and explicit width measurement logic.
-4. Removes the local `ComponentType<any>` cast so TypeScript can validate the real component API.
-5. Memoizes grid children so the editor does not hand RGL a fresh child array on every render.
-6. Limits the studio `ResizeObserver` loop to width-driven updates so height churn during resize
+3. Uses a single bottom-right `se` resize handle for `custom` edit mode instead of separate edge
+   handles, so width and height resize together from one affordance.
+4. Keeps the existing dashboard layout model and explicit width measurement logic.
+5. Removes the local `ComponentType<any>` cast so TypeScript can validate the real component API.
+6. Memoizes grid children so the editor does not hand RGL a fresh child array on every render.
+7. Limits the studio `ResizeObserver` loop to width-driven updates so height churn during resize
    does not feed unnecessary grid-metric state back into the editor.
 
 ## Why we are doing it this way

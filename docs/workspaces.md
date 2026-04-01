@@ -94,6 +94,8 @@ The canvas uses a fine-grained grid and stores widget placement directly in the 
 migrated into that model on load so the studio no longer inherits legacy resize steps.
 The studio now uses the root `react-grid-layout` v2 API directly through grouped
 `gridConfig` / `dragConfig` / `resizeConfig` props instead of the old flat prop surface.
+In `custom` edit mode, the editor intentionally uses only the bottom-right `se` resize handle so
+width and height resize together from one corner.
 Labels are edited in workspace settings as pill chips with enter-to-add behavior.
 Widget runtime state can also be stored per instance when the widget reports it through the shared
 widget contract.

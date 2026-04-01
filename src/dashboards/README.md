@@ -34,6 +34,8 @@ surfaces and the editable workspace studio.
 - The workspace studio now drives the root `react-grid-layout` v2 component through grouped
   `gridConfig`, `dragConfig`, `resizeConfig`, and `compactor` props. The studio should not hide
   that API behind `any` casts again.
+- The custom workspace editor intentionally exposes only the bottom-right `se` resize handle.
+  Combined width+height resize from one corner is part of the current interaction contract.
 - `custom` currently uses one canonical dense manual grid: `48` columns, `15px` row units, and
   `8px` visual gutters. Older `12`-, `24`-, and `96`-column workspace layouts are normalized into
   that model when they are loaded, so the editor no longer inherits legacy fine-grid sizing.

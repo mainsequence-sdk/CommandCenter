@@ -1996,6 +1996,7 @@ export function CustomDashboardStudioPage() {
   );
   const customMobileLayout = layoutKind === "custom" && customRuntimeGridLayout.mobile;
   const customGridInteractive = editMode && layoutKind === "custom" && !customMobileLayout;
+  // Keep one bottom-right handle so custom resize stays a single combined width+height gesture.
   const customGridResizeHandles = useMemo<ResizeHandleAxis[]>(
     () => (customGridInteractive ? ["se"] : []),
     [customGridInteractive],
