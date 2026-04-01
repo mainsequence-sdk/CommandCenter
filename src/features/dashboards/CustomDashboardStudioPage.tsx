@@ -1971,6 +1971,7 @@ export function CustomDashboardStudioPage() {
     [customRuntimeGridLayout.layout, selectedDashboard?.id],
   );
   const lastSyncedCustomGridLayoutSignatureRef = useRef<string | null>(null);
+  const previousEditModeRef = useRef(editMode);
   const hasUnsyncedCommittedCustomGridLayout =
     committedCustomGridLayoutSignature !== lastSyncedCustomGridLayoutSignatureRef.current;
   const renderedCustomGridLayout =
@@ -2071,16 +2072,21 @@ export function CustomDashboardStudioPage() {
   );
 
   useEffect(() => {
-    if (!editMode) {
-      setLibraryOpen(false);
-      setSelectedInstanceId(null);
-      setCatalogDragPayload(null);
-      setActiveCatalogDrag(null);
-      setHoveredPlacement(null);
-      setCompanionVisibilityById({});
-      setCustomGridLayoutDraft(cloneWorkspaceGridLayout(customRuntimeGridLayout.layout));
-      setAutoGridReorderState(null);
+    const wasEditMode = previousEditModeRef.current;
+    previousEditModeRef.current = editMode;
+
+    if (!wasEditMode || editMode) {
+      return;
     }
+
+    setLibraryOpen(false);
+    setSelectedInstanceId(null);
+    setCatalogDragPayload(null);
+    setActiveCatalogDrag(null);
+    setHoveredPlacement(null);
+    setCompanionVisibilityById({});
+    setCustomGridLayoutDraft(cloneWorkspaceGridLayout(customRuntimeGridLayout.layout));
+    setAutoGridReorderState(null);
   }, [customRuntimeGridLayout.layout, editMode]);
 
   useEffect(() => {
