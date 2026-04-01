@@ -58,6 +58,43 @@ Implemented:
   existing snapshot/restore helpers to guarantee a fresh workspace id, then routes through the
   normal workspace create flow so backend persistence creates a new workspace instance instead of
   modifying the source workspace.
+- Added a new Markets `Curve Plot` widget registered from `extensions/main_sequence/extensions/markets/`.
+  The widget uses TradingView Lightweight Charts `createYieldCurveChart(...)` and follows the Main
+  Sequence widget pattern of consuming rows from a linked `Data Node` widget instead of creating a
+  second data-source contract. The first pass keeps the Markets widget on top of the existing
+  Workbench DataNode-source helpers; if more Markets widgets need that same contract, that shared
+  layer should be moved into `extensions/main_sequence/common/`.
+- Extended the Markets `Curve Plot` widget with a dedicated `Curve Data Node` mode. When enabled,
+  the widget assumes the linked dataset uses the compressed curve contract
+  (`time_index`, `unique_identifier`, `curve`) and decompresses the `curve` payload from
+  Base64 + gzip + JSON before turning it into plotted maturity/value points.
+- Tightened the Markets `Curve Plot` formatting path so compressed curve maturities render as clean
+  whole day/month/year tenors instead of long fractional labels, and documented that curve values
+  are already treated as percent values with no `* 100` or `/ 100` scaling inside the widget.
+- Simplified the `Curve Plot` maturity axis again so the rendered tenors now snap to whole
+  `M` or `Y` labels only, avoiding fractional or compound labels on the yield-curve x-axis.
+- Split the experimental compressed-curve mode out of `Curve Plot`. `Curve Plot` settings now
+  expose only the generic mapped maturity/value flow again, while the new `Zero Curve` widget owns
+  the Main Sequence compressed curve contract (`time_index`, `unique_identifier`, `curve`) and
+  renders it with ECharts on a numeric days axis.
+- Corrected the `Zero Curve` rate interpretation. The widget now converts decompressed curve values
+  from decimal-rate input into percent values before plotting, which fixes the chart output that
+  was rendering 100x too small when the raw payload was displayed directly.
+- Reworked `Zero Curve` visual encoding so one `unique_identifier` keeps one stable hue across time
+  while `time_index` progression is expressed through alpha and line weight. Point markers are now
+  disabled by default to keep dense zero-curve histories readable.
+- Tightened `Zero Curve` again for dense histories: tooltips are now item-scoped instead of
+  axis-scoped, latest snapshots render noticeably thicker, and older snapshots fade much further
+  into the background so the current curve is visually dominant.
+- Replaced the temporary `Zero Curve` min/max overlay with a top-left observation window summary
+  (`From` / `To`) derived from the rendered `time_index` range, which is more appropriate for a
+  historical zero-curve viewer.
+- Simplified `Zero Curve` family styling again: historical snapshots no longer use an alpha
+  gradient by recency. They now share one uniform low-alpha treatment, while only the latest
+  snapshot remains fully opaque and visually dominant.
+- Fixed `Zero Curve` hover metadata by embedding each point's `time_index` label directly in the
+  ECharts line-series data payload. Tooltips no longer depend only on series-index lookup to show
+  the curve date.
 
 Still missing:
 - Keep `Data Node` sidebar-only by product decision. Do not remove its effective compact/sidebar policy from the workspace model.

@@ -28,7 +28,8 @@ data-node metadata and remote rows.
   `simple_table_update` when a widget needs to bind to a Simple Table run rather than a Data Node
   run.
 - `DataNodeDateTimeField.tsx`: shared local datetime input used by data-node widgets that support
-  fixed saved ranges.
+  fixed saved ranges. It now preserves seconds in both formatting and native input editing, so
+  saved fixed timestamps do not collapse to minute precision in widget settings.
 
 ## Scope
 

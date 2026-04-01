@@ -25,6 +25,7 @@ export function DataNodeDateTimeField({
   return (
     <Input
       type="datetime-local"
+      step={1}
       value={inputValue}
       onChange={(event) => {
         const nextValue = event.target.value;

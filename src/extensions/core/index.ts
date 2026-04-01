@@ -29,6 +29,7 @@ import { quartzLightTheme } from "@/themes/presets/quartz-light";
 import { sapphireTheme } from "@/themes/presets/sapphire";
 import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
 import { newsFeedWidget } from "@/widgets/core/news-feed/definition";
+import { appComponentWidget } from "@/widgets/core/app-component/definition";
 import { workspaceRowWidget } from "@/widgets/core/workspace-row/definition";
 
 const workspaceStudioApp: AppDefinition = {
@@ -253,7 +254,7 @@ const coreExtension: AppExtension = {
   id: "core",
   title: "Core Extension",
   description: "Built-in terminal apps, dashboard surfaces, and theme presets.",
-  widgets: [newsFeedWidget, markdownNoteWidget, workspaceRowWidget],
+  widgets: [newsFeedWidget, markdownNoteWidget, appComponentWidget, workspaceRowWidget],
   apps: [workspaceStudioApp, adminApp, accessRbacApp],
   themes: [
     mainSequenceSpaceTheme,

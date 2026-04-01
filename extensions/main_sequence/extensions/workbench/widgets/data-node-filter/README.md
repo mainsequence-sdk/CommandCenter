@@ -56,6 +56,8 @@ charts and tables.
   actions in the same style as the row widget.
 - In fixed-date mode, missing start/end values are prefilled from the data node's latest available
   time index, keeping the current dashboard span when possible.
+- For direct-query sources, the settings preview also shows the backend `dynamic_table/{id}/`
+  `identifier` when the detail payload includes it.
 - For direct sources, the preview fetches the selected data node through
   `dynamic_table/{id}/get_data_between_dates_from_remote/`.
 - For upstream sources, the preview reads the upstream Data Node runtime dataset and shows the

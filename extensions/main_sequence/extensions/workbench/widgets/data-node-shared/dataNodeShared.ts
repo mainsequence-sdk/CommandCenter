@@ -273,7 +273,7 @@ export function formatDateTimeLocalValue(timestampMs?: number) {
 
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
     date.getHours(),
-  )}:${pad(date.getMinutes())}`;
+  )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 export function parseDateTimeLocalValue(value: string) {

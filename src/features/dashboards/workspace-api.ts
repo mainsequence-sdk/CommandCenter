@@ -653,10 +653,43 @@ function serializeWorkspaceMutationPayload(
   return JSON.stringify(payload);
 }
 
+function unwrapDashboardPayloadRecord(payload: unknown): Record<string, unknown> | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  if (Array.isArray(payload.widgets)) {
+    return payload;
+  }
+
+  if ("workspace" in payload) {
+    return unwrapDashboardPayloadRecord(payload.workspace);
+  }
+
+  if ("dashboard" in payload) {
+    return unwrapDashboardPayloadRecord(payload.dashboard);
+  }
+
+  return payload;
+}
+
 function resolveMutationDashboardPayload(payload: unknown, fallback: DashboardDefinition) {
   const resolved = coerceDashboardDefinition(payload);
+  const payloadRecord = unwrapDashboardPayloadRecord(payload);
 
   if (resolved) {
+    if (
+      payloadRecord &&
+      !Array.isArray(payloadRecord.companions) &&
+      Array.isArray(fallback.companions) &&
+      fallback.companions.length > 0
+    ) {
+      return normalizeDashboardDefinition({
+        ...resolved,
+        companions: fallback.companions,
+      });
+    }
+
     return resolved;
   }
 

@@ -27,6 +27,7 @@ import {
   type EntitySummaryHeader,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
+import { MainSequencePermissionsTab } from "../../../../common/components/MainSequencePermissionsTab";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
@@ -44,12 +45,14 @@ const mainSequenceDataNodeIdParam = "msDataNodeId";
 const mainSequenceDataNodeTabParam = "msDataNodeTab";
 const mainSequenceLocalUpdateIdParam = "msLocalUpdateId";
 const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
+const dataNodePermissionsObjectUrl = "/orm/api/ts_manager/dynamic_table";
 const dataNodeDetailTabs = [
   { id: "details", label: "Details" },
   { id: "description", label: "Description" },
   { id: "data-snapshot", label: "Data Snapshot" },
   { id: "local-time-series", label: "Local Update" },
   { id: "policies", label: "Policies" },
+  { id: "permissions", label: "Permissions" },
 ] as const;
 type DataNodeDetailTabId = (typeof dataNodeDetailTabs)[number]["id"];
 const defaultDataNodeDetailTabId: DataNodeDetailTabId = "details";
@@ -853,6 +856,13 @@ export function MainSequenceDataNodesPage() {
                           : null
                       }
                       selectedLocalUpdateTabId={selectedLocalUpdateTabId}
+                    />
+                  ) : selectedDetailTabId === "permissions" ? (
+                    <MainSequencePermissionsTab
+                      objectUrl={dataNodePermissionsObjectUrl}
+                      objectId={selectedDataNodeId}
+                      entityLabel="Data Node"
+                      enabled={selectedDetailTabId === "permissions"}
                     />
                   ) : (
                     <MainSequenceDataNodePoliciesTab dataNodeId={selectedDataNodeId} />

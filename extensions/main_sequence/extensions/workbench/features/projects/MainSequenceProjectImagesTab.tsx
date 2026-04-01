@@ -44,6 +44,10 @@ function formatProjectImageStatus(image: ProjectImageOption) {
   return image.is_ready ? "Ready" : "Building";
 }
 
+function hasBuildingImages(images: ProjectImageOption[] | undefined) {
+  return (images ?? []).some((image) => !image.is_ready);
+}
+
 function toCommitHashPickerOption(commit: ProjectImageCommitHashOption) {
   return {
     value: commit.value,
@@ -85,6 +89,9 @@ export function MainSequenceProjectImagesTab({
         offset: imagesPageIndex * mainSequenceRegistryPageSize,
       }),
     enabled: projectId > 0,
+    refetchInterval: (query) =>
+      hasBuildingImages(query.state.data?.results) ? 60_000 : false,
+    refetchIntervalInBackground: true,
   });
 
   useEffect(() => {
@@ -132,7 +139,10 @@ export function MainSequenceProjectImagesTab({
   });
 
   const commitHashOptions = useMemo(
-    () => (commitHashesQuery.data?.commits ?? []).map(toCommitHashPickerOption),
+    () =>
+      (commitHashesQuery.data?.commits ?? [])
+        .filter((commit) => !commit.is_dynamic)
+        .map(toCommitHashPickerOption),
     [commitHashesQuery.data?.commits],
   );
 
@@ -372,9 +382,14 @@ export function MainSequenceProjectImagesTab({
                       </div>
                     </td>
                     <td className={getRegistryTableCellClassName(selected, "right")}>
-                      <Badge variant={image.is_ready ? "success" : "warning"}>
-                        {formatProjectImageStatus(image)}
-                      </Badge>
+                      {image.is_ready ? (
+                        <Badge variant="success">{formatProjectImageStatus(image)}</Badge>
+                      ) : (
+                        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/35 px-3 py-1 text-xs font-medium text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <span>Building</span>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -402,7 +417,8 @@ export function MainSequenceProjectImagesTab({
             setCreateDialogOpen(false);
           }
         }}
-        className="max-w-[min(560px,calc(100vw-24px))]"
+        className="max-w-[min(760px,calc(100vw-24px))] overflow-visible"
+        contentClassName="overflow-visible px-5 py-5 md:px-6 md:py-6"
       >
         <div className="space-y-5">
           <div className="space-y-2">
@@ -415,7 +431,7 @@ export function MainSequenceProjectImagesTab({
               options={commitHashOptions}
               placeholder="Select a commit hash"
               searchPlaceholder="Search commit hashes"
-              emptyMessage="No commits available."
+              emptyMessage="No pinned commits available."
               loading={commitHashesQuery.isLoading}
             />
           </div>
@@ -444,7 +460,7 @@ export function MainSequenceProjectImagesTab({
               onClick={() =>
                 createImageMutation.mutate({
                   related_project_id: projectId,
-                  project_repo_hash: selectedCommitHash || undefined,
+                  project_repo_hash: selectedCommitHash,
                 })
               }
               disabled={

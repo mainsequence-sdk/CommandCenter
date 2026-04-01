@@ -8,6 +8,7 @@ The current built-in widget set is intentionally opinionated:
 
 - feed-based situational awareness
 - narrative context and note-taking
+- API form generation and request submission
 - structural workspace composition
 
 All of them are registered by the core extension in `src/extensions/core/index.ts`.
@@ -125,6 +126,36 @@ This widget extends the platform beyond pure content panels. It gives the worksp
 first-class structural primitive instead of forcing layout grouping to be inferred from arbitrary
 widget positions.
 
+### AppComponent
+
+- **Widget id:** `app-component`
+- **Category:** `API`
+- **Kind:** `custom`
+- **Default size:** `8 x 8`
+- **Permissions:** `dashboard:view`
+- **Example props:** API base URL plus auth mode; route binding is instance-scoped
+
+What it is:
+
+`AppComponent` reads an OpenAPI schema from `/openapi.json`, lets a user bind one widget instance
+to one API operation, and renders the generated request form directly inside the widget body.
+
+What it is good for:
+
+- operator-facing API tools
+- internal submission forms
+- authenticated request workflows
+- workspace composition around service endpoints
+
+Where it is used now:
+
+- available through the widget catalog for user-configurable workspace surfaces
+
+Why it matters:
+
+This widget turns backend route contracts into reusable workspace components instead of forcing
+teams to hand-build one-off forms for every internal API action.
+
 ## Current platform composition
 
 The core extension currently uses the widget set in three ways:
@@ -132,7 +163,9 @@ The core extension currently uses the widget set in three ways:
 1. `News Feed` provides a reusable narrative/event context pattern for shipped surfaces.
 2. `Markdown` gives the platform a built-in narrative and documentation widget for operator-facing
    dashboards.
-3. `Row` adds structural workspace composition as a first-class primitive inside the workspace
+3. `AppComponent` gives the platform a generic authenticated API form builder driven by OpenAPI
+   instead of custom page-level forms.
+4. `Row` adds structural workspace composition as a first-class primitive inside the workspace
    studio.
 
 ## When to build a new widget instead of reusing core
@@ -148,6 +181,7 @@ Reuse core widgets when:
 
 - you need a narrative or event feed
 - you need markdown-based documentation or notes
+- you need a generic OpenAPI-backed request form
 - you need structural row grouping in workspaces
 
 ## Related docs

@@ -4,6 +4,10 @@ This folder contains widget definitions and widget-owned presentation components
 
 ## Widgets
 
+- `curve-plot/`: live `Curve Plot` widget that renders yield-curve style datasets from a linked
+  Main Sequence `Data Node` widget with mapped maturity/value fields and Lightweight Charts.
+- `zero-curve/`: live `Zero Curve` widget that renders compressed Main Sequence curve payloads on
+  a numeric days axis with ECharts.
 - `portfolio-weights-table/`: reusable `Portfolio Weights` widget plus the shared table renderer used by the portfolio detail flow; the module remains on disk but is not currently registered in the live widget catalog.
 
 ## Rules
@@ -13,3 +17,6 @@ This folder contains widget definitions and widget-owned presentation components
   extension.
 - Shared low-level UI primitives belong in `../../common/components/`.
 - Add a local `README.md` for each widget folder with entry points and usage notes.
+- The current `curve-plot/` widget temporarily reuses the Workbench DataNode-source helpers as a
+  maintenance shortcut. If another Markets widget needs the same source contract, move that shared
+  layer into `../../common/` instead of duplicating or extending the cross-extension dependency.

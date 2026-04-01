@@ -50,6 +50,7 @@ These flows are all part of one app surface, with instance state selected throug
 - The workspace index page renders from the backend-backed saved collection in backend mode, even if the editor currently has unsaved draft changes.
 - In backend mode, the editor keeps a local draft and only persists changes when the user explicitly saves.
 - In backend mode, delete reloads the workspace collection from the backend after success instead of computing the next list locally.
+- In backend mode, workspace save keeps the submitted companion-card layout if the mutation response does not explicitly echo `companions`. This prevents exposed companion cards from snapping back locally after a successful save when the backend omits that field from the response body.
 - Favorites can target both app surfaces and individual workspace instances.
 - Workspace labels are edited in settings as enter-to-add pills instead of a comma-separated text field.
 - Workspace settings also expose versioned JSON export/import for full workspace snapshots.

@@ -383,6 +383,10 @@ export function MainSequenceDataNodeFilterWidgetSettings({
     previewRange.rangeStartMs && previewRange.rangeEndMs
       ? formatRangeSummary(previewRange.rangeStartMs, previewRange.rangeEndMs)
       : "Select a valid date range to preview";
+  const directQueryIdentifier =
+    !context?.isFilterWidgetSource && typeof selectedDetail?.identifier === "string"
+      ? selectedDetail.identifier.trim()
+      : "";
 
   if (!resolvedConfig || !draftPreviewConfig) {
     return null;
@@ -701,6 +705,17 @@ export function MainSequenceDataNodeFilterWidgetSettings({
               </div>
             ) : !context?.isFilterWidgetSource || context.hasResolvedFilterWidgetSource ? (
               <>
+                {directQueryIdentifier ? (
+                  <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-3 py-3">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Identifier
+                    </div>
+                    <div className="mt-2 text-sm font-medium text-foreground">
+                      {directQueryIdentifier}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-3 py-2 text-sm text-muted-foreground">
                   {previewRangeSummary}
                 </div>
