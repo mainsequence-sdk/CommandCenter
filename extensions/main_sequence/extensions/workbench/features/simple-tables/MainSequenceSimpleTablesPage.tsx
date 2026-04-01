@@ -35,6 +35,7 @@ import {
   type SimpleTableUpdateDetailTabId,
 } from "./MainSequenceSimpleTableUpdateDetail";
 import { MainSequenceSimpleTableSchemaGraph } from "./MainSequenceSimpleTableSchemaGraph";
+import { MainSequenceSimpleTableSnapshotTab } from "./MainSequenceSimpleTableSnapshotTab";
 import { MainSequenceSimpleTableUpdatesTab } from "./MainSequenceSimpleTableUpdatesTab";
 
 const mainSequenceSimpleTableIdParam = "msSimpleTableId";
@@ -44,6 +45,7 @@ const mainSequenceSimpleTableUpdateTabParam = "msSimpleTableUpdateTab";
 const simpleTableDetailTabs = [
   { id: "details", label: "Details" },
   { id: "description", label: "Description" },
+  { id: "data-snapshot", label: "Data Snapshot" },
   { id: "ulm-diagram", label: "ULM diagram" },
   { id: "local-update", label: "Local Update" },
 ] as const;
@@ -765,6 +767,8 @@ export function MainSequenceSimpleTablesPage() {
                         )}
                       </CardContent>
                     </Card>
+                  ) : selectedDetailTabId === "data-snapshot" ? (
+                    <MainSequenceSimpleTableSnapshotTab simpleTableId={selectedSimpleTableId} />
                   ) : selectedDetailTabId === "ulm-diagram" ? (
                     <MainSequenceSimpleTableSchemaGraph simpleTableId={selectedSimpleTableId} />
                   ) : (

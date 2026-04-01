@@ -1,4 +1,3 @@
-import { env } from "@/config/env";
 import { titleCase } from "@/lib/utils";
 
 export type AppComponentHttpMethod =
@@ -81,6 +80,11 @@ export interface OpenApiMediaType {
   example?: unknown;
 }
 
+export interface OpenApiResponse {
+  description?: string;
+  content?: Record<string, OpenApiMediaType>;
+}
+
 export interface OpenApiRequestBody {
   description?: string;
   required?: boolean;
@@ -94,6 +98,7 @@ export interface OpenApiOperation {
   tags?: string[];
   parameters?: Array<OpenApiParameter | OpenApiReference>;
   requestBody?: OpenApiRequestBody | OpenApiReference;
+  responses?: Record<string, OpenApiResponse | OpenApiReference>;
 }
 
 export interface OpenApiPathItem {
@@ -119,7 +124,12 @@ export interface OpenApiDocument {
     schemas?: Record<string, OpenApiSchema>;
     parameters?: Record<string, OpenApiParameter>;
     requestBodies?: Record<string, OpenApiRequestBody>;
+    responses?: Record<string, OpenApiResponse>;
   };
+  servers?: Array<{
+    url?: string;
+    description?: string;
+  }>;
 }
 
 export interface AppComponentOperationRecord {
@@ -169,6 +179,30 @@ export interface BuiltAppComponentRequest {
   url: string;
   headers: Record<string, string>;
   body?: string;
+}
+
+export interface AppComponentResponseModelStatus {
+  declaredResponseCodes: string[];
+  modeledResponseCodes: string[];
+  missingResponseCodes: string[];
+  isValidEndpoint: boolean;
+}
+
+export interface AppComponentResponseModelPreviewField {
+  path: string;
+  typeLabel: string;
+  required: boolean;
+  description?: string;
+}
+
+export interface AppComponentResponseModelPreviewEntry {
+  key: string;
+  statusCode: string;
+  contentType: string | null;
+  description?: string;
+  hasSchema: boolean;
+  schemaTypeLabel: string | null;
+  fields: AppComponentResponseModelPreviewField[];
 }
 
 export interface BuildAppComponentRequestResult {
@@ -348,6 +382,21 @@ function resolveOpenApiRequestBody(
   return input;
 }
 
+function resolveOpenApiResponse(
+  document: OpenApiDocument,
+  input?: OpenApiResponse | OpenApiReference,
+): OpenApiResponse | undefined {
+  if (!input) {
+    return undefined;
+  }
+
+  if (isOpenApiReference(input)) {
+    return resolveLocalOpenApiRef<OpenApiResponse>(document, input.$ref);
+  }
+
+  return input;
+}
+
 function resolveOpenApiOperation(
   document: OpenApiDocument,
   input?: OpenApiOperation | OpenApiReference,
@@ -373,6 +422,10 @@ function isObjectSchema(schema?: OpenApiSchema) {
       (schema.type === "object" ||
         (isPlainRecord(schema.properties) && Object.keys(schema.properties).length > 0)),
   );
+}
+
+function isArraySchema(schema?: OpenApiSchema) {
+  return Boolean(schema && schema.type === "array");
 }
 
 function resolveFieldKind(schema?: OpenApiSchema): AppComponentGeneratedFieldKind {
@@ -496,6 +549,135 @@ function resolveFieldSeedValue(field: AppComponentGeneratedField) {
     default:
       return String(seed);
   }
+}
+
+function formatSchemaTypeLabel(
+  document: OpenApiDocument,
+  schema?: OpenApiSchema,
+): string {
+  if (!schema) {
+    return "unknown";
+  }
+
+  if (
+    Array.isArray(schema.enum) &&
+    schema.enum.length > 0 &&
+    schema.enum.every(
+      (entry) =>
+        typeof entry === "string" ||
+        typeof entry === "number" ||
+        typeof entry === "boolean",
+    )
+  ) {
+    return `enum(${schema.enum.map((entry) => String(entry)).join(", ")})`;
+  }
+
+  if (schema.type === "string" && schema.format) {
+    return `string (${schema.format})`;
+  }
+
+  if (isObjectSchema(schema)) {
+    return "object";
+  }
+
+  if (isArraySchema(schema)) {
+    const itemSchema = resolveOpenApiSchema(document, schema.items);
+    return itemSchema ? `array<${formatSchemaTypeLabel(document, itemSchema)}>` : "array";
+  }
+
+  return schema.type ?? "object";
+}
+
+function collectSchemaPreviewFields(
+  document: OpenApiDocument,
+  schemaInput: OpenApiSchema | OpenApiReference | undefined,
+  {
+    path = "",
+    required = true,
+    depth = 0,
+    fields,
+  }: {
+    path?: string;
+    required?: boolean;
+    depth?: number;
+    fields: AppComponentResponseModelPreviewField[];
+  },
+) {
+  const schema = resolveOpenApiSchema(document, schemaInput);
+
+  if (!schema) {
+    return;
+  }
+
+  const pathLabel = path || "response";
+
+  if (isObjectSchema(schema)) {
+    const entries = Object.entries(schema.properties ?? {});
+
+    if (entries.length === 0 || depth >= 1) {
+      fields.push({
+        path: pathLabel,
+        typeLabel: "object",
+        required,
+        description: schema.description,
+      });
+      return;
+    }
+
+    for (const [propertyName, propertySchemaInput] of entries) {
+      const propertySchema = resolveOpenApiSchema(document, propertySchemaInput);
+      const propertyPath = path ? `${path}.${propertyName}` : propertyName;
+      const propertyRequired = schema.required?.includes(propertyName) ?? false;
+
+      if (isObjectSchema(propertySchema) || isArraySchema(propertySchema)) {
+        collectSchemaPreviewFields(document, propertySchema, {
+          path: propertyPath,
+          required: propertyRequired,
+          depth: depth + 1,
+          fields,
+        });
+        continue;
+      }
+
+      fields.push({
+        path: propertyPath,
+        typeLabel: formatSchemaTypeLabel(document, propertySchema),
+        required: propertyRequired,
+        description: propertySchema?.description,
+      });
+    }
+
+    return;
+  }
+
+  if (isArraySchema(schema)) {
+    const itemSchema = resolveOpenApiSchema(document, schema.items);
+
+    if (isObjectSchema(itemSchema) && depth < 1) {
+      collectSchemaPreviewFields(document, itemSchema, {
+        path: path ? `${path}[]` : "[]",
+        required,
+        depth: depth + 1,
+        fields,
+      });
+      return;
+    }
+
+    fields.push({
+      path: pathLabel,
+      typeLabel: formatSchemaTypeLabel(document, schema),
+      required,
+      description: schema.description,
+    });
+    return;
+  }
+
+  fields.push({
+    path: pathLabel,
+    typeLabel: formatSchemaTypeLabel(document, schema),
+    required,
+    description: schema.description,
+  });
 }
 
 function resolveRawBodySeed(contentType: string | null | undefined, example: unknown) {
@@ -892,6 +1074,26 @@ export const appComponentMockOpenApiDocument = {
             },
           },
         ],
+        responses: {
+          "200": {
+            description: "Context resolved successfully.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["random_date"],
+                  properties: {
+                    random_date: {
+                      type: "string",
+                      format: "date",
+                      example: "2026-04-03",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     "/price/swap": {
@@ -924,6 +1126,34 @@ export const appComponentMockOpenApiDocument = {
             },
           },
         },
+        responses: {
+          "200": {
+            description: "Pricing response.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["date", "rate", "price"],
+                  properties: {
+                    date: {
+                      type: "string",
+                      format: "date",
+                      example: "2026-04-01",
+                    },
+                    rate: {
+                      type: "number",
+                      example: 0.97,
+                    },
+                    price: {
+                      type: "number",
+                      example: 1.0309278351,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     "/health": {
@@ -931,6 +1161,25 @@ export const appComponentMockOpenApiDocument = {
         tags: ["System"],
         summary: "Health probe",
         description: "Simple readiness endpoint with no request parameters.",
+        responses: {
+          "200": {
+            description: "Health status payload.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["status"],
+                  properties: {
+                    status: {
+                      type: "string",
+                      example: "ok",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
   },
@@ -964,7 +1213,7 @@ export function normalizeAppComponentProps(
     apiBaseUrl:
       typeof props.apiBaseUrl === "string" && props.apiBaseUrl.trim()
         ? props.apiBaseUrl.trim()
-        : env.apiBaseUrl,
+        : undefined,
     authMode: normalizeAppComponentAuthMode(props.authMode),
     method: normalizeAppComponentMethod(props.method),
     path:
@@ -1024,25 +1273,121 @@ export function normalizeAppComponentRuntimeState(
 }
 
 export function tryResolveAppComponentBaseUrl(value?: string) {
-  const raw = typeof value === "string" && value.trim() ? value.trim() : env.apiBaseUrl;
+  const raw = typeof value === "string" && value.trim() ? value.trim() : "";
+
+  if (!raw) {
+    return null;
+  }
 
   try {
-    return new URL(raw, env.apiBaseUrl).toString().replace(/\/$/, "");
+    return new URL(raw).toString().replace(/\/$/, "");
   } catch {
     return null;
   }
 }
 
-export function buildAppComponentDocsUrl(baseUrl?: string) {
-  const resolved = tryResolveAppComponentBaseUrl(baseUrl);
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/$/, "");
+}
 
-  return resolved ? new URL("/docs", resolved).toString() : null;
+function resolveAppComponentUrlSuffix(
+  value: string | undefined,
+  suffix: "/openapi.json" | "/docs",
+) {
+  const resolved = tryResolveAppComponentBaseUrl(value);
+
+  if (!resolved) {
+    return null;
+  }
+
+  const url = new URL(resolved);
+
+  if (url.pathname.endsWith(suffix)) {
+    url.search = "";
+    url.hash = "";
+    return trimTrailingSlash(url.toString());
+  }
+
+  return null;
+}
+
+export function buildAppComponentDiscoveryUrl(value?: string) {
+  return buildAppComponentOpenApiUrl(value);
+}
+
+function buildAppComponentServiceRootUrl(baseUrl?: string) {
+  const openApiUrl = resolveAppComponentUrlSuffix(baseUrl, "/openapi.json");
+
+  if (openApiUrl) {
+    const url = new URL(openApiUrl);
+    url.pathname = url.pathname.slice(0, -"/openapi.json".length) || "/";
+    url.search = "";
+    url.hash = "";
+    return trimTrailingSlash(url.toString());
+  }
+
+  const docsUrl = resolveAppComponentUrlSuffix(baseUrl, "/docs");
+
+  if (docsUrl) {
+    const url = new URL(docsUrl);
+    url.pathname = url.pathname.slice(0, -"/docs".length) || "/";
+    url.search = "";
+    url.hash = "";
+    return trimTrailingSlash(url.toString());
+  }
+
+  return tryResolveAppComponentBaseUrl(baseUrl);
+}
+
+export function buildAppComponentRelativeUrl(
+  baseUrl: string | undefined,
+  relativePath: string,
+) {
+  const resolved = buildAppComponentServiceRootUrl(baseUrl);
+
+  if (!resolved) {
+    return null;
+  }
+
+  const root = new URL(resolved.endsWith("/") ? resolved : `${resolved}/`);
+
+  return new URL(relativePath.replace(/^\/+/, ""), root).toString();
+}
+
+export function buildAppComponentDocsUrl(baseUrl?: string) {
+  const explicitDocsUrl = resolveAppComponentUrlSuffix(baseUrl, "/docs");
+
+  if (explicitDocsUrl) {
+    return explicitDocsUrl;
+  }
+
+  const explicitOpenApiUrl = resolveAppComponentUrlSuffix(baseUrl, "/openapi.json");
+
+  if (explicitOpenApiUrl) {
+    const url = new URL(explicitOpenApiUrl);
+    url.pathname = `${url.pathname.slice(0, -"/openapi.json".length) || ""}/docs`;
+    return trimTrailingSlash(url.toString());
+  }
+
+  return buildAppComponentRelativeUrl(baseUrl, "/docs");
 }
 
 export function buildAppComponentOpenApiUrl(baseUrl?: string) {
-  const resolved = tryResolveAppComponentBaseUrl(baseUrl);
+  const explicitOpenApiUrl = resolveAppComponentUrlSuffix(baseUrl, "/openapi.json");
 
-  return resolved ? new URL("/openapi.json", resolved).toString() : null;
+  if (explicitOpenApiUrl) {
+    return explicitOpenApiUrl;
+  }
+
+  const explicitDocsUrl = resolveAppComponentUrlSuffix(baseUrl, "/docs");
+
+  if (explicitDocsUrl) {
+    const url = new URL(explicitDocsUrl);
+    url.pathname = `${url.pathname.slice(0, -"/docs".length) || ""}/openapi.json`;
+    return trimTrailingSlash(url.toString());
+  }
+
+  return buildAppComponentRelativeUrl(baseUrl, "/openapi.json");
 }
 
 export function buildAppComponentOperationKey(
@@ -1138,6 +1483,105 @@ export function resolveAppComponentOperation(
     operation,
     pathItem,
   };
+}
+
+export function resolveAppComponentResponseModelStatus(
+  document: OpenApiDocument,
+  resolvedOperation: ResolvedAppComponentOperation | null,
+): AppComponentResponseModelStatus | null {
+  if (!resolvedOperation) {
+    return null;
+  }
+
+  const declaredResponseCodes = Object.keys(resolvedOperation.operation.responses ?? {});
+
+  if (declaredResponseCodes.length === 0) {
+    return {
+      declaredResponseCodes: [],
+      modeledResponseCodes: [],
+      missingResponseCodes: [],
+      isValidEndpoint: false,
+    };
+  }
+
+  const modeledResponseCodes: string[] = [];
+  const missingResponseCodes: string[] = [];
+
+  for (const [statusCode, responseInput] of Object.entries(
+    resolvedOperation.operation.responses ?? {},
+  )) {
+    const response = resolveOpenApiResponse(document, responseInput);
+    const hasResponseModel = Object.values(response?.content ?? {}).some((mediaType) =>
+      Boolean(resolveOpenApiSchema(document, mediaType?.schema)),
+    );
+
+    if (hasResponseModel) {
+      modeledResponseCodes.push(statusCode);
+      continue;
+    }
+
+    missingResponseCodes.push(statusCode);
+  }
+
+  return {
+    declaredResponseCodes,
+    modeledResponseCodes,
+    missingResponseCodes,
+    isValidEndpoint:
+      declaredResponseCodes.length > 0 &&
+      modeledResponseCodes.length > 0 &&
+      missingResponseCodes.length === 0,
+  };
+}
+
+export function resolveAppComponentResponseModelPreview(
+  document: OpenApiDocument,
+  resolvedOperation: ResolvedAppComponentOperation | null,
+): AppComponentResponseModelPreviewEntry[] {
+  if (!resolvedOperation) {
+    return [];
+  }
+
+  return Object.entries(resolvedOperation.operation.responses ?? {}).reduce<
+    AppComponentResponseModelPreviewEntry[]
+  >((entries, [statusCode, responseInput]) => {
+      const response = resolveOpenApiResponse(document, responseInput);
+      const contentEntries = Object.entries(response?.content ?? {});
+
+      if (contentEntries.length === 0) {
+        entries.push({
+          key: `${statusCode}:none`,
+          statusCode,
+          contentType: null,
+          description: response?.description,
+          hasSchema: false,
+          schemaTypeLabel: null,
+          fields: [],
+        });
+        return entries;
+      }
+
+      for (const [contentType, mediaType] of contentEntries) {
+        const schema = resolveOpenApiSchema(document, mediaType.schema);
+        const fields: AppComponentResponseModelPreviewField[] = [];
+
+        if (schema) {
+          collectSchemaPreviewFields(document, schema, { fields });
+        }
+
+        entries.push({
+          key: `${statusCode}:${contentType}`,
+          statusCode,
+          contentType,
+          description: response?.description,
+          hasSchema: Boolean(schema),
+          schemaTypeLabel: schema ? formatSchemaTypeLabel(document, schema) : null,
+          fields,
+        });
+      }
+
+      return entries;
+    }, []);
 }
 
 export function listAppComponentRequestBodyContentTypes(
@@ -1448,7 +1892,15 @@ export function buildAppComponentRequest(
     return { errors };
   }
 
-  const requestUrl = new URL(resolvedPath, baseUrl);
+  const requestUrlString = buildAppComponentRelativeUrl(baseUrl, resolvedPath);
+
+  if (!requestUrlString) {
+    return {
+      errors: ["Enter a valid API URL before sending a request."],
+    };
+  }
+
+  const requestUrl = new URL(requestUrlString);
 
   for (const [name, value] of queryEntries.entries()) {
     requestUrl.searchParams.set(name, value);

@@ -183,6 +183,7 @@ export function WidgetSettingsPanel<
     widget.settingsComponent as
       | ComponentType<WidgetSettingsComponentProps<TProps>>
       | undefined;
+  const showRawPropsEditor = widget.showRawPropsEditor !== false;
   const showHeader = resolveWidgetHeaderVisibility(draftProps);
   const transparentSurface = resolveWidgetTransparentSurface(draftPresentation);
   const sidebarOnly = draftPresentation.placementMode === "sidebar";
@@ -287,20 +288,23 @@ export function WidgetSettingsPanel<
   return (
     <section className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/88 shadow-[var(--shadow-panel)] backdrop-blur">
       <div className="border-b border-border/70 px-5 py-5 md:px-6 md:py-6">
-        <div className="space-y-2">
-          <div className="text-xl font-semibold tracking-tight text-foreground">{resolvedPanelTitle}</div>
-          <p className="max-w-3xl text-sm text-muted-foreground">{panelDescription}</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <div className="text-xl font-semibold tracking-tight text-foreground">
+              {resolvedPanelTitle}
+            </div>
+            <p className="max-w-3xl text-sm text-muted-foreground">{panelDescription}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="neutral">{widget.kind}</Badge>
+            <Badge variant="neutral">{widget.source}</Badge>
+            <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              {widget.category}
+            </span>
+          </div>
         </div>
       </div>
       <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="neutral">{widget.kind}</Badge>
-          <Badge variant="neutral">{widget.source}</Badge>
-          <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            {widget.category}
-          </span>
-        </div>
-
         {persistenceNote ? (
           <div className="rounded-[calc(var(--radius)-2px)] border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
             {persistenceNote}
@@ -324,105 +328,109 @@ export function WidgetSettingsPanel<
           />
         </section>
 
-        <section className="space-y-3">
-          <div>
-            <div className="text-sm font-medium text-topbar-foreground">Header</div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Control whether the widget header is visible during normal viewing. Workspace edit mode
-              always shows it.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={showHeader ? "default" : "outline"}
-              onClick={() => {
-                handleShowHeaderChange(true);
-              }}
-              disabled={!editable}
-            >
-              Show header
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={!showHeader ? "default" : "outline"}
-              onClick={() => {
-                handleShowHeaderChange(false);
-              }}
-              disabled={!editable}
-            >
-              Hide header
-            </Button>
-          </div>
-        </section>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <section className="space-y-3">
+            <div>
+              <div className="text-sm font-medium text-topbar-foreground">Header</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Control whether the widget header is visible during normal viewing. Workspace edit
+                mode always shows it.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={showHeader ? "default" : "outline"}
+                onClick={() => {
+                  handleShowHeaderChange(true);
+                }}
+                disabled={!editable}
+              >
+                Show header
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={!showHeader ? "default" : "outline"}
+                onClick={() => {
+                  handleShowHeaderChange(false);
+                }}
+                disabled={!editable}
+              >
+                Hide header
+              </Button>
+            </div>
+          </section>
 
-        <section className="space-y-3">
-          <div>
-            <div className="text-sm font-medium text-topbar-foreground">Placement</div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Choose whether this widget renders on the canvas or stays mounted only in the widget rail.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={!sidebarOnly ? "default" : "outline"}
-              onClick={() => {
-                handlePlacementModeChange("canvas");
-              }}
-              disabled={!editable}
-            >
-              Canvas
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={sidebarOnly ? "default" : "outline"}
-              onClick={() => {
-                handlePlacementModeChange("sidebar");
-              }}
-              disabled={!editable}
-            >
-              Sidebar only
-            </Button>
-          </div>
-        </section>
+          <section className="space-y-3">
+            <div>
+              <div className="text-sm font-medium text-topbar-foreground">Placement</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Choose whether this widget renders on the canvas or stays mounted only in the
+                widget rail.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={!sidebarOnly ? "default" : "outline"}
+                onClick={() => {
+                  handlePlacementModeChange("canvas");
+                }}
+                disabled={!editable}
+              >
+                Canvas
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={sidebarOnly ? "default" : "outline"}
+                onClick={() => {
+                  handlePlacementModeChange("sidebar");
+                }}
+                disabled={!editable}
+              >
+                Sidebar only
+              </Button>
+            </div>
+          </section>
 
-        <section className="space-y-3">
-          <div>
-            <div className="text-sm font-medium text-topbar-foreground">Surface</div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Control whether this widget renders as a normal card or a flatter transparent surface.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={!transparentSurface ? "default" : "outline"}
-              onClick={() => {
-                handleSurfaceModeChange("default");
-              }}
-              disabled={!editable}
-            >
-              Card
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={transparentSurface ? "default" : "outline"}
-              onClick={() => {
-                handleSurfaceModeChange("transparent");
-              }}
-              disabled={!editable}
-            >
-              Transparent
-            </Button>
-          </div>
-        </section>
+          <section className="space-y-3">
+            <div>
+              <div className="text-sm font-medium text-topbar-foreground">Surface</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Control whether this widget renders as a normal card or a flatter transparent
+                surface.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={!transparentSurface ? "default" : "outline"}
+                onClick={() => {
+                  handleSurfaceModeChange("default");
+                }}
+                disabled={!editable}
+              >
+                Card
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={transparentSurface ? "default" : "outline"}
+                onClick={() => {
+                  handleSurfaceModeChange("transparent");
+                }}
+                disabled={!editable}
+              >
+                Transparent
+              </Button>
+            </div>
+          </section>
+        </div>
 
         {widget.schema ? (
           <WidgetSchemaForm
@@ -451,26 +459,28 @@ export function WidgetSettingsPanel<
           />
         ) : null}
 
-        <section className="space-y-3">
-          <div>
-            <div className="text-sm font-medium text-topbar-foreground">Props JSON</div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Advanced editor for the widget instance props object.
+        {showRawPropsEditor ? (
+          <section className="space-y-3">
+            <div>
+              <div className="text-sm font-medium text-topbar-foreground">Props JSON</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Advanced editor for the widget instance props object.
+              </p>
+            </div>
+            <Textarea
+              value={rawPropsValue}
+              onChange={(event) => {
+                handleRawPropsChange(event.target.value);
+              }}
+              className="min-h-[240px] font-mono text-xs leading-6"
+              readOnly={!editable}
+              spellCheck={false}
+            />
+            <p className={cn("text-sm", jsonError ? "text-danger" : "text-muted-foreground")}>
+              {jsonError ?? "Props must stay a JSON object."}
             </p>
-          </div>
-          <Textarea
-            value={rawPropsValue}
-            onChange={(event) => {
-              handleRawPropsChange(event.target.value);
-            }}
-            className="min-h-[240px] font-mono text-xs leading-6"
-            readOnly={!editable}
-            spellCheck={false}
-          />
-          <p className={cn("text-sm", jsonError ? "text-danger" : "text-muted-foreground")}>
-            {jsonError ?? "Props must stay a JSON object."}
-          </p>
-        </section>
+          </section>
+        ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
           <div className="flex flex-wrap items-center gap-2">

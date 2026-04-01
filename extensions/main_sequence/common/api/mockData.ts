@@ -95,6 +95,7 @@ type MockState = {
   projectRepositories: Array<Record<string, unknown>>;
   dataNodeRowsByEndpoint?: unknown;
   dataNodeLastObservationByEndpoint?: unknown;
+  sourceTableConfigStatsByEndpoint?: unknown;
   dependencyGraphsByEndpoint?: unknown;
 };
 
@@ -136,6 +137,7 @@ function createMockState(): MockState {
     projectRepositories: readDataset("project_repositories"),
     dataNodeRowsByEndpoint: readOptionalDataset("get_data_between_dates_from_remote"),
     dataNodeLastObservationByEndpoint: readOptionalDataset("get_last_observation"),
+    sourceTableConfigStatsByEndpoint: readOptionalDataset("source_table_config_get_stats"),
     dependencyGraphsByEndpoint: readOptionalDataset("dependencies-graph"),
   };
 }
@@ -328,6 +330,17 @@ function resolveMockDataNodeRemoteRows(dataNodeId: string) {
   return [];
 }
 
+function replaceMockDataNodeRemoteRows(dataNodeId: string, rows: Array<Record<string, unknown>>) {
+  if (isRecord(state.dataNodeRowsByEndpoint)) {
+    state.dataNodeRowsByEndpoint[dataNodeId] = cloneValue(rows);
+    return;
+  }
+
+  if (hasSingleMatchingMockDataNode(dataNodeId)) {
+    state.dataNodeRowsByEndpoint = cloneValue(rows);
+  }
+}
+
 function resolveMockDataNodeLastObservation(dataNodeId: string) {
   const endpointPayload = state.dataNodeLastObservationByEndpoint;
 
@@ -357,6 +370,191 @@ function resolveMockDataNodeLastObservation(dataNodeId: string) {
 
   const rows = resolveMockDataNodeRemoteRows(dataNodeId);
   return getLatestRecordByTimeIndex(rows) ?? rows.at(-1) ?? null;
+}
+
+function replaceMockDataNodeLastObservation(
+  dataNodeId: string,
+  row: Record<string, unknown> | null,
+) {
+  if (isRecord(state.dataNodeLastObservationByEndpoint)) {
+    if (row) {
+      state.dataNodeLastObservationByEndpoint[dataNodeId] = cloneValue(row);
+    } else {
+      delete state.dataNodeLastObservationByEndpoint[dataNodeId];
+    }
+    return;
+  }
+
+  if (hasSingleMatchingMockDataNode(dataNodeId)) {
+    state.dataNodeLastObservationByEndpoint = row ? cloneValue(row) : null;
+  }
+}
+
+function getDataNodeSourceConfigIds(node: Record<string, unknown>) {
+  const sourceConfigIds = new Set<number>();
+  const sourceTableConfiguration = isRecord(node.sourcetableconfiguration)
+    ? node.sourcetableconfiguration
+    : null;
+  const explicitId = readNumber(sourceTableConfiguration?.id);
+
+  if (explicitId > 0) {
+    sourceConfigIds.add(explicitId);
+  }
+
+  for (const column of readArray<Record<string, unknown>>(sourceTableConfiguration?.columns_metadata)) {
+    const sourceConfigId = readNumber(column.source_config_id);
+
+    if (sourceConfigId > 0) {
+      sourceConfigIds.add(sourceConfigId);
+    }
+  }
+
+  const relatedTable = readNumber(sourceTableConfiguration?.related_table);
+
+  if (relatedTable > 0) {
+    sourceConfigIds.add(relatedTable);
+  }
+
+  return [...sourceConfigIds];
+}
+
+function getDataNodeIndexContext(node: Record<string, unknown>) {
+  const sourceTableConfiguration = isRecord(node.sourcetableconfiguration)
+    ? node.sourcetableconfiguration
+    : null;
+  const timeIndexName = readString(sourceTableConfiguration?.time_index_name) || "time_index";
+  const indexNames = readArray<string>(sourceTableConfiguration?.index_names).filter(
+    (value) => typeof value === "string" && value.trim().length > 0,
+  );
+  const secondaryIndexName =
+    indexNames.find((value) => value !== timeIndexName) ?? null;
+
+  return {
+    indexNames,
+    secondaryIndexName,
+    sourceTableConfiguration,
+    timeIndexName,
+  };
+}
+
+function buildMockSourceTableConfigStatsFromRows(
+  node: Record<string, unknown>,
+  rows: Array<Record<string, unknown>>,
+) {
+  const { secondaryIndexName, timeIndexName } = getDataNodeIndexContext(node);
+
+  if (!secondaryIndexName) {
+    return {
+      multi_index_stats: {
+        max_per_asset_symbol: {},
+        min_per_asset_symbol: {},
+      },
+      multi_index_column_stats: null,
+    };
+  }
+
+  const maxPerAssetSymbol: Record<string, string> = {};
+  const minPerAssetSymbol: Record<string, string> = {};
+
+  for (const row of rows) {
+    const identifier = readString(row[secondaryIndexName]);
+    const rawTimeIndex = readString(row[timeIndexName]);
+    const parsedTimeIndex = Date.parse(rawTimeIndex);
+
+    if (!identifier || Number.isNaN(parsedTimeIndex)) {
+      continue;
+    }
+
+    const previousMax = maxPerAssetSymbol[identifier];
+    const previousMin = minPerAssetSymbol[identifier];
+
+    if (!previousMax || parsedTimeIndex > Date.parse(previousMax)) {
+      maxPerAssetSymbol[identifier] = rawTimeIndex;
+    }
+
+    if (!previousMin || parsedTimeIndex < Date.parse(previousMin)) {
+      minPerAssetSymbol[identifier] = rawTimeIndex;
+    }
+  }
+
+  return {
+    multi_index_stats: {
+      max_per_asset_symbol: maxPerAssetSymbol,
+      min_per_asset_symbol: minPerAssetSymbol,
+    },
+    multi_index_column_stats: null,
+  };
+}
+
+function resolveMockSourceTableConfigStats(sourceTableConfigId: string) {
+  const endpointPayload = state.sourceTableConfigStatsByEndpoint;
+
+  if (isRecord(endpointPayload) && sourceTableConfigId in endpointPayload) {
+    return cloneValue(endpointPayload[sourceTableConfigId]);
+  }
+
+  const numericId = Number(sourceTableConfigId);
+  const node = state.dataNodes.find((candidate) =>
+    getDataNodeSourceConfigIds(candidate).includes(numericId),
+  );
+
+  if (!node) {
+    return {
+      multi_index_stats: {
+        max_per_asset_symbol: {},
+        min_per_asset_symbol: {},
+      },
+      multi_index_column_stats: null,
+    };
+  }
+
+  return buildMockSourceTableConfigStatsFromRows(
+    node,
+    resolveMockDataNodeRemoteRows(String(readNumber(node.id))),
+  );
+}
+
+function updateMockDataNodeIndexStats(dataNodeId: string) {
+  const node = state.dataNodes.find((candidate) => String(readNumber(candidate.id)) === dataNodeId);
+
+  if (!node || !isRecord(node.sourcetableconfiguration)) {
+    return {
+      earliest_index_value: null,
+      last_time_index_value: null,
+      multi_index_column_stats: null,
+      multi_index_stats: null,
+    };
+  }
+
+  const rows = resolveMockDataNodeRemoteRows(dataNodeId);
+  const { timeIndexName } = getDataNodeIndexContext(node);
+  const parsedRows = rows
+    .map((row) => {
+      const rawTimeIndex = readString(row[timeIndexName]);
+      const parsedTimeIndex = Date.parse(rawTimeIndex);
+
+      return {
+        parsedTimeIndex,
+        rawTimeIndex,
+      };
+    })
+    .filter((row) => !Number.isNaN(row.parsedTimeIndex))
+    .sort((left, right) => left.parsedTimeIndex - right.parsedTimeIndex);
+
+  const lastTimeIndexValue = parsedRows.length > 0 ? parsedRows[parsedRows.length - 1]?.rawTimeIndex ?? null : null;
+  const earliestIndexValue = parsedRows.length > 0 ? parsedRows[0]?.rawTimeIndex ?? null : null;
+
+  node.sourcetableconfiguration.last_time_index_value = lastTimeIndexValue;
+  node.sourcetableconfiguration.earliest_index_value = earliestIndexValue;
+
+  const stats = buildMockSourceTableConfigStatsFromRows(node, rows);
+
+  return {
+    earliest_index_value: earliestIndexValue,
+    last_time_index_value: lastTimeIndexValue,
+    multi_index_column_stats: stats.multi_index_column_stats,
+    multi_index_stats: stats.multi_index_stats,
+  };
 }
 
 function lowerNeedle(value: string | null | undefined) {
@@ -2414,6 +2612,13 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
 }
 
 function handleDataNodes(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
+  const sourceTableConfigStatsMatch = route.match(
+    /^\/orm\/api\/ts_manager\/source_table_config\/(\d+)\/get_stats\/$/,
+  );
+  if (sourceTableConfigStatsMatch && method === "GET") {
+    return resolveMockSourceTableConfigStats(sourceTableConfigStatsMatch[1] ?? "");
+  }
+
   if (route === "/orm/api/ts_manager/dynamic_table/" && method === "GET") {
     const query = searchParams.get("q");
     const filtered = sortDescendingById(
@@ -2463,6 +2668,73 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
         : Object.fromEntries(Object.entries(row).filter(([key]) => columns.has(key))),
     );
     return rows.slice(0, Number(body?.limit ?? rows.length));
+  }
+
+  const deleteAfterDateMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/delete_after_date\/$/);
+  if (deleteAfterDateMatch && method === "PATCH") {
+    const dataNodeId = deleteAfterDateMatch[1] ?? "";
+    const body = parseBody(init);
+    const afterDate = readString(body?.after_date);
+    const parsedAfterDate = Date.parse(afterDate);
+
+    if (Number.isNaN(parsedAfterDate)) {
+      throw new Error("Invalid after_date.");
+    }
+
+    const node = state.dataNodes.find((candidate) => String(readNumber(candidate.id)) === dataNodeId);
+
+    if (!node) {
+      throw new Error(`Dynamic table ${dataNodeId} was not found.`);
+    }
+
+    const { indexNames, secondaryIndexName, timeIndexName } = getDataNodeIndexContext(node);
+    const uniqueIdentifierList = readArray<string>(body?.unique_identifier_list).filter(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    );
+    const isMultiIndex = indexNames.length > 1;
+
+    if (uniqueIdentifierList.length > 0 && !isMultiIndex) {
+      throw new Error("unique_identifier filters are only supported for multi-index tables.");
+    }
+
+    const previousRows = resolveMockDataNodeRemoteRows(dataNodeId);
+    const nextRows = previousRows.filter((row) => {
+      const parsedTimeIndex = Date.parse(readString(row[timeIndexName]));
+
+      if (Number.isNaN(parsedTimeIndex)) {
+        return true;
+      }
+
+      if (parsedTimeIndex < parsedAfterDate) {
+        return true;
+      }
+
+      if (uniqueIdentifierList.length === 0 || !secondaryIndexName) {
+        return false;
+      }
+
+      const identifier = readString(row[secondaryIndexName]);
+
+      return !uniqueIdentifierList.includes(identifier);
+    });
+
+    replaceMockDataNodeRemoteRows(dataNodeId, nextRows);
+    replaceMockDataNodeLastObservation(dataNodeId, getLatestRecordByTimeIndex(nextRows));
+    const stats = updateMockDataNodeIndexStats(dataNodeId);
+
+    return {
+      ok: true,
+      dynamic_table_id: Number(dataNodeId),
+      deleted_count: previousRows.length - nextRows.length,
+      table_empty: nextRows.length === 0,
+      unique_identifier_list: uniqueIdentifierList.length > 0 ? uniqueIdentifierList : undefined,
+      stats: {
+        last_time_index_value: stats.last_time_index_value,
+        earliest_index_value: stats.earliest_index_value,
+        multi_index_stats: stats?.multi_index_stats ?? null,
+        multi_index_column_stats: stats?.multi_index_column_stats ?? null,
+      },
+    };
   }
 
   if (route === "/orm/api/ts_manager/dynamic_table/bulk-refresh-table-search-index/" && method === "POST") {

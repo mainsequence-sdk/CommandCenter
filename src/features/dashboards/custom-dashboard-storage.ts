@@ -24,28 +24,29 @@ import type { WidgetDefinition } from "@/widgets/types";
 import { resolveDefaultWidgetPresentation } from "@/widgets/shared/widget-schema";
 
 const STORAGE_PREFIX = "main-sequence.custom-dashboards";
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 const WORKSPACE_SNAPSHOT_SCHEMA = "mainsequence.workspace";
 const WORKSPACE_SNAPSHOT_VERSION = 1;
-const DEFAULT_WORKSPACE_COLUMNS = 96;
-const DEFAULT_WORKSPACE_ROW_HEIGHT = 18;
-const DEFAULT_WORKSPACE_GAP = 2;
+const DEFAULT_WORKSPACE_COLUMNS = 48;
+const DEFAULT_WORKSPACE_ROW_HEIGHT = 15;
+const DEFAULT_WORKSPACE_GAP = 8;
+const DEFAULT_WORKSPACE_ROW_STEP = DEFAULT_WORKSPACE_ROW_HEIGHT;
 const DEFAULT_AUTO_GRID_MAX_COLUMNS = 4;
 const DEFAULT_AUTO_GRID_MIN_COLUMN_WIDTH_PX = 320;
 const DEFAULT_AUTO_GRID_FILL_SCREEN = false;
+const DEFAULT_AUTO_GRID_ROW_HEIGHT = 18;
 const LEGACY_WORKSPACE_COLUMNS = 12;
-const WORKSPACE_COLUMN_SCALE = DEFAULT_WORKSPACE_COLUMNS / LEGACY_WORKSPACE_COLUMNS;
-const WORKSPACE_ROW_SCALE = 4;
+const PREVIOUS_CUSTOM_WORKSPACE_COLUMNS = 24;
+const PREVIOUS_CUSTOM_WORKSPACE_ROW_HEIGHT = 30;
 const WORKSPACE_WIDGET_SPAWN_COLUMN_SCALE = 0.75;
 const WORKSPACE_WIDGET_SPAWN_ROW_SCALE = 0.5;
+const MIN_WORKSPACE_WIDGET_SPAWN_COLS = 4;
 const MAX_WORKSPACE_WIDGET_SPAWN_COLS = 12;
 const MAX_WORKSPACE_WIDGET_SPAWN_ROWS = 6;
-const PREVIOUS_WORKSPACE_COLUMNS = 48;
-const PREVIOUS_WORKSPACE_ROW_HEIGHT = 38;
 const LEGACY_WORKSPACE_ROW_HEIGHT = 78;
 const LEGACY_WORKSPACE_GAP = 8;
-const MIN_WORKSPACE_WIDGET_COLS = 4;
-const MIN_WORKSPACE_WIDGET_ROWS = 3;
+const MIN_WORKSPACE_WIDGET_COLS = 1;
+const MIN_WORKSPACE_WIDGET_ROWS = 1;
 
 const DEFAULT_TIME_RANGE_OPTIONS = ["15m", "1h", "6h", "24h", "7d", "30d", "90d"] as const;
 const DEFAULT_REFRESH_INTERVAL_MS = 300_000;
@@ -76,6 +77,14 @@ export interface ParsedWorkspaceSnapshot {
   error: string | null;
   snapshot: WorkspaceSnapshot | null;
   sourceFormat: "snapshot" | "raw" | null;
+}
+
+interface WorkspaceGridMigration {
+  columnScale: number;
+  sourceRowHeight: number;
+  sourceGap: number;
+  sourceRowStep: number;
+  sourceUsesVisualGutters: boolean;
 }
 
 function canUseLocalStorage() {
@@ -139,10 +148,61 @@ function collectDashboardWidgetIds(widgets: DashboardWidgetInstance[]) {
   return new Set(widgets.flatMap((widget) => collectDashboardWidgetTreeIds(widget)));
 }
 
+function usesVisualWorkspaceGutters(
+  rawColumns: number,
+  rawRowHeight: number,
+  rawGap: number,
+) {
+  if (rawGap !== DEFAULT_WORKSPACE_GAP) {
+    return false;
+  }
+
+  return (
+    (rawColumns === DEFAULT_WORKSPACE_COLUMNS && rawRowHeight === DEFAULT_WORKSPACE_ROW_HEIGHT) ||
+    (rawColumns === PREVIOUS_CUSTOM_WORKSPACE_COLUMNS &&
+      rawRowHeight === PREVIOUS_CUSTOM_WORKSPACE_ROW_HEIGHT)
+  );
+}
+
+function buildWorkspaceGridMigration(
+  rawColumns: number,
+  rawRowHeight: number,
+  rawGap: number,
+): WorkspaceGridMigration {
+  const sourceUsesVisualGutters = usesVisualWorkspaceGutters(rawColumns, rawRowHeight, rawGap);
+
+  return {
+    columnScale: DEFAULT_WORKSPACE_COLUMNS / Math.max(1, rawColumns),
+    sourceRowHeight: rawRowHeight,
+    sourceGap: rawGap,
+    sourceRowStep: sourceUsesVisualGutters ? rawRowHeight : rawRowHeight + rawGap,
+    sourceUsesVisualGutters,
+  };
+}
+
+function scaleGridX(rawX: number, migration: WorkspaceGridMigration) {
+  return Math.max(0, Math.round(rawX * migration.columnScale));
+}
+
+function scaleGridY(rawY: number, migration: WorkspaceGridMigration) {
+  return Math.max(0, Math.round((rawY * migration.sourceRowStep) / DEFAULT_WORKSPACE_ROW_STEP));
+}
+
+function scaleGridW(rawW: number, migration: WorkspaceGridMigration) {
+  return Math.max(1, Math.round(rawW * migration.columnScale));
+}
+
+function scaleGridH(rawH: number, migration: WorkspaceGridMigration) {
+  const pixelHeight = migration.sourceUsesVisualGutters
+    ? rawH * migration.sourceRowHeight
+    : rawH * migration.sourceRowHeight + Math.max(0, rawH - 1) * migration.sourceGap;
+
+  return Math.max(1, Math.round(pixelHeight / DEFAULT_WORKSPACE_ROW_STEP));
+}
+
 function normalizeDashboardCompanionLayoutItem(
   item: DashboardCompanionLayoutItem,
-  columnScale: number,
-  rowScale: number,
+  migration: WorkspaceGridMigration,
 ): DashboardCompanionLayoutItem | null {
   if (
     !item ||
@@ -170,18 +230,17 @@ function normalizeDashboardCompanionLayoutItem(
     instanceId: item.instanceId,
     fieldId: item.fieldId,
     layout: {
-      x: Math.max(0, Math.round(rawX * columnScale)),
-      y: Math.max(0, Math.round(rawY * rowScale)),
-      w: Math.max(1, Math.round(rawW * columnScale)),
-      h: Math.max(1, Math.round(rawH * rowScale)),
+      x: scaleGridX(rawX, migration),
+      y: scaleGridY(rawY, migration),
+      w: scaleGridW(rawW, migration),
+      h: scaleGridH(rawH, migration),
     },
   };
 }
 
 function extractLegacyCompanionLayoutItems(
   widgets: DashboardWidgetInstance[],
-  columnScale: number,
-  rowScale: number,
+  migration: WorkspaceGridMigration,
 ): DashboardCompanionLayoutItem[] {
   return widgets.flatMap((widget) => {
     const ownItems = Object.entries(widget.presentation?.exposedFields ?? {}).flatMap(
@@ -200,10 +259,10 @@ function extractLegacyCompanionLayoutItems(
           instanceId: widget.id,
           fieldId,
           layout: {
-            x: Math.max(0, Math.round(fieldState.gridX * columnScale)),
-            y: Math.max(0, Math.round(fieldState.gridY * rowScale)),
-            w: Math.max(1, Math.round(fieldState.gridW * columnScale)),
-            h: Math.max(1, Math.round(fieldState.gridH * rowScale)),
+            x: scaleGridX(fieldState.gridX, migration),
+            y: scaleGridY(fieldState.gridY, migration),
+            w: scaleGridW(fieldState.gridW, migration),
+            h: scaleGridH(fieldState.gridH, migration),
           },
         } satisfies DashboardCompanionLayoutItem];
       },
@@ -213,21 +272,20 @@ function extractLegacyCompanionLayoutItems(
       return ownItems;
     }
 
-    return [...ownItems, ...extractLegacyCompanionLayoutItems(widget.row.children, columnScale, rowScale)];
+    return [...ownItems, ...extractLegacyCompanionLayoutItems(widget.row.children, migration)];
   });
 }
 
 function sanitizeDashboardCompanionLayoutItems(
   companionItems: DashboardCompanionLayoutItem[] | undefined,
   widgets: DashboardWidgetInstance[],
-  columnScale: number,
-  rowScale: number,
+  migration: WorkspaceGridMigration,
 ): DashboardCompanionLayoutItem[] {
   const normalizedItems = Array.isArray(companionItems)
     ? companionItems
-        .map((item) => normalizeDashboardCompanionLayoutItem(item, columnScale, rowScale))
+        .map((item) => normalizeDashboardCompanionLayoutItem(item, migration))
         .filter((item): item is DashboardCompanionLayoutItem => item !== null)
-    : extractLegacyCompanionLayoutItems(widgets, columnScale, rowScale);
+    : extractLegacyCompanionLayoutItems(widgets, migration);
   const widgetIds = collectDashboardWidgetIds(widgets);
   const dedupedById = new Map<string, DashboardCompanionLayoutItem>();
 
@@ -244,8 +302,7 @@ function sanitizeDashboardCompanionLayoutItems(
 
 function normalizeDashboardRowState(
   rowState: DashboardWidgetRowState | undefined,
-  columnScale: number,
-  rowScale: number,
+  migration: WorkspaceGridMigration,
 ): DashboardWidgetRowState | undefined {
   if (!isPlainRecord(rowState)) {
     return undefined;
@@ -260,7 +317,7 @@ function normalizeDashboardRowState(
       ? legacyRowState.panels
       : [];
   const children = rawChildren.map((child) =>
-    normalizeDashboardWidgetInstance(child, columnScale, rowScale),
+    normalizeDashboardWidgetInstance(child, migration),
   );
 
   return {
@@ -340,69 +397,35 @@ function clampWidgetMinimumLayout(
   };
 }
 
-function resolveWorkspaceRowScale(rawRowHeight: number) {
-  if (rawRowHeight >= LEGACY_WORKSPACE_ROW_HEIGHT) {
-    return WORKSPACE_ROW_SCALE;
-  }
-
-  if (rawRowHeight >= PREVIOUS_WORKSPACE_ROW_HEIGHT) {
-    return 2;
-  }
-
-  return 1;
-}
-
-function scaleWidgetForFineGrid(
-  instance: DashboardWidgetInstance,
-  columnScale: number,
-  rowScale: number,
-) {
-  if (columnScale === 1 && rowScale === 1) {
-    return instance;
-  }
-
-  const cols = getLayoutCols(instance.layout);
-  const rows = getLayoutRows(instance.layout);
-
-  return {
-    ...instance,
-    layout: {
-      cols: cols * columnScale,
-      rows: rows * rowScale,
-    },
-    position: instance.position
-      ? {
-          x:
-            typeof instance.position.x === "number"
-              ? instance.position.x * columnScale
-              : undefined,
-          y:
-            typeof instance.position.y === "number"
-              ? instance.position.y * rowScale
-              : undefined,
-        }
-      : undefined,
-  };
-}
-
 function normalizeDashboardWidgetInstance(
   instance: DashboardWidgetInstance,
-  columnScale: number,
-  rowScale: number,
+  migration: WorkspaceGridMigration,
 ): DashboardWidgetInstance {
   const { autoGrid: _legacyAutoGrid, ...instanceWithoutLegacyAutoGrid } =
     instance as DashboardWidgetInstance & { autoGrid?: unknown };
-  const scaled = scaleWidgetForFineGrid(
-    {
-      ...instanceWithoutLegacyAutoGrid,
-      runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
+  const rawPosition = isLegacyLayout(instance.layout)
+    ? {
+        x: instance.layout.x,
+        y: instance.layout.y,
+      }
+    : instance.position;
+  const scaled: DashboardWidgetInstance = {
+    ...instanceWithoutLegacyAutoGrid,
+    runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
+    layout: {
+      cols: scaleGridW(getLayoutCols(instance.layout), migration),
+      rows: scaleGridH(getLayoutRows(instance.layout), migration),
     },
-    columnScale,
-    rowScale,
-  );
+    position: rawPosition
+      ? {
+          x: typeof rawPosition.x === "number" ? scaleGridX(rawPosition.x, migration) : undefined,
+          y: typeof rawPosition.y === "number" ? scaleGridY(rawPosition.y, migration) : undefined,
+        }
+      : undefined,
+  };
 
   const normalizedRowState = isWorkspaceRowWidgetId(instance.widgetId)
-    ? normalizeDashboardRowState(instance.row, columnScale, rowScale) ?? {
+    ? normalizeDashboardRowState(instance.row, migration) ?? {
         collapsed: false,
         children: [],
       }
@@ -444,6 +467,7 @@ export function ensureUserDashboardCollectionSelection(
 }
 
 function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition {
+  const layoutKind = dashboard.layoutKind ?? "custom";
   const rawColumns =
     typeof dashboard.grid?.columns === "number" && dashboard.grid.columns > 0
       ? dashboard.grid.columns
@@ -456,22 +480,16 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
     typeof dashboard.grid?.gap === "number" && dashboard.grid.gap >= 0
       ? dashboard.grid.gap
       : LEGACY_WORKSPACE_GAP;
-  const columnScale =
-    rawColumns < DEFAULT_WORKSPACE_COLUMNS &&
-    DEFAULT_WORKSPACE_COLUMNS % rawColumns === 0
-      ? DEFAULT_WORKSPACE_COLUMNS / rawColumns
-      : 1;
-  const rowScale = resolveWorkspaceRowScale(rawRowHeight);
+  const migration = buildWorkspaceGridMigration(rawColumns, rawRowHeight, rawGap);
   const widgets = Array.isArray(dashboard.widgets)
     ? dashboard.widgets.map((instance) =>
-        normalizeDashboardWidgetInstance(instance, columnScale, rowScale),
+        normalizeDashboardWidgetInstance(instance, migration),
       )
     : [];
   const companions = sanitizeDashboardCompanionLayoutItems(
     dashboard.companions,
     widgets,
-    columnScale,
-    rowScale,
+    migration,
   );
 
   return materializeDashboardLayout({
@@ -481,7 +499,7 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
     labels: normalizeWorkspaceLabels(dashboard.labels),
     category: dashboard.category || "Custom",
     source: dashboard.source || "user",
-    layoutKind: dashboard.layoutKind ?? "custom",
+    layoutKind,
     autoGrid: {
       maxColumns:
         typeof dashboard.autoGrid?.maxColumns === "number" && dashboard.autoGrid.maxColumns > 0
@@ -494,7 +512,7 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
       rowHeight:
         typeof dashboard.autoGrid?.rowHeight === "number" && dashboard.autoGrid.rowHeight > 0
           ? Math.round(dashboard.autoGrid.rowHeight)
-          : DEFAULT_WORKSPACE_ROW_HEIGHT,
+          : DEFAULT_AUTO_GRID_ROW_HEIGHT,
       fillScreen: dashboard.autoGrid?.fillScreen === true ? true : DEFAULT_AUTO_GRID_FILL_SCREEN,
     },
     companions,
@@ -518,15 +536,9 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
       },
     },
     grid: {
-      columns: Math.max(rawColumns * columnScale, DEFAULT_WORKSPACE_COLUMNS),
-      rowHeight:
-        rowScale > 1
-          ? DEFAULT_WORKSPACE_ROW_HEIGHT
-          : (dashboard.grid?.rowHeight ?? DEFAULT_WORKSPACE_ROW_HEIGHT),
-      gap:
-        columnScale > 1 || rawGap >= LEGACY_WORKSPACE_GAP
-          ? DEFAULT_WORKSPACE_GAP
-          : (dashboard.grid?.gap ?? DEFAULT_WORKSPACE_GAP),
+      columns: DEFAULT_WORKSPACE_COLUMNS,
+      rowHeight: DEFAULT_WORKSPACE_ROW_HEIGHT,
+      gap: DEFAULT_WORKSPACE_GAP,
     },
   });
 }
@@ -589,7 +601,7 @@ export function createBlankDashboard(title = "My Workspace"): DashboardDefinitio
     autoGrid: {
       maxColumns: DEFAULT_AUTO_GRID_MAX_COLUMNS,
       minColumnWidthPx: DEFAULT_AUTO_GRID_MIN_COLUMN_WIDTH_PX,
-      rowHeight: DEFAULT_WORKSPACE_ROW_HEIGHT,
+      rowHeight: DEFAULT_AUTO_GRID_ROW_HEIGHT,
       fillScreen: DEFAULT_AUTO_GRID_FILL_SCREEN,
     },
     grid: {
@@ -618,9 +630,6 @@ export function createBlankDashboard(title = "My Workspace"): DashboardDefinitio
     widgets: [],
   });
 }
-
-export const CUSTOM_WORKSPACE_COLUMN_SCALE = WORKSPACE_COLUMN_SCALE;
-export const CUSTOM_WORKSPACE_ROW_SCALE = WORKSPACE_ROW_SCALE;
 
 function buildDefaultCollection(): UserDashboardCollection {
   const dashboard = createBlankDashboard();
@@ -705,7 +714,7 @@ function buildWidgetInstance(
   const spawnCols = Math.min(
     Math.max(
       Math.ceil(widget.defaultSize.w * WORKSPACE_WIDGET_SPAWN_COLUMN_SCALE),
-      MIN_WORKSPACE_WIDGET_COLS,
+      MIN_WORKSPACE_WIDGET_SPAWN_COLS,
     ),
     MAX_WORKSPACE_WIDGET_SPAWN_COLS,
     DEFAULT_WORKSPACE_COLUMNS,
@@ -1301,7 +1310,7 @@ export function updateDashboardWidgetSettings(
     presentation?: DashboardWidgetInstance["presentation"];
   },
 ) {
-  return materializeDashboardLayout({
+  return {
     ...dashboard,
     widgets: dashboard.widgets.map((widget) => {
       if (widget.id !== instanceId) {
@@ -1328,7 +1337,7 @@ export function updateDashboardWidgetSettings(
             : widget.runtimeState,
       };
     }),
-  });
+  };
 }
 
 export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId: string) {
@@ -1384,6 +1393,7 @@ export function duplicateDashboardWidget(
   const rows = getLayoutRows(current.layout);
   const currentX = current.position?.x ?? 0;
   const currentY = current.position?.y ?? 0;
+  const maxColumns = dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS;
   const idMap = new Map<string, string>();
   const duplicatedWidget: DashboardWidgetInstance = {
     ...cloneDashboardWidgetTree(current, {
@@ -1397,7 +1407,7 @@ export function duplicateDashboardWidget(
           y: currentY + rows,
         }
       : {
-          x: Math.max(0, Math.min(currentX + 2, DEFAULT_WORKSPACE_COLUMNS - cols)),
+          x: Math.max(0, Math.min(currentX + 2, maxColumns - cols)),
           y: currentY + 2,
         },
   };

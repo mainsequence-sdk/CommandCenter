@@ -5,6 +5,7 @@ This feature owns the Main Sequence Foundry registry screen for `ts_manager/simp
 ## Entry Points
 
 - `MainSequenceSimpleTablesPage.tsx`: paginated registry page that lists `simple_table` rows, supports client-side filtering over the current page, owns URL-backed detail state, and sends bulk delete requests for the current selection.
+- `MainSequenceSimpleTableSnapshotTab.tsx`: detail-tab wrapper that loads the `/get-data-snapshot/` preview endpoint for the selected simple table and renders a searchable row preview.
 - `MainSequenceSimpleTableSchemaGraph.tsx`: tab wrapper for the simple-table `/schema-graph/` endpoint, including depth and incoming-reference controls.
 - `MainSequenceSimpleTableUmlExplorer.tsx`: themed UML-style explorer that renders schema tables, columns, indexes, and foreign-key multiplicities.
 - `MainSequenceSimpleTableUpdatesTab.tsx`: local-update tab that lists `simple_table/update` rows for the selected table and opens nested update detail.
@@ -13,12 +14,13 @@ This feature owns the Main Sequence Foundry registry screen for `ts_manager/simp
 
 ## Dependencies
 
-- Data is loaded through `extensions/main_sequence/common/api/index.ts` using the standard offset-paginated list query for `/orm/api/ts_manager/simple_table/`, detail helpers for `/summary/`, `/{id}/`, the schema-graph helper for `/{id}/schema-graph/`, and update helpers rooted at `/orm/api/ts_manager/simple_table/update/`.
+- Data is loaded through `extensions/main_sequence/common/api/index.ts` using the standard offset-paginated list query for `/orm/api/ts_manager/simple_table/`, detail helpers for `/summary/`, `/{id}/`, the snapshot helper for `/{id}/get-data-snapshot/?limit=100`, the schema-graph helper for `/{id}/schema-graph/`, and update helpers rooted at `/orm/api/ts_manager/simple_table/update/`.
 - Shared registry controls come from `extensions/main_sequence/common/components/` and `extensions/main_sequence/common/hooks/`.
 
 ## Notes
 
 - Top-level detail navigation is URL-backed with `msSimpleTableId` and `msSimpleTableTab`. Nested SimpleTableUpdate detail uses `msSimpleTableUpdateId` and `msSimpleTableUpdateTab`.
+- The `Data Snapshot` tab intentionally uses the lightweight preview endpoint instead of the heavier Data Node widget pipeline, because Simple Tables expose their own row snapshot API.
 - The `ULM diagram` tab calls `/{id}/schema-graph/` and currently exposes two query controls: `depth` and `include_incoming`.
 - The top-level summary endpoint now uses the shared `SummaryResponse` contract directly, so this feature consumes the summary payload without local shape adapters.
 - The update detail intentionally exposes only the views supported by the current backend surface: details, dependency graphs, run configuration, and historical updates.

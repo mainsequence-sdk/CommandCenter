@@ -29,6 +29,8 @@ export function useCustomWorkspaceStudio() {
 
   const savedCollection = useCustomWorkspaceStudioStore((state) => state.savedCollection);
   const draftCollection = useCustomWorkspaceStudioStore((state) => state.draftCollection);
+  const initializedUserId = useCustomWorkspaceStudioStore((state) => state.initializedUserId);
+  const hydratingUserId = useCustomWorkspaceStudioStore((state) => state.hydratingUserId);
   const isHydrating = useCustomWorkspaceStudioStore((state) => state.isHydrating);
   const isSaving = useCustomWorkspaceStudioStore((state) => state.isSaving);
   const error = useCustomWorkspaceStudioStore((state) => state.error);
@@ -50,24 +52,6 @@ export function useCustomWorkspaceStudio() {
         : null,
     [draftCollection, requestedWorkspaceId],
   );
-
-  useEffect(() => {
-    if (!requestedWorkspaceId || selectedDashboard || draftCollection.dashboards.length === 0) {
-      return;
-    }
-
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("workspace");
-    nextParams.delete("view");
-    nextParams.delete("widget");
-    setSearchParams(nextParams, { replace: true });
-  }, [
-    draftCollection.dashboards.length,
-    requestedWorkspaceId,
-    searchParams,
-    selectedDashboard,
-    setSearchParams,
-  ]);
 
   useEffect(() => {
     if (selectedWorkspaceView === "widget-settings" ? Boolean(requestedWidgetId) : !requestedWidgetId) {
@@ -92,6 +76,24 @@ export function useCustomWorkspaceStudio() {
   const dirty = useMemo(
     () => JSON.stringify(draftCollection) !== JSON.stringify(savedCollection),
     [draftCollection, savedCollection],
+  );
+  const workspaceSelectionPending = useMemo(
+    () =>
+      Boolean(
+        user?.id &&
+        requestedWorkspaceId &&
+        (initializedUserId !== user.id || hydratingUserId === user.id || isHydrating),
+      ),
+    [hydratingUserId, initializedUserId, isHydrating, requestedWorkspaceId, user?.id],
+  );
+  const requestedWorkspaceMissing = useMemo(
+    () =>
+      Boolean(
+        requestedWorkspaceId &&
+        !workspaceSelectionPending &&
+        !selectedDashboard,
+      ),
+    [requestedWorkspaceId, selectedDashboard, workspaceSelectionPending],
   );
   const workspaceListCollection = useMemo(
     () => (persistenceMode === "backend" ? savedCollection : draftCollection),
@@ -212,6 +214,8 @@ export function useCustomWorkspaceStudio() {
     selectedDashboard,
     resolvedDashboard,
     dirty,
+    workspaceSelectionPending,
+    requestedWorkspaceMissing,
     requestedWorkspaceId,
     requestedWidgetId,
     selectedWorkspaceView,
@@ -237,4 +241,6 @@ export type CustomWorkspaceStudioState = {
   isSaving: boolean;
   error: string | null;
   persistenceMode: "backend" | "local";
+  workspaceSelectionPending: boolean;
+  requestedWorkspaceMissing: boolean;
 };

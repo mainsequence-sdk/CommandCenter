@@ -4,13 +4,28 @@ import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
 import {
   appComponentMockOpenApiDocument,
+  buildAppComponentOpenApiUrl,
   normalizeAppComponentAuthMode,
   tryResolveAppComponentBaseUrl,
   type AppComponentAuthMode,
   type OpenApiDocument,
 } from "./appComponentModel";
 
-const devAuthProxyPrefix = "/__command_center_auth__";
+const appComponentProxyPrefix = "/__app_component_proxy__";
+
+function isLoopbackHostname(hostname: string) {
+  return ["127.0.0.1", "localhost", "::1"].includes(hostname);
+}
+
+function buildTransportUrl(requestUrl: string) {
+  const resolvedUrl = new URL(requestUrl);
+
+  if (import.meta.env.DEV && isLoopbackHostname(resolvedUrl.hostname)) {
+    return `${appComponentProxyPrefix}?target=${encodeURIComponent(resolvedUrl.toString())}`;
+  }
+
+  return resolvedUrl.toString();
+}
 
 export interface AppComponentTransportResponse {
   ok: boolean;
@@ -19,20 +34,6 @@ export interface AppComponentTransportResponse {
   url: string;
   headers: Record<string, string>;
   body: unknown;
-}
-
-function isLoopbackHostname(hostname: string) {
-  return ["127.0.0.1", "localhost", "::1"].includes(hostname);
-}
-
-function buildTransportUrl(targetUrl: string) {
-  const resolvedUrl = new URL(targetUrl);
-
-  if (import.meta.env.DEV && isLoopbackHostname(resolvedUrl.hostname)) {
-    return `${devAuthProxyPrefix}${resolvedUrl.pathname}${resolvedUrl.search}`;
-  }
-
-  return resolvedUrl.toString();
 }
 
 function readHeaders(response: Response) {
@@ -249,7 +250,13 @@ export async function fetchAppComponentOpenApiDocument({
     return appComponentMockOpenApiDocument satisfies OpenApiDocument;
   }
 
-  const response = await sendAuthenticatedRequest(new URL("/openapi.json", resolvedBaseUrl).toString(), {
+  const openApiUrl = buildAppComponentOpenApiUrl(resolvedBaseUrl);
+
+  if (!openApiUrl) {
+    throw new Error("AppComponent requires a valid API URL.");
+  }
+
+  const response = await sendAuthenticatedRequest(openApiUrl, {
     authMode: normalizedAuthMode,
   });
   const payload = await readResponseBody(response);

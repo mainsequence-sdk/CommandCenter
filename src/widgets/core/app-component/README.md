@@ -5,25 +5,30 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 ## Purpose
 
 - Discover API routes from a target service's `/openapi.json` document.
+- Require the user to enter the target OpenAPI URL, Swagger docs URL, or service root explicitly for each widget instance.
 - Let a user bind one widget instance to one API operation.
-- Render a generated request form for that operation directly inside the widget body.
+- Render the generated request inputs directly inside the widget body without exposing the live response there.
 - Submit requests with the current shell JWT by default so the widget follows the same auth path as the rest of the app.
 - Persist per-instance route selection in widget props and round-trip draft inputs plus the latest response through widget runtime state.
+- Highlight operations in settings when any declared OpenAPI response is missing a response model, because those endpoints are treated as incorrectly documented for this widget.
+- Keep configuration in the structured settings flow only. This widget opts out of the shared raw props JSON editor.
 
 ## Entry Points
 
 - `definition.ts`: widget metadata and registry definition for the `app-component` widget id.
 - `appComponentModel.ts`: OpenAPI types, widget props/runtime contracts, form-generation helpers, and request builders.
 - `appComponentApi.ts`: authenticated OpenAPI fetch and request submission helpers, including the local mock transport used by explorer and mock mode.
-- `AppComponentWidget.tsx`: runtime widget body that renders the generated request form and response preview.
-- `AppComponentWidgetSettings.tsx`: settings experience for API discovery, operation selection, and request-body content-type selection.
+- `AppComponentWidget.tsx`: runtime widget body that renders only the generated request inputs.
+- `AppComponentWidgetSettings.tsx`: settings experience for API discovery, operation selection, response-model inspection, and live request testing.
+- `AppComponentFormSections.tsx`: shared generated-input renderer reused by both the canvas widget and the settings-side test harness.
 
 ## Phase 1 Scope
 
 - One widget instance maps to one selected OpenAPI operation.
+- If the user pastes an explicit `/openapi.json` URL, schema discovery uses that exact endpoint.
 - The widget supports path, query, and header parameters plus generated JSON request bodies.
 - Complex or unsupported body schemas fall back to a raw request-body editor instead of blocking the user completely.
-- The widget publishes a normalized response payload into runtime state so later phases can wire one widget's output into another widget's input.
+- Response inspection and request testing happen in widget settings; the mounted widget itself stays input-focused.
 
 ## Maintenance Notes
 

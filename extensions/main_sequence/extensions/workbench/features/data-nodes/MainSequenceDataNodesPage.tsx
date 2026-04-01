@@ -1,13 +1,26 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowUpRight, Database, HardDrive, Loader2, Network, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpDown,
+  ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
+  Database,
+  HardDrive,
+  Loader2,
+  Network,
+  Trash2,
+} from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toaster";
@@ -17,8 +30,10 @@ import {
   bulkRefreshDataNodeTableSearchIndex,
   bulkSetDataNodeIndexStatsFromTable,
   bulkSetDataNodeNextUpdateFromLastIndexValue,
+  deleteDataNodeTail,
   fetchDataNodeDetail,
   fetchDataNodeSummary,
+  fetchSourceTableConfigurationStats,
   formatMainSequenceError,
   listDataNodes,
   mainSequenceRegistryPageSize,
@@ -74,6 +89,14 @@ type DataNodeDeleteOptions = {
   overrideProtection: boolean;
 };
 
+type DataNodeSortKey =
+  | "storage_hash"
+  | "identifier"
+  | "data_source"
+  | "source_class_name"
+  | "creation_date";
+type DataNodeSortDirection = "asc" | "desc";
+
 const defaultDataNodeDeleteOptions: DataNodeDeleteOptions = {
   deleteWithNoTable: false,
   fullDeleteDownstreamTables: false,
@@ -84,6 +107,30 @@ const creationDateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
   timeStyle: "short",
 });
+const dataNodeSortCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
+function formatDateTimeLocalValue(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const hours = String(parsed.getHours()).padStart(2, "0");
+  const minutes = String(parsed.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 function getDataNodeTitle(dataNode: DataNodeSummary) {
   const identifier = dataNode.identifier?.trim();
@@ -121,6 +168,87 @@ function formatCreationDate(value?: string | null) {
   return creationDateFormatter.format(new Date(parsed));
 }
 
+function normalizeDataNodeSortValue(value?: string | null) {
+  return value?.trim() ?? "";
+}
+
+function getDataNodeSortValue(dataNode: DataNodeSummary, key: DataNodeSortKey) {
+  switch (key) {
+    case "storage_hash":
+      return normalizeDataNodeSortValue(dataNode.storage_hash);
+    case "identifier":
+      return normalizeDataNodeSortValue(dataNode.identifier);
+    case "data_source":
+      return normalizeDataNodeSortValue(getDataSourceLabel(dataNode));
+    case "source_class_name":
+      return normalizeDataNodeSortValue(dataNode.source_class_name);
+    case "creation_date":
+      return normalizeDataNodeSortValue(dataNode.creation_date);
+  }
+}
+
+function compareDataNodes(
+  left: DataNodeSummary,
+  right: DataNodeSummary,
+  key: DataNodeSortKey,
+  direction: DataNodeSortDirection,
+) {
+  if (key === "creation_date") {
+    const leftValue = Date.parse(left.creation_date ?? "");
+    const rightValue = Date.parse(right.creation_date ?? "");
+    const leftMissing = Number.isNaN(leftValue);
+    const rightMissing = Number.isNaN(rightValue);
+
+    if (leftMissing && rightMissing) {
+      return dataNodeSortCollator.compare(left.storage_hash, right.storage_hash);
+    }
+
+    if (leftMissing) {
+      return 1;
+    }
+
+    if (rightMissing) {
+      return -1;
+    }
+
+    const comparison = direction === "asc" ? leftValue - rightValue : rightValue - leftValue;
+
+    if (comparison !== 0) {
+      return comparison;
+    }
+
+    return dataNodeSortCollator.compare(left.storage_hash, right.storage_hash);
+  }
+
+  const leftValue = getDataNodeSortValue(left, key);
+  const rightValue = getDataNodeSortValue(right, key);
+  const leftMissing = !leftValue;
+  const rightMissing = !rightValue;
+
+  if (leftMissing && rightMissing) {
+    return dataNodeSortCollator.compare(left.storage_hash, right.storage_hash);
+  }
+
+  if (leftMissing) {
+    return 1;
+  }
+
+  if (rightMissing) {
+    return -1;
+  }
+
+  const comparison =
+    direction === "asc"
+      ? dataNodeSortCollator.compare(leftValue, rightValue)
+      : dataNodeSortCollator.compare(rightValue, leftValue);
+
+  if (comparison !== 0) {
+    return comparison;
+  }
+
+  return dataNodeSortCollator.compare(left.storage_hash, right.storage_hash);
+}
+
 function getTableIndexNames(dataNode: DataNodeSummary) {
   const rawValue =
     (dataNode.table_index_names as unknown) ??
@@ -136,6 +264,46 @@ function getTableIndexNames(dataNode: DataNodeSummary) {
   }
 
   return [];
+}
+
+function getSourceTableConfigurationId(dataNodeDetail?: DataNodeDetail | null) {
+  const explicitId = dataNodeDetail?.sourcetableconfiguration?.id;
+
+  if (typeof explicitId === "number" && Number.isFinite(explicitId) && explicitId > 0) {
+    return explicitId;
+  }
+
+  const sourceConfigIds = new Set(
+    (dataNodeDetail?.sourcetableconfiguration?.columns_metadata ?? [])
+      .map((column) => column.source_config_id)
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0),
+  );
+
+  if (sourceConfigIds.size === 1) {
+    return [...sourceConfigIds][0] ?? null;
+  }
+
+  const relatedTable = dataNodeDetail?.sourcetableconfiguration?.related_table;
+
+  if (typeof relatedTable === "number" && Number.isFinite(relatedTable) && relatedTable > 0) {
+    return relatedTable;
+  }
+
+  return null;
+}
+
+function getDataNodeIdentifierIndexName(dataNodeDetail?: DataNodeDetail | null) {
+  const sourceTableConfiguration = dataNodeDetail?.sourcetableconfiguration;
+  const timeIndexName = sourceTableConfiguration?.time_index_name?.trim();
+  const indexNames = sourceTableConfiguration?.index_names ?? [];
+
+  return (
+    indexNames.find((indexName) => {
+      const normalizedIndexName = indexName?.trim();
+
+      return Boolean(normalizedIndexName && normalizedIndexName !== timeIndexName);
+    }) ?? null
+  );
 }
 
 function buildFallbackDataNodeSummary(dataNode: DataNodeSummary): EntitySummaryHeader {
@@ -211,6 +379,18 @@ export function MainSequenceDataNodesPage() {
   const [deleteOptions, setDeleteOptions] = useState<DataNodeDeleteOptions>(
     defaultDataNodeDeleteOptions,
   );
+  const [deleteTailDialogOpen, setDeleteTailDialogOpen] = useState(false);
+  const [deleteTailAfterDate, setDeleteTailAfterDate] = useState("");
+  const [deleteTailIdentifierSearch, setDeleteTailIdentifierSearch] = useState("");
+  const [selectedDeleteTailIdentifiers, setSelectedDeleteTailIdentifiers] = useState<string[]>([]);
+  const [deleteTailFormError, setDeleteTailFormError] = useState<string | null>(null);
+  const [sortState, setSortState] = useState<{
+    direction: DataNodeSortDirection;
+    key: DataNodeSortKey | null;
+  }>({
+    direction: "asc",
+    key: null,
+  });
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const selectedDataNodeId = Number(searchParams.get(mainSequenceDataNodeIdParam) ?? "");
@@ -276,7 +456,16 @@ export function MainSequenceDataNodesPage() {
         .includes(needle);
     });
   }, [dataNodesQuery.data?.results, deferredFilterValue]);
-  const dataNodeSelection = useRegistrySelection(filteredDataNodes);
+  const sortedDataNodes = useMemo(() => {
+    if (!sortState.key) {
+      return filteredDataNodes;
+    }
+
+    return [...filteredDataNodes].sort((left, right) =>
+      compareDataNodes(left, right, sortState.key!, sortState.direction),
+    );
+  }, [filteredDataNodes, sortState.direction, sortState.key]);
+  const dataNodeSelection = useRegistrySelection(sortedDataNodes);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -288,6 +477,28 @@ export function MainSequenceDataNodesPage() {
       setDataNodesPageIndex(totalPages - 1);
     }
   }, [dataNodesPageIndex, dataNodesQuery.data?.count]);
+  const toggleSort = useEffectEvent((key: DataNodeSortKey) => {
+    setSortState((current) => {
+      if (current.key !== key) {
+        return {
+          key,
+          direction: "asc",
+        };
+      }
+
+      if (current.direction === "asc") {
+        return {
+          key,
+          direction: "desc",
+        };
+      }
+
+      return {
+        key: null,
+        direction: "asc",
+      };
+    });
+  });
   const selectedDataNodeFromList = useMemo(
     () => (dataNodesQuery.data?.results ?? []).find((dataNode) => dataNode.id === selectedDataNodeId) ?? null,
     [dataNodesQuery.data?.results, selectedDataNodeId],
@@ -300,7 +511,50 @@ export function MainSequenceDataNodesPage() {
     selectedDataNodeFromList?.storage_hash ??
     (isDataNodeDetailOpen ? `Data node ${selectedDataNodeId}` : "Data node");
   const dataNodeColumnDetails = dataNodeDetailQuery.data?.sourcetableconfiguration?.columns_metadata ?? [];
+  const selectedSourceTableConfiguration = dataNodeDetailQuery.data?.sourcetableconfiguration ?? null;
+  const sourceTableConfigurationId = useMemo(
+    () => getSourceTableConfigurationId(dataNodeDetailQuery.data),
+    [dataNodeDetailQuery.data],
+  );
+  const identifierIndexName = useMemo(
+    () => getDataNodeIdentifierIndexName(dataNodeDetailQuery.data),
+    [dataNodeDetailQuery.data],
+  );
+  const isMultiIndexDataNode = (selectedSourceTableConfiguration?.index_names?.length ?? 0) > 1;
   const generatedSearchDocument = getGeneratedSearchDocument(dataNodeSummaryQuery.data ?? dataNodeSummary);
+  const sourceTableConfigStatsQuery = useQuery({
+    queryKey: ["main_sequence", "source_table_config", "stats", sourceTableConfigurationId],
+    queryFn: () => fetchSourceTableConfigurationStats(sourceTableConfigurationId!),
+    enabled:
+      deleteTailDialogOpen &&
+      isDataNodeDetailOpen &&
+      isMultiIndexDataNode &&
+      typeof sourceTableConfigurationId === "number" &&
+      Number.isFinite(sourceTableConfigurationId) &&
+      sourceTableConfigurationId > 0,
+  });
+  const deleteTailIdentifierOptions = useMemo(() => {
+    const maxPerAssetSymbol =
+      sourceTableConfigStatsQuery.data?.multi_index_stats?.max_per_asset_symbol ?? {};
+
+    return Object.entries(maxPerAssetSymbol)
+      .map(([identifier, lastTimestamp]) => ({
+        identifier,
+        lastTimestamp,
+      }))
+      .sort((left, right) => dataNodeSortCollator.compare(left.identifier, right.identifier));
+  }, [sourceTableConfigStatsQuery.data]);
+  const filteredDeleteTailIdentifierOptions = useMemo(() => {
+    const needle = deleteTailIdentifierSearch.trim().toLowerCase();
+
+    if (!needle) {
+      return deleteTailIdentifierOptions;
+    }
+
+    return deleteTailIdentifierOptions.filter((option) =>
+      option.identifier.toLowerCase().includes(needle),
+    );
+  }, [deleteTailIdentifierOptions, deleteTailIdentifierSearch]);
 
   const refreshSearchIndexMutation = useMutation({
     mutationFn: () => bulkRefreshDataNodeTableSearchIndex([selectedDataNodeId]),
@@ -328,6 +582,53 @@ export function MainSequenceDataNodesPage() {
       toast({
         variant: "error",
         title: "Search index refresh failed",
+        description: formatMainSequenceError(error),
+      });
+    },
+  });
+  const deleteTailMutation = useMutation({
+    mutationFn: (input: { dataNodeId: number; afterDate: string; uniqueIdentifierList?: string[] }) =>
+      deleteDataNodeTail(input.dataNodeId, {
+        after_date: input.afterDate,
+        unique_identifier_list: input.uniqueIdentifierList,
+      }),
+    onSuccess: async (result) => {
+      setDeleteTailDialogOpen(false);
+      setDeleteTailAfterDate("");
+      setDeleteTailIdentifierSearch("");
+      setSelectedDeleteTailIdentifiers([]);
+      setDeleteTailFormError(null);
+
+      toast({
+        variant: result.deleted_count > 0 ? "success" : "info",
+        title: result.deleted_count > 0 ? "Tail data deleted" : "No tail rows deleted",
+        description:
+          result.deleted_count > 0
+            ? [
+                `${result.deleted_count} rows removed`,
+                result.unique_identifier_list?.length
+                  ? `${result.unique_identifier_list.length} identifiers filtered`
+                  : null,
+                result.table_empty ? "table is now empty" : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : "No rows matched the delete-after-date request.",
+      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "data_nodes"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "source_table_config", "stats", sourceTableConfigurationId],
+        }),
+      ]);
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Tail delete failed",
         description: formatMainSequenceError(error),
       });
     },
@@ -416,6 +717,11 @@ export function MainSequenceDataNodesPage() {
     const selectedItems = dataNodeSelection.selectedItems;
 
     if (selectedItems.length === 0) {
+      toast({
+        variant: "info",
+        title: "Select data nodes first",
+        description: "Choose one or more data nodes before running a list action.",
+      });
       return;
     }
 
@@ -427,6 +733,105 @@ export function MainSequenceDataNodesPage() {
       kind,
       dataNodes: selectedItems,
     });
+  }
+
+  useEffect(() => {
+    if (!deleteTailDialogOpen) {
+      setDeleteTailAfterDate("");
+      setDeleteTailIdentifierSearch("");
+      setSelectedDeleteTailIdentifiers([]);
+      setDeleteTailFormError(null);
+      deleteTailMutation.reset();
+      return;
+    }
+
+    setDeleteTailAfterDate(
+      formatDateTimeLocalValue(selectedSourceTableConfiguration?.last_time_index_value),
+    );
+    setDeleteTailIdentifierSearch("");
+    setSelectedDeleteTailIdentifiers([]);
+    setDeleteTailFormError(null);
+    deleteTailMutation.reset();
+  }, [
+    deleteTailDialogOpen,
+    selectedDataNodeId,
+    selectedSourceTableConfiguration?.last_time_index_value,
+  ]);
+
+  function toggleDeleteTailIdentifier(identifier: string) {
+    setSelectedDeleteTailIdentifiers((current) =>
+      current.includes(identifier)
+        ? current.filter((value) => value !== identifier)
+        : [...current, identifier].sort((left, right) => dataNodeSortCollator.compare(left, right)),
+    );
+  }
+
+  function selectAllVisibleDeleteTailIdentifiers() {
+    setSelectedDeleteTailIdentifiers((current) => {
+      const next = new Set(current);
+
+      filteredDeleteTailIdentifierOptions.forEach((option) => {
+        next.add(option.identifier);
+      });
+
+      return [...next].sort((left, right) => dataNodeSortCollator.compare(left, right));
+    });
+  }
+
+  function clearDeleteTailIdentifiers() {
+    setSelectedDeleteTailIdentifiers([]);
+  }
+
+  async function handleDeleteTailSubmit() {
+    if (!isDataNodeDetailOpen || !Number.isFinite(selectedDataNodeId) || selectedDataNodeId <= 0) {
+      return;
+    }
+
+    if (!deleteTailAfterDate.trim()) {
+      setDeleteTailFormError("Choose the first timestamp that should be deleted.");
+      return;
+    }
+
+    const parsedAfterDate = new Date(deleteTailAfterDate);
+
+    if (Number.isNaN(parsedAfterDate.getTime())) {
+      setDeleteTailFormError("Enter a valid delete-after timestamp.");
+      return;
+    }
+
+    setDeleteTailFormError(null);
+
+    await deleteTailMutation.mutateAsync({
+      dataNodeId: selectedDataNodeId,
+      afterDate: parsedAfterDate.toISOString(),
+      uniqueIdentifierList:
+        isMultiIndexDataNode && selectedDeleteTailIdentifiers.length > 0
+          ? selectedDeleteTailIdentifiers
+          : undefined,
+    });
+  }
+
+  function renderSortableHeader(label: string, key: DataNodeSortKey) {
+    const isActive = sortState.key === key;
+
+    return (
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+        onClick={() => toggleSort(key)}
+      >
+        <span>{label}</span>
+        {isActive ? (
+          sortState.direction === "asc" ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 opacity-70" />
+        )}
+      </button>
+    );
   }
 
   const dataNodeBulkActions = useMemo(
@@ -606,14 +1011,32 @@ export function MainSequenceDataNodesPage() {
         success_count: number;
         failed_count: number;
       };
+      const actionCopy =
+        bulkActionRequest.kind === "set-next-update-from-last-index"
+          ? {
+              successTitle: "Next update values refreshed",
+              partialTitle: "Next update refresh completed with failures",
+              successDescription: `${payload.success_count} data nodes updated from their last time index value.`,
+            }
+          : bulkActionRequest.kind === "set-index-stats-from-table"
+            ? {
+                successTitle: "Index stats refreshed",
+                partialTitle: "Index stats refresh completed with failures",
+                successDescription: `${payload.success_count} data nodes refreshed from their table metadata.`,
+              }
+            : {
+                successTitle: "Search index refreshed",
+                partialTitle: "Search index refresh completed with failures",
+                successDescription: `${payload.success_count} data nodes reindexed.`,
+              };
 
       toast({
         variant: payload.failed_count > 0 ? "info" : "success",
-        title: payload.failed_count > 0 ? "Bulk action completed with failures" : "Bulk action completed",
+        title: payload.failed_count > 0 ? actionCopy.partialTitle : actionCopy.successTitle,
         description:
           payload.failed_count > 0
             ? `${payload.success_count} succeeded, ${payload.failed_count} failed.`
-            : `${payload.success_count} data nodes updated.`,
+            : actionCopy.successDescription,
       });
     }
 
@@ -655,10 +1078,21 @@ export function MainSequenceDataNodesPage() {
               <span>/</span>
               <span className="text-foreground">{dataNodeTitle}</span>
             </div>
-            <Button variant="outline" size="sm" onClick={closeDataNodeDetail}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to data nodes
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setDeleteTailDialogOpen(true)}
+                disabled={!selectedSourceTableConfiguration}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Tail Data
+              </Button>
+              <Button variant="outline" size="sm" onClick={closeDataNodeDetail}>
+                <ArrowLeft className="h-4 w-4" />
+                Back to data nodes
+              </Button>
+            </div>
           </div>
 
           {dataNodeSummaryQuery.isLoading && !dataNodeSummary ? (
@@ -933,7 +1367,7 @@ export function MainSequenceDataNodesPage() {
             </div>
           ) : null}
 
-                  {!dataNodesQuery.isLoading && !dataNodesQuery.isError && filteredDataNodes.length > 0 ? (
+                  {!dataNodesQuery.isLoading && !dataNodesQuery.isError && sortedDataNodes.length > 0 ? (
                     <div className="overflow-x-auto px-4 py-4">
               <table
                 className="w-full min-w-[1220px] border-separate"
@@ -955,15 +1389,70 @@ export function MainSequenceDataNodesPage() {
                         onChange={dataNodeSelection.toggleAll}
                       />
                     </th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Storage hash</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Identifier</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Data source</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Source class</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">Created</th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "storage_hash"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Storage hash", "storage_hash")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "identifier"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Identifier", "identifier")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "data_source"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Data source", "data_source")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "source_class_name"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Source class", "source_class_name")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
+                        sortState.key === "creation_date"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Created", "creation_date")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDataNodes.map((dataNode) => {
+                  {sortedDataNodes.map((dataNode) => {
                     const selected = dataNodeSelection.isSelected(dataNode.id);
 
                     return (
@@ -1046,6 +1535,200 @@ export function MainSequenceDataNodesPage() {
           </Card>
         </>
       )}
+
+      <Dialog
+        title="Delete Tail Data"
+        description="Delete rows at and after a timestamp. Optionally scope the delete to selected identifiers for multi-index tables."
+        open={deleteTailDialogOpen}
+        onClose={() => {
+          if (deleteTailMutation.isPending) {
+            return;
+          }
+
+          setDeleteTailDialogOpen(false);
+        }}
+        className="max-w-[min(760px,calc(100vw-24px))]"
+      >
+        <div className="space-y-5">
+          <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+            This is a suffix delete. Rows with a time index greater than or equal to the selected
+            timestamp will be removed.
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label
+                htmlFor="data-node-delete-tail-after-date"
+                className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
+              >
+                Delete From
+              </label>
+              <Input
+                id="data-node-delete-tail-after-date"
+                type="datetime-local"
+                value={deleteTailAfterDate}
+                onChange={(event) => setDeleteTailAfterDate(event.target.value)}
+                disabled={deleteTailMutation.isPending}
+              />
+              <div className="text-xs text-muted-foreground">
+                Matching rows where <code>{selectedSourceTableConfiguration?.time_index_name ?? "time_index"}</code>{" "}
+                is greater than or equal to this value will be deleted.
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28 px-4 py-3">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                Table Context
+              </div>
+              <div className="space-y-1 text-sm text-foreground">
+                <div>Dynamic table ID {selectedDataNodeId}</div>
+                <div>
+                  Related table {selectedSourceTableConfiguration?.related_table ?? "Not available"}
+                </div>
+                <div>
+                  Indexes:{" "}
+                  {(selectedSourceTableConfiguration?.index_names ?? []).join(", ") || "Not available"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {isMultiIndexDataNode ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-foreground">Identifier filter</div>
+                  <div className="text-sm text-muted-foreground">
+                    Limit the suffix delete to selected values from{" "}
+                    <code>{identifierIndexName ?? "the identifier index"}</code>.
+                  </div>
+                </div>
+                <Badge variant="neutral">
+                  {selectedDeleteTailIdentifiers.length > 0
+                    ? `${selectedDeleteTailIdentifiers.length} selected`
+                    : "All identifiers"}
+                </Badge>
+              </div>
+
+              {typeof sourceTableConfigurationId !== "number" || sourceTableConfigurationId <= 0 ? (
+                <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                  Identifier options are unavailable because the SourceTableConfiguration id could not
+                  be resolved from the current payload.
+                </div>
+              ) : sourceTableConfigStatsQuery.isLoading ? (
+                <div className="flex min-h-24 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading identifier options
+                  </div>
+                </div>
+              ) : sourceTableConfigStatsQuery.isError ? (
+                <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                  {formatMainSequenceError(sourceTableConfigStatsQuery.error)}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      value={deleteTailIdentifierSearch}
+                      onChange={(event) => setDeleteTailIdentifierSearch(event.target.value)}
+                      placeholder="Filter identifiers"
+                      disabled={deleteTailMutation.isPending}
+                      className="max-w-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={selectAllVisibleDeleteTailIdentifiers}
+                      disabled={
+                        deleteTailMutation.isPending ||
+                        filteredDeleteTailIdentifierOptions.length === 0
+                      }
+                    >
+                      Select visible
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearDeleteTailIdentifiers}
+                      disabled={
+                        deleteTailMutation.isPending || selectedDeleteTailIdentifiers.length === 0
+                      }
+                    >
+                      Clear
+                    </Button>
+                  </div>
+
+                  {filteredDeleteTailIdentifierOptions.length > 0 ? (
+                    <div className="max-h-64 space-y-2 overflow-auto rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-3">
+                      {filteredDeleteTailIdentifierOptions.map((option) => {
+                        const checked = selectedDeleteTailIdentifiers.includes(option.identifier);
+
+                        return (
+                          <label
+                            key={option.identifier}
+                            className="flex items-start justify-between gap-3 rounded-[calc(var(--radius)-10px)] border border-border/60 bg-background/32 px-3 py-2 text-sm text-foreground"
+                          >
+                            <span className="flex items-start gap-3">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleDeleteTailIdentifier(option.identifier)}
+                                disabled={deleteTailMutation.isPending}
+                                className="mt-1 h-4 w-4 rounded border-border bg-background"
+                              />
+                              <span>{option.identifier}</span>
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              Last row {formatCreationDate(option.lastTimestamp)}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3 text-sm text-muted-foreground">
+                      No identifiers are available for this Data Node.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3 text-sm text-muted-foreground">
+              This table uses a single index, so the delete applies to the full tail without identifier filtering.
+            </div>
+          )}
+
+          {deleteTailFormError ? (
+            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+              {deleteTailFormError}
+            </div>
+          ) : null}
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTailDialogOpen(false)}
+              disabled={deleteTailMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                void handleDeleteTailSubmit();
+              }}
+              disabled={deleteTailMutation.isPending || !selectedSourceTableConfiguration}
+            >
+              {deleteTailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Delete Tail Data
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       {bulkActionRequest && bulkActionConfig ? (
         <ActionConfirmationDialog

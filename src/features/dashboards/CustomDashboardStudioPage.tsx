@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
   useLayoutEffect,
@@ -14,7 +15,12 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import ReactGridLayoutModule from "react-grid-layout";
+import GridLayout, {
+  verticalCompactor,
+  type Layout as ReactGridLayoutLayout,
+  type LayoutItem as ReactGridLayoutItem,
+  type ResizeHandleAxis,
+} from "react-grid-layout";
 
 import {
   BarChart3,
@@ -108,8 +114,6 @@ import {
   commitDashboardGridLayout,
   appendCatalogWidget,
   collapseDashboardRow,
-  CUSTOM_WORKSPACE_COLUMN_SCALE,
-  CUSTOM_WORKSPACE_ROW_SCALE,
   duplicateDashboardWidget,
   expandDashboardRow,
   placeCatalogWidget,
@@ -129,8 +133,6 @@ import { WidgetCanvasControls } from "@/widgets/shared/widget-canvas-controls";
 import { MissingWidgetFrame } from "@/widgets/shared/widget-frame";
 import { getWidgetExplorerPath } from "@/features/widgets/widget-explorer";
 import type { WidgetInstancePresentation } from "@/widgets/types";
-
-const GridLayout = ReactGridLayoutModule as unknown as ComponentType<any>;
 
 interface CatalogDragPayload {
   widgetId: string;
@@ -156,6 +158,11 @@ interface CatalogSection {
   description?: string;
   widgets: WidgetDefinition[];
 }
+
+type CloneableWorkspaceGridLayoutItem = Pick<
+  ReactGridLayoutItem,
+  "h" | "i" | "isBounded" | "isDraggable" | "isResizable" | "maxH" | "maxW" | "minH" | "minW" | "moved" | "static" | "w" | "x" | "y"
+>;
 
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
   return {
@@ -226,6 +233,43 @@ function compareWorkspaceGridItems(
   return left.i.localeCompare(right.i);
 }
 
+function cloneWorkspaceGridLayout(
+  layout: readonly CloneableWorkspaceGridLayoutItem[],
+) {
+  return layout.map((item) => ({
+    i: item.i,
+    x: item.x,
+    y: item.y,
+    w: item.w,
+    h: item.h,
+    minW: item.minW,
+    maxW: item.maxW,
+    minH: item.minH,
+    maxH: item.maxH,
+    moved: item.moved,
+    static: item.static,
+    isDraggable: item.isDraggable,
+    isResizable: item.isResizable,
+    isBounded: item.isBounded,
+  }));
+}
+
+function serializeWorkspaceGridLayout(
+  layout: readonly Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">[],
+) {
+  return JSON.stringify(
+    [...layout]
+      .sort(compareWorkspaceGridItems)
+      .map((item) => ({
+        i: item.i,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+      })),
+  );
+}
+
 function resolveCanvasMinHeight(
   widgets: readonly Pick<ResolvedDashboardWidgetLayout, "h" | "y">[],
   grid: { gap: number; rowHeight: number },
@@ -236,6 +280,17 @@ function resolveCanvasMinHeight(
   );
 
   return maxBottom * grid.rowHeight + Math.max(0, maxBottom - 1) * grid.gap;
+}
+
+function resolveGridItemInsetStyle(gap: number): CSSProperties | undefined {
+  if (gap <= 0) {
+    return undefined;
+  }
+
+  return {
+    boxSizing: "border-box",
+    padding: `${gap / 2}px`,
+  };
 }
 
 function resolveWidgetRailIcon(widget: WidgetDefinition) {
@@ -822,9 +877,9 @@ function WorkspaceToolbarButton({
       aria-label={title}
       title={title}
       className={cn(
-        "relative flex h-8 w-8 items-center justify-center rounded-[calc(var(--radius)-8px)] border border-border/70 bg-card/82 text-foreground shadow-sm transition-colors hover:bg-muted/35 disabled:pointer-events-none disabled:opacity-50",
+        "relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-[calc(var(--radius)-8px)] border border-border/70 bg-card/82 text-foreground shadow-sm transition-[background-color,border-color,color,transform,box-shadow] hover:-translate-y-px hover:border-primary/30 hover:bg-muted/55 hover:text-foreground hover:shadow-[0_10px_22px_-16px_hsl(var(--foreground)/0.55)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50",
         active
-          ? "border-primary/60 bg-muted/45 text-foreground"
+          ? "border-primary/60 bg-muted/45 text-foreground shadow-[0_10px_24px_-18px_hsl(var(--primary)/0.72)]"
           : "text-muted-foreground",
         className,
       )}
@@ -961,9 +1016,7 @@ function CatalogWidgetRow({
   onToggleFavorite: () => void;
   widget: WidgetDefinition;
 }) {
-  const sizeLabel = `${widget.defaultSize.w * CUSTOM_WORKSPACE_COLUMN_SCALE} x ${
-    widget.defaultSize.h * CUSTOM_WORKSPACE_ROW_SCALE
-  }`;
+  const sizeLabel = `${widget.defaultSize.w} x ${widget.defaultSize.h}`;
 
   return (
     <div
@@ -1496,6 +1549,7 @@ export function CustomDashboardStudioPage() {
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
     {},
   );
+  const [customGridLayoutDraft, setCustomGridLayoutDraft] = useState<WorkspaceGridLayoutItem[]>([]);
   const [autoGridReorderState, setAutoGridReorderState] = useState<AutoGridReorderState | null>(
     null,
   );
@@ -1863,6 +1917,7 @@ export function CustomDashboardStudioPage() {
     layoutKind === "auto-grid"
       ? Math.max(1, resolvedDashboard?.autoGrid?.rowHeight ?? resolvedDashboard?.grid.rowHeight ?? 18)
       : (resolvedDashboard?.grid.rowHeight ?? 18);
+  const customGridVisualGap = layoutKind === "custom" ? (resolvedDashboard?.grid.gap ?? 0) : 0;
   const autoGridFillScreen =
     layoutKind === "auto-grid" && resolvedDashboard?.autoGrid?.fillScreen === true;
   const autoGridTemplateColumns = useMemo(
@@ -1910,10 +1965,24 @@ export function CustomDashboardStudioPage() {
       ),
     [activeCanvasGridColumns, activeCanvasGridLayout, measuredGridMetrics?.rect.width],
   );
+  const committedCustomGridLayoutSignature = useMemo(
+    () =>
+      `${selectedDashboard?.id ?? "none"}:${serializeWorkspaceGridLayout(customRuntimeGridLayout.layout)}`,
+    [customRuntimeGridLayout.layout, selectedDashboard?.id],
+  );
+  const lastSyncedCustomGridLayoutSignatureRef = useRef<string | null>(null);
+  const hasUnsyncedCommittedCustomGridLayout =
+    committedCustomGridLayoutSignature !== lastSyncedCustomGridLayoutSignatureRef.current;
+  const renderedCustomGridLayout =
+    hasUnsyncedCommittedCustomGridLayout
+      ? customRuntimeGridLayout.layout
+      : customGridLayoutDraft.length > 0
+        ? customGridLayoutDraft
+        : customRuntimeGridLayout.layout;
   const customRuntimeGridLayoutById = useMemo(
     () =>
       new Map(
-        customRuntimeGridLayout.layout.map((item) => [
+        renderedCustomGridLayout.map((item) => [
           item.i,
           {
             x: item.x,
@@ -1923,9 +1992,41 @@ export function CustomDashboardStudioPage() {
           } satisfies ResolvedDashboardWidgetLayout,
         ]),
       ),
-    [customRuntimeGridLayout.layout],
+    [renderedCustomGridLayout],
   );
   const customMobileLayout = layoutKind === "custom" && customRuntimeGridLayout.mobile;
+  const customGridInteractive = editMode && layoutKind === "custom" && !customMobileLayout;
+  const customGridResizeHandles = useMemo<ResizeHandleAxis[]>(
+    () => (customGridInteractive ? ["se"] : []),
+    [customGridInteractive],
+  );
+  const customGridConfig = useMemo(
+    () => ({
+      cols: activeCanvasGridColumns,
+      rowHeight: runtimeRowHeight,
+      margin: [0, 0] as const,
+      containerPadding: [0, 0] as const,
+    }),
+    [activeCanvasGridColumns, runtimeRowHeight],
+  );
+  const customGridDragConfig = useMemo(
+    () => ({
+      enabled: customGridInteractive,
+      handle: customGridInteractive
+        ? workspaceGridDraggableHandleSelector
+        : ".workspace-grid-handle-disabled",
+      cancel: customGridInteractive ? workspaceGridDraggableCancelSelector : undefined,
+      threshold: 0,
+    }),
+    [customGridInteractive],
+  );
+  const customGridResizeConfig = useMemo(
+    () => ({
+      enabled: customGridInteractive,
+      handles: customGridResizeHandles,
+    }),
+    [customGridInteractive, customGridResizeHandles],
+  );
   const rowChildCountById = useMemo(
     () =>
       new Map(
@@ -1976,9 +2077,10 @@ export function CustomDashboardStudioPage() {
       setActiveCatalogDrag(null);
       setHoveredPlacement(null);
       setCompanionVisibilityById({});
+      setCustomGridLayoutDraft(cloneWorkspaceGridLayout(customRuntimeGridLayout.layout));
       setAutoGridReorderState(null);
     }
-  }, [editMode]);
+  }, [customRuntimeGridLayout.layout, editMode]);
 
   useEffect(() => {
     setLibraryOpen(false);
@@ -1987,9 +2089,19 @@ export function CustomDashboardStudioPage() {
     setActiveCatalogDrag(null);
     setHoveredPlacement(null);
     setCompanionVisibilityById({});
+    setCustomGridLayoutDraft(cloneWorkspaceGridLayout(customRuntimeGridLayout.layout));
     setAutoGridReorderState(null);
     setEditMode(false);
   }, [selectedDashboard?.id]);
+
+  useEffect(() => {
+    if (committedCustomGridLayoutSignature === lastSyncedCustomGridLayoutSignatureRef.current) {
+      return;
+    }
+
+    lastSyncedCustomGridLayoutSignatureRef.current = committedCustomGridLayoutSignature;
+    setCustomGridLayoutDraft(cloneWorkspaceGridLayout(customRuntimeGridLayout.layout));
+  }, [committedCustomGridLayoutSignature, customRuntimeGridLayout.layout]);
 
   useEffect(() => {
     if (!resolvedDashboard || !gridRef.current || layoutKind !== "custom") {
@@ -2001,25 +2113,60 @@ export function CustomDashboardStudioPage() {
     const grid = {
       ...resolvedDashboard.grid,
       columns: activeCanvasGridColumns,
+      gap: 0,
       rowHeight: runtimeRowHeight,
     };
 
-    function updateGridMetrics() {
-      setMeasuredGridMetrics(getGridMetrics(gridElement, grid));
+    let lastMeasuredWidth: number | null = null;
+
+    function updateGridMetrics(options?: { force?: boolean }) {
+      const nextMetrics = getGridMetrics(gridElement, grid);
+
+      if (!nextMetrics) {
+        lastMeasuredWidth = null;
+        setMeasuredGridMetrics(null);
+        return;
+      }
+
+      if (
+        !options?.force &&
+        lastMeasuredWidth !== null &&
+        Math.abs(lastMeasuredWidth - nextMetrics.rect.width) < 0.5
+      ) {
+        return;
+      }
+
+      lastMeasuredWidth = nextMetrics.rect.width;
+      setMeasuredGridMetrics((current) => {
+        if (
+          current &&
+          Math.abs(current.rect.width - nextMetrics.rect.width) < 0.5 &&
+          current.columns === nextMetrics.columns &&
+          current.gap === nextMetrics.gap &&
+          current.rowHeight === nextMetrics.rowHeight
+        ) {
+          return current;
+        }
+
+        return nextMetrics;
+      });
     }
 
-    updateGridMetrics();
+    updateGridMetrics({ force: true });
 
     const observer = new ResizeObserver(() => {
       updateGridMetrics();
     });
+    const handleWindowResize = () => {
+      updateGridMetrics();
+    };
 
     observer.observe(gridElement);
-    window.addEventListener("resize", updateGridMetrics);
+    window.addEventListener("resize", handleWindowResize);
 
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", updateGridMetrics);
+      window.removeEventListener("resize", handleWindowResize);
     };
   }, [
     layoutKind,
@@ -2087,6 +2234,7 @@ export function CustomDashboardStudioPage() {
     const grid = {
       ...resolvedDashboard.grid,
       columns: activeCanvasGridColumns,
+      gap: 0,
       rowHeight: runtimeRowHeight,
     };
     const previousUserSelect = document.body.style.userSelect;
@@ -2155,18 +2303,23 @@ export function CustomDashboardStudioPage() {
     widgetMap,
   ]);
 
-  function handleGridLayoutCommit(layout: WorkspaceGridLayoutItem[]) {
-    updateSelectedWorkspace((dashboard) => {
-      const committedLayout = layout;
-      const widgetItems = committedLayout.filter((item) => parseCompanionItemId(item.i) == null);
-      const companionItems = committedLayout.filter((item) => parseCompanionItemId(item.i) != null);
-      const nextDashboard = commitDashboardGridLayout(dashboard, widgetItems);
+  const handleGridLayoutCommit = useCallback(
+    (layout: ReactGridLayoutLayout | WorkspaceGridLayoutItem[]) => {
+      const committedLayout = cloneWorkspaceGridLayout(layout);
 
-      return commitDashboardCompanionLayout(nextDashboard, companionItems);
-    });
-  }
+      setCustomGridLayoutDraft(committedLayout);
+      updateSelectedWorkspace((dashboard) => {
+        const widgetItems = committedLayout.filter((item) => parseCompanionItemId(item.i) == null);
+        const companionItems = committedLayout.filter((item) => parseCompanionItemId(item.i) != null);
+        const nextDashboard = commitDashboardGridLayout(dashboard, widgetItems);
 
-  function handleCompanionVisibilityChange(itemId: string, visible: boolean) {
+        return commitDashboardCompanionLayout(nextDashboard, companionItems);
+      });
+    },
+    [updateSelectedWorkspace],
+  );
+
+  const handleCompanionVisibilityChange = useCallback((itemId: string, visible: boolean) => {
     setCompanionVisibilityById((current) => {
       if (current[itemId] === visible) {
         return current;
@@ -2177,7 +2330,7 @@ export function CustomDashboardStudioPage() {
         [itemId]: visible,
       };
     });
-  }
+  }, []);
 
   function handleCatalogAdd(widget: WidgetDefinition) {
     setEditMode(true);
@@ -2232,14 +2385,17 @@ export function CustomDashboardStudioPage() {
     saveWorkspaceDraft();
   }
 
-  function handleWidgetRuntimeStateChange(
-    instanceId: string,
-    runtimeState: Record<string, unknown> | undefined,
-  ) {
-    updateSelectedWorkspace((dashboard) =>
-      updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
-    );
-  }
+  const handleWidgetRuntimeStateChange = useCallback(
+    (
+      instanceId: string,
+      runtimeState: Record<string, unknown> | undefined,
+    ) => {
+      updateSelectedWorkspace((dashboard) =>
+        updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+      );
+    },
+    [updateSelectedWorkspace],
+  );
 
   function handleAutoGridDragStart(
     instanceId: string,
@@ -2366,6 +2522,176 @@ export function CustomDashboardStudioPage() {
     setAutoGridReorderState(null);
   }
 
+  const renderCanvasWidget = useCallback(
+    (
+      instance: (typeof canvasWidgets)[number],
+      options?: {
+        style?: CSSProperties;
+      },
+    ) => {
+      const widget = getWidgetById(instance.widgetId);
+
+      if (!widget) {
+        return (
+          <MissingWidgetFrame
+            key={instance.id}
+            widgetId={instance.widgetId}
+            style={options?.style}
+            onRemove={() => {
+              updateSelectedWorkspace((dashboard) =>
+                removeDashboardWidget(dashboard, instance.id),
+              );
+              setSelectedInstanceId((current) => (current === instance.id ? null : current));
+            }}
+          />
+        );
+      }
+
+      const HeaderActions =
+        widget.headerActions as
+          | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
+          | undefined;
+
+      return (
+        <BuilderWidgetCard
+          key={instance.id}
+          instanceId={instance.id}
+          instanceTitle={instance.title}
+          layout={instance.layout}
+          selected={selectedInstanceId === instance.id}
+          editable={editMode}
+          style={options?.style}
+          renderCanvasFields={false}
+          headerActions={
+            HeaderActions ? (
+              <HeaderActions
+                widget={widget}
+                props={instance.props ?? {}}
+                runtimeState={instance.runtimeState}
+                onRuntimeStateChange={(state) => {
+                  handleWidgetRuntimeStateChange(instance.id, state);
+                }}
+              />
+            ) : undefined
+          }
+          widget={widget}
+          widgetProps={instance.props ?? {}}
+          widgetPresentation={instance.presentation}
+          widgetRuntimeState={instance.runtimeState}
+          onRemove={(instanceId) => {
+            updateSelectedWorkspace((dashboard) =>
+              removeDashboardWidget(dashboard, instanceId),
+            );
+            setSelectedInstanceId((current) => (current === instanceId ? null : current));
+          }}
+          onDuplicate={(instanceId) => {
+            updateSelectedWorkspace((dashboard) =>
+              duplicateDashboardWidget(dashboard, instanceId),
+            );
+          }}
+          onPropsChange={(instanceId, props) => {
+            updateSelectedWorkspace((dashboard) =>
+              updateDashboardWidgetSettings(dashboard, instanceId, {
+                props,
+              }),
+            );
+          }}
+          onPresentationChange={(instanceId, presentation) => {
+            updateSelectedWorkspace((dashboard) =>
+              updateDashboardWidgetSettings(dashboard, instanceId, {
+                presentation,
+              }),
+            );
+          }}
+          onRuntimeStateChange={handleWidgetRuntimeStateChange}
+          onSelect={(instanceId) => {
+            setSelectedInstanceId(instanceId);
+          }}
+          onOpenSettings={(instanceId) => {
+            setSelectedInstanceId(instanceId);
+            openWidgetSettings(instanceId);
+          }}
+          rowCollapsed={isWorkspaceRowCollapsed(instance)}
+          rowChildCount={rowChildCountById.get(instance.id) ?? 0}
+          onToggleRowCollapse={(instanceId) => {
+            updateSelectedWorkspace((dashboard) => {
+              const target = dashboard.widgets.find((entry) => entry.id === instanceId);
+
+              if (!target || !isWorkspaceRowWidgetId(target.widgetId)) {
+                return dashboard;
+              }
+
+              return isWorkspaceRowCollapsed(target)
+                ? expandDashboardRow(dashboard, instanceId)
+                : collapseDashboardRow(dashboard, instanceId);
+            });
+          }}
+        />
+      );
+    },
+    [
+      editMode,
+      handleWidgetRuntimeStateChange,
+      openWidgetSettings,
+      rowChildCountById,
+      selectedInstanceId,
+      updateSelectedWorkspace,
+    ],
+  );
+  const gridChildren = useMemo(
+    () => [
+      ...gridManagedWidgets.map((instance) => (
+        <div
+          key={instance.id}
+          className="box-border h-full overflow-visible"
+          style={resolveGridItemInsetStyle(customGridVisualGap)}
+        >
+          {renderCanvasWidget(instance)}
+        </div>
+      )),
+      ...visibleCompanionCandidates.map((candidate) => (
+        <div
+          key={candidate.itemId}
+          className="box-border h-full overflow-visible"
+          style={resolveGridItemInsetStyle(customGridVisualGap)}
+        >
+          <GridCompanionCard
+            candidate={candidate}
+            editable={editMode}
+            onPropsChange={(props) => {
+              updateSelectedWorkspace((dashboard) =>
+                updateDashboardWidgetSettings(dashboard, candidate.instanceId, {
+                  props,
+                }),
+              );
+            }}
+            onPresentationChange={(presentation) => {
+              updateSelectedWorkspace((dashboard) =>
+                updateDashboardWidgetSettings(dashboard, candidate.instanceId, {
+                  presentation,
+                }),
+              );
+            }}
+            onRuntimeStateChange={(state) => {
+              handleWidgetRuntimeStateChange(candidate.instanceId, state);
+            }}
+            onVisibilityChange={handleCompanionVisibilityChange}
+          />
+        </div>
+      )),
+    ],
+    [
+      customGridVisualGap,
+      editMode,
+      gridManagedWidgets,
+      handleCompanionVisibilityChange,
+      handleWidgetRuntimeStateChange,
+      renderCanvasWidget,
+      updateSelectedWorkspace,
+      visibleCompanionCandidates,
+    ],
+  );
+
   if (!user) {
     return (
       <div className="rounded-[var(--radius)] border border-border/80 bg-card/80 p-8 text-sm text-muted-foreground">
@@ -2399,122 +2725,15 @@ export function CustomDashboardStudioPage() {
       : [];
   });
   const canvasMinHeight = resolveCanvasMinHeight(
-    (layoutKind === "custom" ? customRuntimeGridLayout.layout : activeCanvasGridLayout).map((item) => ({
+    (layoutKind === "custom" ? renderedCustomGridLayout : activeCanvasGridLayout).map((item) => ({
       y: item.y,
       h: item.h,
     })),
     {
-      gap: resolvedDashboard?.grid.gap ?? 0,
+      gap: layoutKind === "custom" ? 0 : (resolvedDashboard?.grid.gap ?? 0),
       rowHeight: runtimeRowHeight,
     },
   );
-
-  function renderCanvasWidget(
-    instance: (typeof canvasWidgets)[number],
-    options?: {
-      style?: CSSProperties;
-    },
-  ) {
-    const widget = getWidgetById(instance.widgetId);
-
-    if (!widget) {
-      return (
-        <MissingWidgetFrame
-          key={instance.id}
-          widgetId={instance.widgetId}
-          style={options?.style}
-          onRemove={() => {
-            updateSelectedWorkspace((dashboard) =>
-              removeDashboardWidget(dashboard, instance.id),
-            );
-            setSelectedInstanceId((current) => (current === instance.id ? null : current));
-          }}
-        />
-      );
-    }
-
-    const HeaderActions =
-      widget.headerActions as
-        | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
-        | undefined;
-
-    return (
-      <BuilderWidgetCard
-        key={instance.id}
-        instanceId={instance.id}
-        instanceTitle={instance.title}
-        layout={instance.layout}
-        selected={selectedInstanceId === instance.id}
-        editable={editMode}
-        style={options?.style}
-        renderCanvasFields={false}
-        headerActions={
-          HeaderActions ? (
-            <HeaderActions
-              widget={widget}
-              props={instance.props ?? {}}
-              runtimeState={instance.runtimeState}
-              onRuntimeStateChange={(state) => {
-                handleWidgetRuntimeStateChange(instance.id, state);
-              }}
-            />
-          ) : undefined
-        }
-        widget={widget}
-        widgetProps={instance.props ?? {}}
-        widgetPresentation={instance.presentation}
-        widgetRuntimeState={instance.runtimeState}
-        onRemove={(instanceId) => {
-          updateSelectedWorkspace((dashboard) =>
-            removeDashboardWidget(dashboard, instanceId),
-          );
-          setSelectedInstanceId((current) => (current === instanceId ? null : current));
-        }}
-        onDuplicate={(instanceId) => {
-          updateSelectedWorkspace((dashboard) =>
-            duplicateDashboardWidget(dashboard, instanceId),
-          );
-        }}
-        onPropsChange={(instanceId, props) => {
-          updateSelectedWorkspace((dashboard) =>
-            updateDashboardWidgetSettings(dashboard, instanceId, {
-              props,
-            }),
-          );
-        }}
-        onPresentationChange={(instanceId, presentation) => {
-          updateSelectedWorkspace((dashboard) =>
-            updateDashboardWidgetSettings(dashboard, instanceId, {
-              presentation,
-            }),
-          );
-        }}
-        onRuntimeStateChange={handleWidgetRuntimeStateChange}
-        onSelect={(instanceId) => {
-          setSelectedInstanceId(instanceId);
-        }}
-        onOpenSettings={(instanceId) => {
-          setSelectedInstanceId(instanceId);
-          openWidgetSettings(instanceId);
-        }}
-        rowCollapsed={isWorkspaceRowCollapsed(instance)}
-        rowChildCount={rowChildCountById.get(instance.id) ?? 0}
-        onToggleRowCollapse={(instanceId) => {
-          updateSelectedWorkspace((dashboard) => {
-            const target = dashboard.widgets.find((entry) => entry.id === instanceId);
-
-            if (!target || !isWorkspaceRowWidgetId(target.widgetId)) {
-              return dashboard;
-            }
-
-            return isWorkspaceRowCollapsed(target)
-              ? expandDashboardRow(dashboard, instanceId)
-              : collapseDashboardRow(dashboard, instanceId);
-          });
-        }}
-      />
-    );
-  }
 
   return (
     <DashboardControlsProvider
@@ -2713,33 +2932,12 @@ export function CustomDashboardStudioPage() {
                 <GridLayout
                   className="min-h-full"
                   width={measuredGridMetrics.rect.width}
-                  cols={activeCanvasGridColumns}
-                  rowHeight={runtimeRowHeight}
-                  margin={[resolvedDashboard.grid.gap, resolvedDashboard.grid.gap]}
-                  containerPadding={[0, 0]}
-                  layout={customRuntimeGridLayout.layout}
-                  compactType="vertical"
-                  isDraggable={editMode && layoutKind === "custom" && !customMobileLayout}
-                  isResizable={editMode && layoutKind === "custom" && !customMobileLayout}
-                  resizeHandles={
-                    editMode && layoutKind === "custom" && !customMobileLayout ? ["s", "e"] : []
-                  }
-                  useCSSTransforms
-                  draggableHandle={
-                    editMode && layoutKind === "custom" && !customMobileLayout
-                      ? workspaceGridDraggableHandleSelector
-                      : ".workspace-grid-handle-disabled"
-                  }
-                  draggableCancel={
-                    editMode && layoutKind === "custom" && !customMobileLayout
-                      ? workspaceGridDraggableCancelSelector
-                      : undefined
-                  }
-                  onDragStart={(
-                    _layout: WorkspaceGridLayoutItem[],
-                    _oldItem: WorkspaceGridLayoutItem,
-                    newItem: WorkspaceGridLayoutItem | null,
-                  ) => {
+                  layout={renderedCustomGridLayout}
+                  gridConfig={customGridConfig}
+                  dragConfig={customGridDragConfig}
+                  resizeConfig={customGridResizeConfig}
+                  compactor={verticalCompactor}
+                  onDragStart={(_layout, _oldItem, newItem) => {
                     if (!editMode) {
                       return;
                     }
@@ -2748,17 +2946,20 @@ export function CustomDashboardStudioPage() {
                       setSelectedInstanceId(companion?.instanceId ?? newItem.i);
                     }
                   }}
-                  onDragStop={(layout: WorkspaceGridLayoutItem[]) => {
+                  onLayoutChange={(layout) => {
+                    if (!editMode || customMobileLayout) {
+                      return;
+                    }
+
+                    setCustomGridLayoutDraft(cloneWorkspaceGridLayout(layout));
+                  }}
+                  onDragStop={(layout) => {
                     if (!editMode) {
                       return;
                     }
-                    handleGridLayoutCommit(layout as WorkspaceGridLayoutItem[]);
+                    handleGridLayoutCommit(layout);
                   }}
-                  onResizeStart={(
-                    _layout: WorkspaceGridLayoutItem[],
-                    _oldItem: WorkspaceGridLayoutItem,
-                    newItem: WorkspaceGridLayoutItem | null,
-                  ) => {
+                  onResizeStart={(_layout, _oldItem, newItem) => {
                     if (!editMode) {
                       return;
                     }
@@ -2767,45 +2968,14 @@ export function CustomDashboardStudioPage() {
                       setSelectedInstanceId(companion?.instanceId ?? newItem.i);
                     }
                   }}
-                  onResizeStop={(layout: WorkspaceGridLayoutItem[]) => {
+                  onResizeStop={(layout) => {
                     if (!editMode) {
                       return;
                     }
-                    handleGridLayoutCommit(layout as WorkspaceGridLayoutItem[]);
+                    handleGridLayoutCommit(layout);
                   }}
                 >
-                  {gridManagedWidgets.map((instance) => (
-                    <div key={instance.id} className="h-full overflow-visible">
-                      {renderCanvasWidget(instance)}
-                    </div>
-                  ))}
-
-                  {visibleCompanionCandidates.map((candidate) => (
-                    <div key={candidate.itemId} className="h-full overflow-visible">
-                      <GridCompanionCard
-                        candidate={candidate}
-                        editable={editMode}
-                        onPropsChange={(props) => {
-                          updateSelectedWorkspace((dashboard) =>
-                            updateDashboardWidgetSettings(dashboard, candidate.instanceId, {
-                              props,
-                            }),
-                          );
-                        }}
-                        onPresentationChange={(presentation) => {
-                          updateSelectedWorkspace((dashboard) =>
-                            updateDashboardWidgetSettings(dashboard, candidate.instanceId, {
-                              presentation,
-                            }),
-                          );
-                        }}
-                        onRuntimeStateChange={(state) => {
-                          handleWidgetRuntimeStateChange(candidate.instanceId, state);
-                        }}
-                        onVisibilityChange={handleCompanionVisibilityChange}
-                      />
-                    </div>
-                  ))}
+                  {gridChildren}
                 </GridLayout>
 
                 {structuralCanvasWidgets.map((instance) =>

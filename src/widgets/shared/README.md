@@ -19,6 +19,7 @@ This directory contains reusable widget presentation primitives that are shared 
 
 - Settings are intentionally instance-scoped: the shared panel edits the current dashboard widget instance, not the underlying widget definition.
 - The shared settings panel is generic by default and can be extended per widget through `WidgetDefinition.schema`, `WidgetDefinition.controller`, and `WidgetDefinition.settingsComponent`.
+- Widget definitions can also set `showRawPropsEditor: false` when the shared raw JSON props editor should stay hidden and the widget should be configured only through structured settings controls.
 - The shared settings panel can also expose an optional remove action from the host surface. This is important for sidebar-only widgets, because they may not have an on-canvas card chrome with a delete button.
 - Schema-backed fields can optionally be exposed on the canvas through instance-level presentation state as companion cards outside the widget frame instead of being trapped inside the widget settings page.
 - Schema sections render as a responsive two-column grid by default. Fields that omit

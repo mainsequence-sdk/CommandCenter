@@ -159,6 +159,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   headerComponent?: ComponentType<WidgetHeaderComponentProps<TProps>>;
   headerActions?: ComponentType<WidgetHeaderActionsProps<TProps>>;
   settingsComponent?: ComponentType<WidgetSettingsComponentProps<TProps>>;
+  showRawPropsEditor?: boolean;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;

@@ -82,6 +82,17 @@ function resolveCanvasMinHeight(
   return maxBottom * grid.rowHeight + Math.max(0, maxBottom - 1) * grid.gap;
 }
 
+function resolveGridItemInsetStyle(gap: number): CSSProperties | undefined {
+  if (gap <= 0) {
+    return undefined;
+  }
+
+  return {
+    boxSizing: "border-box",
+    padding: `${gap / 2}px`,
+  };
+}
+
 interface WidgetInstanceOverride {
   props?: Record<string, unknown>;
   presentation?: WidgetInstancePresentation | null;
@@ -255,6 +266,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
     layoutKind === "auto-grid"
       ? Math.max(1, resolvedDashboard.autoGrid?.rowHeight ?? resolvedDashboard.grid.rowHeight)
       : resolvedDashboard.grid.rowHeight;
+  const customGridVisualGap = layoutKind === "custom" ? resolvedDashboard.grid.gap : 0;
   const autoGridFillScreen = layoutKind === "auto-grid" && resolvedDashboard.autoGrid?.fillScreen === true;
   const storedCompanionLayoutById = useMemo(
     () => resolveDashboardCompanionLayoutMap(resolvedDashboard.companions),
@@ -334,7 +346,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
             .map((candidate) => customRuntimeLayoutById.get(candidate.itemId) ?? candidate.layout),
         ],
         {
-          gap: resolvedDashboard.grid.gap,
+          gap: 0,
           rowHeight: runtimeRowHeight,
         },
       )
@@ -517,7 +529,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                 instance={settingsInstance}
                 panelTitle={`${settingsInstance.title ?? settingsWidget.title} Settings`}
                 panelDescription="Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
-                persistenceNote="Changes apply only to the current page session."
+                persistenceNote="Edits update this page immediately and are lost when you refresh or leave the page."
                 secondaryActionLabel="Return to dashboard"
                 onClose={() => {
                   setSettingsInstanceId(null);
@@ -699,7 +711,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                 <div
                   className="grid"
                   style={{
-                    gap: `${resolvedDashboard.grid.gap}px`,
+                    gap: "0px",
                     gridAutoRows: `${runtimeRowHeight}px`,
                     gridTemplateColumns: `repeat(${resolvedDashboard.grid.columns}, minmax(0, 1fr))`,
                     minHeight: `${canvasMinHeight}px`,
@@ -716,12 +728,22 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
                   if (!hasAllPermissions(permissions, required)) {
                     return (
-                      <LockedWidgetFrame
+                      <div
                         key={instance.id}
                         style={style}
-                        title={instance.title ?? widget.title}
-                        description={`Missing permissions: ${required.join(", ")}`}
-                      />
+                        className="relative isolate box-border h-full overflow-visible"
+                      >
+                        <div
+                          className="box-border h-full overflow-visible"
+                          style={resolveGridItemInsetStyle(customGridVisualGap)}
+                        >
+                          <LockedWidgetFrame
+                            title={instance.title ?? widget.title}
+                            description={`Missing permissions: ${required.join(", ")}`}
+                            style={{ height: "100%" }}
+                          />
+                        </div>
+                      </div>
                     );
                   }
 
@@ -742,56 +764,61 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                     <div
                       key={instance.id}
                       style={style}
-                      className="relative isolate h-full overflow-visible"
+                      className="relative isolate box-border h-full overflow-visible"
                     >
-                      <WidgetFrame
-                        widget={widget}
-                        instance={instance}
-                        presentation={instance.presentation}
-                        showHeader={
-                          isWorkspaceRowWidgetId(widget.id)
-                            ? false
-                            : resolveWidgetHeaderVisibility(instance.props)
-                        }
-                        headerActions={
-                          HeaderActions ? (
-                            <HeaderActions
-                              widget={widget}
-                              props={instance.props ?? {}}
-                              runtimeState={instance.runtimeState}
-                              onRuntimeStateChange={(state) => {
-                                setWidgetOverrides((current) => ({
-                                  ...current,
-                                  [instance.id]: {
-                                    ...current[instance.id],
-                                    runtimeState: state ?? null,
-                                  },
-                                }));
-                              }}
-                            />
-                          ) : undefined
-                        }
-                        onOpenSettings={() => {
-                          setSettingsInstanceId(instance.id);
-                        }}
+                      <div
+                        className="box-border h-full overflow-visible"
+                        style={resolveGridItemInsetStyle(customGridVisualGap)}
                       >
-                        <Component
+                        <WidgetFrame
                           widget={widget}
-                          instanceTitle={instance.title}
-                          props={instance.props ?? {}}
+                          instance={instance}
                           presentation={instance.presentation}
-                          runtimeState={instance.runtimeState}
-                          onRuntimeStateChange={(state) => {
-                            setWidgetOverrides((current) => ({
-                              ...current,
-                              [instance.id]: {
-                                ...current[instance.id],
-                                runtimeState: state ?? null,
-                              },
-                            }));
+                          showHeader={
+                            isWorkspaceRowWidgetId(widget.id)
+                              ? false
+                              : resolveWidgetHeaderVisibility(instance.props)
+                          }
+                          headerActions={
+                            HeaderActions ? (
+                              <HeaderActions
+                                widget={widget}
+                                props={instance.props ?? {}}
+                                runtimeState={instance.runtimeState}
+                                onRuntimeStateChange={(state) => {
+                                  setWidgetOverrides((current) => ({
+                                    ...current,
+                                    [instance.id]: {
+                                      ...current[instance.id],
+                                      runtimeState: state ?? null,
+                                    },
+                                  }));
+                                }}
+                              />
+                            ) : undefined
+                          }
+                          onOpenSettings={() => {
+                            setSettingsInstanceId(instance.id);
                           }}
-                        />
-                      </WidgetFrame>
+                        >
+                          <Component
+                            widget={widget}
+                            instanceTitle={instance.title}
+                            props={instance.props ?? {}}
+                            presentation={instance.presentation}
+                            runtimeState={instance.runtimeState}
+                            onRuntimeStateChange={(state) => {
+                              setWidgetOverrides((current) => ({
+                                ...current,
+                                [instance.id]: {
+                                  ...current[instance.id],
+                                  runtimeState: state ?? null,
+                                },
+                              }));
+                            }}
+                          />
+                        </WidgetFrame>
+                      </div>
                     </div>
                   );
                 })}
@@ -802,11 +829,21 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                   );
 
                   return (
-                    <MissingWidgetFrame
+                    <div
                       key={instance.id}
-                      widgetId={instance.widgetId}
                       style={style}
-                    />
+                      className="relative isolate box-border h-full overflow-visible"
+                    >
+                      <div
+                        className="box-border h-full overflow-visible"
+                        style={resolveGridItemInsetStyle(customGridVisualGap)}
+                      >
+                        <MissingWidgetFrame
+                          widgetId={instance.widgetId}
+                          style={{ height: "100%" }}
+                        />
+                      </div>
+                    </div>
                   );
                 })}
 
@@ -819,41 +856,46 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                     <div
                       key={candidate.itemId}
                       style={style}
-                      className="relative isolate h-full overflow-visible"
+                      className="relative isolate box-border h-full overflow-visible"
                     >
-                      <DashboardCanvasCompanionCard
-                        candidate={candidate}
-                        onPropsChange={(props) => {
-                          setWidgetOverrides((current) => ({
-                            ...current,
-                            [candidate.instanceId]: {
-                              ...current[candidate.instanceId],
-                              props,
-                            },
-                          }));
-                        }}
-                        onRuntimeStateChange={(state) => {
-                          setWidgetOverrides((current) => ({
-                            ...current,
-                            [candidate.instanceId]: {
-                              ...current[candidate.instanceId],
-                              runtimeState: state ?? null,
-                            },
-                          }));
-                        }}
-                        onVisibilityChange={(itemId, visible) => {
-                          setCompanionVisibilityById((current) => {
-                            if (current[itemId] === visible) {
-                              return current;
-                            }
-
-                            return {
+                      <div
+                        className="box-border h-full overflow-visible"
+                        style={resolveGridItemInsetStyle(customGridVisualGap)}
+                      >
+                        <DashboardCanvasCompanionCard
+                          candidate={candidate}
+                          onPropsChange={(props) => {
+                            setWidgetOverrides((current) => ({
                               ...current,
-                              [itemId]: visible,
-                            };
-                          });
-                        }}
-                      />
+                              [candidate.instanceId]: {
+                                ...current[candidate.instanceId],
+                                props,
+                              },
+                            }));
+                          }}
+                          onRuntimeStateChange={(state) => {
+                            setWidgetOverrides((current) => ({
+                              ...current,
+                              [candidate.instanceId]: {
+                                ...current[candidate.instanceId],
+                                runtimeState: state ?? null,
+                              },
+                            }));
+                          }}
+                          onVisibilityChange={(itemId, visible) => {
+                            setCompanionVisibilityById((current) => {
+                              if (current[itemId] === visible) {
+                                return current;
+                              }
+
+                              return {
+                                ...current,
+                                [itemId]: visible,
+                              };
+                            });
+                          }}
+                        />
+                      </div>
                     </div>
                   );
                 })}

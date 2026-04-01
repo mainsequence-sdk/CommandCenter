@@ -169,8 +169,8 @@ export function CustomWidgetSettingsPage() {
               panelDescription="Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
               persistenceNote={
                 backendMode
-                  ? "Changes apply to this workspace draft immediately. Save workspace when you want to persist them."
-                  : "Changes apply to this local workspace draft immediately. Save workspace when you want to persist them."
+                  ? "Edits update the current workspace draft immediately. They are not saved until you click Save workspace."
+                  : "Edits update the current local workspace draft immediately. They are not saved until you click Save workspace."
               }
               secondaryActionLabel="Return to dashboard"
               onClose={openDashboardView}

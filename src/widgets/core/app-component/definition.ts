@@ -32,5 +32,6 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
     showHeader: true,
   },
   settingsComponent: AppComponentWidgetSettings,
+  showRawPropsEditor: false,
   component: AppComponentWidget,
 });

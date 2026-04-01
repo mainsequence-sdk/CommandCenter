@@ -44,13 +44,16 @@ These flows are all part of one app surface, with instance state selected throug
 - Backend workspace ids may be numeric; the frontend normalizes them to strings before storing them in the dashboard model and route params.
 - Dashboard definitions now support a backward-compatible `layoutKind`, with existing workspaces
   defaulting to `custom`.
+- `Custom` currently uses one canonical dense manual grid: `48` columns, `15px` row units, and
+  `8px` visual gutters. Older `12`-, `24`-, and `96`-column custom layouts are normalized into
+  that model on load so the editor no longer inherits legacy resize steps.
 - Workspace settings now expose a `Custom` vs `Auto grid` layout selector. `Auto grid` currently
   supports `maxColumns`, `minColumnWidthPx`, `rowHeight`, and `fillScreen`.
 - In backend mode, workspace creation waits for the backend response and adopts the backend-assigned id instead of persisting a client-generated id.
 - The workspace index page renders from the backend-backed saved collection in backend mode, even if the editor currently has unsaved draft changes.
 - In backend mode, the editor keeps a local draft and only persists changes when the user explicitly saves.
 - In backend mode, delete reloads the workspace collection from the backend after success instead of computing the next list locally.
-- In backend mode, workspace save keeps the submitted companion-card layout if the mutation response does not explicitly echo `companions`. This prevents exposed companion cards from snapping back locally after a successful save when the backend omits that field from the response body.
+- In backend mode, workspace save keeps the submitted companion-card layout if the mutation response does not explicitly echo `companions`. It also keeps the submitted widget geometry for matching widget ids so resized cards do not snap back locally after save when the backend response omits or returns stale layout data.
 - Favorites can target both app surfaces and individual workspace instances.
 - Workspace labels are edited in settings as enter-to-add pills instead of a comma-separated text field.
 - Workspace settings also expose versioned JSON export/import for full workspace snapshots.
@@ -59,9 +62,8 @@ These flows are all part of one app surface, with instance state selected throug
   menu instead of separate header buttons. Duplicated widgets receive a fresh instance id, keep
   their props/presentation, and drop runtime state so they republish from their own mounted lifecycle.
 - In canvas edit mode, widget cards keep the same header height as view mode; drag uses the existing header band and edit actions fade in without adding extra layout chrome.
-- Non-row widgets now obey a shared minimum canvas size when they are created, resized, duplicated,
-  or normalized from stored workspace data. This prevents cards from collapsing into near-zero
-  height or width while still preserving the special fixed-height behavior for row widgets.
+- Non-row widgets in `custom` can now resize all the way down to a single grid column and a single
+  grid row. Row widgets keep their fixed full-width, fixed-height behavior.
 - Newly added widgets now spawn from a dedicated compact baseline instead of the historical
   fine-grid migration scale. Existing saved layouts keep their persisted geometry, but fresh widget
   instances start from a reduced width and an even smaller reduced height, with hard spawn caps, so
@@ -70,6 +72,9 @@ These flows are all part of one app surface, with instance state selected throug
 - The workspace studio canvas now keeps one canonical `react-grid-layout` layout in both view and
   edit mode. Entering edit mode should not reshuffle cards; the only intended differences are edit
   chrome plus drag/resize interactivity.
+- The studio now uses the root `react-grid-layout` v2 API directly. `CustomDashboardStudioPage`
+  passes grouped `gridConfig`, `dragConfig`, `resizeConfig`, and `compactor` props instead of the
+  old flat v1 prop surface.
 - For `custom` workspaces, smaller screens now follow a Grafana-style runtime mobile rewrite below
   `769px`: cards temporarily stack full width while preserving their stored row spans, and that
   temporary mobile layout is never persisted back into the workspace model.
@@ -100,6 +105,9 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget settings in Workspaces no longer open in a modal. They now use a dedicated route-level view with a shared full-width settings panel and an explicit `Return to dashboard` action.
 - The dedicated workspace settings page now uses the same scrollable full-page container model as
   the widget settings view, so long workspace configuration pages can be reached fully.
+- Saving widget-instance settings updates only that instance's title/props/presentation and must
+  not rematerialize the whole dashboard layout. This preserves manually resized widget geometry
+  when the user changes settings unrelated to placement.
 - In backend mode, workspace settings also expose a `Permissions` tab that reuses the shared
   object-sharing assignment UI against the configured workspace backend endpoint root. Local
   browser-only workspaces keep the tab but explain that RBAC sharing requires backend persistence.

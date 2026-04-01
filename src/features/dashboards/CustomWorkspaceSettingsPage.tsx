@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { commandCenterConfig } from "@/config/command-center";
+import { cn } from "@/lib/utils";
 import {
   parseWorkspaceSnapshot,
   restoreWorkspaceFromSnapshot,
@@ -22,6 +23,15 @@ import {
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 
 type WorkspaceSettingsTabId = "configuration" | "permissions";
+
+function getWorkspaceSettingsTabClassName(active: boolean) {
+  return cn(
+    "inline-flex cursor-pointer items-center gap-2 rounded-[calc(var(--radius)-4px)] border px-4 py-2 text-sm font-medium shadow-sm transition-[background-color,border-color,color,transform,box-shadow] hover:-translate-y-px hover:text-foreground hover:shadow-[0_10px_22px_-16px_hsl(var(--foreground)/0.5)] active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70",
+    active
+      ? "border-primary/45 bg-primary/12 text-foreground shadow-[0_10px_24px_-18px_hsl(var(--primary)/0.72)]"
+      : "border-border bg-card/80 text-muted-foreground hover:border-primary/20 hover:bg-muted/60",
+  );
+}
 
 function formatSavedAt(savedAt: string | null) {
   if (!savedAt) {
@@ -399,12 +409,16 @@ export function CustomWorkspaceSettingsPage() {
             </div>
           ) : null}
 
-            <div className="flex flex-wrap gap-2">
+            <div
+              className="flex flex-wrap gap-2"
+              role="tablist"
+              aria-label="Workspace settings sections"
+            >
               <button
                 type="button"
-                className={activeTab === "configuration"
-                  ? "inline-flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-foreground"
-                  : "inline-flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border bg-card/80 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"}
+                role="tab"
+                aria-selected={activeTab === "configuration"}
+                className={getWorkspaceSettingsTabClassName(activeTab === "configuration")}
                 onClick={() => {
                   setActiveTab("configuration");
                 }}
@@ -414,9 +428,9 @@ export function CustomWorkspaceSettingsPage() {
               </button>
               <button
                 type="button"
-                className={activeTab === "permissions"
-                  ? "inline-flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-foreground"
-                  : "inline-flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border bg-card/80 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"}
+                role="tab"
+                aria-selected={activeTab === "permissions"}
+                className={getWorkspaceSettingsTabClassName(activeTab === "permissions")}
                 onClick={() => {
                   setActiveTab("permissions");
                 }}

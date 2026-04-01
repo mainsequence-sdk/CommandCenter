@@ -116,6 +116,8 @@ export function WorkspacesPage() {
     persistenceMode,
     createWorkspace,
     createWorkspaceFromDefinition,
+    workspaceSelectionPending,
+    requestedWorkspaceMissing,
     requestedWorkspaceId,
     selectedWorkspaceView,
   } = useCustomWorkspaceStudio();
@@ -125,6 +127,60 @@ export function WorkspacesPage() {
     return (
       <div className="rounded-[var(--radius)] border border-border/80 bg-card/80 p-8 text-sm text-muted-foreground">
         Resolve a user session before opening Workspaces.
+      </div>
+    );
+  }
+
+  if (requestedWorkspaceId && workspaceSelectionPending) {
+    return (
+      <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
+        <div className="mx-auto flex min-h-[320px] max-w-4xl items-center justify-center">
+          <div className="w-full max-w-md rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/80 px-6 py-8 text-center shadow-[var(--shadow-panel)]">
+            <Badge variant="neutral" className="border border-border/70 bg-card/55">
+              Loading workspace
+            </Badge>
+            <div className="mt-3 space-y-1">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground">
+                Opening workspace
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Loading workspace {requestedWorkspaceId} and restoring its canvas.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (requestedWorkspaceId && requestedWorkspaceMissing) {
+    return (
+      <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
+        <div className="mx-auto flex min-h-[320px] max-w-4xl items-center justify-center">
+          <div className="w-full max-w-md rounded-[calc(var(--radius)+4px)] border border-danger/25 bg-card/80 px-6 py-8 text-center shadow-[var(--shadow-panel)]">
+            <Badge variant="warning" className="border border-danger/25 bg-danger/10 text-danger">
+              Workspace not found
+            </Badge>
+            <div className="mt-3 space-y-1">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground">
+                Unable to open workspace
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Workspace {requestedWorkspaceId} is not available in the current draft.
+              </p>
+            </div>
+            <div className="mt-5 flex items-center justify-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  navigate("/app/workspace-studio/workspaces");
+                }}
+              >
+                Back to workspaces
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -279,7 +335,7 @@ export function WorkspacesPage() {
                       {formatWorkspaceRefresh(workspace)}
                     </td>
                     <td className="px-4 py-3 align-top text-foreground">
-                      {workspace.grid?.columns ?? 96} cols
+                      {workspace.grid?.columns ?? 24} cols
                     </td>
                     <td className="px-4 py-3 align-top">
                       <div className="flex flex-wrap items-center gap-2">

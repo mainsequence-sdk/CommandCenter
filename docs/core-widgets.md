@@ -133,12 +133,12 @@ widget positions.
 - **Kind:** `custom`
 - **Default size:** `8 x 8`
 - **Permissions:** `dashboard:view`
-- **Example props:** API base URL plus auth mode; route binding is instance-scoped
+- **Example props:** explicit OpenAPI URL, Swagger docs URL, or service root plus auth mode; route binding is instance-scoped
 
 What it is:
 
-`AppComponent` reads an OpenAPI schema from `/openapi.json`, lets a user bind one widget instance
-to one API operation, and renders the generated request form directly inside the widget body.
+`AppComponent` reads an OpenAPI schema from the explicit URL the user provides, lets a user bind one
+widget instance to one API operation, and renders the generated request form directly inside the widget body.
 
 What it is good for:
 

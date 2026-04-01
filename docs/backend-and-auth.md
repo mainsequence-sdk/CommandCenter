@@ -193,9 +193,9 @@ Expected payload shape:
   "category": "Custom",
   "source": "user",
   "grid": {
-    "columns": 96,
-    "rowHeight": 18,
-    "gap": 2
+    "columns": 24,
+    "rowHeight": 30,
+    "gap": 8
   },
   "controls": {
     "enabled": true,

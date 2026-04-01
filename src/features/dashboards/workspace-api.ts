@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
-import type { DashboardDefinition } from "@/dashboards/types";
+import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
 import {
   normalizeDashboardDefinition,
   normalizeUserDashboardCollection,
@@ -673,11 +673,71 @@ function unwrapDashboardPayloadRecord(payload: unknown): Record<string, unknown>
   return payload;
 }
 
+function collectWidgetGeometryById(
+  widgets: DashboardDefinition["widgets"],
+  geometryById: Map<
+    string,
+    Pick<DashboardWidgetInstance, "layout" | "position">
+  > = new Map(),
+) {
+  widgets.forEach((widget) => {
+    geometryById.set(widget.id, {
+      layout: cloneJson(widget.layout),
+      position: cloneJson(widget.position),
+    });
+
+    if (widget.row?.children?.length) {
+      collectWidgetGeometryById(widget.row.children, geometryById);
+    }
+  });
+
+  return geometryById;
+}
+
+function applyFallbackWidgetGeometry(
+  widgets: DashboardDefinition["widgets"],
+  geometryById: ReadonlyMap<string, Pick<DashboardWidgetInstance, "layout" | "position">>,
+): DashboardDefinition["widgets"] {
+  return widgets.map((widget) => {
+    const fallbackGeometry = geometryById.get(widget.id);
+    const nextWidget: DashboardWidgetInstance = fallbackGeometry
+      ? {
+          ...widget,
+          layout: cloneJson(fallbackGeometry.layout),
+          position: cloneJson(fallbackGeometry.position),
+        }
+      : widget;
+
+    if (!nextWidget.row?.children?.length) {
+      return nextWidget;
+    }
+
+    return {
+      ...nextWidget,
+      row: {
+        ...nextWidget.row,
+        children: applyFallbackWidgetGeometry(nextWidget.row.children, geometryById),
+      },
+    };
+  });
+}
+
 function resolveMutationDashboardPayload(payload: unknown, fallback: DashboardDefinition) {
   const resolved = coerceDashboardDefinition(payload);
   const payloadRecord = unwrapDashboardPayloadRecord(payload);
 
   if (resolved) {
+    const nextResolved =
+      fallback.widgets.length > 0
+        ? normalizeDashboardDefinition({
+            ...resolved,
+            widgets: applyFallbackWidgetGeometry(
+              resolved.widgets,
+              collectWidgetGeometryById(fallback.widgets),
+            ),
+          })
+        : resolved;
+
     if (
       payloadRecord &&
       !Array.isArray(payloadRecord.companions) &&
@@ -685,12 +745,12 @@ function resolveMutationDashboardPayload(payload: unknown, fallback: DashboardDe
       fallback.companions.length > 0
     ) {
       return normalizeDashboardDefinition({
-        ...resolved,
+        ...nextResolved,
         companions: fallback.companions,
       });
     }
 
-    return resolved;
+    return nextResolved;
   }
 
   return normalizeDashboardDefinition(fallback);

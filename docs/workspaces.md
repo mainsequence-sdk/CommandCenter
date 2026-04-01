@@ -63,8 +63,8 @@ In backend mode, workspace creation waits for the backend response and adopts th
 id instead of persisting a client-generated id.
 The workspace index page uses the backend-backed saved collection as its source of truth in backend
 mode rather than rendering the current draft collection.
-In backend mode, the editor autosaves changes to the backend and does not expose save/reset draft
-controls.
+In backend mode, the editor keeps a local draft and only persists changes when the user explicitly
+saves.
 In backend mode, delete reloads the workspace collection from the backend after success instead of
 computing the next list locally.
 In backend mode, workspace settings also expose a `Permissions` tab backed by the standard
@@ -89,6 +89,11 @@ Each workspace is a dashboard-like model with:
 - widget instances and widget geometry
 
 The canvas uses a fine-grained grid and stores widget placement directly in the workspace model.
+`Custom` workspaces currently normalize onto one canonical dense manual grid: `48` columns,
+`15px` row units, and `8px` visual gutters. Older `12`-, `24`-, and `96`-column custom layouts are
+migrated into that model on load so the studio no longer inherits legacy resize steps.
+The studio now uses the root `react-grid-layout` v2 API directly through grouped
+`gridConfig` / `dragConfig` / `resizeConfig` props instead of the old flat prop surface.
 Labels are edited in workspace settings as pill chips with enter-to-add behavior.
 Widget runtime state can also be stored per instance when the widget reports it through the shared
 widget contract.
@@ -97,6 +102,8 @@ header area as the drag target, and reveal edit actions on hover instead of addi
 control.
 Widget instances may hide their header during normal viewing, but the canvas forces headers visible
 again in edit mode so widget controls remain reachable.
+Non-row widgets in `custom` can resize down to a single column and a single row; only row widgets
+keep the fixed full-width structural sizing rules.
 The canvas `Components` browser supports large widget catalogs with search, category/kind/source
 filters, favorites, recent widgets, and grouped category browse when search is empty.
 If a workspace still contains a widget id that is no longer available in the current client build,

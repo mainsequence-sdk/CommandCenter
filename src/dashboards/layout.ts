@@ -23,6 +23,8 @@ const DEFAULT_GRID: ResolvedDashboardGridConfig = {
   rowHeight: 78,
   gap: 16,
 };
+const LEGACY_GRID_COLUMNS = 12;
+const LEGACY_COMPACT_WIDGET_HEIGHT_PX = 78;
 
 interface NormalizedWidgetLayout {
   span: {
@@ -54,11 +56,22 @@ function resolveGridConfig(dashboard: DashboardDefinition): ResolvedDashboardGri
   };
 }
 
+function resolveCompactWidgetSpan(grid: ResolvedDashboardGridConfig) {
+  return {
+    w: Math.max(1, Math.round(grid.columns / LEGACY_GRID_COLUMNS)),
+    h: Math.max(
+      1,
+      Math.round((LEGACY_COMPACT_WIDGET_HEIGHT_PX + grid.gap) / (grid.rowHeight + grid.gap)),
+    ),
+  };
+}
+
 function normalizeWidgetLayout(
   instance: DashboardWidgetInstance,
-  columns: number,
+  grid: ResolvedDashboardGridConfig,
   issues: DashboardLayoutIssue[],
 ): NormalizedWidgetLayout {
+  const columns = grid.columns;
   const isWorkspaceRow = isWorkspaceRowWidgetId(instance.widgetId);
   const isMinimalChrome = resolveWidgetMinimalChrome(instance.props);
   const isCompactFilterWidget =
@@ -77,18 +90,16 @@ function normalizeWidgetLayout(
         y: instance.layout.y,
       }
     : instance.position ?? {};
-
-  const compactWidth = columns >= 48 ? 8 : 1;
-  const compactHeight = columns >= 48 ? 4 : 1;
+  const compactSpan = resolveCompactWidgetSpan(grid);
   const w = isWorkspaceRow
     ? columns
     : isCompactFilterWidget
-      ? compactWidth
+      ? compactSpan.w
       : clampInteger(rawSpan.cols, 1, 1);
   const h = isWorkspaceRow
     ? WORKSPACE_ROW_HEIGHT_ROWS
     : isCompactFilterWidget
-      ? compactHeight
+      ? compactSpan.h
       : clampInteger(rawSpan.rows, 1, 1);
   const boundedWidth = isWorkspaceRow ? columns : Math.min(w, columns);
 
@@ -267,7 +278,7 @@ export function resolveDashboardLayout(
   let activeRowFloorY = 0;
 
   canvasWidgets.forEach((instance) => {
-    const normalized = normalizeWidgetLayout(instance, grid.columns, issues);
+    const normalized = normalizeWidgetLayout(instance, grid, issues);
     const minimumY = Math.max(normalized.position.y ?? activeRowFloorY, activeRowFloorY);
     const resolvedLayout =
       findPlacement(
@@ -316,7 +327,7 @@ export function resolveDashboardLayout(
   });
 
   sidebarWidgets.forEach((instance) => {
-    const normalized = normalizeWidgetLayout(instance, grid.columns, issues);
+    const normalized = normalizeWidgetLayout(instance, grid, issues);
     const resolvedLayout =
       findPlacement(
         sidebarOccupied,

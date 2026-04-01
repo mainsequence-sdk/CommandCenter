@@ -6,6 +6,7 @@ import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 const devAuthProxyPrefix = "/__command_center_auth__";
 const dynamicTableDataSourceEndpoint = "/orm/api/ts_manager/dynamic_table_data_source/";
 const dynamicTableMetadataEndpoint = "/orm/api/ts_manager/dynamic_table/";
+const sourceTableConfigurationEndpoint = "/orm/api/ts_manager/source_table_config/";
 const simpleTableEndpoint = "/orm/api/ts_manager/simple_table/";
 const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
@@ -1250,6 +1251,11 @@ export interface SimpleTableBulkRefreshResponse {
   results: SimpleTableBulkRefreshResult[];
 }
 
+export interface ColumnarDataSnapshot {
+  columns: string[];
+  rows: DataNodeRemoteDataRow[];
+}
+
 export interface DataNodeSummary {
   id: number;
   storage_hash: string;
@@ -1305,6 +1311,7 @@ export interface DataNodeColumnMetadata {
 }
 
 export interface DataNodeSourceTableConfiguration {
+  id?: number | null;
   related_table: number;
   time_index_name: string | null;
   column_dtypes_map: Record<string, string> | null;
@@ -1320,6 +1327,36 @@ export interface DataNodeDetail extends DataNodeSummary {
   build_configuration: unknown;
   build_meta_data: unknown;
   sourcetableconfiguration: DataNodeSourceTableConfiguration | null;
+}
+
+export interface SourceTableConfigurationStatsResponse {
+  multi_index_stats: {
+    max_per_asset_symbol: Record<string, string>;
+    min_per_asset_symbol: Record<string, string>;
+  } | null;
+  multi_index_column_stats: unknown;
+}
+
+export interface DataNodeTailDeleteInput {
+  after_date: string;
+  unique_identifier_list?: string[];
+}
+
+export interface DataNodeTailDeleteResponse {
+  ok: boolean;
+  dynamic_table_id: number;
+  deleted_count: number;
+  table_empty: boolean;
+  unique_identifier_list?: string[];
+  stats: {
+    last_time_index_value: string | null;
+    earliest_index_value: string | null;
+    multi_index_stats: {
+      max_per_asset_symbol: Record<string, string>;
+      min_per_asset_symbol: Record<string, string>;
+    } | null;
+    multi_index_column_stats: unknown;
+  };
 }
 
 export interface DataNodeRemoteDataRequest {
@@ -4475,6 +4512,87 @@ export function fetchSimpleTableDetail(simpleTableId: number) {
   );
 }
 
+function normalizeColumnarDataSnapshot(payload: unknown): ColumnarDataSnapshot {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return {
+      columns: [],
+      rows: [],
+    };
+  }
+
+  const columnEntries = Object.entries(payload).filter(([, value]) => Array.isArray(value));
+
+  if (columnEntries.length === 0) {
+    return {
+      columns: [],
+      rows: [],
+    };
+  }
+
+  const columns = columnEntries.map(([columnName]) => columnName);
+  const rowCount = Math.max(
+    0,
+    ...columnEntries.map(([, value]) => (Array.isArray(value) ? value.length : 0)),
+  );
+  const rows = Array.from({ length: rowCount }, (_, rowIndex) =>
+    Object.fromEntries(
+      columnEntries.map(([columnName, value]) => [
+        columnName,
+        Array.isArray(value) ? value[rowIndex] ?? null : null,
+      ]),
+    ),
+  ).filter(isDataNodeRemoteDataRow);
+
+  return {
+    columns,
+    rows,
+  };
+}
+
+export async function fetchSimpleTableDataSnapshot(
+  simpleTableId: number,
+  {
+    limit = 100,
+    offset = 0,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  if (env.useMockData) {
+    const detail = await fetchSimpleTableDetail(simpleTableId);
+    const columns = Array.from(
+      new Set(
+        [
+          ...(Array.isArray(detail?.columns)
+            ? detail.columns.map((column) => column.column_name)
+            : []),
+          ...(Array.isArray(detail?.sourcetableconfiguration?.columns_metadata)
+            ? detail.sourcetableconfiguration.columns_metadata.map((column) => column.column_name)
+            : []),
+        ].filter((columnName): columnName is string => typeof columnName === "string" && columnName.trim().length > 0),
+      ),
+    );
+
+    return {
+      columns,
+      rows: [],
+    } satisfies ColumnarDataSnapshot;
+  }
+
+  const payload = await requestJson<unknown>(
+    simpleTableEndpoint,
+    `${simpleTableId}/get-data-snapshot/`,
+    undefined,
+    {
+      limit,
+      offset: offset > 0 ? offset : undefined,
+    },
+  );
+
+  return normalizeColumnarDataSnapshot(payload);
+}
+
 export function fetchSimpleTableSchemaGraph(
   simpleTableId: number,
   {
@@ -5398,6 +5516,27 @@ export function fetchDataNodeDetail(dataNodeId: number) {
   return requestJson<DataNodeDetail>(
     dynamicTableMetadataEndpoint,
     `${dataNodeId}/`,
+  );
+}
+
+export function fetchSourceTableConfigurationStats(sourceTableConfigurationId: number) {
+  return requestJson<SourceTableConfigurationStatsResponse>(
+    sourceTableConfigurationEndpoint,
+    `${sourceTableConfigurationId}/get_stats/`,
+  );
+}
+
+export function deleteDataNodeTail(
+  dataNodeId: number,
+  input: DataNodeTailDeleteInput,
+) {
+  return requestJson<DataNodeTailDeleteResponse>(
+    dynamicTableMetadataEndpoint,
+    `${dataNodeId}/delete_after_date/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
   );
 }
 
