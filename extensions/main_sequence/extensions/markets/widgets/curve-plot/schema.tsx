@@ -116,12 +116,12 @@ export const curvePlotSettingsSchema: WidgetSettingsSchema<
   MainSequenceCurvePlotWidgetProps,
   CurvePlotControllerContext
 >({
-  enableFilterWidgetSource: true,
+  enableFilterWidgetSource: false,
   filterWidgetOnly: true,
   dataNodeCanvasQueryScope: "curve_plot_canvas",
   dataSourceSectionDescription:
-    "Point this curve plot at a Data Node widget that already owns the canonical row dataset.",
-  selectionHelpText: "Choose the Data Node widget that should feed this curve plot.",
+    "Use the Bindings tab to connect this curve plot to the Data Node widget that owns the canonical row dataset.",
+  selectionHelpText: "Bind this curve plot to the Data Node widget that should feed it.",
   additionalSections: [
     {
       id: "field-mapping",

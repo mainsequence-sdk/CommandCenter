@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import { useResolvedWidgetInputs } from "@/dashboards/DashboardWidgetDependencies";
 import type {
   WidgetControllerArgs,
   WidgetDefinition,
@@ -204,8 +205,12 @@ export function useResolvedWidgetControllerContext<
   const controller = widget.controller as
     | { useContext?: (controllerArgs: WidgetControllerArgs<TProps>) => TContext }
     | undefined;
+  const resolvedInputs = useResolvedWidgetInputs(args.instanceId);
 
-  return controller?.useContext?.(args);
+  return controller?.useContext?.({
+    ...args,
+    resolvedInputs: args.resolvedInputs ?? resolvedInputs,
+  });
 }
 
 export function useVisibleWidgetSchemaFields<

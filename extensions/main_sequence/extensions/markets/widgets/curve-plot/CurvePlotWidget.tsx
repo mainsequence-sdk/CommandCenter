@@ -49,7 +49,7 @@ function getSeriesPalette(resolvedTokens: Record<string, string>) {
   return curvePaletteTokenOrder.map((tokenKey) => resolvedTokens[tokenKey]);
 }
 
-export function CurvePlotWidget({ props }: Props) {
+export function CurvePlotWidget({ props, instanceId }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { resolvedTokens } = useTheme();
 
@@ -57,7 +57,10 @@ export function CurvePlotWidget({ props }: Props) {
     () => normalizeCurvePlotProps(props),
     [props],
   );
-  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({ props: normalizedProps });
+  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
+    props: normalizedProps,
+    currentWidgetInstanceId: instanceId,
+  });
   const linkedFilterRuntime = useMemo(
     () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
     [sourceBinding.referencedFilterWidget?.runtimeState],
@@ -271,7 +274,7 @@ export function CurvePlotWidget({ props }: Props) {
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and point this curve plot to a Data Node widget in the dashboard.
+            Open widget settings and use the Bindings tab to connect this curve plot to a Data Node widget.
           </p>
         </div>
       </div>

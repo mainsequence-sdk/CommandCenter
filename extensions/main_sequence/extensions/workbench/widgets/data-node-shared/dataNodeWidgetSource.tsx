@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 
 import { getWidgetById } from "@/app/registry";
 import { useDashboardWidgetRegistry, type DashboardWidgetRegistryEntry } from "@/dashboards/DashboardWidgetRegistry";
+import { useResolvedWidgetInput } from "@/dashboards/DashboardWidgetDependencies";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
@@ -19,6 +20,7 @@ import { PickerField, type PickerOption } from "../../../../common/components/Pi
 import { fetchDataNodeDetail, type DataNodeDetail } from "../../../../common/api";
 import { DataNodeDateTimeField } from "./DataNodeDateTimeField";
 import { DataNodeQuickSearchPicker } from "./DataNodeQuickSearchPicker";
+import { DATA_NODE_SOURCE_INPUT_ID } from "./widgetBindings";
 import {
   buildDataNodeFieldOptions,
   formatDataNodeLabel,
@@ -436,45 +438,62 @@ export function useResolvedDataNodeWidgetSourceBinding<
   currentWidgetInstanceId?: string;
 }) {
   const widgetRegistry = useDashboardWidgetRegistry();
+  const resolvedSourceInput = useResolvedWidgetInput(
+    currentWidgetInstanceId,
+    DATA_NODE_SOURCE_INPUT_ID,
+  );
   const normalizedReference = useMemo(
     () => normalizeDataNodeWidgetSourceReferenceProps(props),
     [props],
   );
+  const resolvedInputBinding = !Array.isArray(resolvedSourceInput) ? resolvedSourceInput : undefined;
+  const expectsFilterWidgetSource =
+    resolvedInputBinding?.sourceWidgetId != null || normalizedReference.sourceMode === "filter_widget";
   const filterWidgetOptions = useMemo(
     () => buildFilterWidgetOptions(widgetRegistry, currentWidgetInstanceId),
     [currentWidgetInstanceId, widgetRegistry],
   );
   const referencedFilterWidget = useMemo(
     () =>
-      normalizedReference.sourceMode === "filter_widget" && normalizedReference.sourceWidgetId
+      resolvedInputBinding?.sourceWidgetId
         ? widgetRegistry.find(
             (widget) =>
               widget.id !== currentWidgetInstanceId &&
-              widget.id === normalizedReference.sourceWidgetId &&
+              widget.id === resolvedInputBinding.sourceWidgetId &&
               widget.widgetId === mainSequenceDataNodeWidgetId,
           ) ?? null
         : null,
-    [currentWidgetInstanceId, normalizedReference.sourceMode, normalizedReference.sourceWidgetId, widgetRegistry],
+    [
+      currentWidgetInstanceId,
+      resolvedInputBinding?.sourceWidgetId,
+      widgetRegistry,
+    ],
   );
   const resolvedSourceProps = useMemo(
     () =>
-      normalizedReference.sourceMode === "filter_widget"
+      expectsFilterWidgetSource
         ? normalizeDataNodeWidgetSourceProps(
             (referencedFilterWidget?.props ?? {}) as DataNodeWidgetSourceProps,
           )
         : normalizeDataNodeWidgetSourceProps(props),
-    [normalizedReference.sourceMode, props, referencedFilterWidget?.props],
+    [expectsFilterWidgetSource, props, referencedFilterWidget?.props],
   );
+  const sourceMode: DataNodeWidgetSourceMode =
+    expectsFilterWidgetSource ? "filter_widget" : "direct";
 
   return {
     filterWidgetOptions,
     hasResolvedFilterWidgetSource:
-      normalizedReference.sourceMode !== "filter_widget" || referencedFilterWidget !== null,
-    isFilterWidgetSource: normalizedReference.sourceMode === "filter_widget",
+      resolvedInputBinding?.sourceWidgetId != null
+        ? referencedFilterWidget !== null
+        : normalizedReference.sourceMode !== "filter_widget",
+    hasCanonicalSourceBinding: resolvedInputBinding?.sourceWidgetId != null,
+    isFilterWidgetSource: expectsFilterWidgetSource,
     referencedFilterWidget,
     resolvedSourceProps,
-    sourceMode: normalizedReference.sourceMode,
-    sourceWidgetId: normalizedReference.sourceWidgetId,
+    resolvedSourceInput: resolvedInputBinding,
+    sourceMode,
+    sourceWidgetId: resolvedInputBinding?.sourceWidgetId,
   };
 }
 

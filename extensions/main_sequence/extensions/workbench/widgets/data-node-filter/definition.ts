@@ -6,8 +6,18 @@ import { dataNodeFilterWidgetController } from "./controller";
 import { MainSequenceDataNodeFilterWidget } from "./MainSequenceDataNodeFilterWidget";
 import { MainSequenceDataNodeFilterWidgetSettings } from "./MainSequenceDataNodeFilterWidgetSettings";
 import { DataNodeRailSummary } from "./DataNodeRailSummary";
-import type { MainSequenceDataNodeFilterWidgetProps } from "./dataNodeFilterModel";
+import { buildDataNodeFieldOptionsFromRows } from "../data-node-shared/dataNodeShared";
+import {
+  normalizeDataNodeFilterProps,
+  normalizeDataNodeFilterRuntimeState,
+  type MainSequenceDataNodeFilterWidgetProps,
+} from "./dataNodeFilterModel";
 import { dataNodeFilterSettingsSchema } from "./schema";
+import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../widget-contracts/mainSequenceDataSourceBundle";
+import {
+  DATA_NODE_SOURCE_INPUT_ID,
+  DATA_NODE_SOURCE_OUTPUT_ID,
+} from "../data-node-shared/widgetBindings";
 
 export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNodeFilterWidgetProps>({
   id: "main-sequence-data-node",
@@ -34,6 +44,71 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
   },
   railIcon: Database,
   railSummaryComponent: DataNodeRailSummary,
+  io: {
+    inputs: [
+      {
+        id: DATA_NODE_SOURCE_INPUT_ID,
+        label: "Source data",
+        accepts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
+        effects: [
+          {
+            kind: "drives-value",
+            sourcePath: "dataNodeId",
+            target: { kind: "prop", path: "dataNodeId" },
+            description: "The bound source owns the effective data node selection.",
+          },
+          {
+            kind: "drives-render",
+            sourcePath: "rows",
+            target: { kind: "render", id: "preview" },
+            description: "Upstream rows feed this Data Node preview and republished dataset.",
+          },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        id: DATA_NODE_SOURCE_OUTPUT_ID,
+        label: "Dataset",
+        contract: MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT,
+        description:
+          "Publishes the canonical Main Sequence dataset bundle for downstream widgets.",
+        resolveValue: ({ props, runtimeState }) => {
+          const normalizedProps = normalizeDataNodeFilterProps(
+            props as MainSequenceDataNodeFilterWidgetProps,
+          );
+          const dataset = normalizeDataNodeFilterRuntimeState(runtimeState);
+          const status =
+            dataset?.status === "error"
+              ? "error"
+              : dataset?.status === "loading"
+                ? "loading"
+                : dataset?.status === "ready"
+                  ? "ready"
+                  : "idle";
+
+          return {
+            status,
+            error: dataset?.error,
+            dataNodeId:
+              typeof normalizedProps.dataNodeId === "number"
+                ? normalizedProps.dataNodeId
+                : undefined,
+            dateRangeMode: normalizedProps.dateRangeMode,
+            fixedStartMs: normalizedProps.fixedStartMs,
+            fixedEndMs: normalizedProps.fixedEndMs,
+            uniqueIdentifierList: normalizedProps.uniqueIdentifierList,
+            columns: dataset?.columns ?? [],
+            rows: dataset?.rows ?? [],
+            availableFields: buildDataNodeFieldOptionsFromRows({
+              columns: dataset?.columns ?? [],
+              rows: dataset?.rows ?? [],
+            }),
+          };
+        },
+      },
+    ],
+  },
   schema: dataNodeFilterSettingsSchema,
   controller: dataNodeFilterWidgetController,
   settingsComponent: MainSequenceDataNodeFilterWidgetSettings,

@@ -15,9 +15,10 @@ data-node metadata and remote rows.
   that select a data node, expose optional `unique_identifier` filters, and save a fixed or
   dashboard-driven date range. It also resolves latest-observation anchors used to prefill missing
   fixed dates from a data node's last time index, and it can resolve those source settings from a
-  sibling `Data Node` widget when a consumer chooses linked-source mode. The shared fixed
+  sibling `Data Node` widget through canonical widget bindings. The shared fixed
   date controls now mark `From` and `To` as half-width schema fields, so they render on the same
   row in settings instead of stacking vertically.
+- `widgetBindings.ts`: shared binding ids for Data Node-family composition.
 - `DataNodePreviewTable.tsx`: reusable simple table preview used inside settings flows that inspect
   fetched data-node rows without mounting the full table formatter widget.
 - `DataNodeQuickSearchPicker.tsx`: reusable remote-search picker for selecting a data node from
@@ -54,3 +55,8 @@ Keep the consumer contract explicit:
 Shared source/date-range widgets should keep fixed-date editing compact. If the shared source schema
 adds more small controls in the future, prefer the same `settingsColumnSpan` contract instead of
 hardcoding one-off layout wrappers inside individual widget settings screens.
+
+For the current bindings-only path, keep two layers distinct:
+
+- `widget-contracts/` owns the typed cross-widget contract id and payload shape.
+- `widgetBindings.ts` owns the shared input/output ids used by Data Node-family widgets.

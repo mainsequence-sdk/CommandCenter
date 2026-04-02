@@ -37,6 +37,7 @@ function formatRangeSummary(startMs?: number | null, endMs?: number | null) {
 }
 
 export function DataNodeRailSummary({
+  instanceId,
   props,
   runtimeState,
 }: WidgetRailSummaryComponentProps<MainSequenceDataNodeFilterWidgetProps>) {
@@ -50,6 +51,7 @@ export function DataNodeRailSummary({
   );
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
     props: normalizedProps,
+    currentWidgetInstanceId: instanceId,
   });
   const linkedNodeRuntime = useMemo(
     () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),

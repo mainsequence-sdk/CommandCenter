@@ -5,6 +5,7 @@ import {
   sortWidgetsByGridOrder,
   type WorkspaceGridLayoutItem,
 } from "@/dashboards/react-grid-layout-adapter";
+import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
 import {
   getExpandedWorkspaceRowChildren,
   isWorkspaceRowCollapsed,
@@ -38,11 +39,8 @@ const DEFAULT_AUTO_GRID_ROW_HEIGHT = 18;
 const LEGACY_WORKSPACE_COLUMNS = 12;
 const PREVIOUS_CUSTOM_WORKSPACE_COLUMNS = 24;
 const PREVIOUS_CUSTOM_WORKSPACE_ROW_HEIGHT = 30;
-const WORKSPACE_WIDGET_SPAWN_COLUMN_SCALE = 0.75;
-const WORKSPACE_WIDGET_SPAWN_ROW_SCALE = 0.5;
-const MIN_WORKSPACE_WIDGET_SPAWN_COLS = 4;
-const MAX_WORKSPACE_WIDGET_SPAWN_COLS = 12;
-const MAX_WORKSPACE_WIDGET_SPAWN_ROWS = 6;
+const DEFAULT_WORKSPACE_WIDGET_SPAWN_COLS = 12;
+const DEFAULT_WORKSPACE_WIDGET_SPAWN_ROWS = 8;
 const LEGACY_WORKSPACE_ROW_HEIGHT = 78;
 const LEGACY_WORKSPACE_GAP = 8;
 const MIN_WORKSPACE_WIDGET_COLS = 1;
@@ -411,6 +409,7 @@ function normalizeDashboardWidgetInstance(
     : instance.position;
   const scaled: DashboardWidgetInstance = {
     ...instanceWithoutLegacyAutoGrid,
+    bindings: normalizeWidgetInstanceBindings(instance.bindings),
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
     layout: {
       cols: scaleGridW(getLayoutCols(instance.layout), migration),
@@ -707,25 +706,16 @@ function looksLikeDashboardDefinition(value: unknown): value is DashboardDefinit
 function buildWidgetInstance(
   widget: Pick<
     WidgetDefinition,
-    "defaultPresentation" | "defaultSize" | "exampleProps" | "id" | "schema" | "title"
+    "defaultPresentation" | "exampleProps" | "id" | "title"
   >,
   position?: DashboardWidgetPlacement,
 ): DashboardWidgetInstance {
-  const spawnCols = Math.min(
-    Math.max(
-      Math.ceil(widget.defaultSize.w * WORKSPACE_WIDGET_SPAWN_COLUMN_SCALE),
-      MIN_WORKSPACE_WIDGET_SPAWN_COLS,
-    ),
-    MAX_WORKSPACE_WIDGET_SPAWN_COLS,
-    DEFAULT_WORKSPACE_COLUMNS,
-  );
-  const spawnRows = Math.min(
-    Math.max(
-      Math.ceil(widget.defaultSize.h * WORKSPACE_WIDGET_SPAWN_ROW_SCALE),
-      MIN_WORKSPACE_WIDGET_ROWS,
-    ),
-    MAX_WORKSPACE_WIDGET_SPAWN_ROWS,
-  );
+  const spawnCols = isWorkspaceRowWidgetId(widget.id)
+    ? DEFAULT_WORKSPACE_COLUMNS
+    : DEFAULT_WORKSPACE_WIDGET_SPAWN_COLS;
+  const spawnRows = isWorkspaceRowWidgetId(widget.id)
+    ? WORKSPACE_ROW_HEIGHT_ROWS
+    : DEFAULT_WORKSPACE_WIDGET_SPAWN_ROWS;
 
   return {
     id: createId("custom-widget"),
@@ -931,7 +921,7 @@ export function appendCatalogWidget(
   dashboard: DashboardDefinition,
   widget: Pick<
     WidgetDefinition,
-    "defaultPresentation" | "defaultSize" | "exampleProps" | "id" | "schema" | "title"
+    "defaultPresentation" | "exampleProps" | "id" | "title"
   >,
 ) {
   const nextWidget = isWorkspaceRowWidgetId(widget.id)
@@ -951,7 +941,7 @@ export function placeCatalogWidget(
   dashboard: DashboardDefinition,
   widget: Pick<
     WidgetDefinition,
-    "defaultPresentation" | "defaultSize" | "exampleProps" | "id" | "schema" | "title"
+    "defaultPresentation" | "exampleProps" | "id" | "title"
   >,
   position: DashboardWidgetPlacement,
 ) {
@@ -1291,6 +1281,87 @@ export function updateDashboardWidgetRuntimeState(
       ...widget,
       runtimeState: nextRuntimeState,
     };
+  });
+
+  return changed
+    ? {
+        ...dashboard,
+        widgets: nextWidgets,
+      }
+    : dashboard;
+}
+
+function updateBindingsInWidgetTree(
+  widget: DashboardWidgetInstance,
+  instanceId: string,
+  bindings: DashboardWidgetInstance["bindings"],
+): [DashboardWidgetInstance, boolean] {
+  const normalizedBindings = normalizeWidgetInstanceBindings(bindings);
+  let changed = false;
+  let nextWidget = widget;
+
+  if (widget.id === instanceId) {
+    const previousSerialized = JSON.stringify(widget.bindings ?? null);
+    const nextSerialized = JSON.stringify(normalizedBindings ?? null);
+
+    if (previousSerialized !== nextSerialized) {
+      changed = true;
+      nextWidget = {
+        ...widget,
+        bindings: normalizedBindings,
+        runtimeState: undefined,
+      };
+    }
+  }
+
+  if (!nextWidget.row?.children?.length) {
+    return [nextWidget, changed];
+  }
+
+  let childChanged = false;
+  const nextChildren = nextWidget.row.children.map((child) => {
+    const [nextChild, nextChildChanged] = updateBindingsInWidgetTree(
+      child,
+      instanceId,
+      bindings,
+    );
+
+    childChanged ||= nextChildChanged;
+    return nextChild;
+  });
+
+  if (!childChanged) {
+    return [nextWidget, changed];
+  }
+
+  return [
+    {
+      ...nextWidget,
+      row: {
+        ...nextWidget.row,
+        children: nextChildren,
+      },
+    },
+    true,
+  ];
+}
+
+export function updateDashboardWidgetBindings(
+  dashboard: DashboardDefinition,
+  instanceId: string,
+  bindings: DashboardWidgetInstance["bindings"],
+) {
+  let changed = false;
+
+  const nextWidgets = dashboard.widgets.map((widget) => {
+    const [nextWidget, widgetChanged] = updateBindingsInWidgetTree(
+      widget,
+      instanceId,
+      bindings,
+    );
+
+    changed ||= widgetChanged;
+    return nextWidget;
   });
 
   return changed

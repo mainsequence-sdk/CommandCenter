@@ -20,6 +20,16 @@ export type DataNodeTableVisualizerColumnFormat =
 export type DataNodeTableVisualizerDensity = "compact" | "comfortable";
 export type DataNodeTableVisualizerBarMode = "none" | "fill";
 export type DataNodeTableVisualizerGradientMode = "none" | "fill";
+export type DataNodeTableVisualizerHeatmapPalette =
+  | "auto"
+  | "viridis"
+  | "plasma"
+  | "inferno"
+  | "magma"
+  | "turbo"
+  | "jet"
+  | "blue-white-red"
+  | "red-yellow-green";
 export type DataNodeTableVisualizerGaugeMode = "none" | "ring";
 export type DataNodeTableVisualizerRangeMode = "auto" | "fixed";
 export type DataNodeTableVisualizerAlign = "auto" | "left" | "center" | "right";
@@ -58,6 +68,7 @@ export interface DataNodeTableVisualizerColumnOverride {
   compact?: boolean;
   barMode?: DataNodeTableVisualizerBarMode;
   gradientMode?: DataNodeTableVisualizerGradientMode;
+  heatmapPalette?: DataNodeTableVisualizerHeatmapPalette;
   gaugeMode?: DataNodeTableVisualizerGaugeMode;
   visualRangeMode?: DataNodeTableVisualizerRangeMode;
   visualMin?: number;
@@ -114,6 +125,7 @@ export interface ResolvedDataNodeTableVisualizerColumnConfig extends DataNodeTab
   heatmap: boolean;
   barMode: DataNodeTableVisualizerBarMode;
   gradientMode: DataNodeTableVisualizerGradientMode;
+  heatmapPalette: DataNodeTableVisualizerHeatmapPalette;
   gaugeMode: DataNodeTableVisualizerGaugeMode;
   visualRangeMode: DataNodeTableVisualizerRangeMode;
   visualMin?: number;
@@ -587,6 +599,20 @@ function normalizeColumnOverride(value: unknown): DataNodeTableVisualizerColumnO
 
   if (record.gradientMode === "fill" || record.gradientMode === "none") {
     nextValue.gradientMode = record.gradientMode;
+  }
+
+  if (
+    record.heatmapPalette === "auto" ||
+    record.heatmapPalette === "viridis" ||
+    record.heatmapPalette === "plasma" ||
+    record.heatmapPalette === "inferno" ||
+    record.heatmapPalette === "magma" ||
+    record.heatmapPalette === "turbo" ||
+    record.heatmapPalette === "jet" ||
+    record.heatmapPalette === "blue-white-red" ||
+    record.heatmapPalette === "red-yellow-green"
+  ) {
+    nextValue.heatmapPalette = record.heatmapPalette;
   }
 
   if (record.gaugeMode === "ring" || record.gaugeMode === "none") {

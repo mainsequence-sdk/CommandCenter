@@ -298,7 +298,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
       >
         {context?.isFilterWidgetSource && !context.hasResolvedFilterWidgetSource ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Select a Data Node in the data source section to enable the preview.
+            Use the Bindings tab to connect this graph to a Data Node and enable the preview.
           </div>
         ) : resolvedConfig.dataNodeId ? (
           <div className="space-y-4">
@@ -425,7 +425,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
           </div>
         ) : (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Select a Data Node to enable the preview controls.
+            Use the Bindings tab to connect this graph to a Data Node and enable the preview controls.
           </div>
         )}
       </SettingsSection>

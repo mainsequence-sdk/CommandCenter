@@ -217,6 +217,7 @@ export function WidgetCanvasControls<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 >({
   widget,
+  instanceId,
   props,
   presentation,
   runtimeState,
@@ -228,6 +229,7 @@ export function WidgetCanvasControls<
   containerStyle,
 }: {
   widget: WidgetDefinition<TProps>;
+  instanceId?: string;
   props: TProps;
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
@@ -241,6 +243,7 @@ export function WidgetCanvasControls<
   const presentationRef = useRef(presentation);
   const [interaction, setInteraction] = useState<CompanionInteraction<TProps> | null>(null);
   const context = useResolvedWidgetControllerContext(widget, {
+    instanceId,
     props,
     runtimeState,
     mode: "canvas",

@@ -95,6 +95,9 @@ Implemented:
 - Fixed `Zero Curve` hover metadata by embedding each point's `time_index` label directly in the
   ECharts line-series data payload. Tooltips no longer depend only on series-index lookup to show
   the curve date.
+- Corrected `Data Node Table` heatmap rendering so heatmap columns now tint the full cell by
+  normalized value intensity instead of drawing a left-to-right gradient that visually behaved more
+  like a decorative bar than a real heat map.
 
 Still missing:
 - Keep `Data Node` sidebar-only by product decision. Do not remove its effective compact/sidebar policy from the workspace model.

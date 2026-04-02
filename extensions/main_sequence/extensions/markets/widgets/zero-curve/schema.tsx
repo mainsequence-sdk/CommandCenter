@@ -98,12 +98,12 @@ export const zeroCurveSettingsSchema: WidgetSettingsSchema<
   MainSequenceZeroCurveWidgetProps,
   ZeroCurveControllerContext
 >({
-  enableFilterWidgetSource: true,
+  enableFilterWidgetSource: false,
   filterWidgetOnly: true,
   dataNodeCanvasQueryScope: "zero_curve_canvas",
   dataSourceSectionDescription:
-    "Point this zero curve widget at a Data Node widget that owns the canonical compressed curve rows.",
-  selectionHelpText: "Choose the Data Node widget that should feed this zero curve widget.",
+    "Use the Bindings tab to connect this zero curve widget to the Data Node widget that owns the canonical compressed curve rows.",
+  selectionHelpText: "Bind this zero curve widget to the Data Node widget that should feed it.",
   additionalSections: [
     {
       id: "zero-curve-contract",

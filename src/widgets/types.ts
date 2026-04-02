@@ -31,6 +31,7 @@ export interface WidgetRailSummaryComponentProps<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
   title: string;
+  instanceId?: string;
   props: TProps;
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
@@ -52,12 +53,102 @@ export interface WidgetFieldPopConfig {
   defaultHeight?: number;
 }
 
+export type WidgetContractId = `${string}@v${number}`;
+
+export interface WidgetPortBinding {
+  sourceWidgetId: string;
+  sourceOutputId: string;
+  transformId?: string;
+}
+
+export type WidgetPortBindingValue = WidgetPortBinding | WidgetPortBinding[];
+export type WidgetInstanceBindings = Record<string, WidgetPortBindingValue>;
+
+export interface WidgetInputEffect {
+  kind:
+    | "drives-options"
+    | "drives-default"
+    | "drives-value"
+    | "drives-validation"
+    | "drives-render";
+  sourcePath: string;
+  target:
+    | { kind: "schema-field"; id: string }
+    | { kind: "prop"; path: string }
+    | { kind: "render"; id: string };
+  description?: string;
+}
+
+export interface WidgetInputPortDefinition<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  id: string;
+  label: string;
+  accepts: WidgetContractId[];
+  description?: string;
+  required?: boolean;
+  cardinality?: "one" | "many";
+  effects?: WidgetInputEffect[];
+}
+
+export interface WidgetOutputResolverArgs<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  widgetId: string;
+  instanceId?: string;
+  props: TProps;
+  runtimeState?: Record<string, unknown>;
+}
+
+export interface WidgetOutputPortDefinition<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  id: string;
+  label: string;
+  contract: WidgetContractId;
+  description?: string;
+  resolveValue?: (args: WidgetOutputResolverArgs<TProps>) => unknown;
+}
+
+export interface WidgetIoDefinition<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  inputs?: WidgetInputPortDefinition<TProps>[];
+  outputs?: WidgetOutputPortDefinition<TProps>[];
+}
+
+export type WidgetInputResolutionStatus =
+  | "valid"
+  | "unbound"
+  | "missing-source"
+  | "missing-output"
+  | "contract-mismatch"
+  | "self-reference-blocked";
+
+export interface ResolvedWidgetInput {
+  inputId: string;
+  label: string;
+  status: WidgetInputResolutionStatus;
+  sourceWidgetId?: string;
+  sourceOutputId?: string;
+  contractId?: WidgetContractId;
+  binding?: WidgetPortBinding;
+  value?: unknown;
+  effects?: WidgetInputEffect[];
+}
+
+export type ResolvedWidgetInputs = Record<
+  string,
+  ResolvedWidgetInput | ResolvedWidgetInput[] | undefined
+>;
+
 export interface WidgetControllerArgs<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
   props: TProps;
   runtimeState?: Record<string, unknown>;
   instanceId?: string;
+  resolvedInputs?: ResolvedWidgetInputs;
   mode: "settings" | "canvas" | "render" | "preview";
 }
 
@@ -160,6 +251,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   headerActions?: ComponentType<WidgetHeaderActionsProps<TProps>>;
   settingsComponent?: ComponentType<WidgetSettingsComponentProps<TProps>>;
   showRawPropsEditor?: boolean;
+  io?: WidgetIoDefinition<TProps>;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;
@@ -182,10 +274,12 @@ export function defineWidget<TProps extends Record<string, unknown> = Record<str
 
 export interface WidgetComponentProps<TProps extends Record<string, unknown> = Record<string, unknown>> {
   widget: WidgetDefinition<TProps>;
+  instanceId?: string;
   props: TProps;
   instanceTitle?: string;
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
+  resolvedInputs?: ResolvedWidgetInputs;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
 }
 
@@ -217,6 +311,7 @@ export interface WidgetSettingsComponentProps<
   onDraftPropsChange: (props: TProps) => void;
   draftPresentation: WidgetInstancePresentation;
   onDraftPresentationChange: (presentation: WidgetInstancePresentation) => void;
+  resolvedInputs?: ResolvedWidgetInputs;
   controllerContext?: unknown;
   instanceTitle: string;
   onInstanceTitleChange: (title: string) => void;

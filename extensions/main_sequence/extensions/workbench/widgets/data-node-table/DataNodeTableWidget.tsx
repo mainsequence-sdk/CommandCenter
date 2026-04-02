@@ -292,11 +292,11 @@ function createTableCellStyle({
   }
 
   const tone = getColumnTone(numericValue, visualRange, tokens);
-  style.background = `linear-gradient(90deg, ${withAlpha(
+  style.backgroundColor = withAlpha(
     tone,
     getHeatmapAlpha(numericValue, visualRange),
-  )} 0%, ${withAlpha(tone, 0.03)} 100%)`;
-  style.boxShadow = `inset 1px 0 0 ${withAlpha(tone, 0.24)}`;
+  );
+  style.boxShadow = `inset 0 0 0 1px ${withAlpha(tone, 0.12)}`;
 
   return style;
 }
@@ -404,7 +404,7 @@ function DataNodeTableVisualizerCellRenderer({
   );
 }
 
-export function DataNodeTableWidget({ props }: Props) {
+export function DataNodeTableWidget({ props, instanceId }: Props) {
   const { rangeStartMs, rangeEndMs } = useDashboardControls();
   const { resolvedTokens, tightness } = useTheme();
   const tightnessMetrics = useMemo(() => getThemeTightnessMetrics(tightness), [tightness]);
@@ -434,6 +434,7 @@ export function DataNodeTableWidget({ props }: Props) {
   );
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
     props: sourceBindingProps,
+    currentWidgetInstanceId: instanceId,
   });
   const linkedFilterRuntime = useMemo(
     () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
@@ -601,7 +602,7 @@ export function DataNodeTableWidget({ props }: Props) {
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and point this table to a Data Node in the dashboard.
+            Open widget settings and use the Bindings tab to connect this table to a Data Node.
           </p>
         </div>
       </div>

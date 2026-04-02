@@ -28,14 +28,17 @@ import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNod
 
 type Props = WidgetComponentProps<MainSequenceDataNodeVisualizerWidgetProps>;
 
-export function MainSequenceDataNodeVisualizerWidget({ props, presentation }: Props) {
+export function MainSequenceDataNodeVisualizerWidget({ props, presentation, instanceId }: Props) {
   const { rangeStartMs, rangeEndMs } = useDashboardControls();
   const transparentSurface = resolveWidgetTransparentSurface(presentation);
   const normalizedProps = useMemo(
     () => normalizeDataNodeVisualizerProps(props),
     [props],
   );
-  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({ props: normalizedProps });
+  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
+    props: normalizedProps,
+    currentWidgetInstanceId: instanceId,
+  });
   const linkedFilterRuntime = useMemo(
     () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
     [sourceBinding.referencedFilterWidget?.runtimeState],
@@ -134,7 +137,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation }: Pr
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and point this graph to a Data Node in the dashboard.
+            Open widget settings and use the Bindings tab to connect this graph to a Data Node.
           </p>
         </div>
       </div>

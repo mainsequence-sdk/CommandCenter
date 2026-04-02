@@ -58,16 +58,18 @@ These flows are all part of one app surface, with instance state selected throug
 - Workspace labels are edited in settings as enter-to-add pills instead of a comma-separated text field.
 - Workspace settings also expose versioned JSON export/import for full workspace snapshots.
 - Widget runtime state can persist in the workspace model when a widget reports it through the shared widget contract.
+- Widget instances can now also persist canonical `bindings` separately from props. Binding changes
+  clear widget `runtimeState` by default because the upstream data shape has changed.
 - In canvas edit mode, widget instances expose shared chrome actions through one compact overflow
   menu instead of separate header buttons. Duplicated widgets receive a fresh instance id, keep
   their props/presentation, and drop runtime state so they republish from their own mounted lifecycle.
 - In canvas edit mode, widget cards keep the same header height as view mode; drag uses the existing header band and edit actions fade in without adding extra layout chrome.
 - Non-row widgets in `custom` can now resize all the way down to a single grid column and a single
   grid row. Row widgets keep their fixed full-width, fixed-height behavior.
-- Newly added widgets now spawn from a dedicated compact baseline instead of the historical
-  fine-grid migration scale. Existing saved layouts keep their persisted geometry, but fresh widget
-  instances start from a reduced width and an even smaller reduced height, with hard spawn caps, so
-  a single new card does not overwhelm a predefined dashboard.
+- Newly added non-row widgets now spawn from one shared workspace starter footprint instead of
+  deriving insert size from each widget definition. Existing saved layouts keep their persisted
+  geometry, but fresh widget instances now all start at the same baseline so empty widgets do not
+  appear collapsed just because their reusable definition has a smaller preferred size elsewhere.
 - Widget instances can hide their header in normal viewing, but the workspace canvas forces headers back on during edit mode so drag and settings controls remain available.
 - The workspace studio canvas now keeps one canonical `react-grid-layout` layout in both view and
   edit mode. Entering edit mode should not reshuffle cards; the only intended differences are edit
@@ -106,6 +108,10 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget definitions can set shared presentation defaults. `Data Node` now uses this to default new and existing instances into sidebar placement unless that instance explicitly saved a different placement.
 - The workspace settings dialog now also includes a remove action, so sidebar-only widgets remain deletable even when they do not render a normal on-canvas card with header chrome.
 - Widget settings in Workspaces no longer open in a modal. They now use a dedicated route-level view with a shared full-width settings panel and an explicit `Return to dashboard` action.
+- The dedicated widget settings page now also hosts a `Bindings` tab for widgets that declare
+  inputs. Binding UI is page-level on purpose so graph edges stay separate from raw props editing,
+  and each input now exposes explicit source-widget and source-output selectors instead of a single
+  flattened choice.
 - The dedicated workspace settings page now uses the same scrollable full-page container model as
   the widget settings view, so long workspace configuration pages can be reached fully.
 - Saving widget-instance settings updates only that instance's title/props/presentation and must

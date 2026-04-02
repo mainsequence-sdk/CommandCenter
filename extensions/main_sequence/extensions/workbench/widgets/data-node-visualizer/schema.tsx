@@ -150,20 +150,12 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
   MainSequenceDataNodeVisualizerWidgetProps,
   DataNodeVisualizerControllerContext
 >({
-  enableFilterWidgetSource: true,
+  enableFilterWidgetSource: false,
   filterWidgetOnly: true,
   dataNodeCanvasQueryScope: "data_node_graph_canvas",
-  dataSourceSectionDescription: "Point this chart at a Data Node that owns the canonical row dataset.",
-  mapDataNodeChange: (nextDataNodeId, currentProps) => ({
-    ...currentProps,
-    dataNodeId: nextDataNodeId,
-    xField: undefined,
-    yField: undefined,
-    groupField: undefined,
-    seriesOverrides: undefined,
-    uniqueIdentifierList: undefined,
-  }),
-  selectionHelpText: "Choose the table you want to visualize.",
+  dataSourceSectionDescription:
+    "Use the Bindings tab to connect this chart to a Data Node that owns the canonical row dataset.",
+  selectionHelpText: "Bind this chart to the Data Node you want to visualize.",
   additionalSections: [
     {
       id: "visualization",

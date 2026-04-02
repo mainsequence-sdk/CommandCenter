@@ -17,6 +17,10 @@ surfaces and the editable workspace studio.
 - `DashboardControls.tsx`: shared dashboard controls and time-range/refresh coordination.
 - `DashboardWidgetRegistry.tsx`: runtime widget-instance registry used for linked-widget
   composition.
+- `widget-dependencies.ts`: shared binding normalization, resolved-input resolution, and static
+  dependency-graph extraction.
+- `DashboardWidgetDependencies.tsx`: React provider/hooks layer that exposes resolved widget
+  inputs and dependency diagnostics on top of the raw widget registry.
 - `react-grid-layout-adapter.ts`: adapter utilities for the workspace studio's
   `react-grid-layout`-managed canvas. This file converts resolved dashboard widgets into RGL items,
   converts committed RGL layouts back into widget `position/layout`, and exposes the shared
@@ -56,6 +60,12 @@ surfaces and the editable workspace studio.
   geometry. Widget presentation still owns exposure/visibility, but committed companion placement
   lives in the dashboard model so both `custom` and `auto-grid` can treat companions as real
   canvas items.
+- Dashboard widget instances can now also carry canonical `bindings` separately from widget props.
+  This is the first-class graph-edge model for widget composition and should remain distinct from
+  widget-local configuration.
+- The dependency layer is intentionally separate from `DashboardWidgetRegistryProvider`. The raw
+  registry remains the mounted-widget index, while the dependency provider adds graph extraction,
+  canonical binding validation, and optional resolved inputs on top.
 - Auto grid now uses Grafana-style CSS Grid behavior. `maxColumns` is an upper bound, not a fixed
   reserved set of slots. The container uses `repeat(auto-fit, minmax(..., 1fr))`, so empty tracks
   collapse naturally:

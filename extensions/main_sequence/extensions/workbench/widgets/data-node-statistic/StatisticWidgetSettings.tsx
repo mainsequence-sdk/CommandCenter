@@ -83,10 +83,7 @@ export function StatisticWidgetSettings({
   onDraftPropsChange,
 }: WidgetSettingsComponentProps<MainSequenceDataNodeStatisticWidgetProps>) {
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
-    props: {
-      sourceMode: "filter_widget",
-      sourceWidgetId: draftProps.sourceWidgetId,
-    },
+    props: draftProps,
     currentWidgetInstanceId: instanceId,
   });
   const linkedDataset = useMemo(
@@ -151,28 +148,21 @@ export function StatisticWidgetSettings({
         </div>
 
         <div className={fieldClass}>
-          <label className={labelClass}>Data Node</label>
-          <PickerField
-            value={resolvedDraft.sourceWidgetId ?? ""}
-            onChange={(value) => {
-              onDraftPropsChange({
-                ...draftProps,
-                sourceMode: "filter_widget",
-                sourceWidgetId: value || undefined,
-                valueField: undefined,
-                groupField: undefined,
-                orderField: undefined,
-              });
-            }}
-            options={sourceBinding.filterWidgetOptions}
-            placeholder={
-              sourceBinding.filterWidgetOptions.length > 0
-                ? "Select a Data Node"
-                : "No Data Nodes are available"
-            }
-            emptyMessage="No Data Nodes are available in this dashboard."
-            disabled={!editable || sourceBinding.filterWidgetOptions.length === 0}
-          />
+          <label className={labelClass}>Source binding</label>
+          <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-3 text-sm text-muted-foreground">
+            {sourceBinding.referencedFilterWidget ? (
+              <>
+                <div className="font-medium text-foreground">
+                  {sourceBinding.referencedFilterWidget.title?.trim() || "Bound Data Node"}
+                </div>
+                <div className="mt-1">
+                  This statistic is consuming the published dataset from the selected Data Node widget.
+                </div>
+              </>
+            ) : (
+              "Use the Bindings tab to connect this statistic to a Data Node widget in the dashboard."
+            )}
+          </div>
         </div>
       </section>
 
@@ -219,7 +209,7 @@ export function StatisticWidgetSettings({
               placeholder={
                 fieldOptions.length > 0
                   ? "Select a field"
-                  : "Select a Data Node first"
+                  : "Bind a Data Node first"
               }
               emptyMessage="No source fields are available yet."
               disabled={!editable || fieldOptions.length === 0}
@@ -328,7 +318,7 @@ export function StatisticWidgetSettings({
         <div className={insetSectionClass}>
           {!sourceBinding.hasResolvedFilterWidgetSource ? (
             <div className="rounded-[calc(var(--radius)-8px)] border border-dashed border-border/70 bg-background/24 px-4 py-5 text-sm text-muted-foreground">
-              Select a Data Node in this dashboard to preview the statistic output.
+              Use the Bindings tab to connect this statistic to a Data Node in this dashboard.
             </div>
           ) : linkedDataset?.status === "loading" || linkedDataset == null ? (
             <div className="rounded-[calc(var(--radius)-8px)] border border-dashed border-border/70 bg-background/24 px-4 py-5 text-sm text-muted-foreground">

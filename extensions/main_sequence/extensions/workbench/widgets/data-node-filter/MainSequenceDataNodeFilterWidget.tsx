@@ -80,6 +80,7 @@ function collectRowKeys(rows: ReadonlyArray<Record<string, unknown>>) {
 
 export function MainSequenceDataNodeFilterWidget({
   props,
+  instanceId,
   runtimeState,
   onRuntimeStateChange,
 }: Props) {
@@ -93,6 +94,7 @@ export function MainSequenceDataNodeFilterWidget({
   );
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
     props: normalizedProps,
+    currentWidgetInstanceId: instanceId,
   });
   const linkedNodeRuntime = useMemo(
     () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),

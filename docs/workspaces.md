@@ -87,6 +87,7 @@ Each workspace is a dashboard-like model with:
 - grid config
 - shared dashboard controls state
 - widget instances and widget geometry
+- widget bindings when a widget instance declares first-class inputs
 
 The canvas uses a fine-grained grid and stores widget placement directly in the workspace model.
 `Custom` workspaces currently normalize onto one canonical dense manual grid: `48` columns,
@@ -99,6 +100,8 @@ width and height resize together from one corner.
 Labels are edited in workspace settings as pill chips with enter-to-add behavior.
 Widget runtime state can also be stored per instance when the widget reports it through the shared
 widget contract.
+Widget instances can also persist canonical `bindings` separately from props. Binding changes clear
+that widget's runtime state by default so stale upstream-derived caches do not survive rebinding.
 In canvas edit mode, widget cards keep the same header height as normal viewing, use the existing
 header area as the drag target, and reveal edit actions on hover instead of adding a separate move
 control.
@@ -106,6 +109,8 @@ Widget instances may hide their header during normal viewing, but the canvas for
 again in edit mode so widget controls remain reachable.
 Non-row widgets in `custom` can resize down to a single column and a single row; only row widgets
 keep the fixed full-width structural sizing rules.
+Freshly inserted non-row widgets now all start from one shared workspace footprint instead of
+deriving their starting geometry from each widget definition's `defaultSize`.
 The canvas `Components` browser supports large widget catalogs with search, category/kind/source
 filters, favorites, recent widgets, and grouped category browse when search is empty.
 If a workspace still contains a widget id that is no longer available in the current client build,
@@ -113,6 +118,10 @@ the canvas explains that the widget is a legacy/unavailable instance and offers 
 action.
 Workspace deletion from settings uses the app's destructive confirmation dialog. In backend mode,
 the workspace remains in the UI until the backend confirms the delete.
+The dedicated widget settings page now also hosts a `Bindings` tab for widgets that declare
+dependency inputs, so inter-widget edges are edited separately from normal settings rather than
+hidden in raw props JSON. The binding UI is explicit per input: users select both the upstream
+widget and the upstream output port, then see the final `output -> input` mapping directly.
 
 ## JSON Snapshots
 
@@ -126,6 +135,7 @@ The snapshot includes:
 - controls state
 - grid configuration
 - widget layout and props
+- widget bindings
 - widget runtime state when the widget supports it
 
 The current envelope is `mainsequence.workspace` version `1`.

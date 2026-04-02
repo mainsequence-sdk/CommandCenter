@@ -17,12 +17,10 @@ import { normalizeDataNodePublishedDataset } from "../data-node-shared/dataNodeP
 
 type Props = WidgetComponentProps<MainSequenceDataNodeStatisticWidgetProps>;
 
-export function StatisticWidget({ props }: Props) {
+export function StatisticWidget({ props, instanceId }: Props) {
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
-    props: {
-      sourceMode: "filter_widget",
-      sourceWidgetId: props.sourceWidgetId,
-    },
+    props,
+    currentWidgetInstanceId: instanceId,
   });
   const linkedDataset = useMemo(
     () => normalizeDataNodePublishedDataset(sourceBinding.referencedFilterWidget?.runtimeState),
@@ -54,7 +52,7 @@ export function StatisticWidget({ props }: Props) {
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and point this statistic to a Data Node in the dashboard.
+            Open widget settings and use the Bindings tab to connect this statistic to a Data Node.
           </p>
         </div>
       </div>

@@ -19,6 +19,7 @@ import {
   DashboardDataControls,
   DashboardRefreshProgressLine,
 } from "@/dashboards/DashboardControls";
+import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import {
@@ -141,6 +142,7 @@ function DashboardCanvasCompanionCard({
   onVisibilityChange: (itemId: string, visible: boolean) => void;
 }) {
   const context = useResolvedWidgetControllerContext(candidate.widget, {
+    instanceId: candidate.instanceId,
     props: candidate.props,
     runtimeState: candidate.runtimeState,
     mode: "canvas",
@@ -455,7 +457,8 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
   return (
     <DashboardControlsProvider key={dashboard.id} controls={dashboard.controls}>
       <DashboardWidgetRegistryProvider widgets={renderedWidgets}>
-        <div ref={canvasRef} className="relative">
+        <DashboardWidgetDependenciesProvider widgets={renderedWidgets}>
+          <div ref={canvasRef} className="relative">
           <DashboardRefreshProgressLine />
           <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
             {sidebarOnlyWidgetEntries.map(({ instance, widget }) => {
@@ -470,6 +473,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
               const Component = widget.component as ComponentType<{
                 widget: typeof widget;
+                instanceId?: string;
                 instanceTitle?: string;
                 props: Record<string, unknown>;
                 presentation?: WidgetInstancePresentation;
@@ -481,6 +485,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                 <div key={instance.id} className="h-px w-px overflow-hidden">
                   <Component
                     widget={widget}
+                    instanceId={instance.id}
                     instanceTitle={instance.title}
                     props={instance.props ?? {}}
                     presentation={instance.presentation}
@@ -638,6 +643,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
                     const Component = widget.component as ComponentType<{
                       widget: typeof widget;
+                      instanceId?: string;
                       instanceTitle?: string;
                       props: Record<string, unknown>;
                       presentation?: WidgetInstancePresentation;
@@ -688,6 +694,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                         >
                           <Component
                             widget={widget}
+                            instanceId={instance.id}
                             instanceTitle={instance.title}
                             props={instance.props ?? {}}
                             presentation={instance.presentation}
@@ -749,6 +756,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
                   const Component = widget.component as ComponentType<{
                     widget: typeof widget;
+                    instanceId?: string;
                     instanceTitle?: string;
                     props: Record<string, unknown>;
                     presentation?: WidgetInstancePresentation;
@@ -803,6 +811,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                         >
                           <Component
                             widget={widget}
+                            instanceId={instance.id}
                             instanceTitle={instance.title}
                             props={instance.props ?? {}}
                             presentation={instance.presentation}
@@ -903,7 +912,8 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
               )}
             </div>
           )}
-        </div>
+          </div>
+        </DashboardWidgetDependenciesProvider>
       </DashboardWidgetRegistryProvider>
     </DashboardControlsProvider>
   );

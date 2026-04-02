@@ -2,6 +2,8 @@ import { Calculator } from "lucide-react";
 
 import { defineWidget } from "@/widgets/types";
 
+import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../widget-contracts/mainSequenceDataSourceBundle";
+import { DATA_NODE_SOURCE_INPUT_ID } from "../data-node-shared/widgetBindings";
 import { StatisticWidget } from "./StatisticWidget";
 import { StatisticWidgetSettings } from "./StatisticWidgetSettings";
 import type { MainSequenceDataNodeStatisticWidgetProps } from "./statisticModel";
@@ -22,6 +24,36 @@ export const mainSequenceDataNodeStatisticWidget = defineWidget<MainSequenceData
   mockProps: {
     sourceMode: "filter_widget",
     statisticMode: "last",
+  },
+  io: {
+    inputs: [
+      {
+        id: DATA_NODE_SOURCE_INPUT_ID,
+        label: "Source data",
+        accepts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
+        required: true,
+        effects: [
+          {
+            kind: "drives-options",
+            sourcePath: "availableFields",
+            target: { kind: "prop", path: "valueField" },
+            description: "Upstream fields populate the value field choices.",
+          },
+          {
+            kind: "drives-options",
+            sourcePath: "availableFields",
+            target: { kind: "prop", path: "groupField" },
+            description: "Upstream fields populate grouping choices.",
+          },
+          {
+            kind: "drives-render",
+            sourcePath: "rows",
+            target: { kind: "render", id: "statistic-cards" },
+            description: "Incoming rows drive the statistic card output.",
+          },
+        ],
+      },
+    ],
   },
   railIcon: Calculator,
   settingsComponent: StatisticWidgetSettings,

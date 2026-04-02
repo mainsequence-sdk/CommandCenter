@@ -17,7 +17,7 @@ into the local grid frame it needs. The widget is intentionally configuration-he
 - prefixes and suffixes per column
 - value labels rendered as colored chips from explicit widget mappings
 - threshold rules such as `> 0`, `< -5`, or `> 80`
-- heatmap cell backgrounds controlled per column
+- heatmap cell backgrounds controlled per column as full-cell value tints, not directional bars
 - inline filled bars that can be enabled from the formatter on any column
 - ring gauges for numeric columns
 - surface toggles like density, toolbar, zebra rows, and pagination
@@ -90,8 +90,6 @@ an explicit schema-mismatch error instead of silently rendering a broken grid.
 
 The widget props are intentionally consumer-focused:
 
-- `sourceMode`
-- `sourceWidgetId`
 - `columns`
 - `rows`
 - `schema`
@@ -104,6 +102,8 @@ The widget props are intentionally consumer-focused:
 - `columnOverrides`
 - `valueLabels`
 - `conditionalRules`
+
+The upstream source is now selected through canonical widget `bindings`, not through widget props.
 
 `columns` and `rows` remain the primary local grid contract after the live published rows are
 adapted. The widget assumes tabular frame data shaped like:
@@ -142,6 +142,11 @@ Heatmaps, data bars, and gauges all read from the same numeric-bounds contract:
 
 - `Auto bounds`: derive min/max from the current live column values
 - `Fixed bounds`: use instance-owned `min` / `max` values instead
+
+Heatmap mode is intentionally distinct from data bars:
+
+- `Heatmap`: the whole cell background is tinted by normalized value intensity
+- `Data bar`: width encodes normalized magnitude inside the cell
 
 The settings UI and resolved renderer both follow that effective format instead of hardcoding
 source-schema assumptions.

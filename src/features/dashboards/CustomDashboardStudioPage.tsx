@@ -56,6 +56,7 @@ import {
   DashboardDataControls,
   DashboardRefreshProgressLine,
 } from "@/dashboards/DashboardControls";
+import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import {
   resolveDashboardCanvasCompanionCandidates,
@@ -718,6 +719,7 @@ function WorkspaceWidgetRail({
           widget.railSummaryComponent as
             | ComponentType<{
                 title: string;
+                instanceId?: string;
                 props: Record<string, unknown>;
                 presentation?: WidgetInstancePresentation;
                 runtimeState?: Record<string, unknown>;
@@ -727,6 +729,7 @@ function WorkspaceWidgetRail({
         const summaryContent = RailSummary ? (
           <RailSummary
             title={displayTitle}
+            instanceId={id}
             props={(props ?? {}) as Record<string, unknown>}
             presentation={presentation}
             runtimeState={runtimeState}
@@ -1099,6 +1102,7 @@ function GridCompanionCard({
   onVisibilityChange: (itemId: string, visible: boolean) => void;
 }) {
   const context = useResolvedWidgetControllerContext(candidate.widget, {
+    instanceId: candidate.instanceId,
     props: candidate.props,
     runtimeState: candidate.runtimeState,
     mode: "canvas",
@@ -1305,6 +1309,7 @@ function BuilderWidgetCard({
 }) {
   const Component = widget.component as ComponentType<{
     widget: typeof widget;
+    instanceId?: string;
     instanceTitle?: string;
     props: Record<string, unknown>;
     presentation?: WidgetInstancePresentation;
@@ -1383,6 +1388,7 @@ function BuilderWidgetCard({
       {renderCanvasFields ? (
         <WidgetCanvasControls
           widget={widget}
+          instanceId={instanceId}
           props={widgetProps}
           presentation={widgetPresentation}
           runtimeState={widgetRuntimeState}
@@ -1501,6 +1507,7 @@ function BuilderWidgetCard({
         >
           <Component
             widget={widget}
+            instanceId={instanceId}
             instanceTitle={instanceTitle}
             props={widgetRenderProps}
             presentation={widgetPresentation}
@@ -2751,19 +2758,20 @@ export function CustomDashboardStudioPage() {
       }}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
-        <div
-          className="relative h-full min-h-full overflow-hidden"
-          style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
-        >
-        <DashboardRefreshProgressLine />
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{ backgroundImage: "var(--workspace-canvas-background)" }}
-        />
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
-        />
+        <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+          <div
+            className="relative h-full min-h-full overflow-hidden"
+            style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
+          >
+            <DashboardRefreshProgressLine />
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{ backgroundImage: "var(--workspace-canvas-background)" }}
+            />
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
+            />
 
         <WorkspaceWidgetRail
           widgets={railWidgets}
@@ -2795,6 +2803,7 @@ export function CustomDashboardStudioPage() {
 
             const Component = widget.component as ComponentType<{
               widget: typeof widget;
+              instanceId?: string;
               instanceTitle?: string;
               props: Record<string, unknown>;
               presentation?: WidgetInstancePresentation;
@@ -2806,6 +2815,7 @@ export function CustomDashboardStudioPage() {
               <div key={instance.id} className="h-px w-px overflow-hidden">
                 <Component
                   widget={widget}
+                  instanceId={instance.id}
                   instanceTitle={instance.title}
                   props={instance.props ?? {}}
                   presentation={instance.presentation}
@@ -3175,6 +3185,7 @@ export function CustomDashboardStudioPage() {
                     <WidgetCanvasControls
                       key={instance.id}
                       widget={widget}
+                      instanceId={instance.id}
                       props={(instance.props ?? {}) as Record<string, unknown>}
                       presentation={instance.presentation}
                       runtimeState={instance.runtimeState}
@@ -3426,8 +3437,9 @@ export function CustomDashboardStudioPage() {
               </div>
             </div>
           </div>
-        ) : null}
-        </div>
+            ) : null}
+          </div>
+        </DashboardWidgetDependenciesProvider>
       </DashboardWidgetRegistryProvider>
     </DashboardControlsProvider>
   );

@@ -6,9 +6,9 @@ export const dataNodeFilterSettingsSchema = createDataNodeWidgetSourceSettingsSc
   MainSequenceDataNodeFilterWidgetProps,
   DataNodeFilterControllerContext
 >({
-  enableFilterWidgetSource: true,
+  enableFilterWidgetSource: false,
   dataNodeCanvasQueryScope: "data_node_filter_canvas",
   dataSourceSectionDescription:
-    "Pick a direct data node or another Data Node to use as the input dataset.",
-  selectionHelpText: "Choose the table you want to inspect.",
+    "Pick the direct data node this widget should query when it is not bound to another widget.",
+  selectionHelpText: "Choose the data node this widget should inspect directly.",
 });

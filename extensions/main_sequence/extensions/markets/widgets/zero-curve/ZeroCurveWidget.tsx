@@ -344,7 +344,7 @@ function buildZeroCurveChartOption({
   };
 }
 
-export function ZeroCurveWidget({ props }: Props) {
+export function ZeroCurveWidget({ props, instanceId }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { resolvedTokens } = useTheme();
 
@@ -352,7 +352,10 @@ export function ZeroCurveWidget({ props }: Props) {
     () => normalizeZeroCurveProps(props),
     [props],
   );
-  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({ props: normalizedProps });
+  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
+    props: normalizedProps,
+    currentWidgetInstanceId: instanceId,
+  });
   const linkedFilterRuntime = useMemo(
     () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
     [sourceBinding.referencedFilterWidget?.runtimeState],
@@ -489,7 +492,7 @@ export function ZeroCurveWidget({ props }: Props) {
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and point this zero curve widget to a Data Node widget in the dashboard.
+            Open widget settings and use the Bindings tab to connect this zero curve widget to a Data Node widget.
           </p>
         </div>
       </div>
