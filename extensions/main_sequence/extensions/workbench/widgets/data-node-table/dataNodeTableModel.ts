@@ -1002,6 +1002,10 @@ export function resolveDataNodeTableVisualizerColumns(
         effectiveFormat !== "text"
           ? ((override.gradientMode ?? ((override.heatmap ?? false) ? "fill" : "none")) as DataNodeTableVisualizerGradientMode)
           : "none",
+      heatmapPalette:
+        effectiveFormat !== "text"
+          ? (override.heatmapPalette ?? "auto")
+          : "auto",
       gaugeMode: effectiveFormat !== "text" ? (override.gaugeMode ?? "none") : "none",
       visualRangeMode: override.visualRangeMode ?? "auto",
       visualMin:
@@ -1281,6 +1285,21 @@ export const dataNodeTableVisualizerGradientModeOptions: Array<{
 }> = [
   { value: "none", label: "None" },
   { value: "fill", label: "Gradient fill" },
+];
+
+export const dataNodeTableVisualizerHeatmapPaletteOptions: Array<{
+  value: DataNodeTableVisualizerHeatmapPalette;
+  label: string;
+}> = [
+  { value: "auto", label: "Auto" },
+  { value: "viridis", label: "Viridis" },
+  { value: "plasma", label: "Plasma" },
+  { value: "inferno", label: "Inferno" },
+  { value: "magma", label: "Magma" },
+  { value: "turbo", label: "Turbo" },
+  { value: "jet", label: "Jet" },
+  { value: "blue-white-red", label: "Blue-White-Red" },
+  { value: "red-yellow-green", label: "Red-Yellow-Green" },
 ];
 
 export const dataNodeTableVisualizerGaugeModeOptions: Array<{

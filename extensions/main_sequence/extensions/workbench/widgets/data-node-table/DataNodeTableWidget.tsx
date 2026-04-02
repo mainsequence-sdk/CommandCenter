@@ -72,6 +72,141 @@ function clamp(value: number, minimum = 0, maximum = 1) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+function parseHexColor(hex: string) {
+  const normalized = hex.trim().replace("#", "");
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((char) => `${char}${char}`)
+          .join("")
+      : normalized;
+
+  if (expanded.length !== 6) {
+    return null;
+  }
+
+  const value = Number.parseInt(expanded, 16);
+
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  return {
+    r: (value >> 16) & 0xff,
+    g: (value >> 8) & 0xff,
+    b: value & 0xff,
+  };
+}
+
+function toHexColor({
+  r,
+  g,
+  b,
+}: {
+  r: number;
+  g: number;
+  b: number;
+}) {
+  const encode = (value: number) =>
+    Math.round(clamp(value, 0, 255)).toString(16).padStart(2, "0");
+
+  return `#${encode(r)}${encode(g)}${encode(b)}`;
+}
+
+function interpolateHexColor(left: string, right: string, ratio: number) {
+  const leftColor = parseHexColor(left);
+  const rightColor = parseHexColor(right);
+
+  if (!leftColor || !rightColor) {
+    return left;
+  }
+
+  const normalizedRatio = clamp(ratio);
+
+  return toHexColor({
+    r: leftColor.r + (rightColor.r - leftColor.r) * normalizedRatio,
+    g: leftColor.g + (rightColor.g - leftColor.g) * normalizedRatio,
+    b: leftColor.b + (rightColor.b - leftColor.b) * normalizedRatio,
+  });
+}
+
+function getHeatmapPaletteStops(
+  palette: ResolvedDataNodeTableVisualizerColumnConfig["heatmapPalette"],
+) {
+  switch (palette) {
+    case "viridis":
+      return ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"];
+    case "plasma":
+      return ["#0d0887", "#7e03a8", "#cc4778", "#f89441", "#f0f921"];
+    case "inferno":
+      return ["#000004", "#420a68", "#932667", "#dd513a", "#fca50a", "#fcffa4"];
+    case "magma":
+      return ["#000004", "#3b0f70", "#8c2981", "#de4968", "#fe9f6d", "#fcfdbf"];
+    case "turbo":
+      return ["#30123b", "#4675ed", "#1bcfd4", "#61fc6c", "#d1e834", "#fe9b2d", "#c52702"];
+    case "jet":
+      return ["#00008f", "#005bff", "#00d4ff", "#7dff7a", "#ffe600", "#ff7d00", "#800000"];
+    case "blue-white-red":
+      return ["#2166ac", "#67a9cf", "#f7f7f7", "#ef8a62", "#b2182b"];
+    case "red-yellow-green":
+      return ["#a50026", "#f46d43", "#fee08b", "#a6d96a", "#1a9850"];
+    case "auto":
+    default:
+      return ["#2166ac", "#67a9cf", "#f7f7f7", "#ef8a62", "#b2182b"];
+  }
+}
+
+function getInterpolatedPaletteColor(stops: string[], ratio: number) {
+  if (stops.length === 0) {
+    return "#000000";
+  }
+
+  if (stops.length === 1) {
+    return stops[0]!;
+  }
+
+  const normalizedRatio = clamp(ratio);
+  const scaled = normalizedRatio * (stops.length - 1);
+  const lowerIndex = Math.floor(scaled);
+  const upperIndex = Math.min(stops.length - 1, lowerIndex + 1);
+  const localRatio = scaled - lowerIndex;
+
+  return interpolateHexColor(stops[lowerIndex]!, stops[upperIndex]!, localRatio);
+}
+
+function getHeatmapNormalizedRatio(numericValue: number, range: ColumnRange) {
+  if (!range) {
+    return 0.5;
+  }
+
+  if (range.min === range.max) {
+    return 1;
+  }
+
+  return clamp((numericValue - range.min) / (range.max - range.min));
+}
+
+function getHeatmapBackgroundAlpha(
+  numericValue: number,
+  range: ColumnRange,
+) {
+  if (!range) {
+    return 0.28;
+  }
+
+  if (range.min === range.max) {
+    return 0.58;
+  }
+
+  if (range.min < 0 && range.max > 0) {
+    const maxAbs = Math.max(Math.abs(range.min), Math.abs(range.max), 1);
+    return 0.18 + clamp(Math.abs(numericValue) / maxAbs) * 0.44;
+  }
+
+  return 0.18 + getHeatmapNormalizedRatio(numericValue, range) * 0.44;
+}
+
 function getColumnTone(
   numericValue: number,
   range: ColumnRange,
@@ -86,23 +221,6 @@ function getColumnTone(
   }
 
   return numericValue >= 0 ? tokens.primary : tokens.warning;
-}
-
-function getHeatmapAlpha(numericValue: number, range: ColumnRange) {
-  if (!range) {
-    return 0.12;
-  }
-
-  if (range.min === range.max) {
-    return 0.18;
-  }
-
-  if (range.min < 0 && range.max > 0) {
-    const maxAbs = Math.max(Math.abs(range.min), Math.abs(range.max), 1);
-    return 0.08 + clamp(Math.abs(numericValue) / maxAbs) * 0.2;
-  }
-
-  return 0.08 + clamp((numericValue - range.min) / (range.max - range.min)) * 0.2;
 }
 
 function getBarFillRatio(numericValue: number, range: ColumnRange) {
@@ -291,12 +409,22 @@ function createTableCellStyle({
     return style;
   }
 
-  const tone = getColumnTone(numericValue, visualRange, tokens);
-  style.backgroundColor = withAlpha(
-    tone,
-    getHeatmapAlpha(numericValue, visualRange),
+  const effectivePalette =
+    columnConfig.heatmapPalette === "auto"
+      ? (visualRange && visualRange.min < 0 && visualRange.max > 0
+          ? "blue-white-red"
+          : "viridis")
+      : columnConfig.heatmapPalette;
+  const heatmapColor = getInterpolatedPaletteColor(
+    getHeatmapPaletteStops(effectivePalette),
+    getHeatmapNormalizedRatio(numericValue, visualRange),
   );
-  style.boxShadow = `inset 0 0 0 1px ${withAlpha(tone, 0.12)}`;
+
+  style.backgroundColor = withAlpha(
+    heatmapColor,
+    getHeatmapBackgroundAlpha(numericValue, visualRange),
+  );
+  style.boxShadow = `inset 0 0 0 1px ${withAlpha(heatmapColor, 0.18)}`;
 
   return style;
 }

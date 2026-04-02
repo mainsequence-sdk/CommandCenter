@@ -98,6 +98,10 @@ Implemented:
 - Corrected `Data Node Table` heatmap rendering so heatmap columns now tint the full cell by
   normalized value intensity instead of drawing a left-to-right gradient that visually behaved more
   like a decorative bar than a real heat map.
+- Extended `Data Node Table` heatmaps with real palette choices. Heatmap columns can now use
+  explicit ramps like `Jet`, `Turbo`, `Viridis`, `Plasma`, `Inferno`, `Magma`,
+  `Blue-White-Red`, and `Red-Yellow-Green`, while `Auto` defaults to a diverging palette for
+  mixed-sign columns and `Viridis` for sequential columns.
 
 Still missing:
 - Keep `Data Node` sidebar-only by product decision. Do not remove its effective compact/sidebar policy from the workspace model.

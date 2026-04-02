@@ -44,6 +44,7 @@ import {
   dataNodeTableVisualizerFormatOptions,
   dataNodeTableVisualizerGaugeModeOptions,
   dataNodeTableVisualizerGradientModeOptions,
+  dataNodeTableVisualizerHeatmapPaletteOptions,
   dataNodeTableVisualizerOperatorOptions,
   dataNodeTableVisualizerPinnedOptions,
   dataNodeTableVisualizerRangeModeOptions,
@@ -125,6 +126,10 @@ function normalizeColumnOverride(override: DataNodeTableVisualizerColumnOverride
 
   if (override.gradientMode) {
     nextValue.gradientMode = override.gradientMode;
+  }
+
+  if (override.heatmapPalette) {
+    nextValue.heatmapPalette = override.heatmapPalette;
   }
 
   if (override.gaugeMode) {
@@ -1047,6 +1052,33 @@ export function DataNodeTableWidgetSettings({
                       }}
                     >
                       {dataNodeTableVisualizerGradientModeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  <div className={fieldClass}>
+                    <label className={labelClass}>
+                      Heatmap palette
+                    </label>
+                    <Select
+                      className={selectClass}
+                      value={override.heatmapPalette ?? "auto"}
+                      disabled={
+                        !editable ||
+                        column.format === "text" ||
+                        (override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none"
+                      }
+                      onChange={(event) => {
+                        updateColumnOverride(column.key, (current) => ({
+                          ...current,
+                          heatmapPalette: event.target.value as DataNodeTableVisualizerColumnOverride["heatmapPalette"],
+                        }));
+                      }}
+                    >
+                      {dataNodeTableVisualizerHeatmapPaletteOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>

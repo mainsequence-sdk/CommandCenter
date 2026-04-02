@@ -17,7 +17,8 @@ into the local grid frame it needs. The widget is intentionally configuration-he
 - prefixes and suffixes per column
 - value labels rendered as colored chips from explicit widget mappings
 - threshold rules such as `> 0`, `< -5`, or `> 80`
-- heatmap cell backgrounds controlled per column as full-cell value tints, not directional bars
+- heatmap cell backgrounds controlled per column as full-cell value tints using proper palettes
+  such as Viridis, Plasma, Turbo, Jet, and diverging ramps
 - inline filled bars that can be enabled from the formatter on any column
 - ring gauges for numeric columns
 - surface toggles like density, toolbar, zebra rows, and pagination
@@ -145,8 +146,15 @@ Heatmaps, data bars, and gauges all read from the same numeric-bounds contract:
 
 Heatmap mode is intentionally distinct from data bars:
 
-- `Heatmap`: the whole cell background is tinted by normalized value intensity
+- `Heatmap`: the whole cell background is tinted by normalized value intensity using a selected
+  palette
 - `Data bar`: width encodes normalized magnitude inside the cell
+
+Heatmap palettes now support:
+
+- `Auto`: diverging `Blue-White-Red` for mixed-sign columns, `Viridis` otherwise
+- explicit palettes like `Jet`, `Turbo`, `Viridis`, `Plasma`, `Inferno`, `Magma`,
+  `Blue-White-Red`, and `Red-Yellow-Green`
 
 The settings UI and resolved renderer both follow that effective format instead of hardcoding
 source-schema assumptions.
