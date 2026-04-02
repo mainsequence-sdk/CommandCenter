@@ -52,6 +52,14 @@ to backend persistence instead:
 - `workspaces.list_url`
 - `workspaces.detail_url`
 
+When users authenticate against a live backend, the client also pushes the current frontend widget
+catalog to:
+
+- `widget_types.sync_url`
+
+That sync happens once per authenticated browser session, before normal workspace editing needs to
+save widget instances back to the backend.
+
 Blank, `null`, or `None` values keep the browser-local fallback active.
 
 The main persistence code lives in:
@@ -97,9 +105,9 @@ Each workspace is a dashboard-like model with:
 
 The persisted workspace document stores widget instances only. Widget definitions such as title,
 description, category, settings schema, and IO/binding contracts still come from the runtime widget
-registry. A production backend that wants richer widget explanations, validation, or CLI-driven
-workspace creation should model that widget catalog separately instead of expecting `workspace.widgets`
-to carry full type metadata.
+registry. The client now syncs that widget catalog separately on authenticated session startup so a
+production backend can validate `widgetId` references without expecting `workspace.widgets` to
+carry full type metadata.
 The current backend adapter also still saves selected control values and widget `runtimeState`
 inside the main workspace document because it does not yet have separate `WorkspaceUserState`
 endpoints.

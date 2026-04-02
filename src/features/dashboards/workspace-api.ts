@@ -545,6 +545,59 @@ function readErrorMessage(payload: unknown) {
     return "";
   }
 
+  const messages: string[] = [];
+
+  function appendMessage(rawMessage: string, path: string[]) {
+    const message = rawMessage.trim();
+
+    if (!message) {
+      return;
+    }
+
+    if (path.length === 0) {
+      messages.push(message);
+      return;
+    }
+
+    messages.push(`${path.join(".")}: ${message}`);
+  }
+
+  function visit(value: unknown, path: string[]) {
+    if (typeof value === "string") {
+      appendMessage(value, path);
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) => {
+        const nextPath =
+          typeof entry === "string" && path.length > 0 ? path : [...path, String(index)];
+        visit(entry, nextPath);
+      });
+      return;
+    }
+
+    if (!isRecord(value)) {
+      return;
+    }
+
+    Object.entries(value).forEach(([key, entry]) => {
+      visit(entry, [...path, key]);
+    });
+  }
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (key === "detail" && typeof value === "string") {
+      return;
+    }
+
+    visit(value, [key]);
+  });
+
+  if (messages.length > 0) {
+    return messages.join(" | ");
+  }
+
   const detail = payload.detail;
   if (typeof detail === "string" && detail.trim()) {
     return detail.trim();

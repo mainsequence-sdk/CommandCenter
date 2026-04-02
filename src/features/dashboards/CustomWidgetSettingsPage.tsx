@@ -58,11 +58,26 @@ function buildWidgetSettingsDraftState(
   };
 }
 
+function shouldRepairAppComponentBindingSpec(props: AppComponentWidgetProps) {
+  const bindingSpec = props.bindingSpec;
+
+  return Boolean(
+    !bindingSpec ||
+      bindingSpec.responsePorts.length === 0 ||
+      bindingSpec.responsePorts.some(
+        (port) =>
+          !port.valueDescriptor ||
+          port.valueDescriptor.kind === "unknown" ||
+          port.valueDescriptor.contract !== port.contract,
+      ),
+  );
+}
+
 export function CustomWidgetSettingsPage() {
   const {
     user,
     permissions,
-    selectedWorkspaceDirty,
+    savedCollection,
     isSaving,
     persistenceMode,
     requestedWidgetId,
@@ -142,7 +157,7 @@ export function CustomWidgetSettingsPage() {
         normalizedProps.apiBaseUrl &&
           normalizedProps.method &&
           normalizedProps.path &&
-          !normalizedProps.bindingSpec,
+          shouldRepairAppComponentBindingSpec(normalizedProps),
       );
     });
 
@@ -242,6 +257,20 @@ export function CustomWidgetSettingsPage() {
 
   const effectiveDraftState =
     instance && widget ? draftState ?? buildWidgetSettingsDraftState(instance, widget) : null;
+  const savedSelectedDashboardForPage = useMemo(
+    () =>
+      selectedDashboard
+        ? (savedCollection.dashboards.find((dashboard) => dashboard.id === selectedDashboard.id) ??
+          null)
+        : null,
+    [savedCollection.dashboards, selectedDashboard],
+  );
+  const selectedWorkspaceSettingsDirty = useMemo(
+    () =>
+      JSON.stringify(selectedDashboard ?? null) !==
+      JSON.stringify(savedSelectedDashboardForPage ?? null),
+    [savedSelectedDashboardForPage, selectedDashboard],
+  );
   const bindingPreviewInstance = useMemo(
     () =>
       instance && effectiveDraftState
@@ -372,14 +401,14 @@ export function CustomWidgetSettingsPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {selectedWorkspaceDirty ? (
+                    {selectedWorkspaceSettingsDirty ? (
                       <Badge variant="warning">Unsaved workspace draft</Badge>
                     ) : (
                       <Badge variant="success">Workspace saved</Badge>
                     )}
                     <Button
                       onClick={() => void saveWorkspaceDraft()}
-                      disabled={isSaving || !selectedWorkspaceDirty}
+                      disabled={isSaving || !selectedWorkspaceSettingsDirty}
                     >
                       <Save className="h-4 w-4" />
                       Save workspace

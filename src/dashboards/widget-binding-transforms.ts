@@ -159,6 +159,8 @@ export interface WidgetValuePathOption {
   contractId: WidgetContractId;
   valueDescriptor: WidgetValueDescriptor;
   description?: string;
+  required?: boolean;
+  depth: number;
 }
 
 export function listWidgetValueDescriptorPaths(
@@ -184,6 +186,8 @@ export function listWidgetValueDescriptorPaths(
       contractId: field.value.contract,
       valueDescriptor: field.value,
       description: field.description ?? field.value.description,
+      required: field.required === true,
+      depth: nextPath.length - 1,
     };
 
     if (field.value.kind !== "object") {
@@ -221,7 +225,7 @@ export function applyWidgetBindingTransform(
     return {
       status: "valid",
       value: source.value,
-      contractId: source.contractId,
+      contractId: baseDescriptor.contract,
       valueDescriptor: baseDescriptor,
     };
   }

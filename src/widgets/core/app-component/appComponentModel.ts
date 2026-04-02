@@ -1,6 +1,7 @@
 import type {
   ResolvedWidgetInputs,
   WidgetContractId,
+  WidgetInputResolutionStatus,
   WidgetValueDescriptor,
 } from "@/widgets/types";
 import { titleCase } from "@/lib/utils";
@@ -254,6 +255,15 @@ export interface BuildAppComponentRequestResult {
   request?: BuiltAppComponentRequest;
 }
 
+export interface AppComponentFieldBindingState {
+  fieldKey: string;
+  isBound: boolean;
+  status: WidgetInputResolutionStatus | "unbound";
+  sourceWidgetId?: string;
+  sourceOutputId?: string;
+  value?: unknown;
+}
+
 const supportedHttpMethods: AppComponentHttpMethod[] = [
   "get",
   "post",
@@ -329,6 +339,18 @@ function resolveLocalOpenApiRef<T>(document: OpenApiDocument, ref: string): T | 
   return current as T | undefined;
 }
 
+function isNullOnlyOpenApiSchema(schema?: OpenApiSchema) {
+  if (!schema) {
+    return false;
+  }
+
+  if (schema.type === "null") {
+    return true;
+  }
+
+  return Array.isArray(schema.enum) && schema.enum.length > 0 && schema.enum.every((entry) => entry === null);
+}
+
 function resolveOpenApiSchema(
   document: OpenApiDocument,
   input?: OpenApiSchema | OpenApiReference,
@@ -357,43 +379,75 @@ function resolveOpenApiSchema(
     return undefined;
   }
 
-  if (!Array.isArray(schema.allOf) || schema.allOf.length === 0) {
-    return schema;
+  const merged =
+    Array.isArray(schema.allOf) && schema.allOf.length > 0
+      ? (() => {
+          const nextMerged: OpenApiSchema = {
+            ...schema,
+            allOf: undefined,
+            properties: { ...(schema.properties ?? {}) },
+            required: [...(schema.required ?? [])],
+          };
+
+          for (const entry of schema.allOf) {
+            const part = resolveOpenApiSchema(document, entry, new Set(seenRefs));
+
+            if (!part) {
+              continue;
+            }
+
+            nextMerged.type = nextMerged.type ?? part.type;
+            nextMerged.format = nextMerged.format ?? part.format;
+            nextMerged.title = nextMerged.title ?? part.title;
+            nextMerged.description = nextMerged.description ?? part.description;
+            nextMerged.default = nextMerged.default ?? part.default;
+            nextMerged.example = nextMerged.example ?? part.example;
+            nextMerged.enum = nextMerged.enum ?? part.enum;
+            nextMerged.items = nextMerged.items ?? part.items;
+            nextMerged.additionalProperties =
+              nextMerged.additionalProperties ?? part.additionalProperties;
+            nextMerged.oneOf = nextMerged.oneOf ?? part.oneOf;
+            nextMerged.anyOf = nextMerged.anyOf ?? part.anyOf;
+            nextMerged.properties = {
+              ...(nextMerged.properties ?? {}),
+              ...(part.properties ?? {}),
+            };
+            nextMerged.required = Array.from(
+              new Set([...(nextMerged.required ?? []), ...(part.required ?? [])]),
+            );
+          }
+
+          return nextMerged;
+        })()
+      : schema;
+
+  const unionEntries = merged.oneOf ?? merged.anyOf;
+
+  if (!Array.isArray(unionEntries) || unionEntries.length === 0) {
+    return merged;
   }
 
-  const merged: OpenApiSchema = {
-    ...schema,
-    allOf: undefined,
-    properties: { ...(schema.properties ?? {}) },
-    required: [...(schema.required ?? [])],
-  };
-
-  for (const entry of schema.allOf) {
+  const resolvedUnionEntries = unionEntries.flatMap((entry) => {
     const part = resolveOpenApiSchema(document, entry, new Set(seenRefs));
+    return part ? [part] : [];
+  });
+  const nonNullUnionEntries = resolvedUnionEntries.filter((entry) => !isNullOnlyOpenApiSchema(entry));
 
-    if (!part) {
-      continue;
-    }
-
-    merged.type = merged.type ?? part.type;
-    merged.format = merged.format ?? part.format;
-    merged.title = merged.title ?? part.title;
-    merged.description = merged.description ?? part.description;
-    merged.default = merged.default ?? part.default;
-    merged.example = merged.example ?? part.example;
-    merged.enum = merged.enum ?? part.enum;
-    merged.items = merged.items ?? part.items;
-    merged.additionalProperties = merged.additionalProperties ?? part.additionalProperties;
-    merged.oneOf = merged.oneOf ?? part.oneOf;
-    merged.anyOf = merged.anyOf ?? part.anyOf;
-    merged.properties = {
-      ...(merged.properties ?? {}),
-      ...(part.properties ?? {}),
-    };
-    merged.required = Array.from(new Set([...(merged.required ?? []), ...(part.required ?? [])]));
+  if (nonNullUnionEntries.length !== 1) {
+    return merged;
   }
 
-  return merged;
+  const candidate = nonNullUnionEntries[0];
+
+  return {
+    ...candidate,
+    title: merged.title ?? candidate.title,
+    description: merged.description ?? candidate.description,
+    default: merged.default ?? candidate.default,
+    example: merged.example ?? candidate.example,
+    nullable:
+      merged.nullable === true || resolvedUnionEntries.length !== nonNullUnionEntries.length,
+  };
 }
 
 function resolveOpenApiParameter(
@@ -477,6 +531,8 @@ function resolveFieldKind(schema?: OpenApiSchema): AppComponentGeneratedFieldKin
     return "json";
   }
 
+  const seedValue = schema.default ?? schema.example;
+
   if (
     Array.isArray(schema.enum) &&
     schema.enum.length > 0 &&
@@ -502,15 +558,27 @@ function resolveFieldKind(schema?: OpenApiSchema): AppComponentGeneratedFieldKin
     return "number";
   }
 
-  if (schema.type === "string" && schema.format === "date") {
+  if (schema.format === "date") {
     return "date";
   }
 
-  if (schema.type === "string" && schema.format === "date-time") {
+  if (schema.format === "date-time") {
     return "date-time";
   }
 
   if (schema.type === "string") {
+    return "string";
+  }
+
+  if (typeof seedValue === "boolean") {
+    return "boolean";
+  }
+
+  if (typeof seedValue === "number") {
+    return Number.isInteger(seedValue) ? "integer" : "number";
+  }
+
+  if (typeof seedValue === "string") {
     return "string";
   }
 
@@ -2413,15 +2481,21 @@ export function resolveAppComponentBoundInputOverlay(
       : resolvedEntry
         ? [resolvedEntry]
         : [];
+    const firstBoundEntry = resolvedValues.find(
+      (entry) => entry.binding || entry.status !== "unbound",
+    );
     const firstValidValue = resolvedValues.find(
       (entry) => entry.status === "valid" && entry.value !== undefined,
     );
+
+    if (firstBoundEntry) {
+      boundFieldKeys.add(field.key);
+    }
 
     if (!firstValidValue) {
       continue;
     }
 
-    boundFieldKeys.add(field.key);
     nextValues[field.key] = serializeAppComponentBoundFieldValue(field, firstValidValue.value);
   }
 
@@ -2429,6 +2503,55 @@ export function resolveAppComponentBoundInputOverlay(
     values: nextValues,
     boundFieldKeys,
   };
+}
+
+export function resolveAppComponentFieldBindingStates(
+  form: AppComponentGeneratedForm | null,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+): Record<string, AppComponentFieldBindingState> {
+  if (!form || !resolvedInputs) {
+    return {};
+  }
+
+  const candidateFields = [
+    ...form.parameterFields,
+    ...(form.bodyMode === "generated" ? form.bodyFields : []),
+    ...(form.bodyMode === "raw" && form.bodyRawField ? [form.bodyRawField] : []),
+  ];
+
+  return Object.fromEntries(
+    candidateFields.map((field) => {
+      const resolvedEntry = resolvedInputs[field.key];
+      const resolvedValues = Array.isArray(resolvedEntry)
+        ? resolvedEntry
+        : resolvedEntry
+          ? [resolvedEntry]
+          : [];
+      const firstBoundEntry = resolvedValues.find(
+        (entry) => entry.binding || entry.status !== "unbound",
+      );
+      const firstValidValue = resolvedValues.find(
+        (entry) => entry.status === "valid" && entry.value !== undefined,
+      );
+
+      if (!firstBoundEntry) {
+        return [field.key, {
+          fieldKey: field.key,
+          isBound: false,
+          status: "unbound",
+        } satisfies AppComponentFieldBindingState] as const;
+      }
+
+      return [field.key, {
+        fieldKey: field.key,
+        isBound: true,
+        status: firstBoundEntry.status,
+        sourceWidgetId: firstBoundEntry.sourceWidgetId,
+        sourceOutputId: firstBoundEntry.sourceOutputId,
+        value: firstValidValue?.value,
+      } satisfies AppComponentFieldBindingState] as const;
+    }),
+  );
 }
 
 export function resolveAppComponentInitialDraftValues(

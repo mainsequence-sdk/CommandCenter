@@ -25,6 +25,10 @@ This directory contains the Command Center widget platform, including the shared
 - Widget definitions now inherit one shared platform default size through `defineWidget(...)`. Only
   true structural exceptions, such as the workspace row widget, should override that default at the
   definition layer.
+- Live backend mode now also projects widget definitions into a JSON-safe type manifest and syncs
+  that catalog on authenticated session startup. Runtime-only function properties such as React
+  components, controller hooks, `resolveIo`, and output resolvers are not sent verbatim; the sync
+  keeps only serializable metadata for schema, IO, permissions, tags, and default presentation.
 - The workspace studio does not use per-widget `defaultSize` as the insertion size for fresh
   custom-workspace widgets. New non-row widgets start from one shared workspace baseline so the
   builder stays predictable across widget families.

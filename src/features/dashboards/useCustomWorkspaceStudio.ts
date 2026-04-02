@@ -223,6 +223,15 @@ export function useCustomWorkspaceStudio() {
     const savedCollection = await saveDraftCollection();
 
     if (!savedCollection) {
+      const latestError =
+        useCustomWorkspaceStudioStore.getState().error ?? "Unable to save workspace.";
+
+      toast({
+        title: "Save failed",
+        description: latestError,
+        variant: "error",
+      });
+
       return null;
     }
 

@@ -41,6 +41,9 @@ These flows are all part of one app surface, with instance state selected throug
 - Opening widget-instance settings adds `?workspace=<id>&view=widget-settings&widget=<instanceId>`.
 - Persistence is browser-local and user-scoped through `localStorage` by default.
 - If `workspaces.list_url` and `workspaces.detail_url` are configured in `config/command-center.yaml`, the studio switches to backend persistence instead of browser-local storage.
+- When the user authenticates against a live backend, the app also syncs the frontend widget catalog
+  to `widget_types.sync_url` once per browser session so backend workspace validation knows the
+  available `widgetId` values before the first workspace save.
 - `VITE_USE_MOCK_DATA=true` now boots the workspaces feature from the checked-in
   `mock_data/workspaces/demo_workspace.json` seed, even when backend workspace URLs are configured.
   This keeps the mock workspace demo deterministic on reload instead of reusing whatever was last in
@@ -178,6 +181,7 @@ These flows are all part of one app surface, with instance state selected throug
   into grid items, write committed drag/resize results back into dashboard state, and share the
   drag handle/cancel selectors used by widget chrome.
 - `@/widgets/types` and the app registry: widget catalog lookup and widget rendering.
+- `@/app/registry/widget-type-sync.ts`: authenticated widget-type catalog sync for backend widget validation.
 - `@/stores/shell-store`: cross-shell UI state such as favorites and workspace menu visibility.
 - `react-router-dom`: query-param based workspace instance routing.
 

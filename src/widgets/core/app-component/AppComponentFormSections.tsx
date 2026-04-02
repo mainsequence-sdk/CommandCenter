@@ -22,6 +22,14 @@ import {
   type AppComponentGeneratedForm,
 } from "./appComponentModel";
 
+export interface AppComponentFieldBindingDisplayState {
+  isBound: boolean;
+  message?: string;
+  sourceSummary?: string;
+  status: string;
+  statusVariant?: "neutral" | "warning" | "danger" | "success";
+}
+
 function isMultilineField(field: AppComponentGeneratedField) {
   return field.kind === "json";
 }
@@ -273,6 +281,7 @@ function CompactField({
 export function AppComponentFormSections({
   boundFieldKeys,
   disabled,
+  fieldBindingStates,
   form,
   mode = "default",
   values,
@@ -280,6 +289,7 @@ export function AppComponentFormSections({
 }: {
   boundFieldKeys?: Set<string>;
   disabled: boolean;
+  fieldBindingStates?: Record<string, AppComponentFieldBindingDisplayState | undefined>;
   form: AppComponentGeneratedForm;
   mode?: "default" | "compact";
   values: Record<string, string>;
@@ -293,8 +303,11 @@ export function AppComponentFormSections({
             {form.parameterFields.map((field) => (
               <CompactField
                 key={field.key}
-                bound={boundFieldKeys?.has(field.key)}
-                disabled={disabled || Boolean(boundFieldKeys?.has(field.key))}
+                bound={fieldBindingStates?.[field.key]?.isBound ?? boundFieldKeys?.has(field.key)}
+                disabled={
+                  disabled ||
+                  Boolean(fieldBindingStates?.[field.key]?.isBound ?? boundFieldKeys?.has(field.key))
+                }
                 field={field}
                 value={values[field.key] ?? ""}
                 onChange={(nextValue) => {
@@ -310,8 +323,11 @@ export function AppComponentFormSections({
             {form.bodyFields.map((field) => (
               <CompactField
                 key={field.key}
-                bound={boundFieldKeys?.has(field.key)}
-                disabled={disabled || Boolean(boundFieldKeys?.has(field.key))}
+                bound={fieldBindingStates?.[field.key]?.isBound ?? boundFieldKeys?.has(field.key)}
+                disabled={
+                  disabled ||
+                  Boolean(fieldBindingStates?.[field.key]?.isBound ?? boundFieldKeys?.has(field.key))
+                }
                 field={field}
                 value={values[field.key] ?? ""}
                 onChange={(nextValue) => {
@@ -324,8 +340,17 @@ export function AppComponentFormSections({
 
         {form.bodyMode === "raw" && form.bodyRawField ? (
           <CompactField
-            bound={boundFieldKeys?.has(form.bodyRawField.key)}
-            disabled={disabled || Boolean(boundFieldKeys?.has(form.bodyRawField.key))}
+            bound={
+              fieldBindingStates?.[form.bodyRawField.key]?.isBound ??
+              boundFieldKeys?.has(form.bodyRawField.key)
+            }
+            disabled={
+              disabled ||
+              Boolean(
+                fieldBindingStates?.[form.bodyRawField.key]?.isBound ??
+                  boundFieldKeys?.has(form.bodyRawField.key),
+              )
+            }
             field={form.bodyRawField}
             value={values[form.bodyRawField.key] ?? ""}
             onChange={(nextValue) => {
@@ -350,9 +375,15 @@ export function AppComponentFormSections({
           <div className="grid gap-3 md:grid-cols-2">
             {form.parameterFields.map((field) => (
               <label key={field.key} className={widgetTightFormFieldClass}>
+                {(() => {
+                  const bindingState = fieldBindingStates?.[field.key];
+                  const isBound = bindingState?.isBound ?? boundFieldKeys?.has(field.key);
+
+                  return (
+                    <>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={widgetTightFormLabelClass}>{field.label}</span>
-                  {boundFieldKeys?.has(field.key) ? <Badge variant="neutral">Bound</Badge> : null}
+                  {isBound ? <Badge variant="neutral">Bound</Badge> : null}
                   {field.required ? (
                     <Badge variant="warning" className="py-0.5">
                       Required
@@ -362,8 +393,25 @@ export function AppComponentFormSections({
                 {field.description ? (
                   <p className={widgetTightFormDescriptionClass}>{field.description}</p>
                 ) : null}
+                {bindingState?.isBound ? (
+                  <div className="space-y-1 rounded-[calc(var(--radius)-7px)] border border-border/60 bg-background/22 px-3 py-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {bindingState.statusVariant ? (
+                        <Badge variant={bindingState.statusVariant}>{bindingState.status}</Badge>
+                      ) : null}
+                      {bindingState.sourceSummary ? (
+                        <span className="font-medium text-foreground">
+                          {bindingState.sourceSummary}
+                        </span>
+                      ) : null}
+                    </div>
+                    {bindingState.message ? (
+                      <div className="text-muted-foreground">{bindingState.message}</div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <FieldEditor
-                  disabled={disabled || Boolean(boundFieldKeys?.has(field.key))}
+                  disabled={disabled || Boolean(isBound)}
                   field={field}
                   title={field.description}
                   value={values[field.key] ?? ""}
@@ -371,6 +419,9 @@ export function AppComponentFormSections({
                     onValueChange(field.key, nextValue);
                   }}
                 />
+                    </>
+                  );
+                })()}
               </label>
             ))}
           </div>
@@ -390,9 +441,15 @@ export function AppComponentFormSections({
             <div className="grid gap-3 md:grid-cols-2">
               {form.bodyFields.map((field) => (
                 <label key={field.key} className={widgetTightFormFieldClass}>
+                  {(() => {
+                    const bindingState = fieldBindingStates?.[field.key];
+                    const isBound = bindingState?.isBound ?? boundFieldKeys?.has(field.key);
+
+                    return (
+                      <>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={widgetTightFormLabelClass}>{field.label}</span>
-                    {boundFieldKeys?.has(field.key) ? <Badge variant="neutral">Bound</Badge> : null}
+                    {isBound ? <Badge variant="neutral">Bound</Badge> : null}
                     <Badge variant="neutral" className="py-0.5">
                       Body
                     </Badge>
@@ -405,8 +462,25 @@ export function AppComponentFormSections({
                   {field.description ? (
                     <p className={widgetTightFormDescriptionClass}>{field.description}</p>
                   ) : null}
+                  {bindingState?.isBound ? (
+                    <div className="space-y-1 rounded-[calc(var(--radius)-7px)] border border-border/60 bg-background/22 px-3 py-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {bindingState.statusVariant ? (
+                          <Badge variant={bindingState.statusVariant}>{bindingState.status}</Badge>
+                        ) : null}
+                        {bindingState.sourceSummary ? (
+                          <span className="font-medium text-foreground">
+                            {bindingState.sourceSummary}
+                          </span>
+                        ) : null}
+                      </div>
+                      {bindingState.message ? (
+                        <div className="text-muted-foreground">{bindingState.message}</div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <FieldEditor
-                    disabled={disabled || Boolean(boundFieldKeys?.has(field.key))}
+                    disabled={disabled || Boolean(isBound)}
                     field={field}
                     title={field.description}
                     value={values[field.key] ?? ""}
@@ -414,14 +488,24 @@ export function AppComponentFormSections({
                       onValueChange(field.key, nextValue);
                     }}
                   />
+                      </>
+                    );
+                  })()}
                 </label>
               ))}
             </div>
           ) : form.bodyRawField ? (
             <div className={widgetTightFormInsetSectionClass}>
+              {(() => {
+                const bindingState = fieldBindingStates?.[form.bodyRawField.key];
+                const isBound =
+                  bindingState?.isBound ?? boundFieldKeys?.has(form.bodyRawField.key);
+
+                return (
+                  <>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="neutral">{form.bodyContentType ?? "Raw body"}</Badge>
-                {boundFieldKeys?.has(form.bodyRawField.key) ? <Badge variant="neutral">Bound</Badge> : null}
+                {isBound ? <Badge variant="neutral">Bound</Badge> : null}
                 {form.bodyRequired ? <Badge variant="warning">Required</Badge> : null}
               </div>
               {form.bodyRawField.description ? (
@@ -429,8 +513,25 @@ export function AppComponentFormSections({
                   {form.bodyRawField.description}
                 </p>
               ) : null}
+              {bindingState?.isBound ? (
+                <div className="space-y-1 rounded-[calc(var(--radius)-7px)] border border-border/60 bg-background/22 px-3 py-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {bindingState.statusVariant ? (
+                      <Badge variant={bindingState.statusVariant}>{bindingState.status}</Badge>
+                    ) : null}
+                    {bindingState.sourceSummary ? (
+                      <span className="font-medium text-foreground">
+                        {bindingState.sourceSummary}
+                      </span>
+                    ) : null}
+                  </div>
+                  {bindingState.message ? (
+                    <div className="text-muted-foreground">{bindingState.message}</div>
+                  ) : null}
+                </div>
+              ) : null}
               <FieldEditor
-                disabled={disabled || Boolean(boundFieldKeys?.has(form.bodyRawField.key))}
+                disabled={disabled || Boolean(isBound)}
                 field={form.bodyRawField}
                 title={form.bodyRawField.description}
                 value={values[form.bodyRawField.key] ?? ""}
@@ -438,6 +539,9 @@ export function AppComponentFormSections({
                   onValueChange(form.bodyRawField!.key, nextValue);
                 }}
               />
+                  </>
+                );
+              })()}
             </div>
           ) : null}
         </section>

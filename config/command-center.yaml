@@ -22,6 +22,9 @@ workspaces:
   list_url: /api/v1/command_center/workspaces/
   detail_url: /api/v1/command_center/workspaces/{id}/
 
+widget_types:
+  sync_url: /api/v1/command_center/widget-types/sync/
+
 auth:
   identifier_label: Email
   identifier_placeholder: "Please enter your email"

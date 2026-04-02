@@ -79,6 +79,9 @@ export interface CommandCenterConfig {
     listUrl: string;
     detailUrl: string;
   };
+  widgetTypes: {
+    syncUrl: string;
+  };
   auth: CommandCenterAuthConfig;
   accessRbac: {
     users: {
@@ -141,6 +144,9 @@ interface DefaultCommandCenterConfig {
   workspaces: {
     list_url: string;
     detail_url: string;
+  };
+  widget_types: {
+    sync_url: string;
   };
   auth: {
     identifier_label: string;
@@ -257,6 +263,9 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
   workspaces: {
     list_url: "",
     detail_url: "",
+  },
+  widget_types: {
+    sync_url: "/api/v1/command_center/widget-types/sync/",
   },
   auth: {
     identifier_label: "Email",
@@ -449,6 +458,7 @@ const parsedApp = getNestedObject(parsedConfig, "app");
 const parsedBranding = getNestedObject(parsedConfig, "branding");
 const parsedPreferences = getNestedObject(parsedConfig, "preferences");
 const parsedWorkspaces = getNestedObject(parsedConfig, "workspaces");
+const parsedWidgetTypes = getNestedObject(parsedConfig, "widget_types");
 const parsedAuth = getNestedObject(parsedConfig, "auth");
 const parsedAccessRbac = getNestedObject(parsedConfig, "access_rbac");
 const parsedMainSequence = getNestedObject(parsedConfig, "main_sequence");
@@ -518,6 +528,9 @@ export const commandCenterConfig: CommandCenterConfig = {
   workspaces: {
     listUrl: readString(parsedWorkspaces.list_url, defaultRawConfig.workspaces.list_url),
     detailUrl: readString(parsedWorkspaces.detail_url, defaultRawConfig.workspaces.detail_url),
+  },
+  widgetTypes: {
+    syncUrl: readString(parsedWidgetTypes.sync_url, defaultRawConfig.widget_types.sync_url),
   },
   auth: {
     identifierLabel: readString(

@@ -7,6 +7,7 @@ import { CommandCenterConfigProvider } from "@/config/CommandCenterConfigProvide
 import { queryClient } from "@/data/query-client";
 import { CommandCenterPreferencesProvider } from "@/preferences/CommandCenterPreferencesProvider";
 import { ThemeProvider } from "@/themes/ThemeProvider";
+import { WidgetRegistrySyncBootstrap } from "./WidgetRegistrySyncBootstrap";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <CommandCenterConfigProvider>
         <ThemeProvider>
           <CommandCenterPreferencesProvider>
+            <WidgetRegistrySyncBootstrap />
             {children}
             <Toaster />
           </CommandCenterPreferencesProvider>

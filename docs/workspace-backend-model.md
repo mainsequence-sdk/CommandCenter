@@ -333,7 +333,7 @@ class WorkspaceRevision(models.Model):
         ]
 ```
 
-## Missing production piece: widget catalog
+## Widget catalog
 
 The workspace document stores widget instances, not widget type definitions.
 
@@ -369,9 +369,16 @@ Recommended fields for a `WidgetType` / `RegisteredWidget` model:
 - `registry_version` or `checksum`
 - `last_synced_at`
 
-Recommended behavior:
+Implemented frontend behavior:
 
-- sync this catalog from the frontend registry through a CLI or build artifact
+- build a JSON-safe widget-type manifest from the live frontend runtime registry
+- POST that manifest to `/api/v1/command_center/widget-types/sync/`
+- include `registryVersion` plus a checksum of the full projected registry
+- run the sync once per authenticated browser session before normal workspace editing needs backend
+  validation
+
+Recommended backend behavior:
+
 - validate `widgetId` against the catalog on workspace save, with an escape hatch for legacy ids
 - expose a read API so CLIs and other backends can discover available widgets and their contracts
 - keep `Workspace.widgets` as nested JSON because that is instance state, not reusable type state

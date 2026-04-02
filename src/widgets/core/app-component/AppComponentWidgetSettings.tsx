@@ -5,7 +5,10 @@ import { ArrowUpRight, Loader2, Search, Send, ShieldCheck, TriangleAlert } from 
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useResolvedWidgetInputs } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  useDashboardWidgetDependencies,
+  useResolvedWidgetInputs,
+} from "@/dashboards/DashboardWidgetDependencies";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -23,7 +26,10 @@ import {
   fetchAppComponentOpenApiDocument,
   submitAppComponentRequest,
 } from "./appComponentApi";
-import { AppComponentFormSections } from "./AppComponentFormSections";
+import {
+  AppComponentFormSections,
+  type AppComponentFieldBindingDisplayState,
+} from "./AppComponentFormSections";
 import {
   buildAppComponentBindingSpec,
   buildAppComponentRequest,
@@ -37,6 +43,7 @@ import {
   listAppComponentRequestBodyContentTypes,
   normalizeAppComponentProps,
   normalizeAppComponentBindingSpec,
+  resolveAppComponentFieldBindingStates,
   resolveAppComponentBoundInputOverlay,
   resolveAppComponentInitialDraftValues,
   resolveAppComponentOperation,
@@ -135,6 +142,7 @@ export function AppComponentWidgetSettings({
 }: WidgetSettingsComponentProps<AppComponentWidgetProps>) {
   const normalizedProps = useMemo(() => normalizeAppComponentProps(draftProps), [draftProps]);
   const draftPropsRef = useRef(draftProps);
+  const dependencies = useDashboardWidgetDependencies();
   const resolvedInputs = useResolvedWidgetInputs(instanceId);
   const resolvedBaseUrl = useMemo(
     () => tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl),
@@ -263,6 +271,87 @@ export function AppComponentWidgetSettings({
   );
   const effectiveTestDraftValues = boundInputOverlay.values;
   const boundFieldKeys = boundInputOverlay.boundFieldKeys;
+  const fieldBindingStates = useMemo(
+    () => resolveAppComponentFieldBindingStates(generatedForm, resolvedInputs),
+    [generatedForm, resolvedInputs],
+  );
+  const fieldBindingDisplayStates = useMemo(() => {
+    return Object.fromEntries(
+      Object.entries(fieldBindingStates).map(([fieldKey, state]) => {
+        if (!state.isBound) {
+          return [fieldKey, undefined];
+        }
+
+        const sourceInstance = state.sourceWidgetId
+          ? (dependencies?.entries.find((entry) => entry.instance.id === state.sourceWidgetId)?.instance ??
+            null)
+          : null;
+        const sourceDefinition =
+          sourceInstance && dependencies
+            ? dependencies.getWidgetDefinition(sourceInstance.widgetId)
+            : null;
+        const sourceOutputLabel =
+          state.sourceWidgetId && state.sourceOutputId && dependencies
+            ? (dependencies
+                .resolveIo(state.sourceWidgetId)
+                ?.outputs?.find((output) => output.id === state.sourceOutputId)?.label ??
+              state.sourceOutputId)
+            : state.sourceOutputId;
+        const sourceWidgetLabel = sourceInstance
+          ? sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId
+          : state.sourceWidgetId;
+        const sourceSummary =
+          sourceWidgetLabel && sourceOutputLabel
+            ? `From ${sourceWidgetLabel} [${state.sourceWidgetId}] / ${sourceOutputLabel}`
+            : sourceWidgetLabel
+              ? `From ${sourceWidgetLabel} [${state.sourceWidgetId}]`
+              : undefined;
+
+        let message: string | undefined;
+        let statusVariant: AppComponentFieldBindingDisplayState["statusVariant"] = "neutral";
+
+        switch (state.status) {
+          case "valid":
+            message = "This value is sourced from the selected binding.";
+            statusVariant = "success";
+            break;
+          case "missing-source":
+            message = "The selected source widget is no longer available.";
+            statusVariant = "warning";
+            break;
+          case "missing-output":
+            message = "The selected source output is no longer available.";
+            statusVariant = "warning";
+            break;
+          case "contract-mismatch":
+            message = "The bound source is currently incompatible with this field.";
+            statusVariant = "danger";
+            break;
+          case "transform-invalid":
+            message = "The selected source mapping could not be resolved.";
+            statusVariant = "danger";
+            break;
+          case "self-reference-blocked":
+            message = "This field cannot bind to its own widget.";
+            statusVariant = "danger";
+            break;
+          case "unbound":
+          default:
+            message = undefined;
+            statusVariant = "neutral";
+            break;
+        }
+
+        return [fieldKey, {
+          isBound: true,
+          sourceSummary,
+          message,
+          status: state.status,
+          statusVariant,
+        } satisfies AppComponentFieldBindingDisplayState];
+      }),
+    ) as Record<string, AppComponentFieldBindingDisplayState | undefined>;
+  }, [dependencies, fieldBindingStates]);
   const resolvedBindingSpec = useMemo(
     () =>
       openApiQuery.data
@@ -876,9 +965,14 @@ export function AppComponentWidgetSettings({
                     <AppComponentFormSections
                       boundFieldKeys={boundFieldKeys}
                       disabled={testState.status === "submitting"}
+                      fieldBindingStates={fieldBindingDisplayStates}
                       form={generatedForm}
                       values={effectiveTestDraftValues}
                       onValueChange={(fieldKey, nextValue) => {
+                        if (fieldBindingStates[fieldKey]?.isBound) {
+                          return;
+                        }
+
                         setTestDraftValues((current) => ({
                           ...current,
                           [fieldKey]: nextValue,
