@@ -1242,10 +1242,12 @@ export function CustomDashboardStudioPage() {
     selectedDashboard,
     resolvedDashboard,
     dirty,
+    selectedWorkspaceEditing,
     persistenceMode,
     openWidgetSettings,
     openWorkspaceGraph,
     openWorkspaceSettings,
+    setSelectedWorkspaceEditing,
     updateSelectedWorkspace,
     saveWorkspaceDraft,
   } = useCustomWorkspaceStudio();
@@ -1263,7 +1265,7 @@ export function CustomDashboardStudioPage() {
   const [hoveredPlacement, setHoveredPlacement] = useState<DashboardWidgetPlacement | null>(null);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const editMode = selectedWorkspaceEditing;
   const [measuredGridMetrics, setMeasuredGridMetrics] = useState<GridMetrics | null>(null);
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
     {},
@@ -1817,7 +1819,6 @@ export function CustomDashboardStudioPage() {
     setCompanionVisibilityById({});
     setCustomGridLayoutDraft(cloneWorkspaceGridLayout(customRuntimeGridLayout.layout));
     setAutoGridReorderState(null);
-    setEditMode(false);
   }, [selectedDashboard?.id]);
 
   useEffect(() => {
@@ -2059,7 +2060,7 @@ export function CustomDashboardStudioPage() {
   }, []);
 
   function handleCatalogAdd(widget: WidgetDefinition) {
-    setEditMode(true);
+    setSelectedWorkspaceEditing(true);
     setRecentWidgetIds((current) => pushRecentWidgetId(current, widget.id));
     updateSelectedWorkspace((dashboard) => appendCatalogWidget(dashboard, widget));
   }
@@ -2104,7 +2105,7 @@ export function CustomDashboardStudioPage() {
   }
 
   function handleEditAction() {
-    setEditMode((current) => !current);
+    setSelectedWorkspaceEditing(!editMode);
   }
 
   function handleSaveAction() {

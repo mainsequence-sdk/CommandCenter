@@ -79,12 +79,6 @@ const projectDetailTabs = [
     body: "Coming soon.",
   },
   {
-    id: "apis",
-    label: "APIs",
-    title: "APIs",
-    body: "Coming soon.",
-  },
-  {
     id: "jobs",
     label: "Jobs",
     title: "Jobs",

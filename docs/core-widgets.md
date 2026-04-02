@@ -139,7 +139,9 @@ What it is:
 
 `AppComponent` reads an OpenAPI schema from the explicit URL the user provides, lets a user bind one
 widget instance to one API operation, compiles that operation into bindable request/response ports,
-and renders the generated request form directly inside the widget body.
+keeps flattened response outputs for simple bindings, also exposes one structured root response
+output for nested-field extraction, and renders the generated request form directly inside the
+widget body.
 
 What it is good for:
 

@@ -18,6 +18,7 @@ This feature owns the Main Sequence project registry and project detail experien
 ## Notes
 
 - Project-only tabs and dialogs should remain here even when they are large.
+- The active project detail tabs are `Code`, `Jobs`, `Images`, `Resource Releases`, `Data Nodes Updates`, `Settings`, and `Permissions`.
 - Shared registry controls should stay in `../../components`.
 - The settings tab reuses the shared project form-options query and writes through the project detail `PATCH` endpoint.
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.

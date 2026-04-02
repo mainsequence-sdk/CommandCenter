@@ -1,18 +1,21 @@
 import type { WidgetContractId } from "@/widgets/types";
+import {
+  CORE_VALUE_BOOLEAN_CONTRACT,
+  CORE_VALUE_INTEGER_CONTRACT,
+  CORE_VALUE_JSON_CONTRACT,
+  CORE_VALUE_NUMBER_CONTRACT,
+  CORE_VALUE_SCALAR_CONTRACTS,
+  CORE_VALUE_STRING_CONTRACT,
+} from "@/widgets/shared/value-contracts";
 
 import type { AppComponentGeneratedFieldKind } from "./appComponentModel";
-
-export const CORE_VALUE_STRING_CONTRACT = "core.value.string@v1" as const;
-export const CORE_VALUE_NUMBER_CONTRACT = "core.value.number@v1" as const;
-export const CORE_VALUE_INTEGER_CONTRACT = "core.value.integer@v1" as const;
-export const CORE_VALUE_BOOLEAN_CONTRACT = "core.value.boolean@v1" as const;
-export const CORE_VALUE_JSON_CONTRACT = "core.value.json@v1" as const;
-const CORE_VALUE_SCALAR_CONTRACTS = [
-  CORE_VALUE_STRING_CONTRACT,
-  CORE_VALUE_NUMBER_CONTRACT,
-  CORE_VALUE_INTEGER_CONTRACT,
+export {
   CORE_VALUE_BOOLEAN_CONTRACT,
-] as const;
+  CORE_VALUE_INTEGER_CONTRACT,
+  CORE_VALUE_JSON_CONTRACT,
+  CORE_VALUE_NUMBER_CONTRACT,
+  CORE_VALUE_STRING_CONTRACT,
+} from "@/widgets/shared/value-contracts";
 
 export function resolveAppComponentInputAcceptContracts(
   kind: AppComponentGeneratedFieldKind,

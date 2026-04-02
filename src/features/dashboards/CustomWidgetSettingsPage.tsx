@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 
 import { ArrowLeft, Save } from "lucide-react";
 
@@ -11,6 +11,16 @@ import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidge
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { WidgetBindingPanel } from "@/widgets/shared/WidgetBindingPanel";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
+import { fetchAppComponentOpenApiDocument } from "@/widgets/core/app-component/appComponentApi";
+import {
+  buildAppComponentBindingSpec,
+  buildAppComponentGeneratedForm,
+  normalizeAppComponentBindingSpec,
+  normalizeAppComponentProps,
+  resolveAppComponentOperation,
+  tryResolveAppComponentBaseUrl,
+  type AppComponentWidgetProps,
+} from "@/widgets/core/app-component/appComponentModel";
 import {
   removeDashboardWidget,
   updateDashboardControlsState,
@@ -52,7 +62,7 @@ export function CustomWidgetSettingsPage() {
   const {
     user,
     permissions,
-    dirty,
+    selectedWorkspaceDirty,
     isSaving,
     persistenceMode,
     requestedWidgetId,
@@ -96,6 +106,7 @@ export function CustomWidgetSettingsPage() {
   const [draftState, setDraftState] = useState(() =>
     instance && widget ? buildWidgetSettingsDraftState(instance, widget) : null,
   );
+  const repairedAppComponentIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setActiveTab("settings");
@@ -109,6 +120,125 @@ export function CustomWidgetSettingsPage() {
 
     setDraftState(buildWidgetSettingsDraftState(instance, widget));
   }, [instance?.id, widget]);
+
+  useEffect(() => {
+    if (activeTab !== "bindings") {
+      return;
+    }
+
+    const candidates = resolvedDashboard.widgets.filter((dashboardWidget) => {
+      if (
+        dashboardWidget.widgetId !== "app-component" ||
+        repairedAppComponentIdsRef.current.has(dashboardWidget.id)
+      ) {
+        return false;
+      }
+
+      const normalizedProps = normalizeAppComponentProps(
+        (dashboardWidget.props ?? {}) as AppComponentWidgetProps,
+      );
+
+      return Boolean(
+        normalizedProps.apiBaseUrl &&
+          normalizedProps.method &&
+          normalizedProps.path &&
+          !normalizedProps.bindingSpec,
+      );
+    });
+
+    if (candidates.length === 0) {
+      return;
+    }
+
+    candidates.forEach((dashboardWidget) => {
+      repairedAppComponentIdsRef.current.add(dashboardWidget.id);
+    });
+
+    let cancelled = false;
+
+    async function repairMissingBindingSpecs() {
+      const nextSpecs = await Promise.all(
+        candidates.map(async (dashboardWidget) => {
+          const normalizedProps = normalizeAppComponentProps(
+            (dashboardWidget.props ?? {}) as AppComponentWidgetProps,
+          );
+          const resolvedBaseUrl = tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl);
+
+          if (!resolvedBaseUrl || !normalizedProps.method || !normalizedProps.path) {
+            return null;
+          }
+
+          try {
+            const document = await fetchAppComponentOpenApiDocument({
+              baseUrl: resolvedBaseUrl,
+              authMode: normalizedProps.authMode,
+            });
+            const resolvedOperation = resolveAppComponentOperation(
+              document,
+              normalizedProps.method,
+              normalizedProps.path,
+            );
+            const generatedForm = buildAppComponentGeneratedForm(
+              document,
+              resolvedOperation,
+              normalizedProps.requestBodyContentType,
+            );
+            const bindingSpec = normalizeAppComponentBindingSpec(
+              buildAppComponentBindingSpec(document, resolvedOperation, generatedForm),
+            );
+
+            if (!bindingSpec) {
+              return null;
+            }
+
+            return {
+              id: dashboardWidget.id,
+              props: {
+                ...(dashboardWidget.props ?? {}),
+                bindingSpec,
+              },
+            };
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      const repairedEntries = nextSpecs.filter((entry) => entry !== null);
+
+      if (repairedEntries.length === 0) {
+        return;
+      }
+
+      const repairMap = new Map(repairedEntries.map((entry) => [entry.id, entry.props]));
+
+      updateSelectedWorkspace((dashboard) => ({
+        ...dashboard,
+        widgets: dashboard.widgets.map((dashboardWidget) => {
+          const nextProps = repairMap.get(dashboardWidget.id);
+
+          if (!nextProps) {
+            return dashboardWidget;
+          }
+
+          return {
+            ...dashboardWidget,
+            props: cloneWidgetSettingsValue(nextProps),
+          };
+        }),
+      }));
+    }
+
+    void repairMissingBindingSpecs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, resolvedDashboard.widgets, updateSelectedWorkspace]);
 
   const effectiveDraftState =
     instance && widget ? draftState ?? buildWidgetSettingsDraftState(instance, widget) : null;
@@ -237,21 +367,20 @@ export function CustomWidgetSettingsPage() {
                             {instance.id}
                           </Badge>
                         </div>
-                        <p className="max-w-3xl text-sm text-muted-foreground">
-                          Adjust this widget instance in a full-width settings view instead of the old
-                          modal.
-                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {dirty ? (
+                    {selectedWorkspaceDirty ? (
                       <Badge variant="warning">Unsaved workspace draft</Badge>
                     ) : (
                       <Badge variant="success">Workspace saved</Badge>
                     )}
-                    <Button onClick={() => void saveWorkspaceDraft()} disabled={isSaving || !dirty}>
+                    <Button
+                      onClick={() => void saveWorkspaceDraft()}
+                      disabled={isSaving || !selectedWorkspaceDirty}
+                    >
                       <Save className="h-4 w-4" />
                       Save workspace
                     </Button>

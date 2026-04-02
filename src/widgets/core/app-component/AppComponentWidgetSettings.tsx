@@ -286,6 +286,55 @@ export function AppComponentWidgetSettings({
     status: "idle",
   });
 
+  function buildNextDraftProps(
+    overrides: Partial<AppComponentWidgetProps>,
+    options?: {
+      preserveSelection?: boolean;
+    },
+  ) {
+    const nextProps = {
+      ...draftPropsRef.current,
+      ...overrides,
+    };
+
+    if (!openApiQuery.data) {
+      return {
+        ...nextProps,
+        bindingSpec: options?.preserveSelection ? nextProps.bindingSpec : undefined,
+      };
+    }
+
+    const normalizedNextProps = normalizeAppComponentProps(nextProps);
+    const nextResolvedOperation = options?.preserveSelection
+      ? resolveAppComponentOperation(
+          openApiQuery.data,
+          normalizedNextProps.method,
+          normalizedNextProps.path,
+        )
+      : null;
+    const nextGeneratedForm = options?.preserveSelection
+      ? buildAppComponentGeneratedForm(
+          openApiQuery.data,
+          nextResolvedOperation,
+          normalizedNextProps.requestBodyContentType,
+        )
+      : null;
+    const nextBindingSpec = options?.preserveSelection
+      ? normalizeAppComponentBindingSpec(
+          buildAppComponentBindingSpec(
+            openApiQuery.data,
+            nextResolvedOperation,
+            nextGeneratedForm,
+          ),
+        )
+      : undefined;
+
+    return {
+      ...nextProps,
+      bindingSpec: nextBindingSpec,
+    };
+  }
+
   useEffect(() => {
     draftPropsRef.current = draftProps;
   }, [draftProps]);
@@ -302,6 +351,20 @@ export function AppComponentWidgetSettings({
       return;
     }
 
+    if (!normalizedProps.method || !normalizedProps.path) {
+      if (normalizedProps.bindingSpec !== undefined) {
+        onDraftPropsChange({
+          ...draftPropsRef.current,
+          bindingSpec: undefined,
+        });
+      }
+      return;
+    }
+
+    if (!openApiQuery.data) {
+      return;
+    }
+
     if (currentBindingSpecSerialized === nextBindingSpecSerialized) {
       return;
     }
@@ -315,6 +378,10 @@ export function AppComponentWidgetSettings({
     editable,
     nextBindingSpecSerialized,
     normalizedResolvedBindingSpec,
+    normalizedProps.bindingSpec,
+    normalizedProps.method,
+    normalizedProps.path,
+    openApiQuery.data,
     onDraftPropsChange,
   ]);
 
@@ -415,10 +482,12 @@ export function AppComponentWidgetSettings({
               readOnly={!editable}
               placeholder="https://api.example.com/service/openapi.json"
               onChange={(event) => {
-                onDraftPropsChange({
-                  ...draftProps,
+                onDraftPropsChange(buildNextDraftProps({
                   apiBaseUrl: event.target.value,
-                });
+                  method: undefined,
+                  path: undefined,
+                  requestBodyContentType: undefined,
+                }));
               }}
             />
           </label>
@@ -429,10 +498,9 @@ export function AppComponentWidgetSettings({
               value={normalizedProps.authMode ?? "session-jwt"}
               disabled={!editable}
               onChange={(event) => {
-                onDraftPropsChange({
-                  ...draftProps,
+                onDraftPropsChange(buildNextDraftProps({
                   authMode: event.target.value as AppComponentWidgetProps["authMode"],
-                });
+                }, { preserveSelection: true }));
               }}
             >
               <option value="session-jwt">Session JWT</option>
@@ -543,15 +611,14 @@ export function AppComponentWidgetSettings({
                           nextResolvedOperation,
                         );
 
-                        onDraftPropsChange({
-                          ...draftProps,
+                        onDraftPropsChange(buildNextDraftProps({
                           method: operation.method,
                           path: operation.path,
                           requestBodyContentType:
                             nextContentTypes.includes("application/json")
                               ? "application/json"
                               : nextContentTypes[0] ?? undefined,
-                        });
+                        }, { preserveSelection: true }));
                       }}
                     >
                       <div className="flex flex-wrap items-center gap-2">
@@ -723,10 +790,9 @@ export function AppComponentWidgetSettings({
                         }
                         disabled={!editable}
                         onChange={(event) => {
-                          onDraftPropsChange({
-                            ...draftProps,
+                          onDraftPropsChange(buildNextDraftProps({
                             requestBodyContentType: event.target.value || undefined,
-                          });
+                          }, { preserveSelection: true }));
                         }}
                       >
                         {contentTypes.map((contentType) => (

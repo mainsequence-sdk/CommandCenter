@@ -2,6 +2,7 @@ import type { DashboardWidgetInstance } from "@/dashboards/types";
 import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
+  WidgetContractId,
   WidgetDefinition,
   WidgetInputEffect,
   WidgetInputPortDefinition,
@@ -10,7 +11,12 @@ import type {
   WidgetOutputPortDefinition,
   WidgetPortBinding,
   WidgetPortBindingValue,
+  WidgetValueDescriptor,
 } from "@/widgets/types";
+import {
+  applyWidgetBindingTransform,
+  inferWidgetValueDescriptor,
+} from "@/dashboards/widget-binding-transforms";
 
 export interface FlattenedDashboardWidgetEntry {
   instance: DashboardWidgetInstance;
@@ -43,7 +49,8 @@ export type DashboardWidgetDependencyEdgeStatus =
   | "missing-source"
   | "missing-output"
   | "contract-mismatch"
-  | "self-reference-blocked";
+  | "self-reference-blocked"
+  | "transform-invalid";
 
 export interface DashboardWidgetDependencyGraphEdge {
   id: string;
@@ -62,11 +69,23 @@ export interface DashboardWidgetDependencyGraph {
   edges: DashboardWidgetDependencyGraphEdge[];
 }
 
+export interface ResolvedWidgetOutput {
+  outputId: string;
+  label: string;
+  contractId: WidgetContractId;
+  description?: string;
+  value?: unknown;
+  valueDescriptor?: WidgetValueDescriptor;
+}
+
+export type ResolvedWidgetOutputs = Record<string, ResolvedWidgetOutput | undefined>;
+
 export interface DashboardWidgetDependencyModel {
   entries: FlattenedDashboardWidgetEntry[];
   graph: DashboardWidgetDependencyGraph;
   getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
   resolveIo: (instanceId: string) => WidgetIoDefinition | undefined;
+  resolveOutputs: (instanceId: string) => ResolvedWidgetOutputs | undefined;
   resolveInputs: (instanceId: string) => ResolvedWidgetInputs | undefined;
 }
 
@@ -137,6 +156,15 @@ function normalizeBinding(value: unknown): WidgetPortBinding | null {
     typeof record.sourceOutputId === "string" ? record.sourceOutputId.trim() : "";
   const transformId =
     typeof record.transformId === "string" ? record.transformId.trim() : undefined;
+  const transformPath = Array.isArray(record.transformPath)
+    ? record.transformPath.flatMap((entry) =>
+        typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+      )
+    : undefined;
+  const transformContractId =
+    typeof record.transformContractId === "string" && record.transformContractId.trim()
+      ? (record.transformContractId.trim() as WidgetContractId)
+      : undefined;
 
   if (!sourceWidgetId || !sourceOutputId) {
     return null;
@@ -146,6 +174,8 @@ function normalizeBinding(value: unknown): WidgetPortBinding | null {
     sourceWidgetId,
     sourceOutputId,
     transformId: transformId || undefined,
+    transformPath: transformPath && transformPath.length > 0 ? transformPath : undefined,
+    transformContractId: transformContractId || undefined,
   };
 }
 
@@ -411,6 +441,27 @@ export function removeWidgetGraphConnectionFromBindings(
   return normalizeWidgetInstanceBindings(nextBindings);
 }
 
+function resolveSingleOutput(
+  instance: DashboardWidgetInstance,
+  output: WidgetOutputPortDefinition<Record<string, unknown>>,
+): ResolvedWidgetOutput {
+  const value = output.resolveValue?.({
+    widgetId: instance.widgetId,
+    instanceId: instance.id,
+    props: (instance.props ?? {}) as Record<string, unknown>,
+    runtimeState: instance.runtimeState,
+  });
+
+  return {
+    outputId: output.id,
+    label: output.label,
+    contractId: output.contract,
+    description: output.description,
+    value,
+    valueDescriptor: output.valueDescriptor ?? inferWidgetValueDescriptor(value, output.contract),
+  } satisfies ResolvedWidgetOutput;
+}
+
 function resolveSingleInput(
   instance: DashboardWidgetInstance,
   input: WidgetInputPortDefinition<Record<string, unknown>>,
@@ -418,6 +469,7 @@ function resolveSingleInput(
   index: ReadonlyMap<string, DashboardWidgetInstance>,
   getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
   resolveIo: (instanceId: string) => WidgetIoDefinition | undefined,
+  resolveOutputs: (instanceId: string) => ResolvedWidgetOutputs | undefined,
 ): ResolvedWidgetInput | ResolvedWidgetInput[] {
   if (bindings.length === 0) {
     return {
@@ -456,8 +508,9 @@ function resolveSingleInput(
     }
 
     const sourceOutput = getOutputDefinition(resolveIo(sourceInstance.id), binding.sourceOutputId);
+    const resolvedSourceOutput = resolveOutputs(sourceInstance.id)?.[binding.sourceOutputId];
 
-    if (!sourceOutput) {
+    if (!sourceOutput || !resolvedSourceOutput) {
       return {
         inputId: input.id,
         label: input.label,
@@ -469,34 +522,51 @@ function resolveSingleInput(
       } satisfies ResolvedWidgetInput;
     }
 
-    if (!input.accepts.includes(sourceOutput.contract)) {
+    const transformed = applyWidgetBindingTransform(binding, {
+      contractId: resolvedSourceOutput.contractId,
+      value: resolvedSourceOutput.value,
+      valueDescriptor: resolvedSourceOutput.valueDescriptor,
+    });
+
+    if (transformed.status !== "valid") {
       return {
         inputId: input.id,
         label: input.label,
         sourceWidgetId: binding.sourceWidgetId,
         sourceOutputId: binding.sourceOutputId,
-        contractId: sourceOutput.contract,
+        contractId: resolvedSourceOutput.contractId,
         binding,
-        status: "contract-mismatch",
+        value: resolvedSourceOutput.value,
+        valueDescriptor: resolvedSourceOutput.valueDescriptor,
+        status: "transform-invalid",
         effects: input.effects ?? [],
       } satisfies ResolvedWidgetInput;
     }
 
-    const value = sourceOutput.resolveValue?.({
-      widgetId: sourceInstance.widgetId,
-      instanceId: sourceInstance.id,
-      props: (sourceInstance.props ?? {}) as Record<string, unknown>,
-      runtimeState: sourceInstance.runtimeState,
-    });
+    if (!input.accepts.includes(transformed.contractId)) {
+      return {
+        inputId: input.id,
+        label: input.label,
+        sourceWidgetId: binding.sourceWidgetId,
+        sourceOutputId: binding.sourceOutputId,
+        contractId: transformed.contractId,
+        binding,
+        value: transformed.value,
+        valueDescriptor: transformed.valueDescriptor,
+        status: "contract-mismatch",
+        effects: input.effects ?? [],
+      } satisfies ResolvedWidgetInput;
+    }
 
     return {
       inputId: input.id,
       label: input.label,
       sourceWidgetId: binding.sourceWidgetId,
       sourceOutputId: binding.sourceOutputId,
-      contractId: sourceOutput.contract,
+      contractId: transformed.contractId,
       binding,
-      value,
+      value: transformed.value,
+      valueDescriptor: transformed.valueDescriptor,
       status: "valid",
       effects: input.effects ?? [],
     } satisfies ResolvedWidgetInput;
@@ -553,7 +623,7 @@ function buildGraph(
         }
 
         return [{
-          id: `${entry.sourceWidgetId}:${entry.sourceOutputId}->${instance.id}:${entry.inputId}`,
+          id: `${entry.sourceWidgetId}:${entry.sourceOutputId}${entry.binding?.transformPath?.length ? `:${entry.binding.transformPath.join(".")}` : ""}->${instance.id}:${entry.inputId}`,
           from: entry.sourceWidgetId,
           fromPort: entry.sourceOutputId,
           to: instance.id,
@@ -611,6 +681,35 @@ export function createDashboardWidgetDependencyModel(
   };
 
   const resolvedInputCache = new Map<string, ResolvedWidgetInputs | undefined>();
+  const resolvedOutputCache = new Map<string, ResolvedWidgetOutputs | undefined>();
+
+  const resolveOutputs = (instanceId: string) => {
+    if (resolvedOutputCache.has(instanceId)) {
+      return resolvedOutputCache.get(instanceId);
+    }
+
+    const instance = instanceIndex.get(instanceId);
+
+    if (!instance) {
+      resolvedOutputCache.set(instanceId, undefined);
+      return undefined;
+    }
+
+    const outputs =
+      (resolveIo(instanceId)?.outputs ?? []) as WidgetOutputPortDefinition<Record<string, unknown>>[];
+
+    if (outputs.length === 0) {
+      resolvedOutputCache.set(instanceId, undefined);
+      return undefined;
+    }
+
+    const resolvedOutputs = Object.fromEntries(
+      outputs.map((output) => [output.id, resolveSingleOutput(instance, output)]),
+    ) satisfies ResolvedWidgetOutputs;
+
+    resolvedOutputCache.set(instanceId, resolvedOutputs);
+    return resolvedOutputs;
+  };
 
   const resolveInputs = (instanceId: string) => {
     if (resolvedInputCache.has(instanceId)) {
@@ -643,6 +742,7 @@ export function createDashboardWidgetDependencyModel(
           instanceIndex,
           getWidgetDefinition,
           resolveIo,
+          resolveOutputs,
         ),
       ]),
     ) satisfies ResolvedWidgetInputs;
@@ -658,6 +758,7 @@ export function createDashboardWidgetDependencyModel(
     graph,
     getWidgetDefinition,
     resolveIo,
+    resolveOutputs,
     resolveInputs,
   };
 }

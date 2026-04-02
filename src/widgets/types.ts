@@ -55,10 +55,54 @@ export interface WidgetFieldPopConfig {
 
 export type WidgetContractId = `${string}@v${number}`;
 
+export interface WidgetPrimitiveValueDescriptor {
+  kind: "primitive";
+  contract: WidgetContractId;
+  primitive: "string" | "number" | "integer" | "boolean" | "null";
+  format?: string;
+  description?: string;
+}
+
+export interface WidgetObjectValueFieldDescriptor {
+  key: string;
+  label: string;
+  description?: string;
+  required?: boolean;
+  value: WidgetValueDescriptor;
+}
+
+export interface WidgetObjectValueDescriptor {
+  kind: "object";
+  contract: WidgetContractId;
+  description?: string;
+  fields: WidgetObjectValueFieldDescriptor[];
+}
+
+export interface WidgetArrayValueDescriptor {
+  kind: "array";
+  contract: WidgetContractId;
+  description?: string;
+  items?: WidgetValueDescriptor;
+}
+
+export interface WidgetUnknownValueDescriptor {
+  kind: "unknown";
+  contract: WidgetContractId;
+  description?: string;
+}
+
+export type WidgetValueDescriptor =
+  | WidgetPrimitiveValueDescriptor
+  | WidgetObjectValueDescriptor
+  | WidgetArrayValueDescriptor
+  | WidgetUnknownValueDescriptor;
+
 export interface WidgetPortBinding {
   sourceWidgetId: string;
   sourceOutputId: string;
   transformId?: string;
+  transformPath?: string[];
+  transformContractId?: WidgetContractId;
 }
 
 export type WidgetPortBindingValue = WidgetPortBinding | WidgetPortBinding[];
@@ -117,6 +161,7 @@ export interface WidgetOutputPortDefinition<
   label: string;
   contract: WidgetContractId;
   description?: string;
+  valueDescriptor?: WidgetValueDescriptor;
   resolveValue?: (args: WidgetOutputResolverArgs<TProps>) => unknown;
 }
 
@@ -133,7 +178,8 @@ export type WidgetInputResolutionStatus =
   | "missing-source"
   | "missing-output"
   | "contract-mismatch"
-  | "self-reference-blocked";
+  | "self-reference-blocked"
+  | "transform-invalid";
 
 export interface ResolvedWidgetInput {
   inputId: string;
@@ -144,6 +190,7 @@ export interface ResolvedWidgetInput {
   contractId?: WidgetContractId;
   binding?: WidgetPortBinding;
   value?: unknown;
+  valueDescriptor?: WidgetValueDescriptor;
   effects?: WidgetInputEffect[];
 }
 

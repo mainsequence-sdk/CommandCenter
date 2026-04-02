@@ -57,6 +57,30 @@ export function useResolvedWidgetIo(instanceId?: string) {
   }, [instanceId, model]);
 }
 
+export function useResolvedWidgetOutputs(instanceId?: string) {
+  const model = useDashboardWidgetDependencies();
+
+  return useMemo(() => {
+    if (!model || !instanceId) {
+      return undefined;
+    }
+
+    return model.resolveOutputs(instanceId);
+  }, [instanceId, model]);
+}
+
+export function useResolvedWidgetOutput(instanceId?: string, outputId?: string) {
+  const resolvedOutputs = useResolvedWidgetOutputs(instanceId);
+
+  return useMemo(() => {
+    if (!resolvedOutputs || !outputId) {
+      return undefined;
+    }
+
+    return resolvedOutputs[outputId];
+  }, [outputId, resolvedOutputs]);
+}
+
 export function useResolvedWidgetInputs(instanceId?: string) {
   const model = useDashboardWidgetDependencies();
 

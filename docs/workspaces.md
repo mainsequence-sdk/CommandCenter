@@ -117,6 +117,9 @@ Widget runtime state can also be stored per instance when the widget reports it 
 widget contract.
 Widget instances can also persist canonical `bindings` separately from props. Binding changes clear
 that widget's runtime state by default so stale upstream-derived caches do not survive rebinding.
+Workspace edit mode is not persisted with the workspace document. It is client-side per-workspace
+UI state and should survive route changes between the canvas and widget settings for the same
+workspace during the current session.
 In canvas edit mode, widget cards keep the same header height as normal viewing, use the existing
 header area as the drag target, and reveal edit actions on hover instead of adding a separate move
 control.

@@ -20,6 +20,7 @@ interface CustomWorkspaceStudioState {
   hydratingUserId: string | null;
   savedCollection: UserDashboardCollection;
   draftCollection: UserDashboardCollection;
+  workspaceEditorModeById: Record<string, boolean>;
   isHydrating: boolean;
   isSaving: boolean;
   error: string | null;
@@ -33,6 +34,7 @@ interface CustomWorkspaceStudioState {
   deleteWorkspace: (workspaceId: string) => Promise<boolean>;
   resetDraftCollection: () => void;
   saveDraftCollection: () => Promise<UserDashboardCollection | null>;
+  setWorkspaceEditing: (workspaceId: string, editing: boolean) => void;
 }
 
 function createEmptyCollection(): UserDashboardCollection {
@@ -105,6 +107,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
   hydratingUserId: null,
   savedCollection: createEmptyCollection(),
   draftCollection: createEmptyCollection(),
+  workspaceEditorModeById: {},
   isHydrating: false,
   isSaving: false,
   error: null,
@@ -115,6 +118,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         hydratingUserId: null,
         savedCollection: createEmptyCollection(),
         draftCollection: createEmptyCollection(),
+        workspaceEditorModeById: {},
         isHydrating: false,
         isSaving: false,
         error: null,
@@ -146,6 +150,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         hydratingUserId: null,
         savedCollection: loaded,
         draftCollection: cloneDashboardCollection(loaded),
+        workspaceEditorModeById: {},
         isHydrating: false,
         error: null,
       });
@@ -159,6 +164,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         hydratingUserId: null,
         savedCollection: createEmptyCollection(),
         draftCollection: createEmptyCollection(),
+        workspaceEditorModeById: {},
         isHydrating: false,
         error: readWorkspaceStoreError(error),
       });
@@ -273,6 +279,9 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         set({
           savedCollection: reloadedCollection,
           draftCollection: cloneDashboardCollection(reloadedCollection),
+          workspaceEditorModeById: Object.fromEntries(
+            Object.entries(current.workspaceEditorModeById).filter(([id]) => id !== workspaceId),
+          ),
           isSaving: false,
           error: null,
         });
@@ -291,6 +300,9 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
           allowEmpty,
           savedAt: persistedSavedCollection.savedAt,
         }),
+        workspaceEditorModeById: Object.fromEntries(
+          Object.entries(state.workspaceEditorModeById).filter(([id]) => id !== workspaceId),
+        ),
         isSaving: false,
         error: null,
       }));
@@ -348,5 +360,21 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
 
       return null;
     }
+  },
+  setWorkspaceEditing(workspaceId, editing) {
+    set((current) => {
+      const currentValue = current.workspaceEditorModeById[workspaceId] ?? false;
+
+      if (currentValue === editing) {
+        return current;
+      }
+
+      return {
+        workspaceEditorModeById: {
+          ...current.workspaceEditorModeById,
+          [workspaceId]: editing,
+        },
+      };
+    });
   },
 }));

@@ -83,6 +83,9 @@ These flows are all part of one app surface, with instance state selected throug
 - The workspace studio canvas now keeps one canonical `react-grid-layout` layout in both view and
   edit mode. Entering edit mode should not reshuffle cards; the only intended differences are edit
   chrome plus drag/resize interactivity.
+- Workspace edit mode is now pure client-side per-workspace UI state in the shared studio store.
+  It must survive route changes into widget settings and back to the canvas for the same workspace,
+  but it must not become part of the persisted workspace document.
 - The studio now uses the root `react-grid-layout` v2 API directly. `CustomDashboardStudioPage`
   passes grouped `gridConfig`, `dragConfig`, `resizeConfig`, and `compactor` props instead of the
   old flat v1 prop surface.
@@ -125,10 +128,15 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget definitions can set shared presentation defaults. `Data Node` now uses this to default new and existing instances into sidebar placement unless that instance explicitly saved a different placement.
 - The workspace settings dialog now also includes a remove action, so sidebar-only widgets remain deletable even when they do not render a normal on-canvas card with header chrome.
 - Widget settings in Workspaces no longer open in a modal. They now use a dedicated route-level view with a shared full-width settings panel and an explicit `Return to dashboard` action.
+- The widget settings header now scopes its saved/unsaved badge and save-button enabled state to the
+  selected workspace only. It must not reflect unrelated unsaved changes elsewhere in the workspace
+  collection.
 - The dedicated widget settings page now also hosts a `Bindings` tab for widgets that declare
   inputs. Binding UI is page-level on purpose so graph edges stay separate from raw props editing,
   and each input now exposes explicit source-widget and source-output selectors instead of a single
-  flattened choice.
+  flattened choice. Bindings remain port-to-port in the graph model, but settings can now attach a
+  lightweight nested-field extraction transform to the selected source output before compatibility
+  is evaluated for that edge.
 - The workspace graph is now a dedicated route-level React Flow surface built on top of the shared
   dependency layer. It renders one node per widget instance, one edge per canonical binding, keeps
   graph coordinates session-local, stays inside the normal Workspaces shell with the standard app

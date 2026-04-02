@@ -1,6 +1,7 @@
 import type {
   ResolvedWidgetInputs,
   WidgetContractId,
+  WidgetValueDescriptor,
 } from "@/widgets/types";
 import { titleCase } from "@/lib/utils";
 
@@ -72,6 +73,7 @@ export interface AppComponentBindingOutputPortSpec {
   description?: string;
   kind: AppComponentGeneratedFieldKind;
   contract: WidgetContractId;
+  valueDescriptor?: WidgetValueDescriptor;
   responsePath: string[];
   statusCode: string;
   contentType: string | null;
@@ -513,6 +515,127 @@ function resolveFieldKind(schema?: OpenApiSchema): AppComponentGeneratedFieldKin
   }
 
   return "json";
+}
+
+function resolvePrimitiveDescriptor(
+  schema: OpenApiSchema | undefined,
+): WidgetValueDescriptor {
+  const kind = resolveFieldKind(schema);
+  const description = schema?.description;
+
+  switch (kind) {
+    case "boolean":
+      return {
+        kind: "primitive",
+        contract: resolveAppComponentOutputContract(kind),
+        primitive: "boolean",
+        description,
+      };
+    case "integer":
+      return {
+        kind: "primitive",
+        contract: resolveAppComponentOutputContract(kind),
+        primitive: "integer",
+        description,
+      };
+    case "number":
+      return {
+        kind: "primitive",
+        contract: resolveAppComponentOutputContract(kind),
+        primitive: "number",
+        description,
+      };
+    case "date":
+    case "date-time":
+    case "enum":
+    case "string":
+      return {
+        kind: "primitive",
+        contract: resolveAppComponentOutputContract(kind),
+        primitive: "string",
+        format: schema?.format,
+        description,
+      };
+    case "json":
+    default:
+      return {
+        kind: "unknown",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description,
+      };
+  }
+}
+
+function buildValueDescriptorFromOpenApiSchema(
+  document: OpenApiDocument,
+  schemaInput: OpenApiSchema | OpenApiReference | undefined,
+  options?: {
+    depth?: number;
+    maxDepth?: number;
+  },
+): WidgetValueDescriptor | undefined {
+  const schema = resolveOpenApiSchema(document, schemaInput);
+
+  if (!schema) {
+    return undefined;
+  }
+
+  const depth = options?.depth ?? 0;
+  const maxDepth = options?.maxDepth ?? 4;
+
+  if (isArraySchema(schema)) {
+    return {
+      kind: "array",
+      contract: CORE_VALUE_JSON_CONTRACT,
+      description: schema.description,
+      items:
+        depth >= maxDepth
+          ? undefined
+          : buildValueDescriptorFromOpenApiSchema(document, schema.items, {
+              depth: depth + 1,
+              maxDepth,
+            }),
+    };
+  }
+
+  if (isObjectSchema(schema)) {
+    const requiredSet = new Set(schema.required ?? []);
+
+    return {
+      kind: "object",
+      contract: CORE_VALUE_JSON_CONTRACT,
+      description: schema.description,
+      fields:
+        depth >= maxDepth
+          ? []
+          : Object.entries(schema.properties ?? {}).flatMap(([propertyName, propertySchema]) => {
+              const valueDescriptor = buildValueDescriptorFromOpenApiSchema(
+                document,
+                propertySchema,
+                {
+                  depth: depth + 1,
+                  maxDepth,
+                },
+              );
+
+              if (!valueDescriptor) {
+                return [];
+              }
+
+              const resolvedPropertySchema = resolveOpenApiSchema(document, propertySchema);
+
+              return [{
+                key: propertyName,
+                label: titleCase(propertyName),
+                description: resolvedPropertySchema?.description,
+                required: requiredSet.has(propertyName),
+                value: valueDescriptor,
+              }];
+            }),
+    };
+  }
+
+  return resolvePrimitiveDescriptor(schema);
 }
 
 function buildFieldLabel(
@@ -997,7 +1120,11 @@ function buildAppComponentResponsePortId(path: string[]) {
 }
 
 function buildAppComponentResponsePortLabel(path: string[]) {
-  return path.length === 0 ? "Response Body" : titleCase(path[path.length - 1] ?? "Response");
+  if (path.length === 0) {
+    return "Response Body";
+  }
+
+  return path.map((segment) => titleCase(segment)).join(" / ");
 }
 
 function pushAppComponentResponsePort(
@@ -1030,10 +1157,14 @@ function collectResponsePortsFromSchema(
   const depth = options.depth ?? 0;
   const maxDepth = options.maxDepth ?? 2;
   const responsePath = options.path;
+  const valueDescriptor = buildValueDescriptorFromOpenApiSchema(document, schema, {
+    maxDepth: 4,
+  });
   const basePort = {
     id: buildAppComponentResponsePortId(responsePath),
     label: buildAppComponentResponsePortLabel(responsePath),
     description: schema.description,
+    valueDescriptor,
     responsePath,
     statusCode: options.statusCode,
     contentType: options.contentType,
@@ -1085,6 +1216,9 @@ function collectResponsePortsFromSchema(
         description: propertySchema.description,
         kind,
         contract: resolveAppComponentOutputContract(kind),
+        valueDescriptor: buildValueDescriptorFromOpenApiSchema(document, propertySchema, {
+          maxDepth: 4,
+        }),
         responsePath: nextPath,
         statusCode: options.statusCode,
         contentType: options.contentType,
@@ -1419,6 +1553,95 @@ export function normalizeAppComponentMethod(
     : undefined;
 }
 
+function normalizeWidgetValueDescriptor(
+  value: unknown,
+): WidgetValueDescriptor | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const contract = typeof value.contract === "string" ? value.contract.trim() : "";
+  const description = typeof value.description === "string" ? value.description : undefined;
+
+  if (!contract) {
+    return undefined;
+  }
+
+  if (value.kind === "primitive") {
+    const primitive = value.primitive;
+
+    if (
+      primitive !== "string" &&
+      primitive !== "number" &&
+      primitive !== "integer" &&
+      primitive !== "boolean" &&
+      primitive !== "null"
+    ) {
+      return undefined;
+    }
+
+    return {
+      kind: "primitive",
+      contract: contract as WidgetContractId,
+      primitive,
+      format: typeof value.format === "string" ? value.format : undefined,
+      description,
+    };
+  }
+
+  if (value.kind === "object") {
+    const fields = Array.isArray(value.fields)
+      ? value.fields.flatMap((entry) => {
+          if (!isPlainRecord(entry)) {
+            return [];
+          }
+
+          const key = typeof entry.key === "string" ? entry.key.trim() : "";
+          const label = typeof entry.label === "string" ? entry.label.trim() : "";
+          const nestedValue = normalizeWidgetValueDescriptor(entry.value);
+
+          if (!key || !label || !nestedValue) {
+            return [];
+          }
+
+          return [{
+            key,
+            label,
+            description: typeof entry.description === "string" ? entry.description : undefined,
+            required: entry.required === true,
+            value: nestedValue,
+          }];
+        })
+      : [];
+
+    return {
+      kind: "object",
+      contract: contract as WidgetContractId,
+      description,
+      fields,
+    };
+  }
+
+  if (value.kind === "array") {
+    return {
+      kind: "array",
+      contract: contract as WidgetContractId,
+      description,
+      items: normalizeWidgetValueDescriptor(value.items),
+    };
+  }
+
+  if (value.kind === "unknown") {
+    return {
+      kind: "unknown",
+      contract: contract as WidgetContractId,
+      description,
+    };
+  }
+
+  return undefined;
+}
+
 export function normalizeAppComponentProps(
   props: AppComponentWidgetProps,
 ): AppComponentWidgetProps {
@@ -1537,6 +1760,7 @@ export function normalizeAppComponentBindingSpec(
               ? entry.kind
               : "json",
           contract: contract as WidgetContractId,
+          valueDescriptor: normalizeWidgetValueDescriptor(entry.valueDescriptor),
           responsePath,
           statusCode: typeof entry.statusCode === "string" ? entry.statusCode : "200",
           contentType: typeof entry.contentType === "string" ? entry.contentType : null,

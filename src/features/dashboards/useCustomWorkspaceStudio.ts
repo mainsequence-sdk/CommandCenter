@@ -36,12 +36,16 @@ export function useCustomWorkspaceStudio() {
   const isHydrating = useCustomWorkspaceStudioStore((state) => state.isHydrating);
   const isSaving = useCustomWorkspaceStudioStore((state) => state.isSaving);
   const error = useCustomWorkspaceStudioStore((state) => state.error);
+  const workspaceEditorModeById = useCustomWorkspaceStudioStore(
+    (state) => state.workspaceEditorModeById,
+  );
   const initialize = useCustomWorkspaceStudioStore((state) => state.initialize);
   const updateDraftCollection = useCustomWorkspaceStudioStore((state) => state.updateDraftCollection);
   const createPersistedWorkspace = useCustomWorkspaceStudioStore((state) => state.createWorkspace);
   const deletePersistedWorkspace = useCustomWorkspaceStudioStore((state) => state.deleteWorkspace);
   const resetDraftCollection = useCustomWorkspaceStudioStore((state) => state.resetDraftCollection);
   const saveDraftCollection = useCustomWorkspaceStudioStore((state) => state.saveDraftCollection);
+  const setWorkspaceEditing = useCustomWorkspaceStudioStore((state) => state.setWorkspaceEditing);
 
   useEffect(() => {
     void initialize(user?.id ?? null);
@@ -78,6 +82,24 @@ export function useCustomWorkspaceStudio() {
   const dirty = useMemo(
     () => JSON.stringify(draftCollection) !== JSON.stringify(savedCollection),
     [draftCollection, savedCollection],
+  );
+  const savedSelectedDashboard = useMemo(
+    () =>
+      requestedWorkspaceId
+        ? (savedCollection.dashboards.find((dashboard) => dashboard.id === requestedWorkspaceId) ?? null)
+        : null,
+    [requestedWorkspaceId, savedCollection],
+  );
+  const selectedWorkspaceDirty = useMemo(
+    () => JSON.stringify(selectedDashboard) !== JSON.stringify(savedSelectedDashboard),
+    [savedSelectedDashboard, selectedDashboard],
+  );
+  const selectedWorkspaceEditing = useMemo(
+    () =>
+      requestedWorkspaceId
+        ? (workspaceEditorModeById[requestedWorkspaceId] ?? false)
+        : false,
+    [requestedWorkspaceId, workspaceEditorModeById],
   );
   const workspaceSelectionPending = useMemo(
     () =>
@@ -141,6 +163,14 @@ export function useCustomWorkspaceStudio() {
     nextParams.set("view", "widget-settings");
     nextParams.set("widget", widgetId);
     setSearchParams(nextParams);
+  }
+
+  function setSelectedWorkspaceEditing(editing: boolean) {
+    if (!requestedWorkspaceId) {
+      return;
+    }
+
+    setWorkspaceEditing(requestedWorkspaceId, editing);
   }
 
   function updateSelectedWorkspace(
@@ -223,6 +253,8 @@ export function useCustomWorkspaceStudio() {
     selectedDashboard,
     resolvedDashboard,
     dirty,
+    selectedWorkspaceDirty,
+    selectedWorkspaceEditing,
     workspaceSelectionPending,
     requestedWorkspaceMissing,
     requestedWorkspaceId,
@@ -233,6 +265,7 @@ export function useCustomWorkspaceStudio() {
     openWorkspaceGraph,
     openWorkspaceSettings,
     openWidgetSettings,
+    setSelectedWorkspaceEditing,
     updateDraftCollection,
     updateSelectedWorkspace,
     createWorkspace,

@@ -9,6 +9,9 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - Let a user bind one widget instance to one API operation.
 - Compile the selected operation into a persisted per-instance binding spec so request fields become
   bindable inputs and response fields become bindable outputs.
+- Keep flattened response leaf ports for simple bindings, while also publishing a structured root
+  response output so binding edges can optionally extract nested fields without changing graph
+  topology.
 - Render the generated request inputs directly inside the widget body without exposing the live response there.
 - Submit requests with the current shell JWT by default so the widget follows the same auth path as the rest of the app.
 - Persist per-instance route selection and binding metadata in widget props, and round-trip draft
@@ -24,7 +27,8 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - `appComponentContracts.ts`: shared scalar/json contracts used by AppComponent request and
   response ports.
 - `appComponentDynamicIo.ts`: per-instance `resolveIo(...)` implementation that turns the compiled
-  binding spec into dynamic widget ports.
+  binding spec into dynamic widget ports, including the structured response output descriptor used
+  by the shared binding transform UI.
 - `appComponentApi.ts`: authenticated OpenAPI fetch and request submission helpers, including the local mock transport used by explorer and mock mode.
 - `AppComponentWidget.tsx`: runtime widget body that renders only the generated request inputs.
 - `AppComponentWidgetSettings.tsx`: settings experience for API discovery, operation selection, response-model inspection, and live request testing.
@@ -39,6 +43,8 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - Response inspection and request testing happen in widget settings; the mounted widget itself stays input-focused.
 - Dynamic bindings are compiled from the selected endpoint in settings and resolved synchronously
   from saved widget props at graph/binding time.
+- Binding still stays port-to-port. Nested response-field selection is stored on the binding edge
+  as a transform, not as a second AppComponent-only wiring model.
 
 ## Maintenance Notes
 
@@ -46,5 +52,7 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - Keep the widget generic. Product-specific API presets should be modeled as preconfigured widget instances or future helper modules, not hardcoded into the core widget itself.
 - Keep `bindingSpec.operationKey`, widget `method/path`, and runtime `operationKey` aligned. Dynamic
   outputs must not resolve against stale responses from a different endpoint selection.
+- Keep the structured response descriptor and the flattened response ports aligned. The flat ports
+  are convenience outputs; the structured root output is the fallback for nested extraction.
 - Build future chaining on the shared widget binding system. Do not introduce a second AppComponent-only
   cross-widget composition path.

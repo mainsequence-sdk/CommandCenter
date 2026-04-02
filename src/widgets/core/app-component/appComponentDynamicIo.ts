@@ -4,13 +4,23 @@ import type {
 } from "@/widgets/types";
 
 import {
-  buildAppComponentOperationKey,
   normalizeAppComponentProps,
   normalizeAppComponentRuntimeState,
   resolveAppComponentResponseValueAtPath,
   type AppComponentBindingOutputPortSpec,
   type AppComponentWidgetProps,
 } from "./appComponentModel";
+import { titleCase } from "@/lib/utils";
+
+function buildResolvedAppComponentOutputLabel(
+  port: AppComponentBindingOutputPortSpec,
+) {
+  if (port.responsePath.length === 0) {
+    return "Response Body";
+  }
+
+  return port.responsePath.map((segment) => titleCase(segment)).join(" / ");
+}
 
 function buildAppComponentOutputPort(
   port: AppComponentBindingOutputPortSpec,
@@ -18,9 +28,10 @@ function buildAppComponentOutputPort(
 ): WidgetOutputPortDefinition<AppComponentWidgetProps> {
   return {
     id: port.id,
-    label: port.label,
+    label: buildResolvedAppComponentOutputLabel(port),
     contract: port.contract,
     description: port.description,
+    valueDescriptor: port.valueDescriptor,
     resolveValue: ({ runtimeState }) => {
       const normalizedRuntimeState = normalizeAppComponentRuntimeState(runtimeState);
 
@@ -46,16 +57,7 @@ export function resolveAppComponentWidgetIo(
   const normalizedProps = normalizeAppComponentProps(props);
   const bindingSpec = normalizedProps.bindingSpec;
 
-  if (!bindingSpec || !normalizedProps.method || !normalizedProps.path) {
-    return undefined;
-  }
-
-  const currentOperationKey = buildAppComponentOperationKey(
-    normalizedProps.method,
-    normalizedProps.path,
-  );
-
-  if (bindingSpec.operationKey !== currentOperationKey) {
+  if (!bindingSpec) {
     return undefined;
   }
 
