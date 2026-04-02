@@ -93,8 +93,16 @@ These flows are all part of one app surface, with instance state selected throug
   keeps manual resize/free placement disabled. `Custom` remains the only manual authoring mode,
   while Auto grid edit mode now supports order-only drag reordering.
 - Widget instances can also switch their surface to a transparent mode through shared presentation settings, which removes the default card fill/shadow for flatter workspace compositions.
-- The workspace canvas also exposes a thin in-canvas widget rail on the left side: one plain icon per mounted widget instance, with direct access to that widget's settings, a small runtime-status dot, and hover summaries. Widgets can opt into richer rail hover content through shared widget-definition metadata.
-- Workspace widget presentation now also supports `placementMode`. `canvas` keeps the instance visible in the grid, while `sidebar` keeps it mounted only in the rail. This is intended for composable source widgets such as `Data Node` instances that should keep publishing runtime state without consuming canvas area.
+- In canvas edit mode, the workspace canvas exposes a thin in-canvas widget rail on the left side:
+  one plain icon per mounted widget instance, with direct access to that widget's settings, a
+  small runtime-status dot, and hover summaries. Widgets can opt into richer rail hover content
+  through shared widget-definition metadata.
+- Workspace widget presentation now also supports `placementMode`. `canvas` keeps the instance
+  visible in the grid, while `sidebar` keeps it mounted only in the edit-mode rail. This is
+  intended for composable source widgets such as `Data Node` instances that should keep publishing
+  runtime state without consuming canvas area.
+- The workspace toolbar keeps `Components` and workspace-settings affordances hidden until edit mode
+  is active, so normal viewing does not expose authoring controls.
 - Sidebar-only widgets can still expose selected schema fields on the canvas through the shared companion-field system. The widget remains the single owner of props/runtime, while the canvas cards are only projections of that sidebar-owned instance.
 - Sidebar-only widgets must not reserve grid cells in the main canvas layout. They stay mounted for runtime publication, but only visible companion cards are allowed to create actual canvas DOM or consume placement space.
 - In the studio canvas, exposed companion fields now render as first-class `react-grid-layout`

@@ -1,3 +1,6 @@
+import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
+
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -21,6 +24,99 @@ import {
 
 function isMultilineField(field: AppComponentGeneratedField) {
   return field.kind === "json";
+}
+
+function FieldDescriptionHint({ description }: { description: string }) {
+  const tooltipId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<CSSProperties>();
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current || typeof window === "undefined") {
+      return;
+    }
+
+    function updateTooltipPosition() {
+      const triggerBounds = triggerRef.current?.getBoundingClientRect();
+
+      if (!triggerBounds) {
+        return;
+      }
+
+      const tooltipWidth = Math.min(240, Math.max(180, window.innerWidth - 24));
+      const left = Math.min(
+        triggerBounds.right + 10,
+        Math.max(12, window.innerWidth - tooltipWidth - 12),
+      );
+      const top = Math.min(
+        Math.max(triggerBounds.top + triggerBounds.height / 2, 20),
+        Math.max(20, window.innerHeight - 20),
+      );
+
+      setTooltipStyle({
+        left,
+        top,
+        width: tooltipWidth,
+      });
+    }
+
+    updateTooltipPosition();
+    window.addEventListener("resize", updateTooltipPosition);
+    window.addEventListener("scroll", updateTooltipPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateTooltipPosition);
+      window.removeEventListener("scroll", updateTooltipPosition, true);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-describedby={open ? tooltipId : undefined}
+        aria-label={description}
+        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border/70 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-border hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+        onPointerEnter={() => {
+          setOpen(true);
+        }}
+        onPointerLeave={() => {
+          setOpen(false);
+        }}
+        onFocus={() => {
+          setOpen(true);
+        }}
+        onBlur={() => {
+          setOpen(false);
+        }}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      >
+        i
+      </button>
+      {open && tooltipStyle && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              id={tooltipId}
+              role="tooltip"
+              className="pointer-events-none fixed z-[120] -translate-y-1/2 rounded-[calc(var(--radius)-6px)] border border-border/80 bg-popover px-2.5 py-2 text-left text-[11px] font-medium leading-4 text-popover-foreground shadow-[var(--shadow-panel)]"
+              style={tooltipStyle}
+            >
+              {description}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
 }
 
 function FieldEditor({
@@ -151,15 +247,7 @@ function CompactField({
       >
         <span className="truncate">{field.label}</span>
         {field.required ? <span className="text-danger">*</span> : null}
-        {field.description ? (
-          <span
-            title={field.description}
-            aria-label={field.description}
-            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border/70 text-[10px] font-semibold text-muted-foreground"
-          >
-            i
-          </span>
-        ) : null}
+        {field.description ? <FieldDescriptionHint description={field.description} /> : null}
       </div>
       <div className="min-w-0 flex-1">
         <FieldEditor

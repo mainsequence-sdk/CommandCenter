@@ -183,8 +183,10 @@ export interface BuiltAppComponentRequest {
 
 export interface AppComponentResponseModelStatus {
   declaredResponseCodes: string[];
+  requiredResponseCodes: string[];
   modeledResponseCodes: string[];
   missingResponseCodes: string[];
+  optionalMissingResponseCodes: string[];
   isValidEndpoint: boolean;
 }
 
@@ -1485,6 +1487,12 @@ export function resolveAppComponentOperation(
   };
 }
 
+function isOptionalResponseModelStatusCode(statusCode: string) {
+  const normalizedStatusCode = statusCode.trim();
+
+  return /^5\d\d$/i.test(normalizedStatusCode) || /^5XX$/i.test(normalizedStatusCode);
+}
+
 export function resolveAppComponentResponseModelStatus(
   document: OpenApiDocument,
   resolvedOperation: ResolvedAppComponentOperation | null,
@@ -1498,14 +1506,20 @@ export function resolveAppComponentResponseModelStatus(
   if (declaredResponseCodes.length === 0) {
     return {
       declaredResponseCodes: [],
+      requiredResponseCodes: [],
       modeledResponseCodes: [],
       missingResponseCodes: [],
+      optionalMissingResponseCodes: [],
       isValidEndpoint: false,
     };
   }
 
+  const requiredResponseCodes = declaredResponseCodes.filter(
+    (statusCode) => !isOptionalResponseModelStatusCode(statusCode),
+  );
   const modeledResponseCodes: string[] = [];
   const missingResponseCodes: string[] = [];
+  const optionalMissingResponseCodes: string[] = [];
 
   for (const [statusCode, responseInput] of Object.entries(
     resolvedOperation.operation.responses ?? {},
@@ -1520,17 +1534,28 @@ export function resolveAppComponentResponseModelStatus(
       continue;
     }
 
+    if (isOptionalResponseModelStatusCode(statusCode)) {
+      optionalMissingResponseCodes.push(statusCode);
+      continue;
+    }
+
     missingResponseCodes.push(statusCode);
   }
 
   return {
     declaredResponseCodes,
+    requiredResponseCodes,
     modeledResponseCodes,
     missingResponseCodes,
+    optionalMissingResponseCodes,
     isValidEndpoint:
       declaredResponseCodes.length > 0 &&
       modeledResponseCodes.length > 0 &&
-      missingResponseCodes.length === 0,
+      missingResponseCodes.length === 0 &&
+      (
+        requiredResponseCodes.length === 0 ||
+        modeledResponseCodes.some((statusCode) => requiredResponseCodes.includes(statusCode))
+      ),
   };
 }
 

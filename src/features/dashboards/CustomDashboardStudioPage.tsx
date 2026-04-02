@@ -2773,16 +2773,17 @@ export function CustomDashboardStudioPage() {
               style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
             />
 
-        <WorkspaceWidgetRail
-          widgets={railWidgets}
-          activeInstanceId={selectedInstanceId}
-          topOffsetClassName="top-4"
-          onOpenWidget={(instanceId) => {
-            setEditMode(true);
-            setSelectedInstanceId(instanceId);
-            openWidgetSettings(instanceId);
-          }}
-        />
+        {editMode ? (
+          <WorkspaceWidgetRail
+            widgets={railWidgets}
+            activeInstanceId={selectedInstanceId}
+            topOffsetClassName="top-4"
+            onOpenWidget={(instanceId) => {
+              setSelectedInstanceId(instanceId);
+              openWidgetSettings(instanceId);
+            }}
+          />
+        ) : null}
 
         <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
           {sidebarOnlyWidgets.map((instance) => {
@@ -2831,7 +2832,8 @@ export function CustomDashboardStudioPage() {
 
         <div
           className={cn(
-            "absolute inset-0 overflow-auto pl-12 pr-4 pb-4 transition-[padding] duration-200",
+            "absolute inset-0 overflow-auto pr-4 pb-4 transition-[padding] duration-200",
+            editMode ? "pl-12" : "pl-4",
             dashboardMenuHidden ? "pt-3" : "pt-0",
           )}
           style={{ scrollbarGutter: "stable" }}
@@ -2875,29 +2877,27 @@ export function CustomDashboardStudioPage() {
                         Editing
                       </Badge>
                     ) : null}
-                    <WorkspaceToolbarButton
-                      active={libraryOpen}
-                      title="Components"
-                      onClick={() => {
-                        if (!editMode) {
-                          setEditMode(true);
-                          setLibraryOpen(true);
-                          return;
-                        }
-
-                        setLibraryOpen((current) => !current);
-                      }}
-                    >
-                      <LayoutTemplate className="h-3.5 w-3.5" />
-                    </WorkspaceToolbarButton>
-                    <WorkspaceToolbarButton
-                      title="Workspace settings"
-                      onClick={() => {
-                        openWorkspaceSettings();
-                      }}
-                    >
-                      <Settings2 className="h-3.5 w-3.5" />
-                    </WorkspaceToolbarButton>
+                    {editMode ? (
+                      <WorkspaceToolbarButton
+                        active={libraryOpen}
+                        title="Components"
+                        onClick={() => {
+                          setLibraryOpen((current) => !current);
+                        }}
+                      >
+                        <LayoutTemplate className="h-3.5 w-3.5" />
+                      </WorkspaceToolbarButton>
+                    ) : null}
+                    {editMode ? (
+                      <WorkspaceToolbarButton
+                        title="Workspace settings"
+                        onClick={() => {
+                          openWorkspaceSettings();
+                        }}
+                      >
+                        <Settings2 className="h-3.5 w-3.5" />
+                      </WorkspaceToolbarButton>
+                    ) : null}
                     <WorkspaceToolbarButton
                       title="Hide dashboard menu"
                       onClick={() => {

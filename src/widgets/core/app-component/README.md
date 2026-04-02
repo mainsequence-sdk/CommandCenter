@@ -10,7 +10,7 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - Render the generated request inputs directly inside the widget body without exposing the live response there.
 - Submit requests with the current shell JWT by default so the widget follows the same auth path as the rest of the app.
 - Persist per-instance route selection in widget props and round-trip draft inputs plus the latest response through widget runtime state.
-- Highlight operations in settings when any declared OpenAPI response is missing a response model, because those endpoints are treated as incorrectly documented for this widget.
+- Highlight operations in settings when required OpenAPI responses are missing a response model. Server-error `5xx` responses stay visible in the preview but are optional for endpoint validity.
 - Keep configuration in the structured settings flow only. This widget opts out of the shared raw props JSON editor.
 
 ## Entry Points

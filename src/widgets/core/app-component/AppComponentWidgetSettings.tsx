@@ -50,19 +50,30 @@ function linkClassName(disabled = false) {
 }
 
 function buildResponseModelWarningMessage(
-  declaredResponseCodes: string[],
-  missingResponseCodes: string[],
-  modeledResponseCodes: string[],
+  responseModelStatus: {
+    declaredResponseCodes: string[];
+    missingResponseCodes: string[];
+    modeledResponseCodes: string[];
+    optionalMissingResponseCodes: string[];
+  },
 ) {
+  const {
+    declaredResponseCodes,
+    missingResponseCodes,
+    modeledResponseCodes,
+    optionalMissingResponseCodes,
+  } = responseModelStatus;
+  const allMissingResponseCodes = [...missingResponseCodes, ...optionalMissingResponseCodes];
+
   if (declaredResponseCodes.length === 0) {
     return "Incorrect endpoint: the operation does not declare any OpenAPI responses.";
   }
 
   if (modeledResponseCodes.length === 0) {
-    return `Incorrect endpoint: none of the declared responses include a response model. Missing schema for ${missingResponseCodes.join(", ")}.`;
+    return `Incorrect endpoint: none of the declared responses include a response model. Missing schema for ${allMissingResponseCodes.join(", ")}.`;
   }
 
-  return `Incorrect endpoint: every declared response should include a response model. Missing schema for ${missingResponseCodes.join(", ")}.`;
+  return `Incorrect endpoint: every required response should include a response model. Missing schema for ${missingResponseCodes.join(", ")}.`;
 }
 
 function formatTimestamp(timestampMs?: number) {
@@ -555,11 +566,7 @@ export function AppComponentWidgetSettings({
                         <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
                         <div className="space-y-1">
                           <div>
-                            {buildResponseModelWarningMessage(
-                              responseModelStatus.declaredResponseCodes,
-                              responseModelStatus.missingResponseCodes,
-                              responseModelStatus.modeledResponseCodes,
-                            )}
+                            {buildResponseModelWarningMessage(responseModelStatus)}
                           </div>
                           {responseModelStatus.modeledResponseCodes.length > 0 ? (
                             <div className="text-xs text-danger/90">
