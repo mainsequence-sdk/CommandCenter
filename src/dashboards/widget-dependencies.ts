@@ -6,6 +6,7 @@ import type {
   WidgetInputEffect,
   WidgetInputPortDefinition,
   WidgetInstanceBindings,
+  WidgetIoDefinition,
   WidgetOutputPortDefinition,
   WidgetPortBinding,
   WidgetPortBindingValue,
@@ -65,7 +66,63 @@ export interface DashboardWidgetDependencyModel {
   entries: FlattenedDashboardWidgetEntry[];
   graph: DashboardWidgetDependencyGraph;
   getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
+  resolveIo: (instanceId: string) => WidgetIoDefinition | undefined;
   resolveInputs: (instanceId: string) => ResolvedWidgetInputs | undefined;
+}
+
+export type WidgetGraphPortKind = "input" | "output";
+
+export interface WidgetGraphHandleDescriptor {
+  kind: WidgetGraphPortKind;
+  portId: string;
+}
+
+export interface WidgetGraphConnectionLike {
+  source?: string | null;
+  sourceHandle?: string | null;
+  target?: string | null;
+  targetHandle?: string | null;
+}
+
+export interface NormalizedWidgetGraphConnection {
+  sourceWidgetId: string;
+  sourceOutputId: string;
+  targetWidgetId: string;
+  targetInputId: string;
+}
+
+export interface ResolvedWidgetGraphConnection {
+  connection: NormalizedWidgetGraphConnection;
+  sourceInstance: DashboardWidgetInstance;
+  targetInstance: DashboardWidgetInstance;
+  sourceDefinition: WidgetDefinition;
+  targetDefinition: WidgetDefinition;
+  sourceOutput: WidgetOutputPortDefinition<Record<string, unknown>>;
+  targetInput: WidgetInputPortDefinition<Record<string, unknown>>;
+}
+
+export function buildWidgetGraphHandleId(kind: WidgetGraphPortKind, portId: string) {
+  return `${kind}:${portId}`;
+}
+
+export function parseWidgetGraphHandleId(
+  handleId: string | null | undefined,
+): WidgetGraphHandleDescriptor | null {
+  if (!handleId) {
+    return null;
+  }
+
+  const [kind, ...rest] = handleId.split(":");
+  const portId = rest.join(":").trim();
+
+  if ((kind !== "input" && kind !== "output") || !portId) {
+    return null;
+  }
+
+  return {
+    kind,
+    portId,
+  };
 }
 
 function normalizeBinding(value: unknown): WidgetPortBinding | null {
@@ -165,6 +222,12 @@ export function collectDashboardWidgetEntries(
   });
 }
 
+export function createDashboardWidgetEntryIndex(
+  entries: FlattenedDashboardWidgetEntry[],
+): ReadonlyMap<string, DashboardWidgetInstance> {
+  return new Map(entries.map(({ instance }) => [instance.id, instance] as const));
+}
+
 function toBindingArray(value: WidgetPortBindingValue | undefined): WidgetPortBinding[] {
   if (!value) {
     return [];
@@ -174,12 +237,178 @@ function toBindingArray(value: WidgetPortBindingValue | undefined): WidgetPortBi
 }
 
 function getOutputDefinition(
-  definition: WidgetDefinition | undefined,
+  io: WidgetIoDefinition | undefined,
   outputId: string,
 ): WidgetOutputPortDefinition<Record<string, unknown>> | undefined {
-  return definition?.io?.outputs?.find((output) => output.id === outputId) as
+  return io?.outputs?.find((output) => output.id === outputId) as
     | WidgetOutputPortDefinition<Record<string, unknown>>
     | undefined;
+}
+
+function getInputDefinition(
+  io: WidgetIoDefinition | undefined,
+  inputId: string,
+): WidgetInputPortDefinition<Record<string, unknown>> | undefined {
+  return io?.inputs?.find((input) => input.id === inputId) as
+    | WidgetInputPortDefinition<Record<string, unknown>>
+    | undefined;
+}
+
+function resolveWidgetIoForInstance(
+  definition: WidgetDefinition | undefined,
+  instance: DashboardWidgetInstance,
+): WidgetIoDefinition | undefined {
+  if (!definition) {
+    return undefined;
+  }
+
+  return (
+    definition.resolveIo?.({
+      widgetId: instance.widgetId,
+      instanceId: instance.id,
+      props: (instance.props ?? {}) as Record<string, unknown>,
+      runtimeState: instance.runtimeState,
+    }) ?? definition.io
+  );
+}
+
+export function resolveWidgetGraphConnection(
+  connectionLike: WidgetGraphConnectionLike,
+  instanceIndex: ReadonlyMap<string, DashboardWidgetInstance>,
+  getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
+  resolveWidgetIo?: (instanceId: string) => WidgetIoDefinition | undefined,
+): ResolvedWidgetGraphConnection | null {
+  const sourceHandle = parseWidgetGraphHandleId(connectionLike.sourceHandle);
+  const targetHandle = parseWidgetGraphHandleId(connectionLike.targetHandle);
+  const sourceId = connectionLike.source?.trim();
+  const targetId = connectionLike.target?.trim();
+
+  if (!sourceHandle || !targetHandle || !sourceId || !targetId) {
+    return null;
+  }
+
+  let normalized: NormalizedWidgetGraphConnection | null = null;
+
+  if (sourceHandle.kind === "output" && targetHandle.kind === "input") {
+    normalized = {
+      sourceWidgetId: sourceId,
+      sourceOutputId: sourceHandle.portId,
+      targetWidgetId: targetId,
+      targetInputId: targetHandle.portId,
+    };
+  } else if (sourceHandle.kind === "input" && targetHandle.kind === "output") {
+    normalized = {
+      sourceWidgetId: targetId,
+      sourceOutputId: targetHandle.portId,
+      targetWidgetId: sourceId,
+      targetInputId: sourceHandle.portId,
+    };
+  }
+
+  if (!normalized || normalized.sourceWidgetId === normalized.targetWidgetId) {
+    return null;
+  }
+
+  const sourceInstance = instanceIndex.get(normalized.sourceWidgetId);
+  const targetInstance = instanceIndex.get(normalized.targetWidgetId);
+
+  if (!sourceInstance || !targetInstance) {
+    return null;
+  }
+
+  const sourceDefinition = getWidgetDefinition(sourceInstance.widgetId);
+  const targetDefinition = getWidgetDefinition(targetInstance.widgetId);
+
+  if (!sourceDefinition || !targetDefinition) {
+    return null;
+  }
+
+  const sourceOutput = getOutputDefinition(
+    resolveWidgetIo?.(sourceInstance.id) ?? sourceDefinition.io,
+    normalized.sourceOutputId,
+  );
+  const targetInput = getInputDefinition(
+    resolveWidgetIo?.(targetInstance.id) ?? targetDefinition.io,
+    normalized.targetInputId,
+  );
+
+  if (!sourceOutput || !targetInput) {
+    return null;
+  }
+
+  if (!targetInput.accepts.includes(sourceOutput.contract)) {
+    return null;
+  }
+
+  return {
+    connection: normalized,
+    sourceInstance,
+    targetInstance,
+    sourceDefinition,
+    targetDefinition,
+    sourceOutput,
+    targetInput,
+  };
+}
+
+export function addWidgetGraphConnectionToBindings(
+  bindings: WidgetInstanceBindings | null | undefined,
+  targetInput: WidgetInputPortDefinition<Record<string, unknown>>,
+  connection: NormalizedWidgetGraphConnection,
+): WidgetInstanceBindings | undefined {
+  const nextBinding: WidgetPortBinding = {
+    sourceWidgetId: connection.sourceWidgetId,
+    sourceOutputId: connection.sourceOutputId,
+  };
+  const normalizedBindings = normalizeWidgetInstanceBindings(bindings) ?? {};
+  const currentBindings = toBindingArray(normalizedBindings[connection.targetInputId]).filter(
+    (binding) =>
+      !(
+        binding.sourceWidgetId === nextBinding.sourceWidgetId &&
+        binding.sourceOutputId === nextBinding.sourceOutputId
+      ),
+  );
+
+  const nextInputBindings =
+    targetInput.cardinality === "many"
+      ? [...currentBindings, nextBinding]
+      : [nextBinding];
+
+  return normalizeWidgetInstanceBindings({
+    ...normalizedBindings,
+    [connection.targetInputId]:
+      targetInput.cardinality === "many" ? nextInputBindings : nextInputBindings[0],
+  });
+}
+
+export function removeWidgetGraphConnectionFromBindings(
+  bindings: WidgetInstanceBindings | null | undefined,
+  connection: NormalizedWidgetGraphConnection,
+): WidgetInstanceBindings | undefined {
+  const normalizedBindings = normalizeWidgetInstanceBindings(bindings);
+
+  if (!normalizedBindings) {
+    return undefined;
+  }
+
+  const remainingBindings = toBindingArray(normalizedBindings[connection.targetInputId]).filter(
+    (binding) =>
+      !(
+        binding.sourceWidgetId === connection.sourceWidgetId &&
+        binding.sourceOutputId === connection.sourceOutputId
+      ),
+  );
+
+  const nextBindings = { ...normalizedBindings };
+
+  if (remainingBindings.length === 0) {
+    delete nextBindings[connection.targetInputId];
+  } else {
+    nextBindings[connection.targetInputId] =
+      remainingBindings.length === 1 ? remainingBindings[0] : remainingBindings;
+  }
+
+  return normalizeWidgetInstanceBindings(nextBindings);
 }
 
 function resolveSingleInput(
@@ -188,6 +417,7 @@ function resolveSingleInput(
   bindings: WidgetPortBinding[],
   index: ReadonlyMap<string, DashboardWidgetInstance>,
   getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
+  resolveIo: (instanceId: string) => WidgetIoDefinition | undefined,
 ): ResolvedWidgetInput | ResolvedWidgetInput[] {
   if (bindings.length === 0) {
     return {
@@ -225,8 +455,7 @@ function resolveSingleInput(
       } satisfies ResolvedWidgetInput;
     }
 
-    const sourceDefinition = getWidgetDefinition(sourceInstance.widgetId);
-    const sourceOutput = getOutputDefinition(sourceDefinition, binding.sourceOutputId);
+    const sourceOutput = getOutputDefinition(resolveIo(sourceInstance.id), binding.sourceOutputId);
 
     if (!sourceOutput) {
       return {
@@ -280,11 +509,13 @@ function resolveSingleInput(
 
 function buildGraph(
   entries: FlattenedDashboardWidgetEntry[],
+  resolveIo: (instanceId: string) => WidgetIoDefinition | undefined,
   resolveInputs: (instanceId: string) => ResolvedWidgetInputs | undefined,
   getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
 ): DashboardWidgetDependencyGraph {
   const nodes = entries.map(({ instance, hiddenInCollapsedRow, parentRowId }) => {
     const definition = getWidgetDefinition(instance.widgetId);
+    const io = resolveIo(instance.id);
 
     return {
       id: instance.id,
@@ -293,12 +524,12 @@ function buildGraph(
       placementMode: instance.presentation?.placementMode,
       hiddenInCollapsedRow,
       parentRowId,
-      inputs: (definition?.io?.inputs ?? []).map((input) => ({
+      inputs: (io?.inputs ?? []).map((input) => ({
         id: input.id,
         label: input.label,
         accepts: [...input.accepts],
       })),
-      outputs: (definition?.io?.outputs ?? []).map((output) => ({
+      outputs: (io?.outputs ?? []).map((output) => ({
         id: output.id,
         label: output.label,
         contract: output.contract,
@@ -344,8 +575,9 @@ export function createDashboardWidgetDependencyModel(
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
 ): DashboardWidgetDependencyModel {
   const entries = collectDashboardWidgetEntries(widgets);
-  const instanceIndex = new Map(entries.map((entry) => [entry.instance.id, entry.instance] as const));
+  const instanceIndex = createDashboardWidgetEntryIndex(entries);
   const definitionCache = new Map<string, WidgetDefinition | undefined>();
+  const ioCache = new Map<string, WidgetIoDefinition | undefined>();
 
   const getWidgetDefinition = (widgetId: string) => {
     if (definitionCache.has(widgetId)) {
@@ -354,6 +586,27 @@ export function createDashboardWidgetDependencyModel(
 
     const resolved = resolveWidgetDefinition(widgetId);
     definitionCache.set(widgetId, resolved);
+    return resolved;
+  };
+
+  const resolveIo = (instanceId: string) => {
+    if (ioCache.has(instanceId)) {
+      return ioCache.get(instanceId);
+    }
+
+    const instance = instanceIndex.get(instanceId);
+
+    if (!instance) {
+      ioCache.set(instanceId, undefined);
+      return undefined;
+    }
+
+    const resolved = resolveWidgetIoForInstance(
+      getWidgetDefinition(instance.widgetId),
+      instance,
+    );
+
+    ioCache.set(instanceId, resolved);
     return resolved;
   };
 
@@ -371,9 +624,8 @@ export function createDashboardWidgetDependencyModel(
       return undefined;
     }
 
-    const definition = getWidgetDefinition(instance.widgetId);
     const inputs =
-      (definition?.io?.inputs ?? []) as WidgetInputPortDefinition<Record<string, unknown>>[];
+      (resolveIo(instanceId)?.inputs ?? []) as WidgetInputPortDefinition<Record<string, unknown>>[];
 
     if (inputs.length === 0) {
       resolvedInputCache.set(instanceId, undefined);
@@ -390,6 +642,7 @@ export function createDashboardWidgetDependencyModel(
           toBindingArray(effectiveBindings[input.id]),
           instanceIndex,
           getWidgetDefinition,
+          resolveIo,
         ),
       ]),
     ) satisfies ResolvedWidgetInputs;
@@ -398,12 +651,13 @@ export function createDashboardWidgetDependencyModel(
     return resolvedInputs;
   };
 
-  const graph = buildGraph(entries, resolveInputs, getWidgetDefinition);
+  const graph = buildGraph(entries, resolveIo, resolveInputs, getWidgetDefinition);
 
   return {
     entries,
     graph,
     getWidgetDefinition,
+    resolveIo,
     resolveInputs,
   };
 }

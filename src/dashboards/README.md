@@ -18,7 +18,8 @@ surfaces and the editable workspace studio.
 - `DashboardWidgetRegistry.tsx`: runtime widget-instance registry used for linked-widget
   composition.
 - `widget-dependencies.ts`: shared binding normalization, resolved-input resolution, and static
-  dependency-graph extraction.
+  dependency-graph extraction. It also owns graph-connection parsing, validation, and canonical
+  binding add/remove helpers so visual graph editors do not duplicate semantics.
 - `DashboardWidgetDependencies.tsx`: React provider/hooks layer that exposes resolved widget
   inputs and dependency diagnostics on top of the raw widget registry.
 - `react-grid-layout-adapter.ts`: adapter utilities for the workspace studio's
@@ -66,6 +67,9 @@ surfaces and the editable workspace studio.
 - The dependency layer is intentionally separate from `DashboardWidgetRegistryProvider`. The raw
   registry remains the mounted-widget index, while the dependency provider adds graph extraction,
   canonical binding validation, and optional resolved inputs on top.
+- The route-level workspace graph editor must stay on top of this dependency layer. React Flow owns
+  node/edge rendering and local node positions there, but binding validation and canonical binding
+  mutation rules stay centralized in `widget-dependencies.ts`.
 - Auto grid now uses Grafana-style CSS Grid behavior. `maxColumns` is an upper bound, not a fixed
   reserved set of slots. The container uses `repeat(auto-fit, minmax(..., 1fr))`, so empty tracks
   collapse naturally:

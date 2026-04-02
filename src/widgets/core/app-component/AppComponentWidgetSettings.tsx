@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Loader2, Search, Send, ShieldCheck, TriangleAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useResolvedWidgetInputs } from "@/dashboards/DashboardWidgetDependencies";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ import {
 } from "./appComponentApi";
 import { AppComponentFormSections } from "./AppComponentFormSections";
 import {
+  buildAppComponentBindingSpec,
   buildAppComponentRequest,
   buildAppComponentDocsUrl,
   buildAppComponentGeneratedForm,
@@ -34,8 +36,10 @@ import {
   listAppComponentOperations,
   listAppComponentRequestBodyContentTypes,
   normalizeAppComponentProps,
-  resolveAppComponentOperation,
+  normalizeAppComponentBindingSpec,
+  resolveAppComponentBoundInputOverlay,
   resolveAppComponentInitialDraftValues,
+  resolveAppComponentOperation,
   resolveAppComponentResponseModelPreview,
   resolveAppComponentResponseModelStatus,
   tryResolveAppComponentBaseUrl,
@@ -124,11 +128,14 @@ interface AppComponentSettingsTestState {
 }
 
 export function AppComponentWidgetSettings({
+  instanceId,
   draftProps,
   editable,
   onDraftPropsChange,
 }: WidgetSettingsComponentProps<AppComponentWidgetProps>) {
   const normalizedProps = useMemo(() => normalizeAppComponentProps(draftProps), [draftProps]);
+  const draftPropsRef = useRef(draftProps);
+  const resolvedInputs = useResolvedWidgetInputs(instanceId);
   const resolvedBaseUrl = useMemo(
     () => tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl),
     [normalizedProps.apiBaseUrl],
@@ -250,9 +257,38 @@ export function AppComponentWidgetSettings({
   );
   const [testDraftValues, setTestDraftValues] =
     useState<Record<string, string>>(initialTestDraftValues);
+  const boundInputOverlay = useMemo(
+    () => resolveAppComponentBoundInputOverlay(generatedForm, testDraftValues, resolvedInputs),
+    [generatedForm, resolvedInputs, testDraftValues],
+  );
+  const effectiveTestDraftValues = boundInputOverlay.values;
+  const boundFieldKeys = boundInputOverlay.boundFieldKeys;
+  const resolvedBindingSpec = useMemo(
+    () =>
+      openApiQuery.data
+        ? buildAppComponentBindingSpec(openApiQuery.data, resolvedOperation, generatedForm)
+        : undefined,
+    [generatedForm, openApiQuery.data, resolvedOperation],
+  );
+  const normalizedResolvedBindingSpec = useMemo(
+    () => normalizeAppComponentBindingSpec(resolvedBindingSpec),
+    [resolvedBindingSpec],
+  );
+  const currentBindingSpecSerialized = useMemo(
+    () => JSON.stringify(normalizedProps.bindingSpec ?? null),
+    [normalizedProps.bindingSpec],
+  );
+  const nextBindingSpecSerialized = useMemo(
+    () => JSON.stringify(normalizedResolvedBindingSpec ?? null),
+    [normalizedResolvedBindingSpec],
+  );
   const [testState, setTestState] = useState<AppComponentSettingsTestState>({
     status: "idle",
   });
+
+  useEffect(() => {
+    draftPropsRef.current = draftProps;
+  }, [draftProps]);
 
   useEffect(() => {
     setTestDraftValues(initialTestDraftValues);
@@ -261,6 +297,27 @@ export function AppComponentWidgetSettings({
     });
   }, [initialTestDraftValuesKey]);
 
+  useEffect(() => {
+    if (!editable) {
+      return;
+    }
+
+    if (currentBindingSpecSerialized === nextBindingSpecSerialized) {
+      return;
+    }
+
+    onDraftPropsChange({
+      ...draftPropsRef.current,
+      bindingSpec: normalizedResolvedBindingSpec,
+    });
+  }, [
+    currentBindingSpecSerialized,
+    editable,
+    nextBindingSpecSerialized,
+    normalizedResolvedBindingSpec,
+    onDraftPropsChange,
+  ]);
+
   async function handleTestSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -268,7 +325,7 @@ export function AppComponentWidgetSettings({
       normalizedProps,
       resolvedOperation,
       generatedForm,
-      testDraftValues,
+      effectiveTestDraftValues,
     );
 
     if (!buildResult.request) {
@@ -310,7 +367,10 @@ export function AppComponentWidgetSettings({
               ? response.body
               : `Request failed with ${response.status}.`,
         publishedOutputs: response.ok
-          ? extractAppComponentPublishedOutputs(response.body)
+          ? extractAppComponentPublishedOutputs(
+              response.body,
+              normalizedProps.bindingSpec,
+            )
           : undefined,
       });
     } catch (error) {
@@ -748,9 +808,10 @@ export function AppComponentWidgetSettings({
                   (generatedForm.parameterFields.length > 0 ||
                     generatedForm.bodyMode !== "none") ? (
                     <AppComponentFormSections
+                      boundFieldKeys={boundFieldKeys}
                       disabled={testState.status === "submitting"}
                       form={generatedForm}
-                      values={testDraftValues}
+                      values={effectiveTestDraftValues}
                       onValueChange={(fieldKey, nextValue) => {
                         setTestDraftValues((current) => ({
                           ...current,

@@ -138,7 +138,8 @@ widget positions.
 What it is:
 
 `AppComponent` reads an OpenAPI schema from the explicit URL the user provides, lets a user bind one
-widget instance to one API operation, and renders the generated request form directly inside the widget body.
+widget instance to one API operation, compiles that operation into bindable request/response ports,
+and renders the generated request form directly inside the widget body.
 
 What it is good for:
 
@@ -146,6 +147,7 @@ What it is good for:
 - internal submission forms
 - authenticated request workflows
 - workspace composition around service endpoints
+- request/response chaining between API-backed workspace components
 
 Where it is used now:
 

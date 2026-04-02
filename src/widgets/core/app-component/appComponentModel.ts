@@ -1,4 +1,14 @@
+import type {
+  ResolvedWidgetInputs,
+  WidgetContractId,
+} from "@/widgets/types";
 import { titleCase } from "@/lib/utils";
+
+import {
+  CORE_VALUE_JSON_CONTRACT,
+  resolveAppComponentInputAcceptContracts,
+  resolveAppComponentOutputContract,
+} from "./appComponentContracts";
 
 export type AppComponentHttpMethod =
   | "get"
@@ -27,6 +37,7 @@ export interface AppComponentWidgetProps extends Record<string, unknown> {
   method?: AppComponentHttpMethod;
   path?: string;
   requestBodyContentType?: string;
+  bindingSpec?: AppComponentBindingSpec;
   showHeader?: boolean;
 }
 
@@ -42,6 +53,35 @@ export interface AppComponentWidgetRuntimeState extends Record<string, unknown> 
   lastResponseHeaders?: Record<string, string>;
   error?: string;
   publishedOutputs?: Record<string, unknown>;
+}
+
+export interface AppComponentBindingInputPortSpec {
+  id: string;
+  fieldKey: string;
+  label: string;
+  description?: string;
+  required: boolean;
+  location: AppComponentFieldLocation;
+  kind: AppComponentGeneratedFieldKind;
+  accepts: WidgetContractId[];
+}
+
+export interface AppComponentBindingOutputPortSpec {
+  id: string;
+  label: string;
+  description?: string;
+  kind: AppComponentGeneratedFieldKind;
+  contract: WidgetContractId;
+  responsePath: string[];
+  statusCode: string;
+  contentType: string | null;
+}
+
+export interface AppComponentBindingSpec {
+  version: 1;
+  operationKey: string;
+  requestPorts: AppComponentBindingInputPortSpec[];
+  responsePorts: AppComponentBindingOutputPortSpec[];
 }
 
 export interface OpenApiReference {
@@ -891,6 +931,178 @@ function collectOperationParameters(
   return Array.from(entries.values());
 }
 
+function buildAppComponentInputPortSpec(
+  field: AppComponentGeneratedField,
+): AppComponentBindingInputPortSpec {
+  return {
+    id: field.key,
+    fieldKey: field.key,
+    label: field.label,
+    description: field.description,
+    required: field.required,
+    location: field.location,
+    kind: field.kind,
+    accepts: resolveAppComponentInputAcceptContracts(field.kind),
+  };
+}
+
+function pickPrimaryAppComponentResponseEntry(
+  document: OpenApiDocument,
+  resolvedOperation: ResolvedAppComponentOperation | null,
+) {
+  if (!resolvedOperation) {
+    return null;
+  }
+
+  const entries = Object.entries(resolvedOperation.operation.responses ?? {}).flatMap(
+    ([statusCode, responseInput]) => {
+      const response = resolveOpenApiResponse(document, responseInput);
+
+      return Object.entries(response?.content ?? {}).flatMap(([contentType, mediaType]) => {
+        const schema = resolveOpenApiSchema(document, mediaType.schema);
+
+        if (!schema) {
+          return [];
+        }
+
+        return [{
+          statusCode,
+          contentType,
+          schema,
+          description: response?.description,
+        }] as const;
+      });
+    },
+  );
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const preferredJson2xx = entries.find(
+    (entry) => /^2\d\d$/i.test(entry.statusCode) && entry.contentType.includes("json"),
+  );
+
+  if (preferredJson2xx) {
+    return preferredJson2xx;
+  }
+
+  const preferred2xx = entries.find((entry) => /^2\d\d$/i.test(entry.statusCode));
+
+  return preferred2xx ?? entries[0] ?? null;
+}
+
+function buildAppComponentResponsePortId(path: string[]) {
+  return path.length === 0 ? "response:$" : `response:${path.join(".")}`;
+}
+
+function buildAppComponentResponsePortLabel(path: string[]) {
+  return path.length === 0 ? "Response Body" : titleCase(path[path.length - 1] ?? "Response");
+}
+
+function pushAppComponentResponsePort(
+  ports: AppComponentBindingOutputPortSpec[],
+  port: AppComponentBindingOutputPortSpec,
+) {
+  if (!ports.some((entry) => entry.id === port.id)) {
+    ports.push(port);
+  }
+}
+
+function collectResponsePortsFromSchema(
+  document: OpenApiDocument,
+  schemaInput: OpenApiSchema | OpenApiReference | undefined,
+  options: {
+    path: string[];
+    statusCode: string;
+    contentType: string | null;
+    ports: AppComponentBindingOutputPortSpec[];
+    depth?: number;
+    maxDepth?: number;
+  },
+) {
+  const schema = resolveOpenApiSchema(document, schemaInput);
+
+  if (!schema) {
+    return;
+  }
+
+  const depth = options.depth ?? 0;
+  const maxDepth = options.maxDepth ?? 2;
+  const responsePath = options.path;
+  const basePort = {
+    id: buildAppComponentResponsePortId(responsePath),
+    label: buildAppComponentResponsePortLabel(responsePath),
+    description: schema.description,
+    responsePath,
+    statusCode: options.statusCode,
+    contentType: options.contentType,
+  };
+
+  if (isArraySchema(schema)) {
+    pushAppComponentResponsePort(options.ports, {
+      ...basePort,
+      kind: "json",
+      contract: CORE_VALUE_JSON_CONTRACT,
+    });
+    return;
+  }
+
+  if (isObjectSchema(schema)) {
+    pushAppComponentResponsePort(options.ports, {
+      ...basePort,
+      kind: "json",
+      contract: CORE_VALUE_JSON_CONTRACT,
+    });
+
+    if (depth >= maxDepth) {
+      return;
+    }
+
+    for (const [propertyName, propertySchemaInput] of Object.entries(schema.properties ?? {})) {
+      const propertySchema = resolveOpenApiSchema(document, propertySchemaInput);
+
+      if (!propertySchema) {
+        continue;
+      }
+
+      const nextPath = [...responsePath, propertyName];
+
+      if (isObjectSchema(propertySchema) || isArraySchema(propertySchema)) {
+        collectResponsePortsFromSchema(document, propertySchema, {
+          ...options,
+          path: nextPath,
+          depth: depth + 1,
+        });
+        continue;
+      }
+
+      const kind = resolveFieldKind(propertySchema);
+
+      pushAppComponentResponsePort(options.ports, {
+        id: buildAppComponentResponsePortId(nextPath),
+        label: buildAppComponentResponsePortLabel(nextPath),
+        description: propertySchema.description,
+        kind,
+        contract: resolveAppComponentOutputContract(kind),
+        responsePath: nextPath,
+        statusCode: options.statusCode,
+        contentType: options.contentType,
+      });
+    }
+
+    return;
+  }
+
+  const kind = resolveFieldKind(schema);
+
+  pushAppComponentResponsePort(options.ports, {
+    ...basePort,
+    kind,
+    contract: resolveAppComponentOutputContract(kind),
+  });
+}
+
 function pickDefaultRequestBodyContentType(content: Record<string, OpenApiMediaType> | undefined) {
   const entries = Object.keys(content ?? {});
 
@@ -1224,7 +1436,119 @@ export function normalizeAppComponentProps(
       typeof props.requestBodyContentType === "string" && props.requestBodyContentType.trim()
         ? props.requestBodyContentType.trim()
         : undefined,
+    bindingSpec: normalizeAppComponentBindingSpec(props.bindingSpec),
     showHeader: props.showHeader !== false,
+  };
+}
+
+export function normalizeAppComponentBindingSpec(
+  value: unknown,
+): AppComponentBindingSpec | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  if ("version" in value && value.version !== 1) {
+    return undefined;
+  }
+
+  const operationKey = typeof value.operationKey === "string" ? value.operationKey.trim() : "";
+
+  if (!operationKey) {
+    return undefined;
+  }
+
+  const requestPorts = Array.isArray(value.requestPorts)
+    ? value.requestPorts.flatMap((entry) => {
+        if (!isPlainRecord(entry)) {
+          return [];
+        }
+
+        const id = typeof entry.id === "string" ? entry.id.trim() : "";
+        const fieldKey = typeof entry.fieldKey === "string" ? entry.fieldKey.trim() : "";
+        const label = typeof entry.label === "string" ? entry.label.trim() : "";
+        const accepts = Array.isArray(entry.accepts)
+          ? entry.accepts.filter((contract): contract is WidgetContractId => typeof contract === "string")
+          : [];
+
+        if (!id || !fieldKey || !label || accepts.length === 0) {
+          return [];
+        }
+
+        return [{
+          id,
+          fieldKey,
+          label,
+          description: typeof entry.description === "string" ? entry.description : undefined,
+          required: entry.required === true,
+          location:
+            entry.location === "path" ||
+            entry.location === "query" ||
+            entry.location === "header" ||
+            entry.location === "body"
+              ? entry.location
+              : "body",
+          kind:
+            entry.kind === "string" ||
+            entry.kind === "number" ||
+            entry.kind === "integer" ||
+            entry.kind === "boolean" ||
+            entry.kind === "date" ||
+            entry.kind === "date-time" ||
+            entry.kind === "enum" ||
+            entry.kind === "json"
+              ? entry.kind
+              : "json",
+          accepts,
+        } satisfies AppComponentBindingInputPortSpec];
+      })
+    : [];
+
+  const responsePorts = Array.isArray(value.responsePorts)
+    ? value.responsePorts.flatMap((entry) => {
+        if (!isPlainRecord(entry)) {
+          return [];
+        }
+
+        const id = typeof entry.id === "string" ? entry.id.trim() : "";
+        const label = typeof entry.label === "string" ? entry.label.trim() : "";
+        const contract = typeof entry.contract === "string" ? entry.contract.trim() : "";
+        const responsePath = Array.isArray(entry.responsePath)
+          ? entry.responsePath.filter((segment): segment is string => typeof segment === "string")
+          : [];
+
+        if (!id || !label || !contract) {
+          return [];
+        }
+
+        return [{
+          id,
+          label,
+          description: typeof entry.description === "string" ? entry.description : undefined,
+          kind:
+            entry.kind === "string" ||
+            entry.kind === "number" ||
+            entry.kind === "integer" ||
+            entry.kind === "boolean" ||
+            entry.kind === "date" ||
+            entry.kind === "date-time" ||
+            entry.kind === "enum" ||
+            entry.kind === "json"
+              ? entry.kind
+              : "json",
+          contract: contract as WidgetContractId,
+          responsePath,
+          statusCode: typeof entry.statusCode === "string" ? entry.statusCode : "200",
+          contentType: typeof entry.contentType === "string" ? entry.contentType : null,
+        } satisfies AppComponentBindingOutputPortSpec];
+      })
+    : [];
+
+  return {
+    version: 1,
+    operationKey,
+    requestPorts,
+    responsePorts,
   };
 }
 
@@ -1756,6 +2080,133 @@ export function buildAppComponentGeneratedForm(
   };
 }
 
+export function buildAppComponentBindingSpec(
+  document: OpenApiDocument,
+  resolvedOperation: ResolvedAppComponentOperation | null,
+  form: AppComponentGeneratedForm | null,
+): AppComponentBindingSpec | undefined {
+  if (!resolvedOperation || !form) {
+    return undefined;
+  }
+
+  const requestPorts = [
+    ...form.parameterFields.map((field) => buildAppComponentInputPortSpec(field)),
+    ...(form.bodyMode === "generated"
+      ? form.bodyFields.map((field) => buildAppComponentInputPortSpec(field))
+      : form.bodyMode === "raw" && form.bodyRawField
+        ? [buildAppComponentInputPortSpec(form.bodyRawField)]
+        : []),
+  ];
+  const responsePorts: AppComponentBindingOutputPortSpec[] = [];
+  const primaryResponseEntry = pickPrimaryAppComponentResponseEntry(document, resolvedOperation);
+
+  if (primaryResponseEntry) {
+    collectResponsePortsFromSchema(document, primaryResponseEntry.schema, {
+      path: [],
+      statusCode: primaryResponseEntry.statusCode,
+      contentType: primaryResponseEntry.contentType,
+      ports: responsePorts,
+      maxDepth: 2,
+    });
+  }
+
+  return {
+    version: 1,
+    operationKey: resolvedOperation.record.key,
+    requestPorts,
+    responsePorts,
+  };
+}
+
+export function resolveAppComponentResponseValueAtPath(
+  responseBody: unknown,
+  responsePath: string[],
+): unknown {
+  if (responseBody === undefined) {
+    return undefined;
+  }
+
+  if (responsePath.length === 0) {
+    return cloneJson(responseBody);
+  }
+
+  let currentValue: unknown = responseBody;
+
+  for (const segment of responsePath) {
+    if (!isPlainRecord(currentValue) || !(segment in currentValue)) {
+      return undefined;
+    }
+
+    currentValue = currentValue[segment];
+  }
+
+  return cloneJson(currentValue);
+}
+
+export function serializeAppComponentBoundFieldValue(
+  field: AppComponentGeneratedField,
+  value: unknown,
+) {
+  switch (field.kind) {
+    case "boolean":
+      return value === true ? "true" : value === false ? "false" : String(value ?? "");
+    case "json":
+      return typeof value === "string" ? value : JSON.stringify(value ?? null, null, 2);
+    case "date":
+      return resolveDateInputSeed(value);
+    case "date-time":
+      return resolveDateTimeInputSeed(value);
+    default:
+      return value === undefined || value === null ? "" : String(value);
+  }
+}
+
+export function resolveAppComponentBoundInputOverlay(
+  form: AppComponentGeneratedForm | null,
+  draftValues: Record<string, string>,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+) {
+  const nextValues = { ...draftValues };
+  const boundFieldKeys = new Set<string>();
+
+  if (!form || !resolvedInputs) {
+    return {
+      values: nextValues,
+      boundFieldKeys,
+    };
+  }
+
+  const candidateFields = [
+    ...form.parameterFields,
+    ...(form.bodyMode === "generated" ? form.bodyFields : []),
+    ...(form.bodyMode === "raw" && form.bodyRawField ? [form.bodyRawField] : []),
+  ];
+
+  for (const field of candidateFields) {
+    const resolvedEntry = resolvedInputs[field.key];
+    const resolvedValues = Array.isArray(resolvedEntry)
+      ? resolvedEntry
+      : resolvedEntry
+        ? [resolvedEntry]
+        : [];
+    const firstValidValue = resolvedValues.find(
+      (entry) => entry.status === "valid" && entry.value !== undefined,
+    );
+
+    if (!firstValidValue) {
+      continue;
+    }
+
+    boundFieldKeys.add(field.key);
+    nextValues[field.key] = serializeAppComponentBoundFieldValue(field, firstValidValue.value);
+  }
+
+  return {
+    values: nextValues,
+    boundFieldKeys,
+  };
+}
+
 export function resolveAppComponentInitialDraftValues(
   form: AppComponentGeneratedForm | null,
   runtimeState: AppComponentWidgetRuntimeState,
@@ -1942,7 +2393,19 @@ export function buildAppComponentRequest(
   };
 }
 
-export function extractAppComponentPublishedOutputs(responseBody: unknown) {
+export function extractAppComponentPublishedOutputs(
+  responseBody: unknown,
+  bindingSpec?: AppComponentBindingSpec,
+) {
+  if (bindingSpec) {
+    return Object.fromEntries(
+      bindingSpec.responsePorts.map((port) => [
+        port.id,
+        resolveAppComponentResponseValueAtPath(responseBody, port.responsePath),
+      ]),
+    );
+  }
+
   if (isPlainRecord(responseBody)) {
     return {
       response: cloneJson(responseBody),

@@ -249,6 +249,8 @@ This layer will:
 - include sidebar-only widgets as graph nodes
 - expose resolved inputs where they can be safely resolved
 - expose graph extraction and diagnostics hooks
+- expose pure graph-connection parsing, validation, and binding add/remove helpers for route-level
+  visual editors
 
 The provider must wrap all current widget host surfaces so settings-side and runtime-side behavior
 do not diverge:
@@ -290,6 +292,23 @@ The binding panel will:
 - show validation state
 - write `bindings`, not widget props
 
+### Route-level graph editor
+
+We will also expose a dedicated workspace graph route backed by React Flow.
+
+That route will:
+
+- live under `?workspace=<id>&view=graph`
+- render one node per widget instance
+- render one edge per canonical binding
+- include sidebar-only widgets and collapsed-row children
+- keep graph node positions session-local instead of persisting a second layout model
+- normalize connect/disconnect actions back into canonical `bindings`
+
+React Flow is only the presentation layer for this surface. The graph route must reuse the shared
+dependency layer for connection parsing, validation, and canonical binding mutation rules instead
+of creating a second graph semantics module.
+
 ### Main Sequence first adopter
 
 We will add Main Sequence contract and adapter files under:
@@ -319,6 +338,8 @@ The current implementation follows these rules:
 4. Sidebar-only widgets remain graph nodes because they still participate in runtime composition.
 5. Binding changes clear `runtimeState` by default.
 6. Data Node consumers no longer resolve `sourceWidgetId` props as a fallback path.
+7. The route-level graph editor reuses the shared dependency layer for graph semantics instead of
+   duplicating validation or binding rules in a React Flow-specific model.
 
 ## Consequences
 
@@ -341,7 +362,6 @@ The current implementation follows these rules:
 
 This ADR does not decide:
 
-- a full visual graph editor
 - generic hook-based centralized output publication
 - per-widget custom runtime invalidation strategies
 - repo-wide migration of every widget family in a single change
@@ -382,6 +402,7 @@ The implementation that follows this ADR should include, at minimum:
 6. a `Bindings` tab in widget settings
 7. Main Sequence Data Node contract and binding-only consumer wiring
 8. controller-path `resolvedInputs` plumbing
+9. a route-level graph editor that reads and writes canonical bindings through the same dependency layer
 
 That is the intended safe slice: enough structure to make widget dependencies first-class now,
 without forcing a repo-wide runtime rewrite.

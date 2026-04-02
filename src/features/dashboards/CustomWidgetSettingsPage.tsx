@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 
 import { ArrowLeft, Save } from "lucide-react";
 
@@ -10,6 +10,7 @@ import { DashboardControlsProvider } from "@/dashboards/DashboardControls";
 import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { WidgetBindingPanel } from "@/widgets/shared/WidgetBindingPanel";
+import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
 import {
   removeDashboardWidget,
   updateDashboardControlsState,
@@ -19,12 +20,32 @@ import {
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
+import type { DashboardWidgetInstance } from "@/dashboards/types";
 import type { WidgetInstancePresentation } from "@/widgets/types";
 
 function getWidgetSettingsTabClassName(active: boolean) {
   return active
     ? "inline-flex items-center gap-2 rounded-full border border-border/80 bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm"
     : "inline-flex items-center gap-2 rounded-full border border-transparent bg-background/40 px-3 py-2 text-sm font-medium text-muted-foreground hover:border-border/50 hover:text-foreground";
+}
+
+function cloneWidgetSettingsValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function buildWidgetSettingsDraftState(
+  instance: DashboardWidgetInstance,
+  widget: NonNullable<ReturnType<typeof getWidgetById>>,
+) {
+  const initialProps = cloneWidgetSettingsValue(
+    (instance.props ?? widget.exampleProps ?? {}) as Record<string, unknown>,
+  );
+
+  return {
+    presentation: resolveWidgetInstancePresentation(widget, instance.presentation),
+    props: initialProps,
+    title: instance.title ?? "",
+  };
 }
 
 export function CustomWidgetSettingsPage() {
@@ -57,14 +78,63 @@ export function CustomWidgetSettingsPage() {
   const instance = selectedDashboard.widgets.find((widget) => widget.id === requestedWidgetId) ?? null;
   const widget = instance ? getWidgetById(instance.widgetId) : null;
   const backendMode = persistenceMode === "backend";
-  const hasBindingTab = Boolean(widget?.io?.inputs?.length);
+  const resolvedWidgetIo =
+    instance && widget
+      ? widget.resolveIo?.({
+          widgetId: instance.widgetId,
+          instanceId: instance.id,
+          props: (instance.props ?? {}) as Record<string, unknown>,
+          runtimeState: instance.runtimeState,
+        }) ?? widget.io
+      : undefined;
+  const hasBindingTab = Boolean(
+    resolvedWidgetIo?.inputs?.length ||
+    widget?.io?.inputs?.length ||
+    widget?.resolveIo,
+  );
   const [activeTab, setActiveTab] = useState<"settings" | "bindings">("settings");
+  const [draftState, setDraftState] = useState(() =>
+    instance && widget ? buildWidgetSettingsDraftState(instance, widget) : null,
+  );
 
   useEffect(() => {
     setActiveTab("settings");
   }, [instance?.id]);
 
-  if (!instance || !widget) {
+  useEffect(() => {
+    if (!instance || !widget) {
+      setDraftState(null);
+      return;
+    }
+
+    setDraftState(buildWidgetSettingsDraftState(instance, widget));
+  }, [instance?.id, widget]);
+
+  const effectiveDraftState =
+    instance && widget ? draftState ?? buildWidgetSettingsDraftState(instance, widget) : null;
+  const bindingPreviewInstance = useMemo(
+    () =>
+      instance && effectiveDraftState
+        ? {
+            ...instance,
+            title: effectiveDraftState.title.trim() ? effectiveDraftState.title.trim() : undefined,
+            props: effectiveDraftState.props,
+            presentation: effectiveDraftState.presentation,
+          }
+        : null,
+    [effectiveDraftState, instance],
+  );
+  const bindingPreviewWidgets = useMemo(
+    () =>
+      instance && bindingPreviewInstance
+        ? resolvedDashboard.widgets.map((dashboardWidget) =>
+            dashboardWidget.id === instance.id ? bindingPreviewInstance : dashboardWidget,
+          )
+        : resolvedDashboard.widgets,
+    [bindingPreviewInstance, instance, resolvedDashboard.widgets],
+  );
+
+  if (!instance || !widget || !effectiveDraftState) {
     return (
       <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
         <div className="mx-auto max-w-5xl space-y-6">
@@ -159,6 +229,14 @@ export function CustomWidgetSettingsPage() {
                         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                           {instance.title ?? widget.title}
                         </h1>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                            Widget ID
+                          </span>
+                          <Badge variant="neutral" className="font-mono text-[11px]">
+                            {instance.id}
+                          </Badge>
+                        </div>
                         <p className="max-w-3xl text-sm text-muted-foreground">
                           Adjust this widget instance in a full-width settings view instead of the old
                           modal.
@@ -211,7 +289,80 @@ export function CustomWidgetSettingsPage() {
                   </div>
                 ) : null}
 
-                {activeTab === "settings" || !hasBindingTab ? (
+                {hasBindingTab ? (
+                  <div className={activeTab === "settings" ? undefined : "hidden"}>
+                    <WidgetSettingsPanel
+                      widget={widget}
+                      instance={instance}
+                      draftTitle={effectiveDraftState.title}
+                      onDraftTitleChange={(title) => {
+                        setDraftState((current) =>
+                          current
+                            ? {
+                                ...current,
+                                title,
+                              }
+                            : {
+                                ...buildWidgetSettingsDraftState(instance, widget),
+                                title,
+                              },
+                        );
+                      }}
+                      draftProps={effectiveDraftState.props}
+                      onDraftPropsChange={(props) => {
+                        setDraftState((current) =>
+                          current
+                            ? {
+                                ...current,
+                                props,
+                              }
+                            : {
+                                ...buildWidgetSettingsDraftState(instance, widget),
+                                props,
+                              },
+                        );
+                      }}
+                      draftPresentation={effectiveDraftState.presentation}
+                      onDraftPresentationChange={(presentation) => {
+                        setDraftState((current) =>
+                          current
+                            ? {
+                                ...current,
+                                presentation,
+                              }
+                            : {
+                                ...buildWidgetSettingsDraftState(instance, widget),
+                                presentation,
+                              },
+                        );
+                      }}
+                      panelTitle={`${instance.title ?? widget.title} Settings`}
+                      panelDescription="Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                      persistenceNote={
+                        backendMode
+                          ? "Edits update the current workspace draft immediately. They are not saved until you click Save workspace."
+                          : "Edits update the current local workspace draft immediately. They are not saved until you click Save workspace."
+                      }
+                      secondaryActionLabel="Return to dashboard"
+                      onClose={openDashboardView}
+                      onRemove={() => {
+                        updateSelectedWorkspace((dashboard) =>
+                          removeDashboardWidget(dashboard, instance.id),
+                        );
+                        openDashboardView();
+                      }}
+                      onSave={({ title, props, presentation }) => {
+                        updateSelectedWorkspace((dashboard) =>
+                          updateDashboardWidgetSettings(dashboard, instance.id, {
+                            title,
+                            props,
+                            presentation,
+                          }),
+                        );
+                      }}
+                    />
+                  </div>
+                ) : (
                   <WidgetSettingsPanel
                     widget={widget}
                     instance={instance}
@@ -240,19 +391,21 @@ export function CustomWidgetSettingsPage() {
                       );
                     }}
                   />
-                ) : null}
+                )}
 
                 {activeTab === "bindings" && hasBindingTab ? (
-                  <WidgetBindingPanel
-                    widget={widget}
-                    instance={instance}
-                    editable
-                    onBindingsChange={(bindings) => {
-                      updateSelectedWorkspace((dashboard) =>
-                        updateDashboardWidgetBindings(dashboard, instance.id, bindings),
-                      );
-                    }}
-                  />
+                  <DashboardWidgetDependenciesProvider widgets={bindingPreviewWidgets}>
+                    <WidgetBindingPanel
+                      widget={widget}
+                      instance={bindingPreviewInstance ?? instance}
+                      editable
+                      onBindingsChange={(bindings) => {
+                        updateSelectedWorkspace((dashboard) =>
+                          updateDashboardWidgetBindings(dashboard, instance.id, bindings),
+                        );
+                      }}
+                    />
+                  </DashboardWidgetDependenciesProvider>
                 ) : null}
               </div>
             </div>

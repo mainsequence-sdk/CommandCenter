@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useResolvedWidgetInputs } from "@/dashboards/DashboardWidgetDependencies";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -18,6 +19,7 @@ import {
   extractAppComponentPublishedOutputs,
   normalizeAppComponentProps,
   normalizeAppComponentRuntimeState,
+  resolveAppComponentBoundInputOverlay,
   resolveAppComponentInitialDraftValues,
   resolveAppComponentOperation,
   tryResolveAppComponentBaseUrl,
@@ -47,11 +49,13 @@ function AppComponentPlaceholder({
 }
 
 export function AppComponentWidget({
+  instanceId,
   props,
   runtimeState,
   onRuntimeStateChange,
 }: Props) {
   const normalizedProps = useMemo(() => normalizeAppComponentProps(props), [props]);
+  const resolvedInputs = useResolvedWidgetInputs(instanceId);
   const normalizedRuntimeState = useMemo(
     () => normalizeAppComponentRuntimeState(runtimeState),
     [runtimeState],
@@ -111,6 +115,12 @@ export function AppComponentWidget({
   const [draftValues, setDraftValues] = useState<Record<string, string>>(initialDraftValues);
   const [localRuntimeState, setLocalRuntimeState] =
     useState<AppComponentWidgetRuntimeState>(normalizedRuntimeState);
+  const boundInputOverlay = useMemo(
+    () => resolveAppComponentBoundInputOverlay(generatedForm, draftValues, resolvedInputs),
+    [draftValues, generatedForm, resolvedInputs],
+  );
+  const effectiveDraftValues = boundInputOverlay.values;
+  const boundFieldKeys = boundInputOverlay.boundFieldKeys;
 
   useEffect(() => {
     setDraftValues(initialDraftValues);
@@ -149,7 +159,7 @@ export function AppComponentWidget({
       normalizedProps,
       resolvedOperation,
       generatedForm,
-      draftValues,
+      effectiveDraftValues,
     );
 
     if (!buildResult.request) {
@@ -166,9 +176,9 @@ export function AppComponentWidget({
     commitRuntimeState({
       ...localRuntimeState,
       operationKey: resolvedOperation?.record.key,
-      draftValues,
-      status: "submitting",
-      error: undefined,
+        draftValues,
+        status: "submitting",
+        error: undefined,
     });
 
     try {
@@ -197,7 +207,10 @@ export function AppComponentWidget({
               ? response.body
               : `Request failed with ${response.status}.`,
         publishedOutputs: response.ok
-          ? extractAppComponentPublishedOutputs(response.body)
+          ? extractAppComponentPublishedOutputs(
+              response.body,
+              normalizedProps.bindingSpec,
+            )
           : undefined,
       });
     } catch (error) {
@@ -266,10 +279,11 @@ export function AppComponentWidget({
             </p>
           ) : (
             <AppComponentFormSections
+              boundFieldKeys={boundFieldKeys}
               disabled={localRuntimeState.status === "submitting"}
               form={generatedForm}
               mode="compact"
-              values={draftValues}
+              values={effectiveDraftValues}
               onValueChange={updateDraftValue}
             />
           )}

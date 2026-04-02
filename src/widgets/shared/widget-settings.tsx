@@ -112,6 +112,9 @@ interface WidgetSettingsPanelProps<
 > {
   editable?: boolean;
   closeOnSave?: boolean;
+  draftPresentation?: WidgetInstancePresentation;
+  draftProps?: TProps;
+  draftTitle?: string;
   footerActions?: ReactNode;
   instance: {
     id: string;
@@ -120,6 +123,9 @@ interface WidgetSettingsPanelProps<
     presentation?: WidgetInstancePresentation;
   };
   onClose: () => void;
+  onDraftPresentationChange?: (presentation: WidgetInstancePresentation) => void;
+  onDraftPropsChange?: (props: TProps) => void;
+  onDraftTitleChange?: (title: string) => void;
   onRemove?: (() => void) | undefined;
   onSave?: (next: {
     title?: string;
@@ -138,9 +144,15 @@ export function WidgetSettingsPanel<
 >({
   editable = true,
   closeOnSave = false,
+  draftPresentation,
+  draftProps,
+  draftTitle,
   footerActions,
   instance,
   onClose,
+  onDraftPresentationChange,
+  onDraftPropsChange,
+  onDraftTitleChange,
   onRemove,
   onSave,
   panelDescription = "Adjust the display title and widget props for this instance.",
@@ -172,43 +184,78 @@ export function WidgetSettingsPanel<
     () => JSON.parse(initialPresentationJson) as WidgetInstancePresentation,
     [initialPresentationJson],
   );
-  const [instanceTitle, setInstanceTitle] = useState(initialTitle);
-  const [draftProps, setDraftProps] = useState<TProps>(initialProps);
-  const [draftPresentation, setDraftPresentation] = useState<WidgetInstancePresentation>(
+  const [internalInstanceTitle, setInternalInstanceTitle] = useState(initialTitle);
+  const [internalDraftProps, setInternalDraftProps] = useState<TProps>(initialProps);
+  const [internalDraftPresentation, setInternalDraftPresentation] = useState<WidgetInstancePresentation>(
     initialPresentation,
   );
-  const [rawPropsValue, setRawPropsValue] = useState(() => serializeWidgetProps(initialProps));
+  const controlledTitle = typeof draftTitle === "string";
+  const controlledProps = draftProps !== undefined;
+  const controlledPresentation = draftPresentation !== undefined;
+  const instanceTitle = controlledTitle ? draftTitle : internalInstanceTitle;
+  const resolvedDraftProps = controlledProps ? draftProps : internalDraftProps;
+  const resolvedDraftPresentation = controlledPresentation
+    ? draftPresentation
+    : internalDraftPresentation;
+  const [rawPropsValue, setRawPropsValue] = useState(() => serializeWidgetProps(resolvedDraftProps));
   const [jsonError, setJsonError] = useState<string | null>(null);
   const SettingsComponent =
     widget.settingsComponent as
       | ComponentType<WidgetSettingsComponentProps<TProps>>
       | undefined;
   const showRawPropsEditor = widget.showRawPropsEditor !== false;
-  const showHeader = resolveWidgetHeaderVisibility(draftProps);
-  const transparentSurface = resolveWidgetTransparentSurface(draftPresentation);
-  const sidebarOnly = draftPresentation.placementMode === "sidebar";
+  const showHeader = resolveWidgetHeaderVisibility(resolvedDraftProps);
+  const transparentSurface = resolveWidgetTransparentSurface(resolvedDraftPresentation);
+  const sidebarOnly = resolvedDraftPresentation.placementMode === "sidebar";
   const controllerContext = useResolvedWidgetControllerContext(widget, {
-    props: draftProps,
+    props: resolvedDraftProps,
     instanceId: instance.id,
     mode: "settings",
   });
 
   useEffect(() => {
-    setInstanceTitle(initialTitle);
-    setDraftProps(initialProps);
-    setDraftPresentation(initialPresentation);
+    if (!controlledTitle) {
+      setInternalInstanceTitle(initialTitle);
+    }
+
+    if (!controlledProps) {
+      setInternalDraftProps(initialProps);
+    }
+
+    if (!controlledPresentation) {
+      setInternalDraftPresentation(initialPresentation);
+    }
+
     setRawPropsValue(initialPropsJson);
     setJsonError(null);
-  }, [initialPresentation, initialProps, initialPropsJson, initialTitle, instance.id]);
+  }, [
+    controlledPresentation,
+    controlledProps,
+    controlledTitle,
+    initialPresentation,
+    initialProps,
+    initialPropsJson,
+    initialTitle,
+    instance.id,
+  ]);
+
+  useEffect(() => {
+    setRawPropsValue(serializeWidgetProps(resolvedDraftProps));
+  }, [resolvedDraftProps]);
 
   const dirty =
     instanceTitle !== initialTitle ||
-    serializeWidgetProps(draftProps) !== initialPropsJson ||
-    JSON.stringify(draftPresentation) !== initialPresentationJson;
+    serializeWidgetProps(resolvedDraftProps) !== initialPropsJson ||
+    JSON.stringify(resolvedDraftPresentation) !== initialPresentationJson;
 
   function handleDraftPropsChange(nextProps: TProps) {
     const cloned = cloneWidgetProps(nextProps);
-    setDraftProps(cloned);
+    if (controlledProps) {
+      onDraftPropsChange?.(cloned);
+    } else {
+      setInternalDraftProps(cloned);
+    }
+
     setRawPropsValue(serializeWidgetProps(cloned));
     setJsonError(null);
   }
@@ -224,7 +271,11 @@ export function WidgetSettingsPanel<
     }
 
     if (parsed.props) {
-      setDraftProps(parsed.props);
+      if (controlledProps) {
+        onDraftPropsChange?.(parsed.props);
+      } else {
+        setInternalDraftProps(parsed.props);
+      }
     }
 
     setJsonError(null);
@@ -233,36 +284,68 @@ export function WidgetSettingsPanel<
   function handleReset() {
     const nextProps = cloneWidgetProps((widget.exampleProps ?? {}) as TProps);
     const nextPresentation = resolveDefaultWidgetPresentation(widget);
-    setInstanceTitle("");
-    setDraftProps(nextProps);
-    setDraftPresentation(nextPresentation);
+    if (controlledTitle) {
+      onDraftTitleChange?.("");
+    } else {
+      setInternalInstanceTitle("");
+    }
+
+    if (controlledProps) {
+      onDraftPropsChange?.(nextProps);
+    } else {
+      setInternalDraftProps(nextProps);
+    }
+
+    if (controlledPresentation) {
+      onDraftPresentationChange?.(nextPresentation);
+    } else {
+      setInternalDraftPresentation(nextPresentation);
+    }
+
     setRawPropsValue(serializeWidgetProps(nextProps));
     setJsonError(null);
   }
 
   function handleShowHeaderChange(nextValue: boolean) {
     handleDraftPropsChange({
-      ...draftProps,
+      ...resolvedDraftProps,
       showHeader: nextValue,
     } as TProps);
   }
 
   function handleSurfaceModeChange(nextValue: "default" | "transparent") {
-    setDraftPresentation((current) => ({
-      ...current,
+    const nextPresentation = {
+      ...resolvedDraftPresentation,
       surfaceMode: nextValue,
-    }));
+    };
+
+    if (controlledPresentation) {
+      onDraftPresentationChange?.(nextPresentation);
+    } else {
+      setInternalDraftPresentation(nextPresentation);
+    }
   }
 
   function handlePlacementModeChange(nextValue: "canvas" | "sidebar") {
-    setDraftPresentation((current) => ({
-      ...current,
+    const nextPresentation = {
+      ...resolvedDraftPresentation,
       placementMode: nextValue,
-    }));
+    };
+
+    if (controlledPresentation) {
+      onDraftPresentationChange?.(nextPresentation);
+    } else {
+      setInternalDraftPresentation(nextPresentation);
+    }
   }
 
   function handleSave() {
-    const parsed = parseWidgetProps<TProps>(rawPropsValue);
+    const parsed = showRawPropsEditor
+      ? parseWidgetProps<TProps>(rawPropsValue)
+      : {
+          error: null,
+          props: cloneWidgetProps(resolvedDraftProps),
+        };
 
     if (parsed.error || !parsed.props) {
       setJsonError(parsed.error ?? "Invalid JSON.");
@@ -272,7 +355,7 @@ export function WidgetSettingsPanel<
     onSave?.({
       title: instanceTitle.trim() ? instanceTitle.trim() : undefined,
       props: parsed.props,
-      presentation: draftPresentation,
+      presentation: resolvedDraftPresentation,
     });
 
     if (closeOnSave) {
@@ -321,7 +404,11 @@ export function WidgetSettingsPanel<
           <Input
             value={instanceTitle}
             onChange={(event) => {
-              setInstanceTitle(event.target.value);
+              if (controlledTitle) {
+                onDraftTitleChange?.(event.target.value);
+              } else {
+                setInternalInstanceTitle(event.target.value);
+              }
             }}
             placeholder={widget.title}
             readOnly={!editable}
@@ -435,10 +522,16 @@ export function WidgetSettingsPanel<
         {widget.schema ? (
           <WidgetSchemaForm
             widget={widget}
-            draftProps={draftProps}
+            draftProps={resolvedDraftProps}
             onDraftPropsChange={handleDraftPropsChange}
-            draftPresentation={draftPresentation}
-            onDraftPresentationChange={setDraftPresentation}
+            draftPresentation={resolvedDraftPresentation}
+            onDraftPresentationChange={(nextPresentation) => {
+              if (controlledPresentation) {
+                onDraftPresentationChange?.(nextPresentation);
+              } else {
+                setInternalDraftPresentation(nextPresentation);
+              }
+            }}
             editable={editable}
             context={controllerContext}
           />
@@ -448,13 +541,25 @@ export function WidgetSettingsPanel<
           <SettingsComponent
             widget={widget}
             instanceId={instance.id}
-            draftProps={draftProps}
+            draftProps={resolvedDraftProps}
             onDraftPropsChange={handleDraftPropsChange}
-            draftPresentation={draftPresentation}
-            onDraftPresentationChange={setDraftPresentation}
+            draftPresentation={resolvedDraftPresentation}
+            onDraftPresentationChange={(nextPresentation) => {
+              if (controlledPresentation) {
+                onDraftPresentationChange?.(nextPresentation);
+              } else {
+                setInternalDraftPresentation(nextPresentation);
+              }
+            }}
             controllerContext={controllerContext}
             instanceTitle={instanceTitle}
-            onInstanceTitleChange={setInstanceTitle}
+            onInstanceTitleChange={(nextTitle) => {
+              if (controlledTitle) {
+                onDraftTitleChange?.(nextTitle);
+              } else {
+                setInternalInstanceTitle(nextTitle);
+              }
+            }}
             editable={editable}
           />
         ) : null}

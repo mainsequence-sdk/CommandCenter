@@ -45,6 +45,18 @@ export function useWidgetDependencyGraph() {
   return useDashboardWidgetDependencies()?.graph;
 }
 
+export function useResolvedWidgetIo(instanceId?: string) {
+  const model = useDashboardWidgetDependencies();
+
+  return useMemo(() => {
+    if (!model || !instanceId) {
+      return undefined;
+    }
+
+    return model.resolveIo(instanceId);
+  }, [instanceId, model]);
+}
+
 export function useResolvedWidgetInputs(instanceId?: string) {
   const model = useDashboardWidgetDependencies();
 

@@ -521,6 +521,14 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                       <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                         {settingsInstance.title ?? settingsWidget.title}
                       </h2>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                          Widget ID
+                        </span>
+                        <Badge variant="neutral" className="font-mono text-[11px]">
+                          {settingsInstance.id}
+                        </Badge>
+                      </div>
                       <p className="max-w-3xl text-sm text-muted-foreground">
                         Adjust this widget instance in a dedicated settings view instead of a modal.
                       </p>

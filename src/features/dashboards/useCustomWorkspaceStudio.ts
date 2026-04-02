@@ -23,7 +23,9 @@ export function useCustomWorkspaceStudio() {
   const requestedWidgetId = searchParams.get("widget");
   const persistenceMode = getWorkspacePersistenceMode();
   const selectedWorkspaceView =
-    requestedViewParam === "settings" || requestedViewParam === "widget-settings"
+    requestedViewParam === "settings" ||
+    requestedViewParam === "widget-settings" ||
+    requestedViewParam === "graph"
       ? requestedViewParam
       : "dashboard";
 
@@ -127,6 +129,13 @@ export function useCustomWorkspaceStudio() {
     setSearchParams(nextParams);
   }
 
+  function openWorkspaceGraph() {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("view", "graph");
+    nextParams.delete("widget");
+    setSearchParams(nextParams);
+  }
+
   function openWidgetSettings(widgetId: string) {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("view", "widget-settings");
@@ -221,6 +230,7 @@ export function useCustomWorkspaceStudio() {
     selectedWorkspaceView,
     setSelectedWorkspaceId,
     openDashboardView,
+    openWorkspaceGraph,
     openWorkspaceSettings,
     openWidgetSettings,
     updateDraftCollection,

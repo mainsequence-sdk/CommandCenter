@@ -2,10 +2,11 @@
 
 This folder owns the `Workspaces` app experience shipped by the core extension.
 
-It currently covers four user flows:
+It currently covers five user flows:
 
 - the workspace index table
 - the workspace canvas editor
+- the workspace graph editor
 - the widget-instance settings page
 - the workspace settings page
 
@@ -15,8 +16,12 @@ These flows are all part of one app surface, with instance state selected throug
 
 - `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance.
 - `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize, controls, and save flow.
+- `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
 - `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, labels, and backend-only sharing permissions.
+- `WorkspaceChrome.tsx`: shared workspace toolbar-button and widget-rail chrome reused across canvas and graph views.
+- `WorkspaceComponentBrowser.tsx`: workspace component catalog drawer used for searching, favoriting, and adding widgets.
+- `WorkspaceGraphNode.tsx`: custom React Flow node renderer that exposes named widget input and output ports.
 - `useCustomWorkspaceStudio.ts`: route-aware hook that resolves the requested workspace instance and exposes shared actions.
 - `custom-workspace-studio-store.ts`: shared draft/saved workspace state used across the list, canvas, and settings views.
 - `custom-dashboard-storage.ts`: local-storage persistence, workspace creation helpers, grid migration logic, and widget mutation helpers.
@@ -31,6 +36,7 @@ These flows are all part of one app surface, with instance state selected throug
 - The workspace list lives at `/app/workspace-studio/workspaces`.
 - The app is only included when `VITE_INCLUDE_WORKSPACES=true`. When the flag is `false`, the runtime registry removes `workspace-studio` from navigation and route resolution.
 - Opening a workspace instance adds `?workspace=<id>`.
+- Opening the workspace graph adds `?workspace=<id>&view=graph`.
 - Opening workspace settings adds `?workspace=<id>&view=settings`.
 - Opening widget-instance settings adds `?workspace=<id>&view=widget-settings&widget=<instanceId>`.
 - Persistence is browser-local and user-scoped through `localStorage` by default.
@@ -51,6 +57,9 @@ These flows are all part of one app surface, with instance state selected throug
   supports `maxColumns`, `minColumnWidthPx`, `rowHeight`, and `fillScreen`.
 - In backend mode, workspace creation waits for the backend response and adopts the backend-assigned id instead of persisting a client-generated id.
 - The workspace index page renders from the backend-backed saved collection in backend mode, even if the editor currently has unsaved draft changes.
+- The workspace index intentionally shows user-facing metadata such as title, labels, widget count,
+  range, and refresh state, and should not expose internal grid-density details that users do not
+  directly manage from the list.
 - In backend mode, the editor keeps a local draft and only persists changes when the user explicitly saves.
 - In backend mode, delete reloads the workspace collection from the backend after success instead of computing the next list locally.
 - In backend mode, workspace save keeps the submitted companion-card layout if the mutation response does not explicitly echo `companions`. It also keeps the submitted widget geometry for matching widget ids so resized cards do not snap back locally after save when the backend response omits or returns stale layout data.
@@ -120,6 +129,13 @@ These flows are all part of one app surface, with instance state selected throug
   inputs. Binding UI is page-level on purpose so graph edges stay separate from raw props editing,
   and each input now exposes explicit source-widget and source-output selectors instead of a single
   flattened choice.
+- The workspace graph is now a dedicated route-level React Flow surface built on top of the shared
+  dependency layer. It renders one node per widget instance, one edge per canonical binding, keeps
+  graph coordinates session-local, stays inside the normal Workspaces shell with the standard app
+  navigation visible, reuses the same workspace toolbar-button language and left widget rail as the
+  canvas, keeps the `Components` drawer available so widgets can also be added from graph mode,
+  adds only a matching return-to-workspace action for graph mode, and writes connection changes back through
+  `updateDashboardWidgetBindings(...)` instead of introducing a second graph-storage model.
 - The dedicated workspace settings page now uses the same scrollable full-page container model as
   the widget settings view, so long workspace configuration pages can be reached fully.
 - Saving widget-instance settings updates only that instance's title/props/presentation and must

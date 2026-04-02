@@ -74,9 +74,19 @@ export interface WidgetInputEffect {
   sourcePath: string;
   target:
     | { kind: "schema-field"; id: string }
+    | { kind: "generated-field"; id: string }
     | { kind: "prop"; path: string }
     | { kind: "render"; id: string };
   description?: string;
+}
+
+export interface WidgetIoResolverArgs<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  widgetId: string;
+  instanceId?: string;
+  props: TProps;
+  runtimeState?: Record<string, unknown>;
 }
 
 export interface WidgetInputPortDefinition<
@@ -252,6 +262,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   settingsComponent?: ComponentType<WidgetSettingsComponentProps<TProps>>;
   showRawPropsEditor?: boolean;
   io?: WidgetIoDefinition<TProps>;
+  resolveIo?: (args: WidgetIoResolverArgs<TProps>) => WidgetIoDefinition<TProps> | undefined;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;

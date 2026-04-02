@@ -5,10 +5,12 @@
 `Workspaces` is the core extension's user-scoped workspace builder.
 
 It is intentionally modeled as an app, not a loose dashboard utility. The app owns one surface,
-`Workspaces`, and that surface handles three states:
+`Workspaces`, and that surface handles five states:
 
 - workspace index
 - workspace canvas
+- workspace graph
+- widget settings
 - workspace settings
 
 The canvas and settings are not separate app destinations. They are views over a selected
@@ -27,7 +29,9 @@ normal app-resolution redirect path.
 State is selected through query params:
 
 - `?workspace=<id>` opens the selected workspace canvas
+- `?workspace=<id>&view=graph` opens the workspace graph editor
 - `?workspace=<id>&view=settings` opens the settings view for that same workspace
+- `?workspace=<id>&view=widget-settings&widget=<instanceId>` opens one widget instance settings view
 
 This keeps the app model simple while still supporting instance-specific editing flows.
 
@@ -63,6 +67,8 @@ In backend mode, workspace creation waits for the backend response and adopts th
 id instead of persisting a client-generated id.
 The workspace index page uses the backend-backed saved collection as its source of truth in backend
 mode rather than rendering the current draft collection.
+The workspace index intentionally focuses on user-facing metadata and does not expose internal grid
+column counts or similar layout-density implementation details.
 In backend mode, the editor keeps a local draft and only persists changes when the user explicitly
 saves.
 In backend mode, delete reloads the workspace collection from the backend after success instead of
@@ -88,6 +94,15 @@ Each workspace is a dashboard-like model with:
 - shared dashboard controls state
 - widget instances and widget geometry
 - widget bindings when a widget instance declares first-class inputs
+
+The persisted workspace document stores widget instances only. Widget definitions such as title,
+description, category, settings schema, and IO/binding contracts still come from the runtime widget
+registry. A production backend that wants richer widget explanations, validation, or CLI-driven
+workspace creation should model that widget catalog separately instead of expecting `workspace.widgets`
+to carry full type metadata.
+The current backend adapter also still saves selected control values and widget `runtimeState`
+inside the main workspace document because it does not yet have separate `WorkspaceUserState`
+endpoints.
 
 The canvas uses a fine-grained grid and stores widget placement directly in the workspace model.
 `Custom` workspaces currently normalize onto one canonical dense manual grid: `48` columns,
@@ -122,6 +137,13 @@ The dedicated widget settings page now also hosts a `Bindings` tab for widgets t
 dependency inputs, so inter-widget edges are edited separately from normal settings rather than
 hidden in raw props JSON. The binding UI is explicit per input: users select both the upstream
 widget and the upstream output port, then see the final `output -> input` mapping directly.
+The workspace graph is a dedicated React Flow view over those same canonical bindings. It renders
+all widget instances as nodes, including sidebar-only widgets and collapsed-row children, and lets
+users create or remove bindings visually without changing the saved canvas layout. The graph stays
+inside the normal Workspaces shell so the standard app navigation remains visible, keeps the shared
+dashboard control strip at the top of the page, reuses the same workspace toolbar language and
+left widget rail as the canvas, keeps the `Components` drawer available for adding widgets without
+leaving graph mode, and adds only a matching return-to-workspace action for graph mode.
 
 ## JSON Snapshots
 
@@ -198,6 +220,7 @@ temporary interactions such as:
 
 - `src/features/dashboards/WorkspacesPage.tsx`
 - `src/features/dashboards/CustomDashboardStudioPage.tsx`
+- `src/features/dashboards/CustomWorkspaceGraphPage.tsx`
 - `src/features/dashboards/CustomWorkspaceSettingsPage.tsx`
 - `src/features/dashboards/useCustomWorkspaceStudio.ts`
 

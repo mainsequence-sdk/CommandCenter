@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useShellStore } from "@/stores/shell-store";
 import { CustomDashboardStudioPage } from "./CustomDashboardStudioPage";
+import { CustomWorkspaceGraphPage } from "./CustomWorkspaceGraphPage";
 import { CustomWidgetSettingsPage } from "./CustomWidgetSettingsPage";
 import { CustomWorkspaceSettingsPage } from "./CustomWorkspaceSettingsPage";
 import {
@@ -190,6 +191,8 @@ export function WorkspacesPage() {
       <CustomWorkspaceSettingsPage />
     ) : selectedWorkspaceView === "widget-settings" ? (
       <CustomWidgetSettingsPage />
+    ) : selectedWorkspaceView === "graph" ? (
+      <CustomWorkspaceGraphPage />
     ) : (
       <CustomDashboardStudioPage />
     );
@@ -244,7 +247,7 @@ export function WorkspacesPage() {
 
         <div className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/78 shadow-[var(--shadow-panel)]">
           <div className="overflow-auto">
-            <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[840px] border-collapse text-left text-sm">
               <thead className="bg-background/55">
                 <tr className="border-b border-border/70">
                   <th className="w-14 px-3 py-3">
@@ -267,9 +270,6 @@ export function WorkspacesPage() {
                   </th>
                   <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                     Refresh
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Grid
                   </th>
                   <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                     Actions
@@ -333,9 +333,6 @@ export function WorkspacesPage() {
                     </td>
                     <td className="px-4 py-3 align-top text-foreground">
                       {formatWorkspaceRefresh(workspace)}
-                    </td>
-                    <td className="px-4 py-3 align-top text-foreground">
-                      {workspace.grid?.columns ?? 24} cols
                     </td>
                     <td className="px-4 py-3 align-top">
                       <div className="flex flex-wrap items-center gap-2">

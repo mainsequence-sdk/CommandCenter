@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useDashboardWidgetDependencies } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  useDashboardWidgetDependencies,
+  useResolvedWidgetIo,
+} from "@/dashboards/DashboardWidgetDependencies";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
 import { cn } from "@/lib/utils";
 import type {
   WidgetDefinition,
+  WidgetContractId,
   WidgetInstanceBindings,
   WidgetPortBinding,
 } from "@/widgets/types";
@@ -15,6 +19,7 @@ import type {
 interface SourceOutputOption {
   id: string;
   label: string;
+  contract: WidgetContractId;
   description?: string;
 }
 
@@ -22,6 +27,13 @@ interface SourceWidgetOption {
   id: string;
   label: string;
   outputs: SourceOutputOption[];
+}
+
+function formatSourceWidgetLabel(
+  instance: DashboardWidgetInstance,
+  widgetTitle: string,
+) {
+  return `${widgetTitle} [${instance.id}]`;
 }
 
 function updateBindingDraft(
@@ -64,18 +76,37 @@ export function WidgetBindingPanel({
   widget: WidgetDefinition;
 }) {
   const dependencies = useDashboardWidgetDependencies();
+  const resolvedIo = useResolvedWidgetIo(instance.id);
   const resolvedInputs = dependencies?.resolveInputs(instance.id);
   const initialBindings = useMemo(
     () => normalizeWidgetInstanceBindings(instance.bindings),
     [instance.bindings],
   );
+  const initialSourceWidgetIds = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(initialBindings ?? {}).flatMap(([inputId, bindingValue]) => {
+          const firstBinding = Array.isArray(bindingValue) ? bindingValue[0] : bindingValue;
+
+          if (!firstBinding?.sourceWidgetId) {
+            return [];
+          }
+
+          return [[inputId, firstBinding.sourceWidgetId] as const];
+        }),
+      ) as Record<string, string>,
+    [initialBindings],
+  );
   const [draftBindings, setDraftBindings] = useState<WidgetInstanceBindings | undefined>(initialBindings);
+  const [draftSourceWidgetIds, setDraftSourceWidgetIds] =
+    useState<Record<string, string>>(initialSourceWidgetIds);
 
   useEffect(() => {
     setDraftBindings(initialBindings);
-  }, [initialBindings, instance.id]);
+    setDraftSourceWidgetIds(initialSourceWidgetIds);
+  }, [initialBindings, initialSourceWidgetIds, instance.id]);
 
-  const inputs = widget.io?.inputs ?? [];
+  const inputs = resolvedIo?.inputs ?? widget.io?.inputs ?? [];
 
   const sourceWidgetsByInputId = useMemo(() => {
     if (!dependencies) {
@@ -90,24 +121,20 @@ export function WidgetBindingPanel({
           }
 
           const sourceDefinition = dependencies.getWidgetDefinition(sourceInstance.widgetId);
-          const outputs = sourceDefinition?.io?.outputs ?? [];
-
-          const compatibleOutputs = outputs
-            .filter((output) => input.accepts.includes(output.contract))
-            .map((output) => ({
-              id: output.id,
-              label: output.label,
-              description: output.description,
-            })) satisfies SourceOutputOption[];
-
-          if (compatibleOutputs.length === 0) {
-            return [];
-          }
+          const outputs = dependencies.resolveIo(sourceInstance.id)?.outputs ?? [];
 
           return [{
             id: sourceInstance.id,
-            label: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
-            outputs: compatibleOutputs,
+            label: formatSourceWidgetLabel(
+              sourceInstance,
+              sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
+            ),
+            outputs: outputs.map((output) => ({
+              id: output.id,
+              label: output.label,
+              contract: output.contract,
+              description: output.description,
+            })) satisfies SourceOutputOption[],
           } satisfies SourceWidgetOption];
         });
 
@@ -115,10 +142,6 @@ export function WidgetBindingPanel({
       }),
     );
   }, [dependencies, inputs, instance.id]);
-
-  if (inputs.length === 0) {
-    return null;
-  }
 
   const dirty =
     JSON.stringify(draftBindings ?? null) !== JSON.stringify(initialBindings ?? null);
@@ -138,6 +161,14 @@ export function WidgetBindingPanel({
       </div>
 
       <div className="space-y-5 px-5 py-5 md:px-6 md:py-6">
+        {inputs.length === 0 ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/24 px-4 py-4 text-sm text-muted-foreground">
+            {widget.resolveIo
+              ? "No bindable inputs are available for this widget instance yet. Configure the widget in Settings to generate its dynamic input ports."
+              : "This widget instance does not currently declare any bindable inputs."}
+          </div>
+        ) : null}
+
         {inputs.map((input) => {
           const currentBindingValue = draftBindings?.[input.id];
           const currentBinding = Array.isArray(currentBindingValue)
@@ -148,11 +179,15 @@ export function WidgetBindingPanel({
             ? resolvedInputValue[0]
             : resolvedInputValue;
           const sourceWidgetOptions = sourceWidgetsByInputId.get(input.id) ?? [];
-          const selectedSourceWidgetId = currentBinding?.sourceWidgetId ?? "";
+          const selectedSourceWidgetId =
+            draftSourceWidgetIds[input.id] ?? currentBinding?.sourceWidgetId ?? "";
           const selectedSourceWidget = sourceWidgetOptions.find(
             (option) => option.id === selectedSourceWidgetId,
           );
           const selectedOutputOptions = selectedSourceWidget?.outputs ?? [];
+          const compatibleOutputOptions = selectedOutputOptions.filter((output) =>
+            input.accepts.includes(output.contract),
+          );
           const selectedOutput = findCurrentOutputOption(sourceWidgetOptions, currentBinding);
           const resolvedSourceWidget = currentResolved?.sourceWidgetId
             ? sourceWidgetOptions.find((option) => option.id === currentResolved.sourceWidgetId)
@@ -207,6 +242,10 @@ export function WidgetBindingPanel({
                       disabled={!editable}
                       onChange={(event) => {
                         const nextSourceWidgetId = event.target.value;
+                        setDraftSourceWidgetIds((current) => ({
+                          ...current,
+                          [input.id]: nextSourceWidgetId,
+                        }));
 
                         if (!nextSourceWidgetId) {
                           setDraftBindings((current) =>
@@ -218,8 +257,9 @@ export function WidgetBindingPanel({
                         const nextSourceWidget = sourceWidgetOptions.find(
                           (option) => option.id === nextSourceWidgetId,
                         );
-                        const nextSourceOutputId =
-                          nextSourceWidget?.outputs[0]?.id;
+                        const nextSourceOutputId = nextSourceWidget?.outputs.find((output) =>
+                          input.accepts.includes(output.contract),
+                        )?.id;
 
                         setDraftBindings((current) =>
                           updateBindingDraft(
@@ -276,11 +316,29 @@ export function WidgetBindingPanel({
                         {selectedSourceWidget ? "Select an output" : "Choose a widget first"}
                       </option>
                       {selectedOutputOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
+                        <option
+                          key={option.id}
+                          value={option.id}
+                          disabled={!input.accepts.includes(option.contract)}
+                        >
+                          {input.accepts.includes(option.contract)
+                            ? option.label
+                            : `${option.label} (incompatible)`}
                         </option>
                       ))}
                     </select>
+                    {selectedSourceWidget && selectedOutputOptions.length === 0 ? (
+                      <div className="text-xs text-muted-foreground">
+                        This widget does not currently expose any outputs.
+                      </div>
+                    ) : null}
+                    {selectedSourceWidget &&
+                    selectedOutputOptions.length > 0 &&
+                    compatibleOutputOptions.length === 0 ? (
+                      <div className="text-xs text-muted-foreground">
+                        This widget has outputs, but none match the contracts accepted by {input.label}.
+                      </div>
+                    ) : null}
                     {selectedOutput?.description ? (
                       <div className="text-xs text-muted-foreground">
                         {selectedOutput.description}
@@ -319,6 +377,8 @@ export function WidgetBindingPanel({
                             `${effect.sourcePath} -> ${effect.target.kind}:${
                               effect.target.kind === "schema-field"
                                 ? effect.target.id
+                                : effect.target.kind === "generated-field"
+                                  ? effect.target.id
                                 : effect.target.kind === "prop"
                                   ? effect.target.path
                                   : effect.target.id
@@ -333,25 +393,28 @@ export function WidgetBindingPanel({
           );
         })}
 
-        <div className="flex items-center justify-end gap-2 border-t border-border/70 pt-4">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setDraftBindings(initialBindings);
-            }}
-            disabled={!editable || !dirty}
-          >
-            Reset bindings
-          </Button>
-          <Button
-            onClick={() => {
-              onBindingsChange(normalizeWidgetInstanceBindings(draftBindings));
-            }}
-            disabled={!editable || !dirty}
-          >
-            Apply bindings
-          </Button>
-        </div>
+        {inputs.length > 0 ? (
+          <div className="flex items-center justify-end gap-2 border-t border-border/70 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDraftBindings(initialBindings);
+                setDraftSourceWidgetIds(initialSourceWidgetIds);
+              }}
+              disabled={!editable || !dirty}
+            >
+              Reset bindings
+            </Button>
+            <Button
+              onClick={() => {
+                onBindingsChange(normalizeWidgetInstanceBindings(draftBindings));
+              }}
+              disabled={!editable || !dirty}
+            >
+              Apply bindings
+            </Button>
+          </div>
+        ) : null}
       </div>
     </section>
   );

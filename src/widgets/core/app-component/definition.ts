@@ -1,5 +1,6 @@
 import { defineWidget } from "@/widgets/types";
 
+import { resolveAppComponentWidgetIo } from "./appComponentDynamicIo";
 import { AppComponentWidget } from "./AppComponentWidget";
 import { AppComponentWidgetSettings } from "./AppComponentWidgetSettings";
 import type { AppComponentWidgetProps } from "./appComponentModel";
@@ -33,5 +34,6 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   },
   settingsComponent: AppComponentWidgetSettings,
   showRawPropsEditor: false,
+  resolveIo: ({ props }) => resolveAppComponentWidgetIo(props),
   component: AppComponentWidget,
 });

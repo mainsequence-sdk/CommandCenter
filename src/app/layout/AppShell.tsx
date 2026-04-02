@@ -29,7 +29,12 @@ function isWorkspaceCanvasRoute(pathname: string, search: string) {
   const workspaceId = searchParams.get("workspace");
   const view = searchParams.get("view");
 
-  return Boolean(workspaceId) && view !== "settings" && view !== "widget-settings";
+  return (
+    Boolean(workspaceId) &&
+    view !== "settings" &&
+    view !== "widget-settings" &&
+    view !== "graph"
+  );
 }
 
 export function AppShell() {

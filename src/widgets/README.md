@@ -17,6 +17,8 @@ This directory contains the Command Center widget platform, including the shared
 - A `WidgetDefinition` is the reusable widget type: metadata, render component, and optional typed settings UI.
 - `WidgetDefinition` can now also declare static `io` metadata for widget inputs, outputs,
   accepted/published contracts, input effects, and pure output publication.
+- Widgets can also declare pure instance-scoped `resolveIo(...)` when their ports depend on saved
+  widget instance configuration rather than only the static widget definition.
 - Widget definitions now inherit one shared platform default size through `defineWidget(...)`. Only
   true structural exceptions, such as the workspace row widget, should override that default at the
   definition layer.
@@ -38,7 +40,8 @@ This directory contains the Command Center widget platform, including the shared
   reusable widget definition.
 - The shared settings modal supports title overrides, shared widget chrome options such as `showHeader`, and raw JSON prop editing for any widget instance.
 - Workspace widget settings now also expose a dedicated `Bindings` tab for widgets that declare
-  inputs. Do not stuff inter-widget graph edges into raw props editors.
+  inputs, including inputs resolved dynamically from saved widget instance configuration. Do not
+  stuff inter-widget graph edges into raw props editors.
 - Static dashboard surfaces currently keep widget settings changes only for the current page session.
 - The custom workspace studio writes widget settings into the workspace draft, and those changes persist once the user saves the workspace.
 - Stateful widgets can report runtime state back through `WidgetComponentProps.onRuntimeStateChange` so Workspaces JSON snapshots can round-trip view state such as zoom, pan, or selected node context.
