@@ -4,19 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useResolvedWidgetInputs } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  useResolvedWidgetInputs,
+} from "@/dashboards/DashboardWidgetDependencies";
+import {
+  useDashboardWidgetExecution,
+  useWidgetExecutionState,
+} from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
   buildAppComponentOpenApiQueryKey,
   fetchAppComponentOpenApiDocument,
-  submitAppComponentRequest,
 } from "./appComponentApi";
+import { executeAppComponent } from "./appComponentExecution";
 import { AppComponentFormSections } from "./AppComponentFormSections";
 import {
-  buildAppComponentRequest,
   buildAppComponentGeneratedForm,
-  extractAppComponentPublishedOutputs,
   normalizeAppComponentProps,
   normalizeAppComponentRuntimeState,
   resolveAppComponentBoundInputOverlay,
@@ -55,6 +59,8 @@ export function AppComponentWidget({
   onRuntimeStateChange,
 }: Props) {
   const normalizedProps = useMemo(() => normalizeAppComponentProps(props), [props]);
+  const widgetExecution = useDashboardWidgetExecution();
+  const executionState = useWidgetExecutionState(instanceId);
   const resolvedInputs = useResolvedWidgetInputs(instanceId);
   const normalizedRuntimeState = useMemo(
     () => normalizeAppComponentRuntimeState(runtimeState),
@@ -121,6 +127,7 @@ export function AppComponentWidget({
   );
   const effectiveDraftValues = boundInputOverlay.values;
   const boundFieldKeys = boundInputOverlay.boundFieldKeys;
+  const isExecuting = executionState?.status === "running";
 
   useEffect(() => {
     setDraftValues(initialDraftValues);
@@ -155,75 +162,27 @@ export function AppComponentWidget({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const buildResult = buildAppComponentRequest(
-      normalizedProps,
-      resolvedOperation,
-      generatedForm,
-      effectiveDraftValues,
-    );
-
-    if (!buildResult.request) {
-      commitRuntimeState({
-        ...localRuntimeState,
-        operationKey: resolvedOperation?.record.key,
-        draftValues,
-        status: "error",
-        error: buildResult.errors.join(" "),
+    if (widgetExecution && instanceId) {
+      await widgetExecution.executeWidgetGraph(instanceId, {
+        reason: "manual-submit",
       });
       return;
     }
 
-    commitRuntimeState({
-      ...localRuntimeState,
-      operationKey: resolvedOperation?.record.key,
+    const result = await executeAppComponent({
+      widgetId: "app-component",
+      instanceId: instanceId ?? "app-component-preview",
+      reason: "manual-submit",
+      props: normalizedProps,
+      runtimeState: {
+        ...localRuntimeState,
         draftValues,
-        status: "submitting",
-        error: undefined,
+      },
+      resolvedInputs,
     });
 
-    try {
-      const response = await submitAppComponentRequest({
-        authMode: normalizedProps.authMode,
-        method: buildResult.request.method,
-        url: buildResult.request.url,
-        headers: buildResult.request.headers,
-        body: buildResult.request.body,
-      });
-
-      commitRuntimeState({
-        operationKey: resolvedOperation?.record.key,
-        draftValues,
-        status: response.ok ? "success" : "error",
-        lastExecutedAtMs: Date.now(),
-        lastRequestUrl: response.url,
-        lastResponseStatus: response.status,
-        lastResponseStatusText: response.statusText,
-        lastResponseHeaders: response.headers,
-        lastResponseBody: response.body,
-        error:
-          response.ok
-            ? undefined
-            : typeof response.body === "string"
-              ? response.body
-              : `Request failed with ${response.status}.`,
-        publishedOutputs: response.ok
-          ? extractAppComponentPublishedOutputs(
-              response.body,
-              normalizedProps.bindingSpec,
-            )
-          : undefined,
-      });
-    } catch (error) {
-      commitRuntimeState({
-        ...localRuntimeState,
-        operationKey: resolvedOperation?.record.key,
-        draftValues,
-        status: "error",
-        error:
-          error instanceof Error
-            ? error.message
-            : "The request failed before the API returned a response.",
-      });
+    if (result.runtimeStatePatch) {
+      commitRuntimeState(result.runtimeStatePatch as AppComponentWidgetRuntimeState);
     }
   }
 
@@ -280,7 +239,7 @@ export function AppComponentWidget({
           ) : (
             <AppComponentFormSections
               boundFieldKeys={boundFieldKeys}
-              disabled={localRuntimeState.status === "submitting"}
+              disabled={isExecuting || localRuntimeState.status === "submitting"}
               form={generatedForm}
               mode="compact"
               values={effectiveDraftValues}
@@ -293,8 +252,8 @@ export function AppComponentWidget({
           <div className="min-h-4 text-xs text-danger">
             {localRuntimeState.status === "error" ? localRuntimeState.error : ""}
           </div>
-          <Button type="submit" disabled={localRuntimeState.status === "submitting"}>
-            {localRuntimeState.status === "submitting" ? (
+          <Button type="submit" disabled={isExecuting || localRuntimeState.status === "submitting"}>
+            {isExecuting || localRuntimeState.status === "submitting" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />

@@ -9,6 +9,10 @@ import {
   useDashboardWidgetDependencies,
   useResolvedWidgetInputs,
 } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  useDashboardWidgetExecution,
+  useWidgetExecutionState,
+} from "@/dashboards/DashboardWidgetExecution";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -24,25 +28,24 @@ import type { WidgetSettingsComponentProps } from "@/widgets/types";
 import {
   buildAppComponentOpenApiQueryKey,
   fetchAppComponentOpenApiDocument,
-  submitAppComponentRequest,
 } from "./appComponentApi";
+import { executeAppComponent } from "./appComponentExecution";
 import {
   AppComponentFormSections,
   type AppComponentFieldBindingDisplayState,
 } from "./AppComponentFormSections";
 import {
   buildAppComponentBindingSpec,
-  buildAppComponentRequest,
   buildAppComponentDocsUrl,
   buildAppComponentGeneratedForm,
   buildAppComponentOpenApiUrl,
-  extractAppComponentPublishedOutputs,
   formatAppComponentFieldLocation,
   formatAppComponentMethodLabel,
   listAppComponentOperations,
   listAppComponentRequestBodyContentTypes,
   normalizeAppComponentProps,
   normalizeAppComponentBindingSpec,
+  normalizeAppComponentRuntimeState,
   resolveAppComponentFieldBindingStates,
   resolveAppComponentBoundInputOverlay,
   resolveAppComponentInitialDraftValues,
@@ -124,6 +127,22 @@ function resolveStatusBadgeVariant(status: "idle" | "submitting" | "success" | "
   }
 }
 
+function resolveTestStateFromRuntimeState(
+  runtimeState: Record<string, unknown> | undefined,
+): AppComponentSettingsTestState {
+  const normalizedRuntimeState = normalizeAppComponentRuntimeState(runtimeState);
+
+  return {
+    status: normalizedRuntimeState.status ?? "idle",
+    lastExecutedAtMs: normalizedRuntimeState.lastExecutedAtMs,
+    lastRequestUrl: normalizedRuntimeState.lastRequestUrl,
+    lastResponseStatus: normalizedRuntimeState.lastResponseStatus,
+    lastResponseBody: normalizedRuntimeState.lastResponseBody,
+    error: normalizedRuntimeState.error,
+    publishedOutputs: normalizedRuntimeState.publishedOutputs,
+  };
+}
+
 interface AppComponentSettingsTestState {
   status: "idle" | "submitting" | "success" | "error";
   lastExecutedAtMs?: number;
@@ -143,6 +162,8 @@ export function AppComponentWidgetSettings({
   const normalizedProps = useMemo(() => normalizeAppComponentProps(draftProps), [draftProps]);
   const draftPropsRef = useRef(draftProps);
   const dependencies = useDashboardWidgetDependencies();
+  const widgetExecution = useDashboardWidgetExecution();
+  const executionState = useWidgetExecutionState(instanceId);
   const resolvedInputs = useResolvedWidgetInputs(instanceId);
   const resolvedBaseUrl = useMemo(
     () => tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl),
@@ -477,67 +498,52 @@ export function AppComponentWidgetSettings({
   async function handleTestSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const buildResult = buildAppComponentRequest(
-      normalizedProps,
-      resolvedOperation,
-      generatedForm,
-      effectiveTestDraftValues,
-    );
-
-    if (!buildResult.request) {
-      setTestState({
-        status: "error",
-        error: buildResult.errors.join(" "),
-      });
-      return;
-    }
-
     setTestState({
       status: "submitting",
       lastExecutedAtMs: testState.lastExecutedAtMs,
-      lastRequestUrl: buildResult.request.url,
+      lastRequestUrl: testState.lastRequestUrl,
       lastResponseStatus: testState.lastResponseStatus,
       lastResponseBody: testState.lastResponseBody,
       publishedOutputs: testState.publishedOutputs,
     });
 
-    try {
-      const response = await submitAppComponentRequest({
-        authMode: normalizedProps.authMode,
-        method: buildResult.request.method,
-        url: buildResult.request.url,
-        headers: buildResult.request.headers,
-        body: buildResult.request.body,
+    if (widgetExecution) {
+      const result = await widgetExecution.executeWidgetGraph(instanceId, {
+        reason: "settings-test",
+        targetOverrides: {
+          props: normalizedProps,
+          draftValues: testDraftValues,
+        },
       });
+      const nextState: AppComponentSettingsTestState = result.targetRuntimeState
+        ? resolveTestStateFromRuntimeState(result.targetRuntimeState)
+        : {
+            ...testState,
+            status: result.status === "error" ? "error" : "idle",
+            error: result.error,
+          };
 
       setTestState({
-        status: response.ok ? "success" : "error",
-        lastExecutedAtMs: Date.now(),
-        lastRequestUrl: response.url,
-        lastResponseStatus: response.status,
-        lastResponseBody: response.body,
-        error:
-          response.ok
-            ? undefined
-            : typeof response.body === "string"
-              ? response.body
-              : `Request failed with ${response.status}.`,
-        publishedOutputs: response.ok
-          ? extractAppComponentPublishedOutputs(
-              response.body,
-              normalizedProps.bindingSpec,
-            )
-          : undefined,
+        ...nextState,
+        error: nextState.error ?? result.error,
       });
-    } catch (error) {
-      setTestState({
-        status: "error",
-        error:
-          error instanceof Error
-            ? error.message
-            : "The request failed before the API returned a response.",
-      });
+
+      return;
     }
+
+    const result = await executeAppComponent({
+      widgetId: "app-component",
+      instanceId,
+      reason: "settings-test",
+      props: normalizedProps,
+      resolvedInputs,
+      targetOverrides: {
+        props: normalizedProps,
+        draftValues: testDraftValues,
+      },
+    });
+
+    setTestState(resolveTestStateFromRuntimeState(result.runtimeStatePatch));
   }
 
   return (
@@ -964,7 +970,10 @@ export function AppComponentWidgetSettings({
                     generatedForm.bodyMode !== "none") ? (
                     <AppComponentFormSections
                       boundFieldKeys={boundFieldKeys}
-                      disabled={testState.status === "submitting"}
+                      disabled={
+                        testState.status === "submitting" ||
+                        executionState?.status === "running"
+                      }
                       fieldBindingStates={fieldBindingDisplayStates}
                       form={generatedForm}
                       values={effectiveTestDraftValues}
@@ -1002,9 +1011,13 @@ export function AppComponentWidgetSettings({
                     </div>
                     <Button
                       type="submit"
-                      disabled={testState.status === "submitting" || !editable}
+                      disabled={
+                        testState.status === "submitting" ||
+                        executionState?.status === "running" ||
+                        !editable
+                      }
                     >
-                      {testState.status === "submitting" ? (
+                      {testState.status === "submitting" || executionState?.status === "running" ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Send className="h-4 w-4" />

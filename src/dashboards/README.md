@@ -22,6 +22,12 @@ surfaces and the editable workspace studio.
   binding add/remove helpers so visual graph editors do not duplicate semantics.
 - `DashboardWidgetDependencies.tsx`: React provider/hooks layer that exposes resolved widget
   inputs and dependency diagnostics on top of the raw widget registry.
+- `widget-graph-execution.ts`: shared executable-widget graph runner. It builds dependency-backed
+  execution snapshots, walks valid upstream executable dependencies, applies runtime-state patches,
+  and provides the refresh-target selection helpers used by the execution provider.
+- `DashboardWidgetExecution.tsx`: React provider/hooks layer for executable widget graphs. It owns
+  `executeWidgetGraph(...)`, in-flight dedupe, per-instance execution status, and refresh-cycle
+  handoff from dashboard controls.
 - `react-grid-layout-adapter.ts`: adapter utilities for the workspace studio's
   `react-grid-layout`-managed canvas. This file converts resolved dashboard widgets into RGL items,
   converts committed RGL layouts back into widget `position/layout`, and exposes the shared
@@ -67,6 +73,10 @@ surfaces and the editable workspace studio.
 - The dependency layer is intentionally separate from `DashboardWidgetRegistryProvider`. The raw
   registry remains the mounted-widget index, while the dependency provider adds graph extraction,
   canonical binding validation, and optional resolved inputs on top.
+- Executable graph orchestration is also intentionally separate from the dependency layer. The
+  execution runner consumes dependency snapshots, but execution side effects, runtime-state patch
+  application, and refresh dedupe live in `widget-graph-execution.ts` /
+  `DashboardWidgetExecution.tsx`, not in `widget-dependencies.ts`.
 - The route-level workspace graph editor must stay on top of this dependency layer. React Flow owns
   node/edge rendering and local node positions there, but binding validation and canonical binding
   mutation rules stay centralized in `widget-dependencies.ts`.

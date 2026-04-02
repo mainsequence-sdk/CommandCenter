@@ -30,6 +30,9 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   binding spec into dynamic widget ports, including the structured response output descriptor used
   by the shared binding transform UI.
 - `appComponentApi.ts`: authenticated OpenAPI fetch and request submission helpers, including the local mock transport used by explorer and mock mode.
+- `appComponentExecution.ts`: pure executable-widget adapter for `AppComponent`. It resolves bound
+  inputs, builds the request, submits it, and returns a runtime-state patch for the shared
+  dashboard graph runner.
 - `AppComponentWidget.tsx`: runtime widget body that renders only the generated request inputs.
 - `AppComponentWidgetSettings.tsx`: settings experience for API discovery, operation selection, response-model inspection, and live request testing.
 - `AppComponentFormSections.tsx`: shared generated-input renderer reused by both the canvas widget and the settings-side test harness.
@@ -45,6 +48,9 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   from saved widget props at graph/binding time.
 - Binding still stays port-to-port. Nested response-field selection is stored on the binding edge
   as a transform, not as a second AppComponent-only wiring model.
+- Request execution now also goes through the shared dashboard execution coordinator when it is
+  available. Canvas `Submit` and settings `Test request` use the same graph-runner path so
+  upstream executable dependencies can run first.
 
 ## Maintenance Notes
 
@@ -56,3 +62,5 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   are convenience outputs; the structured root output is the fallback for nested extraction.
 - Build future chaining on the shared widget binding system. Do not introduce a second AppComponent-only
   cross-widget composition path.
+- Keep request execution in `appComponentExecution.ts` and the dashboard execution layer. Do not
+  reintroduce separate inline submit orchestration in the widget body or settings page.

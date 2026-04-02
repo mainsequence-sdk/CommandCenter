@@ -199,6 +199,53 @@ export type ResolvedWidgetInputs = Record<
   ResolvedWidgetInput | ResolvedWidgetInput[] | undefined
 >;
 
+export type WidgetExecutionReason =
+  | "manual-submit"
+  | "settings-test"
+  | "dashboard-refresh"
+  | "manual-recalculate";
+
+export interface WidgetExecutionTargetOverrides<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  props?: TProps;
+  runtimeState?: Record<string, unknown>;
+  draftValues?: Record<string, string>;
+}
+
+export interface WidgetExecutionContext<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  widgetId: string;
+  instanceId: string;
+  reason: WidgetExecutionReason;
+  props: TProps;
+  runtimeState?: Record<string, unknown>;
+  resolvedInputs?: ResolvedWidgetInputs;
+  targetOverrides?: WidgetExecutionTargetOverrides<TProps>;
+  refreshCycleId?: string;
+  signal?: AbortSignal;
+}
+
+export interface WidgetExecutionResult {
+  status: "success" | "error" | "skipped";
+  runtimeStatePatch?: Record<string, unknown>;
+  error?: string;
+}
+
+export type WidgetExecutionRefreshPolicy = "manual-only" | "allow-refresh";
+
+export interface WidgetExecutionDefinition<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  canExecute?: (context: WidgetExecutionContext<TProps>) => boolean;
+  execute: (context: WidgetExecutionContext<TProps>) => Promise<WidgetExecutionResult>;
+  getRefreshPolicy?: (
+    context: WidgetExecutionContext<TProps>,
+  ) => WidgetExecutionRefreshPolicy;
+  getExecutionKey?: (context: WidgetExecutionContext<TProps>) => string;
+}
+
 export interface WidgetControllerArgs<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
@@ -310,6 +357,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   showRawPropsEditor?: boolean;
   io?: WidgetIoDefinition<TProps>;
   resolveIo?: (args: WidgetIoResolverArgs<TProps>) => WidgetIoDefinition<TProps> | undefined;
+  execution?: WidgetExecutionDefinition<TProps>;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;

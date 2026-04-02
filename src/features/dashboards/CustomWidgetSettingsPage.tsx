@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DashboardControlsProvider } from "@/dashboards/DashboardControls";
 import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
+import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { WidgetBindingPanel } from "@/widgets/shared/WidgetBindingPanel";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
@@ -320,8 +321,17 @@ export function CustomWidgetSettingsPage() {
       }}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
-        <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
-          <div className="relative h-full overflow-hidden">
+        <DashboardWidgetExecutionProvider
+          scopeId={selectedDashboard.id}
+          widgets={resolvedDashboard.widgets}
+          writeRuntimeState={(instanceId, runtimeState) => {
+            updateSelectedWorkspace((dashboard) =>
+              updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+            );
+          }}
+        >
+          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+            <div className="relative h-full overflow-hidden">
             <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
               {resolvedDashboard.widgets.map((mountedInstance) => {
                 const mountedWidget = getWidgetById(mountedInstance.widgetId);
@@ -568,7 +578,8 @@ export function CustomWidgetSettingsPage() {
               </div>
             </div>
           </div>
-        </DashboardWidgetDependenciesProvider>
+          </DashboardWidgetDependenciesProvider>
+        </DashboardWidgetExecutionProvider>
       </DashboardWidgetRegistryProvider>
     </DashboardControlsProvider>
   );

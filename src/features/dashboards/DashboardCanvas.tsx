@@ -20,6 +20,7 @@ import {
   DashboardRefreshProgressLine,
 } from "@/dashboards/DashboardControls";
 import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
+import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import {
@@ -457,10 +458,23 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
   return (
     <DashboardControlsProvider key={dashboard.id} controls={dashboard.controls}>
       <DashboardWidgetRegistryProvider widgets={renderedWidgets}>
-        <DashboardWidgetDependenciesProvider widgets={renderedWidgets}>
-          <div ref={canvasRef} className="relative">
-          <DashboardRefreshProgressLine />
-          <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
+        <DashboardWidgetExecutionProvider
+          scopeId={dashboard.id}
+          widgets={renderedWidgets}
+          writeRuntimeState={(instanceId, runtimeState) => {
+            setWidgetOverrides((current) => ({
+              ...current,
+              [instanceId]: {
+                ...current[instanceId],
+                runtimeState: runtimeState ?? null,
+              },
+            }));
+          }}
+        >
+          <DashboardWidgetDependenciesProvider widgets={renderedWidgets}>
+            <div ref={canvasRef} className="relative">
+              <DashboardRefreshProgressLine />
+              <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
             {sidebarOnlyWidgetEntries.map(({ instance, widget }) => {
               const required = [
                 ...(widget.requiredPermissions ?? []),
@@ -503,7 +517,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                 </div>
               );
             })}
-          </div>
+              </div>
           {settingsInstance && settingsWidget ? (
             <div className="h-full overflow-y-auto pr-1 pb-6 space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -921,7 +935,8 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
             </div>
           )}
           </div>
-        </DashboardWidgetDependenciesProvider>
+          </DashboardWidgetDependenciesProvider>
+        </DashboardWidgetExecutionProvider>
       </DashboardWidgetRegistryProvider>
     </DashboardControlsProvider>
   );

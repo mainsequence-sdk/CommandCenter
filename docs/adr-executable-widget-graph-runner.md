@@ -9,179 +9,211 @@
 
 ## Context
 
-The current widget dependency model resolves values, but it does not execute widgets.
+The current platform now has the right dataflow foundation for bound widget composition:
+
+- canonical `WidgetPortBinding` storage on widget instances
+- dynamic/static instance IO through `io` and `resolveIo`
+- output descriptors and binding-level output transforms
+- a dependency model that resolves outputs, applies transforms, and validates inputs
+- `AppComponent` request/response ports generated from persisted `bindingSpec`
+- `AppComponent` runtime `publishedOutputs` resolved through the shared dependency model
+
+That foundation is necessary, but it is not sufficient for executable graph runs.
 
 Today:
 
-- bindings are resolved through [`src/dashboards/widget-dependencies.ts`](../src/dashboards/widget-dependencies.ts)
-- `AppComponent` can consume bound values from upstream widgets
-- `AppComponent` submit in normal view and `Test request` in settings both execute only the clicked widget
-- upstream dependencies are not executed automatically before the target request
-- dashboard refresh is centralized in [`src/dashboards/DashboardControls.tsx`](../src/dashboards/DashboardControls.tsx), but it only invalidates query-driven widgets and does not coordinate executable widget graphs
+- `AppComponent` still executes inline from [`src/widgets/core/app-component/AppComponentWidget.tsx`](../src/widgets/core/app-component/AppComponentWidget.tsx)
+- settings `Test request` still executes inline from [`src/widgets/core/app-component/AppComponentWidgetSettings.tsx`](../src/widgets/core/app-component/AppComponentWidgetSettings.tsx)
+- the dependency model in [`src/dashboards/widget-dependencies.ts`](../src/dashboards/widget-dependencies.ts) resolves values but does not execute widgets
+- dashboard refresh in [`src/dashboards/DashboardControls.tsx`](../src/dashboards/DashboardControls.tsx) is centralized, but it currently coordinates query invalidation rather than executable widget graphs
 
-This creates two architectural problems:
+This creates three problems:
 
-1. a bound request field may appear correctly connected, but the clicked widget still fails because the upstream request widget has not run yet in the current runtime cycle
-2. if we naïvely add graph execution inside individual widgets, dashboard refresh and manual submit can trigger duplicate overlapping runs of the same upstream chain
+1. a target widget can have valid bindings but still fail because its upstream executable widgets have not run in the current runtime cycle
+2. if we add graph execution ad hoc inside widgets or settings pages, execution behavior will fork across surfaces
+3. refresh can become unsafe or duplicate work, especially for widgets like `AppComponent` that support mutating HTTP methods
 
 The product requirement is:
 
-- clicking `Submit` in normal view and `Test request` in settings should behave the same
-- upstream request dependencies should run first, then the clicked widget should run with fresh outputs
-- the solution must be generic for all executable widgets, not a special-case `AppComponent` hack
-- refresh behavior must be coordinated so one refresh cycle does not double-run the same graph
+- clicking `Submit` in normal view and `Test request` in settings must follow the same execution path
+- upstream executable dependencies must run first, then the target widget runs with fresh resolved inputs
+- the solution must be generic for all executable widgets, not an `AppComponent`-only orchestration layer
+- refresh-triggered execution must be explicit, centralized, deduplicated, and safe by default
 
 ## Decision
 
-We will add a separate dashboard-level executable graph runner that coordinates widget execution, runtime-state updates, and refresh deduplication.
+We will add a separate dashboard-level executable graph runner that sits above the binding engine.
 
-This will be implemented as shared infrastructure, not embedded into `AppComponentWidget.tsx`,
-`AppComponentWidgetSettings.tsx`, or `DashboardControls.tsx`.
+This runner will:
+
+- use the existing dependency model as its source of truth
+- execute widgets through a first-class `WidgetDefinition.execution` contract
+- rebuild dependency snapshots after each execution step
+- apply runtime-state patches returned by executors
+- coordinate refresh-triggered execution through explicit refresh policy and in-flight deduplication
+
+Execution logic will not be embedded into:
+
+- widget render components
+- widget settings pages
+- the dependency provider
+- `DashboardControls`
 
 ## Architecture
 
-### 1. Add a generic executable-widget contract
+### 1. Keep dependency resolution pure
 
-Widgets that can actively produce outputs by running work will opt into a shared execution
-contract on their definition.
+The dependency engine remains responsible for:
 
-Examples:
+- resolving instance IO
+- resolving outputs
+- applying binding transforms
+- validating input compatibility
+- exposing resolved input/output state to UI and runtime consumers
 
-- API/request widgets such as `AppComponent`
-- future workflow/action widgets
-- any widget whose outputs depend on executing logic, not only passive local rendering
+It does not execute widgets.
 
-Passive widgets remain outside this contract.
+This keeps [`src/dashboards/widget-dependencies.ts`](../src/dashboards/widget-dependencies.ts) pure and reusable.
 
-The contract should answer:
+### 2. Add a first-class widget execution contract
 
-- can this instance execute?
-- how does it execute?
-- how does it publish runtime state and outputs?
-- is it eligible for dashboard refresh execution?
+Executable widgets will opt into a separate execution contract on `WidgetDefinition`.
 
-### 2. Add a dashboard execution coordinator
+The target API shape is:
 
-A shared dashboard-level coordinator will own:
+```ts
+export type WidgetExecutionReason =
+  | "manual-submit"
+  | "settings-test"
+  | "dashboard-refresh"
+  | "manual-recalculate";
 
-- executable widget lookup
-- upstream dependency traversal
-- topological execution order
-- runtime-state writes for any widget instance
-- execution progress and error aggregation
+export interface WidgetExecutionTargetOverrides<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  props?: TProps;
+  runtimeState?: Record<string, unknown>;
+  draftValues?: Record<string, string>;
+}
+
+export interface WidgetExecutionContext<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  widgetId: string;
+  instanceId: string;
+  reason: WidgetExecutionReason;
+  props: TProps;
+  runtimeState?: Record<string, unknown>;
+  resolvedInputs?: ResolvedWidgetInputs;
+  targetOverrides?: WidgetExecutionTargetOverrides<TProps>;
+  refreshCycleId?: string;
+  signal?: AbortSignal;
+}
+
+export interface WidgetExecutionResult {
+  status: "success" | "error" | "skipped";
+  runtimeStatePatch?: Record<string, unknown>;
+  error?: string;
+}
+
+export interface WidgetExecutionDefinition<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  canExecute?: (context: WidgetExecutionContext<TProps>) => boolean;
+  execute: (context: WidgetExecutionContext<TProps>) => Promise<WidgetExecutionResult>;
+  getRefreshPolicy?: (
+    context: WidgetExecutionContext<TProps>,
+  ) => "manual-only" | "allow-refresh";
+  getExecutionKey?: (context: WidgetExecutionContext<TProps>) => string;
+}
+```
+
+And `WidgetDefinition` will gain:
+
+```ts
+execution?: WidgetExecutionDefinition<TProps>;
+```
+
+This keeps execution extensibility parallel to `io` / `resolveIo` instead of mixing runtime side effects into the dependency model.
+
+### 3. Build execution snapshots from the dependency engine
+
+The graph runner must consume the existing binding engine rather than bypass it.
+
+For any execution request, the coordinator will build an execution snapshot from:
+
+- the current widget instances
+- the current widget definitions
+- the current runtime state
+- optional target overrides for the target widget only
+
+That snapshot will internally use the existing dependency model so it sees:
+
+- transformed bindings
+- dynamic `resolveIo`
+- `AppComponent` binding-native request/response ports
+- current resolved input values and statuses
+
+Conceptually:
+
+```ts
+interface DashboardExecutionSnapshot {
+  dependencies: DashboardWidgetDependencyModel;
+  getInstance(instanceId: string): DashboardWidgetInstance | undefined;
+  getDefinition(instanceId: string): WidgetDefinition | undefined;
+}
+```
+
+After each upstream execution step, the coordinator must rebuild the snapshot rather than trying to patch dependency internals manually.
+
+### 4. Keep execution results as runtime-state patches
+
+Executors do not publish outputs directly.
+
+Instead, each executor returns a `runtimeStatePatch`. The coordinator applies that patch to the widget instance runtime state, and the existing binding engine continues to resolve outputs from runtime state as it does today.
+
+This preserves the architectural separation:
+
+- executors run work and update runtime state
+- the dependency model resolves outputs from runtime state
+
+### 5. Add a separate dashboard execution coordinator
+
+A new coordinator module and provider will own:
+
+- graph-run requests
+- upstream traversal
+- cycle detection
+- topological ordering
+- runtime-state patch application
 - in-flight deduplication
 - refresh-cycle coordination
+- execution status reporting
 
-This coordinator must be a separate logic module and provider, not hidden inside:
+This logic belongs in a separate dashboard module, not inside widget components or settings pages.
 
-- widget components
-- settings pages
-- the dependency model
-- `DashboardControls`
+### 6. Execute only valid upstream executable dependencies
 
-### 3. Keep dependency resolution and execution separate
+Starting from a target widget:
 
-The dependency model remains responsible for:
+1. inspect resolved inputs from the execution snapshot
+2. follow only inputs whose resolved status is `valid`
+3. collect upstream source widget instance ids
+4. recurse only into source widgets whose definitions expose `execution`
+5. detect cycles
+6. topologically execute upstream widgets first
+7. rebuild the snapshot after each successful step
+8. execute the target widget last
 
-- describing graph edges
-- resolving current inputs and outputs
-- validating bindings
+In the first slice, we do not auto-run downstream dependents.
 
-The execution coordinator becomes responsible for:
+### 7. Use one graph-runner API for all surfaces
 
-- deciding which executable upstream widgets must run
-- running them in order
-- updating runtime state between steps
-- triggering the target widget last
-
-This keeps the graph model pure and the execution logic maintainable.
-
-### 4. Use one execution path for settings and normal view
-
-Settings `Test request` and normal view `Submit` must call the same graph-runner API.
-
-The only difference is the target widget override context:
-
-- normal view uses the live mounted widget state
-- settings uses unsaved draft props and test draft values for the target widget only
-
-Upstream widgets continue to execute from the current workspace draft instances.
-
-### 5. Execute only upstream dependencies in the first slice
-
-For an execution request targeting widget `T`:
-
-1. inspect bound inputs of `T`
-2. recursively collect executable upstream source widgets
-3. detect cycles
-4. execute upstream widgets in topological order
-5. re-resolve outputs after each step
-6. execute `T` last
-
-This first slice intentionally does not auto-run downstream dependents after `T` completes.
-
-### 6. Dashboard refresh must be coordinated centrally
-
-Dashboard refresh is already centralized in [`src/dashboards/DashboardControls.tsx`](../src/dashboards/DashboardControls.tsx).
-
-The new rule is:
-
-- `DashboardControls` owns refresh timing and cycle boundaries
-- the execution coordinator owns executable graph refresh work
-- widgets must not independently trigger graph execution because refresh fired
-
-Refresh should produce one execution pass per refresh cycle, not multiple independent widget-local runs.
-
-### 7. Prevent double refresh and overlapping duplicate runs
-
-The coordinator will maintain an in-flight execution registry keyed by:
-
-- dashboard/workspace identity
-- target widget instance id
-- execution reason
-- refresh cycle id when applicable
-
-This enables:
-
-- at most one graph run per target per refresh cycle
-- deduplication when refresh and manual actions collide
-- safe rejection or joining of duplicate requests
-
-### 8. Distinguish execution reasons
-
-The shared execution API should accept an explicit reason, for example:
-
-- `manual-submit`
-- `settings-test`
-- `dashboard-refresh`
-
-This is important for:
-
-- deduplication
-- UX messaging
-- future policy differences
-
-### 9. Refresh and query invalidation remain separate concerns
-
-Dashboard refresh currently invalidates React Query caches.
-
-That behavior should remain for passive/query-driven widgets.
-
-Executable graph runs must be coordinated separately rather than piggybacking on query invalidation.
-
-This avoids accidental double work such as:
-
-- query invalidation causing a widget to refetch
-- widget-local code also triggering executable graph submission
-- both happening in the same refresh cycle
-
-## Execution Model
-
-The target API shape should conceptually look like:
+Normal submit and settings test must use the same graph-runner API:
 
 ```ts
 executeWidgetGraph(targetInstanceId, {
-  reason: "manual-submit" | "settings-test" | "dashboard-refresh",
+  reason: "manual-submit" | "settings-test" | "dashboard-refresh" | "manual-recalculate",
   refreshCycleId?: string,
   targetOverrides?: {
     props?: Record<string, unknown>;
@@ -191,84 +223,194 @@ executeWidgetGraph(targetInstanceId, {
 });
 ```
 
-The coordinator should:
+Behavior:
 
-1. collect executable upstream dependencies
-2. dedupe against in-flight work
-3. execute upstream nodes in order
-4. persist runtime state after each node
-5. re-resolve dependency outputs after each step
-6. execute the target widget
-7. return aggregated execution results
+- normal widget submit uses current persisted props/runtime
+- settings test uses unsaved target overrides for the target widget only
+- upstream widgets always execute from the current workspace draft/runtime state
 
-## Refresh Coordination
+This is the only acceptable way to keep `Submit` and `Test request` aligned.
 
-The first implementation must include refresh-safety rules:
+### 8. Make refresh eligibility explicit and conservative
 
-1. one dashboard refresh tick equals one refresh cycle id
-2. an executable widget graph may run at most once per cycle for the same target
-3. if a manual submit arrives while the same target graph is already running:
-   - prefer joining/reusing the in-flight run when safe
-   - otherwise serialize one rerun after completion
-4. widgets must not self-schedule a second execution because their inputs changed during the same run
+Refresh execution is not implied by “widget is executable”.
+
+Each executable widget may expose `getRefreshPolicy(...)` and the default must be conservative:
+
+- `manual-only` unless explicitly allowed
+
+This matters because `AppComponent` can execute:
+
+- `GET`
+- `POST`
+- `PUT`
+- `PATCH`
+- `DELETE`
+- `OPTIONS`
+- `HEAD`
+
+Mutating request widgets must not auto-run on dashboard refresh by default.
+
+For `AppComponent`, the intended policy is:
+
+- default: `manual-only`
+- optionally `allow-refresh` only for safe/idempotent methods such as `GET`, `HEAD`, or `OPTIONS`, and only when explicitly enabled by widget config
+
+### 9. Deduplicate by effective execution identity
+
+The in-flight registry key must be strong enough to prevent accidental joining of distinct runs.
+
+It should include:
+
+- workspace or dashboard identity
+- target instance id
+- execution reason
+- refresh cycle id when present
+- effective target override hash when present
+
+This is especially important for settings test runs, where two requests against the same widget id may differ by unsaved draft props or draft values.
+
+### 10. Refresh coordination stays centralized
+
+Dashboard refresh timing remains centralized in [`src/dashboards/DashboardControls.tsx`](../src/dashboards/DashboardControls.tsx).
+
+The rule becomes:
+
+- `DashboardControls` defines refresh timing and cycle boundaries
+- the execution coordinator decides which executable graphs run for a cycle
+- widgets do not independently react to refresh by starting their own graph runs
+
+React Query invalidation remains for passive/query-driven widgets. Executable graph runs are coordinated separately.
+
+## AppComponent Guidance
+
+`AppComponent` is the first executable widget and should be used as the implementation model, not as a special orchestration exception.
+
+The request-building and submit logic should move into a pure executor module, for example:
+
+- [`src/widgets/core/app-component/appComponentExecution.ts`](../src/widgets/core/app-component/)
+
+That executor should:
+
+- normalize props/runtime state
+- resolve bound inputs through the existing overlay logic
+- build the request
+- submit the request
+- return a `WidgetExecutionResult` with a runtime-state patch
+
+It should not directly mutate global graph state and it should not bypass the binding engine.
+
+## Planned Implementation Placement
+
+The first implementation should land in these areas:
+
+- [`src/widgets/types.ts`](../src/widgets/types.ts)
+  - add `WidgetDefinition.execution`
+  - add execution reason/context/result types
+- [`src/dashboards/widget-graph-execution.ts`](../src/dashboards/)
+  - traversal
+  - cycle detection
+  - topological ordering
+  - execution snapshot building
+  - in-flight dedupe
+- [`src/dashboards/DashboardWidgetExecution.tsx`](../src/dashboards/)
+  - provider
+  - hooks
+  - surface adapters for runtime-state writes
+- [`src/widgets/core/app-component/appComponentExecution.ts`](../src/widgets/core/app-component/)
+  - pure `AppComponent` executor
+- [`src/features/dashboards/DashboardCanvas.tsx`](../src/features/dashboards/DashboardCanvas.tsx)
+  - mount execution provider for normal view
+- [`src/features/dashboards/CustomWidgetSettingsPage.tsx`](../src/features/dashboards/CustomWidgetSettingsPage.tsx)
+  - mount execution provider for settings flow
+- [`src/dashboards/DashboardControls.tsx`](../src/dashboards/DashboardControls.tsx)
+  - hand off refresh cycle ids to the execution coordinator
 
 ## Scope
 
 This ADR covers the first implementation slice:
 
-1. add a generic executable-widget contract
-2. add a separate dashboard execution coordinator module/provider
-3. add shared runtime-state mutation hooks for coordinator-managed execution
-4. implement upstream dependency traversal and cycle detection
-5. execute upstream nodes and target node in topological order
-6. use the same coordinator from normal view `Submit` and settings `Test request`
-7. integrate dashboard refresh with the coordinator through refresh cycle ids
-8. add in-flight deduplication and refresh double-run protection
+1. add `execution?: WidgetExecutionDefinition` to widget definitions
+2. add a separate dashboard execution coordinator module
+3. add an execution provider/hook surface independent from the dependency provider
+4. implement execution snapshots backed by the dependency model
+5. implement upstream traversal, cycle detection, and topological ordering
+6. refactor `AppComponent` into a pure executor module
+7. wire normal submit and settings test to the same `executeWidgetGraph(...)` API
+8. add explicit refresh policy and conservative refresh safety defaults
+9. add override-aware in-flight deduplication
+10. keep outputs flowing through runtime state and the existing binding engine
+11. update docs and affected module READMEs
 
 ## Non-Goals
 
 This ADR does not decide:
 
 - automatic downstream execution after the target node finishes
-- arbitrary scheduling policies beyond manual submit and dashboard refresh
-- replacing React Query invalidation for passive widgets
-- a visual execution timeline UI
-- persistence of execution queues or run history
+- persistent run history or execution queues
+- expression-based execution policies
+- replacement of React Query invalidation for passive widgets
+- automatic refresh enablement for executable widgets
+- graph UI changes beyond execution status integration
 
 ## Rejected Alternatives
 
-### Put execution logic inside AppComponent only
+### Keep execution inline in AppComponent only
 
-Rejected because it would create a second hidden orchestration layer that other executable widgets
-could not reuse.
+Rejected because it would duplicate orchestration between widget view, settings, refresh behavior, and future executable widgets.
 
-### Put graph execution inside the dependency model
+### Put execution inside the dependency model
 
-Rejected because the dependency model should remain pure, synchronous, and focused on graph/value
-resolution rather than side effects.
+Rejected because the dependency model should remain pure and focused on graph/value resolution.
 
-### Let widgets react to refresh independently
+### Traverse raw bindings instead of dependency snapshots
 
-Rejected because it creates duplicate runs, inconsistent ordering, and no central way to dedupe
-manual submit against refresh-triggered execution.
+Rejected because it would duplicate transform logic, ignore dynamic `resolveIo`, and drift from the actual resolved graph state.
 
-### Implement settings execution separately from normal-view submit
+### Auto-refresh every executable widget by default
 
-Rejected because it would drift into two different behaviors for the same widget graph.
+Rejected because executable widgets may be mutating or unsafe to rerun automatically.
+
+### Publish outputs directly from executors
+
+Rejected because outputs already have a canonical path through runtime state and the binding engine.
 
 ## Implementation Tasks
 
-1. Extend widget definition types with a reusable executable-widget contract.
-2. Add a new dashboard execution coordinator module under `src/dashboards/`.
-3. Add a provider/hook surface for:
-   - executing a target widget graph
-   - reading in-flight execution status
-   - writing runtime state for arbitrary widget instances
-4. Implement upstream dependency traversal using existing widget bindings.
-5. Implement cycle detection and explicit blocking diagnostics.
-6. Implement topological upstream-first execution.
-7. Refactor `AppComponent` request submission into a reusable executor used by the shared coordinator.
-8. Wire normal widget submit to the coordinator.
-9. Wire settings `Test request` to the same coordinator with target overrides.
-10. Integrate dashboard refresh with refresh cycle ids and in-flight deduplication.
-11. Update docs and affected module READMEs.
+1. Extend [`src/widgets/types.ts`](../src/widgets/types.ts) with:
+   - `WidgetExecutionReason`
+   - `WidgetExecutionTargetOverrides`
+   - `WidgetExecutionContext`
+   - `WidgetExecutionResult`
+   - `WidgetExecutionDefinition`
+   - `execution?: WidgetExecutionDefinition` on `WidgetDefinition`
+
+2. Add a new execution module under `src/dashboards/` for:
+   - execution snapshot building from current widgets + definitions + target overrides
+   - upstream traversal from resolved valid inputs
+   - cycle detection
+   - topological sorting
+   - in-flight dedupe keyed by workspace/target/reason/cycle/override-hash
+
+3. Add a new execution provider under `src/dashboards/` that exposes:
+   - `executeWidgetGraph(...)`
+   - current execution state by widget instance
+   - adapter-based runtime-state patch application
+
+4. Extract a pure executor for `AppComponent` that:
+   - uses existing request-building logic
+   - uses existing bound-input overlay logic
+   - returns `runtimeStatePatch`
+   - defines explicit refresh policy
+
+5. Update normal widget submit to call the coordinator instead of inline request execution.
+
+6. Update settings `Test request` to call the same coordinator with target overrides.
+
+7. Rebuild the execution snapshot after each successful upstream run so downstream nodes see fresh outputs.
+
+8. Integrate dashboard refresh with coordinator-managed cycle ids and policy checks.
+
+9. Add execution status/error messaging to surfaces without duplicating orchestration logic.
+
+10. Update docs and affected README files to reflect the new execution architecture.

@@ -19,6 +19,9 @@ This directory contains the Command Center widget platform, including the shared
   accepted/published contracts, input effects, and pure output publication.
 - Widgets can also declare pure instance-scoped `resolveIo(...)` when their ports depend on saved
   widget instance configuration rather than only the static widget definition.
+- Widgets can now also declare `execution` separately from `io`. `resolveIo(...)` stays the pure
+  dataflow surface, while `execution` is the opt-in runtime contract for widgets that actively run
+  work and publish outputs through runtime-state patches.
 - Output ports can optionally describe their structured value shape through `valueDescriptor`, and
   canonical bindings can attach lightweight transform metadata such as nested path extraction
   without changing the underlying port-to-port graph model.
@@ -51,6 +54,9 @@ This directory contains the Command Center widget platform, including the shared
   stuff inter-widget graph edges into raw props editors.
 - The binding UI keeps graph edges port-to-port, but a selected binding can now optionally project a
   nested field from a structured output before compatibility is evaluated against the target input.
+- Executable widget graphs are coordinated from the dashboard layer, not by widgets calling each
+  other directly. Widget execution should return runtime-state patches and let the shared
+  dependency model resolve outputs from runtime state.
 - Static dashboard surfaces currently keep widget settings changes only for the current page session.
 - The custom workspace studio writes widget settings into the workspace draft, and those changes persist once the user saves the workspace.
 - Stateful widgets can report runtime state back through `WidgetComponentProps.onRuntimeStateChange` so Workspaces JSON snapshots can round-trip view state such as zoom, pan, or selected node context.

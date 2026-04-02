@@ -140,6 +140,9 @@ These flows are all part of one app surface, with instance state selected throug
   flattened choice. Bindings remain port-to-port in the graph model, but settings can now attach a
   lightweight nested-field extraction transform to the selected source output before compatibility
   is evaluated for that edge.
+- Canvas widget submit and widget-settings `Test request` now share one dashboard-level executable
+  graph runner. Upstream executable dependencies run first, and refresh coordination stays in the
+  shared dashboard execution layer rather than inside widget components.
 - The workspace graph is now a dedicated route-level React Flow surface built on top of the shared
   dependency layer. It renders one node per widget instance, one edge per canonical binding, keeps
   graph coordinates session-local, stays inside the normal Workspaces shell with the standard app
