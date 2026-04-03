@@ -25,7 +25,6 @@ import {
   type MainSequenceDataNodeStatisticWidgetProps,
 } from "./statisticModel";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodePublishedDataset } from "../data-node-shared/dataNodePublishedDataset";
 
 const sectionClass = widgetTightFormSectionClass;
 const insetSectionClass = widgetTightFormInsetSectionClass;
@@ -86,17 +85,15 @@ export function StatisticWidgetSettings({
     props: draftProps,
     currentWidgetInstanceId: instanceId,
   });
-  const linkedDataset = useMemo(
-    () => normalizeDataNodePublishedDataset(sourceBinding.referencedFilterWidget?.runtimeState),
-    [sourceBinding.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceBinding.resolvedSourceDataset;
   const availableFields = useMemo(
     () =>
       buildDataNodeStatisticFieldOptions({
         columns: linkedDataset?.columns,
+        fields: linkedDataset?.fields,
         rows: linkedDataset?.rows,
       }),
-    [linkedDataset?.columns, linkedDataset?.rows],
+    [linkedDataset?.columns, linkedDataset?.fields, linkedDataset?.rows],
   );
   const resolvedDraft = useMemo(
     () => normalizeDataNodeStatisticProps(draftProps, availableFields),

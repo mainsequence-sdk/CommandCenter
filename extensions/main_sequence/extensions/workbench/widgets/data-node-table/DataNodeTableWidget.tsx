@@ -24,7 +24,6 @@ import {
 import {
   useResolvedDataNodeWidgetSourceBinding,
 } from "../data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
@@ -564,12 +563,9 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
     props: sourceBindingProps,
     currentWidgetInstanceId: instanceId,
   });
-  const linkedFilterRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
-    [sourceBinding.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveDataNodeId = Number(
-    linkedFilterRuntime?.dataNodeId ?? sourceBinding.resolvedSourceProps.dataNodeId ?? 0,
+    linkedDataset?.dataNodeId ?? sourceBinding.resolvedSourceProps.dataNodeId ?? 0,
   );
   const effectiveProps = useMemo(
     () => ({
@@ -604,12 +600,12 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
     dataNodeDetailQuery.data?.sourcetableconfiguration,
   );
   const hasPublishedFrame =
-    (linkedFilterRuntime?.status === "ready" &&
-      ((linkedFilterRuntime.rows?.length ?? 0) > 0 ||
-        (linkedFilterRuntime.columns?.length ?? 0) > 0)) ||
+    (linkedDataset?.status === "ready" &&
+      ((linkedDataset.rows?.length ?? 0) > 0 ||
+        (linkedDataset.columns?.length ?? 0) > 0)) ||
     false;
-  const sourceColumns = linkedFilterRuntime?.columns ?? [];
-  const sourceRows = linkedFilterRuntime?.rows ?? [];
+  const sourceColumns = linkedDataset?.columns ?? [];
+  const sourceRows = linkedDataset?.rows ?? [];
 
   const remoteFrame = useMemo(
     () =>
@@ -617,8 +613,9 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
         dataNodeDetailQuery.data,
         sourceRows,
         sourceColumns,
+        linkedDataset?.fields ?? [],
       ),
-    [dataNodeDetailQuery.data, sourceColumns, sourceRows],
+    [dataNodeDetailQuery.data, linkedDataset?.fields, sourceColumns, sourceRows],
   );
   const resolvedProps = useMemo(
     () => resolveDataNodeTableVisualizerPropsWithFrame(effectiveProps, remoteFrame),
@@ -637,10 +634,10 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
     [columns, rowObjects],
   );
   const dataErrorMessage =
-    linkedFilterRuntime?.status === "error"
-      ? linkedFilterRuntime.error ?? "The linked Data Node failed to load rows."
+    linkedDataset?.status === "error"
+      ? linkedDataset.error ?? "The linked Data Node failed to load rows."
       : null;
-  const isDataLoading = linkedFilterRuntime?.status === "loading" || linkedFilterRuntime == null;
+  const isDataLoading = linkedDataset?.status === "loading" || linkedDataset == null;
   const [quickFilter, setQuickFilter] = useState("");
   const deferredQuickFilter = useDeferredValue(quickFilter);
 
@@ -737,7 +734,7 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
     );
   }
 
-  if (!resolvedProps.dataNodeId) {
+  if (!resolvedProps.dataNodeId && !hasPublishedFrame) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">

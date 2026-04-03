@@ -26,7 +26,6 @@ import {
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 import {
   buildDataNodeTableVisualizerFrameFromRemoteData,
   buildDataNodeTableVisualizerRowObjects,
@@ -273,12 +272,9 @@ export function DataNodeTableWidgetSettings({
     props: sourceBindingProps,
     currentWidgetInstanceId: instanceId,
   });
-  const linkedFilterRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
-    [sourceBinding.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveDataNodeId = Number(
-    linkedFilterRuntime?.dataNodeId ?? sourceBinding.resolvedSourceProps.dataNodeId ?? 0,
+    linkedDataset?.dataNodeId ?? sourceBinding.resolvedSourceProps.dataNodeId ?? 0,
   );
   const effectiveDraftProps = useMemo(
     () => ({
@@ -307,8 +303,8 @@ export function DataNodeTableWidgetSettings({
     dataNodeDetailQuery.data?.sourcetableconfiguration,
   );
   const hasResolvedSource = sourceBinding.hasResolvedFilterWidgetSource;
-  const frameColumnsSource = linkedFilterRuntime?.columns ?? [];
-  const frameRowsSource = linkedFilterRuntime?.rows ?? [];
+  const frameColumnsSource = linkedDataset?.columns ?? [];
+  const frameRowsSource = linkedDataset?.rows ?? [];
 
   const remoteFrameInput = useMemo(
     () =>
@@ -316,8 +312,9 @@ export function DataNodeTableWidgetSettings({
         dataNodeDetailQuery.data,
         frameRowsSource,
         frameColumnsSource,
+        linkedDataset?.fields ?? [],
       ),
-    [dataNodeDetailQuery.data, frameColumnsSource, frameRowsSource],
+    [dataNodeDetailQuery.data, frameColumnsSource, frameRowsSource, linkedDataset?.fields],
   );
   const scopedDraft = useMemo(
     () => stripLegacyTableSourceFields(draftProps),
@@ -565,9 +562,9 @@ export function DataNodeTableWidgetSettings({
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            {sourceBinding.isFilterWidgetSource && linkedFilterRuntime?.status === "error" ? (
+            {sourceBinding.isFilterWidgetSource && linkedDataset?.status === "error" ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                {linkedFilterRuntime.error ?? "The linked Data Node failed to load rows."}
+                {linkedDataset.error ?? "The linked Data Node failed to load rows."}
               </div>
             ) : null}
 

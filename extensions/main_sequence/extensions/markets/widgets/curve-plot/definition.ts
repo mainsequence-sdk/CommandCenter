@@ -36,13 +36,13 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
         effects: [
           {
             kind: "drives-options",
-            sourcePath: "availableFields",
+            sourcePath: "fields",
             target: { kind: "schema-field", id: "maturityField" },
             description: "Upstream fields populate maturity mapping choices.",
           },
           {
             kind: "drives-options",
-            sourcePath: "availableFields",
+            sourcePath: "fields",
             target: { kind: "schema-field", id: "valueField" },
             description: "Upstream fields populate yield mapping choices.",
           },

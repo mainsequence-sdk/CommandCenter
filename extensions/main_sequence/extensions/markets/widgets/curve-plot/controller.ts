@@ -4,10 +4,13 @@ import type { WidgetController } from "@/widgets/types";
 
 import { type PickerOption } from "../../../../common/components/PickerField";
 import {
+  formatDataNodeFieldMetadata,
+  type DataNodeFieldOption,
+} from "../../../workbench/widgets/data-node-shared/dataNodeShared";
+import {
   useDataNodeWidgetSourceControllerContext,
   type DataNodeWidgetSourceControllerContext,
 } from "../../../workbench/widgets/data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodeFilterRuntimeState } from "../../../workbench/widgets/data-node-filter/dataNodeFilterModel";
 import {
   buildCurvePlotCurveValueOptions,
   buildCurvePlotFieldOptionsFromRuntime,
@@ -25,26 +28,14 @@ export interface CurvePlotControllerContext
   valueFieldOptions: PickerOption[];
 }
 
-function toPickerOption(option: {
-  key: string;
-  label: string;
-  description?: string | null;
-  dtype?: string | null;
-  isTime?: boolean;
-  isIndex?: boolean;
-}) {
-  const metadata = [
-    option.dtype ?? null,
-    option.isTime ? "Time" : null,
-    option.isIndex ? "Index" : null,
-    option.description ?? null,
-  ].filter((value): value is string => Boolean(value && value.trim()));
+function toPickerOption(option: DataNodeFieldOption) {
+  const metadata = formatDataNodeFieldMetadata(option);
 
   return {
     value: option.key,
-    label: option.label,
+    label: option.label ?? option.key,
     description: metadata.join(" • ") || undefined,
-    keywords: [option.key, option.label, option.dtype ?? "", option.description ?? ""],
+    keywords: [option.key, option.label ?? option.key, option.nativeType ?? "", option.description ?? ""],
   } satisfies PickerOption;
 }
 
@@ -65,13 +56,10 @@ export function useCurvePlotControllerContext({
     queryKeyScope: "curve_plot",
     resolveConfig: resolveCurvePlotConfig,
   });
-  const linkedFilterRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceContext.referencedFilterWidget?.runtimeState),
-    [sourceContext.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceContext.resolvedSourceDataset;
   const runtimeFieldOptions = useMemo(
-    () => buildCurvePlotFieldOptionsFromRuntime(linkedFilterRuntime),
-    [linkedFilterRuntime],
+    () => buildCurvePlotFieldOptionsFromRuntime(linkedDataset),
+    [linkedDataset],
   );
   const resolvedConfig = useMemo(
     () =>
@@ -129,11 +117,11 @@ export function useCurvePlotControllerContext({
   );
   const curveValueOptions = useMemo<PickerOption[]>(
     () =>
-      buildCurvePlotCurveValueOptions(linkedFilterRuntime?.rows ?? [], resolvedConfig).map((option) => ({
+      buildCurvePlotCurveValueOptions(linkedDataset?.rows ?? [], resolvedConfig).map((option) => ({
         ...option,
         keywords: [option.value, option.label, formatCurvePlotValue(option.label)],
       })),
-    [linkedFilterRuntime?.rows, resolvedConfig],
+    [linkedDataset?.rows, resolvedConfig],
   );
 
   return {

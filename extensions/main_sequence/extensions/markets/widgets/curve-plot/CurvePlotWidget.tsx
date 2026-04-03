@@ -13,7 +13,6 @@ import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import { useResolvedDataNodeWidgetSourceBinding } from "../../../workbench/widgets/data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodeFilterRuntimeState } from "../../../workbench/widgets/data-node-filter/dataNodeFilterModel";
 import {
   buildCurvePlotSeriesFromCurveDataNodeRows,
   buildCurvePlotFieldOptionsFromRuntime,
@@ -61,10 +60,7 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
   });
-  const linkedFilterRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
-    [sourceBinding.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
   const effectiveProps = useMemo(
     () => ({
@@ -74,8 +70,8 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
     [effectiveSourceProps, normalizedProps],
   );
   const runtimeFieldOptions = useMemo(
-    () => buildCurvePlotFieldOptionsFromRuntime(linkedFilterRuntime),
-    [linkedFilterRuntime],
+    () => buildCurvePlotFieldOptionsFromRuntime(linkedDataset),
+    [linkedDataset],
   );
   const resolvedConfig = useMemo(
     () =>
@@ -90,10 +86,10 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
     () =>
       resolvedConfig.curveDataNode
         ? null
-        : buildCurvePlotSeries(linkedFilterRuntime?.rows ?? [], resolvedConfig),
-    [linkedFilterRuntime?.rows, resolvedConfig],
+        : buildCurvePlotSeries(linkedDataset?.rows ?? [], resolvedConfig),
+    [linkedDataset?.rows, resolvedConfig],
   );
-  const hasRuntimeRows = (linkedFilterRuntime?.rows?.length ?? 0) > 0;
+  const hasRuntimeRows = (linkedDataset?.rows?.length ?? 0) > 0;
   const palette = useMemo(
     () => getSeriesPalette(resolvedTokens),
     [resolvedTokens],
@@ -119,7 +115,7 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
     }
 
     let cancelled = false;
-    const rows = linkedFilterRuntime?.rows ?? [];
+    const rows = linkedDataset?.rows ?? [];
 
     setCurveDataNodeSeriesState({
       error: null,
@@ -157,7 +153,7 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [linkedFilterRuntime?.rows, resolvedConfig]);
+  }, [linkedDataset?.rows, resolvedConfig]);
 
   const effectiveSeriesResult = resolvedConfig.curveDataNode
     ? curveDataNodeSeriesState.result
@@ -313,14 +309,14 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
     );
   }
 
-  if (linkedFilterRuntime == null || linkedFilterRuntime.status === "loading") {
+  if (linkedDataset == null || linkedDataset.status === "loading") {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
 
-  if (linkedFilterRuntime.status === "error") {
+  if (linkedDataset.status === "error") {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-        {linkedFilterRuntime.error ?? "The linked Data Node failed to load rows."}
+        {linkedDataset.error ?? "The linked Data Node failed to load rows."}
       </div>
     );
   }

@@ -8,6 +8,7 @@ import { useDashboardWidgetRegistry, type DashboardWidgetRegistryEntry } from "@
 import { useResolvedWidgetInput } from "@/dashboards/DashboardWidgetDependencies";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { normalizeTabularFrameSource, type TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type {
   WidgetFieldCanvasRendererProps,
   WidgetFieldDefinition,
@@ -20,10 +21,13 @@ import { PickerField, type PickerOption } from "../../../../common/components/Pi
 import { fetchDataNodeDetail, type DataNodeDetail } from "../../../../common/api";
 import { DataNodeDateTimeField } from "./DataNodeDateTimeField";
 import { DataNodeQuickSearchPicker } from "./DataNodeQuickSearchPicker";
+import { normalizeDataNodePublishedDataset, type DataNodePublishedDataset } from "./dataNodePublishedDataset";
 import { DATA_NODE_SOURCE_INPUT_ID } from "./widgetBindings";
+import { resolveMainSequenceDataSourceContext } from "../../widget-contracts/mainSequenceDataSourceBundle";
 import {
   buildDataNodeFieldOptions,
   formatDataNodeLabel,
+  formatDataNodeFieldMetadata,
   type DataNodeDateRangeMode,
   type DataNodeFieldOption,
 } from "./dataNodeShared";
@@ -71,6 +75,8 @@ export interface DataNodeWidgetSourceControllerContext<
   isFilterWidgetSource: boolean;
   referencedFilterWidget: DashboardWidgetRegistryEntry | null;
   resolvedConfig: TResolvedConfig;
+  resolvedSourceDataset: DataNodePublishedDataset | null;
+  resolvedSourceFrame: TabularFrameSourceV1 | null;
   resolvedSourceProps: DataNodeWidgetSourceProps;
   selectedDataNodeDetailQuery: UseQueryResult<DataNodeDetail>;
   selectedDataNodeId: number;
@@ -314,18 +320,13 @@ function supportsUniqueIdentifierList(detail?: DataNodeDetail | null) {
 }
 
 function toFieldPickerOption(field: DataNodeFieldOption): PickerOption {
-  const metadata = [
-    field.dtype,
-    field.isTime ? "Time" : null,
-    field.isIndex ? "Index" : null,
-    field.description ?? null,
-  ].filter((value): value is string => Boolean(value && value.trim()));
+  const metadata = formatDataNodeFieldMetadata(field);
 
   return {
     value: field.key,
-    label: field.label,
+    label: field.label ?? field.key,
     description: metadata.join(" • ") || undefined,
-    keywords: [field.key, field.label, field.dtype ?? "", field.description ?? ""],
+    keywords: [field.key, field.label ?? field.key, field.nativeType ?? "", field.description ?? ""],
   };
 }
 
@@ -447,36 +448,67 @@ export function useResolvedDataNodeWidgetSourceBinding<
     [props],
   );
   const resolvedInputBinding = !Array.isArray(resolvedSourceInput) ? resolvedSourceInput : undefined;
-  const expectsFilterWidgetSource =
-    resolvedInputBinding?.sourceWidgetId != null || normalizedReference.sourceMode === "filter_widget";
-  const filterWidgetOptions = useMemo(
-    () => buildFilterWidgetOptions(widgetRegistry, currentWidgetInstanceId),
-    [currentWidgetInstanceId, widgetRegistry],
-  );
+  const resolvedSourceWidgetId =
+    resolvedInputBinding?.sourceWidgetId ?? normalizedReference.sourceWidgetId;
   const referencedFilterWidget = useMemo(
     () =>
-      resolvedInputBinding?.sourceWidgetId
+      resolvedSourceWidgetId
         ? widgetRegistry.find(
             (widget) =>
               widget.id !== currentWidgetInstanceId &&
-              widget.id === resolvedInputBinding.sourceWidgetId &&
+              widget.id === resolvedSourceWidgetId &&
               widget.widgetId === mainSequenceDataNodeWidgetId,
           ) ?? null
         : null,
     [
       currentWidgetInstanceId,
-      resolvedInputBinding?.sourceWidgetId,
+      resolvedSourceWidgetId,
       widgetRegistry,
     ],
+  );
+  const sourceDatasetValue =
+    resolvedInputBinding?.value ?? referencedFilterWidget?.runtimeState;
+  const resolvedSourceFrame = useMemo(
+    () => normalizeTabularFrameSource(sourceDatasetValue),
+    [sourceDatasetValue],
+  );
+  const resolvedSourceContext = useMemo(
+    () => resolveMainSequenceDataSourceContext(resolvedSourceFrame?.source),
+    [resolvedSourceFrame?.source],
+  );
+  const resolvedSourceDataset = useMemo(
+    () => normalizeDataNodePublishedDataset(sourceDatasetValue),
+    [sourceDatasetValue],
+  );
+  const expectsFilterWidgetSource =
+    resolvedSourceWidgetId != null || normalizedReference.sourceMode === "filter_widget";
+  const filterWidgetOptions = useMemo(
+    () => buildFilterWidgetOptions(widgetRegistry, currentWidgetInstanceId),
+    [currentWidgetInstanceId, widgetRegistry],
   );
   const resolvedSourceProps = useMemo(
     () =>
       expectsFilterWidgetSource
         ? normalizeDataNodeWidgetSourceProps(
-            (referencedFilterWidget?.props ?? {}) as DataNodeWidgetSourceProps,
+            {
+              ...((referencedFilterWidget?.props ?? {}) as DataNodeWidgetSourceProps),
+              dataNodeId: resolvedSourceContext?.dataNodeId ?? referencedFilterWidget?.props?.dataNodeId,
+              dateRangeMode:
+                resolvedSourceContext?.dateRangeMode ??
+                referencedFilterWidget?.props?.dateRangeMode,
+              fixedStartMs:
+                resolvedSourceContext?.fixedStartMs ??
+                referencedFilterWidget?.props?.fixedStartMs,
+              fixedEndMs:
+                resolvedSourceContext?.fixedEndMs ??
+                referencedFilterWidget?.props?.fixedEndMs,
+              uniqueIdentifierList:
+                resolvedSourceContext?.uniqueIdentifierList ??
+                referencedFilterWidget?.props?.uniqueIdentifierList,
+            } as DataNodeWidgetSourceProps,
           )
         : normalizeDataNodeWidgetSourceProps(props),
-    [expectsFilterWidgetSource, props, referencedFilterWidget?.props],
+    [expectsFilterWidgetSource, props, referencedFilterWidget?.props, resolvedSourceContext],
   );
   const sourceMode: DataNodeWidgetSourceMode =
     expectsFilterWidgetSource ? "filter_widget" : "direct";
@@ -484,16 +516,18 @@ export function useResolvedDataNodeWidgetSourceBinding<
   return {
     filterWidgetOptions,
     hasResolvedFilterWidgetSource:
-      resolvedInputBinding?.sourceWidgetId != null
-        ? referencedFilterWidget !== null
+      resolvedSourceWidgetId != null
+        ? resolvedSourceFrame !== null
         : normalizedReference.sourceMode !== "filter_widget",
     hasCanonicalSourceBinding: resolvedInputBinding?.sourceWidgetId != null,
     isFilterWidgetSource: expectsFilterWidgetSource,
     referencedFilterWidget,
+    resolvedSourceDataset,
+    resolvedSourceFrame,
     resolvedSourceProps,
     resolvedSourceInput: resolvedInputBinding,
     sourceMode,
-    sourceWidgetId: resolvedInputBinding?.sourceWidgetId,
+    sourceWidgetId: resolvedSourceWidgetId,
   };
 }
 
@@ -602,6 +636,8 @@ export function useDataNodeWidgetSourceControllerContext<
     isFilterWidgetSource: sourceBinding.isFilterWidgetSource,
     referencedFilterWidget: sourceBinding.referencedFilterWidget,
     resolvedConfig,
+    resolvedSourceDataset: sourceBinding.resolvedSourceDataset,
+    resolvedSourceFrame: sourceBinding.resolvedSourceFrame,
     resolvedSourceProps: sourceBinding.resolvedSourceProps,
     selectedDataNodeDetailQuery,
     selectedDataNodeId,

@@ -7,6 +7,7 @@ import { MainSequenceDataNodeFilterWidget } from "./MainSequenceDataNodeFilterWi
 import { MainSequenceDataNodeFilterWidgetSettings } from "./MainSequenceDataNodeFilterWidgetSettings";
 import { DataNodeRailSummary } from "./DataNodeRailSummary";
 import { buildDataNodeFieldOptionsFromRows } from "../data-node-shared/dataNodeShared";
+import { buildMainSequenceDataSourceDescriptor } from "../../widget-contracts/mainSequenceDataSourceBundle";
 import {
   normalizeDataNodeFilterProps,
   normalizeDataNodeFilterRuntimeState,
@@ -90,19 +91,23 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
           return {
             status,
             error: dataset?.error,
-            dataNodeId:
-              typeof normalizedProps.dataNodeId === "number"
-                ? normalizedProps.dataNodeId
-                : undefined,
-            dateRangeMode: normalizedProps.dateRangeMode,
-            fixedStartMs: normalizedProps.fixedStartMs,
-            fixedEndMs: normalizedProps.fixedEndMs,
-            uniqueIdentifierList: normalizedProps.uniqueIdentifierList,
             columns: dataset?.columns ?? [],
             rows: dataset?.rows ?? [],
-            availableFields: buildDataNodeFieldOptionsFromRows({
+            fields: buildDataNodeFieldOptionsFromRows({
               columns: dataset?.columns ?? [],
               rows: dataset?.rows ?? [],
+            }),
+            source: buildMainSequenceDataSourceDescriptor({
+              dataNodeId:
+                typeof normalizedProps.dataNodeId === "number"
+                  ? normalizedProps.dataNodeId
+                  : undefined,
+              dateRangeMode: normalizedProps.dateRangeMode,
+              fixedStartMs: normalizedProps.fixedStartMs,
+              fixedEndMs: normalizedProps.fixedEndMs,
+              uniqueIdentifierList: normalizedProps.uniqueIdentifierList,
+              updatedAtMs: dataset?.updatedAtMs,
+              limit: dataset?.limit,
             }),
           };
         },

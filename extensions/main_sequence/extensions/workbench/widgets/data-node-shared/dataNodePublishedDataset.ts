@@ -1,4 +1,10 @@
 import type { DataNodeRemoteDataRow } from "../../../../common/api";
+import { resolveMainSequenceDataSourceContext } from "../../widget-contracts/mainSequenceDataSourceBundle";
+import type {
+  TabularFrameFieldSchema,
+  TabularFrameSourceDescriptor,
+} from "@/widgets/shared/tabular-frame-source";
+import { normalizeTabularFrameSource } from "@/widgets/shared/tabular-frame-source";
 
 export const defaultDataNodePublishedDatasetLimit = 2_500;
 
@@ -6,10 +12,12 @@ export interface DataNodePublishedDataset {
   columns: string[];
   dataNodeId?: number;
   error?: string;
+  fields?: TabularFrameFieldSchema[];
   limit: number;
   rangeEndMs?: number | null;
   rangeStartMs?: number | null;
   rows: DataNodeRemoteDataRow[];
+  source?: TabularFrameSourceDescriptor;
   status: "idle" | "loading" | "error" | "ready";
   uniqueIdentifierList?: string[];
   updatedAtMs?: number;
@@ -80,21 +88,36 @@ export function normalizeDataNodePublishedDataset(
     return null;
   }
 
+  const normalizedFrame = normalizeTabularFrameSource(value);
+  const sourceContext = resolveMainSequenceDataSourceContext(normalizedFrame?.source);
+
   return {
-    columns: normalizeColumns(value.columns),
-    dataNodeId: normalizePositiveInteger(value.dataNodeId),
+    columns: normalizedFrame?.columns ?? normalizeColumns(value.columns),
+    dataNodeId:
+      normalizePositiveInteger(value.dataNodeId) ??
+      sourceContext?.dataNodeId,
     error: typeof value.error === "string" && value.error.trim() ? value.error.trim() : undefined,
+    fields: normalizedFrame?.fields,
     limit:
-      normalizePositiveInteger(value.limit) ?? defaultDataNodePublishedDatasetLimit,
-    rangeEndMs: normalizeTimestampMs(value.rangeEndMs) ?? null,
-    rangeStartMs: normalizeTimestampMs(value.rangeStartMs) ?? null,
-    rows: normalizeRows(value.rows),
-    status: normalizeStatus(value.status),
+      normalizePositiveInteger(value.limit) ??
+      sourceContext?.limit ??
+      defaultDataNodePublishedDatasetLimit,
+    rangeEndMs:
+      normalizeTimestampMs(value.rangeEndMs) ??
+      sourceContext?.fixedEndMs ??
+      null,
+    rangeStartMs:
+      normalizeTimestampMs(value.rangeStartMs) ??
+      sourceContext?.fixedStartMs ??
+      null,
+    rows: normalizedFrame?.rows ?? normalizeRows(value.rows),
+    source: normalizedFrame?.source,
+    status: normalizedFrame?.status ?? normalizeStatus(value.status),
     uniqueIdentifierList: Array.isArray(value.uniqueIdentifierList)
       ? value.uniqueIdentifierList.filter(
           (entry): entry is string => typeof entry === "string" && entry.trim().length > 0,
         )
-      : undefined,
-    updatedAtMs: normalizeTimestampMs(value.updatedAtMs),
+      : sourceContext?.uniqueIdentifierList,
+    updatedAtMs: normalizeTimestampMs(value.updatedAtMs) ?? sourceContext?.updatedAtMs,
   };
 }

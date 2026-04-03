@@ -18,7 +18,7 @@ import {
 } from "../../../../common/api";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
 import { DataNodePreviewTable } from "../data-node-shared/DataNodePreviewTable";
-import { buildDataNodeFieldOptionsFromRows } from "../data-node-shared/dataNodeShared";
+import { resolveDataNodeFieldOptionsFromDataset } from "../data-node-shared/dataNodeShared";
 import {
   buildDataNodeRemoteRowsQueryKey,
   resolveDataNodeWidgetPrefilledFixedRange,
@@ -29,7 +29,6 @@ import {
   buildDataNodeTransformedDataset,
   type DataNodeGroupAggregateMode,
   type DataNodeTransformMode,
-  normalizeDataNodeFilterRuntimeState,
   resolveDataNodeFilterDateRange,
   type MainSequenceDataNodeFilterWidgetProps,
 } from "./dataNodeFilterModel";
@@ -203,10 +202,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
   const selectedDataNodeId = context?.selectedDataNodeId ?? Number(draftProps.dataNodeId ?? 0);
   const selectedDetail = context?.selectedDataNodeDetailQuery.data;
   const hasNoData = context?.hasNoData ?? false;
-  const linkedNodeRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(context?.referencedFilterWidget?.runtimeState),
-    [context?.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = context?.resolvedSourceDataset ?? null;
   const lastObservationQuery = useQuery<DataNodeLastObservation>({
     queryKey: [
       "main_sequence",
@@ -298,21 +294,22 @@ export function MainSequenceDataNodeFilterWidgetSettings({
       !context?.isFilterWidgetSource,
   });
   const previewSourceRows = context?.isFilterWidgetSource
-    ? (linkedNodeRuntime?.rows ?? [])
+    ? (linkedDataset?.rows ?? [])
     : (previewQuery.data ?? []);
   const draftTransformMode = normalizeDraftTransformMode(draftProps.transformMode);
   const draftPivotField = normalizeDraftFieldValue(draftProps.pivotField);
   const draftPivotValueField = normalizeDraftFieldValue(draftProps.pivotValueField);
   const sourceFieldOptions = useMemo<PickerOption[]>(
     () => {
-      const runtimeOptions = buildDataNodeFieldOptionsFromRows({
+      const runtimeOptions = resolveDataNodeFieldOptionsFromDataset({
         columns: resolvedConfig?.availableFields.map((field) => field.key) ?? [],
+        fields: resolvedConfig?.availableFields,
         rows: previewSourceRows,
       }).map<PickerOption>((field) => ({
         value: field.key,
-        label: field.label,
-        description: field.dtype ?? undefined,
-        keywords: [field.key, field.label, field.dtype ?? ""],
+        label: field.label ?? field.key,
+        description: field.nativeType ?? field.type,
+        keywords: [field.key, field.label ?? field.key, field.nativeType ?? "", field.type],
       }));
 
       return uniqueStrings(runtimeOptions.map((option) => option.value)).map((value) => {
@@ -689,7 +686,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
             ) : null}
             {context?.isFilterWidgetSource &&
             context.hasResolvedFilterWidgetSource &&
-            linkedNodeRuntime?.status === "idle" ? (
+            linkedDataset?.status === "idle" ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
                 The upstream Data Node has not published a dataset yet.
               </div>
@@ -735,7 +732,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                 ) : null}
 
                 {(context?.isFilterWidgetSource
-                  ? linkedNodeRuntime?.status === "loading" || linkedNodeRuntime == null
+                  ? linkedDataset?.status === "loading" || linkedDataset == null
                   : previewQuery.isLoading) ? (
                   <div className="grid gap-3">
                     <Skeleton className="h-6 w-48 rounded-[calc(var(--radius)-8px)]" />
@@ -744,23 +741,23 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                 ) : null}
 
                 {(context?.isFilterWidgetSource
-                  ? linkedNodeRuntime?.status === "error"
+                  ? linkedDataset?.status === "error"
                   : previewQuery.isError) ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
                     {context?.isFilterWidgetSource
-                      ? linkedNodeRuntime?.error ?? "The upstream Data Node failed to load rows."
+                      ? linkedDataset?.error ?? "The upstream Data Node failed to load rows."
                       : formatMainSequenceError(previewQuery.error)}
                   </div>
                 ) : null}
 
                 {!(
                   context?.isFilterWidgetSource
-                    ? linkedNodeRuntime?.status === "loading" || linkedNodeRuntime == null
+                    ? linkedDataset?.status === "loading" || linkedDataset == null
                     : previewQuery.isLoading
                 ) &&
                 !(
                   context?.isFilterWidgetSource
-                    ? linkedNodeRuntime?.status === "error"
+                    ? linkedDataset?.status === "error"
                     : previewQuery.isError
                 ) &&
                 previewRange.hasValidRange ? (

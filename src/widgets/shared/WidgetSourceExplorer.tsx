@@ -43,8 +43,20 @@ type WidgetSourceExplorerEvaluation = {
   value?: unknown;
 };
 
+const maxBindingPreviewLines = 100;
+
 function isStructuredOutput(option: WidgetSourceExplorerOutputOption | undefined) {
   return option?.valueDescriptor?.kind === "object" || option?.valueDescriptor?.kind === "array";
+}
+
+function cropBindingPreviewLines(value: string) {
+  const lines = value.split(/\r?\n/);
+
+  if (lines.length <= maxBindingPreviewLines) {
+    return value;
+  }
+
+  return `${lines.slice(0, maxBindingPreviewLines).join("\n")}\n… (${lines.length - maxBindingPreviewLines} more lines hidden)`;
 }
 
 function formatBindingPreviewValue(value: unknown) {
@@ -57,13 +69,13 @@ function formatBindingPreviewValue(value: unknown) {
   }
 
   if (typeof value === "string") {
-    return value;
+    return cropBindingPreviewLines(value);
   }
 
   try {
-    return JSON.stringify(value, null, 2);
+    return cropBindingPreviewLines(JSON.stringify(value, null, 2));
   } catch {
-    return String(value);
+    return cropBindingPreviewLines(String(value));
   }
 }
 

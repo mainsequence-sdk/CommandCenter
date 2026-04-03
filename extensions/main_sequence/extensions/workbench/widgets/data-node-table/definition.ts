@@ -38,7 +38,7 @@ export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisuali
           },
           {
             kind: "drives-options",
-            sourcePath: "availableFields",
+            sourcePath: "fields",
             target: { kind: "render", id: "schema" },
             description: "Upstream fields define the table schema and formatter choices.",
           },

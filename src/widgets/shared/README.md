@@ -8,6 +8,7 @@ This directory contains reusable widget presentation primitives that are shared 
 - `chrome.ts`: shared helpers for widget chrome options such as per-instance header visibility, plus shared widget-shell markers used by themes to style widget containers consistently.
 - `widget-settings.tsx`: shared settings trigger plus the reusable full-page settings panel used to edit widget instances outside the old modal flow. It also exports the shared duplicate trigger used by workspace widget chrome.
 - `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering nested value exploration, transform selection, compatibility messaging, and preview on top of structured output descriptors.
+- `tabular-frame-source.ts`: shared generic tabular-frame contract and normalization helpers used when widgets bind table-like datasets across extension boundaries. It defines the platform-level `columns + rows + fields + source` shape so widget families do not invent incompatible table payloads.
 - `widget-schema.ts`: shared helpers for widget schema visibility, controller context resolution, and exposed-field presentation state.
 - `widget-schema-form.tsx`: generic settings form renderer for schema-based widget fields. The form
   now supports per-field layout width through `WidgetFieldDefinition.settingsColumnSpan`, so shared
@@ -21,6 +22,7 @@ This directory contains reusable widget presentation primitives that are shared 
 - Settings are intentionally instance-scoped: the shared panel edits the current dashboard widget instance, not the underlying widget definition.
 - The shared settings panel is generic by default and can be extended per widget through `WidgetDefinition.schema`, `WidgetDefinition.controller`, and `WidgetDefinition.settingsComponent`.
 - Structured output exploration belongs in the shared source explorer contract, not in widget-specific binding hacks. Widgets should expose `valueDescriptor` metadata on outputs, and shared binding surfaces should consume that metadata to render nested-field exploration consistently.
+- Generic table-like widget bindings should use `tabular-frame-source.ts` instead of inventing extension-specific row contracts. Keep source-specific metadata nested under `source` and keep field semantics normalized through `type` plus `roles[]`, not ad hoc booleans.
 - Widget definitions can also set `showRawPropsEditor: false` when the shared raw JSON props editor should stay hidden and the widget should be configured only through structured settings controls.
 - The shared settings panel can also expose an optional remove action from the host surface. This is important for sidebar-only widgets, because they may not have an on-canvas card chrome with a delete button.
 - Schema-backed fields can optionally be exposed on the canvas through instance-level presentation state as companion cards outside the widget frame instead of being trapped inside the widget settings page.

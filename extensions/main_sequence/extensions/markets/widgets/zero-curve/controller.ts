@@ -7,7 +7,6 @@ import {
   useDataNodeWidgetSourceControllerContext,
   type DataNodeWidgetSourceControllerContext,
 } from "../../../workbench/widgets/data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodeFilterRuntimeState } from "../../../workbench/widgets/data-node-filter/dataNodeFilterModel";
 import {
   buildZeroCurveValueOptions,
   formatZeroCurveValue,
@@ -38,10 +37,7 @@ export function useZeroCurveControllerContext({
     queryKeyScope: "zero_curve",
     resolveConfig: resolveZeroCurveConfig,
   });
-  const linkedFilterRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceContext.referencedFilterWidget?.runtimeState),
-    [sourceContext.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceContext.resolvedSourceDataset;
   const resolvedConfig = useMemo(
     () =>
       resolveZeroCurveConfig(
@@ -59,11 +55,11 @@ export function useZeroCurveControllerContext({
   );
   const curveValueOptions = useMemo<PickerOption[]>(
     () =>
-      buildZeroCurveValueOptions(linkedFilterRuntime?.rows ?? []).map((option) => ({
+      buildZeroCurveValueOptions(linkedDataset?.rows ?? []).map((option) => ({
         ...option,
         keywords: [option.value, option.label, formatZeroCurveValue(option.label)],
       })),
-    [linkedFilterRuntime?.rows],
+    [linkedDataset?.rows],
   );
 
   return {

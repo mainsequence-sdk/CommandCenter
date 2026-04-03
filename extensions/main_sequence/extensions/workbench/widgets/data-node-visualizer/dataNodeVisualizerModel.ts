@@ -4,7 +4,7 @@ import type {
 } from "../../../../common/api";
 import {
   buildDataNodeFieldOptions,
-  buildDataNodeFieldOptionsFromRows,
+  resolveDataNodeFieldOptionsFromDataset,
   resolveDataNodeDateRange,
   type DataNodeFieldOption,
 } from "../data-node-shared/dataNodeShared";
@@ -389,11 +389,13 @@ function fieldHasParsableValue(
 export function buildDataNodeVisualizerFieldOptionsFromRuntime(
   runtimeState?: {
     columns?: string[];
+    fields?: readonly DataNodeFieldOption[];
     rows?: readonly DataNodeRemoteDataRow[];
   } | null,
 ) {
-  return buildDataNodeFieldOptionsFromRows({
+  return resolveDataNodeFieldOptionsFromDataset({
     columns: runtimeState?.columns,
+    fields: runtimeState?.fields,
     rows: runtimeState?.rows,
   });
 }

@@ -10,7 +10,6 @@ import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import { useResolvedDataNodeWidgetSourceBinding } from "../../../workbench/widgets/data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodeFilterRuntimeState } from "../../../workbench/widgets/data-node-filter/dataNodeFilterModel";
 import {
   buildZeroCurveSeriesFromRows,
   formatZeroCurveDayLabel,
@@ -356,10 +355,7 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
   });
-  const linkedFilterRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
-    [sourceBinding.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
   const effectiveProps = useMemo(
     () => ({
@@ -372,7 +368,7 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
     () => resolveZeroCurveConfig(effectiveProps),
     [effectiveProps],
   );
-  const hasRuntimeRows = (linkedFilterRuntime?.rows?.length ?? 0) > 0;
+  const hasRuntimeRows = (linkedDataset?.rows?.length ?? 0) > 0;
   const palette = useMemo(
     () => getSeriesPalette(resolvedTokens),
     [resolvedTokens],
@@ -389,7 +385,7 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    const rows = linkedFilterRuntime?.rows ?? [];
+    const rows = linkedDataset?.rows ?? [];
 
     setSeriesState({
       error: null,
@@ -427,7 +423,7 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [linkedFilterRuntime?.rows, resolvedConfig]);
+  }, [linkedDataset?.rows, resolvedConfig]);
 
   const overallRange = useMemo(() => {
     const datedSeries = (seriesState.result?.series ?? [])
@@ -515,14 +511,14 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
     );
   }
 
-  if (linkedFilterRuntime == null || linkedFilterRuntime.status === "loading" || seriesState.loading) {
+  if (linkedDataset == null || linkedDataset.status === "loading" || seriesState.loading) {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
 
-  if (linkedFilterRuntime.status === "error") {
+  if (linkedDataset.status === "error") {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-        {linkedFilterRuntime.error ?? "The linked Data Node failed to load rows."}
+        {linkedDataset.error ?? "The linked Data Node failed to load rows."}
       </div>
     );
   }

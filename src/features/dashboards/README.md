@@ -149,7 +149,9 @@ These flows are all part of one app surface, with instance state selected throug
   navigation visible, reuses the same workspace toolbar-button language and left widget rail as the
   canvas, keeps the `Components` drawer available so widgets can also be added from graph mode,
   adds only a matching return-to-workspace action for graph mode, and writes connection changes back through
-  `updateDashboardWidgetBindings(...)` instead of introducing a second graph-storage model.
+  `updateDashboardWidgetBindings(...)` instead of introducing a second graph-storage model. Output-heavy
+  widgets now keep graph nodes compact by showing connected outputs first and exposing the rest
+  through session-local `Add output` controls rather than rendering every possible port at once.
 - The dedicated workspace settings page now uses the same scrollable full-page container model as
   the widget settings view, so long workspace configuration pages can be reached fully.
 - Saving widget-instance settings updates only that instance's title/props/presentation and must

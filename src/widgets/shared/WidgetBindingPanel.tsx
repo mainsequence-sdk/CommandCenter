@@ -232,8 +232,8 @@ export function WidgetBindingPanel({
             <Button
               variant="outline"
               onClick={() => {
-                setDraftBindings(initialBindings);
-                setDraftSourceWidgetIds(initialSourceWidgetIds);
+                setDraftBindings(undefined);
+                setDraftSourceWidgetIds({});
               }}
               disabled={!editable || !dirty}
             >

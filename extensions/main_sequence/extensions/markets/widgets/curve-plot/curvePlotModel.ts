@@ -3,7 +3,8 @@ import type {
   DataNodeRemoteDataRow,
 } from "../../../../common/api";
 import {
-  buildDataNodeFieldOptionsFromRows,
+  formatDataNodeFieldSearchText,
+  resolveDataNodeFieldOptionsFromDataset,
   type DataNodeFieldOption,
 } from "../../../workbench/widgets/data-node-shared/dataNodeShared";
 import {
@@ -104,10 +105,6 @@ function normalizeSelectedCurveValues(value: unknown) {
   return normalized.length > 0 ? normalized : undefined;
 }
 
-function formatFieldSearchText(field: DataNodeFieldOption) {
-  return [field.key, field.label, field.description ?? "", field.dtype ?? ""].join(" ");
-}
-
 function getRequestedFieldKey(
   requestedKey: unknown,
   fieldOptions: DataNodeFieldOption[],
@@ -126,7 +123,7 @@ function getRequestedFieldKey(
   }
 
   return fieldOptions.find((field) =>
-    autoPatterns.some((pattern) => pattern.test(formatFieldSearchText(field))),
+    autoPatterns.some((pattern) => pattern.test(formatDataNodeFieldSearchText(field))),
   )?.key;
 }
 
@@ -295,10 +292,12 @@ export function convertCurvePlotChartMonthsToDays(months: number) {
 
 export function buildCurvePlotFieldOptionsFromRuntime(runtimeState?: {
   columns?: string[];
+  fields?: readonly DataNodeFieldOption[];
   rows?: readonly DataNodeRemoteDataRow[];
 } | null) {
-  return buildDataNodeFieldOptionsFromRows({
+  return resolveDataNodeFieldOptionsFromDataset({
     columns: runtimeState?.columns,
+    fields: runtimeState?.fields,
     rows: runtimeState?.rows,
   });
 }

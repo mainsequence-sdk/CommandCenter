@@ -1,3 +1,5 @@
+import { Braces } from "lucide-react";
+
 import { defineWidget } from "@/widgets/types";
 
 import { resolveAppComponentWidgetIo } from "./appComponentDynamicIo";
@@ -35,6 +37,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   },
   settingsComponent: AppComponentWidgetSettings,
   showRawPropsEditor: false,
+  railIcon: Braces,
   resolveIo: ({ props }) => resolveAppComponentWidgetIo(props),
   execution: appComponentExecutionDefinition,
   component: AppComponentWidget,

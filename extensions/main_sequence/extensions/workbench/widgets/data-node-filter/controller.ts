@@ -4,7 +4,6 @@ import type { WidgetController } from "@/widgets/types";
 
 import {
   normalizeDataNodeFilterProps,
-  normalizeDataNodeFilterRuntimeState,
   resolveDataNodeFilterConfig,
   type MainSequenceDataNodeFilterWidgetProps,
 } from "./dataNodeFilterModel";
@@ -12,7 +11,7 @@ import {
   useDataNodeWidgetSourceControllerContext,
   type DataNodeWidgetSourceControllerContext,
 } from "../data-node-shared/dataNodeWidgetSource";
-import { buildDataNodeFieldOptionsFromRows } from "../data-node-shared/dataNodeShared";
+import { resolveDataNodeFieldOptionsFromDataset } from "../data-node-shared/dataNodeShared";
 
 export interface DataNodeFilterControllerContext
   extends DataNodeWidgetSourceControllerContext<ReturnType<typeof resolveDataNodeFilterConfig>> {}
@@ -30,17 +29,15 @@ export function useDataNodeFilterControllerContext({
     queryKeyScope: "data_node_filter",
     resolveConfig: resolveDataNodeFilterConfig,
   });
-  const linkedNodeRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceContext.referencedFilterWidget?.runtimeState),
-    [sourceContext.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceContext.resolvedSourceDataset;
   const runtimeFieldOptions = useMemo(
     () =>
-      buildDataNodeFieldOptionsFromRows({
-        columns: linkedNodeRuntime?.columns,
-        rows: linkedNodeRuntime?.rows,
+      resolveDataNodeFieldOptionsFromDataset({
+        columns: linkedDataset?.columns,
+        fields: linkedDataset?.fields,
+        rows: linkedDataset?.rows,
       }),
-    [linkedNodeRuntime?.columns, linkedNodeRuntime?.rows],
+    [linkedDataset?.columns, linkedDataset?.fields, linkedDataset?.rows],
   );
   const resolvedConfig = useMemo(
     () =>

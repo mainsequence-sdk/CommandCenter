@@ -2,6 +2,8 @@ import type { DataNodeDetail, DataNodeRemoteDataRow } from "../../../../common/a
 import {
   buildDataNodeFieldOptions,
   formatDataNodeLabel,
+  hasTabularFieldRole,
+  type DataNodeFieldOption,
 } from "../data-node-shared/dataNodeShared";
 import {
   normalizeDataNodeWidgetSourceReferenceProps,
@@ -275,15 +277,25 @@ function normalizeUniqueIdentifierList(value: unknown) {
 
 function inferRemoteColumnFormatFromKey(
   key: string,
-  dtype: string | null | undefined,
+  fieldType: DataNodeFieldOption["type"] | undefined,
+  nativeType: string | null | undefined,
   rows: readonly DataNodeTableVisualizerFrameRow[],
   columnIndex: number,
 ): Exclude<DataNodeTableVisualizerColumnFormat, "auto"> {
-  if (dtype && /date|time|timestamp/i.test(dtype)) {
+  if (
+    fieldType === "datetime" ||
+    fieldType === "date" ||
+    fieldType === "time" ||
+    (nativeType && /date|time|timestamp/i.test(nativeType))
+  ) {
     return "text";
   }
 
-  if (dtype && /int|float|double|decimal|number|numeric|real|bigint/i.test(dtype)) {
+  if (
+    fieldType === "number" ||
+    fieldType === "integer" ||
+    (nativeType && /int|float|double|decimal|number|numeric|real|bigint/i.test(nativeType))
+  ) {
     if (/%|pct|percent/i.test(key)) {
       return "percent";
     }
@@ -306,8 +318,9 @@ export function buildDataNodeTableVisualizerFrameFromRemoteData(
   detail?: DataNodeDetail | null,
   remoteRows: readonly DataNodeRemoteDataRow[] = [],
   runtimeColumns: readonly string[] = [],
+  runtimeFields: readonly DataNodeFieldOption[] = [],
 ): DataNodeTableVisualizerResolvedFrameInput {
-  const fieldOptions = buildDataNodeFieldOptions(detail);
+  const fieldOptions = runtimeFields.length > 0 ? runtimeFields : buildDataNodeFieldOptions(detail);
   const fieldOptionByKey = new Map(fieldOptions.map((field) => [field.key, field]));
   const rowKeys = uniqueStrings(remoteRows.flatMap((row) => Object.keys(row)));
   const normalizedRuntimeColumns = uniqueStrings(
@@ -321,15 +334,24 @@ export function buildDataNodeTableVisualizerFrameFromRemoteData(
   const schemaFallback = columns.map<DataNodeTableVisualizerColumnSchema>((columnKey, index) => {
     const field = fieldOptionByKey.get(columnKey);
     const label = field?.label?.trim() || columnKey;
-    const format = inferRemoteColumnFormatFromKey(columnKey, field?.dtype, rows, index);
+    const format = inferRemoteColumnFormatFromKey(
+      columnKey,
+      field?.type,
+      field?.nativeType,
+      rows,
+      index,
+    );
 
     return {
       key: columnKey,
       label,
       description: field?.description ?? undefined,
       format,
-      minWidth: field?.isTime ? 160 : format === "text" ? 140 : 120,
-      pinned: field?.isIndex ? "left" : undefined,
+      minWidth: hasTabularFieldRole(field, "time") ? 160 : format === "text" ? 140 : 120,
+      pinned:
+        hasTabularFieldRole(field, "index") || hasTabularFieldRole(field, "identifier")
+          ? "left"
+          : undefined,
       categorical: format === "text",
       heatmapEligible: format !== "text",
       compact:

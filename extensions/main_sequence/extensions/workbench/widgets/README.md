@@ -17,6 +17,10 @@ table widgets in the live widget catalog.
   source-and-transform Data Node widget, `data-node-statistic/` for the statistic/KPI consumer
   widget, `data-node-table/` for the data-node table widget, and `data-node-shared/` for reusable
   picker/date-range primitives plus the shared published-dataset contract reused by those widgets.
+- Main Sequence data-node consumers now adapt the platform-level generic tabular-frame contract
+  (`core.tabular_frame@v1`) rather than inventing a widget-local table payload. Keep source-specific
+  metadata under `source.context` and keep reusable field metadata normalized as `fields[]` with
+  `type` plus optional `roles[]`.
 - Shared contract ids and contract payload types that cross widget boundaries now live one level up
   in `../widget-contracts/`. Widget folders should consume those contracts instead of inventing
   local ad hoc runtime shapes for composition.

@@ -30,7 +30,6 @@ import {
   resolveDataNodeWidgetPrefilledFixedRange,
   resolveDataNodeWidgetPreviewAnchorMs,
 } from "../data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 
 const previewRowLimit = 2_500;
 
@@ -94,10 +93,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
   const selectedDataNodeId = context?.selectedDataNodeId ?? Number(draftProps.dataNodeId ?? 0);
   const selectedDetail = context?.selectedDataNodeDetailQuery.data;
   const hasNoData = context?.hasNoData ?? false;
-  const linkedFilterRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(context?.referencedFilterWidget?.runtimeState),
-    [context?.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = context?.resolvedSourceDataset ?? null;
   const [previewModeOverride, setPreviewModeOverride] = useState<DataNodeVisualizerViewMode | null>(
     null,
   );
@@ -168,12 +164,12 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
         : { hasValidRange: false, rangeStartMs: null, rangeEndMs: null },
     [dashboardRangeEndMs, dashboardRangeStartMs, resolvedConfig],
   );
-  const previewRows = linkedFilterRuntime?.rows ?? [];
+  const previewRows = linkedDataset?.rows ?? [];
   const previewErrorMessage =
-    linkedFilterRuntime?.status === "error"
-      ? linkedFilterRuntime.error ?? "The linked Data Node failed to load rows."
+    linkedDataset?.status === "error"
+      ? linkedDataset.error ?? "The linked Data Node failed to load rows."
       : null;
-  const previewIsLoading = linkedFilterRuntime?.status === "loading" || linkedFilterRuntime == null;
+  const previewIsLoading = linkedDataset?.status === "loading" || linkedDataset == null;
 
   const previewSeriesResult = useMemo(
     () =>

@@ -5,8 +5,9 @@ Main Sequence Workbench extension.
 
 ## Entry Points
 
-- `mainSequenceDataSourceBundle.ts`: canonical Data Node source bundle contract published by Data
-  Node producers and consumed by downstream widgets such as the Data Node visualizer.
+- `mainSequenceDataSourceBundle.ts`: Main Sequence adapter around the shared tabular-frame contract.
+  It keeps the Data Node family on one normalized `columns + rows + fields + source` shape while
+  preserving Main Sequence-specific source context under `source.kind = "main-sequence-data-node"`.
 
 ## Notes
 
@@ -16,3 +17,6 @@ Main Sequence Workbench extension.
   safely over time.
 - Shared contract payloads should be producer-owned normalized shapes. Consumers should depend on
   these contracts instead of importing producer-family runtime internals directly.
+- Main Sequence source-specific metadata such as data-node identity, fixed range, and identifier
+  filters should stay nested under the shared `source` descriptor rather than leaking into the root
+  tabular frame contract.

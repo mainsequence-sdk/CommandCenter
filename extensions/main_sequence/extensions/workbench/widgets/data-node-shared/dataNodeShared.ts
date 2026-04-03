@@ -4,17 +4,35 @@ import type {
   DataNodeSummary,
   LocalTimeSerieQuickSearchRecord,
 } from "../../../../common/api";
+import type {
+  TabularFrameFieldRole,
+  TabularFrameFieldSchema,
+  TabularFrameFieldType,
+} from "@/widgets/shared/tabular-frame-source";
+export { hasTabularFieldRole } from "@/widgets/shared/tabular-frame-source";
 
 export type DataNodeDateRangeMode = "dashboard" | "fixed";
 
-export interface DataNodeFieldOption {
-  description?: string | null;
-  dtype: string | null;
-  isIndex: boolean;
-  isNumeric: boolean;
-  isTime: boolean;
-  key: string;
-  label: string;
+export type DataNodeFieldOption = TabularFrameFieldSchema;
+
+export function formatDataNodeFieldMetadata(field: DataNodeFieldOption) {
+  return [
+    field.nativeType,
+    field.type !== "unknown" ? field.type : null,
+    ...(field.roles ?? []),
+    field.description ?? null,
+  ].filter((value): value is string => Boolean(value && value.trim()));
+}
+
+export function formatDataNodeFieldSearchText(field: DataNodeFieldOption) {
+  return [
+    field.key,
+    field.label,
+    field.description ?? "",
+    field.nativeType ?? "",
+    field.type,
+    ...(field.roles ?? []),
+  ].join(" ");
 }
 
 function uniqueStrings(values: Array<string | null | undefined>) {
@@ -44,20 +62,40 @@ function normalizeTimestampMs(value: unknown) {
   return Math.trunc(parsed);
 }
 
-function isNumericDtype(dtype: string | null | undefined) {
-  if (!dtype) {
-    return false;
+function inferTypeFromNativeType(nativeType: string | null | undefined): TabularFrameFieldType | null {
+  if (!nativeType) {
+    return null;
   }
 
-  return /int|float|double|decimal|number|numeric|real|bigint/i.test(dtype);
-}
-
-function isTimeDtype(dtype: string | null | undefined) {
-  if (!dtype) {
-    return false;
+  if (/timestamp|datetime/i.test(nativeType)) {
+    return "datetime";
   }
 
-  return /date|time|timestamp/i.test(dtype);
+  if (/(^|[^a-z])date([^a-z]|$)/i.test(nativeType)) {
+    return "date";
+  }
+
+  if (/(^|[^a-z])time([^a-z]|$)/i.test(nativeType)) {
+    return "time";
+  }
+
+  if (/bool/i.test(nativeType)) {
+    return "boolean";
+  }
+
+  if (/bigint|smallint|integer|int/i.test(nativeType)) {
+    return "integer";
+  }
+
+  if (/float|double|decimal|number|numeric|real/i.test(nativeType)) {
+    return "number";
+  }
+
+  if (/json|dict|map|object|struct/i.test(nativeType)) {
+    return "json";
+  }
+
+  return "string";
 }
 
 function isNumericValue(value: unknown) {
@@ -95,6 +133,81 @@ function isTimeValue(value: unknown) {
   }
 
   return !Number.isNaN(Date.parse(trimmed));
+}
+
+function isBooleanValue(value: unknown) {
+  return (
+    typeof value === "boolean" ||
+    (typeof value === "string" && /^(true|false)$/i.test(value.trim()))
+  );
+}
+
+function inferTypeFromSamples(samples: unknown[]): TabularFrameFieldType {
+  if (samples.some((value) => isBooleanValue(value))) {
+    return "boolean";
+  }
+
+  if (samples.some((value) => isTimeValue(value))) {
+    return "datetime";
+  }
+
+  if (samples.some((value) => isNumericValue(value))) {
+    const hasDecimal = samples.some((value) => {
+      const normalized =
+        typeof value === "number"
+          ? value
+          : typeof value === "string" && value.trim()
+            ? Number(value.trim())
+            : null;
+
+      return normalized != null && Number.isFinite(normalized) && !Number.isInteger(normalized);
+    });
+
+    return hasDecimal ? "number" : "integer";
+  }
+
+  return "string";
+}
+
+function uniqueRoles(roles: Array<TabularFrameFieldRole | null | undefined>) {
+  const seen = new Set<TabularFrameFieldRole>();
+
+  return roles.filter((role): role is TabularFrameFieldRole => {
+    if (!role || seen.has(role)) {
+      return false;
+    }
+
+    seen.add(role);
+    return true;
+  });
+}
+
+function inferRolesForField(input: {
+  key: string;
+  type: TabularFrameFieldType;
+  indexKeys?: string[];
+  timeIndexKey?: string;
+}) {
+  const normalizedKey = input.key.trim();
+  const looksLikeIdentifier = /^(unique_identifier|identifier)$/i.test(normalizedKey);
+  const looksLikeTime =
+    input.type === "datetime" ||
+    input.type === "date" ||
+    input.type === "time" ||
+    /date|time|timestamp/i.test(normalizedKey);
+  const roles = uniqueRoles([
+    looksLikeTime || normalizedKey === input.timeIndexKey ? "time" : null,
+    (input.indexKeys ?? []).includes(normalizedKey)
+      ? looksLikeIdentifier
+        ? "identifier"
+        : "index"
+      : looksLikeIdentifier
+        ? "identifier"
+        : null,
+    input.type === "number" || input.type === "integer" ? "measure" : "dimension",
+  ]);
+
+  return roles.length > 0 ? roles : undefined;
 }
 
 function getFieldOptionLabel(
@@ -187,16 +300,21 @@ export function buildDataNodeFieldOptions(detail?: DataNodeDetail | null) {
   ]);
 
   return orderedKeys.map<DataNodeFieldOption>((key) => {
-    const dtype = getFieldOptionDtype(key, detail);
+    const nativeType = getFieldOptionDtype(key, detail);
+    const type = inferTypeFromNativeType(nativeType) ?? "unknown";
 
     return {
       key,
       label: getFieldOptionLabel(key, detail),
       description: getFieldOptionDescription(key, detail),
-      dtype,
-      isIndex: (sourceConfig?.index_names ?? []).includes(key),
-      isNumeric: isNumericDtype(dtype),
-      isTime: key === sourceConfig?.time_index_name || isTimeDtype(dtype),
+      nativeType,
+      type,
+      roles: inferRolesForField({
+        key,
+        type,
+        indexKeys: sourceConfig?.index_names ?? [],
+        timeIndexKey: sourceConfig?.time_index_name ?? undefined,
+      }),
     };
   });
 }
@@ -214,16 +332,74 @@ export function buildDataNodeFieldOptionsFromRows(input: {
     const samples = (input.rows ?? [])
       .map((row) => row[key])
       .filter((value) => value !== null && value !== undefined && value !== "");
+    const type = inferTypeFromSamples(samples);
 
     return {
       key,
       label: key,
       description: null,
-      dtype: null,
-      isIndex: /^(unique_identifier|identifier)$/i.test(key),
-      isNumeric: samples.some((value) => isNumericValue(value)),
-      isTime: /date|time|timestamp/i.test(key) || samples.some((value) => isTimeValue(value)),
+      nativeType: null,
+      type,
+      roles: inferRolesForField({ key, type }),
     };
+  });
+}
+
+export function resolveDataNodeFieldOptionsFromDataset(input: {
+  columns?: string[];
+  rows?: readonly DataNodeRemoteDataRow[];
+  fields?: readonly DataNodeFieldOption[];
+}) {
+  const datasetFields = input.fields?.filter((field) => typeof field.key === "string" && field.key.trim()) ?? [];
+
+  if (datasetFields.length === 0) {
+    return buildDataNodeFieldOptionsFromRows({
+      columns: input.columns,
+      rows: input.rows,
+    });
+  }
+
+  const fallbackFields = buildDataNodeFieldOptionsFromRows({
+    columns: input.columns,
+    rows: input.rows,
+  });
+  const fallbackFieldByKey = new Map(fallbackFields.map((field) => [field.key, field]));
+  const seen = new Set<string>();
+  const orderedKeys = uniqueStrings([
+    ...datasetFields.map((field) => field.key),
+    ...(input.columns ?? []),
+    ...((input.rows ?? []).flatMap((row) => Object.keys(row))),
+  ]);
+
+  return orderedKeys.flatMap<DataNodeFieldOption>((key) => {
+    if (seen.has(key)) {
+      return [];
+    }
+
+    seen.add(key);
+
+    const declaredField = datasetFields.find((field) => field.key === key);
+
+    if (declaredField) {
+      const fallbackField = fallbackFieldByKey.get(key);
+
+      return [{
+        ...fallbackField,
+        ...declaredField,
+        key,
+        label: declaredField.label?.trim() || fallbackField?.label || key,
+        description: declaredField.description ?? fallbackField?.description ?? null,
+        nativeType: declaredField.nativeType ?? fallbackField?.nativeType ?? null,
+        type: declaredField.type ?? fallbackField?.type ?? "unknown",
+        roles:
+          declaredField.roles && declaredField.roles.length > 0
+            ? declaredField.roles
+            : fallbackField?.roles,
+      }];
+    }
+
+    const fallbackField = fallbackFieldByKey.get(key);
+    return fallbackField ? [fallbackField] : [];
   });
 }
 

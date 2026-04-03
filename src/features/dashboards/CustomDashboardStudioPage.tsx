@@ -23,13 +23,13 @@ import GridLayout, {
 
 import {
   BookOpenText,
+  Boxes,
   Clock3,
   ChevronDown,
   ChevronRight,
   ChevronUp,
   Copy,
   GripVertical,
-  LayoutTemplate,
   MoreVertical,
   Pencil,
   Plus,
@@ -2598,7 +2598,7 @@ export function CustomDashboardStudioPage() {
                           setLibraryOpen((current) => !current);
                         }}
                       >
-                        <LayoutTemplate className="h-3.5 w-3.5" />
+                        <Boxes className="h-3.5 w-3.5" />
                       </WorkspaceToolbarButton>
                     ) : null}
                     {editMode ? (

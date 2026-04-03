@@ -12,7 +12,7 @@ import {
   formatMainSequenceError,
 } from "../../../../common/api";
 import {
-  buildDataNodeFieldOptionsFromRows,
+  resolveDataNodeFieldOptionsFromDataset,
 } from "../data-node-shared/dataNodeShared";
 import {
   buildDataNodeRemoteRowsQueryKey,
@@ -96,10 +96,7 @@ export function MainSequenceDataNodeFilterWidget({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
   });
-  const linkedNodeRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
-    [sourceBinding.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
   const effectiveProps = useMemo(
     () => ({
@@ -109,7 +106,7 @@ export function MainSequenceDataNodeFilterWidget({
     [effectiveSourceProps, normalizedProps],
   );
   const dataNodeId = Number(
-    linkedNodeRuntime?.dataNodeId ?? effectiveSourceProps.dataNodeId ?? 0,
+    linkedDataset?.dataNodeId ?? effectiveSourceProps.dataNodeId ?? 0,
   );
   const dataNodeDetailQuery = useQuery({
     queryKey: ["main_sequence", "widgets", "data_node_filter", "detail", dataNodeId],
@@ -119,11 +116,12 @@ export function MainSequenceDataNodeFilterWidget({
   });
   const runtimeFieldOptions = useMemo(
     () =>
-      buildDataNodeFieldOptionsFromRows({
-        columns: linkedNodeRuntime?.columns,
-        rows: linkedNodeRuntime?.rows,
+      resolveDataNodeFieldOptionsFromDataset({
+        columns: linkedDataset?.columns,
+        fields: linkedDataset?.fields,
+        rows: linkedDataset?.rows,
       }),
-    [linkedNodeRuntime?.columns, linkedNodeRuntime?.rows],
+    [linkedDataset?.columns, linkedDataset?.fields, linkedDataset?.rows],
   );
   const resolvedConfig = useMemo(
     () =>
@@ -198,22 +196,22 @@ export function MainSequenceDataNodeFilterWidget({
         ...requestedColumns,
         ...collectRowKeys(
           sourceBinding.isFilterWidgetSource
-            ? (linkedNodeRuntime?.rows ?? [])
+            ? (linkedDataset?.rows ?? [])
             : (dataQuery.data ?? []),
         ),
       ]),
-    [dataQuery.data, linkedNodeRuntime?.rows, requestedColumns, sourceBinding.isFilterWidgetSource],
+    [dataQuery.data, linkedDataset?.rows, requestedColumns, sourceBinding.isFilterWidgetSource],
   );
   const transformedDataset = useMemo(
     () =>
       buildDataNodeTransformedDataset(
         sourceBinding.isFilterWidgetSource
-          ? (linkedNodeRuntime?.rows ?? [])
+          ? (linkedDataset?.rows ?? [])
           : (dataQuery.data ?? []),
         resolvedConfig,
         readyColumns,
       ),
-    [dataQuery.data, linkedNodeRuntime?.rows, readyColumns, resolvedConfig, sourceBinding.isFilterWidgetSource],
+    [dataQuery.data, linkedDataset?.rows, readyColumns, resolvedConfig, sourceBinding.isFilterWidgetSource],
   );
   const nextRuntimeState = useMemo(() => {
     if (!resolvedConfig.dataNodeId) {
@@ -265,32 +263,32 @@ export function MainSequenceDataNodeFilterWidget({
       } satisfies DataNodeFilterRuntimeState;
     }
 
-    if (sourceBinding.isFilterWidgetSource && linkedNodeRuntime?.status === "error") {
+    if (sourceBinding.isFilterWidgetSource && linkedDataset?.status === "error") {
       return {
         status: "error",
-        dataNodeId: linkedNodeRuntime.dataNodeId ?? resolvedConfig.dataNodeId,
+        dataNodeId: linkedDataset.dataNodeId ?? resolvedConfig.dataNodeId,
         columns: loadingColumns,
         rows: [],
         limit: resolvedConfig.limit,
-        rangeStartMs: linkedNodeRuntime.rangeStartMs ?? resolvedRange.rangeStartMs,
-        rangeEndMs: linkedNodeRuntime.rangeEndMs ?? resolvedRange.rangeEndMs,
+        rangeStartMs: linkedDataset.rangeStartMs ?? resolvedRange.rangeStartMs,
+        rangeEndMs: linkedDataset.rangeEndMs ?? resolvedRange.rangeEndMs,
         uniqueIdentifierList: resolvedConfig.uniqueIdentifierList,
-        error: linkedNodeRuntime.error ?? "The upstream Data Node failed to publish rows.",
-        updatedAtMs: linkedNodeRuntime.updatedAtMs ?? normalizedRuntimeState?.updatedAtMs,
+        error: linkedDataset.error ?? "The upstream Data Node failed to publish rows.",
+        updatedAtMs: linkedDataset.updatedAtMs ?? normalizedRuntimeState?.updatedAtMs,
       } satisfies DataNodeFilterRuntimeState;
     }
 
-    if (sourceBinding.isFilterWidgetSource && linkedNodeRuntime?.status === "loading") {
+    if (sourceBinding.isFilterWidgetSource && linkedDataset?.status === "loading") {
       return {
         status: "loading",
-        dataNodeId: linkedNodeRuntime.dataNodeId ?? resolvedConfig.dataNodeId,
+        dataNodeId: linkedDataset.dataNodeId ?? resolvedConfig.dataNodeId,
         columns: transformedDataset.columns,
         rows: normalizedRuntimeState?.rows ?? [],
         limit: resolvedConfig.limit,
-        rangeStartMs: linkedNodeRuntime.rangeStartMs ?? resolvedRange.rangeStartMs,
-        rangeEndMs: linkedNodeRuntime.rangeEndMs ?? resolvedRange.rangeEndMs,
+        rangeStartMs: linkedDataset.rangeStartMs ?? resolvedRange.rangeStartMs,
+        rangeEndMs: linkedDataset.rangeEndMs ?? resolvedRange.rangeEndMs,
         uniqueIdentifierList: resolvedConfig.uniqueIdentifierList,
-        updatedAtMs: linkedNodeRuntime.updatedAtMs ?? normalizedRuntimeState?.updatedAtMs,
+        updatedAtMs: linkedDataset.updatedAtMs ?? normalizedRuntimeState?.updatedAtMs,
       } satisfies DataNodeFilterRuntimeState;
     }
 
@@ -329,7 +327,7 @@ export function MainSequenceDataNodeFilterWidget({
     }
 
     if (
-      (sourceBinding.isFilterWidgetSource && linkedNodeRuntime?.status === "ready") ||
+      (sourceBinding.isFilterWidgetSource && linkedDataset?.status === "ready") ||
       dataQuery.data
     ) {
       return {
@@ -339,12 +337,12 @@ export function MainSequenceDataNodeFilterWidget({
         rows: transformedDataset.rows,
         limit: resolvedConfig.limit,
         rangeStartMs:
-          linkedNodeRuntime?.rangeStartMs ?? resolvedRange.rangeStartMs,
+          linkedDataset?.rangeStartMs ?? resolvedRange.rangeStartMs,
         rangeEndMs:
-          linkedNodeRuntime?.rangeEndMs ?? resolvedRange.rangeEndMs,
+          linkedDataset?.rangeEndMs ?? resolvedRange.rangeEndMs,
         uniqueIdentifierList: resolvedConfig.uniqueIdentifierList,
         updatedAtMs:
-          linkedNodeRuntime?.updatedAtMs ||
+          linkedDataset?.updatedAtMs ||
           dataQuery.dataUpdatedAt ||
           normalizedRuntimeState?.updatedAtMs,
       } satisfies DataNodeFilterRuntimeState;
@@ -362,12 +360,12 @@ export function MainSequenceDataNodeFilterWidget({
     dataQuery.isError,
     dataQuery.isLoading,
     hasSourceTableConfiguration,
-    linkedNodeRuntime?.dataNodeId,
-    linkedNodeRuntime?.error,
-    linkedNodeRuntime?.rangeEndMs,
-    linkedNodeRuntime?.rangeStartMs,
-    linkedNodeRuntime?.status,
-    linkedNodeRuntime?.updatedAtMs,
+    linkedDataset?.dataNodeId,
+    linkedDataset?.error,
+    linkedDataset?.rangeEndMs,
+    linkedDataset?.rangeStartMs,
+    linkedDataset?.status,
+    linkedDataset?.updatedAtMs,
     loadingColumns,
     normalizedRuntimeState?.rows,
     normalizedRuntimeState?.updatedAtMs,
@@ -407,8 +405,8 @@ export function MainSequenceDataNodeFilterWidget({
     ? formatMainSequenceError(dataNodeDetailQuery.error)
     : null;
   const dataErrorMessage = sourceBinding.isFilterWidgetSource
-    ? linkedNodeRuntime?.status === "error"
-      ? linkedNodeRuntime.error ?? "The upstream Data Node failed to load rows."
+    ? linkedDataset?.status === "error"
+      ? linkedDataset.error ?? "The upstream Data Node failed to load rows."
       : null
     : dataQuery.isError
       ? formatMainSequenceError(dataQuery.error)
@@ -429,7 +427,7 @@ export function MainSequenceDataNodeFilterWidget({
               : dataNodeDetailQuery.isLoading ||
                   dataQuery.isLoading ||
                   (sourceBinding.isFilterWidgetSource &&
-                    (linkedNodeRuntime?.status === "loading" || linkedNodeRuntime == null))
+                    (linkedDataset?.status === "loading" || linkedDataset == null))
                 ? "loading"
                 : "ready";
 
@@ -466,7 +464,7 @@ export function MainSequenceDataNodeFilterWidget({
   const publishedRowCount =
     nextRuntimeState?.rows.length ??
     normalizedRuntimeState?.rows.length ??
-    linkedNodeRuntime?.rows.length ??
+    linkedDataset?.rows.length ??
     dataQuery.data?.length ??
     0;
   const identifierSummary = resolvedConfig.uniqueIdentifierList?.length

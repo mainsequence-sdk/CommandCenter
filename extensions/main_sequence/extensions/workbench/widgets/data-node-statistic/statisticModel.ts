@@ -1,6 +1,7 @@
 import type { DataNodeRemoteDataRow } from "../../../../common/api";
 import {
-  buildDataNodeFieldOptionsFromRows,
+  hasTabularFieldRole,
+  resolveDataNodeFieldOptionsFromDataset,
   type DataNodeFieldOption,
 } from "../data-node-shared/dataNodeShared";
 import {
@@ -337,9 +338,10 @@ function buildCardChartPoints(
 
 export function buildDataNodeStatisticFieldOptions(input: {
   columns?: string[];
+  fields?: readonly DataNodeFieldOption[];
   rows?: readonly DataNodeRemoteDataRow[];
 }) {
-  return buildDataNodeFieldOptionsFromRows(input);
+  return resolveDataNodeFieldOptionsFromDataset(input);
 }
 
 export function resolveDataNodeStatisticConfig(
@@ -454,12 +456,14 @@ export function resolveStatisticValueFieldPickerOptions(
 ) {
   return fields.map((field) => ({
     value: field.key,
-    label: field.label,
+    label: field.label ?? field.key,
     description: uniqueStrings([
-      field.isNumeric ? "numeric" : null,
-      field.isTime ? "time-like" : null,
-      field.isIndex ? "index" : null,
+      field.type === "number" || field.type === "integer" ? "numeric" : null,
+      hasTabularFieldRole(field, "time") ? "time-like" : null,
+      hasTabularFieldRole(field, "index") || hasTabularFieldRole(field, "identifier")
+        ? "index"
+        : null,
     ]).join(" · ") || field.key,
-    keywords: [field.key, field.label],
+    keywords: [field.key, field.label ?? field.key],
   }));
 }

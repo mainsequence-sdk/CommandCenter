@@ -10,7 +10,8 @@ data-node metadata and remote rows.
 - `dataNodePublishedDataset.ts`: the shared published runtime contract for Data Node consumers.
   This is the standard hop-local dataset shape used by `Data Node Graph`, `Data Node Table`, and
   `Statistic`: `status`, `dataNodeId`, `columns: string[]`, `rows: Record<string, unknown>[]`,
-  plus range metadata, identifiers, and update timestamps.
+  optional normalized `fields`, optional `source`, plus range metadata, identifiers, and update
+  timestamps.
 - `dataNodeWidgetSource.tsx`: reusable source/date-range widget contract used by workbench widgets
   that select a data node, expose optional `unique_identifier` filters, and save a fixed or
   dashboard-driven date range. It also resolves latest-observation anchors used to prefill missing
@@ -48,7 +49,8 @@ pattern should hold no matter how many Data Nodes are linked together.
 Keep the consumer contract explicit:
 
 - `Data Node` owns querying and reusable transforms.
-- `Graph`, `Table`, and `Statistic` consume the published `columns + rows` dataset.
+- `Graph`, `Table`, and `Statistic` consume the published tabular frame:
+  `columns + rows` plus optional normalized `fields` and `source` metadata.
 - Consumer widgets may derive local series, frames, or KPI cards, but they should not mutate the
   upstream transport shape.
 

@@ -53,10 +53,7 @@ export function DataNodeRailSummary({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
   });
-  const linkedNodeRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
-    [sourceBinding.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceBinding.resolvedSourceDataset;
   const normalizedRuntimeState = useMemo(
     () => normalizeDataNodeFilterRuntimeState(runtimeState),
     [runtimeState],
@@ -70,7 +67,7 @@ export function DataNodeRailSummary({
   );
   const dataNodeId = Number(
     normalizedRuntimeState?.dataNodeId ??
-      linkedNodeRuntime?.dataNodeId ??
+      linkedDataset?.dataNodeId ??
       effectiveProps.dataNodeId ??
       0,
   );

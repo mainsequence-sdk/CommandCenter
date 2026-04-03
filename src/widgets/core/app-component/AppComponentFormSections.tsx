@@ -131,6 +131,7 @@ function FieldEditor({
   compact = false,
   disabled,
   field,
+  inputId,
   title,
   value,
   onChange,
@@ -138,6 +139,7 @@ function FieldEditor({
   compact?: boolean;
   disabled: boolean;
   field: AppComponentGeneratedField;
+  inputId?: string;
   title?: string;
   value: string;
   onChange: (nextValue: string) => void;
@@ -145,6 +147,7 @@ function FieldEditor({
   if (field.kind === "enum") {
     return (
       <Select
+        id={inputId}
         value={value}
         disabled={disabled}
         className={compact ? "h-8 rounded-[calc(var(--radius)-7px)] bg-background/55 px-2 text-xs shadow-none" : widgetTightFormSelectClass}
@@ -166,6 +169,7 @@ function FieldEditor({
   if (field.kind === "boolean") {
     return (
       <Select
+        id={inputId}
         value={value}
         disabled={disabled}
         className={compact ? "h-8 rounded-[calc(var(--radius)-7px)] bg-background/55 px-2 text-xs shadow-none" : widgetTightFormSelectClass}
@@ -184,6 +188,7 @@ function FieldEditor({
   if (isMultilineField(field)) {
     return (
       <Textarea
+        id={inputId}
         value={value}
         readOnly={disabled}
         spellCheck={false}
@@ -202,6 +207,7 @@ function FieldEditor({
 
   return (
     <Input
+      id={inputId}
       type={
         field.kind === "number" || field.kind === "integer"
           ? "number"
@@ -240,22 +246,14 @@ function CompactField({
   value: string;
   onChange: (nextValue: string) => void;
 }) {
-  const multiline = isMultilineField(field);
+  const inputId = useId();
 
   return (
-    <label
-      className={cn(
-        "flex min-w-0 gap-2.5",
-        multiline ? "items-start" : "items-center",
-      )}
-    >
-      <div
-        className={cn(
-          "flex w-28 shrink-0 min-w-0 items-center gap-1.5 text-xs font-medium text-foreground",
-          multiline ? "pt-2" : "",
-        )}
-      >
-        <span className="truncate">{field.label}</span>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-medium text-foreground">
+        <label htmlFor={inputId} className="min-w-0 truncate">
+          {field.label}
+        </label>
         {field.required ? <span className="text-danger">*</span> : null}
         {bound ? (
           <Badge variant="neutral" className="h-4 px-1.5 py-0 text-[9px] uppercase tracking-[0.12em]">
@@ -264,17 +262,18 @@ function CompactField({
         ) : null}
         {field.description ? <FieldDescriptionHint description={field.description} /> : null}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0">
         <FieldEditor
           compact
           disabled={disabled}
           field={field}
+          inputId={inputId}
           title={field.description}
           value={value}
           onChange={onChange}
         />
       </div>
-    </label>
+    </div>
   );
 }
 

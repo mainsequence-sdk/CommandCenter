@@ -24,7 +24,6 @@ import {
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
 import { DataNodeVisualizerChartErrorBoundary } from "./DataNodeVisualizerChartErrorBoundary";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 
 type Props = WidgetComponentProps<MainSequenceDataNodeVisualizerWidgetProps>;
 
@@ -39,10 +38,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
   });
-  const linkedFilterRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceBinding.referencedFilterWidget?.runtimeState),
-    [sourceBinding.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
   const effectiveProps = useMemo(
     () => ({
@@ -68,7 +64,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     () => resolveDataNodeVisualizerDateRange(resolvedConfig, rangeStartMs, rangeEndMs),
     [rangeEndMs, rangeStartMs, resolvedConfig],
   );
-  const sourceRows = linkedFilterRuntime?.rows ?? [];
+  const sourceRows = linkedDataset?.rows ?? [];
   const seriesResult = useMemo(
     () => buildDataNodeVisualizerSeries(sourceRows, resolvedConfig),
     [resolvedConfig, sourceRows],
@@ -122,10 +118,10 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     chartSeriesResult.collapsedPointCount,
     suggestedGroupField,
   ]);
-  const isDataLoading = linkedFilterRuntime?.status === "loading" || linkedFilterRuntime == null;
+  const isDataLoading = linkedDataset?.status === "loading" || linkedDataset == null;
   const dataErrorMessage =
-    linkedFilterRuntime?.status === "error"
-      ? linkedFilterRuntime.error ?? "The linked Data Node failed to load rows."
+    linkedDataset?.status === "error"
+      ? linkedDataset.error ?? "The linked Data Node failed to load rows."
       : null;
 
   if (sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {

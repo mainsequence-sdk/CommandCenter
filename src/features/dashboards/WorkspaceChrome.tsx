@@ -11,9 +11,9 @@ import { createPortal } from "react-dom";
 
 import {
   BarChart3,
+  Boxes,
   Clock3,
   Database,
-  LayoutTemplate,
   Table,
 } from "lucide-react";
 
@@ -41,7 +41,7 @@ function resolveWidgetRailIcon(widget: WidgetDefinition) {
     return Clock3;
   }
 
-  return LayoutTemplate;
+  return Boxes;
 }
 
 function resolveWidgetRailStatusDotClass(runtimeState?: Record<string, unknown>) {

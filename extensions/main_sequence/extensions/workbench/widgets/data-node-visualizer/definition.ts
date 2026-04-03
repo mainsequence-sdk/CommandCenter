@@ -41,19 +41,19 @@ export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNode
         effects: [
           {
             kind: "drives-options",
-            sourcePath: "availableFields",
+            sourcePath: "fields",
             target: { kind: "schema-field", id: "xField" },
             description: "Upstream fields populate X-axis choices.",
           },
           {
             kind: "drives-options",
-            sourcePath: "availableFields",
+            sourcePath: "fields",
             target: { kind: "schema-field", id: "yField" },
             description: "Upstream fields populate Y-axis choices.",
           },
           {
             kind: "drives-options",
-            sourcePath: "availableFields",
+            sourcePath: "fields",
             target: { kind: "schema-field", id: "groupField" },
             description: "Upstream fields populate grouping choices.",
           },

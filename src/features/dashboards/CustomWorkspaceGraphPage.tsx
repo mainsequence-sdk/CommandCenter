@@ -15,7 +15,7 @@ import {
   type XYPosition,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, LayoutTemplate, Save } from "lucide-react";
+import { ArrowLeft, Boxes, Save } from "lucide-react";
 
 import { getWidgetById } from "@/app/registry";
 import { hasAllPermissions } from "@/auth/permissions";
@@ -227,6 +227,9 @@ function WorkspaceGraphCanvas({
   const dependencyModel = useDashboardWidgetDependencies();
   const [nodes, setNodes] = useState<WorkspaceGraphFlowNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  const [visibleOutputIdsByNodeId, setVisibleOutputIdsByNodeId] = useState<Record<string, string[]>>(
+    {},
+  );
 
   const widgetInstances = useMemo(
     () => dependencyModel?.entries.map(({ instance }) => instance) ?? [],
@@ -240,6 +243,43 @@ function WorkspaceGraphCanvas({
     () => (dependencyModel ? layoutGraphNodes(dependencyModel.graph) : new Map<string, XYPosition>()),
     [dependencyModel],
   );
+
+  useEffect(() => {
+    if (!dependencyModel) {
+      setVisibleOutputIdsByNodeId({});
+      return;
+    }
+
+    setVisibleOutputIdsByNodeId((current) => {
+      const validOutputIdsByNodeId = new Map(
+        dependencyModel.graph.nodes.map((node) => [
+          node.id,
+          new Set(node.outputs.map((output) => output.id)),
+        ] as const),
+      );
+      let changed = false;
+      const nextState = Object.fromEntries(
+        Object.entries(current).flatMap(([nodeId, outputIds]) => {
+          const validOutputIds = validOutputIdsByNodeId.get(nodeId);
+
+          if (!validOutputIds) {
+            changed = true;
+            return [];
+          }
+
+          const nextOutputIds = outputIds.filter((outputId) => validOutputIds.has(outputId));
+
+          if (nextOutputIds.length !== outputIds.length) {
+            changed = true;
+          }
+
+          return nextOutputIds.length > 0 ? [[nodeId, nextOutputIds] as const] : [];
+        }),
+      );
+
+      return changed ? nextState : current;
+    });
+  }, [dependencyModel]);
 
   const derivedNodes = useMemo<WorkspaceGraphFlowNode[]>(() => {
     if (!dependencyModel) {
@@ -278,6 +318,16 @@ function WorkspaceGraphCanvas({
           resolvedIo?.outputs?.find((candidate) => candidate.id === output.id)?.description,
         connectionCount: outputsByPort.get(output.id) ?? 0,
       }));
+      const locallyVisibleOutputIds = new Set(visibleOutputIdsByNodeId[node.id] ?? []);
+      const visibleOutputs = outputs.filter(
+        (output) => output.connectionCount > 0 || locallyVisibleOutputIds.has(output.id),
+      ).map((output) => ({
+        ...output,
+        removable: output.connectionCount === 0 && locallyVisibleOutputIds.has(output.id),
+      }));
+      const availableOutputs = outputs.filter(
+        (output) => output.connectionCount === 0 && !locallyVisibleOutputIds.has(output.id),
+      );
 
       return {
         id: node.id,
@@ -293,11 +343,47 @@ function WorkspaceGraphCanvas({
           hiddenInCollapsedRow: node.hiddenInCollapsedRow,
           parentRowId: node.parentRowId,
           inputs,
-          outputs,
+          outputs: visibleOutputs,
+          availableOutputs,
+          onRevealOutput: (outputId) => {
+            setVisibleOutputIdsByNodeId((current) => {
+              const currentOutputIds = current[node.id] ?? [];
+
+              if (currentOutputIds.includes(outputId)) {
+                return current;
+              }
+
+              return {
+                ...current,
+                [node.id]: [...currentOutputIds, outputId],
+              };
+            });
+          },
+          onHideOutput: (outputId) => {
+            setVisibleOutputIdsByNodeId((current) => {
+              const currentOutputIds = current[node.id] ?? [];
+              const nextOutputIds = currentOutputIds.filter((candidate) => candidate !== outputId);
+
+              if (nextOutputIds.length === currentOutputIds.length) {
+                return current;
+              }
+
+              if (nextOutputIds.length === 0) {
+                const nextState = { ...current };
+                delete nextState[node.id];
+                return nextState;
+              }
+
+              return {
+                ...current,
+                [node.id]: nextOutputIds,
+              };
+            });
+          },
         } satisfies WorkspaceGraphNodeData,
       } satisfies WorkspaceGraphFlowNode;
     });
-  }, [dependencyModel, layoutedPositions]);
+  }, [dependencyModel, layoutedPositions, visibleOutputIdsByNodeId]);
 
   const derivedEdges = useMemo<Edge[]>(() => {
     if (!dependencyModel) {
@@ -576,7 +662,7 @@ export function CustomWorkspaceGraphPage() {
                         setLibraryOpen((current) => !current);
                       }}
                     >
-                      <LayoutTemplate className="h-3.5 w-3.5" />
+                      <Boxes className="h-3.5 w-3.5" />
                     </WorkspaceToolbarButton>
                     <WorkspaceToolbarButton
                       active={dirty}

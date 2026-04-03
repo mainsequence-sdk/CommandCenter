@@ -35,13 +35,13 @@ export const mainSequenceDataNodeStatisticWidget = defineWidget<MainSequenceData
         effects: [
           {
             kind: "drives-options",
-            sourcePath: "availableFields",
+            sourcePath: "fields",
             target: { kind: "prop", path: "valueField" },
             description: "Upstream fields populate the value field choices.",
           },
           {
             kind: "drives-options",
-            sourcePath: "availableFields",
+            sourcePath: "fields",
             target: { kind: "prop", path: "groupField" },
             description: "Upstream fields populate grouping choices.",
           },

@@ -4,6 +4,10 @@ import type { WidgetController } from "@/widgets/types";
 
 import { type PickerOption } from "../../../../common/components/PickerField";
 import {
+  formatDataNodeFieldMetadata,
+  type DataNodeFieldOption,
+} from "../data-node-shared/dataNodeShared";
+import {
   buildDataNodeVisualizerGroupValueOptions,
   buildDataNodeVisualizerFieldOptionsFromRuntime,
   normalizeDataNodeVisualizerProps,
@@ -14,7 +18,6 @@ import {
   useDataNodeWidgetSourceControllerContext,
   type DataNodeWidgetSourceControllerContext,
 } from "../data-node-shared/dataNodeWidgetSource";
-import { normalizeDataNodeFilterRuntimeState } from "../data-node-filter/dataNodeFilterModel";
 
 export interface DataNodeVisualizerControllerContext
   extends DataNodeWidgetSourceControllerContext<ReturnType<typeof resolveDataNodeVisualizerConfig>> {
@@ -24,26 +27,14 @@ export interface DataNodeVisualizerControllerContext
   groupOptions: PickerOption[];
 }
 
-function toPickerOption(option: {
-  key: string;
-  label: string;
-  description?: string | null;
-  dtype?: string | null;
-  isTime?: boolean;
-  isIndex?: boolean;
-}) {
-  const metadata = [
-    option.dtype ?? null,
-    option.isTime ? "Time" : null,
-    option.isIndex ? "Index" : null,
-    option.description ?? null,
-  ].filter((value): value is string => Boolean(value && value.trim()));
+function toPickerOption(option: DataNodeFieldOption) {
+  const metadata = formatDataNodeFieldMetadata(option);
 
   return {
     value: option.key,
-    label: option.label,
+    label: option.label ?? option.key,
     description: metadata.join(" • ") || undefined,
-    keywords: [option.key, option.label, option.dtype ?? "", option.description ?? ""],
+    keywords: [option.key, option.label ?? option.key, option.nativeType ?? "", option.description ?? ""],
   } satisfies PickerOption;
 }
 
@@ -64,13 +55,10 @@ export function useDataNodeVisualizerControllerContext({
     queryKeyScope: "data_node_visualizer",
     resolveConfig: resolveDataNodeVisualizerConfig,
   });
-  const linkedFilterRuntime = useMemo(
-    () => normalizeDataNodeFilterRuntimeState(sourceContext.referencedFilterWidget?.runtimeState),
-    [sourceContext.referencedFilterWidget?.runtimeState],
-  );
+  const linkedDataset = sourceContext.resolvedSourceDataset;
   const runtimeFieldOptions = useMemo(
-    () => buildDataNodeVisualizerFieldOptionsFromRuntime(linkedFilterRuntime),
-    [linkedFilterRuntime],
+    () => buildDataNodeVisualizerFieldOptionsFromRuntime(linkedDataset),
+    [linkedDataset],
   );
   const resolvedConfig = useMemo(
     () =>
@@ -94,8 +82,8 @@ export function useDataNodeVisualizerControllerContext({
     [resolvedConfig.availableFields],
   );
   const groupValueOptions = useMemo<PickerOption[]>(
-    () => buildDataNodeVisualizerGroupValueOptions(linkedFilterRuntime?.rows ?? [], resolvedConfig),
-    [linkedFilterRuntime?.rows, resolvedConfig],
+    () => buildDataNodeVisualizerGroupValueOptions(linkedDataset?.rows ?? [], resolvedConfig),
+    [linkedDataset?.rows, resolvedConfig],
   );
   const xAxisOptions = useMemo<PickerOption[]>(
     () => [

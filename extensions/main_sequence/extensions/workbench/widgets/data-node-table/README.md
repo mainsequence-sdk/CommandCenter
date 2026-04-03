@@ -8,8 +8,9 @@ settings are built as a reusable AG Grid Community table formatter around live d
 `Data Node Table` is the table-formatting surface for the canonical row dataset owned by a sibling
 `Data Node` widget. That upstream Data Node may already be filtered, grouped, pivoted, or projected
 before the table sees the rows. The widget consumes the shared published dataset contract
-(`status`, `dataNodeId`, `columns: string[]`, `rows: Record<string, unknown>[]`) and adapts it
-into the local grid frame it needs. The widget is intentionally configuration-heavy:
+(`status`, `dataNodeId`, `columns: string[]`, `rows: Record<string, unknown>[]`, optional
+normalized `fields`, optional `source`) and adapts it into the local grid frame it needs. The
+widget is intentionally configuration-heavy:
 
 - upstream published input shaped as `columns[]` plus `rows<Record<string, unknown>>[]`
 - per-instance schema control for keys, labels, descriptions, and base formats
@@ -64,12 +65,13 @@ widget. The current intent is to keep this formatter removable and license-light
 
 ## Data Sources
 
-The widget resolves source-table metadata from the linked Data Node source and adapts the Data Node's
-runtime rows into a local grid frame contract:
+The widget resolves source-table metadata from the linked source and adapts the incoming runtime
+dataset into a local grid frame contract:
 
 - `columns[]`
-- `rows[][]`
-- schema fallback inferred from column metadata and sampled rows
+- `rows<Record<string, unknown>>[]`
+- optional published `fields[]` schema used before row-sample inference
+- schema fallback inferred from column metadata and sampled rows when published field metadata is absent
 
 The settings editor resolves against that live frame preview, so field formatting still happens in the
 same per-instance schema/override pipeline on top of the incoming Data Node-owned data. When the linked
@@ -110,7 +112,7 @@ The upstream source is now selected through canonical widget `bindings`, not thr
 adapted. The widget assumes tabular frame data shaped like:
 
 - `columns = ["a", "b", "c"]`
-- `rows = [[1, 2, "pedro"], [3, 4, "maria"]]`
+- `rows = [{ a: 1, b: 2, c: "pedro" }, { a: 3, b: 4, c: "maria" }]`
 
 `schema` owns the instance-level field contract:
 
