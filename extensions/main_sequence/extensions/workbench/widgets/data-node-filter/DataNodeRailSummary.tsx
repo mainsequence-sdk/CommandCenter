@@ -9,6 +9,7 @@ import type { WidgetRailSummaryComponentProps } from "@/widgets/types";
 import { fetchDataNodeDetail, formatMainSequenceError } from "../../../../common/api";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
 import {
+  formatDataNodeFilterTransformSummary,
   normalizeDataNodeFilterProps,
   normalizeDataNodeFilterRuntimeState,
   resolveDataNodeFilterConfig,
@@ -169,13 +170,26 @@ export function DataNodeRailSummary({
               ? runtimeErrorMessage ?? "The canonical dataset request failed."
               : status === "loading"
                 ? sourceBinding.isFilterWidgetSource
-                  ? "Linked widgets keep reading from this bound source while the dataset refreshes."
+              ? "Linked widgets keep reading from this bound source while the dataset refreshes."
                   : "Linked widgets keep reading from this Data Node while the dataset refreshes."
                 : "Linked widgets should read rows from this Data Node instead of querying directly.";
-  const publishedRowCount =
-    normalizedRuntimeState?.rows.length ??
-    linkedDataset?.rows.length ??
-    0;
+  const displayedRows =
+    status === "ready"
+      ? (linkedDataset?.rows ?? normalizedRuntimeState?.rows ?? [])
+      : (normalizedRuntimeState?.rows ?? linkedDataset?.rows ?? []);
+  const displayedColumns =
+    status === "ready"
+      ? (linkedDataset?.columns ?? normalizedRuntimeState?.columns ?? [])
+      : (normalizedRuntimeState?.columns ?? linkedDataset?.columns ?? []);
+  const displayedRangeStartMs =
+    status === "ready"
+      ? (linkedDataset?.rangeStartMs ?? normalizedRuntimeState?.rangeStartMs ?? resolvedRange.rangeStartMs)
+      : (normalizedRuntimeState?.rangeStartMs ?? linkedDataset?.rangeStartMs ?? resolvedRange.rangeStartMs);
+  const displayedRangeEndMs =
+    status === "ready"
+      ? (linkedDataset?.rangeEndMs ?? normalizedRuntimeState?.rangeEndMs ?? resolvedRange.rangeEndMs)
+      : (normalizedRuntimeState?.rangeEndMs ?? linkedDataset?.rangeEndMs ?? resolvedRange.rangeEndMs);
+  const publishedRowCount = displayedRows.length;
   const identifierSummary = resolvedConfig.uniqueIdentifierList?.length
     ? `${resolvedConfig.uniqueIdentifierList.length.toLocaleString()} identifiers`
     : "No identifier selection";
@@ -189,18 +203,7 @@ export function DataNodeRailSummary({
           : status === "metadata_error"
             ? "Unavailable"
             : "Waiting for dataset";
-  const transformSummary =
-    resolvedConfig.transformMode === "pivot" &&
-    resolvedConfig.pivotField &&
-    resolvedConfig.pivotValueField
-      ? `Pivot ${resolvedConfig.pivotField} -> ${resolvedConfig.pivotValueField} (${resolvedConfig.aggregateMode})`
-      : resolvedConfig.transformMode === "aggregate" &&
-          resolvedConfig.keyFields &&
-          resolvedConfig.keyFields.length > 0
-        ? `Aggregate by ${resolvedConfig.keyFields.join(", ")} (${resolvedConfig.aggregateMode})`
-        : resolvedConfig.projectFields && resolvedConfig.projectFields.length > 0
-          ? `Projected ${resolvedConfig.projectFields.length.toLocaleString()} columns`
-          : "Raw dataset";
+  const transformSummary = formatDataNodeFilterTransformSummary(resolvedConfig);
   const Icon =
     status === "idle" || status === "detail_error" || status === "metadata_error"
       ? Database
@@ -234,12 +237,8 @@ export function DataNodeRailSummary({
         {
           label: "Range",
           value: formatRangeSummary(
-            normalizedRuntimeState?.rangeStartMs ??
-              linkedDataset?.rangeStartMs ??
-              resolvedRange.rangeStartMs,
-            normalizedRuntimeState?.rangeEndMs ??
-              linkedDataset?.rangeEndMs ??
-              resolvedRange.rangeEndMs,
+            displayedRangeStartMs,
+            displayedRangeEndMs,
           ),
         },
         {
@@ -252,7 +251,7 @@ export function DataNodeRailSummary({
         },
         {
           label: "Fields",
-          value: `${(normalizedRuntimeState?.columns.length ?? 0).toLocaleString()} columns`,
+          value: `${displayedColumns.length.toLocaleString()} columns`,
         },
         {
           label: "Identifiers",

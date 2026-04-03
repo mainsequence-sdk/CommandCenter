@@ -7,11 +7,12 @@ import {
   type ComponentType,
 } from "react";
 
-import { Copy, Settings2, Trash2 } from "lucide-react";
+import { Copy, Loader2, Settings2, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
@@ -139,6 +140,104 @@ interface WidgetSettingsPanelProps<
   widget: WidgetDefinition<TProps>;
 }
 
+function WidgetSettingsLoadingState() {
+  return (
+    <section className="space-y-4 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
+      <div className="flex items-center gap-2 text-sm font-medium text-topbar-foreground">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        Loading widget configuration
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Preparing schema fields, controller context, and widget-specific settings.
+      </p>
+      <div className="space-y-3">
+        <Skeleton className="h-10 rounded-[calc(var(--radius)-8px)]" />
+        <Skeleton className="h-28 rounded-[calc(var(--radius)-8px)]" />
+        <Skeleton className="h-24 rounded-[calc(var(--radius)-8px)]" />
+      </div>
+    </section>
+  );
+}
+
+function WidgetSettingsAdvancedSections<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+>({
+  controlledPresentation,
+  controlledTitle,
+  editable,
+  instance,
+  instanceTitle,
+  onDraftPresentationChange,
+  onDraftPropsChange,
+  onDraftTitleChange,
+  resolvedDraftPresentation,
+  resolvedDraftProps,
+  widget,
+}: {
+  controlledPresentation: boolean;
+  controlledTitle: boolean;
+  editable: boolean;
+  instance: {
+    id: string;
+  };
+  instanceTitle: string;
+  onDraftPresentationChange?: (presentation: WidgetInstancePresentation) => void;
+  onDraftPropsChange: (props: TProps) => void;
+  onDraftTitleChange?: (title: string) => void;
+  resolvedDraftPresentation: WidgetInstancePresentation;
+  resolvedDraftProps: TProps;
+  widget: WidgetDefinition<TProps>;
+}) {
+  const SettingsComponent =
+    widget.settingsComponent as
+      | ComponentType<WidgetSettingsComponentProps<TProps>>
+      | undefined;
+  const controllerContext = useResolvedWidgetControllerContext(widget, {
+    props: resolvedDraftProps,
+    instanceId: instance.id,
+    mode: "settings",
+  });
+
+  return (
+    <>
+      {widget.schema ? (
+        <WidgetSchemaForm
+          widget={widget}
+          draftProps={resolvedDraftProps}
+          onDraftPropsChange={onDraftPropsChange}
+          draftPresentation={resolvedDraftPresentation}
+          onDraftPresentationChange={(nextPresentation) => {
+            onDraftPresentationChange?.(nextPresentation);
+          }}
+          editable={editable}
+          context={controllerContext}
+        />
+      ) : null}
+
+      {SettingsComponent ? (
+        <SettingsComponent
+          widget={widget}
+          instanceId={instance.id}
+          draftProps={resolvedDraftProps}
+          onDraftPropsChange={onDraftPropsChange}
+          draftPresentation={resolvedDraftPresentation}
+          onDraftPresentationChange={(nextPresentation) => {
+            onDraftPresentationChange?.(nextPresentation);
+          }}
+          controllerContext={controllerContext}
+          instanceTitle={instanceTitle}
+          onInstanceTitleChange={(nextTitle) => {
+            if (controlledTitle) {
+              onDraftTitleChange?.(nextTitle);
+            }
+          }}
+          editable={editable}
+        />
+      ) : null}
+    </>
+  );
+}
+
 export function WidgetSettingsPanel<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 >({
@@ -203,15 +302,12 @@ export function WidgetSettingsPanel<
     widget.settingsComponent as
       | ComponentType<WidgetSettingsComponentProps<TProps>>
       | undefined;
+  const [heavySectionsReady, setHeavySectionsReady] = useState(false);
   const showRawPropsEditor = widget.showRawPropsEditor !== false;
   const showHeader = resolveWidgetHeaderVisibility(resolvedDraftProps);
   const transparentSurface = resolveWidgetTransparentSurface(resolvedDraftPresentation);
   const sidebarOnly = resolvedDraftPresentation.placementMode === "sidebar";
-  const controllerContext = useResolvedWidgetControllerContext(widget, {
-    props: resolvedDraftProps,
-    instanceId: instance.id,
-    mode: "settings",
-  });
+  const hasAdvancedSections = Boolean(widget.schema || SettingsComponent);
 
   useEffect(() => {
     if (!controlledTitle) {
@@ -242,6 +338,33 @@ export function WidgetSettingsPanel<
   useEffect(() => {
     setRawPropsValue(serializeWidgetProps(resolvedDraftProps));
   }, [resolvedDraftProps]);
+
+  useEffect(() => {
+    setHeavySectionsReady(false);
+
+    const frameId =
+      typeof window !== "undefined"
+        ? window.requestAnimationFrame(() => {
+            setHeavySectionsReady(true);
+          })
+        : null;
+    const timeoutId =
+      frameId == null
+        ? setTimeout(() => {
+            setHeavySectionsReady(true);
+          }, 0)
+        : null;
+
+    return () => {
+      if (frameId != null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      if (timeoutId != null) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [instance.id, widget.id]);
 
   const dirty =
     instanceTitle !== initialTitle ||
@@ -519,49 +642,36 @@ export function WidgetSettingsPanel<
           </section>
         </div>
 
-        {widget.schema ? (
-          <WidgetSchemaForm
-            widget={widget}
-            draftProps={resolvedDraftProps}
-            onDraftPropsChange={handleDraftPropsChange}
-            draftPresentation={resolvedDraftPresentation}
-            onDraftPresentationChange={(nextPresentation) => {
-              if (controlledPresentation) {
-                onDraftPresentationChange?.(nextPresentation);
-              } else {
-                setInternalDraftPresentation(nextPresentation);
-              }
-            }}
-            editable={editable}
-            context={controllerContext}
-          />
-        ) : null}
-
-        {SettingsComponent ? (
-          <SettingsComponent
-            widget={widget}
-            instanceId={instance.id}
-            draftProps={resolvedDraftProps}
-            onDraftPropsChange={handleDraftPropsChange}
-            draftPresentation={resolvedDraftPresentation}
-            onDraftPresentationChange={(nextPresentation) => {
-              if (controlledPresentation) {
-                onDraftPresentationChange?.(nextPresentation);
-              } else {
-                setInternalDraftPresentation(nextPresentation);
-              }
-            }}
-            controllerContext={controllerContext}
-            instanceTitle={instanceTitle}
-            onInstanceTitleChange={(nextTitle) => {
-              if (controlledTitle) {
-                onDraftTitleChange?.(nextTitle);
-              } else {
-                setInternalInstanceTitle(nextTitle);
-              }
-            }}
-            editable={editable}
-          />
+        {hasAdvancedSections ? (
+          heavySectionsReady ? (
+            <WidgetSettingsAdvancedSections
+              controlledPresentation={controlledPresentation}
+              controlledTitle={controlledTitle}
+              editable={editable}
+              instance={instance}
+              instanceTitle={instanceTitle}
+              onDraftPresentationChange={(nextPresentation) => {
+                if (controlledPresentation) {
+                  onDraftPresentationChange?.(nextPresentation);
+                } else {
+                  setInternalDraftPresentation(nextPresentation);
+                }
+              }}
+              onDraftPropsChange={handleDraftPropsChange}
+              onDraftTitleChange={(nextTitle) => {
+                if (controlledTitle) {
+                  onDraftTitleChange?.(nextTitle);
+                } else {
+                  setInternalInstanceTitle(nextTitle);
+                }
+              }}
+              resolvedDraftPresentation={resolvedDraftPresentation}
+              resolvedDraftProps={resolvedDraftProps}
+              widget={widget}
+            />
+          ) : (
+            <WidgetSettingsLoadingState />
+          )
         ) : null}
 
         {showRawPropsEditor ? (

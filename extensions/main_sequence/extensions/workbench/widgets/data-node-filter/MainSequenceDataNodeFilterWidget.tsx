@@ -21,6 +21,7 @@ import {
 } from "../data-node-shared/dataNodeWidgetSource";
 import {
   buildDataNodeTransformedDataset,
+  formatDataNodeFilterTransformSummary,
   normalizeDataNodeFilterRuntimeState,
   normalizeDataNodeFilterProps,
   resolveDataNodeFilterConfig,
@@ -475,12 +476,26 @@ export function MainSequenceDataNodeFilterWidget({
                   ? "Linked widgets keep reading from this bound source while the dataset refreshes."
                   : "Linked widgets keep reading from this Data Node while the dataset refreshes."
                 : "Linked widgets should read rows from this Data Node instead of querying directly.";
+  const displayedRows =
+    status === "ready"
+      ? (nextRuntimeState?.rows ?? transformedDataset.rows)
+      : (nextRuntimeState?.rows ?? normalizedRuntimeState?.rows ?? []);
+  const displayedColumns =
+    status === "ready"
+      ? (nextRuntimeState?.columns ?? transformedDataset.columns)
+      : (nextRuntimeState?.columns ?? normalizedRuntimeState?.columns ?? requestedColumns);
+  const displayedRangeStartMs =
+    nextRuntimeState?.rangeStartMs ??
+    (status === "ready"
+      ? (linkedDataset?.rangeStartMs ?? resolvedRange.rangeStartMs)
+      : (normalizedRuntimeState?.rangeStartMs ?? linkedDataset?.rangeStartMs ?? resolvedRange.rangeStartMs));
+  const displayedRangeEndMs =
+    nextRuntimeState?.rangeEndMs ??
+    (status === "ready"
+      ? (linkedDataset?.rangeEndMs ?? resolvedRange.rangeEndMs)
+      : (normalizedRuntimeState?.rangeEndMs ?? linkedDataset?.rangeEndMs ?? resolvedRange.rangeEndMs));
   const publishedRowCount =
-    nextRuntimeState?.rows.length ??
-    normalizedRuntimeState?.rows.length ??
-    linkedDataset?.rows.length ??
-    dataQuery.data?.length ??
-    0;
+    displayedRows.length;
   const identifierSummary = resolvedConfig.uniqueIdentifierList?.length
     ? `${resolvedConfig.uniqueIdentifierList.length.toLocaleString()} identifiers`
     : "No identifier selection";
@@ -494,18 +509,7 @@ export function MainSequenceDataNodeFilterWidget({
           : status === "metadata_error"
             ? "Unavailable"
             : "Waiting for dataset";
-  const transformSummary =
-    resolvedConfig.transformMode === "pivot" &&
-    resolvedConfig.pivotField &&
-    resolvedConfig.pivotValueField
-      ? `Pivot ${resolvedConfig.pivotField} -> ${resolvedConfig.pivotValueField} (${resolvedConfig.aggregateMode})`
-      : resolvedConfig.transformMode === "aggregate" &&
-          resolvedConfig.keyFields &&
-          resolvedConfig.keyFields.length > 0
-        ? `Aggregate by ${resolvedConfig.keyFields.join(", ")} (${resolvedConfig.aggregateMode})`
-        : resolvedConfig.projectFields && resolvedConfig.projectFields.length > 0
-          ? `Projected ${resolvedConfig.projectFields.length.toLocaleString()} columns`
-          : "Raw dataset";
+  const transformSummary = formatDataNodeFilterTransformSummary(resolvedConfig);
   const Icon =
     status === "idle" || status === "detail_error" || status === "metadata_error"
       ? Database
@@ -540,12 +544,12 @@ export function MainSequenceDataNodeFilterWidget({
         : (resolvedConfig.dataNodeLabel || (dataNodeId > 0 ? String(dataNodeId) : "Not selected"))
     }`,
     `Range: ${formatRangeSummary(
-      normalizedRuntimeState?.rangeStartMs ?? linkedDataset?.rangeStartMs ?? resolvedRange.rangeStartMs,
-      normalizedRuntimeState?.rangeEndMs ?? linkedDataset?.rangeEndMs ?? resolvedRange.rangeEndMs,
+      displayedRangeStartMs,
+      displayedRangeEndMs,
     )}`,
     `Dataset: ${datasetSummary}`,
     `Transform: ${transformSummary}`,
-    `Columns: ${(nextRuntimeState?.columns.length ?? requestedColumns.length).toLocaleString()} | Limit: ${resolvedConfig.limit.toLocaleString()}`,
+    `Columns: ${displayedColumns.length.toLocaleString()} | Limit: ${resolvedConfig.limit.toLocaleString()}`,
     `Identifiers: ${identifierSummary}`,
   ].join("\n");
 
@@ -578,12 +582,8 @@ export function MainSequenceDataNodeFilterWidget({
             {
               label: "Range",
               value: formatRangeSummary(
-                normalizedRuntimeState?.rangeStartMs ??
-                  linkedDataset?.rangeStartMs ??
-                  resolvedRange.rangeStartMs,
-                normalizedRuntimeState?.rangeEndMs ??
-                  linkedDataset?.rangeEndMs ??
-                  resolvedRange.rangeEndMs,
+                displayedRangeStartMs,
+                displayedRangeEndMs,
               ),
             },
             {
@@ -596,7 +596,7 @@ export function MainSequenceDataNodeFilterWidget({
             },
             {
               label: "Fields",
-              value: `${(nextRuntimeState?.columns.length ?? requestedColumns.length).toLocaleString()} columns`,
+              value: `${displayedColumns.length.toLocaleString()} columns`,
             },
             {
               label: "Identifiers",

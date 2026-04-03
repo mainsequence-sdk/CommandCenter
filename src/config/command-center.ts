@@ -61,6 +61,10 @@ export interface CommandCenterConfig {
     name: string;
     shortName: string;
     notificationsRefreshIntervalMs: number;
+    cache: {
+      appComponentOpenApiDocumentTtlMs: number;
+      appComponentSafeResponseTtlMs: number;
+    };
   };
   branding: {
     logoLightmodeSrc: string;
@@ -127,6 +131,10 @@ interface DefaultCommandCenterConfig {
     name: string;
     short_name: string;
     notifications_refresh_interval_ms: number;
+    cache: {
+      app_component_openapi_document_ttl_ms: number;
+      app_component_safe_response_ttl_ms: number;
+    };
   };
   branding: {
     logo_lightmode: string;
@@ -246,6 +254,10 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     name: "Main Sequence",
     short_name: "Main Sequence",
     notifications_refresh_interval_ms: 300_000,
+    cache: {
+      app_component_openapi_document_ttl_ms: 300_000,
+      app_component_safe_response_ttl_ms: 30_000,
+    },
   },
   branding: {
     logo_lightmode: "logo_lightmode.png",
@@ -455,6 +467,7 @@ function getNestedObject(source: Record<string, unknown>, key: string): Record<s
 
 const parsedConfig = parseSimpleYaml(rawCommandCenterConfig) as Record<string, unknown>;
 const parsedApp = getNestedObject(parsedConfig, "app");
+const parsedAppCache = getNestedObject(parsedApp, "cache");
 const parsedBranding = getNestedObject(parsedConfig, "branding");
 const parsedPreferences = getNestedObject(parsedConfig, "preferences");
 const parsedWorkspaces = getNestedObject(parsedConfig, "workspaces");
@@ -494,6 +507,16 @@ export const commandCenterConfig: CommandCenterConfig = {
       parsedApp.notifications_refresh_interval_ms,
       defaultRawConfig.app.notifications_refresh_interval_ms,
     ),
+    cache: {
+      appComponentOpenApiDocumentTtlMs: readNumber(
+        parsedAppCache.app_component_openapi_document_ttl_ms,
+        defaultRawConfig.app.cache.app_component_openapi_document_ttl_ms,
+      ),
+      appComponentSafeResponseTtlMs: readNumber(
+        parsedAppCache.app_component_safe_response_ttl_ms,
+        defaultRawConfig.app.cache.app_component_safe_response_ttl_ms,
+      ),
+    },
   },
   branding: {
     logoLightmodeSrc:

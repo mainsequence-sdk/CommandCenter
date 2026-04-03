@@ -24,7 +24,8 @@ data-node metadata and remote rows.
   dashboard execution coordinator before they render. Canonically bound source values that are
   present but still publish `status: "idle"` or `status: "loading"` also stay in that pending
   state, so passive consumers do not treat an empty placeholder dataset as a resolved source. The
-  source layer does not assemble request fingerprints or walk the graph itself.
+  source layer does not assemble request fingerprints or walk the graph itself. Widget settings
+  should now rely on this provider/execution path instead of hidden sibling widget mounts.
 - `widgetBindings.ts`: shared binding ids for Data Node-family composition.
 - `DataNodePreviewTable.tsx`: reusable simple table preview used inside settings flows that inspect
   fetched data-node rows without mounting the full table formatter widget.
@@ -55,7 +56,9 @@ pattern should hold no matter how many Data Nodes are linked together.
 Recursive upstream execution also follows that same rule now: downstream passive widgets ask the
 shared dashboard execution layer to resolve upstream sources, and the execution layer walks through
 passive hops until it finds executable ancestors. Widgets in this folder should not special-case
-`AppComponent` or any other source type.
+`AppComponent` or any other source type. `main-sequence-data-node` is now one of those executable
+ancestors, so Data Node-family settings no longer need the old offscreen full-workspace mount to
+materialize source runtime.
 
 Keep the consumer contract explicit:
 

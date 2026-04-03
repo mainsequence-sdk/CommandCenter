@@ -14,6 +14,7 @@ import {
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
+  APP_COMPONENT_OPENAPI_CACHE_TTL_MS,
   buildAppComponentOpenApiQueryKey,
   fetchAppComponentOpenApiDocument,
 } from "./appComponentApi";
@@ -81,7 +82,7 @@ export function AppComponentWidget({
         authMode: normalizedProps.authMode,
       }),
     enabled: resolvedBaseUrl !== null,
-    staleTime: 300_000,
+    staleTime: APP_COMPONENT_OPENAPI_CACHE_TTL_MS,
   });
   const resolvedOperation = useMemo(
     () =>

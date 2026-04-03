@@ -159,7 +159,7 @@ Status: `todo`
 
 ### 4. Hidden mounting of the whole workspace in settings
 
-Current behavior:
+Previous behavior:
 
 - `CustomWidgetSettingsPage.tsx` hidden-mounts all widgets in the workspace to keep runtime outputs,
   controller context, and executable dependencies available.
@@ -170,24 +170,36 @@ Why this is a problem:
 - Hidden widgets still run hooks, queries, controller logic, and execution checks.
 - Settings becomes much slower than it needs to be.
 
-Planned fix:
+Implemented fix:
 
 - Replace hidden mounting with a headless runtime host.
 - The settings route should use:
   - dependency provider
   - execution provider
-  - widget controller context
+- widget controller context
   without mounting every widget component.
 - Only the edited widget and any explicitly rendered preview surface should mount.
+- `main-sequence-data-node` now provides headless source publication through a first-class
+  execution contract, so Data Node-family settings no longer depend on sibling component mounts.
+- widget execution contexts now carry dashboard control state so headless settings execution still
+  sees the active workspace time range.
 
-Status: `todo`
+Investigation:
+
+- See [Workspace Settings Headless Runtime Investigation](./workspace-settings-headless-runtime-investigation.md).
+- The investigation confirmed that the main blocker is not the generic settings shell. It is the
+  Data Node source family, which still materializes published dataset runtime through mounted
+  widget component side effects.
+
+Status: `implemented`
 
 ## Fix order
 
 1. Remove `JSON.stringify(...)` render-time dirty checks.
 2. Introduce dependency topology vs resolution-cache split.
 3. Add cached upstream-resolution requirements at the provider level.
-4. Remove hidden full-workspace mounting from settings.
+4. Remove hidden full-workspace mounting from settings. Completed on 2026-04-03 through headless
+   Data Node execution plus provider-backed widget settings.
 
 This order matters:
 

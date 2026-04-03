@@ -24,12 +24,14 @@ export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNode
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
+    minBarSpacingPx: 0.01,
   },
   mockProps: {
     sourceMode: "filter_widget",
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
+    minBarSpacingPx: 0.01,
   },
   io: {
     inputs: [

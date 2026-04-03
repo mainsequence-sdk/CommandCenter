@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ArrowLeft, Save } from "lucide-react";
 
 import { getWidgetById } from "@/app/registry";
-import { hasAllPermissions } from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DashboardControlsProvider } from "@/dashboards/DashboardControls";
@@ -32,7 +31,7 @@ import {
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
-import type { WidgetInstancePresentation } from "@/widgets/types";
+import { WorkspaceSavingStatus } from "./WorkspaceChrome";
 
 function getWidgetSettingsTabClassName(active: boolean) {
   return active
@@ -74,10 +73,13 @@ function shouldRepairAppComponentBindingSpec(props: AppComponentWidgetProps) {
   );
 }
 
-export function CustomWidgetSettingsPage() {
+export function CustomWidgetSettingsPage({
+  embedded = false,
+}: {
+  embedded?: boolean;
+} = {}) {
   const {
     user,
-    permissions,
     savedCollection,
     isSaving,
     persistenceMode,
@@ -312,74 +314,10 @@ export function CustomWidgetSettingsPage() {
     );
   }
 
-  return (
-    <DashboardControlsProvider
-      key={selectedDashboard.id}
-      controls={selectedDashboard.controls}
-      onStateChange={(state) => {
-        updateSelectedWorkspace((dashboard) => updateDashboardControlsState(dashboard, state));
-      }}
-    >
-      <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
-        <DashboardWidgetExecutionProvider
-          scopeId={selectedDashboard.id}
-          widgets={resolvedDashboard.widgets}
-          writeRuntimeState={(instanceId, runtimeState) => {
-            updateSelectedWorkspace((dashboard) =>
-              updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
-            );
-          }}
-        >
-          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
-            <div className="relative h-full overflow-hidden">
-            <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
-              {resolvedDashboard.widgets.map((mountedInstance) => {
-                const mountedWidget = getWidgetById(mountedInstance.widgetId);
-
-                if (!mountedWidget) {
-                  return null;
-                }
-
-                const required = [
-                  ...(mountedWidget.requiredPermissions ?? []),
-                  ...(mountedInstance.requiredPermissions ?? []),
-                ];
-
-                if (!hasAllPermissions(permissions, required)) {
-                  return null;
-                }
-
-                const Component = mountedWidget.component as ComponentType<{
-                  widget: typeof mountedWidget;
-                  instanceId?: string;
-                  instanceTitle?: string;
-                  props: Record<string, unknown>;
-                  presentation?: WidgetInstancePresentation;
-                  runtimeState?: Record<string, unknown>;
-                  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-                }>;
-
-                return (
-                  <div key={mountedInstance.id} className="h-px w-px overflow-hidden">
-                    <Component
-                      widget={mountedWidget}
-                      instanceId={mountedInstance.id}
-                      instanceTitle={mountedInstance.title}
-                      props={mountedInstance.props ?? {}}
-                      presentation={mountedInstance.presentation}
-                      runtimeState={mountedInstance.runtimeState}
-                      onRuntimeStateChange={(state) => {
-                        updateSelectedWorkspace((dashboard) =>
-                          updateDashboardWidgetRuntimeState(dashboard, mountedInstance.id, state),
-                        );
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-            <div className="h-full overflow-y-auto px-4 py-4 pb-10 md:px-6 md:py-6">
-              <div className="mx-auto max-w-6xl space-y-6">
+  const pageContent = (
+    <div className="relative h-full overflow-hidden">
+      <div className="h-full overflow-y-auto px-4 py-4 pb-10 md:px-6 md:py-6">
+        <div className="mx-auto max-w-6xl space-y-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-3">
                     <Button variant="outline" onClick={openDashboardView}>
@@ -411,7 +349,9 @@ export function CustomWidgetSettingsPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {selectedWorkspaceSettingsDirty ? (
+                    {isSaving ? (
+                      <WorkspaceSavingStatus className="bg-card/55" />
+                    ) : selectedWorkspaceSettingsDirty ? (
                       <Badge variant="warning">Unsaved workspace draft</Badge>
                     ) : (
                       <Badge variant="success">Workspace saved</Badge>
@@ -575,9 +515,39 @@ export function CustomWidgetSettingsPage() {
                     />
                   </DashboardWidgetDependenciesProvider>
                 ) : null}
-              </div>
-            </div>
-          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="absolute inset-0 z-[70] overflow-hidden bg-background/92 backdrop-blur-xl">
+        {pageContent}
+      </div>
+    );
+  }
+
+  return (
+    <DashboardControlsProvider
+      key={selectedDashboard.id}
+      controls={selectedDashboard.controls}
+      onStateChange={(state) => {
+        updateSelectedWorkspace((dashboard) => updateDashboardControlsState(dashboard, state));
+      }}
+    >
+      <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
+        <DashboardWidgetExecutionProvider
+          scopeId={selectedDashboard.id}
+          widgets={resolvedDashboard.widgets}
+          writeRuntimeState={(instanceId, runtimeState) => {
+            updateSelectedWorkspace((dashboard) =>
+              updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+            );
+          }}
+        >
+          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+            {pageContent}
           </DashboardWidgetDependenciesProvider>
         </DashboardWidgetExecutionProvider>
       </DashboardWidgetRegistryProvider>

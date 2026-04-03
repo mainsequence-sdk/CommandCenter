@@ -9,6 +9,7 @@ import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
   WidgetDefinition,
+  WidgetExecutionDashboardState,
   WidgetExecutionContext,
   WidgetExecutionReason,
   WidgetExecutionResult,
@@ -395,6 +396,7 @@ export interface ExecuteDashboardWidgetGraphArgs {
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
   targetInstanceId: string;
   reason: WidgetExecutionReason;
+  dashboardState?: WidgetExecutionDashboardState;
   refreshCycleId?: string;
   targetOverrides?: WidgetExecutionTargetOverrides;
   signal?: AbortSignal;
@@ -516,6 +518,7 @@ export async function executeDashboardWidgetGraph(
       props: (instance.props ?? {}) as Record<string, unknown>,
       runtimeState: instance.runtimeState,
       resolvedInputs: snapshot.dependencies.resolveInputs(instanceId),
+      dashboardState: args.dashboardState,
       targetOverrides:
         instanceId === args.targetInstanceId ? args.targetOverrides : undefined,
       refreshCycleId: args.refreshCycleId,
@@ -651,6 +654,7 @@ export async function executeDashboardWidgetGraph(
 export function listDashboardRefreshableExecutionTargets(args: {
   widgets: DashboardWidgetInstance[];
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
+  dashboardState?: WidgetExecutionDashboardState;
   refreshCycleId: string;
 }) {
   const snapshot = buildDashboardExecutionSnapshot({
@@ -669,6 +673,7 @@ export function listDashboardRefreshableExecutionTargets(args: {
         props: (instance.props ?? {}) as Record<string, unknown>,
         runtimeState: instance.runtimeState,
         resolvedInputs: snapshot.dependencies.resolveInputs(instance.id),
+        dashboardState: args.dashboardState,
         refreshCycleId: args.refreshCycleId,
       } satisfies WidgetExecutionContext;
       const refreshPolicy =

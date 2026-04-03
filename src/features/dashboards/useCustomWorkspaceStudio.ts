@@ -8,10 +8,15 @@ import { resolveDashboardLayout } from "@/dashboards/layout";
 import type { DashboardDefinition } from "@/dashboards/types";
 import {
   createBlankDashboard,
+  sanitizeDashboardDefinition,
   type UserDashboardCollection,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudioStore } from "./custom-workspace-studio-store";
 import { getWorkspacePersistenceMode } from "./workspace-persistence";
+import {
+  summarizeDashboardForWorkspaceList,
+  type WorkspaceListItemSummary,
+} from "./workspace-list-summary";
 
 export function useCustomWorkspaceStudio() {
   const user = useAuthStore((state) => state.session?.user);
@@ -35,6 +40,11 @@ export function useCustomWorkspaceStudio() {
   const hydratingUserId = useCustomWorkspaceStudioStore((state) => state.hydratingUserId);
   const isHydrating = useCustomWorkspaceStudioStore((state) => state.isHydrating);
   const isSaving = useCustomWorkspaceStudioStore((state) => state.isSaving);
+  const loadingWorkspaceId = useCustomWorkspaceStudioStore((state) => state.loadingWorkspaceId);
+  const workspaceLoadErrorById = useCustomWorkspaceStudioStore(
+    (state) => state.workspaceLoadErrorById,
+  );
+  const persistedWorkspaceListItems = useCustomWorkspaceStudioStore((state) => state.workspaceListItems);
   const error = useCustomWorkspaceStudioStore((state) => state.error);
   const workspaceEditorModeById = useCustomWorkspaceStudioStore(
     (state) => state.workspaceEditorModeById,
@@ -44,7 +54,8 @@ export function useCustomWorkspaceStudio() {
   const createPersistedWorkspace = useCustomWorkspaceStudioStore((state) => state.createWorkspace);
   const deletePersistedWorkspace = useCustomWorkspaceStudioStore((state) => state.deleteWorkspace);
   const resetDraftCollection = useCustomWorkspaceStudioStore((state) => state.resetDraftCollection);
-  const saveDraftCollection = useCustomWorkspaceStudioStore((state) => state.saveDraftCollection);
+  const saveWorkspace = useCustomWorkspaceStudioStore((state) => state.saveWorkspace);
+  const loadWorkspaceDetail = useCustomWorkspaceStudioStore((state) => state.loadWorkspaceDetail);
   const setWorkspaceEditing = useCustomWorkspaceStudioStore((state) => state.setWorkspaceEditing);
 
   useEffect(() => {
@@ -57,6 +68,20 @@ export function useCustomWorkspaceStudio() {
         ? (draftCollection.dashboards.find((dashboard) => dashboard.id === requestedWorkspaceId) ?? null)
         : null,
     [draftCollection, requestedWorkspaceId],
+  );
+  const workspaceListItems = useMemo(
+    () =>
+      persistenceMode === "backend"
+        ? persistedWorkspaceListItems
+        : draftCollection.dashboards.map((dashboard) => summarizeDashboardForWorkspaceList(dashboard)),
+    [draftCollection.dashboards, persistedWorkspaceListItems, persistenceMode],
+  );
+  const requestedWorkspaceListed = useMemo(
+    () =>
+      requestedWorkspaceId
+        ? workspaceListItems.some((workspace) => workspace.id === requestedWorkspaceId)
+        : false,
+    [requestedWorkspaceId, workspaceListItems],
   );
 
   useEffect(() => {
@@ -73,6 +98,31 @@ export function useCustomWorkspaceStudio() {
     nextParams.delete("widget");
     setSearchParams(nextParams, { replace: true });
   }, [requestedWidgetId, searchParams, selectedWorkspaceView, setSearchParams]);
+
+  useEffect(() => {
+    if (
+      persistenceMode !== "backend" ||
+      !requestedWorkspaceId ||
+      selectedDashboard ||
+      !requestedWorkspaceListed ||
+      !initializedUserId ||
+      loadingWorkspaceId === requestedWorkspaceId ||
+      workspaceLoadErrorById[requestedWorkspaceId]
+    ) {
+      return;
+    }
+
+    void loadWorkspaceDetail(requestedWorkspaceId);
+  }, [
+    initializedUserId,
+    loadWorkspaceDetail,
+    loadingWorkspaceId,
+    persistenceMode,
+    requestedWorkspaceId,
+    requestedWorkspaceListed,
+    selectedDashboard,
+    workspaceLoadErrorById,
+  ]);
 
   const resolvedDashboard = useMemo(
     () => (selectedDashboard ? resolveDashboardLayout(selectedDashboard) : null),
@@ -106,22 +156,30 @@ export function useCustomWorkspaceStudio() {
       Boolean(
         user?.id &&
         requestedWorkspaceId &&
-        (initializedUserId !== user.id || hydratingUserId === user.id || isHydrating),
+        (
+          initializedUserId !== user.id ||
+          hydratingUserId === user.id ||
+          isHydrating ||
+          loadingWorkspaceId === requestedWorkspaceId
+        ),
       ),
-    [hydratingUserId, initializedUserId, isHydrating, requestedWorkspaceId, user?.id],
+    [hydratingUserId, initializedUserId, isHydrating, loadingWorkspaceId, requestedWorkspaceId, user?.id],
   );
   const requestedWorkspaceMissing = useMemo(
     () =>
       Boolean(
         requestedWorkspaceId &&
         !workspaceSelectionPending &&
-        !selectedDashboard,
+        !selectedDashboard &&
+        (persistenceMode === "backend" ? !requestedWorkspaceListed : true),
       ),
-    [requestedWorkspaceId, selectedDashboard, workspaceSelectionPending],
-  );
-  const workspaceListCollection = useMemo(
-    () => (persistenceMode === "backend" ? savedCollection : draftCollection),
-    [draftCollection, persistenceMode, savedCollection],
+    [
+      persistenceMode,
+      requestedWorkspaceId,
+      requestedWorkspaceListed,
+      selectedDashboard,
+      workspaceSelectionPending,
+    ],
   );
   function setSelectedWorkspaceId(workspaceId: string | null) {
     const nextParams = new URLSearchParams(searchParams);
@@ -179,14 +237,16 @@ export function useCustomWorkspaceStudio() {
     updateDraftCollection((current) => ({
       ...current,
       dashboards: current.dashboards.map((dashboard) =>
-        dashboard.id === selectedDashboard?.id ? updater(dashboard) : dashboard,
+        dashboard.id === selectedDashboard?.id
+          ? sanitizeDashboardDefinition(updater(dashboard))
+          : dashboard,
       ),
     }));
   }
 
   async function createWorkspace(name?: string) {
     const nextDashboard = createBlankDashboard(
-      name || `Workspace ${draftCollection.dashboards.length + 1}`,
+      name || `Workspace ${workspaceListItems.length + 1}`,
     );
     return createWorkspaceFromDefinition(nextDashboard);
   }
@@ -220,9 +280,19 @@ export function useCustomWorkspaceStudio() {
   }
 
   async function saveWorkspaceDraft() {
-    const savedCollection = await saveDraftCollection();
+    if (!selectedDashboard) {
+      toast({
+        title: "Save failed",
+        description: "No workspace is currently selected.",
+        variant: "error",
+      });
 
-    if (!savedCollection) {
+      return null;
+    }
+
+    const savedWorkspace = await saveWorkspace(selectedDashboard.id);
+
+    if (!savedWorkspace) {
       const latestError =
         useCustomWorkspaceStudioStore.getState().error ?? "Unable to save workspace.";
 
@@ -235,9 +305,6 @@ export function useCustomWorkspaceStudio() {
       return null;
     }
 
-    const savedWorkspace = selectedDashboard
-      ? (savedCollection.dashboards.find((dashboard) => dashboard.id === selectedDashboard.id) ?? null)
-      : null;
     const savedWorkspaceTitle = savedWorkspace?.title ?? selectedDashboard?.title ?? "Workspace";
 
     toast({
@@ -246,7 +313,7 @@ export function useCustomWorkspaceStudio() {
       variant: "success",
     });
 
-    return savedCollection;
+    return savedWorkspace;
   }
 
   return {
@@ -254,7 +321,7 @@ export function useCustomWorkspaceStudio() {
     permissions,
     savedCollection,
     draftCollection,
-    workspaceListCollection,
+    workspaceListItems,
     isHydrating,
     isSaving,
     error,
@@ -280,6 +347,7 @@ export function useCustomWorkspaceStudio() {
     createWorkspace,
     createWorkspaceFromDefinition,
     deleteSelectedWorkspace,
+    loadWorkspaceDetail,
     resetWorkspaceDraft,
     saveWorkspaceDraft,
   };
@@ -288,7 +356,7 @@ export function useCustomWorkspaceStudio() {
 export type CustomWorkspaceStudioState = {
   savedCollection: UserDashboardCollection;
   draftCollection: UserDashboardCollection;
-  workspaceListCollection: UserDashboardCollection;
+  workspaceListItems: WorkspaceListItemSummary[];
   isHydrating: boolean;
   isSaving: boolean;
   error: string | null;

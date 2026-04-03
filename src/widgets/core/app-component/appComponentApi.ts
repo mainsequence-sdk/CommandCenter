@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/auth/auth-store";
+import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
@@ -12,9 +13,86 @@ import {
 } from "./appComponentModel";
 
 const appComponentProxyPrefix = "/__app_component_proxy__";
+export const APP_COMPONENT_OPENAPI_CACHE_TTL_MS =
+  commandCenterConfig.app.cache.appComponentOpenApiDocumentTtlMs;
+export const APP_COMPONENT_SAFE_RESPONSE_CACHE_TTL_MS =
+  commandCenterConfig.app.cache.appComponentSafeResponseTtlMs;
+
+interface CachedEntry<T> {
+  expiresAt: number;
+  value: T;
+}
+
+interface AppComponentResponseCacheOptions {
+  enabled?: boolean;
+  ttlMs?: number;
+}
+
+const openApiDocumentCache = new Map<string, CachedEntry<OpenApiDocument>>();
+const inFlightOpenApiRequests = new Map<string, Promise<OpenApiDocument>>();
+const safeResponseCache = new Map<string, CachedEntry<AppComponentTransportResponse>>();
+const inFlightSafeResponses = new Map<string, Promise<AppComponentTransportResponse>>();
 
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
+}
+
+function cloneSerializable<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function isSafeCacheableMethod(method: string) {
+  const normalizedMethod = method.trim().toUpperCase();
+  return normalizedMethod === "GET" || normalizedMethod === "HEAD";
+}
+
+function pruneExpiredEntry<T>(cache: Map<string, CachedEntry<T>>, key: string) {
+  const cachedEntry = cache.get(key);
+
+  if (!cachedEntry) {
+    return null;
+  }
+
+  if (cachedEntry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+
+  return cachedEntry;
+}
+
+function buildOpenApiCacheKey(baseUrl: string, authMode: AppComponentAuthMode) {
+  const session = useAuthStore.getState().session;
+  const userId = session?.user.id ?? "anonymous";
+  return `${userId}::${authMode}::${baseUrl}`;
+}
+
+async function sha256Hex(value: string) {
+  const encoder = new TextEncoder();
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(value));
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function buildSafeResponseCacheKey({
+  authMode,
+  body,
+  method,
+  url,
+}: {
+  authMode: AppComponentAuthMode;
+  body?: string;
+  method: string;
+  url: string;
+}) {
+  const session = useAuthStore.getState().session;
+  const userId = session?.user.id ?? "anonymous";
+  const normalizedMethod = method.trim().toUpperCase();
+  const bodyHash = await sha256Hex(body ?? "");
+
+  return `${userId}::${authMode}::${normalizedMethod}::${url}::${bodyHash}`;
 }
 
 function buildTransportUrl(requestUrl: string) {
@@ -250,32 +328,60 @@ export async function fetchAppComponentOpenApiDocument({
     return appComponentMockOpenApiDocument satisfies OpenApiDocument;
   }
 
+  const openApiCacheKey = buildOpenApiCacheKey(resolvedBaseUrl, normalizedAuthMode);
+  const cachedDocument = pruneExpiredEntry(openApiDocumentCache, openApiCacheKey);
+
+  if (cachedDocument) {
+    return cloneSerializable(cachedDocument.value);
+  }
+
+  const inFlightDocumentRequest = inFlightOpenApiRequests.get(openApiCacheKey);
+
+  if (inFlightDocumentRequest) {
+    return cloneSerializable(await inFlightDocumentRequest);
+  }
+
   const openApiUrl = buildAppComponentOpenApiUrl(resolvedBaseUrl);
 
   if (!openApiUrl) {
     throw new Error("AppComponent requires a valid API URL.");
   }
 
-  const response = await sendAuthenticatedRequest(openApiUrl, {
-    authMode: normalizedAuthMode,
-  });
-  const payload = await readResponseBody(response);
+  const requestPromise = (async () => {
+    const response = await sendAuthenticatedRequest(openApiUrl, {
+      authMode: normalizedAuthMode,
+    });
+    const payload = await readResponseBody(response);
 
-  if (!response.ok) {
-    throw new Error(
-      typeof payload === "string"
-        ? payload
-        : response.status === 401
-          ? "OpenAPI request was rejected. Refresh the session or verify the target API."
-          : `OpenAPI request failed with ${response.status}.`,
-    );
+    if (!response.ok) {
+      throw new Error(
+        typeof payload === "string"
+          ? payload
+          : response.status === 401
+            ? "OpenAPI request was rejected. Refresh the session or verify the target API."
+            : `OpenAPI request failed with ${response.status}.`,
+      );
+    }
+
+    if (!payload || typeof payload !== "object" || !("paths" in payload)) {
+      throw new Error("The target /openapi.json response did not look like an OpenAPI document.");
+    }
+
+    const document = payload as OpenApiDocument;
+    openApiDocumentCache.set(openApiCacheKey, {
+      expiresAt: Date.now() + APP_COMPONENT_OPENAPI_CACHE_TTL_MS,
+      value: cloneSerializable(document),
+    });
+    return document;
+  })();
+
+  inFlightOpenApiRequests.set(openApiCacheKey, requestPromise);
+
+  try {
+    return cloneSerializable(await requestPromise);
+  } finally {
+    inFlightOpenApiRequests.delete(openApiCacheKey);
   }
-
-  if (!payload || typeof payload !== "object" || !("paths" in payload)) {
-    throw new Error("The target /openapi.json response did not look like an OpenAPI document.");
-  }
-
-  return payload as OpenApiDocument;
 }
 
 export async function submitAppComponentRequest({
@@ -284,27 +390,88 @@ export async function submitAppComponentRequest({
   url,
   headers,
   body,
+  cache,
 }: {
   authMode?: AppComponentAuthMode;
   method: string;
   url: string;
   headers?: Record<string, string>;
   body?: string;
+  cache?: AppComponentResponseCacheOptions;
 }) {
   const normalizedAuthMode = normalizeAppComponentAuthMode(authMode);
+  const normalizedMethod = method.trim().toUpperCase();
+  const shouldUseSafeResponseCache =
+    cache?.enabled === true && isSafeCacheableMethod(normalizedMethod);
 
   if (env.useMockData || isWidgetPreviewMode()) {
     return submitMockRequest({
-      method,
+      method: normalizedMethod,
       url,
       body,
     });
   }
 
+  if (shouldUseSafeResponseCache) {
+    const cacheKey = await buildSafeResponseCacheKey({
+      authMode: normalizedAuthMode,
+      body,
+      method: normalizedMethod,
+      url,
+    });
+    const cachedResponse = pruneExpiredEntry(safeResponseCache, cacheKey);
+
+    if (cachedResponse) {
+      return cloneSerializable(cachedResponse.value);
+    }
+
+    const inFlightResponse = inFlightSafeResponses.get(cacheKey);
+
+    if (inFlightResponse) {
+      return cloneSerializable(await inFlightResponse);
+    }
+
+    const requestPromise = (async () => {
+      const response = await sendAuthenticatedRequest(url, {
+        authMode: normalizedAuthMode,
+        init: {
+          method: normalizedMethod,
+          headers,
+          body,
+        },
+      });
+      const normalizedResponse = {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        url,
+        headers: readHeaders(response),
+        body: await readResponseBody(response),
+      } satisfies AppComponentTransportResponse;
+
+      if (normalizedResponse.ok) {
+        safeResponseCache.set(cacheKey, {
+          expiresAt: Date.now() + (cache?.ttlMs ?? APP_COMPONENT_SAFE_RESPONSE_CACHE_TTL_MS),
+          value: cloneSerializable(normalizedResponse),
+        });
+      }
+
+      return normalizedResponse;
+    })();
+
+    inFlightSafeResponses.set(cacheKey, requestPromise);
+
+    try {
+      return cloneSerializable(await requestPromise);
+    } finally {
+      inFlightSafeResponses.delete(cacheKey);
+    }
+  }
+
   const response = await sendAuthenticatedRequest(url, {
     authMode: normalizedAuthMode,
     init: {
-      method,
+      method: normalizedMethod,
       headers,
       body,
     },

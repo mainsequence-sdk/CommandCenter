@@ -102,6 +102,30 @@ Implemented:
   explicit ramps like `Jet`, `Turbo`, `Viridis`, `Plasma`, `Inferno`, `Magma`,
   `Blue-White-Red`, and `Red-Yellow-Green`, while `Auto` defaults to a diverging palette for
   mixed-sign columns and `Viridis` for sequential columns.
+- Added a reusable `unpivot` transform mode to the Main Sequence `Data Node` widget. Wide datasets
+  can now be melted into long-form rows by selecting key fields, value columns, and output field
+  names (default `series` / `value`) in the shared Data Node settings panel. The graph widget
+  remains long-format-first and now documents `Unpivot` as the canonical upstream path for wide
+  chartable data.
+- Added a `Select all value columns` shortcut to the Data Node `Unpivot` settings so wide datasets
+  can be melted quickly after the user chooses the key fields.
+- Added an explicit `Time axis mode` to the Data Node Graph widget with `Auto`, `Date`, and
+  `DateTime` options. The renderer now uses daily date semantics for date-only X fields instead of
+  forcing every series through the intraday timestamp path, and graph settings previews bound to
+  another `Data Node` now prefer the linked dataset's published range in the preview header.
+- Fixed the headless Data Node published-output contract so it preserves
+  `rangeStartMs` / `rangeEndMs` / `updatedAtMs` from the current Data Node dataset. That unblocks
+  downstream widgets like the Data Node Graph from showing the actual upstream dataset range in
+  settings previews instead of falling back to the dashboard range.
+- Fixed a stale Data Node rail-summary bug so the workspace hover now prefers the current
+  published dataset rows/columns/range instead of stale runtime state when reporting dataset size.
+- Exposed TradingView `minBarSpacing` as a first-class X-axis setting on the Data Node Graph and
+  lowered the hidden default to `0.01px` for new graph instances. The previous hidden TradingView
+  default (`0.5px`) could only fit roughly the last few years of a long daily series into a narrow
+  widget, even when the full history was already loaded.
+- Corrected the Data Node Graph line-style ownership: TradingView line styles are now stored in
+  per-series overrides, not as one widget-level setting. Each resolved series can now keep its own
+  stroke style alongside its per-series color override.
 
 Still missing:
 - Keep `Data Node` sidebar-only by product decision. Do not remove its effective compact/sidebar policy from the workspace model.

@@ -27,7 +27,10 @@ const defaultDataNodeFilterLimit = defaultDataNodePublishedDatasetLimit;
 
 export type DataNodeFilterChromeMode = "default" | "minimal";
 export type DataNodeGroupAggregateMode = "first" | "last" | "sum" | "mean" | "min" | "max";
-export type DataNodeTransformMode = "none" | "aggregate" | "pivot";
+export type DataNodeTransformMode = "none" | "aggregate" | "pivot" | "unpivot";
+
+const defaultUnpivotFieldName = "series";
+const defaultUnpivotValueFieldName = "value";
 
 function normalizePositiveInteger(value: unknown) {
   const parsed = Number(value);
@@ -119,7 +122,41 @@ function normalizeGroupAggregateMode(value: unknown): DataNodeGroupAggregateMode
 }
 
 function normalizeTransformMode(value: unknown): DataNodeTransformMode {
-  return value === "aggregate" || value === "pivot" ? value : "none";
+  return value === "aggregate" || value === "pivot" || value === "unpivot" ? value : "none";
+}
+
+function normalizeOutputFieldName(value: unknown, fallback: string) {
+  if (typeof value !== "string" || !value.trim()) {
+    return fallback;
+  }
+
+  return value.trim();
+}
+
+function createUniqueOutputFieldName(
+  requestedName: string,
+  reservedNames: Iterable<string>,
+  fallbackBase: string,
+) {
+  const reserved = new Set(
+    [...reservedNames].filter((entry) => typeof entry === "string" && entry.trim()).map((entry) => entry.trim()),
+  );
+
+  if (!reserved.has(requestedName)) {
+    return requestedName;
+  }
+
+  if (!reserved.has(fallbackBase)) {
+    return fallbackBase;
+  }
+
+  let suffix = 2;
+
+  while (reserved.has(`${fallbackBase}_${suffix}`)) {
+    suffix += 1;
+  }
+
+  return `${fallbackBase}_${suffix}`;
 }
 
 export interface MainSequenceDataNodeFilterWidgetProps
@@ -134,6 +171,9 @@ export interface MainSequenceDataNodeFilterWidgetProps
   projectFields?: string[];
   showHeader?: boolean;
   transformMode?: DataNodeTransformMode;
+  unpivotFieldName?: string;
+  unpivotValueFieldName?: string;
+  unpivotValueFields?: string[];
 }
 
 export interface ResolvedDataNodeFilterConfig extends ResolvedDataNodeWidgetSourceConfig {
@@ -144,6 +184,9 @@ export interface ResolvedDataNodeFilterConfig extends ResolvedDataNodeWidgetSour
   pivotValueField?: string;
   projectFields?: string[];
   transformMode: DataNodeTransformMode;
+  unpivotFieldName: string;
+  unpivotValueFieldName: string;
+  unpivotValueFields?: string[];
 }
 
 export type DataNodeFilterRuntimeState = DataNodePublishedDataset;
@@ -175,6 +218,7 @@ export function resolveDataNodePublishedOutput(args: {
   const runtimeDataset = normalizeDataNodeFilterRuntimeState(args.runtimeState);
   const resolvedSourceInput = resolveDataNodeSourceInput(args.resolvedInputs);
   const resolvedSourceFrame = normalizeTabularFrameSource(resolvedSourceInput?.value);
+  const resolvedSourceDataset = normalizeDataNodePublishedDataset(resolvedSourceInput?.value);
 
   if (!resolvedSourceFrame) {
     const status =
@@ -195,6 +239,9 @@ export function resolveDataNodePublishedOutput(args: {
         columns: runtimeDataset?.columns ?? [],
         rows: runtimeDataset?.rows ?? [],
       }),
+      rangeStartMs: runtimeDataset?.rangeStartMs ?? null,
+      rangeEndMs: runtimeDataset?.rangeEndMs ?? null,
+      updatedAtMs: runtimeDataset?.updatedAtMs,
       source: buildMainSequenceDataSourceDescriptor({
         dataNodeId:
           typeof normalizedProps.dataNodeId === "number"
@@ -243,6 +290,17 @@ export function resolveDataNodePublishedOutput(args: {
       transformedDataset?.availableFields ??
       runtimeDataset?.fields ??
       sourceFieldOptions,
+    rangeStartMs:
+      resolvedSourceDataset?.rangeStartMs ??
+      runtimeDataset?.rangeStartMs ??
+      null,
+    rangeEndMs:
+      resolvedSourceDataset?.rangeEndMs ??
+      runtimeDataset?.rangeEndMs ??
+      null,
+    updatedAtMs:
+      resolvedSourceDataset?.updatedAtMs ??
+      runtimeDataset?.updatedAtMs,
     source: buildMainSequenceDataSourceDescriptor({
       dataNodeId:
         typeof normalizedProps.dataNodeId === "number"
@@ -270,16 +328,32 @@ export function resolveDataNodeFilterConfig(
       ? fieldOptionsOverride
       : sourceConfig.availableFields;
 
+  const resolvedKeyFields = normalizeGroupByFields(
+    props.keyFields,
+    availableFields.map((field) => field.key),
+  );
+  const requestedUnpivotFieldName = normalizeOutputFieldName(
+    props.unpivotFieldName,
+    defaultUnpivotFieldName,
+  );
+  const unpivotFieldName = createUniqueOutputFieldName(
+    requestedUnpivotFieldName,
+    resolvedKeyFields ?? [],
+    defaultUnpivotFieldName,
+  );
+  const unpivotValueFieldName = createUniqueOutputFieldName(
+    normalizeOutputFieldName(props.unpivotValueFieldName, defaultUnpivotValueFieldName),
+    [...(resolvedKeyFields ?? []), unpivotFieldName],
+    defaultUnpivotValueFieldName,
+  );
+
   return {
     ...sourceConfig,
     availableFields,
     sourceMode: sourceReference.sourceMode,
     sourceWidgetId: sourceReference.sourceWidgetId,
     aggregateMode: normalizeGroupAggregateMode(props.aggregateMode),
-    keyFields: normalizeGroupByFields(
-      props.keyFields,
-      availableFields.map((field) => field.key),
-    ),
+    keyFields: resolvedKeyFields,
     pivotField: normalizeOptionalFieldKey(
       props.pivotField,
       availableFields.map((field) => field.key),
@@ -289,6 +363,12 @@ export function resolveDataNodeFilterConfig(
       availableFields.map((field) => field.key),
     ),
     projectFields: normalizeGroupByFields(props.projectFields),
+    unpivotFieldName,
+    unpivotValueFieldName,
+    unpivotValueFields: normalizeGroupByFields(
+      props.unpivotValueFields,
+      availableFields.map((field) => field.key),
+    ),
     transformMode:
       normalizeTransformMode(props.transformMode) === "none"
         ? props.pivotField && props.pivotValueField
@@ -319,6 +399,9 @@ export function normalizeDataNodeFilterProps(
     projectFields: resolved.projectFields,
     showHeader: props.showHeader === true,
     transformMode: resolved.transformMode,
+    unpivotFieldName: resolved.unpivotFieldName,
+    unpivotValueFieldName: resolved.unpivotValueFieldName,
+    unpivotValueFields: resolved.unpivotValueFields,
   } satisfies MainSequenceDataNodeFilterWidgetProps;
 }
 
@@ -599,11 +682,108 @@ function buildPivotedDataset(
   };
 }
 
+function buildUnpivotedDataset(
+  rows: readonly DataNodeRemoteDataRow[],
+  columns: readonly string[],
+  config: Pick<
+    ResolvedDataNodeFilterConfig,
+    "keyFields" | "unpivotFieldName" | "unpivotValueFieldName" | "unpivotValueFields"
+  >,
+) {
+  if (!config.unpivotValueFields || config.unpivotValueFields.length === 0 || rows.length === 0) {
+    return {
+      columns: [...columns],
+      rows: [...rows],
+    };
+  }
+
+  const keyColumns = (config.keyFields ?? []).filter((column) => columns.includes(column));
+  const valueColumns = config.unpivotValueFields.filter(
+    (column) => columns.includes(column) && !keyColumns.includes(column),
+  );
+
+  if (valueColumns.length === 0) {
+    return {
+      columns: [...columns],
+      rows: [...rows],
+    };
+  }
+
+  const outputRows = rows.flatMap<DataNodeRemoteDataRow>((row) =>
+    valueColumns.map((column) => {
+      const nextRow: DataNodeRemoteDataRow = {};
+
+      keyColumns.forEach((keyColumn) => {
+        nextRow[keyColumn] = row[keyColumn] ?? null;
+      });
+
+      nextRow[config.unpivotFieldName] = column;
+      nextRow[config.unpivotValueFieldName] = row[column] ?? null;
+
+      return nextRow;
+    }),
+  );
+
+  return {
+    columns: uniqueStrings([
+      ...keyColumns,
+      config.unpivotFieldName,
+      config.unpivotValueFieldName,
+    ]),
+    rows: outputRows,
+  };
+}
+
+export function formatDataNodeFilterTransformSummary(
+  config: Pick<
+    ResolvedDataNodeFilterConfig,
+    | "aggregateMode"
+    | "keyFields"
+    | "pivotField"
+    | "pivotValueField"
+    | "projectFields"
+    | "transformMode"
+    | "unpivotFieldName"
+    | "unpivotValueFieldName"
+    | "unpivotValueFields"
+  >,
+) {
+  if (config.transformMode === "pivot" && config.pivotField && config.pivotValueField) {
+    return `Pivot ${config.pivotField} -> ${config.pivotValueField} (${config.aggregateMode})`;
+  }
+
+  if (config.transformMode === "aggregate" && config.keyFields && config.keyFields.length > 0) {
+    return `Aggregate by ${config.keyFields.join(", ")} (${config.aggregateMode})`;
+  }
+
+  if (
+    config.transformMode === "unpivot" &&
+    config.unpivotValueFields &&
+    config.unpivotValueFields.length > 0
+  ) {
+    return `Unpivot ${config.unpivotValueFields.length.toLocaleString()} columns into ${config.unpivotFieldName}/${config.unpivotValueFieldName}`;
+  }
+
+  if (config.projectFields && config.projectFields.length > 0) {
+    return `Projected ${config.projectFields.length.toLocaleString()} columns`;
+  }
+
+  return "Raw dataset";
+}
+
 export function buildDataNodeTransformedDataset(
   rows: readonly DataNodeRemoteDataRow[],
   config: Pick<
     ResolvedDataNodeFilterConfig,
-    "aggregateMode" | "keyFields" | "pivotField" | "pivotValueField" | "projectFields" | "transformMode"
+    | "aggregateMode"
+    | "keyFields"
+    | "pivotField"
+    | "pivotValueField"
+    | "projectFields"
+    | "transformMode"
+    | "unpivotFieldName"
+    | "unpivotValueFieldName"
+    | "unpivotValueFields"
   >,
   knownColumns?: readonly string[],
 ) {
@@ -615,6 +795,8 @@ export function buildDataNodeTransformedDataset(
   const baseDataset =
     config.transformMode === "pivot"
       ? buildPivotedDataset(rows, columns, config)
+      : config.transformMode === "unpivot"
+        ? buildUnpivotedDataset(rows, columns, config)
       : config.transformMode === "aggregate"
         ? buildGroupedDataset(rows, columns, config)
         : {

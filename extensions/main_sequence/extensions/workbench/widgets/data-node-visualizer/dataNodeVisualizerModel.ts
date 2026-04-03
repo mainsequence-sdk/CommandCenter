@@ -21,11 +21,19 @@ export type DataNodeVisualizerProvider = "tradingview";
 export type DataNodeVisualizerChartType = "line" | "area" | "bar";
 export type DataNodeVisualizerViewMode = "chart" | "table";
 export type DataNodeVisualizerSeriesAxisMode = "shared" | "separate";
+export type DataNodeVisualizerTimeAxisMode = "auto" | "date" | "datetime";
+export type DataNodeVisualizerLineStyle =
+  | "solid"
+  | "dotted"
+  | "dashed"
+  | "large_dashed"
+  | "sparse_dotted";
 export type DataNodeVisualizerDateRangeMode = ResolvedDataNodeWidgetSourceConfig["dateRangeMode"];
 export type DataNodeVisualizerGroupSelectionMode = "all" | "include" | "exclude";
 
 export interface DataNodeVisualizerSeriesOverride {
   color?: string;
+  lineStyle?: DataNodeVisualizerLineStyle;
 }
 
 export type DataNodeVisualizerSeriesOverrides = Record<string, DataNodeVisualizerSeriesOverride>;
@@ -38,11 +46,13 @@ export interface MainSequenceDataNodeVisualizerWidgetProps
   groupSelectionMode?: DataNodeVisualizerGroupSelectionMode;
   selectedGroupValues?: string[];
   limit?: number;
+  minBarSpacingPx?: number;
   normalizeAtMs?: number;
   normalizeSeries?: boolean;
   provider?: DataNodeVisualizerProvider;
   seriesAxisMode?: DataNodeVisualizerSeriesAxisMode;
   seriesOverrides?: DataNodeVisualizerSeriesOverrides;
+  timeAxisMode?: DataNodeVisualizerTimeAxisMode;
   xField?: string;
   yField?: string;
 }
@@ -55,11 +65,13 @@ export interface ResolvedDataNodeVisualizerConfig extends ResolvedDataNodeWidget
   groupSelectionMode: DataNodeVisualizerGroupSelectionMode;
   selectedGroupValues?: string[];
   limit: number;
+  minBarSpacingPx: number;
   normalizeAtMs?: number;
   normalizeSeries: boolean;
   provider: DataNodeVisualizerProvider;
   seriesAxisMode: DataNodeVisualizerSeriesAxisMode;
   seriesOverrides?: DataNodeVisualizerSeriesOverrides;
+  timeAxisMode: DataNodeVisualizerTimeAxisMode;
   xField?: string;
   yField?: string;
 }
@@ -68,6 +80,7 @@ export interface DataNodeVisualizerSeries {
   color?: string;
   id: string;
   label: string;
+  lineStyle?: DataNodeVisualizerLineStyle;
   pointCount: number;
   points: Array<{ time: number; value: number }>;
 }
@@ -86,6 +99,7 @@ export interface DataNodeVisualizerChartSeriesResult {
 }
 
 const defaultVisualizerLimit = 14_000;
+const defaultVisualizerMinBarSpacingPx = 0.01;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
 
 function uniqueStrings(values: Array<string | null | undefined>) {
@@ -115,8 +129,31 @@ function normalizePositiveInteger(value: unknown) {
   return Math.trunc(parsed);
 }
 
+function normalizeNonNegativeNumber(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
 function normalizeGroupSelectionMode(value: unknown): DataNodeVisualizerGroupSelectionMode {
   return value === "include" || value === "exclude" ? value : "all";
+}
+
+function normalizeTimeAxisMode(value: unknown): DataNodeVisualizerTimeAxisMode {
+  return value === "date" || value === "datetime" ? value : "auto";
+}
+
+export function normalizeDataNodeVisualizerLineStyle(value: unknown): DataNodeVisualizerLineStyle {
+  return value === "dotted" ||
+    value === "dashed" ||
+    value === "large_dashed" ||
+    value === "sparse_dotted"
+    ? value
+    : "solid";
 }
 
 function normalizeSelectedGroupValues(value: unknown) {
@@ -151,12 +188,18 @@ function normalizeSeriesOverrides(value: unknown) {
     }
 
     const color = normalizeHexColor((overrideValue as DataNodeVisualizerSeriesOverride).color);
+    const lineStyle = normalizeDataNodeVisualizerLineStyle(
+      (overrideValue as DataNodeVisualizerSeriesOverride).lineStyle,
+    );
 
-    if (!color) {
+    if (!color && lineStyle === "solid") {
       return [];
     }
 
-    return [[seriesId, { color }] as const];
+    return [[seriesId, {
+      color,
+      lineStyle: lineStyle === "solid" ? undefined : lineStyle,
+    }] as const];
   });
 
   if (normalizedEntries.length === 0) {
@@ -200,11 +243,19 @@ export function resolveDataNodeVisualizerConfig(
   const chartType: DataNodeVisualizerChartType =
     props.chartType === "area" || props.chartType === "bar" ? props.chartType : "line";
   const limit = Math.max(1, Math.min(normalizePositiveInteger(props.limit) ?? defaultVisualizerLimit, 14_000));
+  const minBarSpacingPx = Math.min(
+    Math.max(
+      normalizeNonNegativeNumber(props.minBarSpacingPx) ?? defaultVisualizerMinBarSpacingPx,
+      0,
+    ),
+    6,
+  );
   const normalizeSeries = props.normalizeSeries === true;
   const normalizeAtMs = normalizePositiveInteger(props.normalizeAtMs);
   const seriesAxisMode: DataNodeVisualizerSeriesAxisMode =
     props.seriesAxisMode === "separate" ? "separate" : "shared";
   const seriesOverrides = normalizeSeriesOverrides(props.seriesOverrides);
+  const timeAxisMode = normalizeTimeAxisMode(props.timeAxisMode);
 
   const xField = getValidFieldKey(props.xField, availableFields);
   const groupField = getValidFieldKey(props.groupField, availableFields);
@@ -218,12 +269,14 @@ export function resolveDataNodeVisualizerConfig(
     sourceWidgetId: normalizedReference.sourceWidgetId,
     provider,
     chartType,
+    timeAxisMode,
     xField,
     yField,
     groupField,
     groupSelectionMode,
     selectedGroupValues,
     limit,
+    minBarSpacingPx,
     normalizeSeries,
     normalizeAtMs,
     seriesAxisMode,
@@ -252,10 +305,12 @@ export function normalizeDataNodeVisualizerProps(
     groupSelectionMode: resolved.groupSelectionMode,
     selectedGroupValues: resolved.selectedGroupValues,
     limit: resolved.limit,
+    minBarSpacingPx: resolved.minBarSpacingPx,
     normalizeSeries: resolved.normalizeSeries,
     normalizeAtMs: resolved.normalizeAtMs,
     seriesAxisMode: resolved.seriesAxisMode,
     seriesOverrides: resolved.seriesOverrides,
+    timeAxisMode: resolved.timeAxisMode,
   } satisfies MainSequenceDataNodeVisualizerWidgetProps;
 }
 
@@ -378,6 +433,42 @@ export function parseDataNodeVisualizerTimeValue(value: unknown) {
   return null;
 }
 
+function isDateOnlyTimeString(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
+export function formatDataNodeVisualizerUtcDateKey(timestampMs: number) {
+  return new Date(timestampMs).toISOString().slice(0, 10);
+}
+
+export function resolveDataNodeVisualizerEffectiveTimeAxisMode(
+  config: Pick<ResolvedDataNodeVisualizerConfig, "timeAxisMode" | "xField">,
+  rows: DataNodeRemoteDataRow[],
+): Exclude<DataNodeVisualizerTimeAxisMode, "auto"> {
+  if (config.timeAxisMode === "date" || config.timeAxisMode === "datetime") {
+    return config.timeAxisMode;
+  }
+
+  if (!config.xField) {
+    return "datetime";
+  }
+
+  const sampleValues = rows
+    .map((row) => row[config.xField!])
+    .filter((value) => value !== null && value !== undefined && value !== "")
+    .slice(0, 50);
+
+  if (sampleValues.length === 0) {
+    return "datetime";
+  }
+
+  const hasOnlyDateStrings = sampleValues.every(
+    (value) => typeof value === "string" && isDateOnlyTimeString(value),
+  );
+
+  return hasOnlyDateStrings ? "date" : "datetime";
+}
+
 function fieldHasParsableValue(
   rows: DataNodeRemoteDataRow[],
   key: string,
@@ -475,6 +566,7 @@ export function buildDataNodeVisualizerSeries(
       color?: string;
       id: string;
       label: string;
+      lineStyle?: DataNodeVisualizerLineStyle;
       pointMap: Map<number, number>;
     }
   >();
@@ -520,6 +612,7 @@ export function buildDataNodeVisualizerSeries(
         label: groupLabel,
         pointMap: new Map<number, number>(),
         color: config.seriesOverrides?.[groupKey]?.color,
+        lineStyle: config.seriesOverrides?.[groupKey]?.lineStyle,
       };
 
     current.pointMap.set(time, value);
@@ -531,6 +624,7 @@ export function buildDataNodeVisualizerSeries(
       id: series.id,
       label: series.label,
       color: series.color,
+      lineStyle: series.lineStyle,
       points: [...series.pointMap.entries()]
         .sort((left, right) => left[0] - right[0])
         .map(([time, value]) => ({ time, value })),
@@ -581,30 +675,39 @@ export function buildDataNodeVisualizerGroupValueOptions(
 
 export function buildDataNodeVisualizerChartSeries(
   series: DataNodeVisualizerSeries[],
+  timeAxisMode: Exclude<DataNodeVisualizerTimeAxisMode, "auto"> = "datetime",
 ): DataNodeVisualizerChartSeriesResult {
   let affectedSeriesCount = 0;
   let collapsedPointCount = 0;
 
   const normalizedSeries = series.map((entry) => {
-    const pointsBySecond = new Map<number, { time: number; value: number }>();
+    const pointsByBucket = new Map<string, { bucketTime: number; time: number; value: number }>();
     const sortedPoints = [...entry.points].sort((left, right) => left.time - right.time);
 
     sortedPoints.forEach((point) => {
-      const normalizedSecond = Math.floor(point.time / 1000);
+      const bucketKey =
+        timeAxisMode === "date"
+          ? formatDataNodeVisualizerUtcDateKey(point.time)
+          : String(Math.floor(point.time / 1000));
+      const bucketTime =
+        timeAxisMode === "date"
+          ? Date.parse(bucketKey)
+          : Math.floor(point.time / 1000) * 1000;
 
-      if (pointsBySecond.has(normalizedSecond)) {
+      if (pointsByBucket.has(bucketKey)) {
         collapsedPointCount += 1;
       }
 
-      pointsBySecond.set(normalizedSecond, {
-        time: normalizedSecond * 1000,
+      pointsByBucket.set(bucketKey, {
+        bucketTime,
+        time: bucketTime,
         value: point.value,
       });
     });
 
-    const points = [...pointsBySecond.entries()]
-      .sort((left, right) => left[0] - right[0])
-      .map(([, point]) => point);
+    const points = [...pointsByBucket.values()]
+      .sort((left, right) => left.bucketTime - right.bucketTime)
+      .map(({ time, value }) => ({ time, value }));
 
     if (points.length !== entry.points.length) {
       affectedSeriesCount += 1;

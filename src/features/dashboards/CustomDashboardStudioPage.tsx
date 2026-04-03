@@ -122,7 +122,12 @@ import {
   updateDashboardWidgetRuntimeState,
   updateDashboardWidgetSettings,
 } from "./custom-dashboard-storage";
-import { WorkspaceToolbarButton, WorkspaceWidgetRail } from "./WorkspaceChrome";
+import {
+  WorkspaceSavingStatus,
+  WorkspaceToolbarButton,
+  WorkspaceWidgetRail,
+} from "./WorkspaceChrome";
+import { CustomWidgetSettingsPage } from "./CustomWidgetSettingsPage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import {
   loadWidgetCatalogPreferences,
@@ -1208,8 +1213,12 @@ export function CustomDashboardStudioPage() {
     selectedDashboard,
     resolvedDashboard,
     dirty,
+    isSaving,
     selectedWorkspaceEditing,
     persistenceMode,
+    requestedWidgetId,
+    selectedWorkspaceView,
+    workspaceSelectionPending,
     openWidgetSettings,
     openWorkspaceGraph,
     openWorkspaceSettings,
@@ -1240,6 +1249,8 @@ export function CustomDashboardStudioPage() {
   const [autoGridReorderState, setAutoGridReorderState] = useState<AutoGridReorderState | null>(
     null,
   );
+  const widgetSettingsOpen =
+    selectedWorkspaceView === "widget-settings" && Boolean(requestedWidgetId);
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
   const dashboardMenuHidden = useShellStore((state) => state.workspaceCanvasMenuHidden);
   const setDashboardMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
@@ -2457,6 +2468,13 @@ export function CustomDashboardStudioPage() {
                 style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
               />
 
+        <div
+          className={cn(
+            "relative h-full min-h-full",
+            widgetSettingsOpen ? "pointer-events-none select-none" : undefined,
+          )}
+          aria-hidden={widgetSettingsOpen}
+        >
         {editMode ? (
           <WorkspaceWidgetRail
             widgets={railWidgets}
@@ -2556,9 +2574,15 @@ export function CustomDashboardStudioPage() {
                         <Save className="h-3.5 w-3.5" />
                       </WorkspaceToolbarButton>
                     ) : null}
+                    {editMode && isSaving ? <WorkspaceSavingStatus /> : null}
                     {editMode ? (
                       <Badge variant="primary" className="px-2 py-0.5 text-[10px] tracking-[0.14em]">
                         Editing
+                      </Badge>
+                    ) : null}
+                    {workspaceSelectionPending ? (
+                      <Badge variant="neutral" className="px-2 py-0.5 text-[10px] tracking-[0.14em]">
+                        Syncing
                       </Badge>
                     ) : null}
                     {editMode ? (
@@ -3129,10 +3153,12 @@ export function CustomDashboardStudioPage() {
               <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                 Drop on canvas
               </div>
+              </div>
             </div>
-          </div>
             ) : null}
-            </div>
+        </div>
+        {widgetSettingsOpen ? <CustomWidgetSettingsPage embedded /> : null}
+      </div>
           </DashboardWidgetDependenciesProvider>
         </DashboardWidgetExecutionProvider>
       </DashboardWidgetRegistryProvider>

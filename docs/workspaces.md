@@ -74,9 +74,12 @@ workspace model and URL state.
 In backend mode, workspace creation waits for the backend response and adopts the backend-assigned
 id instead of persisting a client-generated id.
 The workspace index page uses the backend-backed saved collection as its source of truth in backend
-mode rather than rendering the current draft collection.
+mode only for loaded workspace documents. The list itself now comes from lightweight backend
+summary rows, and full workspace detail is fetched on demand when a workspace is opened or copied.
 The workspace index intentionally focuses on user-facing metadata and does not expose internal grid
 column counts or similar layout-density implementation details.
+Collection-level wrapper metadata such as the store `savedAt` timestamp is internal transport
+state only and should not be shown as if it belongs to an individual workspace.
 In backend mode, the editor keeps a local draft and only persists changes when the user explicitly
 saves.
 In backend mode, delete reloads the workspace collection from the backend after success instead of
@@ -148,6 +151,21 @@ The dedicated widget settings page now also hosts a `Bindings` tab for widgets t
 dependency inputs, so inter-widget edges are edited separately from normal settings rather than
 hidden in raw props JSON. The binding UI is explicit per input: users select both the upstream
 widget and the upstream output port, then see the final `output -> input` mapping directly.
+The widget settings route now keeps only the shared dashboard runtime providers alive. It no
+longer hidden-mounts the whole workspace widget tree just to make sibling runtime available.
+Headless source publication now comes from executable widgets through the shared execution layer,
+including `main-sequence-data-node`, which still respects the active workspace time range while
+settings are open.
+The `dashboard` and `widget-settings` views now also share one mounted workspace studio host.
+Opening widget settings keeps the canvas/runtime mounted underneath and shows settings as the
+active overlay surface, so returning to the workspace does not trigger a full canvas boot.
+The settings shell should appear immediately. Heavy widget-specific configuration such as schema
+resolution, upstream preview work, or API discovery now hydrates asynchronously with local loading
+states instead of blocking the full overlay.
+Opening a workspace should follow the same rule. If the requested workspace model is already
+available in the current draft, the shell and canvas should render immediately and widgets should
+load from their own sources asynchronously. Full-page loading is reserved for the case where there
+is no usable workspace document yet.
 The workspace graph is a dedicated React Flow view over those same canonical bindings. It renders
 all widget instances as nodes, including sidebar-only widgets and collapsed-row children, and lets
 users create or remove bindings visually without changing the saved canvas layout. The graph stays
@@ -205,8 +223,9 @@ Copy works by cloning the current workspace document into a fresh workspace inst
 routing through the normal create flow:
 
 - local mode creates a new browser-local workspace
-- backend mode issues a normal workspace create request, so the copy is stored as a new backend
-  workspace rather than updating the original one
+- backend mode first hydrates the source workspace detail on demand, then issues a normal
+  workspace create request so the copy is stored as a new backend workspace rather than updating
+  the original one
 
 The copied workspace gets a fresh workspace id and a default title prefixed with `Copy of`.
 

@@ -18,6 +18,7 @@ import {
   buildDataNodeVisualizerSeries,
   normalizeDataNodeVisualizerProps,
   resolveDataNodeVisualizerDateRange,
+  resolveDataNodeVisualizerEffectiveTimeAxisMode,
   resolveDataNodeVisualizerNormalizationTimeMs,
   resolveDataNodeVisualizerConfig,
   type MainSequenceDataNodeVisualizerWidgetProps,
@@ -88,9 +89,13 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     () => buildDataNodeVisualizerSeries(sourceRows, resolvedConfig),
     [resolvedConfig, sourceRows],
   );
+  const effectiveTimeAxisMode = useMemo(
+    () => resolveDataNodeVisualizerEffectiveTimeAxisMode(resolvedConfig, sourceRows),
+    [resolvedConfig, sourceRows],
+  );
   const chartSeriesResult = useMemo(
-    () => buildDataNodeVisualizerChartSeries(seriesResult.series),
-    [seriesResult.series],
+    () => buildDataNodeVisualizerChartSeries(seriesResult.series, effectiveTimeAxisMode),
+    [effectiveTimeAxisMode, seriesResult.series],
   );
   const normalizationTimeMs = useMemo(
     () =>
@@ -285,9 +290,11 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
               <TradingViewSeriesChart
                 chartType={resolvedConfig.chartType}
                 emptyMessage={chartEmptyMessage}
+                minBarSpacingPx={resolvedConfig.minBarSpacingPx}
                 normalizationTimeMs={normalizationTimeMs}
                 series={chartSeriesResult.series}
                 seriesAxisMode={resolvedConfig.seriesAxisMode}
+                timeAxisMode={effectiveTimeAxisMode}
                 transparentSurface={transparentSurface}
               />
             </DataNodeVisualizerChartErrorBoundary>

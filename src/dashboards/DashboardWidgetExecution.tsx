@@ -23,6 +23,7 @@ import {
 } from "@/dashboards/widget-graph-execution";
 import type {
   WidgetDefinition,
+  WidgetExecutionDashboardState,
   WidgetExecutionReason,
   WidgetExecutionTargetOverrides,
 } from "@/widgets/types";
@@ -82,6 +83,15 @@ function serializeExecutionOverrides(value: WidgetExecutionTargetOverrides | und
   }
 }
 
+function serializeDashboardExecutionState(value: WidgetExecutionDashboardState) {
+  return [
+    value.timeRangeKey,
+    value.rangeStartMs,
+    value.rangeEndMs,
+    value.refreshIntervalMs ?? "off",
+  ].join(":");
+}
+
 export function DashboardWidgetExecutionProvider({
   children,
   scopeId,
@@ -99,7 +109,22 @@ export function DashboardWidgetExecutionProvider({
   resolveWidgetDefinition?: (widgetId: string) => WidgetDefinition | undefined;
 }) {
   const effectiveResolveWidgetDefinition = resolveWidgetDefinition ?? getWidgetById;
-  const { lastRefreshedAt } = useDashboardControls();
+  const {
+    lastRefreshedAt,
+    rangeEndMs,
+    rangeStartMs,
+    refreshIntervalMs,
+    timeRangeKey,
+  } = useDashboardControls();
+  const dashboardState = useMemo<WidgetExecutionDashboardState>(
+    () => ({
+      timeRangeKey,
+      rangeStartMs,
+      rangeEndMs,
+      refreshIntervalMs,
+    }),
+    [rangeEndMs, rangeStartMs, refreshIntervalMs, timeRangeKey],
+  );
   const widgetsRef = useRef(widgets);
   const inFlightRef = useRef(new Map<string, Promise<DashboardWidgetGraphExecutionResult>>());
   const refreshCycleRef = useRef<string | null>(null);
@@ -154,6 +179,7 @@ export function DashboardWidgetExecutionProvider({
     return [
       scopeId,
       graphExecutionKey,
+      serializeDashboardExecutionState(dashboardState),
       options.reason,
       options.refreshCycleId ?? "",
       serializeExecutionOverrides(options.targetOverrides),
@@ -180,6 +206,7 @@ export function DashboardWidgetExecutionProvider({
       refreshCycleId: options.refreshCycleId,
       targetOverrides: options.targetOverrides,
       executedInstanceIds: sharedExecutedInstanceIds,
+      dashboardState,
       onRuntimeStateWrite: (instanceId, runtimeState) => {
         writeRuntimeState(instanceId, runtimeState);
       },
@@ -228,6 +255,7 @@ export function DashboardWidgetExecutionProvider({
       widgets: widgetsRef.current,
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
       refreshCycleId,
+      dashboardState,
     });
 
     if (refreshTargets.length === 0) {
@@ -265,7 +293,7 @@ export function DashboardWidgetExecutionProvider({
     return () => {
       cancelled = true;
     };
-  }, [effectiveResolveWidgetDefinition, scopeId]);
+  }, [dashboardState, effectiveResolveWidgetDefinition, scopeId]);
 
   useEffect(() => {
     if (!lastRefreshedAt) {
@@ -284,6 +312,7 @@ export function DashboardWidgetExecutionProvider({
       widgets: widgetsRef.current,
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
       refreshCycleId,
+      dashboardState,
     });
 
     if (refreshTargets.length === 0) {
@@ -321,7 +350,7 @@ export function DashboardWidgetExecutionProvider({
     return () => {
       cancelled = true;
     };
-  }, [effectiveResolveWidgetDefinition, lastRefreshedAt]);
+  }, [dashboardState, effectiveResolveWidgetDefinition, lastRefreshedAt]);
 
   const value = useMemo<DashboardWidgetExecutionContextValue>(
     () => ({
@@ -345,11 +374,15 @@ export function DashboardWidgetExecutionProvider({
           targetInstanceId: instanceId,
           targetOverrides: options?.targetOverrides,
         });
+        const requirement = resolveDashboardUpstreamRequirement(instanceId, snapshot);
 
-        return resolveDashboardUpstreamRequirement(instanceId, snapshot);
+        return {
+          ...requirement,
+          requestKey: `${requirement.requestKey}::${serializeDashboardExecutionState(dashboardState)}`,
+        };
       },
     }),
-    [effectiveResolveWidgetDefinition, executionStates],
+    [dashboardState, effectiveResolveWidgetDefinition, executionStates],
   );
 
   return (

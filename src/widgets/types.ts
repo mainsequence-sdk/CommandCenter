@@ -206,6 +206,13 @@ export type WidgetExecutionReason =
   | "dashboard-refresh"
   | "manual-recalculate";
 
+export interface WidgetExecutionDashboardState {
+  timeRangeKey: string;
+  rangeStartMs: number;
+  rangeEndMs: number;
+  refreshIntervalMs: number | null;
+}
+
 export interface WidgetExecutionTargetOverrides<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
@@ -223,6 +230,7 @@ export interface WidgetExecutionContext<
   props: TProps;
   runtimeState?: Record<string, unknown>;
   resolvedInputs?: ResolvedWidgetInputs;
+  dashboardState?: WidgetExecutionDashboardState;
   targetOverrides?: WidgetExecutionTargetOverrides<TProps>;
   refreshCycleId?: string;
   signal?: AbortSignal;

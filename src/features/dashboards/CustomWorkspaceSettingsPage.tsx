@@ -33,21 +33,6 @@ function getWorkspaceSettingsTabClassName(active: boolean) {
   );
 }
 
-function formatSavedAt(savedAt: string | null) {
-  if (!savedAt) {
-    return "Not saved yet";
-  }
-
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(savedAt));
-  } catch {
-    return savedAt;
-  }
-}
-
 function normalizeWorkspaceLabels(labels: string[]) {
   return Array.from(
     new Set(
@@ -99,8 +84,7 @@ export function CustomWorkspaceSettingsPage() {
   const [jsonCopyFeedback, setJsonCopyFeedback] = useState<string | null>(null);
   const {
     user,
-    workspaceListCollection,
-    draftCollection,
+    workspaceListItems,
     selectedDashboard,
     resolvedDashboard,
     dirty,
@@ -116,7 +100,6 @@ export function CustomWorkspaceSettingsPage() {
     deleteSelectedWorkspace,
     resetWorkspaceDraft,
     saveWorkspaceDraft,
-    savedCollection,
   } = useCustomWorkspaceStudio();
   const backendMode = persistenceMode === "backend";
 
@@ -177,7 +160,6 @@ export function CustomWorkspaceSettingsPage() {
             <div>Mode: {workspace.layoutKind ?? "custom"}</div>
             <div>{workspace.widgets.length} widgets</div>
             <div>{resolvedDashboard?.grid.columns ?? 12} columns</div>
-            <div>Last saved {formatSavedAt(savedCollection.savedAt)}</div>
           </div>
         </div>
 
@@ -364,7 +346,7 @@ export function CustomWorkspaceSettingsPage() {
                   setSelectedWorkspaceId(event.target.value);
                 }}
               >
-                {workspaceListCollection.dashboards.map((dashboard) => (
+                {workspaceListItems.map((dashboard) => (
                   <option key={dashboard.id} value={dashboard.id}>
                     {dashboard.title}
                   </option>

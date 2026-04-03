@@ -28,7 +28,9 @@ surfaces and the editable workspace studio.
 - `DashboardWidgetExecution.tsx`: React provider/hooks layer for executable widget graphs. It owns
   `executeWidgetGraph(...)`, generic passive-consumer upstream resolution through
   `resolveUpstream(...)` / `useResolveWidgetUpstream(...)`, in-flight dedupe, per-instance execution status, and
-  refresh-cycle handoff from dashboard controls.
+  refresh-cycle handoff from dashboard controls. It also carries the current dashboard control
+  range into widget executors so headless source widgets can respect the active time window even
+  outside the main canvas route.
 - `react-grid-layout-adapter.ts`: adapter utilities for the workspace studio's
   `react-grid-layout`-managed canvas. This file converts resolved dashboard widgets into RGL items,
   converts committed RGL layouts back into widget `position/layout`, and exposes the shared
@@ -93,6 +95,9 @@ surfaces and the editable workspace studio.
 - Dashboard refresh now also treats passive consumers with executable upstream dependencies as
   refresh roots. That means a table/statistic bound to an executable source can trigger its
   upstream execution on refresh even though the consumer itself is not executable.
+- Widget settings should now stay provider-backed and headless. If a settings surface needs source
+  runtime, it should come from the shared execution provider plus widget execution contracts, not
+  from hidden sibling component mounts.
 - The route-level workspace graph editor must stay on top of this dependency layer. React Flow owns
   node/edge rendering and local node positions there, but binding validation and canonical binding
   mutation rules stay centralized in `widget-dependencies.ts`.

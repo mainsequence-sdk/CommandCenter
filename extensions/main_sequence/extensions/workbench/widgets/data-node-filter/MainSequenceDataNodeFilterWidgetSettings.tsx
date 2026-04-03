@@ -51,6 +51,11 @@ const transformModeOptions: PickerOption[] = [
     label: "Pivot",
     description: "Turn values from one field into columns using key fields as row dimensions.",
   },
+  {
+    value: "unpivot",
+    label: "Unpivot",
+    description: "Melt selected wide columns into long rows while keeping key fields on every emitted row.",
+  },
 ];
 
 const aggregateModeOptions: PickerOption[] = [
@@ -143,11 +148,15 @@ function normalizeStringArray(value: unknown) {
 }
 
 function normalizeDraftTransformMode(value: unknown): DataNodeTransformMode {
-  return value === "aggregate" || value === "pivot" ? value : "none";
+  return value === "aggregate" || value === "pivot" || value === "unpivot" ? value : "none";
 }
 
 function normalizeDraftFieldValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function normalizeDraftOutputFieldName(value: unknown, fallback: string) {
+  return normalizeDraftFieldValue(value) ?? fallback;
 }
 
 function renderFieldChips({
@@ -309,6 +318,11 @@ export function MainSequenceDataNodeFilterWidgetSettings({
   const draftTransformMode = normalizeDraftTransformMode(draftProps.transformMode);
   const draftPivotField = normalizeDraftFieldValue(draftProps.pivotField);
   const draftPivotValueField = normalizeDraftFieldValue(draftProps.pivotValueField);
+  const draftUnpivotFieldName = normalizeDraftOutputFieldName(draftProps.unpivotFieldName, "series");
+  const draftUnpivotValueFieldName = normalizeDraftOutputFieldName(
+    draftProps.unpivotValueFieldName,
+    "value",
+  );
   const sourceFieldOptions = useMemo<PickerOption[]>(
     () => {
       const runtimeOptions = resolveDataNodeFieldOptionsFromDataset({
@@ -330,6 +344,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
   );
   const selectedProjectFields = normalizeStringArray(draftProps.projectFields);
   const selectedKeyFields = normalizeStringArray(draftProps.keyFields);
+  const selectedUnpivotValueFields = normalizeStringArray(draftProps.unpivotValueFields);
   const draftPreviewConfig = useMemo(
     () =>
       resolvedConfig
@@ -340,15 +355,22 @@ export function MainSequenceDataNodeFilterWidgetSettings({
             pivotField: draftPivotField,
             pivotValueField: draftPivotValueField,
             projectFields: selectedProjectFields.length > 0 ? selectedProjectFields : undefined,
+            unpivotFieldName: draftUnpivotFieldName,
+            unpivotValueFieldName: draftUnpivotValueFieldName,
+            unpivotValueFields:
+              selectedUnpivotValueFields.length > 0 ? selectedUnpivotValueFields : undefined,
           }
         : null,
     [
       draftPivotField,
       draftPivotValueField,
       draftTransformMode,
+      draftUnpivotFieldName,
+      draftUnpivotValueFieldName,
       resolvedConfig,
       selectedKeyFields,
       selectedProjectFields,
+      selectedUnpivotValueFields,
     ],
   );
   const baseTransformedPreview = useMemo(
@@ -416,6 +438,22 @@ export function MainSequenceDataNodeFilterWidgetSettings({
   const availableKeyFieldOptions = sourceFieldOptions.filter(
     (option) =>
       !selectedKeyFields.includes(option.value) &&
+      !selectedUnpivotValueFields.includes(option.value) &&
+      option.value !== draftPivotField &&
+      option.value !== draftPivotValueField,
+  );
+  const allEligibleUnpivotValueFields = sourceFieldOptions
+    .filter(
+      (option) =>
+        !selectedKeyFields.includes(option.value) &&
+        option.value !== draftPivotField &&
+        option.value !== draftPivotValueField,
+    )
+    .map((option) => option.value);
+  const availableUnpivotValueFieldOptions = sourceFieldOptions.filter(
+    (option) =>
+      !selectedUnpivotValueFields.includes(option.value) &&
+      !selectedKeyFields.includes(option.value) &&
       option.value !== draftPivotField &&
       option.value !== draftPivotValueField,
   );
@@ -451,7 +489,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
 
       <SettingsSection
         title="Advanced transform"
-        description="Choose whether this Data Node publishes raw rows, an aggregated dataset, or a pivoted dataset."
+        description="Choose whether this Data Node publishes raw rows, an aggregated dataset, a pivoted dataset, or an unpivoted long-form dataset."
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
@@ -470,6 +508,12 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                   pivotField: nextMode === "pivot" ? draftProps.pivotField : undefined,
                   pivotValueField:
                     nextMode === "pivot" ? draftProps.pivotValueField : undefined,
+                  unpivotFieldName:
+                    nextMode === "unpivot" ? draftProps.unpivotFieldName : undefined,
+                  unpivotValueFieldName:
+                    nextMode === "unpivot" ? draftProps.unpivotValueFieldName : undefined,
+                  unpivotValueFields:
+                    nextMode === "unpivot" ? draftProps.unpivotValueFields : undefined,
                   projectFields:
                     nextMode === draftTransformMode ? draftProps.projectFields : undefined,
                 });
@@ -479,7 +523,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
               disabled={!editable}
             />
             <p className="text-sm text-muted-foreground">
-              `Aggregate` groups rows by key fields. `Pivot` uses the same key fields as row dimensions and expands one field into columns.
+              `Aggregate` groups rows by key fields. `Pivot` expands one field into columns. `Unpivot` melts selected value columns into long rows.
             </p>
           </div>
 
@@ -503,6 +547,8 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                 <div className="text-sm text-muted-foreground">
                   {draftTransformMode === "pivot"
                     ? "No row key fields. The pivot will collapse into a single row."
+                    : draftTransformMode === "unpivot"
+                      ? "No key fields selected. The unpivoted rows will only contain the emitted series/value columns."
                     : "No key fields selected yet."}
                 </div>
               ) : null}
@@ -547,7 +593,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
             </div>
           ) : null}
 
-          {draftTransformMode !== "none" ? (
+          {draftTransformMode === "aggregate" || draftTransformMode === "pivot" ? (
             <div className="space-y-2">
               <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Aggregate mode
@@ -621,6 +667,130 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                 />
                 <p className="text-sm text-muted-foreground">
                   Values from this field fill the pivoted columns using the active aggregate mode.
+                </p>
+              </div>
+            </>
+          ) : null}
+
+          {draftTransformMode === "unpivot" ? (
+            <>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Value columns
+                </label>
+                {renderFieldChips({
+                  values: selectedUnpivotValueFields,
+                  editable,
+                  onRemove: (value) => {
+                    const nextFields = selectedUnpivotValueFields.filter((entry) => entry !== value);
+                    onDraftPropsChange({
+                      ...draftProps,
+                      unpivotValueFields: nextFields.length > 0 ? nextFields : undefined,
+                    });
+                  },
+                })}
+                {selectedUnpivotValueFields.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    No value columns selected. Choose the wide columns that should be emitted as long-form rows.
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!editable || allEligibleUnpivotValueFields.length === 0}
+                    onClick={() => {
+                      onDraftPropsChange({
+                        ...draftProps,
+                        unpivotValueFields:
+                          allEligibleUnpivotValueFields.length > 0
+                            ? allEligibleUnpivotValueFields
+                            : undefined,
+                      });
+                    }}
+                  >
+                    Select all value columns
+                  </Button>
+                  {selectedUnpivotValueFields.length > 0 ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={!editable}
+                      onClick={() => {
+                        onDraftPropsChange({
+                          ...draftProps,
+                          unpivotValueFields: undefined,
+                        });
+                      }}
+                    >
+                      Clear value columns
+                    </Button>
+                  ) : null}
+                </div>
+                <PickerField
+                  value=""
+                  onChange={(value) => {
+                    if (!value) {
+                      return;
+                    }
+
+                    onDraftPropsChange({
+                      ...draftProps,
+                      unpivotValueFields: [...selectedUnpivotValueFields, value],
+                    });
+                  }}
+                  options={availableUnpivotValueFieldOptions}
+                  placeholder={
+                    availableUnpivotValueFieldOptions.length > 0
+                      ? "Add a value column"
+                      : "No more value columns available"
+                  }
+                  searchPlaceholder="Search value columns"
+                  emptyMessage="No additional value columns are available."
+                  disabled={!editable || availableUnpivotValueFieldOptions.length === 0}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Each selected column becomes one emitted long-form row per input row.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Output field name
+                </label>
+                <Input
+                  value={draftUnpivotFieldName}
+                  disabled={!editable}
+                  onChange={(event) => {
+                    onDraftPropsChange({
+                      ...draftProps,
+                      unpivotFieldName: event.target.value,
+                    });
+                  }}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Output column that stores the original wide column name.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Output value field
+                </label>
+                <Input
+                  value={draftUnpivotValueFieldName}
+                  disabled={!editable}
+                  onChange={(event) => {
+                    onDraftPropsChange({
+                      ...draftProps,
+                      unpivotValueFieldName: event.target.value,
+                    });
+                  }}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Output column that stores the value emitted from each selected wide column.
                 </p>
               </div>
             </>
@@ -714,6 +884,11 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                 Pivot mode is selected. Choose both a pivot field and a pivot value field to reshape the dataset.
               </div>
             ) : null}
+            {draftTransformMode === "unpivot" && selectedUnpivotValueFields.length === 0 ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                Unpivot mode is selected. Choose at least one value column to melt into long-form rows.
+              </div>
+            ) : null}
             {hasNoData ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
                 This data node has no data, so no preview is available.
@@ -802,6 +977,14 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                         <span>
                           pivoted {draftPreviewConfig.pivotField} into columns from{" "}
                           {draftPreviewConfig.pivotValueField}
+                        </span>
+                      ) : null}
+                      {draftPreviewConfig.transformMode === "unpivot" &&
+                      draftPreviewConfig.unpivotValueFields &&
+                      draftPreviewConfig.unpivotValueFields.length > 0 ? (
+                        <span>
+                          unpivoted {draftPreviewConfig.unpivotValueFields.length.toLocaleString()} columns into{" "}
+                          {draftPreviewConfig.unpivotFieldName}/{draftPreviewConfig.unpivotValueFieldName}
                         </span>
                       ) : null}
                       {draftPreviewConfig.projectFields && draftPreviewConfig.projectFields.length > 0 ? (

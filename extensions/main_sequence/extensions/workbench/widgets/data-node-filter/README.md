@@ -8,12 +8,15 @@ charts and tables.
 ## Files
 
 - `definition.ts`: widget metadata and registration payload.
+- `dataNodeFilterExecution.ts`: headless executable-widget contract for direct Data Node fetches
+  and bound-source transform publication. This is the runtime path that keeps `Data Node`
+  publishing in settings/graph flows without requiring the visual widget component to mount.
 - `schema.tsx`: shared data-node source/date-range schema assembled from the workbench shared
   widget-source contract.
 - `controller.ts`: shared controller wiring for data-node metadata, picker state, and normalized
   widget props.
 - `dataNodeFilterModel.ts`: dataset-node config, runtime-state normalization, and transform helpers
-  for aggregate, pivot, and projection pipeline steps.
+  for aggregate, pivot, unpivot, and projection pipeline steps.
 - `MainSequenceDataNodeFilterWidget.tsx`: icon-only mounted runtime surface with hover details for
   the saved source/range/transform and the published dataset.
 - `MainSequenceDataNodeFilterWidgetSettings.tsx`: settings-only table preview for the selected data
@@ -28,18 +31,26 @@ charts and tables.
   data-node/date-range selection flow.
 - If the selected data node exposes `unique_identifier` as the second index, the widget can also
   save an identifier selection list.
-- The settings surface is organized around one `Advanced transform` section with three explicit
-  modes: `None`, `Aggregate`, and `Pivot`.
+- The settings surface is organized around one `Advanced transform` section with four explicit
+  modes: `None`, `Aggregate`, `Pivot`, and `Unpivot`.
 - `Aggregate` uses key fields plus an aggregate mode (`first`, `last`, `sum`, `mean`, `min`, or
   `max`) to publish one output row per key combination.
 - `Pivot` uses key fields as row dimensions, expands one categorical field into columns, and fills
   those columns from the selected value field using the active aggregate mode.
+- `Unpivot` does the inverse reshape for wide datasets: it keeps selected key fields on every row,
+  melts selected value columns into long-form rows, and emits the source column name/value into
+  configurable output fields (defaulting to `series` and `value`).
+- The `Unpivot` settings include a `Select all value columns` shortcut so wide tables can be melted
+  without clicking every candidate field one by one.
 - `Project columns` is a final optional output-shaping step that keeps only the selected published
   columns.
-- The current transform order is: input dataset -> transform mode (`none`, `aggregate`, or
-  `pivot`) -> projection -> published dataset.
+- The current transform order is: input dataset -> transform mode (`none`, `aggregate`, `pivot`,
+  or `unpivot`) -> projection -> published dataset.
 - In pivot mode, the runtime preserves generated pivot columns even if a stale projection would
   otherwise collapse the output down to row-key fields only.
+- The widget does not support chained transform modes inside one instance. If a pipeline needs
+  multiple reshapes, chain multiple `Data Node` instances so each node publishes one canonical
+  dataset to the next hop.
 - The mounted widget is intentionally minimal: it renders as a small source icon and exposes its
   dataset summary on hover, so it can act as a composable configuration block without consuming
   dashboard space.
@@ -69,7 +80,11 @@ charts and tables.
 - Consumers should never try to reconstruct earlier nodes in the chain. They should only consume the
   final published dataset from the selected upstream Data Node.
 - The published `Dataset` output is now derived headlessly from the current bound source input plus
-  the Data Node's saved transform settings. Direct-query mode still falls back to the widget's saved
-  runtime dataset, but bound chains such as `AppComponent -> Data Node -> Graph/Table/Statistic`
-  no longer need to wait for the mounted Data Node component to republish before downstream widgets
-  can resolve the transformed dataset.
+  the Data Node's saved transform settings, and direct-query mode is now materialized through the
+  widget's execution contract instead of mounted component side effects. Bound chains such as
+  `AppComponent -> Data Node -> Graph/Table/Statistic` no longer need to wait for the mounted
+  Data Node component to republish before downstream widgets or settings flows can resolve the
+  transformed dataset.
+- That headless published dataset now preserves `rangeStartMs` / `rangeEndMs` as well, so
+  downstream widgets and settings previews can show the actual upstream Data Node range instead of
+  falling back to the dashboard range when the source is another `Data Node`.

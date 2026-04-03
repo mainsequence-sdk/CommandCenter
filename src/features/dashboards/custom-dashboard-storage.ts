@@ -461,6 +461,132 @@ function normalizeDashboardWidgetInstance(
       };
 }
 
+function hasLegacyCompanionProjectionInWidgetTree(
+  widgets: DashboardWidgetInstance[],
+): boolean {
+  return widgets.some((widget) => {
+    const hasLegacyProjection = Object.values(widget.presentation?.exposedFields ?? {}).some(
+      (fieldState) =>
+        typeof fieldState?.gridX === "number" ||
+        typeof fieldState?.gridY === "number" ||
+        typeof fieldState?.gridW === "number" ||
+        typeof fieldState?.gridH === "number",
+    );
+
+    if (hasLegacyProjection) {
+      return true;
+    }
+
+    return widget.row?.children?.length
+      ? hasLegacyCompanionProjectionInWidgetTree(widget.row.children)
+      : false;
+  });
+}
+
+function dashboardWidgetTreeRequiresMigration(
+  widgets: DashboardWidgetInstance[],
+): boolean {
+  return widgets.some((widget) => {
+    const rowState = widget.row as (DashboardWidgetRowState & { panels?: DashboardWidgetInstance[] }) | undefined;
+
+    if (isLegacyLayout(widget.layout)) {
+      return true;
+    }
+
+    if (rowState?.panels && Array.isArray(rowState.panels)) {
+      return true;
+    }
+
+    return widget.row?.children?.length
+      ? dashboardWidgetTreeRequiresMigration(widget.row.children)
+      : false;
+  });
+}
+
+function dashboardRequiresMigration(dashboard: DashboardDefinition) {
+  if (
+    dashboard.grid?.columns !== DEFAULT_WORKSPACE_COLUMNS ||
+    dashboard.grid?.rowHeight !== DEFAULT_WORKSPACE_ROW_HEIGHT ||
+    dashboard.grid?.gap !== DEFAULT_WORKSPACE_GAP
+  ) {
+    return true;
+  }
+
+  if (!Array.isArray(dashboard.widgets)) {
+    return true;
+  }
+
+  if (dashboardWidgetTreeRequiresMigration(dashboard.widgets)) {
+    return true;
+  }
+
+  return hasLegacyCompanionProjectionInWidgetTree(dashboard.widgets);
+}
+
+function sanitizeCanonicalDashboardRowState(
+  rowState: DashboardWidgetRowState | undefined,
+  maxColumns: number,
+): DashboardWidgetRowState | undefined {
+  if (!isPlainRecord(rowState)) {
+    return undefined;
+  }
+
+  const rawChildren = Array.isArray(rowState.children) ? rowState.children : [];
+
+  return {
+    collapsed: rowState.collapsed === true,
+    children: rawChildren.map((child) =>
+      sanitizeCanonicalDashboardWidgetInstance(child, maxColumns),
+    ),
+  };
+}
+
+function sanitizeCanonicalDashboardWidgetInstance(
+  instance: DashboardWidgetInstance,
+  maxColumns: number,
+): DashboardWidgetInstance {
+  const rawPosition = isLegacyLayout(instance.layout)
+    ? {
+        x: instance.layout.x,
+        y: instance.layout.y,
+      }
+    : instance.position;
+  const nextWidget: DashboardWidgetInstance = {
+    ...instance,
+    bindings: normalizeWidgetInstanceBindings(instance.bindings),
+    runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
+    layout: {
+      cols: getLayoutCols(instance.layout),
+      rows: getLayoutRows(instance.layout),
+    },
+    position: rawPosition
+      ? {
+          x: typeof rawPosition.x === "number" ? rawPosition.x : undefined,
+          y: typeof rawPosition.y === "number" ? rawPosition.y : undefined,
+        }
+      : undefined,
+  };
+  const normalizedRowState = isWorkspaceRowWidgetId(instance.widgetId)
+    ? sanitizeCanonicalDashboardRowState(instance.row, maxColumns) ?? {
+        collapsed: false,
+        children: [],
+      }
+    : undefined;
+
+  return clampWidgetMinimumLayout(
+    normalizedRowState
+      ? {
+          ...nextWidget,
+          row: normalizedRowState,
+        }
+      : {
+          ...nextWidget,
+          row: undefined,
+        },
+    maxColumns,
+  );
+}
+
 export function ensureUserDashboardCollectionSelection(
   collection: UserDashboardCollection,
   options?: {
@@ -485,7 +611,7 @@ export function ensureUserDashboardCollectionSelection(
   };
 }
 
-function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition {
+export function migrateDashboardDefinition(dashboard: DashboardDefinition): DashboardDefinition {
   const layoutKind = dashboard.layoutKind ?? "custom";
   const rawColumns =
     typeof dashboard.grid?.columns === "number" && dashboard.grid.columns > 0
@@ -562,8 +688,83 @@ function sanitizeDashboard(dashboard: DashboardDefinition): DashboardDefinition 
   });
 }
 
+export function sanitizeDashboardDefinition(dashboard: DashboardDefinition): DashboardDefinition {
+  if (dashboardRequiresMigration(dashboard)) {
+    return migrateDashboardDefinition(dashboard);
+  }
+
+  const maxColumns = DEFAULT_WORKSPACE_COLUMNS;
+  const widgets = Array.isArray(dashboard.widgets)
+    ? dashboard.widgets.map((instance) =>
+        sanitizeCanonicalDashboardWidgetInstance(instance, maxColumns),
+      )
+    : [];
+  const identityMigration = buildWorkspaceGridMigration(
+    DEFAULT_WORKSPACE_COLUMNS,
+    DEFAULT_WORKSPACE_ROW_HEIGHT,
+    DEFAULT_WORKSPACE_GAP,
+  );
+  const companions = sanitizeDashboardCompanionLayoutItems(
+    dashboard.companions,
+    widgets,
+    identityMigration,
+  );
+
+  return materializeDashboardLayout({
+    ...dashboard,
+    title: dashboard.title || "Untitled workspace",
+    description: dashboard.description || "User-scoped workspace managed in Command Center.",
+    labels: normalizeWorkspaceLabels(dashboard.labels),
+    category: dashboard.category || "Custom",
+    source: dashboard.source || "user",
+    layoutKind: dashboard.layoutKind ?? "custom",
+    autoGrid: {
+      maxColumns:
+        typeof dashboard.autoGrid?.maxColumns === "number" && dashboard.autoGrid.maxColumns > 0
+          ? Math.round(dashboard.autoGrid.maxColumns)
+          : DEFAULT_AUTO_GRID_MAX_COLUMNS,
+      minColumnWidthPx:
+        typeof dashboard.autoGrid?.minColumnWidthPx === "number" &&
+        dashboard.autoGrid.minColumnWidthPx > 0
+          ? Math.round(dashboard.autoGrid.minColumnWidthPx)
+          : DEFAULT_AUTO_GRID_MIN_COLUMN_WIDTH_PX,
+      rowHeight:
+        typeof dashboard.autoGrid?.rowHeight === "number" && dashboard.autoGrid.rowHeight > 0
+          ? Math.round(dashboard.autoGrid.rowHeight)
+          : DEFAULT_AUTO_GRID_ROW_HEIGHT,
+      fillScreen:
+        dashboard.autoGrid?.fillScreen === true ? true : DEFAULT_AUTO_GRID_FILL_SCREEN,
+    },
+    companions,
+    widgets,
+    controls: dashboard.controls ?? {
+      enabled: true,
+      timeRange: {
+        enabled: true,
+        defaultRange: "24h",
+        options: [...DEFAULT_TIME_RANGE_OPTIONS],
+      },
+      refresh: {
+        enabled: true,
+        defaultIntervalMs: DEFAULT_REFRESH_INTERVAL_MS,
+        intervals: [...DEFAULT_REFRESH_INTERVALS],
+      },
+      actions: {
+        enabled: true,
+        share: false,
+        view: true,
+      },
+    },
+    grid: {
+      columns: DEFAULT_WORKSPACE_COLUMNS,
+      rowHeight: DEFAULT_WORKSPACE_ROW_HEIGHT,
+      gap: DEFAULT_WORKSPACE_GAP,
+    },
+  });
+}
+
 export function normalizeDashboardDefinition(dashboard: DashboardDefinition) {
-  return sanitizeDashboard(dashboard);
+  return migrateDashboardDefinition(dashboard);
 }
 
 export function cloneDashboardCollection(collection: UserDashboardCollection) {
@@ -609,7 +810,7 @@ export function materializeDashboardLayout(dashboard: DashboardDefinition): Dash
 }
 
 export function createBlankDashboard(title = "My Workspace"): DashboardDefinition {
-  return sanitizeDashboard({
+  return sanitizeDashboardDefinition({
     id: createId("custom-dashboard"),
     title,
     description: "User-scoped workspace managed in Command Center.",
@@ -673,7 +874,32 @@ export function normalizeUserDashboardCollection(
   return ensureUserDashboardCollectionSelection({
     version: STORAGE_VERSION,
     dashboards: Array.isArray(source.dashboards)
-      ? source.dashboards.map((dashboard) => sanitizeDashboard(dashboard))
+      ? source.dashboards.map((dashboard) => migrateDashboardDefinition(dashboard))
+      : [],
+    selectedDashboardId:
+      typeof source.selectedDashboardId === "string" ? source.selectedDashboardId : null,
+    savedAt:
+      typeof source.savedAt === "string"
+        ? source.savedAt
+        : (options?.fallbackSavedAt ?? null),
+  }, {
+    allowEmpty: options?.allowEmpty ?? false,
+  });
+}
+
+export function sanitizeUserDashboardCollection(
+  collection: Partial<UserDashboardCollection> | null | undefined,
+  options?: {
+    fallbackSavedAt?: string | null;
+    allowEmpty?: boolean;
+  },
+): UserDashboardCollection {
+  const source = collection ?? {};
+
+  return ensureUserDashboardCollectionSelection({
+    version: STORAGE_VERSION,
+    dashboards: Array.isArray(source.dashboards)
+      ? source.dashboards.map((dashboard) => sanitizeDashboardDefinition(dashboard))
       : [],
     selectedDashboardId:
       typeof source.selectedDashboardId === "string" ? source.selectedDashboardId : null,
@@ -708,7 +934,7 @@ export function saveUserDashboardCollection(
   userId: string,
   collection: UserDashboardCollection,
 ): UserDashboardCollection {
-  const normalized = normalizeUserDashboardCollection(collection, {
+  const normalized = sanitizeUserDashboardCollection(collection, {
     fallbackSavedAt: new Date().toISOString(),
   });
 
@@ -1536,7 +1762,7 @@ export function createWorkspaceSnapshot(
     schema: WORKSPACE_SNAPSHOT_SCHEMA,
     version: WORKSPACE_SNAPSHOT_VERSION,
     exportedAt: new Date().toISOString(),
-    workspace: sanitizeDashboard(cloneJson(dashboard)),
+    workspace: sanitizeDashboardDefinition(cloneJson(dashboard)),
   };
 }
 
@@ -1573,7 +1799,7 @@ export function parseWorkspaceSnapshot(rawValue: string): ParsedWorkspaceSnapsho
             typeof parsed.exportedAt === "string"
               ? parsed.exportedAt
               : new Date().toISOString(),
-          workspace: sanitizeDashboard(parsed.workspace),
+          workspace: migrateDashboardDefinition(parsed.workspace),
         },
         sourceFormat: "snapshot",
       };
@@ -1586,7 +1812,7 @@ export function parseWorkspaceSnapshot(rawValue: string): ParsedWorkspaceSnapsho
           schema: WORKSPACE_SNAPSHOT_SCHEMA,
           version: WORKSPACE_SNAPSHOT_VERSION,
           exportedAt: new Date().toISOString(),
-          workspace: sanitizeDashboard(parsed),
+          workspace: migrateDashboardDefinition(parsed),
         },
         sourceFormat: "raw",
       };
@@ -1613,7 +1839,7 @@ export function restoreWorkspaceFromSnapshot(
   },
 ) {
   return {
-    ...sanitizeDashboard(cloneJson(snapshot.workspace)),
+    ...migrateDashboardDefinition(cloneJson(snapshot.workspace)),
     id: options?.workspaceId ?? createId("custom-dashboard"),
   };
 }

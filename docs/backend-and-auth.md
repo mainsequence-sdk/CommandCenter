@@ -176,13 +176,36 @@ workspace documents through the `workspaces.*` block in `config/command-center.y
 Configured endpoints:
 
 - `workspaces.list_url`
-  - `GET`: load the current workspace list for the authenticated user
+  - `GET`: load lightweight workspace summaries for the authenticated user
   - `POST`: create one workspace document
 - `workspaces.detail_url`
+  - `GET`: load one full workspace document
   - `PUT`: replace one workspace document
   - `DELETE`: remove one workspace document
 
-Expected payload shape:
+Expected list `GET` payload shape:
+
+```json
+{
+  "results": [
+    {
+      "id": "custom-dashboard-123",
+      "title": "Rates Desk",
+      "description": "Shared workspace for rates monitoring",
+      "labels": ["rates", "monitoring"],
+      "source": "user",
+      "widgetCount": 12,
+      "selectedRange": "24h",
+      "customStartMs": null,
+      "customEndMs": null,
+      "refreshIntervalMs": 60000,
+      "updatedAt": "2026-04-03T12:00:00Z"
+    }
+  ]
+}
+```
+
+Expected detail `GET` / `POST` / `PUT` payload shape:
 
 ```json
 {
@@ -222,6 +245,7 @@ Expected payload shape:
 Important behavior:
 
 - when both workspace URLs are configured, the frontend stops using `localStorage` for workspace documents
+- the list endpoint is summary-only; full workspace detail is fetched on demand
 - the editor keeps the same draft/save/reset UX and only swaps the persistence target underneath
 - blank, `null`, or `None` workspace URLs keep the browser-local development fallback active
 

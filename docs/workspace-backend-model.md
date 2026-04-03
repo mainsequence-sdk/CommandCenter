@@ -35,7 +35,11 @@ That means Django model field names such as `layout_kind`, `auto_grid`, and `con
 fine as internal storage, but your serializer layer must map them explicitly. A plain
 `ModelSerializer` that exposes the snake_case fields directly is not enough.
 
-Also note that the current frontend backend adapter only talks to workspace list/detail endpoints.
+Also note that the current frontend backend adapter expects a split list/detail contract:
+
+- `GET workspaces.list_url`: lightweight workspace summaries only
+- `GET/PUT/DELETE workspaces.detail_url`: the full workspace document
+
 It does not yet persist `WorkspaceUserState` through separate endpoints. Today that means
 `controls.selectedRange`, `controls.selectedIntervalMs`, and widget-instance `runtimeState` can
 still arrive inside the main workspace document unless you strip or remap them server-side.

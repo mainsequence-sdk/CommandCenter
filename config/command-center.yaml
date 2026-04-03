@@ -4,6 +4,9 @@ app:
   name: Main Sequence
   short_name: Main Sequence
   notifications_refresh_interval_ms: 300000
+  cache:
+    app_component_openapi_document_ttl_ms: 300000
+    app_component_safe_response_ttl_ms: 30000
 
 branding:
   logo_lightmode: logo_lightmode.png

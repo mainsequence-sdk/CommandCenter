@@ -140,8 +140,10 @@ What it is:
 `AppComponent` reads an OpenAPI schema from the explicit URL the user provides, lets a user bind one
 widget instance to one API operation, compiles that operation into bindable request/response ports,
 keeps flattened response outputs for simple bindings, also exposes one structured root response
-output for nested-field extraction, and renders the generated request form directly inside the
-widget body.
+output for nested-field extraction, renders the generated request form directly inside the
+widget body, caches OpenAPI discovery globally, and reuses short-lived cached `GET` / `HEAD`
+responses during shared refresh-style execution so identical API source widgets do not fan out into
+duplicate network calls.
 
 What it is good for:
 

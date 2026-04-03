@@ -5,6 +5,7 @@ import type {
 } from "@/widgets/types";
 
 import {
+  APP_COMPONENT_SAFE_RESPONSE_CACHE_TTL_MS,
   fetchAppComponentOpenApiDocument,
   submitAppComponentRequest,
 } from "./appComponentApi";
@@ -20,6 +21,10 @@ import {
   tryResolveAppComponentBaseUrl,
   type AppComponentWidgetProps,
 } from "./appComponentModel";
+
+function shouldUseCachedAppComponentResponse(reason: WidgetExecutionContext["reason"]) {
+  return reason === "dashboard-refresh" || reason === "manual-recalculate";
+}
 
 function buildAppComponentErrorResult(
   runtimeState: Record<string, unknown> | undefined,
@@ -128,6 +133,10 @@ export async function executeAppComponent(
       url: buildResult.request.url,
       headers: buildResult.request.headers,
       body: buildResult.request.body,
+      cache: {
+        enabled: shouldUseCachedAppComponentResponse(context.reason),
+        ttlMs: APP_COMPONENT_SAFE_RESPONSE_CACHE_TTL_MS,
+      },
     });
 
     return {

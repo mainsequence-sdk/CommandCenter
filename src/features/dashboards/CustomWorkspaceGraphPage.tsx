@@ -54,7 +54,11 @@ import {
   type WorkspaceGraphNodeData,
   type WorkspaceGraphOutputPortData,
 } from "./WorkspaceGraphNode";
-import { WorkspaceToolbarButton, WorkspaceWidgetRail } from "./WorkspaceChrome";
+import {
+  WorkspaceSavingStatus,
+  WorkspaceToolbarButton,
+  WorkspaceWidgetRail,
+} from "./WorkspaceChrome";
 
 const GRAPH_NODE_HORIZONTAL_GAP = 420;
 const GRAPH_NODE_VERTICAL_GAP = 220;
@@ -678,6 +682,7 @@ export function CustomWorkspaceGraphPage() {
                       ) : null}
                       <Save className="h-3.5 w-3.5" />
                     </WorkspaceToolbarButton>
+                    {isSaving ? <WorkspaceSavingStatus /> : null}
                   </>
                 }
               />

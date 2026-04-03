@@ -14,6 +14,7 @@ import {
   Boxes,
   Clock3,
   Database,
+  Loader2,
   Table,
 } from "lucide-react";
 
@@ -233,6 +234,27 @@ export function WorkspaceToolbarButton({
     >
       {children}
     </button>
+  );
+}
+
+export function WorkspaceSavingStatus({
+  label = "Saving workspace…",
+  className,
+}: {
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/82 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground shadow-sm",
+        className,
+      )}
+      aria-live="polite"
+    >
+      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+      <span>{label}</span>
+    </div>
   );
 }
 

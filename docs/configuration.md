@@ -37,6 +37,9 @@ app:
   name: Main Sequence Command Center
   short_name: Main Sequence
   notifications_refresh_interval_ms: 300000
+  cache:
+    app_component_openapi_document_ttl_ms: 300000
+    app_component_safe_response_ttl_ms: 30000
 
 branding:
   logo_lightmode: logo_lightmode.png
@@ -54,6 +57,9 @@ preferences:
 workspaces:
   list_url:
   detail_url:
+
+widget_types:
+  sync_url: /api/v1/command_center/widget-types/sync/
 
 auth:
   identifier_label: Email
@@ -121,6 +127,8 @@ notifications:
 - `app.name`: full product name used by the app
 - `app.short_name`: shorter product name for compact UI copy
 - `app.notifications_refresh_interval_ms`: notification polling interval in milliseconds. Defaults to `300000` (5 minutes) when the key is omitted.
+- `app.cache.app_component_openapi_document_ttl_ms`: in-memory TTL for shared AppComponent OpenAPI discovery caching. Defaults to `300000` (5 minutes).
+- `app.cache.app_component_safe_response_ttl_ms`: in-memory TTL for shared AppComponent safe-response caching. Defaults to `30000` (30 seconds).
 - `branding.logo_lightmode`: logo file to use on light themes
 - `branding.logo_darkmode`: logo file to use on dark themes
 - `branding.logo_mark`: compact mark used in the sidebar and other small brand surfaces
@@ -132,6 +140,7 @@ notifications:
 - `preferences.favorites_delete_url`: optional authenticated `DELETE` endpoint for removing one favorite entry. The current backend contract uses `{kind}` and `{target_key}` path placeholders.
 - `workspaces.list_url`: optional authenticated list/create endpoint for workspace documents. When this and `workspaces.detail_url` are configured, Workspaces stops using browser-local storage.
 - `workspaces.detail_url`: optional authenticated detail/update/delete endpoint for one workspace document. The frontend supports `{id}` or `:id` placeholders and also falls back to appending the workspace id if the placeholder is omitted.
+- `widget_types.sync_url`: authenticated endpoint used to sync the frontend widget registry into the backend widget-type catalog during login/session bootstrap.
 - `auth.identifier_label`: label shown on the login form for the primary credential field
 - `auth.identifier_placeholder`: placeholder shown on that field
 - `auth.jwt.token_url`: login endpoint that returns an access token
@@ -172,6 +181,8 @@ The application:
 - falls back to local browser persistence for language and favorites when `preferences.url` is blank or omitted
 - loads and saves workspaces through the configured workspace endpoints when both workspace URLs are configured
 - falls back to browser-local workspace persistence when either workspace URL is blank, `null`, or `None`
+- uses `app.cache.*` TTLs for shared AppComponent OpenAPI discovery and short-lived safe-response caching
+- syncs the frontend widget registry through `widget_types.sync_url` when that endpoint is configured
 - resolves JWT login and refresh endpoints from the configured auth block
 - fetches configured user details after JWT login succeeds
 - revalidates persisted JWT sessions against the configured user-details endpoint before granting access
@@ -222,13 +233,36 @@ The workspace config block supports a minimal DRF-style list/detail contract.
 Configured endpoints:
 
 - `workspaces.list_url`
-  - `GET`: return the current workspace list
+  - `GET`: return lightweight workspace summaries
   - `POST`: create one workspace document
 - `workspaces.detail_url`
+  - `GET`: return one full workspace document
   - `PUT`: replace one workspace document
   - `DELETE`: remove one workspace document
 
-Expected workspace payload shape:
+Expected list `GET` payload shape:
+
+```json
+{
+  "results": [
+    {
+      "id": "custom-dashboard-123",
+      "title": "Rates Desk",
+      "description": "Shared workspace for rates monitoring",
+      "labels": ["rates", "monitoring"],
+      "source": "user",
+      "widgetCount": 12,
+      "selectedRange": "24h",
+      "customStartMs": null,
+      "customEndMs": null,
+      "refreshIntervalMs": 60000,
+      "updatedAt": "2026-04-03T12:00:00Z"
+    }
+  ]
+}
+```
+
+Expected detail `GET` / `POST` / `PUT` payload shape:
 
 ```json
 {
@@ -268,7 +302,10 @@ Expected workspace payload shape:
 Notes:
 
 - The studio still keeps draft/save/reset semantics on the frontend; backend mode only swaps the persistence target.
-- The current adapter expects stable workspace ids in the request/response document shape so draft save operations can map cleanly back onto the selected workspace route.
+- The list endpoint is intentionally summary-only; the frontend no longer expects nested widget,
+  layout, or binding data from `GET workspaces.list_url`.
+- The current adapter expects stable workspace ids in the detail request/response document shape so
+  draft save operations can map cleanly back onto the selected workspace route.
 - Blank, `null`, and `None` values are all treated as "not configured" for workspace endpoints.
 
 ## Notes

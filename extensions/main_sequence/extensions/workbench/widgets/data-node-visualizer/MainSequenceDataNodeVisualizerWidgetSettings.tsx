@@ -18,9 +18,11 @@ import { DataNodeVisualizerTable } from "./DataNodeVisualizerTable";
 import type { DataNodeVisualizerControllerContext } from "./controller";
 import {
   buildDataNodeVisualizerChartSeries,
+  normalizeDataNodeVisualizerLineStyle,
   buildDataNodeVisualizerSeries,
   buildDataNodeVisualizerTableColumns,
   resolveDataNodeVisualizerDateRange,
+  resolveDataNodeVisualizerEffectiveTimeAxisMode,
   resolveDataNodeVisualizerNormalizationTimeMs,
   type DataNodeVisualizerViewMode,
   type MainSequenceDataNodeVisualizerWidgetProps,
@@ -31,8 +33,17 @@ import {
   resolveDataNodeWidgetPrefilledFixedRange,
   resolveDataNodeWidgetPreviewAnchorMs,
 } from "../data-node-shared/dataNodeWidgetSource";
+import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
 
 const previewRowLimit = 2_500;
+
+const lineStyleOptions: PickerOption[] = [
+  { value: "solid", label: "Solid", description: "TradingView solid stroke." },
+  { value: "dotted", label: "Dotted", description: "TradingView dotted stroke." },
+  { value: "dashed", label: "Dashed", description: "TradingView dashed stroke." },
+  { value: "large_dashed", label: "Large dashed", description: "TradingView large dashed stroke." },
+  { value: "sparse_dotted", label: "Sparse dotted", description: "TradingView sparse dotted stroke." },
+];
 
 function SettingsSection({
   title,
@@ -187,9 +198,16 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
         : { series: [], droppedGroups: 0, filteredGroups: 0, totalGroups: 0 },
     [previewRows, resolvedConfig],
   );
+  const previewTimeAxisMode = useMemo(
+    () =>
+      resolvedConfig
+        ? resolveDataNodeVisualizerEffectiveTimeAxisMode(resolvedConfig, previewRows)
+        : "datetime",
+    [previewRows, resolvedConfig],
+  );
   const previewChartSeriesResult = useMemo(
-    () => buildDataNodeVisualizerChartSeries(previewSeriesResult.series),
-    [previewSeriesResult.series],
+    () => buildDataNodeVisualizerChartSeries(previewSeriesResult.series, previewTimeAxisMode),
+    [previewSeriesResult.series, previewTimeAxisMode],
   );
   const previewTableColumns = useMemo(
     () =>
@@ -209,9 +227,13 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
     [previewRange.rangeStartMs, resolvedConfig],
   );
   const previewRangeSummary =
-    previewRange.rangeStartMs && previewRange.rangeEndMs
-      ? formatRangeSummary(previewRange.rangeStartMs, previewRange.rangeEndMs)
-      : "Select a valid date range to preview";
+    context?.isFilterWidgetSource &&
+    linkedDataset?.rangeStartMs &&
+    linkedDataset?.rangeEndMs
+      ? formatRangeSummary(linkedDataset.rangeStartMs, linkedDataset.rangeEndMs)
+      : previewRange.rangeStartMs && previewRange.rangeEndMs
+        ? formatRangeSummary(previewRange.rangeStartMs, previewRange.rangeEndMs)
+        : "Select a valid date range to preview";
   const canRenderPreviewContent =
     Boolean(context?.isFilterWidgetSource) || previewRange.hasValidRange;
   const previewChartEmptyMessage =
@@ -266,6 +288,9 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
         resolvedConfig?.seriesOverrides?.[series.id]?.color,
         toColorInputValue(palette[index % palette.length], "#2563eb"),
       ),
+      lineStyle: normalizeDataNodeVisualizerLineStyle(
+        resolvedConfig?.seriesOverrides?.[series.id]?.lineStyle,
+      ),
     }));
   }, [previewSeriesResult.series, resolvedConfig?.seriesOverrides, resolvedTokens]);
 
@@ -274,7 +299,25 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
       ...draftProps,
       seriesOverrides: {
         ...(resolvedConfig?.seriesOverrides ?? {}),
-        [seriesId]: { color },
+        [seriesId]: {
+          ...(resolvedConfig?.seriesOverrides?.[seriesId] ?? {}),
+          color,
+        },
+      },
+    });
+  }
+
+  function updateSeriesLineStyle(seriesId: string, lineStyle: string) {
+    const normalizedLineStyle = normalizeDataNodeVisualizerLineStyle(lineStyle);
+
+    onDraftPropsChange({
+      ...draftProps,
+      seriesOverrides: {
+        ...(resolvedConfig?.seriesOverrides ?? {}),
+        [seriesId]: {
+          ...(resolvedConfig?.seriesOverrides?.[seriesId] ?? {}),
+          lineStyle: normalizedLineStyle === "solid" ? undefined : normalizedLineStyle,
+        },
       },
     });
   }
@@ -285,7 +328,15 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
     }
 
     const nextOverrides = { ...(resolvedConfig.seriesOverrides ?? {}) };
-    delete nextOverrides[seriesId];
+    const nextSeriesOverride = { ...(nextOverrides[seriesId] ?? {}) };
+    delete nextSeriesOverride.color;
+    delete nextSeriesOverride.lineStyle;
+
+    if (Object.keys(nextSeriesOverride).length > 0) {
+      nextOverrides[seriesId] = nextSeriesOverride;
+    } else {
+      delete nextOverrides[seriesId];
+    }
 
     onDraftPropsChange({
       ...draftProps,
@@ -346,7 +397,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                   </div>
                 </div>
 
-                {previewAnchorMs !== null ? (
+                {previewAnchorMs !== null && !context?.isFilterWidgetSource ? (
                   <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-3 py-3">
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                       Latest observation
@@ -425,9 +476,11 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                           chartType={resolvedConfig.chartType}
                           className="min-h-[280px]"
                           emptyMessage={previewChartEmptyMessage}
+                          minBarSpacingPx={resolvedConfig.minBarSpacingPx}
                           normalizationTimeMs={previewNormalizationTimeMs}
                           series={previewChartSeriesResult.series}
                           seriesAxisMode={resolvedConfig.seriesAxisMode}
+                          timeAxisMode={previewTimeAxisMode}
                         />
                       </DataNodeVisualizerChartErrorBoundary>
                     )}
@@ -445,11 +498,11 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
 
       <SettingsSection
         title="Series styling"
-        description="Lock specific series colors after the preview resolves the active series list."
+        description="Lock specific series colors and line styles after the preview resolves the active series list."
       >
         {!hasPreviewSource || hasNoData ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Select a chartable Data Node dataset to configure per-series colors.
+            Select a chartable Data Node dataset to configure per-series styling.
           </div>
         ) : context?.isAwaitingBoundSourceValue ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
@@ -470,7 +523,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-foreground">{series.label}</div>
-                    <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground">
                       {series.pointCount > 0
                         ? `${series.pointCount.toLocaleString()} preview points`
                         : "Uses the active series id when data becomes available."}
@@ -480,23 +533,35 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    disabled={!editable || !resolvedConfig.seriesOverrides?.[series.id]?.color}
+                    disabled={!editable || !resolvedConfig.seriesOverrides?.[series.id]}
                     onClick={() => clearSeriesColor(series.id)}
                   >
                     Reset
                   </Button>
                 </div>
 
-                <label className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={series.color}
-                    onChange={(event) => updateSeriesColor(series.id, event.target.value)}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={series.color}
+                      onChange={(event) => updateSeriesColor(series.id, event.target.value)}
+                      disabled={!editable}
+                      className="h-10 w-12 cursor-pointer rounded-md border border-border bg-transparent p-1"
+                    />
+                    <Input value={series.color} readOnly />
+                  </label>
+
+                  <PickerField
+                    value={series.lineStyle}
+                    onChange={(value) => updateSeriesLineStyle(series.id, value)}
+                    options={lineStyleOptions}
+                    placeholder="Solid"
                     disabled={!editable}
-                    className="h-10 w-12 cursor-pointer rounded-md border border-border bg-transparent p-1"
+                    searchPlaceholder="Search line styles"
+                    emptyMessage="No line styles."
                   />
-                  <Input value={series.color} readOnly />
-                </label>
+                </div>
               </div>
             ))}
           </div>

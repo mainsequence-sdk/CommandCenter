@@ -4,8 +4,10 @@ import {
   AreaSeries,
   ColorType,
   HistogramSeries,
+  LineStyle,
   LineSeries,
   createChart,
+  type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
 
@@ -16,9 +18,12 @@ import { useTheme } from "@/themes/ThemeProvider";
 import { normalizeDataNodeVisualizerSeries } from "./dataNodeVisualizerModel";
 import type {
   DataNodeVisualizerChartType,
+  DataNodeVisualizerLineStyle,
   DataNodeVisualizerSeriesAxisMode,
   DataNodeVisualizerSeries,
+  DataNodeVisualizerTimeAxisMode,
 } from "./dataNodeVisualizerModel";
+import { formatDataNodeVisualizerUtcDateKey } from "./dataNodeVisualizerModel";
 
 function getChartSize(container: HTMLDivElement) {
   return {
@@ -31,17 +36,21 @@ export function TradingViewSeriesChart({
   chartType,
   className,
   emptyMessage = "No chartable rows are available for the selected configuration.",
+  minBarSpacingPx = 0.01,
   normalizationTimeMs,
   series,
   seriesAxisMode = "shared",
+  timeAxisMode = "datetime",
   transparentSurface = false,
 }: {
   chartType: DataNodeVisualizerChartType;
   className?: string;
   emptyMessage?: string;
+  minBarSpacingPx?: number;
   normalizationTimeMs?: number | null;
   series: DataNodeVisualizerSeries[];
   seriesAxisMode?: DataNodeVisualizerSeriesAxisMode;
+  timeAxisMode?: Exclude<DataNodeVisualizerTimeAxisMode, "auto">;
   transparentSurface?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -83,6 +92,20 @@ export function TradingViewSeriesChart({
     () => themedSeries.length > 0 && themedSeries.every((entry) => entry.points.length <= 1),
     [themedSeries],
   );
+  const resolveLineStyle = (lineStyle: DataNodeVisualizerLineStyle | undefined) => {
+    switch (lineStyle) {
+      case "dotted":
+        return LineStyle.Dotted;
+      case "dashed":
+        return LineStyle.Dashed;
+      case "large_dashed":
+        return LineStyle.LargeDashed;
+      case "sparse_dotted":
+        return LineStyle.SparseDotted;
+      default:
+        return LineStyle.Solid;
+    }
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -95,6 +118,7 @@ export function TradingViewSeriesChart({
 
     let chart: ReturnType<typeof createChart> | null = null;
     let resizeObserver: ResizeObserver | null = null;
+    let hasFittedAtStableSize = false;
 
     try {
       chart = createChart(container, {
@@ -113,8 +137,9 @@ export function TradingViewSeriesChart({
         timeScale: {
           borderVisible: false,
           borderColor: "transparent",
-          timeVisible: true,
+          timeVisible: timeAxisMode === "datetime",
           secondsVisible: false,
+          minBarSpacing: minBarSpacingPx,
         },
         crosshair: {
           vertLine: {
@@ -130,8 +155,11 @@ export function TradingViewSeriesChart({
       });
 
       themedSeries.forEach((entry, index) => {
-        const normalizedPoints = entry.points.map((point) => ({
-          time: Math.floor(point.time / 1000) as UTCTimestamp,
+        const normalizedPoints: Array<{ time: Time; value: number }> = entry.points.map((point) => ({
+          time:
+            timeAxisMode === "date"
+              ? formatDataNodeVisualizerUtcDateKey(point.time)
+              : (Math.floor(point.time / 1000) as UTCTimestamp),
           value: point.value,
         }));
         const paneIndex = separateAxes ? index : 0;
@@ -149,6 +177,7 @@ export function TradingViewSeriesChart({
             AreaSeries,
             {
               lineColor: entry.color,
+              lineStyle: resolveLineStyle(entry.lineStyle),
               topColor: withAlpha(entry.color, 0.22),
               bottomColor: withAlpha(entry.color, 0.03),
               lineWidth: 2,
@@ -185,6 +214,7 @@ export function TradingViewSeriesChart({
           LineSeries,
           {
             color: entry.color,
+            lineStyle: resolveLineStyle(entry.lineStyle),
             lineWidth: 2,
             priceLineVisible: false,
             lastValueVisible: false,
@@ -206,8 +236,32 @@ export function TradingViewSeriesChart({
 
       chart.timeScale().fitContent();
 
+      const fitAtStableSize = () => {
+        if (!chart) {
+          return;
+        }
+
+        const { width, height } = getChartSize(container);
+
+        if (width <= 1 || height <= 1) {
+          return;
+        }
+
+        chart.applyOptions({ width, height });
+        chart.timeScale().fitContent();
+        hasFittedAtStableSize = true;
+      };
+
+      requestAnimationFrame(() => {
+        fitAtStableSize();
+      });
+
       resizeObserver = new ResizeObserver(() => {
         chart?.applyOptions(getChartSize(container));
+
+        if (!hasFittedAtStableSize) {
+          fitAtStableSize();
+        }
       });
 
       resizeObserver.observe(container);
@@ -226,7 +280,7 @@ export function TradingViewSeriesChart({
       resizeObserver?.disconnect();
       chart?.remove();
     };
-  }, [chartType, resolvedTokens, separateAxes, showPointMarkers, themedSeries, transparentSurface]);
+  }, [chartType, minBarSpacingPx, resolvedTokens, separateAxes, showPointMarkers, themedSeries, timeAxisMode, transparentSurface]);
 
   if (themedSeries.length === 0) {
     return (

@@ -3,10 +3,17 @@ import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
 import {
+  sanitizeDashboardDefinition,
+  sanitizeUserDashboardCollection,
   normalizeDashboardDefinition,
   normalizeUserDashboardCollection,
   type UserDashboardCollection,
 } from "./custom-dashboard-storage";
+import {
+  normalizeWorkspaceListSummariesPayload,
+  summarizeDashboardForWorkspaceList,
+  type WorkspaceListItemSummary,
+} from "./workspace-list-summary";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const mockWorkspaceStorageKeyPrefix = "ms.command-center.mock-workspaces";
@@ -261,39 +268,15 @@ function parseRequestJsonBody(body: RequestInit["body"]) {
   }
 }
 
-function normalizeWorkspaceListPayload(payload: unknown): DashboardDefinition[] {
-  if (Array.isArray(payload)) {
-    return payload
-      .map((dashboard) => coerceDashboardDefinition(dashboard))
-      .filter((dashboard): dashboard is DashboardDefinition => dashboard !== null);
-  }
-
-  if (!isRecord(payload)) {
-    return [];
-  }
-
-  if (Array.isArray(payload.results)) {
-    return payload.results
-      .map((dashboard) => coerceDashboardDefinition(dashboard))
-      .filter((dashboard): dashboard is DashboardDefinition => dashboard !== null);
-  }
-
-  if (Array.isArray(payload.dashboards)) {
-    return payload.dashboards
-      .map((dashboard) => coerceDashboardDefinition(dashboard))
-      .filter((dashboard): dashboard is DashboardDefinition => dashboard !== null);
-  }
-
-  return [];
-}
-
 function buildMockWorkspacePayload() {
   const mockWorkspaceCollection = readMockWorkspaceCollection(getCurrentMockWorkspaceUserId());
 
   return {
-    results: cloneJson(mockWorkspaceCollection.dashboards),
-    selectedDashboardId: mockWorkspaceCollection.selectedDashboardId,
-    savedAt: mockWorkspaceCollection.savedAt,
+    results: mockWorkspaceCollection.dashboards.map((dashboard) =>
+      summarizeDashboardForWorkspaceList(dashboard, {
+        updatedAt: mockWorkspaceCollection.savedAt,
+      }),
+    ),
   };
 }
 
@@ -315,7 +298,7 @@ function buildMockWorkspaceFromPayload(payload: unknown): DashboardDefinition {
   const source = isRecord(payload) ? payload : {};
   const normalizedId = normalizeWorkspaceId(source.id) ?? createMockWorkspaceId();
 
-  return normalizeDashboardDefinition({
+  return sanitizeDashboardDefinition({
     id: normalizedId,
     title: typeof source.title === "string" && source.title.trim() ? source.title : "My Workspace",
     description:
@@ -365,7 +348,7 @@ function createMockWorkspace(
 ) {
   const userId = getCurrentMockWorkspaceUserId();
   const currentCollection = readMockWorkspaceCollection(userId);
-  const createdWorkspace = normalizeDashboardDefinition({
+  const createdWorkspace = sanitizeDashboardDefinition({
     ...dashboard,
     id: dashboard.id?.trim() ? dashboard.id : createMockWorkspaceId(),
   });
@@ -444,7 +427,7 @@ function handleMockWorkspaceRequest(path: string, init?: RequestInit) {
       throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
     }
 
-    const updatedWorkspace = normalizeDashboardDefinition({
+    const updatedWorkspace = sanitizeDashboardDefinition({
       ...buildMockWorkspaceFromPayload(parseRequestJsonBody(init?.body)),
       id: workspaceId,
     });
@@ -479,46 +462,6 @@ function handleMockWorkspaceRequest(path: string, init?: RequestInit) {
   }
 
   return undefined;
-}
-
-function readSavedAtFromDashboard(dashboard: unknown) {
-  if (!isRecord(dashboard)) {
-    return null;
-  }
-
-  const candidate =
-    dashboard.updatedAt ??
-    dashboard.updated_at ??
-    dashboard.modifiedAt ??
-    dashboard.modified_at ??
-    dashboard.savedAt ??
-    dashboard.saved_at;
-
-  return typeof candidate === "string" && candidate.trim() ? candidate : null;
-}
-
-function resolveCollectionSavedAt(payload: unknown, dashboards: DashboardDefinition[]) {
-  if (isRecord(payload)) {
-    const collectionSavedAt = payload.savedAt ?? payload.saved_at;
-
-    if (typeof collectionSavedAt === "string" && collectionSavedAt.trim()) {
-      return collectionSavedAt;
-    }
-  }
-
-  return dashboards.reduce<string | null>((latest, dashboard) => {
-    const candidate = readSavedAtFromDashboard(dashboard);
-
-    if (!candidate) {
-      return latest;
-    }
-
-    if (!latest) {
-      return candidate;
-    }
-
-    return Date.parse(candidate) > Date.parse(latest) ? candidate : latest;
-  }, null);
 }
 
 async function readResponsePayload(response: Response) {
@@ -686,17 +629,13 @@ export async function deleteWorkspaceInBackend(workspaceId: string) {
   });
 }
 
-function serializeDashboard(dashboard: DashboardDefinition) {
-  return JSON.stringify(normalizeDashboardDefinition(dashboard));
-}
-
 function serializeWorkspaceMutationPayload(
   dashboard: DashboardDefinition,
   options?: {
     includeId?: boolean;
   },
 ) {
-  const normalizedDashboard = normalizeDashboardDefinition(dashboard);
+  const normalizedDashboard = sanitizeDashboardDefinition(dashboard);
 
   if (options?.includeId ?? false) {
     return JSON.stringify(normalizedDashboard);
@@ -782,7 +721,7 @@ function resolveMutationDashboardPayload(payload: unknown, fallback: DashboardDe
   if (resolved) {
     const nextResolved =
       fallback.widgets.length > 0
-        ? normalizeDashboardDefinition({
+        ? sanitizeDashboardDefinition({
             ...resolved,
             widgets: applyFallbackWidgetGeometry(
               resolved.widgets,
@@ -797,7 +736,7 @@ function resolveMutationDashboardPayload(payload: unknown, fallback: DashboardDe
       Array.isArray(fallback.companions) &&
       fallback.companions.length > 0
     ) {
-      return normalizeDashboardDefinition({
+      return sanitizeDashboardDefinition({
         ...nextResolved,
         companions: fallback.companions,
       });
@@ -816,7 +755,7 @@ export function hasConfiguredWorkspaceBackend() {
   );
 }
 
-export async function fetchWorkspaceCollectionFromBackend() {
+export async function fetchWorkspaceListSummariesFromBackend(): Promise<WorkspaceListItemSummary[]> {
   const listPath = commandCenterConfig.workspaces.listUrl.trim();
 
   if (!listPath) {
@@ -824,26 +763,43 @@ export async function fetchWorkspaceCollectionFromBackend() {
   }
 
   if (env.useMockData) {
-    return readMockWorkspaceCollection(getCurrentMockWorkspaceUserId());
+    return readMockWorkspaceCollection(getCurrentMockWorkspaceUserId()).dashboards.map((dashboard) =>
+      summarizeDashboardForWorkspaceList(dashboard),
+    );
   }
 
   const payload = await requestWorkspaceBackend(listPath);
-  const dashboards = normalizeWorkspaceListPayload(payload);
+  return normalizeWorkspaceListSummariesPayload(payload);
+}
 
-  return normalizeUserDashboardCollection(
-    {
-      dashboards,
-      selectedDashboardId:
-        isRecord(payload) && normalizeWorkspaceId(payload.selectedDashboardId)
-          ? normalizeWorkspaceId(payload.selectedDashboardId)
-          : null,
-      savedAt: resolveCollectionSavedAt(payload, dashboards),
-    },
-    {
-      allowEmpty: true,
-      fallbackSavedAt: resolveCollectionSavedAt(payload, dashboards),
-    },
-  );
+export async function fetchWorkspaceDetailFromBackend(workspaceId: string) {
+  const detailPath = commandCenterConfig.workspaces.detailUrl.trim();
+
+  if (!detailPath) {
+    throw new Error("Command Center workspace detail endpoint is not configured.");
+  }
+
+  if (env.useMockData) {
+    const currentWorkspace =
+      readMockWorkspaceCollection(getCurrentMockWorkspaceUserId()).dashboards.find(
+        (dashboard) => dashboard.id === workspaceId,
+      ) ?? null;
+
+    if (!currentWorkspace) {
+      throw new Error(`Workspace ${workspaceId} was not found.`);
+    }
+
+    return currentWorkspace;
+  }
+
+  const payload = await requestWorkspaceBackend(resolveWorkspaceDetailPath(workspaceId));
+  const dashboard = coerceDashboardDefinition(payload);
+
+  if (!dashboard) {
+    throw new Error(`Workspace ${workspaceId} detail response was invalid.`);
+  }
+
+  return dashboard;
 }
 
 export async function createWorkspaceInBackend(dashboard: DashboardDefinition) {
@@ -865,87 +821,43 @@ export async function createWorkspaceInBackend(dashboard: DashboardDefinition) {
   return resolveMutationDashboardPayload(payload, dashboard);
 }
 
-export async function saveWorkspaceCollectionToBackend(
-  previousCollection: UserDashboardCollection,
-  nextCollection: UserDashboardCollection,
-) {
-  const listPath = commandCenterConfig.workspaces.listUrl.trim();
+export async function saveWorkspaceInBackend(dashboard: DashboardDefinition) {
+  const detailPath = commandCenterConfig.workspaces.detailUrl.trim();
 
-  if (!listPath || !commandCenterConfig.workspaces.detailUrl.trim()) {
-    throw new Error("Command Center workspaces backend is not fully configured.");
+  if (!detailPath) {
+    throw new Error("Command Center workspace detail endpoint is not configured.");
   }
 
   if (env.useMockData) {
-    return persistMockWorkspaceCollection(
-      normalizeUserDashboardCollection(nextCollection, {
-        allowEmpty: true,
-        fallbackSavedAt: new Date().toISOString(),
-      }),
-    );
-  }
-
-  const normalizedPrevious = normalizeUserDashboardCollection(previousCollection);
-  const normalizedNext = normalizeUserDashboardCollection(nextCollection, {
-    allowEmpty: true,
-    fallbackSavedAt: new Date().toISOString(),
-  });
-  const previousById = new Map(
-    normalizedPrevious.dashboards.map((dashboard) => [dashboard.id, dashboard]),
-  );
-  const nextById = new Map(normalizedNext.dashboards.map((dashboard) => [dashboard.id, dashboard]));
-  const persistedDashboards = new Map<string, DashboardDefinition>();
-
-  for (const dashboard of normalizedPrevious.dashboards) {
-    if (!nextById.has(dashboard.id)) {
-      await deleteWorkspaceInBackend(dashboard.id);
-    }
-  }
-
-  for (const dashboard of normalizedNext.dashboards) {
-    const previousDashboard = previousById.get(dashboard.id);
-
-    if (!previousDashboard) {
-      const payload = await requestWorkspaceBackend(listPath, {
-        method: "POST",
-        body: serializeWorkspaceMutationPayload(dashboard),
-      });
-
-      persistedDashboards.set(
-        dashboard.id,
-        resolveMutationDashboardPayload(payload, dashboard),
-      );
-      continue;
-    }
-
-    if (serializeDashboard(previousDashboard) === serializeDashboard(dashboard)) {
-      persistedDashboards.set(dashboard.id, dashboard);
-      continue;
-    }
-
-    const payload = await requestWorkspaceBackend(resolveWorkspaceDetailPath(dashboard.id), {
-      method: "PUT",
-      body: serializeWorkspaceMutationPayload(dashboard),
-    });
-
-    persistedDashboards.set(
-      dashboard.id,
-      resolveMutationDashboardPayload(payload, dashboard),
-    );
-  }
-
-  const savedAt = new Date().toISOString();
-
-  return normalizeUserDashboardCollection(
-    {
-      ...normalizedNext,
-      dashboards: normalizedNext.dashboards.map(
-        (dashboard) => persistedDashboards.get(dashboard.id) ?? dashboard,
+    const nextCollection = persistMockWorkspaceCollection(
+      sanitizeUserDashboardCollection(
+        {
+          dashboards: [
+            sanitizeDashboardDefinition(dashboard),
+            ...readMockWorkspaceCollection(getCurrentMockWorkspaceUserId()).dashboards.filter(
+              (entry) => entry.id !== dashboard.id,
+            ),
+          ],
+          selectedDashboardId: dashboard.id,
+          savedAt: new Date().toISOString(),
+        },
+        {
+          allowEmpty: true,
+          fallbackSavedAt: new Date().toISOString(),
+        },
       ),
-      savedAt,
-    },
-    {
-      allowEmpty: true,
-      fallbackSavedAt: savedAt,
-    },
-  );
+    );
+
+    return (
+      nextCollection.dashboards.find((entry) => entry.id === dashboard.id) ??
+      sanitizeDashboardDefinition(dashboard)
+    );
+  }
+
+  const payload = await requestWorkspaceBackend(resolveWorkspaceDetailPath(dashboard.id), {
+    method: "PUT",
+    body: serializeWorkspaceMutationPayload(dashboard),
+  });
+
+  return resolveMutationDashboardPayload(payload, dashboard);
 }

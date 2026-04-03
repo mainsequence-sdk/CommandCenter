@@ -53,6 +53,11 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   upstream executable dependencies can run first.
 - AppComponent now exposes a saved `refreshOnDashboardRefresh` setting. It defaults to enabled, so
   dashboard refresh will re-run the configured request unless the instance explicitly disables it.
+- OpenAPI discovery is cached globally in-memory for five minutes, and safe request responses
+  (`GET` / `HEAD`) are cached in-memory for thirty seconds during shared refresh-style execution
+  (`dashboard-refresh` / `manual-recalculate`) so identical AppComponent sources do not fan out into
+  repeated network calls across widgets. Both TTLs are configured at the app level in
+  `config/command-center.yaml`, not hardcoded in the widget.
 
 ## Maintenance Notes
 
@@ -68,3 +73,7 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   reintroduce separate inline submit orchestration in the widget body or settings page.
 - `refreshOnDashboardRefresh` is a persisted widget prop. If backend widget-props validation exists,
   it must continue to allow this boolean field.
+- Keep the safe-response cache policy narrow unless product requirements change. Manual submit and
+  settings-side test execution intentionally bypass response caching so the user can force a fresh request.
+- If product requirements change, update the app-level cache TTLs in `config/command-center.yaml`
+  and the configuration docs in the same change so widget behavior and deployment expectations stay aligned.

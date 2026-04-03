@@ -28,11 +28,24 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - The widget definition is reusable, but each chart instance now owns only chart mapping and display
   behavior such as axis selections, grouping, provider, chart type, normalization, and series
   styling.
+- Series stroke styling is per-series through `seriesOverrides`. For TradingView-backed line and
+  area charts, each resolved series can now choose its own built-in line style (`Solid`,
+  `Dotted`, `Dashed`, `Large dashed`, `Sparse dotted`) alongside its per-series color override.
+- Time-axis interpretation is also per-widget. Each chart can force `Date`, force `DateTime`, or
+  leave the mode on `Auto`, which infers the behavior from the bound X-field values.
+- X-axis density is also per-widget through `minBarSpacingPx`. This is a TradingView
+  time-scale control that determines how tightly long histories can compress into the initial
+  viewport. Lower values allow the chart to fit longer series instead of opening on the most
+  recent tail.
 - Group visibility is also chart-local: the chart can include or exclude specific group values from
   the incoming Data Node dataset without changing the upstream canonical rows.
 - The graph consumes the shared Data Node published dataset contract:
   `status`, `dataNodeId`, `columns: string[]`, and `rows: Record<string, unknown>[]`. It then
   derives chart series locally from that standard table-shaped input.
+- The chart model is row-first: it expects long-form rows that can be mapped into
+  `xField` + `yField` + optional `groupField`. When upstream data arrives wide, use a sibling
+  `Data Node` widget's `Unpivot` transform to publish a long-form dataset before it reaches the
+  graph.
 - Source selection, identifier filtering, date range, and reusable row transforms now belong to a
   sibling `Data Node` widget in the same dashboard.
 - Saved chart behavior also includes series normalization, an optional normalization anchor date, shared vs separate series axes, and per-series color overrides keyed by the resolved series id.
@@ -56,7 +69,8 @@ This widget turns Main Sequence data-node table data into configurable charts, w
   direct executable source itself.
 - Before rendering, chart series are normalized to chart-second precision so multiple rows that land
   in the same second collapse deterministically to the latest point instead of crashing the chart
-  renderer.
+  renderer. In `Date` axis mode, the same safeguard collapses duplicate points per UTC day instead
+  of per second.
 - Group include/exclude filtering happens after the chart resolves long-format rows from the linked
   Data Node, so multiple charts can render different subsets from the same upstream dataset.
 - For a fixed node and time window, the settings preview fetches the available field set once and remaps chart axes, series normalization, and series colors locally so those changes do not trigger a new remote data request.
@@ -73,6 +87,12 @@ This widget turns Main Sequence data-node table data into configurable charts, w
   widget-specific advanced settings panel.
 - The settings modal fetches the selected node's latest observation and uses its time index as the default fixed-date end when needed.
 - The preview anchors its request on the latest available row for the node and keeps the current range span, so stale datasets still render in settings.
+- When the graph is bound to another `Data Node`, the preview header now prefers the linked
+  dataset's published range over the dashboard/query range so the settings panel reflects the
+  actual upstream rows being graphed.
+- That depends on the upstream `Data Node` publishing its range through the shared headless dataset
+  contract, which the Data Node widget now does for both runtime and published-output resolution
+  paths.
 - Visualization settings focus on the mounted chart renderer and provider-specific controls.
 - The preview can switch locally between chart and table without changing the live widget surface.
 - Table preview requests all available fields so the preview grid shows the full row shape, not only the mapped chart columns.
@@ -87,10 +107,14 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - The preview summary also reports when chart-local group filters remove series before rendering.
 - In the mounted widget, the visualizer always stays on the chart so the table remains a settings-only inspection tool.
 - The mounted chart now sizes directly to the available widget body, so dashboard resizing should shrink the visualizer instead of cropping it behind hardcoded chart minimums.
+- Very long daily histories may require a lower `Min point spacing` value so TradingView can fit
+  the whole series on first render; the library default `0.5px` spacing is too high for large
+  datasets in narrow widgets.
 
 ## Defaults
 
 - X axis defaults to `time_index_name` when available, otherwise the first time-like field or first indexed field.
+- Time axis mode defaults to `Auto`.
 - Grouping defaults to the second index field when present.
 - Y axis defaults to the first non-index numeric field.
 - Date range defaults to the dashboard date until the widget is switched to a fixed range.

@@ -7,47 +7,29 @@ import { Button } from "@/components/ui/button";
 import { useShellStore } from "@/stores/shell-store";
 import { CustomDashboardStudioPage } from "./CustomDashboardStudioPage";
 import { CustomWorkspaceGraphPage } from "./CustomWorkspaceGraphPage";
-import { CustomWidgetSettingsPage } from "./CustomWidgetSettingsPage";
 import { CustomWorkspaceSettingsPage } from "./CustomWorkspaceSettingsPage";
 import {
   createWorkspaceSnapshot,
   restoreWorkspaceFromSnapshot,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
+import type { WorkspaceListItemSummary } from "./workspace-list-summary";
 import {
   getWorkspaceFavoriteId,
   getWorkspacePath,
   isWorkspaceFavorited,
 } from "./workspace-favorites";
 
-function formatSavedAt(savedAt: string | null) {
-  if (!savedAt) {
-    return "Not saved yet";
-  }
-
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(savedAt));
-  } catch {
-    return savedAt;
-  }
-}
-
-function formatWorkspaceRange(workspace: { controls?: { timeRange?: {
-  defaultRange?: string;
-  selectedRange?: string;
-  customStartMs?: number;
-  customEndMs?: number;
-} } }) {
-  const timeRange = workspace.controls?.timeRange;
-  const selectedRange = timeRange?.selectedRange ?? timeRange?.defaultRange ?? "24h";
+function formatWorkspaceRange(workspace: Pick<
+  WorkspaceListItemSummary,
+  "selectedRange" | "customStartMs" | "customEndMs"
+>) {
+  const selectedRange = workspace.selectedRange ?? "24h";
 
   if (
     selectedRange === "custom" &&
-    typeof timeRange?.customStartMs === "number" &&
-    typeof timeRange?.customEndMs === "number"
+    typeof workspace.customStartMs === "number" &&
+    typeof workspace.customEndMs === "number"
   ) {
     try {
       const formatter = new Intl.DateTimeFormat(undefined, {
@@ -55,7 +37,7 @@ function formatWorkspaceRange(workspace: { controls?: { timeRange?: {
         day: "numeric",
       });
 
-      return `${formatter.format(new Date(timeRange.customStartMs))} - ${formatter.format(new Date(timeRange.customEndMs))}`;
+      return `${formatter.format(new Date(workspace.customStartMs))} - ${formatter.format(new Date(workspace.customEndMs))}`;
     } catch {
       return "Custom";
     }
@@ -74,12 +56,8 @@ function formatWorkspaceRange(workspace: { controls?: { timeRange?: {
   return rangeLabels[selectedRange] ?? selectedRange;
 }
 
-function formatWorkspaceRefresh(workspace: { controls?: { refresh?: {
-  selectedIntervalMs?: number | null;
-  defaultIntervalMs?: number | null;
-} } }) {
-  const refreshIntervalMs =
-    workspace.controls?.refresh?.selectedIntervalMs ?? workspace.controls?.refresh?.defaultIntervalMs ?? null;
+function formatWorkspaceRefresh(workspace: Pick<WorkspaceListItemSummary, "refreshIntervalMs">) {
+  const refreshIntervalMs = workspace.refreshIntervalMs ?? null;
 
   if (refreshIntervalMs === null) {
     return "Off";
@@ -107,7 +85,7 @@ export function WorkspacesPage() {
   const toggleWorkspaceFavorite = useShellStore((state) => state.toggleWorkspaceFavorite);
   const {
     user,
-    workspaceListCollection,
+    workspaceListItems,
     draftCollection,
     selectedDashboard,
     dirty,
@@ -121,6 +99,7 @@ export function WorkspacesPage() {
     requestedWorkspaceMissing,
     requestedWorkspaceId,
     selectedWorkspaceView,
+    loadWorkspaceDetail,
   } = useCustomWorkspaceStudio();
   const backendMode = persistenceMode === "backend";
 
@@ -132,7 +111,7 @@ export function WorkspacesPage() {
     );
   }
 
-  if (requestedWorkspaceId && workspaceSelectionPending) {
+  if (requestedWorkspaceId && workspaceSelectionPending && !selectedDashboard) {
     return (
       <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
         <div className="mx-auto flex min-h-[320px] max-w-4xl items-center justify-center">
@@ -189,8 +168,6 @@ export function WorkspacesPage() {
   if (requestedWorkspaceId && selectedDashboard) {
     return selectedWorkspaceView === "settings" ? (
       <CustomWorkspaceSettingsPage />
-    ) : selectedWorkspaceView === "widget-settings" ? (
-      <CustomWidgetSettingsPage />
     ) : selectedWorkspaceView === "graph" ? (
       <CustomWorkspaceGraphPage />
     ) : (
@@ -277,7 +254,7 @@ export function WorkspacesPage() {
                 </tr>
               </thead>
               <tbody>
-                {workspaceListCollection.dashboards.map((workspace) => (
+                {workspaceListItems.map((workspace) => (
                   <tr
                     key={workspace.id}
                     className="border-b border-border/60 transition-colors hover:bg-background/35"
@@ -325,7 +302,7 @@ export function WorkspacesPage() {
                     </td>
                     <td className="px-4 py-3 align-top">
                       <Badge variant="neutral" className="border border-border/70 bg-background/40">
-                        {workspace.widgets.length}
+                        {workspace.widgetCount}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 align-top text-foreground">
@@ -349,13 +326,26 @@ export function WorkspacesPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            const duplicatedWorkspace = restoreWorkspaceFromSnapshot(
-                              createWorkspaceSnapshot(workspace),
-                            );
+                            void (async () => {
+                              const sourceWorkspace =
+                                persistenceMode === "backend"
+                                  ? await loadWorkspaceDetail(workspace.id)
+                                  : (draftCollection.dashboards.find(
+                                      (dashboard) => dashboard.id === workspace.id,
+                                    ) ?? null);
 
-                            duplicatedWorkspace.title = buildCopiedWorkspaceTitle(workspace.title);
+                              if (!sourceWorkspace) {
+                                return;
+                              }
 
-                            void createWorkspaceFromDefinition(duplicatedWorkspace);
+                              const duplicatedWorkspace = restoreWorkspaceFromSnapshot(
+                                createWorkspaceSnapshot(sourceWorkspace),
+                              );
+
+                              duplicatedWorkspace.title = buildCopiedWorkspaceTitle(workspace.title);
+
+                              await createWorkspaceFromDefinition(duplicatedWorkspace);
+                            })();
                           }}
                           disabled={isHydrating || isSaving}
                         >
@@ -381,9 +371,7 @@ export function WorkspacesPage() {
           </div>
 
           <div className="border-t border-border/70 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
-            {workspaceListCollection.dashboards.length} workspaces.{" "}
-            {persistenceMode === "backend" ? "Backend synced" : "Collection saved"}{" "}
-            {formatSavedAt(workspaceListCollection.savedAt)}.
+            {workspaceListItems.length} workspaces.
           </div>
         </div>
       </div>

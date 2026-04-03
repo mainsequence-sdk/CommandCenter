@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { WidgetSettingsSchema } from "@/widgets/types";
 import { X } from "lucide-react";
 
@@ -20,6 +21,24 @@ const axisModeOptions: PickerOption[] = [
     value: "separate",
     label: "Separate axes",
     description: "Render each series in aligned panes.",
+  },
+];
+
+const timeAxisModeOptions: PickerOption[] = [
+  {
+    value: "auto",
+    label: "Auto",
+    description: "Infer date-only vs datetime behavior from the current X-field values.",
+  },
+  {
+    value: "date",
+    label: "Date",
+    description: "Treat the X axis as daily business dates like YYYY-MM-DD.",
+  },
+  {
+    value: "datetime",
+    label: "DateTime",
+    description: "Treat the X axis as timestamped intraday data.",
   },
 ];
 
@@ -269,6 +288,55 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
           placeholder="Auto"
           searchPlaceholder="Search X-axis fields"
           disabled={!editable || context.resolvedConfig.availableFields.length === 0}
+        />
+      ),
+    },
+    {
+      id: "timeAxisMode",
+      label: "Time axis mode",
+      description: "Interpret the selected X field as daily dates or full timestamps.",
+      settingsColumnSpan: 1,
+      sectionId: "field-mapping",
+      isVisible: ({ context }) => !context.hasNoData,
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <PickerFieldSetting
+          value={context.resolvedConfig.timeAxisMode}
+          onChange={(value) => {
+            onDraftPropsChange({
+              ...draftProps,
+              timeAxisMode: value === "date" || value === "datetime" ? value : "auto",
+            });
+          }}
+          options={timeAxisModeOptions}
+          placeholder="Auto"
+          disabled={!editable}
+        />
+      ),
+    },
+    {
+      id: "minBarSpacingPx",
+      label: "Min point spacing",
+      description: "Lower this to fit longer histories into the initial X-axis viewport.",
+      settingsColumnSpan: 1,
+      sectionId: "field-mapping",
+      isVisible: ({ context }) => !context.hasNoData,
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <Input
+          type="number"
+          min={0}
+          max={6}
+          step="0.01"
+          value={String(context.resolvedConfig.minBarSpacingPx)}
+          disabled={!editable}
+          onChange={(event) => {
+            const rawValue = event.target.value.trim();
+
+            onDraftPropsChange({
+              ...draftProps,
+              minBarSpacingPx:
+                rawValue === "" ? undefined : Number(rawValue),
+            });
+          }}
         />
       ),
     },

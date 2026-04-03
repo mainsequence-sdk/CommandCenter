@@ -3,6 +3,7 @@ import { Database } from "lucide-react";
 import { defineWidget } from "@/widgets/types";
 
 import { dataNodeFilterWidgetController } from "./controller";
+import { dataNodeFilterExecutionDefinition } from "./dataNodeFilterExecution";
 import { MainSequenceDataNodeFilterWidget } from "./MainSequenceDataNodeFilterWidget";
 import { MainSequenceDataNodeFilterWidgetSettings } from "./MainSequenceDataNodeFilterWidgetSettings";
 import { DataNodeRailSummary } from "./DataNodeRailSummary";
@@ -82,6 +83,7 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
   },
   schema: dataNodeFilterSettingsSchema,
   controller: dataNodeFilterWidgetController,
+  execution: dataNodeFilterExecutionDefinition,
   settingsComponent: MainSequenceDataNodeFilterWidgetSettings,
   component: MainSequenceDataNodeFilterWidget,
 });
