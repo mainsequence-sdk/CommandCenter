@@ -320,7 +320,13 @@ export function WidgetSourceExplorer({
               const nextOutput = selectedSourceWidget?.outputs.find(
                 (output) => output.id === nextSourceOutputId,
               );
-              const shouldDefaultToNestedPath = isStructuredOutput(nextOutput);
+              const nextOutputContractId =
+                nextOutput?.valueDescriptor?.contract ?? nextOutput?.contract;
+              const shouldDefaultToNestedPath =
+                isStructuredOutput(nextOutput) &&
+                !(nextOutputContractId
+                  ? acceptedContracts.includes(nextOutputContractId)
+                  : false);
 
               onBindingChange(
                 selectedSourceWidget && nextSourceOutputId && nextOutput

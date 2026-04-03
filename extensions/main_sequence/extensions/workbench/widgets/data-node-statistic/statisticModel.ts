@@ -17,14 +17,38 @@ export type DataNodeStatisticMode =
   | "min"
   | "sum"
   | "mean";
+export type DataNodeStatisticOperator = "gt" | "gte" | "lt" | "lte" | "eq";
+export type DataNodeStatisticTone = "neutral" | "primary" | "success" | "warning" | "danger";
+export type DataNodeStatisticColorMode = "none" | "range-rules" | "change-from-last";
+
+export interface DataNodeStatisticColorStyle {
+  tone?: DataNodeStatisticTone;
+  textColor?: string;
+  backgroundColor?: string;
+}
+
+export interface DataNodeStatisticRangeRule extends DataNodeStatisticColorStyle {
+  id: string;
+  operator: DataNodeStatisticOperator;
+  value: number;
+}
+
+export interface DataNodeStatisticChangeStyles {
+  negative?: DataNodeStatisticColorStyle;
+  neutral?: DataNodeStatisticColorStyle;
+  positive?: DataNodeStatisticColorStyle;
+}
 
 export interface MainSequenceDataNodeStatisticWidgetProps
   extends Record<string, unknown>,
     DataNodeWidgetSourceReferenceProps {
+  changeStyles?: DataNodeStatisticChangeStyles;
+  colorMode?: DataNodeStatisticColorMode;
   decimals?: number;
   groupField?: string;
   orderField?: string;
   prefix?: string;
+  rangeRules?: DataNodeStatisticRangeRule[];
   statisticMode?: DataNodeStatisticMode;
   suffix?: string;
   valueField?: string;
@@ -32,10 +56,13 @@ export interface MainSequenceDataNodeStatisticWidgetProps
 
 export interface ResolvedDataNodeStatisticConfig {
   availableFields: DataNodeFieldOption[];
+  changeStyles?: DataNodeStatisticChangeStyles;
+  colorMode: DataNodeStatisticColorMode;
   decimals?: number;
   groupField?: string;
   orderField?: string;
   prefix?: string;
+  rangeRules: DataNodeStatisticRangeRule[];
   sourceMode: "filter_widget";
   sourceWidgetId?: string;
   statisticMode: DataNodeStatisticMode;
@@ -43,11 +70,19 @@ export interface ResolvedDataNodeStatisticConfig {
   valueField?: string;
 }
 
+export interface DataNodeStatisticResolvedCardStyle extends DataNodeStatisticColorStyle {
+  changeDirection?: "negative" | "neutral" | "positive";
+}
+
 export interface DataNodeStatisticCard {
   chartPoints?: number[];
+  formattedPrimaryValue: string;
+  formattedSuffix?: string;
   formattedValue: string;
   id: string;
   label?: string;
+  metricLabel?: string;
+  resolvedStyle?: DataNodeStatisticResolvedCardStyle;
   value: number | string | null;
 }
 
@@ -88,6 +123,10 @@ function normalizeStatisticMode(value: unknown): DataNodeStatisticMode {
     : "last";
 }
 
+function normalizeColorMode(value: unknown): DataNodeStatisticColorMode {
+  return value === "range-rules" || value === "change-from-last" ? value : "none";
+}
+
 function normalizeFieldKey(
   value: unknown,
   availableFields: readonly DataNodeFieldOption[],
@@ -121,6 +160,113 @@ function normalizeText(value: unknown) {
   }
 
   return value;
+}
+
+const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
+
+function normalizeHexColor(value: unknown) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return hexColorPattern.test(trimmed) ? trimmed.toLowerCase() : undefined;
+}
+
+function normalizeTone(value: unknown): DataNodeStatisticTone | undefined {
+  return value === "neutral" ||
+    value === "primary" ||
+    value === "success" ||
+    value === "warning" ||
+    value === "danger"
+    ? value
+    : undefined;
+}
+
+function normalizeStatisticColorStyle(value: unknown): DataNodeStatisticColorStyle | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as DataNodeStatisticColorStyle;
+  const nextValue: DataNodeStatisticColorStyle = {};
+
+  if (record.tone) {
+    nextValue.tone = normalizeTone(record.tone);
+  }
+
+  if (record.textColor) {
+    nextValue.textColor = normalizeHexColor(record.textColor);
+  }
+
+  if (record.backgroundColor) {
+    nextValue.backgroundColor = normalizeHexColor(record.backgroundColor);
+  }
+
+  return Object.keys(nextValue).length > 0 ? nextValue : undefined;
+}
+
+function normalizeStatisticRangeRule(value: unknown): DataNodeStatisticRangeRule | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as DataNodeStatisticRangeRule;
+  const numericValue = Number(record.value);
+
+  if (!Number.isFinite(numericValue)) {
+    return undefined;
+  }
+
+  if (
+    record.operator !== "gt" &&
+    record.operator !== "gte" &&
+    record.operator !== "lt" &&
+    record.operator !== "lte" &&
+    record.operator !== "eq"
+  ) {
+    return undefined;
+  }
+
+  const nextStyle = normalizeStatisticColorStyle(record);
+
+  return {
+    id:
+      typeof record.id === "string" && record.id.trim()
+        ? record.id.trim()
+        : createDataNodeStatisticRangeRuleId(),
+    operator: record.operator,
+    value: numericValue,
+    tone: nextStyle?.tone,
+    textColor: nextStyle?.textColor,
+    backgroundColor: nextStyle?.backgroundColor,
+  };
+}
+
+function normalizeStatisticRangeRules(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    const normalized = normalizeStatisticRangeRule(entry);
+    return normalized ? [normalized] : [];
+  });
+}
+
+function normalizeStatisticChangeStyles(value: unknown): DataNodeStatisticChangeStyles | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as DataNodeStatisticChangeStyles;
+  const nextValue: DataNodeStatisticChangeStyles = {
+    positive: normalizeStatisticColorStyle(record.positive),
+    negative: normalizeStatisticColorStyle(record.negative),
+    neutral: normalizeStatisticColorStyle(record.neutral),
+  };
+
+  return nextValue.positive || nextValue.negative || nextValue.neutral ? nextValue : undefined;
 }
 
 function toNumericValue(value: unknown) {
@@ -224,6 +370,35 @@ function formatDisplayValue(
   }
 
   return `${config.prefix ?? ""}${value}${config.suffix ?? ""}`;
+}
+
+function formatDisplayValueParts(
+  value: number | string | null,
+  config: Pick<ResolvedDataNodeStatisticConfig, "decimals" | "prefix" | "suffix" | "statisticMode">,
+) {
+  if (value == null) {
+    return {
+      primary: "—",
+      suffix: undefined,
+    };
+  }
+
+  const normalizedSuffix = config.suffix?.trim() || undefined;
+
+  if (typeof value === "number") {
+    return {
+      primary: formatNumericValue(value, {
+        ...config,
+        suffix: undefined,
+      }),
+      suffix: normalizedSuffix,
+    };
+  }
+
+  return {
+    primary: `${config.prefix ?? ""}${value}`,
+    suffix: normalizedSuffix,
+  };
 }
 
 function groupRowsByField(
@@ -336,6 +511,144 @@ function buildCardChartPoints(
   return numericValues.slice(-64);
 }
 
+function resolveStatisticModeLabel(mode: DataNodeStatisticMode) {
+  if (mode === "count") {
+    return "Count";
+  }
+
+  if (mode === "last") {
+    return "Last";
+  }
+
+  if (mode === "first") {
+    return "First";
+  }
+
+  if (mode === "max") {
+    return "Max";
+  }
+
+  if (mode === "min") {
+    return "Min";
+  }
+
+  if (mode === "sum") {
+    return "Sum";
+  }
+
+  return "Mean";
+}
+
+function resolveCardMetricLabel(
+  config: Pick<ResolvedDataNodeStatisticConfig, "statisticMode" | "valueField" | "availableFields">,
+) {
+  const statisticLabel = resolveStatisticModeLabel(config.statisticMode);
+
+  if (config.statisticMode === "count") {
+    return `${statisticLabel} · Rows`;
+  }
+
+  if (!config.valueField) {
+    return statisticLabel;
+  }
+
+  const field = config.availableFields.find((entry) => entry.key === config.valueField);
+  const fieldLabel = field?.label?.trim() || config.valueField;
+  return `${statisticLabel} · ${fieldLabel}`;
+}
+
+function resolveLastObservationDelta(
+  rows: readonly DataNodeRemoteDataRow[],
+  config: Pick<ResolvedDataNodeStatisticConfig, "orderField" | "valueField">,
+) {
+  if (!config.valueField) {
+    return null;
+  }
+
+  const orderedRows = sortRows(rows, config.orderField);
+  const numericValues = orderedRows
+    .map((row) => toNumericValue(row[config.valueField!]))
+    .filter((value): value is number => value != null);
+
+  if (numericValues.length < 2) {
+    return null;
+  }
+
+  return numericValues[numericValues.length - 1] - numericValues[numericValues.length - 2];
+}
+
+export function evaluateDataNodeStatisticRule(
+  value: number,
+  rule: Pick<DataNodeStatisticRangeRule, "operator" | "value">,
+) {
+  if (rule.operator === "gt") {
+    return value > rule.value;
+  }
+
+  if (rule.operator === "gte") {
+    return value >= rule.value;
+  }
+
+  if (rule.operator === "lt") {
+    return value < rule.value;
+  }
+
+  if (rule.operator === "lte") {
+    return value <= rule.value;
+  }
+
+  return value === rule.value;
+}
+
+function resolveStatisticCardStyle(
+  value: number | string | null,
+  rows: readonly DataNodeRemoteDataRow[],
+  config: Pick<
+    ResolvedDataNodeStatisticConfig,
+    "changeStyles" | "colorMode" | "orderField" | "rangeRules" | "valueField"
+  >,
+): DataNodeStatisticResolvedCardStyle | undefined {
+  if (config.colorMode === "range-rules" && typeof value === "number") {
+    const matchedRule = config.rangeRules.find((rule) =>
+      evaluateDataNodeStatisticRule(value, rule),
+    );
+
+    if (matchedRule) {
+      return {
+        tone: matchedRule.tone,
+        textColor: matchedRule.textColor,
+        backgroundColor: matchedRule.backgroundColor,
+      };
+    }
+  }
+
+  if (config.colorMode === "change-from-last") {
+    const delta = resolveLastObservationDelta(rows, config);
+
+    if (delta == null) {
+      return undefined;
+    }
+
+    const direction = delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral";
+    const style =
+      config.changeStyles?.[direction] ??
+      (direction === "positive"
+        ? { tone: "success" as const }
+        : direction === "negative"
+          ? { tone: "danger" as const }
+          : { tone: "neutral" as const });
+
+    return {
+      changeDirection: direction,
+      tone: style.tone,
+      textColor: style.textColor,
+      backgroundColor: style.backgroundColor,
+    };
+  }
+
+  return undefined;
+}
+
 export function buildDataNodeStatisticFieldOptions(input: {
   columns?: string[];
   fields?: readonly DataNodeFieldOption[];
@@ -353,10 +666,13 @@ export function resolveDataNodeStatisticConfig(
 
   return {
     availableFields: [...availableFields],
+    changeStyles: normalizeStatisticChangeStyles(props.changeStyles),
+    colorMode: normalizeColorMode(props.colorMode),
     decimals: normalizeDecimals(props.decimals),
     groupField: normalizeFieldKey(props.groupField, availableFields),
     orderField: normalizeFieldKey(props.orderField, availableFields),
     prefix: normalizeText(props.prefix),
+    rangeRules: normalizeStatisticRangeRules(props.rangeRules),
     sourceMode: "filter_widget",
     sourceWidgetId: sourceReference.sourceWidgetId,
     statisticMode,
@@ -375,6 +691,8 @@ export function normalizeDataNodeStatisticProps(
   const resolved = resolveDataNodeStatisticConfig(props, availableFields);
 
   return {
+    changeStyles: resolved.changeStyles,
+    colorMode: resolved.colorMode,
     sourceMode: "filter_widget",
     sourceWidgetId: resolved.sourceWidgetId,
     valueField: resolved.valueField,
@@ -383,8 +701,16 @@ export function normalizeDataNodeStatisticProps(
     orderField: resolved.orderField,
     decimals: resolved.decimals,
     prefix: resolved.prefix,
+    rangeRules: resolved.rangeRules,
     suffix: resolved.suffix,
   } satisfies MainSequenceDataNodeStatisticWidgetProps;
+}
+
+export function createDataNodeStatisticRangeRuleId() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  return uuid
+    ? `stat-rule-${uuid}`
+    : `stat-rule-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function buildDataNodeStatisticCards(
@@ -409,13 +735,19 @@ export function buildDataNodeStatisticCards(
   }
 
   const groups = groupRowsByField(rows, config.groupField);
+  const metricLabel = resolveCardMetricLabel(config);
   const cards = [...groups.entries()].map(([groupId, group]) => {
     const value = computeStatisticValue(group.rows, config);
+    const valueParts = formatDisplayValueParts(value, config);
 
     return {
       id: groupId,
       label: config.groupField ? group.label : undefined,
+      metricLabel,
+      resolvedStyle: resolveStatisticCardStyle(value, group.rows, config),
       value,
+      formattedPrimaryValue: valueParts.primary,
+      formattedSuffix: valueParts.suffix,
       formattedValue: formatDisplayValue(value, config),
       chartPoints: buildCardChartPoints(group.rows, config),
     } satisfies DataNodeStatisticCard;

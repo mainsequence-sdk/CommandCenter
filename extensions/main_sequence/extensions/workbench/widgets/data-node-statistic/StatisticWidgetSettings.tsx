@@ -2,7 +2,9 @@ import { useMemo } from "react";
 
 import { Calculator } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { PickerField } from "../../../../common/components/PickerField";
 import {
   widgetTightFormDescriptionClass,
@@ -18,10 +20,14 @@ import { StatisticCardGrid } from "./StatisticCardGrid";
 import {
   buildDataNodeStatisticCards,
   buildDataNodeStatisticFieldOptions,
+  createDataNodeStatisticRangeRuleId,
   normalizeDataNodeStatisticProps,
   resolveDataNodeStatisticConfig,
   resolveStatisticValueFieldPickerOptions,
+  type DataNodeStatisticColorMode,
   type DataNodeStatisticMode,
+  type DataNodeStatisticOperator,
+  type DataNodeStatisticTone,
   type MainSequenceDataNodeStatisticWidgetProps,
 } from "./statisticModel";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
@@ -73,6 +79,50 @@ const statisticModeOptions: Array<{
     label: "Count",
     description: "Count rows in the incoming dataset or each group.",
   },
+];
+
+const colorModeOptions: Array<{
+  value: DataNodeStatisticColorMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "none",
+    label: "No color formatting",
+    description: "Render the statistic card with the default theme surface.",
+  },
+  {
+    value: "range-rules",
+    label: "Range rules",
+    description: "Color the card when the resolved statistic matches a threshold like > 0 or < -5.",
+  },
+  {
+    value: "change-from-last",
+    label: "Change from last observation",
+    description: "Color the card by whether the latest numeric observation moved up, down, or stayed flat.",
+  },
+];
+
+const statisticOperatorOptions: Array<{
+  value: DataNodeStatisticOperator;
+  label: string;
+}> = [
+  { value: "gt", label: ">" },
+  { value: "gte", label: ">=" },
+  { value: "lt", label: "<" },
+  { value: "lte", label: "<=" },
+  { value: "eq", label: "=" },
+];
+
+const statisticToneOptions: Array<{
+  value: DataNodeStatisticTone;
+  label: string;
+}> = [
+  { value: "neutral", label: "Neutral" },
+  { value: "primary", label: "Primary" },
+  { value: "success", label: "Success" },
+  { value: "warning", label: "Warning" },
+  { value: "danger", label: "Danger" },
 ];
 
 export function StatisticWidgetSettings({
@@ -133,6 +183,9 @@ export function StatisticWidgetSettings({
     ],
     [fieldOptions],
   );
+  const colorMode = resolvedDraft.colorMode ?? "none";
+  const rangeRules = resolvedDraft.rangeRules ?? [];
+  const changeStyles = resolvedDraft.changeStyles ?? {};
 
   return (
     <div className="space-y-3">
@@ -302,6 +355,214 @@ export function StatisticWidgetSettings({
         <div className={descriptionClass}>
           `Last` and `First` use the selected order field when present. If no order field is selected, the statistic uses the published row order from the Data Node.
         </div>
+      </section>
+
+      <section className={sectionClass}>
+        <div className="space-y-1">
+          <div className={titleClass}>Color formatting</div>
+          <p className={descriptionClass}>
+            Tint the statistic card by threshold rules or by the move between the latest two numeric observations.
+          </p>
+        </div>
+
+        <div className={fieldClass}>
+          <label className={labelClass}>Mode</label>
+          <PickerField
+            value={colorMode}
+            onChange={(value) => {
+              onDraftPropsChange({
+                ...draftProps,
+                colorMode: value as DataNodeStatisticColorMode,
+              });
+            }}
+            options={colorModeOptions}
+            placeholder="Select color mode"
+            disabled={!editable}
+          />
+        </div>
+
+        {colorMode === "range-rules" ? (
+          <div className="space-y-3 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-medium text-foreground">Range rules</div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!editable}
+                onClick={() => {
+                  onDraftPropsChange({
+                    ...draftProps,
+                    rangeRules: [
+                      ...rangeRules,
+                      {
+                        id: createDataNodeStatisticRangeRuleId(),
+                        operator: "gt",
+                        value: 0,
+                        tone: "primary",
+                      },
+                    ],
+                  });
+                }}
+              >
+                Add rule
+              </Button>
+            </div>
+
+            {rangeRules.length === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                Add threshold rules like `&gt; 0` or `&lt; -5` to color the statistic card.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {rangeRules.map((rule, index) => (
+                  <div
+                    key={rule.id}
+                    className="grid gap-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/36 px-3 py-3 md:grid-cols-[110px_minmax(0,1fr)_160px_auto]"
+                  >
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Operator</label>
+                      <Select
+                        value={rule.operator}
+                        disabled={!editable}
+                        onChange={(event) => {
+                          const nextRules = [...rangeRules];
+                          nextRules[index] = {
+                            ...rule,
+                            operator: event.target.value as DataNodeStatisticOperator,
+                          };
+                          onDraftPropsChange({
+                            ...draftProps,
+                            rangeRules: nextRules,
+                          });
+                        }}
+                        className="h-8 text-xs"
+                      >
+                        {statisticOperatorOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Value</label>
+                      <Input
+                        type="number"
+                        step="any"
+                        value={rule.value}
+                        disabled={!editable}
+                        onChange={(event) => {
+                          const nextRules = [...rangeRules];
+                          nextRules[index] = {
+                            ...rule,
+                            value: Number(event.target.value),
+                          };
+                          onDraftPropsChange({
+                            ...draftProps,
+                            rangeRules: nextRules,
+                          });
+                        }}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Tone</label>
+                      <Select
+                        value={rule.tone ?? "primary"}
+                        disabled={!editable}
+                        onChange={(event) => {
+                          const nextRules = [...rangeRules];
+                          nextRules[index] = {
+                            ...rule,
+                            tone: event.target.value as DataNodeStatisticTone,
+                          };
+                          onDraftPropsChange({
+                            ...draftProps,
+                            rangeRules: nextRules,
+                          });
+                        }}
+                        className="h-8 text-xs"
+                      >
+                        {statisticToneOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!editable}
+                        onClick={() => {
+                          onDraftPropsChange({
+                            ...draftProps,
+                            rangeRules: rangeRules.filter((currentRule) => currentRule.id !== rule.id),
+                          });
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {colorMode === "change-from-last" ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            {[
+              { key: "positive", label: "Up move", fallbackTone: "success" },
+              { key: "negative", label: "Down move", fallbackTone: "danger" },
+              { key: "neutral", label: "Flat move", fallbackTone: "neutral" },
+            ].map((entry) => (
+              <div key={entry.key} className={fieldClass}>
+                <label className={labelClass}>{entry.label}</label>
+                <Select
+                  value={
+                    (changeStyles[entry.key as keyof typeof changeStyles]?.tone as DataNodeStatisticTone | undefined) ??
+                    (entry.fallbackTone as DataNodeStatisticTone)
+                  }
+                  disabled={!editable}
+                  onChange={(event) => {
+                    onDraftPropsChange({
+                      ...draftProps,
+                      changeStyles: {
+                        ...changeStyles,
+                        [entry.key]: {
+                          ...(changeStyles[entry.key as keyof typeof changeStyles] ?? {}),
+                          tone: event.target.value as DataNodeStatisticTone,
+                        },
+                      },
+                    });
+                  }}
+                  className="h-8 text-xs"
+                >
+                  {statisticToneOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {colorMode === "change-from-last" ? (
+          <div className={descriptionClass}>
+            Change-from-last compares the latest two numeric observations from the selected value field,
+            using the order field when present or the published row order otherwise.
+          </div>
+        ) : null}
       </section>
 
       <section className={sectionClass}>
