@@ -284,6 +284,13 @@ function collectExecutionOrder(
   return order;
 }
 
+export function listDashboardWidgetExecutionOrder(
+  targetInstanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+) {
+  return collectExecutionOrder(targetInstanceId, snapshot);
+}
+
 export interface ExecutedWidgetNodeResult {
   instanceId: string;
   reason: WidgetExecutionReason;
@@ -344,12 +351,11 @@ export async function executeDashboardWidgetGraph(
     targetOverrides: args.targetOverrides,
   });
   const targetInstance = snapshot.getInstance(args.targetInstanceId);
-  const targetDefinition = snapshot.getDefinition(args.targetInstanceId);
 
-  if (!targetInstance || !targetDefinition?.execution) {
+  if (!targetInstance) {
     return {
       status: "error",
-      error: "The selected widget does not support graph execution.",
+      error: "The selected widget is no longer available.",
       widgets: workingWidgets,
       targetInstanceId: args.targetInstanceId,
       nodeResults,
@@ -360,7 +366,7 @@ export async function executeDashboardWidgetGraph(
   let executionOrder: string[];
 
   try {
-    executionOrder = collectExecutionOrder(args.targetInstanceId, snapshot);
+    executionOrder = listDashboardWidgetExecutionOrder(args.targetInstanceId, snapshot);
   } catch (error) {
     return {
       status: "error",
@@ -370,6 +376,17 @@ export async function executeDashboardWidgetGraph(
           : "Widget execution graph resolution failed.",
       widgets: workingWidgets,
       targetInstanceId: args.targetInstanceId,
+      nodeResults,
+      executedInstanceIds,
+    };
+  }
+
+  if (executionOrder.length === 0) {
+    return {
+      status: "skipped",
+      widgets: workingWidgets,
+      targetInstanceId: args.targetInstanceId,
+      targetRuntimeState,
       nodeResults,
       executedInstanceIds,
     };
@@ -424,7 +441,7 @@ export async function executeDashboardWidgetGraph(
       signal: args.signal,
     } satisfies WidgetExecutionContext;
 
-    if (nodeReason === "dashboard-refresh") {
+    if (nodeReason === "dashboard-refresh" && instanceId === args.targetInstanceId) {
       const refreshPolicy =
         definition.execution.getRefreshPolicy?.(executionContext) ?? "manual-only";
 
@@ -561,31 +578,30 @@ export function listDashboardRefreshableExecutionTargets(args: {
   });
   const candidates = snapshot.dependencies.entries.flatMap(({ instance }) => {
     const definition = snapshot.getDefinition(instance.id);
+    const upstreamExecutableIds = collectTransitiveExecutableDependencyIds(instance.id, snapshot);
 
-    if (!definition?.execution) {
-      return [];
+    if (definition?.execution) {
+      const context = {
+        widgetId: instance.widgetId,
+        instanceId: instance.id,
+        reason: "dashboard-refresh" as const,
+        props: (instance.props ?? {}) as Record<string, unknown>,
+        runtimeState: instance.runtimeState,
+        resolvedInputs: snapshot.dependencies.resolveInputs(instance.id),
+        refreshCycleId: args.refreshCycleId,
+      } satisfies WidgetExecutionContext;
+      const refreshPolicy =
+        definition.execution.getRefreshPolicy?.(context) ?? "manual-only";
+
+      if (
+        refreshPolicy === "allow-refresh" &&
+        definition.execution.canExecute?.(context) !== false
+      ) {
+        return [instance.id];
+      }
     }
 
-    const context = {
-      widgetId: instance.widgetId,
-      instanceId: instance.id,
-      reason: "dashboard-refresh" as const,
-      props: (instance.props ?? {}) as Record<string, unknown>,
-      runtimeState: instance.runtimeState,
-      resolvedInputs: snapshot.dependencies.resolveInputs(instance.id),
-      refreshCycleId: args.refreshCycleId,
-    } satisfies WidgetExecutionContext;
-    const refreshPolicy =
-      definition.execution.getRefreshPolicy?.(context) ?? "manual-only";
-
-    if (
-      refreshPolicy !== "allow-refresh" ||
-      definition.execution.canExecute?.(context) === false
-    ) {
-      return [];
-    }
-
-    return [instance.id];
+    return upstreamExecutableIds.size > 0 ? [instance.id] : [];
   });
   const candidateSet = new Set(candidates);
   const transitiveUpstreamIds = new Set<string>();

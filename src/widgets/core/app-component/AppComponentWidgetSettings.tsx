@@ -604,6 +604,28 @@ export function AppComponentWidgetSettings({
           </label>
         </div>
 
+        <label className="flex items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-3 py-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-border"
+            checked={normalizedProps.refreshOnDashboardRefresh !== false}
+            disabled={!editable}
+            onChange={(event) => {
+              onDraftPropsChange(buildNextDraftProps({
+                refreshOnDashboardRefresh: event.target.checked,
+              }, { preserveSelection: true }));
+            }}
+          />
+          <span className="space-y-1">
+            <span className="block text-sm font-medium text-topbar-foreground">
+              Refresh request on dashboard refresh
+            </span>
+            <span className="block text-sm text-muted-foreground">
+              When enabled, dashboard refresh runs this AppComponent request again and republishes its outputs.
+            </span>
+          </span>
+        </label>
+
         <div className="flex flex-wrap items-center gap-2">
           <a href={docsUrl ?? "#"} target="_blank" rel="noreferrer" className={linkClassName(!docsUrl)}>
             <ArrowUpRight className="h-3.5 w-3.5" />

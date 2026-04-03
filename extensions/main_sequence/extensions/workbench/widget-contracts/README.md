@@ -8,6 +8,8 @@ Main Sequence Workbench extension.
 - `mainSequenceDataSourceBundle.ts`: Main Sequence adapter around the shared tabular-frame contract.
   It keeps the Data Node family on one normalized `columns + rows + fields + source` shape while
   preserving Main Sequence-specific source context under `source.kind = "main-sequence-data-node"`.
+  The shared `fields[]` schema is intentionally generic:
+  `key`, `label?`, `type`, `description?`, `nullable?`, `nativeType?`.
 
 ## Notes
 

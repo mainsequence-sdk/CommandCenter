@@ -5,21 +5,17 @@ import type {
   LocalTimeSerieQuickSearchRecord,
 } from "../../../../common/api";
 import type {
-  TabularFrameFieldRole,
   TabularFrameFieldSchema,
   TabularFrameFieldType,
 } from "@/widgets/shared/tabular-frame-source";
-export { hasTabularFieldRole } from "@/widgets/shared/tabular-frame-source";
 
 export type DataNodeDateRangeMode = "dashboard" | "fixed";
-
 export type DataNodeFieldOption = TabularFrameFieldSchema;
 
 export function formatDataNodeFieldMetadata(field: DataNodeFieldOption) {
   return [
     field.nativeType,
     field.type !== "unknown" ? field.type : null,
-    ...(field.roles ?? []),
     field.description ?? null,
   ].filter((value): value is string => Boolean(value && value.trim()));
 }
@@ -31,7 +27,6 @@ export function formatDataNodeFieldSearchText(field: DataNodeFieldOption) {
     field.description ?? "",
     field.nativeType ?? "",
     field.type,
-    ...(field.roles ?? []),
   ].join(" ");
 }
 
@@ -169,47 +164,6 @@ function inferTypeFromSamples(samples: unknown[]): TabularFrameFieldType {
   return "string";
 }
 
-function uniqueRoles(roles: Array<TabularFrameFieldRole | null | undefined>) {
-  const seen = new Set<TabularFrameFieldRole>();
-
-  return roles.filter((role): role is TabularFrameFieldRole => {
-    if (!role || seen.has(role)) {
-      return false;
-    }
-
-    seen.add(role);
-    return true;
-  });
-}
-
-function inferRolesForField(input: {
-  key: string;
-  type: TabularFrameFieldType;
-  indexKeys?: string[];
-  timeIndexKey?: string;
-}) {
-  const normalizedKey = input.key.trim();
-  const looksLikeIdentifier = /^(unique_identifier|identifier)$/i.test(normalizedKey);
-  const looksLikeTime =
-    input.type === "datetime" ||
-    input.type === "date" ||
-    input.type === "time" ||
-    /date|time|timestamp/i.test(normalizedKey);
-  const roles = uniqueRoles([
-    looksLikeTime || normalizedKey === input.timeIndexKey ? "time" : null,
-    (input.indexKeys ?? []).includes(normalizedKey)
-      ? looksLikeIdentifier
-        ? "identifier"
-        : "index"
-      : looksLikeIdentifier
-        ? "identifier"
-        : null,
-    input.type === "number" || input.type === "integer" ? "measure" : "dimension",
-  ]);
-
-  return roles.length > 0 ? roles : undefined;
-}
-
 function getFieldOptionLabel(
   key: string,
   detail?: DataNodeDetail | null,
@@ -309,12 +263,6 @@ export function buildDataNodeFieldOptions(detail?: DataNodeDetail | null) {
       description: getFieldOptionDescription(key, detail),
       nativeType,
       type,
-      roles: inferRolesForField({
-        key,
-        type,
-        indexKeys: sourceConfig?.index_names ?? [],
-        timeIndexKey: sourceConfig?.time_index_name ?? undefined,
-      }),
     };
   });
 }
@@ -340,7 +288,6 @@ export function buildDataNodeFieldOptionsFromRows(input: {
       description: null,
       nativeType: null,
       type,
-      roles: inferRolesForField({ key, type }),
     };
   });
 }
@@ -391,10 +338,6 @@ export function resolveDataNodeFieldOptionsFromDataset(input: {
         description: declaredField.description ?? fallbackField?.description ?? null,
         nativeType: declaredField.nativeType ?? fallbackField?.nativeType ?? null,
         type: declaredField.type ?? fallbackField?.type ?? "unknown",
-        roles:
-          declaredField.roles && declaredField.roles.length > 0
-            ? declaredField.roles
-            : fallbackField?.roles,
       }];
     }
 

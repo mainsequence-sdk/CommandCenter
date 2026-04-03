@@ -6,6 +6,7 @@ import {
   useDashboardWidgetDependencies,
   useResolvedWidgetIo,
 } from "@/dashboards/DashboardWidgetDependencies";
+import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
 import type {
@@ -53,6 +54,7 @@ export function WidgetBindingPanel({
   widget: WidgetDefinition;
 }) {
   const dependencies = useDashboardWidgetDependencies();
+  const widgetExecution = useDashboardWidgetExecution();
   const resolvedIo = useResolvedWidgetIo(instance.id);
   const initialBindings = useMemo(
     () => normalizeWidgetInstanceBindings(instance.bindings),
@@ -76,11 +78,27 @@ export function WidgetBindingPanel({
   const [draftBindings, setDraftBindings] = useState<WidgetInstanceBindings | undefined>(initialBindings);
   const [draftSourceWidgetIds, setDraftSourceWidgetIds] =
     useState<Record<string, string>>(initialSourceWidgetIds);
+  const [pendingExecutionBindingsJson, setPendingExecutionBindingsJson] = useState<string | null>(null);
 
   useEffect(() => {
     setDraftBindings(initialBindings);
     setDraftSourceWidgetIds(initialSourceWidgetIds);
   }, [initialBindings, initialSourceWidgetIds, instance.id]);
+
+  useEffect(() => {
+    const currentBindingsJson = JSON.stringify(initialBindings ?? null);
+
+    if (!widgetExecution || !pendingExecutionBindingsJson || currentBindingsJson !== pendingExecutionBindingsJson) {
+      return;
+    }
+
+    setPendingExecutionBindingsJson(null);
+    void widgetExecution.executeWidgetGraph(instance.id, {
+      reason: "manual-recalculate",
+    }).catch(() => {
+      // Binding application should not fail if upstream execution is unavailable.
+    });
+  }, [initialBindings, instance.id, pendingExecutionBindingsJson, widgetExecution]);
 
   const inputs = resolvedIo?.inputs ?? widget.io?.inputs ?? [];
 
@@ -241,7 +259,9 @@ export function WidgetBindingPanel({
             </Button>
             <Button
               onClick={() => {
-                onBindingsChange(normalizeWidgetInstanceBindings(draftBindings));
+                const normalizedBindings = normalizeWidgetInstanceBindings(draftBindings);
+                onBindingsChange(normalizedBindings);
+                setPendingExecutionBindingsJson(JSON.stringify(normalizedBindings ?? null));
               }}
               disabled={!editable || !dirty}
             >

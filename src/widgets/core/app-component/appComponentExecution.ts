@@ -187,6 +187,14 @@ export const appComponentExecutionDefinition = {
     );
   },
   execute: executeAppComponent,
-  getRefreshPolicy: () => "manual-only",
+  getRefreshPolicy: (context) => {
+    const normalizedProps = normalizeAppComponentProps(
+      (context.targetOverrides?.props ?? context.props) as AppComponentWidgetProps,
+    );
+
+    return normalizedProps.refreshOnDashboardRefresh !== false
+      ? "allow-refresh"
+      : "manual-only";
+  },
   getExecutionKey: (context) => `app-component:${context.instanceId}`,
 } satisfies WidgetExecutionDefinition<AppComponentWidgetProps>;

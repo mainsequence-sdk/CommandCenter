@@ -14,6 +14,7 @@ import type { DashboardWidgetInstance } from "@/dashboards/types";
 import {
   buildDashboardExecutionSnapshot,
   executeDashboardWidgetGraph,
+  listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
   type DashboardWidgetGraphExecutionResult,
 } from "@/dashboards/widget-graph-execution";
@@ -36,6 +37,11 @@ export interface ExecuteWidgetGraphOptions {
   reason: WidgetExecutionReason;
   refreshCycleId?: string;
   targetOverrides?: WidgetExecutionTargetOverrides;
+}
+
+export interface EnsureWidgetGraphResolvedOptions {
+  enabled: boolean;
+  requestKey?: string;
 }
 
 interface DashboardWidgetExecutionContextValue {
@@ -82,6 +88,7 @@ export function DashboardWidgetExecutionProvider({
   const widgetsRef = useRef(widgets);
   const inFlightRef = useRef(new Map<string, Promise<DashboardWidgetGraphExecutionResult>>());
   const refreshCycleRef = useRef<string | null>(null);
+  const initialRefreshCompletedRef = useRef(false);
   const [executionStates, setExecutionStates] = useState<Record<string, WidgetExecutionState>>({});
 
   useEffect(() => {
@@ -112,29 +119,20 @@ export function DashboardWidgetExecutionProvider({
       targetInstanceId,
       targetOverrides: options.targetOverrides,
     });
-    const definition = snapshot.getDefinition(targetInstanceId);
-    const instance = snapshot.getInstance(targetInstanceId);
-    const executionContext =
-      definition?.execution && instance
-        ? {
-            widgetId: instance.widgetId,
-            instanceId: targetInstanceId,
-            reason: options.reason,
-            props: (instance.props ?? {}) as Record<string, unknown>,
-            runtimeState: instance.runtimeState,
-            resolvedInputs: snapshot.dependencies.resolveInputs(targetInstanceId),
-            targetOverrides: options.targetOverrides,
-            refreshCycleId: options.refreshCycleId,
-          }
-        : undefined;
-    const widgetExecutionKey =
-      executionContext && definition?.execution?.getExecutionKey
-        ? definition.execution.getExecutionKey(executionContext)
-        : targetInstanceId;
+    let executionOrder: string[] = [];
+
+    try {
+      executionOrder = listDashboardWidgetExecutionOrder(targetInstanceId, snapshot);
+    } catch {
+      executionOrder = [];
+    }
+
+    const graphExecutionKey =
+      executionOrder.length > 0 ? executionOrder.join("::") : targetInstanceId;
 
     return [
       scopeId,
-      widgetExecutionKey,
+      graphExecutionKey,
       options.reason,
       options.refreshCycleId ?? "",
       serializeExecutionOverrides(options.targetOverrides),
@@ -197,6 +195,56 @@ export function DashboardWidgetExecutionProvider({
     inFlightRef.current.set(dedupeKey, executionPromise);
     return executionPromise;
   }
+
+  useEffect(() => {
+    if (initialRefreshCompletedRef.current) {
+      return;
+    }
+
+    initialRefreshCompletedRef.current = true;
+    const refreshCycleId = `initial:${scopeId}`;
+    const refreshTargets = listDashboardRefreshableExecutionTargets({
+      widgets: widgetsRef.current,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      refreshCycleId,
+    });
+
+    if (refreshTargets.length === 0) {
+      return;
+    }
+
+    const sharedExecutedInstanceIds = new Set<string>();
+    let cancelled = false;
+
+    async function executeInitialRefresh() {
+      for (const targetInstanceId of refreshTargets) {
+        if (cancelled) {
+          return;
+        }
+
+        try {
+          const result = await runGraph(
+            targetInstanceId,
+            {
+              reason: "dashboard-refresh",
+              refreshCycleId,
+            },
+            sharedExecutedInstanceIds,
+          );
+
+          widgetsRef.current = result.widgets;
+        } catch {
+          // Keep initial refresh isolated from rendering.
+        }
+      }
+    }
+
+    void executeInitialRefresh();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveResolveWidgetDefinition, scopeId]);
 
   useEffect(() => {
     if (!lastRefreshedAt) {
@@ -273,6 +321,35 @@ export function DashboardWidgetExecutionProvider({
 
 export function useDashboardWidgetExecution() {
   return useContext(DashboardWidgetExecutionContext);
+}
+
+export function useEnsureWidgetGraphResolved(
+  instanceId: string | undefined,
+  options: EnsureWidgetGraphResolvedOptions,
+) {
+  const context = useDashboardWidgetExecution();
+  const lastRequestKeyRef = useRef("");
+  const { enabled, requestKey = "" } = options;
+
+  useEffect(() => {
+    if (!context || !instanceId || !enabled) {
+      lastRequestKeyRef.current = "";
+      return;
+    }
+
+    const nextRequestKey = `${instanceId}::${requestKey}`;
+
+    if (lastRequestKeyRef.current === nextRequestKey) {
+      return;
+    }
+
+    lastRequestKeyRef.current = nextRequestKey;
+    void context.executeWidgetGraph(instanceId, {
+      reason: "manual-recalculate",
+    }).catch(() => {
+      // Passive consumers surface their own loading/error states from the source binding.
+    });
+  }, [context, enabled, instanceId, requestKey]);
 }
 
 export function useWidgetExecutionState(instanceId?: string) {

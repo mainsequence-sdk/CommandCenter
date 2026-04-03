@@ -4,6 +4,7 @@ import { defineWidget } from "@/widgets/types";
 
 import { resolveAppComponentWidgetIo } from "./appComponentDynamicIo";
 import { appComponentExecutionDefinition } from "./appComponentExecution";
+import { AppComponentRailSummary } from "./AppComponentRailSummary";
 import { AppComponentWidget } from "./AppComponentWidget";
 import { AppComponentWidgetSettings } from "./AppComponentWidgetSettings";
 import type { AppComponentWidgetProps } from "./appComponentModel";
@@ -26,6 +27,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
     apiBaseUrl: "",
     authMode: "session-jwt",
     showHeader: true,
+    refreshOnDashboardRefresh: true,
   },
   mockProps: {
     apiBaseUrl: "",
@@ -34,10 +36,12 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
     path: "/price/swap",
     requestBodyContentType: "application/json",
     showHeader: true,
+    refreshOnDashboardRefresh: true,
   },
   settingsComponent: AppComponentWidgetSettings,
   showRawPropsEditor: false,
   railIcon: Braces,
+  railSummaryComponent: AppComponentRailSummary,
   resolveIo: ({ props }) => resolveAppComponentWidgetIo(props),
   execution: appComponentExecutionDefinition,
   component: AppComponentWidget,

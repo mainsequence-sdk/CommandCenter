@@ -18,7 +18,10 @@ data-node metadata and remote rows.
   fixed dates from a data node's last time index, and it can resolve those source settings from a
   sibling `Data Node` widget through canonical widget bindings. The shared fixed
   date controls now mark `From` and `To` as half-width schema fields, so they render on the same
-  row in settings instead of stacking vertically.
+  row in settings instead of stacking vertically. When a passive consumer is canonically bound to
+  an executable upstream widget and no published source value exists yet, this source layer now
+  cooperates with the shared dashboard execution coordinator so the upstream source can be executed
+  before the consumer renders.
 - `widgetBindings.ts`: shared binding ids for Data Node-family composition.
 - `DataNodePreviewTable.tsx`: reusable simple table preview used inside settings flows that inspect
   fetched data-node rows without mounting the full table formatter widget.

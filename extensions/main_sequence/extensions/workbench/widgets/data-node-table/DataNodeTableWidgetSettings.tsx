@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PickerField } from "../../../../common/components/PickerField";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
+import { useEnsureWidgetGraphResolved } from "@/dashboards/DashboardWidgetExecution";
 import {
   fetchDataNodeDetail,
 } from "../../../../common/api";
@@ -271,6 +272,17 @@ export function DataNodeTableWidgetSettings({
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
     props: sourceBindingProps,
     currentWidgetInstanceId: instanceId,
+  });
+  const shouldResolveBoundSource =
+    sourceBinding.hasCanonicalSourceBinding &&
+    sourceBinding.resolvedSourceInput?.status === "valid" &&
+    sourceBinding.isAwaitingBoundSourceValue;
+  useEnsureWidgetGraphResolved(instanceId, {
+    enabled: shouldResolveBoundSource,
+    requestKey:
+      sourceBinding.resolvedSourceInput?.sourceWidgetId && sourceBinding.resolvedSourceInput?.sourceOutputId
+        ? `${sourceBinding.resolvedSourceInput.sourceWidgetId}:${sourceBinding.resolvedSourceInput.sourceOutputId}:${sourceBinding.resolvedSourceInput.binding?.transformId ?? "identity"}:${sourceBinding.resolvedSourceInput.binding?.transformPath?.join(".") ?? ""}`
+        : "",
   });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveDataNodeId = Number(
@@ -543,21 +555,21 @@ export function DataNodeTableWidgetSettings({
           <div className="space-y-2 md:col-span-2">
             <label className={labelClass}>Source binding</label>
             <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-sm text-muted-foreground">
-              {sourceBinding.referencedFilterWidget ? (
+              {sourceBinding.resolvedSourceWidget ? (
                 <>
                   <div className="font-medium text-foreground">
-                    {sourceBinding.referencedFilterWidget.title?.trim() || "Bound Data Node"}
+                    {sourceBinding.resolvedSourceWidget.title?.trim() || "Bound source widget"}
                   </div>
                   <div className="mt-1">
-                    This table is reading the published dataset from the selected Data Node widget.
+                    This table reads the published dataset from the selected source widget.
                   </div>
                 </>
               ) : (
-                "Use the Bindings tab to connect this table to a Data Node widget in the dashboard."
+                "Use the Bindings tab to connect this table to a source widget in the dashboard."
               )}
             </div>
             <p className={descriptionClass}>
-              The linked Data Node owns source selection and dataset shape. This table only formats the incoming rows.
+              The linked source widget owns dataset publication. This table only formats the incoming rows.
             </p>
           </div>
 
@@ -570,7 +582,13 @@ export function DataNodeTableWidgetSettings({
 
             {sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
-                Use the Bindings tab to connect this table to a Data Node in this dashboard.
+                Use the Bindings tab to connect this table to a source widget in this dashboard.
+              </div>
+            ) : null}
+
+            {sourceBinding.isAwaitingBoundSourceValue ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                Refreshing the bound source widget so the table preview can load its dataset.
               </div>
             ) : null}
 
@@ -612,7 +630,7 @@ export function DataNodeTableWidgetSettings({
               className={inputClass}
               type="number"
               min={5}
-              max={50}
+              max={200}
               value={resolvedDraft.pageSize}
               disabled={!editable}
               onChange={(event) => {

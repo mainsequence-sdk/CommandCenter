@@ -4,6 +4,10 @@ import type {
   WidgetValueDescriptor,
 } from "@/widgets/types";
 import {
+  coerceTabularFrameValueDescriptorContract,
+  resolveTabularFrameDescriptorContract,
+} from "@/widgets/shared/tabular-frame-source";
+import {
   CORE_VALUE_BOOLEAN_CONTRACT,
   CORE_VALUE_INTEGER_CONTRACT,
   CORE_VALUE_JSON_CONTRACT,
@@ -218,14 +222,17 @@ export function applyWidgetBindingTransform(
   valueDescriptor?: WidgetValueDescriptor;
 } {
   const baseDescriptor =
-    source.valueDescriptor ?? inferWidgetValueDescriptor(source.value, source.contractId);
+    coerceTabularFrameValueDescriptorContract(
+      source.valueDescriptor ?? inferWidgetValueDescriptor(source.value, source.contractId),
+    ) ?? inferWidgetValueDescriptor(source.value, source.contractId);
   const transformId = binding?.transformId?.trim();
 
   if (!transformId || transformId === "identity") {
     return {
       status: "valid",
       value: source.value,
-      contractId: baseDescriptor.contract,
+      contractId:
+        resolveTabularFrameDescriptorContract(baseDescriptor) ?? baseDescriptor.contract,
       valueDescriptor: baseDescriptor,
     };
   }
@@ -244,8 +251,10 @@ export function applyWidgetBindingTransform(
 
     const nestedValue = getWidgetValueAtPath(source.value, path);
     const nestedDescriptor =
-      getWidgetValueDescriptorAtPath(baseDescriptor, path) ??
-      inferWidgetValueDescriptor(nestedValue);
+      coerceTabularFrameValueDescriptorContract(
+        getWidgetValueDescriptorAtPath(baseDescriptor, path) ??
+        inferWidgetValueDescriptor(nestedValue),
+      ) ?? inferWidgetValueDescriptor(nestedValue);
 
     if (nestedValue === undefined) {
       return {
@@ -259,7 +268,10 @@ export function applyWidgetBindingTransform(
     return {
       status: "valid",
       value: nestedValue,
-      contractId: binding?.transformContractId ?? nestedDescriptor.contract,
+      contractId:
+        binding?.transformContractId ??
+        resolveTabularFrameDescriptorContract(nestedDescriptor) ??
+        nestedDescriptor.contract,
       valueDescriptor: nestedDescriptor,
     };
   }

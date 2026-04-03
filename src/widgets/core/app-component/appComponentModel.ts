@@ -5,6 +5,10 @@ import type {
   WidgetValueDescriptor,
 } from "@/widgets/types";
 import { titleCase } from "@/lib/utils";
+import {
+  coerceTabularFrameValueDescriptorContract,
+  resolveTabularFrameDescriptorContract,
+} from "@/widgets/shared/tabular-frame-source";
 
 import {
   CORE_VALUE_JSON_CONTRACT,
@@ -41,6 +45,7 @@ export interface AppComponentWidgetProps extends Record<string, unknown> {
   requestBodyContentType?: string;
   bindingSpec?: AppComponentBindingSpec;
   showHeader?: boolean;
+  refreshOnDashboardRefresh?: boolean;
 }
 
 export interface AppComponentWidgetRuntimeState extends Record<string, unknown> {
@@ -706,6 +711,18 @@ function buildValueDescriptorFromOpenApiSchema(
   return resolvePrimitiveDescriptor(schema);
 }
 
+function normalizeStructuredOutputValueDescriptor(
+  valueDescriptor: WidgetValueDescriptor | undefined,
+) {
+  return coerceTabularFrameValueDescriptorContract(valueDescriptor);
+}
+
+function resolveStructuredOutputContract(
+  valueDescriptor: WidgetValueDescriptor | undefined,
+): WidgetContractId {
+  return resolveTabularFrameDescriptorContract(valueDescriptor) ?? CORE_VALUE_JSON_CONTRACT;
+}
+
 function buildFieldLabel(
   name: string,
   bodyPath?: string[],
@@ -1225,9 +1242,11 @@ function collectResponsePortsFromSchema(
   const depth = options.depth ?? 0;
   const maxDepth = options.maxDepth ?? 2;
   const responsePath = options.path;
-  const valueDescriptor = buildValueDescriptorFromOpenApiSchema(document, schema, {
-    maxDepth: 4,
-  });
+  const valueDescriptor = normalizeStructuredOutputValueDescriptor(
+    buildValueDescriptorFromOpenApiSchema(document, schema, {
+      maxDepth: 4,
+    }),
+  );
   const basePort = {
     id: buildAppComponentResponsePortId(responsePath),
     label: buildAppComponentResponsePortLabel(responsePath),
@@ -1242,7 +1261,7 @@ function collectResponsePortsFromSchema(
     pushAppComponentResponsePort(options.ports, {
       ...basePort,
       kind: "json",
-      contract: CORE_VALUE_JSON_CONTRACT,
+      contract: resolveStructuredOutputContract(valueDescriptor),
     });
     return;
   }
@@ -1251,7 +1270,7 @@ function collectResponsePortsFromSchema(
     pushAppComponentResponsePort(options.ports, {
       ...basePort,
       kind: "json",
-      contract: CORE_VALUE_JSON_CONTRACT,
+      contract: resolveStructuredOutputContract(valueDescriptor),
     });
 
     if (depth >= maxDepth) {
@@ -1284,9 +1303,11 @@ function collectResponsePortsFromSchema(
         description: propertySchema.description,
         kind,
         contract: resolveAppComponentOutputContract(kind),
-        valueDescriptor: buildValueDescriptorFromOpenApiSchema(document, propertySchema, {
-          maxDepth: 4,
-        }),
+        valueDescriptor: normalizeStructuredOutputValueDescriptor(
+          buildValueDescriptorFromOpenApiSchema(document, propertySchema, {
+            maxDepth: 4,
+          }),
+        ),
         responsePath: nextPath,
         statusCode: options.statusCode,
         contentType: options.contentType,
@@ -1729,6 +1750,7 @@ export function normalizeAppComponentProps(
         : undefined,
     bindingSpec: normalizeAppComponentBindingSpec(props.bindingSpec),
     showHeader: props.showHeader !== false,
+    refreshOnDashboardRefresh: props.refreshOnDashboardRefresh !== false,
   };
 }
 
@@ -1812,6 +1834,12 @@ export function normalizeAppComponentBindingSpec(
           return [];
         }
 
+        const valueDescriptor = normalizeStructuredOutputValueDescriptor(
+          normalizeWidgetValueDescriptor(entry.valueDescriptor),
+        );
+        const normalizedContract =
+          resolveTabularFrameDescriptorContract(valueDescriptor) ?? (contract as WidgetContractId);
+
         return [{
           id,
           label,
@@ -1827,8 +1855,8 @@ export function normalizeAppComponentBindingSpec(
             entry.kind === "json"
               ? entry.kind
               : "json",
-          contract: contract as WidgetContractId,
-          valueDescriptor: normalizeWidgetValueDescriptor(entry.valueDescriptor),
+          contract: normalizedContract,
+          valueDescriptor,
           responsePath,
           statusCode: typeof entry.statusCode === "string" ? entry.statusCode : "200",
           contentType: typeof entry.contentType === "string" ? entry.contentType : null,

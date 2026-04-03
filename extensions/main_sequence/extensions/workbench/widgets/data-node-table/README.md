@@ -8,8 +8,8 @@ settings are built as a reusable AG Grid Community table formatter around live d
 `Data Node Table` is the table-formatting surface for the canonical row dataset owned by a sibling
 `Data Node` widget. That upstream Data Node may already be filtered, grouped, pivoted, or projected
 before the table sees the rows. The widget consumes the shared published dataset contract
-(`status`, `dataNodeId`, `columns: string[]`, `rows: Record<string, unknown>[]`, optional
-normalized `fields`, optional `source`) and adapts it into the local grid frame it needs. The
+(`columns: string[]`, `rows: Record<string, unknown>[]`, optional `status`, optional normalized `fields`,
+optional `source`) and adapts it into the local grid frame it needs. The
 widget is intentionally configuration-heavy:
 
 - upstream published input shaped as `columns[]` plus `rows<Record<string, unknown>>[]`
@@ -68,10 +68,59 @@ widget. The current intent is to keep this formatter removable and license-light
 The widget resolves source-table metadata from the linked source and adapts the incoming runtime
 dataset into a local grid frame contract:
 
+- required:
+  - `columns: string[]`
+  - `rows: Array<Record<string, unknown>>`
+- optional:
+  - `status?: "idle" | "loading" | "ready" | "error"`
+  - `error?: string`
+  - `fields?: Array<{ key, label?, type, description?, nullable?, nativeType? }>`
+  - `source?: { kind, id?, label?, updatedAtMs?, context? }`
 - `columns[]`
 - `rows<Record<string, unknown>>[]`
 - optional published `fields[]` schema used before row-sample inference
 - schema fallback inferred from column metadata and sampled rows when published field metadata is absent
+
+Canonical example:
+
+```ts
+{
+  status: "ready",
+  columns: ["unique_identifier", "price", "asof"],
+  rows: [
+    {
+      unique_identifier: "BBG000B9XRY4",
+      price: 84.5,
+      asof: "2026-04-03",
+    },
+  ],
+  fields: [
+    {
+      key: "unique_identifier",
+      label: "Unique identifier",
+      type: "string",
+      description: "Instrument identifier",
+      nullable: false,
+    },
+    {
+      key: "price",
+      label: "Price",
+      type: "number",
+      nullable: false,
+    },
+    {
+      key: "asof",
+      label: "As of",
+      type: "date",
+      nullable: false,
+    },
+  ],
+}
+```
+
+The safest upstream publication state is still `status: "ready"` when the rows are usable.
+If `status` is omitted, the shared normalizer treats a payload with `columns` or `rows` as
+`ready`, treats a payload with only `error` as `error`, and otherwise falls back to `idle`.
 
 The settings editor resolves against that live frame preview, so field formatting still happens in the
 same per-instance schema/override pipeline on top of the incoming Data Node-owned data. When the linked

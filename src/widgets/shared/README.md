@@ -22,7 +22,34 @@ This directory contains reusable widget presentation primitives that are shared 
 - Settings are intentionally instance-scoped: the shared panel edits the current dashboard widget instance, not the underlying widget definition.
 - The shared settings panel is generic by default and can be extended per widget through `WidgetDefinition.schema`, `WidgetDefinition.controller`, and `WidgetDefinition.settingsComponent`.
 - Structured output exploration belongs in the shared source explorer contract, not in widget-specific binding hacks. Widgets should expose `valueDescriptor` metadata on outputs, and shared binding surfaces should consume that metadata to render nested-field exploration consistently.
-- Generic table-like widget bindings should use `tabular-frame-source.ts` instead of inventing extension-specific row contracts. Keep source-specific metadata nested under `source` and keep field semantics normalized through `type` plus `roles[]`, not ad hoc booleans.
+- Generic table-like widget bindings should use `tabular-frame-source.ts` instead of inventing extension-specific row contracts. Keep source-specific metadata nested under `source` and keep field schemas limited to generic metadata like `key`, `label`, `type`, `description`, and `nullable`.
+  The canonical shared payload is:
+  ```ts
+  {
+    status?: "idle" | "loading" | "ready" | "error",
+    columns: string[],
+    rows: Array<Record<string, unknown>>,
+    error?: string,
+    fields?: Array<{
+      key: string,
+      label?: string,
+      type: "string" | "number" | "integer" | "boolean" | "datetime" | "date" | "time" | "json" | "unknown",
+      description?: string | null,
+      nullable?: boolean,
+      nativeType?: string | null,
+    }>,
+    source?: {
+      kind: string,
+      id?: string | number,
+      label?: string,
+      updatedAtMs?: number,
+      context?: Record<string, unknown>,
+    },
+  }
+  ```
+  Required fields are `columns` and `rows`. `status`, `fields`, `error`, and `source` are optional.
+  When `status` is omitted, the shared normalizer infers `ready` if rows or columns are present,
+  `error` if an error message exists, and `idle` otherwise.
 - Widget definitions can also set `showRawPropsEditor: false` when the shared raw JSON props editor should stay hidden and the widget should be configured only through structured settings controls.
 - The shared settings panel can also expose an optional remove action from the host surface. This is important for sidebar-only widgets, because they may not have an on-canvas card chrome with a delete button.
 - Schema-backed fields can optionally be exposed on the canvas through instance-level presentation state as companion cards outside the widget frame instead of being trapped inside the widget settings page.

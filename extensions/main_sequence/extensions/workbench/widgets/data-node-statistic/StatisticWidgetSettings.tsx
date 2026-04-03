@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PickerField } from "../../../../common/components/PickerField";
+import { useEnsureWidgetGraphResolved } from "@/dashboards/DashboardWidgetExecution";
 import {
   widgetTightFormDescriptionClass,
   widgetTightFormFieldClass,
@@ -135,6 +136,17 @@ export function StatisticWidgetSettings({
     props: draftProps,
     currentWidgetInstanceId: instanceId,
   });
+  const shouldResolveBoundSource =
+    sourceBinding.hasCanonicalSourceBinding &&
+    sourceBinding.resolvedSourceInput?.status === "valid" &&
+    sourceBinding.isAwaitingBoundSourceValue;
+  useEnsureWidgetGraphResolved(instanceId, {
+    enabled: shouldResolveBoundSource,
+    requestKey:
+      sourceBinding.resolvedSourceInput?.sourceWidgetId && sourceBinding.resolvedSourceInput?.sourceOutputId
+        ? `${sourceBinding.resolvedSourceInput.sourceWidgetId}:${sourceBinding.resolvedSourceInput.sourceOutputId}:${sourceBinding.resolvedSourceInput.binding?.transformId ?? "identity"}:${sourceBinding.resolvedSourceInput.binding?.transformPath?.join(".") ?? ""}`
+        : "",
+  });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
   const availableFields = useMemo(
     () =>
@@ -200,17 +212,17 @@ export function StatisticWidgetSettings({
         <div className={fieldClass}>
           <label className={labelClass}>Source binding</label>
           <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-3 text-sm text-muted-foreground">
-            {sourceBinding.referencedFilterWidget ? (
+            {sourceBinding.resolvedSourceWidget ? (
               <>
                 <div className="font-medium text-foreground">
-                  {sourceBinding.referencedFilterWidget.title?.trim() || "Bound Data Node"}
+                  {sourceBinding.resolvedSourceWidget.title?.trim() || "Bound source widget"}
                 </div>
                 <div className="mt-1">
-                  This statistic is consuming the published dataset from the selected Data Node widget.
+                  This statistic is consuming the published dataset from the selected source widget.
                 </div>
               </>
             ) : (
-              "Use the Bindings tab to connect this statistic to a Data Node widget in the dashboard."
+              "Use the Bindings tab to connect this statistic to a source widget in the dashboard."
             )}
           </div>
         </div>
@@ -576,7 +588,11 @@ export function StatisticWidgetSettings({
         <div className={insetSectionClass}>
           {!sourceBinding.hasResolvedFilterWidgetSource ? (
             <div className="rounded-[calc(var(--radius)-8px)] border border-dashed border-border/70 bg-background/24 px-4 py-5 text-sm text-muted-foreground">
-              Use the Bindings tab to connect this statistic to a Data Node in this dashboard.
+              Use the Bindings tab to connect this statistic to a source widget in this dashboard.
+            </div>
+          ) : sourceBinding.isAwaitingBoundSourceValue ? (
+            <div className="rounded-[calc(var(--radius)-8px)] border border-dashed border-border/70 bg-background/24 px-4 py-5 text-sm text-muted-foreground">
+              Refreshing the bound source widget so the statistic preview can load its dataset.
             </div>
           ) : linkedDataset?.status === "loading" || linkedDataset == null ? (
             <div className="rounded-[calc(var(--radius)-8px)] border border-dashed border-border/70 bg-background/24 px-4 py-5 text-sm text-muted-foreground">

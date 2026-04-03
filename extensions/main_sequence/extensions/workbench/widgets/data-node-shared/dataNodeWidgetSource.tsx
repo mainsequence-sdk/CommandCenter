@@ -73,7 +73,9 @@ export interface DataNodeWidgetSourceControllerContext<
   hasNoData: boolean;
   hasResolvedFilterWidgetSource: boolean;
   isFilterWidgetSource: boolean;
+  isAwaitingBoundSourceValue: boolean;
   referencedFilterWidget: DashboardWidgetRegistryEntry | null;
+  resolvedSourceWidget: DashboardWidgetRegistryEntry | null;
   resolvedConfig: TResolvedConfig;
   resolvedSourceDataset: DataNodePublishedDataset | null;
   resolvedSourceFrame: TabularFrameSourceV1 | null;
@@ -466,6 +468,17 @@ export function useResolvedDataNodeWidgetSourceBinding<
       widgetRegistry,
     ],
   );
+  const resolvedSourceWidget = useMemo(
+    () =>
+      resolvedSourceWidgetId
+        ? widgetRegistry.find(
+            (widget) =>
+              widget.id !== currentWidgetInstanceId &&
+              widget.id === resolvedSourceWidgetId,
+          ) ?? null
+        : null,
+    [currentWidgetInstanceId, resolvedSourceWidgetId, widgetRegistry],
+  );
   const sourceDatasetValue =
     resolvedInputBinding?.value ?? referencedFilterWidget?.runtimeState;
   const resolvedSourceFrame = useMemo(
@@ -512,16 +525,25 @@ export function useResolvedDataNodeWidgetSourceBinding<
   );
   const sourceMode: DataNodeWidgetSourceMode =
     expectsFilterWidgetSource ? "filter_widget" : "direct";
+  const isAwaitingBoundSourceValue = Boolean(
+    resolvedInputBinding?.sourceWidgetId &&
+      resolvedInputBinding.status === "valid" &&
+      resolvedInputBinding.value === undefined,
+  );
 
   return {
     filterWidgetOptions,
     hasResolvedFilterWidgetSource:
-      resolvedSourceWidgetId != null
-        ? resolvedSourceFrame !== null
+      resolvedInputBinding?.sourceWidgetId != null
+        ? resolvedInputBinding.status !== "missing-source"
+        : resolvedSourceWidgetId != null
+          ? referencedFilterWidget !== null
         : normalizedReference.sourceMode !== "filter_widget",
     hasCanonicalSourceBinding: resolvedInputBinding?.sourceWidgetId != null,
+    isAwaitingBoundSourceValue,
     isFilterWidgetSource: expectsFilterWidgetSource,
     referencedFilterWidget,
+    resolvedSourceWidget,
     resolvedSourceDataset,
     resolvedSourceFrame,
     resolvedSourceProps,
@@ -633,8 +655,10 @@ export function useDataNodeWidgetSourceControllerContext<
     hasLoadedDataNodeDetail,
     hasNoData: hasLoadedDataNodeDetail && !hasSourceTableConfiguration,
     hasResolvedFilterWidgetSource: sourceBinding.hasResolvedFilterWidgetSource,
+    isAwaitingBoundSourceValue: sourceBinding.isAwaitingBoundSourceValue,
     isFilterWidgetSource: sourceBinding.isFilterWidgetSource,
     referencedFilterWidget: sourceBinding.referencedFilterWidget,
+    resolvedSourceWidget: sourceBinding.resolvedSourceWidget,
     resolvedConfig,
     resolvedSourceDataset: sourceBinding.resolvedSourceDataset,
     resolvedSourceFrame: sourceBinding.resolvedSourceFrame,

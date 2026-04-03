@@ -2,7 +2,6 @@ import type { DataNodeDetail, DataNodeRemoteDataRow } from "../../../../common/a
 import {
   buildDataNodeFieldOptions,
   formatDataNodeLabel,
-  hasTabularFieldRole,
   type DataNodeFieldOption,
 } from "../data-node-shared/dataNodeShared";
 import {
@@ -183,6 +182,27 @@ const defaultPageSize = 10;
 const defaultRemoteLimit = 500;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
 
+function isTimeLikeField(field: Pick<DataNodeFieldOption, "key" | "type"> | undefined) {
+  if (!field) {
+    return false;
+  }
+
+  return (
+    field.type === "datetime" ||
+    field.type === "date" ||
+    field.type === "time" ||
+    /date|time|timestamp/i.test(field.key)
+  );
+}
+
+function isKeyLikeField(field: Pick<DataNodeFieldOption, "key"> | undefined) {
+  if (!field) {
+    return false;
+  }
+
+  return /^(unique_identifier|identifier)$/i.test(field.key.trim());
+}
+
 function normalizeHexColor(value: unknown) {
   if (typeof value !== "string") {
     return undefined;
@@ -347,11 +367,8 @@ export function buildDataNodeTableVisualizerFrameFromRemoteData(
       label,
       description: field?.description ?? undefined,
       format,
-      minWidth: hasTabularFieldRole(field, "time") ? 160 : format === "text" ? 140 : 120,
-      pinned:
-        hasTabularFieldRole(field, "index") || hasTabularFieldRole(field, "identifier")
-          ? "left"
-          : undefined,
+      minWidth: isTimeLikeField(field) ? 160 : format === "text" ? 140 : 120,
+      pinned: isKeyLikeField(field) ? "left" : undefined,
       categorical: format === "text",
       heatmapEligible: format !== "text",
       compact:
@@ -981,7 +998,7 @@ export function resolveDataNodeTableVisualizerPropsWithFrame(
     pagination: migratedProps.pagination !== false,
     pageSize:
       typeof migratedProps.pageSize === "number" && Number.isFinite(migratedProps.pageSize)
-        ? Math.max(5, Math.min(Math.trunc(migratedProps.pageSize), 50))
+        ? Math.max(5, Math.min(Math.trunc(migratedProps.pageSize), 200))
         : defaultPageSize,
     columnOverrides: stripSchemaManagedFieldsFromColumnOverrides(migratedProps.columnOverrides),
     valueLabels: Array.isArray(migratedProps.valueLabels)

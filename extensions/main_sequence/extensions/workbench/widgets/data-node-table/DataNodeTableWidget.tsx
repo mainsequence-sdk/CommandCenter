@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
+import { useEnsureWidgetGraphResolved } from "@/dashboards/DashboardWidgetExecution";
 import {
   fetchDataNodeDetail,
   formatMainSequenceError,
@@ -563,6 +564,17 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
     props: sourceBindingProps,
     currentWidgetInstanceId: instanceId,
   });
+  const shouldResolveBoundSource =
+    sourceBinding.hasCanonicalSourceBinding &&
+    sourceBinding.resolvedSourceInput?.status === "valid" &&
+    sourceBinding.isAwaitingBoundSourceValue;
+  useEnsureWidgetGraphResolved(instanceId, {
+    enabled: shouldResolveBoundSource,
+    requestKey:
+      sourceBinding.resolvedSourceInput?.sourceWidgetId && sourceBinding.resolvedSourceInput?.sourceOutputId
+        ? `${sourceBinding.resolvedSourceInput.sourceWidgetId}:${sourceBinding.resolvedSourceInput.sourceOutputId}:${sourceBinding.resolvedSourceInput.binding?.transformId ?? "identity"}:${sourceBinding.resolvedSourceInput.binding?.transformPath?.join(".") ?? ""}`
+        : "",
+  });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveDataNodeId = Number(
     linkedDataset?.dataNodeId ?? sourceBinding.resolvedSourceProps.dataNodeId ?? 0,
@@ -720,7 +732,7 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
 
   if (sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
           <Database className="h-5 w-5" />
         </div>
@@ -734,9 +746,13 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
     );
   }
 
+  if (sourceBinding.isAwaitingBoundSourceValue) {
+    return <Skeleton className="h-full" />;
+  }
+
   if (!resolvedProps.dataNodeId && !hasPublishedFrame) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
           <Database className="h-5 w-5" />
         </div>
@@ -756,7 +772,7 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
 
   if (dataNodeDetailQuery.isError && !hasPublishedFrame) {
     return (
-      <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+      <div className="border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
         {formatMainSequenceError(dataNodeDetailQuery.error)}
       </div>
     );
@@ -764,7 +780,7 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
 
   if (!hasSourceTableConfiguration && !hasPublishedFrame) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
           <Database className="h-5 w-5" />
         </div>
@@ -780,7 +796,7 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
 
   if (resolvedProps.dateRangeMode === "fixed" && !resolvedRange.hasValidRange) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
           <CalendarClock className="h-5 w-5" />
         </div>
@@ -795,12 +811,12 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
   }
 
   if (isDataLoading && sourceRows.length === 0) {
-    return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
+    return <Skeleton className="h-full" />;
   }
 
   if (dataErrorMessage) {
     return (
-      <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+      <div className="border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
         {dataErrorMessage}
       </div>
     );
@@ -808,7 +824,7 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
 
   return (
     <AgGridProvider modules={agGridModules}>
-      <div className="flex h-full min-h-[280px] flex-col overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 text-foreground">
+      <div className="flex h-full min-h-[280px] flex-col overflow-hidden border border-border/70 bg-card/70 text-foreground">
         {resolvedProps.showToolbar ? (
           <div className="border-b border-border/70 bg-card/88 px-4 py-3">
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -841,7 +857,7 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
 
         {!schemaValidation.isValid ? (
           <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-            <div className="w-full max-w-3xl rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-4 text-sm text-danger">
+            <div className="w-full max-w-3xl border border-danger/40 bg-danger/10 px-4 py-4 text-sm text-danger">
               <div className="font-medium text-foreground">Wrong schema affects rendering</div>
               <p className="mt-1 text-danger/90">
                 The current widget schema does not match the available row shape, so the table cannot render reliably.

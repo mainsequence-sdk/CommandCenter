@@ -1,6 +1,5 @@
 import type { DataNodeRemoteDataRow } from "../../../../common/api";
 import {
-  hasTabularFieldRole,
   resolveDataNodeFieldOptionsFromDataset,
   type DataNodeFieldOption,
 } from "../data-node-shared/dataNodeShared";
@@ -791,9 +790,11 @@ export function resolveStatisticValueFieldPickerOptions(
     label: field.label ?? field.key,
     description: uniqueStrings([
       field.type === "number" || field.type === "integer" ? "numeric" : null,
-      hasTabularFieldRole(field, "time") ? "time-like" : null,
-      hasTabularFieldRole(field, "index") || hasTabularFieldRole(field, "identifier")
-        ? "index"
+      field.type === "datetime" || field.type === "date" || field.type === "time"
+        ? "time-like"
+        : null,
+      /^(unique_identifier|identifier)$/i.test(field.key)
+        ? "identifier"
         : null,
     ]).join(" · ") || field.key,
     keywords: [field.key, field.label ?? field.key],

@@ -51,6 +51,8 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - Request execution now also goes through the shared dashboard execution coordinator when it is
   available. Canvas `Submit` and settings `Test request` use the same graph-runner path so
   upstream executable dependencies can run first.
+- AppComponent now exposes a saved `refreshOnDashboardRefresh` setting. It defaults to enabled, so
+  dashboard refresh will re-run the configured request unless the instance explicitly disables it.
 
 ## Maintenance Notes
 
@@ -64,3 +66,5 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   cross-widget composition path.
 - Keep request execution in `appComponentExecution.ts` and the dashboard execution layer. Do not
   reintroduce separate inline submit orchestration in the widget body or settings page.
+- `refreshOnDashboardRefresh` is a persisted widget prop. If backend widget-props validation exists,
+  it must continue to allow this boolean field.
