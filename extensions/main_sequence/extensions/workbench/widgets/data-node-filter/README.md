@@ -68,3 +68,8 @@ charts and tables.
   as `Node A -> Table/Graph/Statistic`.
 - Consumers should never try to reconstruct earlier nodes in the chain. They should only consume the
   final published dataset from the selected upstream Data Node.
+- The published `Dataset` output is now derived headlessly from the current bound source input plus
+  the Data Node's saved transform settings. Direct-query mode still falls back to the widget's saved
+  runtime dataset, but bound chains such as `AppComponent -> Data Node -> Graph/Table/Statistic`
+  no longer need to wait for the mounted Data Node component to republish before downstream widgets
+  can resolve the transformed dataset.

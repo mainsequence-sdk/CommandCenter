@@ -19,13 +19,6 @@ import {
   type WidgetSourceExplorerWidgetOption,
 } from "@/widgets/shared/WidgetSourceExplorer";
 
-function formatSourceWidgetLabel(
-  instance: DashboardWidgetInstance,
-  widgetTitle: string,
-) {
-  return `${widgetTitle} [${instance.id}]`;
-}
-
 function updateBindingDraft(
   current: WidgetInstanceBindings | undefined,
   inputId: string,
@@ -120,10 +113,10 @@ export function WidgetBindingPanel({
 
           return [{
             id: sourceInstance.id,
-            label: formatSourceWidgetLabel(
-              sourceInstance,
-              sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
-            ),
+            label: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
+            title: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
+            widgetTypeLabel: sourceDefinition?.title ?? sourceInstance.widgetId,
+            instanceLabel: sourceInstance.id,
             outputs: declaredOutputs.map((output) => ({
               id: output.id,
               label: output.label,

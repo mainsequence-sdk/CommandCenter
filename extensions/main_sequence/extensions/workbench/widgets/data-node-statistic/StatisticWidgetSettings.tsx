@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PickerField } from "../../../../common/components/PickerField";
-import { useEnsureWidgetGraphResolved } from "@/dashboards/DashboardWidgetExecution";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import {
   widgetTightFormDescriptionClass,
   widgetTightFormFieldClass,
@@ -136,16 +136,8 @@ export function StatisticWidgetSettings({
     props: draftProps,
     currentWidgetInstanceId: instanceId,
   });
-  const shouldResolveBoundSource =
-    sourceBinding.hasCanonicalSourceBinding &&
-    sourceBinding.resolvedSourceInput?.status === "valid" &&
-    sourceBinding.isAwaitingBoundSourceValue;
-  useEnsureWidgetGraphResolved(instanceId, {
-    enabled: shouldResolveBoundSource,
-    requestKey:
-      sourceBinding.resolvedSourceInput?.sourceWidgetId && sourceBinding.resolvedSourceInput?.sourceOutputId
-        ? `${sourceBinding.resolvedSourceInput.sourceWidgetId}:${sourceBinding.resolvedSourceInput.sourceOutputId}:${sourceBinding.resolvedSourceInput.binding?.transformId ?? "identity"}:${sourceBinding.resolvedSourceInput.binding?.transformPath?.join(".") ?? ""}`
-        : "",
+  useResolveWidgetUpstream(instanceId, {
+    enabled: sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
   const availableFields = useMemo(

@@ -20,8 +20,11 @@ data-node metadata and remote rows.
   date controls now mark `From` and `To` as half-width schema fields, so they render on the same
   row in settings instead of stacking vertically. When a passive consumer is canonically bound to
   an executable upstream widget and no published source value exists yet, this source layer now
-  cooperates with the shared dashboard execution coordinator so the upstream source can be executed
-  before the consumer renders.
+  exposes `requiresUpstreamResolution` so consumer widgets can delegate that work to the shared
+  dashboard execution coordinator before they render. Canonically bound source values that are
+  present but still publish `status: "idle"` or `status: "loading"` also stay in that pending
+  state, so passive consumers do not treat an empty placeholder dataset as a resolved source. The
+  source layer does not assemble request fingerprints or walk the graph itself.
 - `widgetBindings.ts`: shared binding ids for Data Node-family composition.
 - `DataNodePreviewTable.tsx`: reusable simple table preview used inside settings flows that inspect
   fetched data-node rows without mounting the full table formatter widget.
@@ -48,6 +51,11 @@ For chained `Data Node` pipelines, keep the contract hop-local: source binding r
 upstream widget, then downstream widgets consume that upstream widget's published runtime dataset.
 Do not add special cases for chain depth; the same `published dataset -> local transform/render`
 pattern should hold no matter how many Data Nodes are linked together.
+
+Recursive upstream execution also follows that same rule now: downstream passive widgets ask the
+shared dashboard execution layer to resolve upstream sources, and the execution layer walks through
+passive hops until it finds executable ancestors. Widgets in this folder should not special-case
+`AppComponent` or any other source type.
 
 Keep the consumer contract explicit:
 

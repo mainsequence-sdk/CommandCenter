@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { Check, ChevronDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
@@ -26,6 +28,9 @@ export interface WidgetSourceExplorerOutputOption {
 export interface WidgetSourceExplorerWidgetOption {
   id: string;
   label: string;
+  title: string;
+  widgetTypeLabel: string;
+  instanceLabel: string;
   outputs: WidgetSourceExplorerOutputOption[];
 }
 
@@ -164,6 +169,169 @@ function updateBindingTransform(
   };
 }
 
+function buildSourceWidgetMetaLabel(option: WidgetSourceExplorerWidgetOption) {
+  return `${option.widgetTypeLabel} · ${option.instanceLabel}`;
+}
+
+function SourceWidgetSelect({
+  disabled,
+  options,
+  value,
+  onChange,
+}: {
+  disabled?: boolean;
+  options: WidgetSourceExplorerWidgetOption[];
+  value: string;
+  onChange: (nextValue: string) => void;
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const selectedOption = useMemo(
+    () => options.find((option) => option.id === value) ?? null,
+    [options, value],
+  );
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node;
+
+      if (!rootRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  const selectedMetaLabel = selectedOption ? buildSourceWidgetMetaLabel(selectedOption) : null;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className={cn(
+          "flex min-h-14 w-full items-start justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2.5 text-left shadow-sm outline-none transition-colors hover:border-primary/35 hover:bg-muted/25 focus:border-primary/70 focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50",
+          open && "border-primary/60 bg-muted/35",
+        )}
+        onClick={() => {
+          if (!disabled) {
+            setOpen((current) => !current);
+          }
+        }}
+      >
+        <span className="min-w-0 flex-1">
+          {selectedOption ? (
+            <span className="block min-w-0">
+              <span className="block truncate text-sm font-medium text-foreground">
+                {selectedOption.title}
+              </span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                {selectedMetaLabel}
+              </span>
+            </span>
+          ) : (
+            <span className="block pt-1 text-sm text-muted-foreground">No widget selected</span>
+          )}
+        </span>
+        <ChevronDown
+          className={cn(
+            "mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      {open ? (
+        <div
+          role="listbox"
+          className="absolute top-[calc(100%+0.5rem)] left-0 right-0 z-40 overflow-hidden rounded-[calc(var(--radius)+2px)] border border-border/80 bg-card/96 p-1.5 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur"
+        >
+          <div className="max-h-80 overflow-y-auto">
+            <button
+              type="button"
+              role="option"
+              aria-selected={value === ""}
+              className={cn(
+                "flex w-full items-start gap-3 rounded-[calc(var(--radius)-6px)] px-3 py-2.5 text-left transition-colors hover:bg-muted/45",
+                value === "" && "bg-primary/12 text-topbar-foreground",
+              )}
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center pt-0.5 text-primary">
+                {value === "" ? <Check className="h-4 w-4" /> : null}
+              </span>
+              <span className="block min-w-0">
+                <span className="block text-sm font-medium text-foreground">No widget selected</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Clear the current source selection
+                </span>
+              </span>
+            </button>
+
+            {options.map((option) => {
+              const selected = option.id === value;
+
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={cn(
+                    "flex w-full items-start gap-3 rounded-[calc(var(--radius)-6px)] px-3 py-2.5 text-left transition-colors hover:bg-muted/45",
+                    selected && "bg-primary/12 text-topbar-foreground",
+                  )}
+                  onClick={() => {
+                    onChange(option.id);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center pt-0.5 text-primary">
+                    {selected ? <Check className="h-4 w-4" /> : null}
+                  </span>
+                  <span className="block min-w-0">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {option.title}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {option.widgetTypeLabel}
+                    </span>
+                    <span className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground/90">
+                      {option.instanceLabel}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export interface WidgetSourceExplorerProps {
   acceptedContracts: WidgetContractId[];
   editable?: boolean;
@@ -288,23 +456,15 @@ export function WidgetSourceExplorer({
           <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Source widget
           </label>
-          <Select
-            className={cn(!editable ? "cursor-not-allowed opacity-70" : undefined)}
-            value={selectedSourceWidgetId}
+          <SourceWidgetSelect
             disabled={!editable}
-            onChange={(event) => {
-              const nextSourceWidgetId = event.target.value;
+            value={selectedSourceWidgetId}
+            options={sourceWidgets}
+            onChange={(nextSourceWidgetId) => {
               onSelectedSourceWidgetIdChange(nextSourceWidgetId);
               onBindingChange(undefined);
             }}
-          >
-            <option value="">No widget selected</option>
-            {sourceWidgets.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
+          />
         </div>
 
         <div className="space-y-2">

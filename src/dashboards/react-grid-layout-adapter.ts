@@ -81,7 +81,7 @@ export function resolvedWidgetToGridLayoutItem(
       minH: WORKSPACE_ROW_HEIGHT_ROWS,
       maxH: WORKSPACE_ROW_HEIGHT_ROWS,
       isResizable: false,
-      isDraggable: isWorkspaceRowCollapsed(widget),
+      isDraggable: true,
     };
   }
 

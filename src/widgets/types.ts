@@ -152,6 +152,7 @@ export interface WidgetOutputResolverArgs<
   instanceId?: string;
   props: TProps;
   runtimeState?: Record<string, unknown>;
+  resolvedInputs?: ResolvedWidgetInputs;
 }
 
 export interface WidgetOutputPortDefinition<

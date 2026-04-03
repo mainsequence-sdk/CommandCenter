@@ -444,12 +444,14 @@ export function removeWidgetGraphConnectionFromBindings(
 function resolveSingleOutput(
   instance: DashboardWidgetInstance,
   output: WidgetOutputPortDefinition<Record<string, unknown>>,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
 ): ResolvedWidgetOutput {
   const value = output.resolveValue?.({
     widgetId: instance.widgetId,
     instanceId: instance.id,
     props: (instance.props ?? {}) as Record<string, unknown>,
     runtimeState: instance.runtimeState,
+    resolvedInputs,
   });
 
   return {
@@ -683,7 +685,7 @@ export function createDashboardWidgetDependencyModel(
   const resolvedInputCache = new Map<string, ResolvedWidgetInputs | undefined>();
   const resolvedOutputCache = new Map<string, ResolvedWidgetOutputs | undefined>();
 
-  const resolveOutputs = (instanceId: string) => {
+  const resolveOutputs = (instanceId: string): ResolvedWidgetOutputs | undefined => {
     if (resolvedOutputCache.has(instanceId)) {
       return resolvedOutputCache.get(instanceId);
     }
@@ -703,15 +705,17 @@ export function createDashboardWidgetDependencyModel(
       return undefined;
     }
 
-    const resolvedOutputs = Object.fromEntries(
-      outputs.map((output) => [output.id, resolveSingleOutput(instance, output)]),
+    resolvedOutputCache.set(instanceId, undefined);
+    const resolvedInputs: ResolvedWidgetInputs | undefined = resolveInputs(instanceId);
+    const resolvedOutputs: ResolvedWidgetOutputs = Object.fromEntries(
+      outputs.map((output) => [output.id, resolveSingleOutput(instance, output, resolvedInputs)]),
     ) satisfies ResolvedWidgetOutputs;
 
     resolvedOutputCache.set(instanceId, resolvedOutputs);
     return resolvedOutputs;
   };
 
-  const resolveInputs = (instanceId: string) => {
+  const resolveInputs = (instanceId: string): ResolvedWidgetInputs | undefined => {
     if (resolvedInputCache.has(instanceId)) {
       return resolvedInputCache.get(instanceId);
     }
@@ -731,8 +735,9 @@ export function createDashboardWidgetDependencyModel(
       return undefined;
     }
 
+    resolvedInputCache.set(instanceId, undefined);
     const effectiveBindings = normalizeWidgetInstanceBindings(instance.bindings) ?? {};
-    const resolvedInputs = Object.fromEntries(
+    const resolvedInputs: ResolvedWidgetInputs = Object.fromEntries(
       inputs.map((input) => [
         input.id,
         resolveSingleInput(

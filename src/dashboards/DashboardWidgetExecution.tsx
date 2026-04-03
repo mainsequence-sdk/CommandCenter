@@ -12,10 +12,13 @@ import { getWidgetById } from "@/app/registry";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import {
+  buildDashboardUpstreamResolutionKey,
+  resolveDashboardUpstreamRequirement,
   buildDashboardExecutionSnapshot,
   executeDashboardWidgetGraph,
   listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
+  type DashboardUpstreamResolutionRequirement,
   type DashboardWidgetGraphExecutionResult,
 } from "@/dashboards/widget-graph-execution";
 import type {
@@ -39,9 +42,13 @@ export interface ExecuteWidgetGraphOptions {
   targetOverrides?: WidgetExecutionTargetOverrides;
 }
 
-export interface EnsureWidgetGraphResolvedOptions {
+export interface ResolveWidgetUpstreamOptions {
+  targetOverrides?: WidgetExecutionTargetOverrides;
+}
+
+export interface ResolveWidgetUpstreamHookOptions
+  extends ResolveWidgetUpstreamOptions {
   enabled: boolean;
-  requestKey?: string;
 }
 
 interface DashboardWidgetExecutionContextValue {
@@ -49,7 +56,15 @@ interface DashboardWidgetExecutionContextValue {
     targetInstanceId: string,
     options: ExecuteWidgetGraphOptions,
   ) => Promise<DashboardWidgetGraphExecutionResult>;
+  resolveUpstream: (
+    targetInstanceId: string,
+    options?: ResolveWidgetUpstreamOptions,
+  ) => Promise<DashboardWidgetGraphExecutionResult>;
   getExecutionState: (instanceId?: string) => WidgetExecutionState | undefined;
+  getUpstreamRequirement: (
+    instanceId?: string,
+    options?: ResolveWidgetUpstreamOptions,
+  ) => DashboardUpstreamResolutionRequirement | undefined;
 }
 
 const DashboardWidgetExecutionContext =
@@ -120,6 +135,10 @@ export function DashboardWidgetExecutionProvider({
       targetOverrides: options.targetOverrides,
     });
     let executionOrder: string[] = [];
+    const upstreamResolutionKey = buildDashboardUpstreamResolutionKey(
+      targetInstanceId,
+      snapshot,
+    );
 
     try {
       executionOrder = listDashboardWidgetExecutionOrder(targetInstanceId, snapshot);
@@ -128,7 +147,9 @@ export function DashboardWidgetExecutionProvider({
     }
 
     const graphExecutionKey =
-      executionOrder.length > 0 ? executionOrder.join("::") : targetInstanceId;
+      executionOrder.length > 0
+        ? `${upstreamResolutionKey}::${executionOrder.join("::")}`
+        : upstreamResolutionKey;
 
     return [
       scopeId,
@@ -306,10 +327,29 @@ export function DashboardWidgetExecutionProvider({
     () => ({
       executeWidgetGraph: (targetInstanceId, options) =>
         runGraph(targetInstanceId, options),
+      resolveUpstream: (targetInstanceId, options) =>
+        runGraph(targetInstanceId, {
+          reason: "manual-recalculate",
+          targetOverrides: options?.targetOverrides,
+        }),
       getExecutionState: (instanceId) =>
         instanceId ? executionStates[instanceId] : undefined,
+      getUpstreamRequirement: (instanceId, options) => {
+        if (!instanceId) {
+          return undefined;
+        }
+
+        const snapshot = buildDashboardExecutionSnapshot({
+          widgets: widgetsRef.current,
+          resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+          targetInstanceId: instanceId,
+          targetOverrides: options?.targetOverrides,
+        });
+
+        return resolveDashboardUpstreamRequirement(instanceId, snapshot);
+      },
     }),
-    [executionStates],
+    [effectiveResolveWidgetDefinition, executionStates],
   );
 
   return (
@@ -323,33 +363,44 @@ export function useDashboardWidgetExecution() {
   return useContext(DashboardWidgetExecutionContext);
 }
 
-export function useEnsureWidgetGraphResolved(
+export function useResolveWidgetUpstream(
   instanceId: string | undefined,
-  options: EnsureWidgetGraphResolvedOptions,
+  options: ResolveWidgetUpstreamHookOptions,
 ) {
   const context = useDashboardWidgetExecution();
   const lastRequestKeyRef = useRef("");
-  const { enabled, requestKey = "" } = options;
+  const { enabled, targetOverrides } = options;
+  const upstreamRequirement = useMemo(
+    () => context?.getUpstreamRequirement(instanceId, { targetOverrides }),
+    [context, instanceId, targetOverrides],
+  );
 
   useEffect(() => {
-    if (!context || !instanceId || !enabled) {
+    if (!context || !instanceId || !enabled || !upstreamRequirement?.needsResolution) {
       lastRequestKeyRef.current = "";
       return;
     }
 
-    const nextRequestKey = `${instanceId}::${requestKey}`;
+    const nextRequestKey = `${instanceId}::${upstreamRequirement.requestKey}`;
 
     if (lastRequestKeyRef.current === nextRequestKey) {
       return;
     }
 
     lastRequestKeyRef.current = nextRequestKey;
-    void context.executeWidgetGraph(instanceId, {
-      reason: "manual-recalculate",
-    }).catch(() => {
+    void context.resolveUpstream(instanceId, { targetOverrides }).catch(() => {
       // Passive consumers surface their own loading/error states from the source binding.
     });
-  }, [context, enabled, instanceId, requestKey]);
+  }, [context, enabled, instanceId, targetOverrides, upstreamRequirement?.needsResolution, upstreamRequirement?.requestKey]);
+
+  return upstreamRequirement;
+}
+
+export function useEnsureWidgetGraphResolved(
+  instanceId: string | undefined,
+  options: ResolveWidgetUpstreamHookOptions,
+) {
+  return useResolveWidgetUpstream(instanceId, options);
 }
 
 export function useWidgetExecutionState(instanceId?: string) {

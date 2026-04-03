@@ -91,6 +91,13 @@ export function DataNodeRailSummary({
     [dashboardRangeEndMs, dashboardRangeStartMs, resolvedConfig],
   );
   const hasSourceTableConfiguration = Boolean(detailQuery.data?.sourcetableconfiguration);
+  const sourceDatasetStatus = sourceBinding.isFilterWidgetSource
+    ? linkedDataset?.status ?? normalizedRuntimeState?.status ?? "idle"
+    : normalizedRuntimeState?.status ?? "idle";
+  const sourceWidgetLabel =
+    sourceBinding.resolvedSourceWidget?.title?.trim() ||
+    sourceBinding.resolvedSourceWidget?.id ||
+    null;
   const isUnconfigured =
     sourceBinding.isFilterWidgetSource
       ? !sourceBinding.hasResolvedFilterWidgetSource
@@ -103,8 +110,14 @@ export function DataNodeRailSummary({
     ? formatMainSequenceError(detailQuery.error)
     : null;
   const runtimeErrorMessage =
-    normalizedRuntimeState?.status === "error"
-      ? normalizedRuntimeState.error ?? "The canonical dataset request failed."
+    sourceBinding.isFilterWidgetSource
+      ? linkedDataset?.status === "error"
+        ? linkedDataset.error ?? "The upstream source widget failed to publish rows."
+        : normalizedRuntimeState?.status === "error"
+          ? normalizedRuntimeState.error ?? "The canonical dataset request failed."
+          : null
+      : normalizedRuntimeState?.status === "error"
+        ? normalizedRuntimeState.error ?? "The canonical dataset request failed."
       : null;
   const status =
     isUnconfigured
@@ -119,15 +132,17 @@ export function DataNodeRailSummary({
             ? "metadata_error"
             : runtimeErrorMessage
               ? "data_error"
-              : detailQuery.isLoading || normalizedRuntimeState?.status === "loading"
+              : detailQuery.isLoading || sourceDatasetStatus === "loading"
                 ? "loading"
-                : normalizedRuntimeState?.status === "ready"
+                : sourceDatasetStatus === "ready"
                   ? "ready"
                   : "idle";
 
   const hoverTitle =
     status === "idle"
-      ? "Data Node not configured"
+      ? sourceBinding.isFilterWidgetSource
+        ? "Source widget not configured"
+        : "Data Node not configured"
       : status === "range"
         ? "Fixed range is incomplete"
         : status === "detail_error"
@@ -142,7 +157,7 @@ export function DataNodeRailSummary({
   const hoverDescription =
     status === "idle"
       ? sourceBinding.isFilterWidgetSource
-        ? "Choose an upstream Data Node in settings so this node can transform that dataset."
+        ? "Choose an upstream source widget in settings so this node can transform that dataset."
         : "Choose a data node in settings so this widget can own the shared dataset."
       : status === "range"
         ? "This Data Node needs both saved fixed dates before it can publish rows."
@@ -153,9 +168,14 @@ export function DataNodeRailSummary({
             : status === "data_error"
               ? runtimeErrorMessage ?? "The canonical dataset request failed."
               : status === "loading"
-                ? "Linked widgets keep reading from this Data Node while the dataset refreshes."
+                ? sourceBinding.isFilterWidgetSource
+                  ? "Linked widgets keep reading from this bound source while the dataset refreshes."
+                  : "Linked widgets keep reading from this Data Node while the dataset refreshes."
                 : "Linked widgets should read rows from this Data Node instead of querying directly.";
-  const publishedRowCount = normalizedRuntimeState?.rows.length ?? 0;
+  const publishedRowCount =
+    normalizedRuntimeState?.rows.length ??
+    linkedDataset?.rows.length ??
+    0;
   const identifierSummary = resolvedConfig.uniqueIdentifierList?.length
     ? `${resolvedConfig.uniqueIdentifierList.length.toLocaleString()} identifiers`
     : "No identifier selection";
@@ -204,16 +224,22 @@ export function DataNodeRailSummary({
       description={hoverDescription}
       details={[
         {
-          label: "Data node",
+          label: sourceBinding.isFilterWidgetSource ? "Source widget" : "Data node",
           value:
-            resolvedConfig.dataNodeLabel ||
-            (dataNodeId > 0 ? dataNodeId : "Not selected"),
+            sourceBinding.isFilterWidgetSource
+              ? (sourceWidgetLabel ?? "Not selected")
+              : (resolvedConfig.dataNodeLabel ||
+                (dataNodeId > 0 ? dataNodeId : "Not selected")),
         },
         {
           label: "Range",
           value: formatRangeSummary(
-            normalizedRuntimeState?.rangeStartMs ?? resolvedRange.rangeStartMs,
-            normalizedRuntimeState?.rangeEndMs ?? resolvedRange.rangeEndMs,
+            normalizedRuntimeState?.rangeStartMs ??
+              linkedDataset?.rangeStartMs ??
+              resolvedRange.rangeStartMs,
+            normalizedRuntimeState?.rangeEndMs ??
+              linkedDataset?.rangeEndMs ??
+              resolvedRange.rangeEndMs,
           ),
         },
         {

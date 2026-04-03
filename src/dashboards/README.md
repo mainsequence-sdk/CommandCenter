@@ -26,8 +26,8 @@ surfaces and the editable workspace studio.
   execution snapshots, walks valid upstream executable dependencies, applies runtime-state patches,
   and provides the refresh-target selection helpers used by the execution provider.
 - `DashboardWidgetExecution.tsx`: React provider/hooks layer for executable widget graphs. It owns
-  `executeWidgetGraph(...)`, passive-consumer dependency resolution through
-  `useEnsureWidgetGraphResolved(...)`, in-flight dedupe, per-instance execution status, and
+  `executeWidgetGraph(...)`, generic passive-consumer upstream resolution through
+  `resolveUpstream(...)` / `useResolveWidgetUpstream(...)`, in-flight dedupe, per-instance execution status, and
   refresh-cycle handoff from dashboard controls.
 - `react-grid-layout-adapter.ts`: adapter utilities for the workspace studio's
   `react-grid-layout`-managed canvas. This file converts resolved dashboard widgets into RGL items,
@@ -78,10 +78,18 @@ surfaces and the editable workspace studio.
   execution runner consumes dependency snapshots, but execution side effects, runtime-state patch
   application, and refresh dedupe live in `widget-graph-execution.ts` /
   `DashboardWidgetExecution.tsx`, not in `widget-dependencies.ts`.
+- Upstream resolution is now recursive across passive hops. The graph runner walks all valid
+  upstream bindings, traverses through passive widgets, and executes only the ancestors that
+  actually implement `WidgetDefinition.execution`. This is important for chains like
+  `AppComponent -> Data Node -> Graph/Table/Statistic`.
 - Passive widgets that depend on executable upstream sources should use the shared execution
-  provider instead of triggering requests locally. The provider can now run executable upstream
-  dependencies for a passive target without making that target itself implement a widget execution
-  contract.
+  provider instead of triggering requests locally. Widgets should ask for upstream resolution
+  through `useResolveWidgetUpstream(...)`; they should not build their own request fingerprints or
+  hand-roll graph traversal logic.
+- The dependency model now also supports derived output publication. Output resolvers can consume
+  `resolvedInputs`, which lets intermediate republisher widgets expose fresh downstream values
+  immediately after an upstream request/computation resolves instead of waiting for a mounted
+  runtime side effect to write `runtimeState`.
 - Dashboard refresh now also treats passive consumers with executable upstream dependencies as
   refresh roots. That means a table/statistic bound to an executable source can trigger its
   upstream execution on refresh even though the consumer itself is not executable.

@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Calculator, Database, Loader2 } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEnsureWidgetGraphResolved } from "@/dashboards/DashboardWidgetExecution";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import { StatisticCardGrid } from "./StatisticCardGrid";
@@ -22,16 +22,8 @@ export function StatisticWidget({ props, instanceId }: Props) {
     props,
     currentWidgetInstanceId: instanceId,
   });
-  const shouldResolveBoundSource =
-    sourceBinding.hasCanonicalSourceBinding &&
-    sourceBinding.resolvedSourceInput?.status === "valid" &&
-    sourceBinding.isAwaitingBoundSourceValue;
-  useEnsureWidgetGraphResolved(instanceId, {
-    enabled: shouldResolveBoundSource,
-    requestKey:
-      sourceBinding.resolvedSourceInput?.sourceWidgetId && sourceBinding.resolvedSourceInput?.sourceOutputId
-        ? `${sourceBinding.resolvedSourceInput.sourceWidgetId}:${sourceBinding.resolvedSourceInput.sourceOutputId}:${sourceBinding.resolvedSourceInput.binding?.transformId ?? "identity"}:${sourceBinding.resolvedSourceInput.binding?.transformPath?.join(".") ?? ""}`
-        : "",
+  useResolveWidgetUpstream(instanceId, {
+    enabled: sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
   const availableFields = useMemo(

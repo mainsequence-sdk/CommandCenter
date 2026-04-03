@@ -57,6 +57,9 @@ This directory contains the Command Center widget platform, including the shared
 - Executable widget graphs are coordinated from the dashboard layer, not by widgets calling each
   other directly. Widget execution should return runtime-state patches and let the shared
   dependency model resolve outputs from runtime state.
+- Output resolvers can also receive the widget's current `resolvedInputs`, so widgets with derived
+  outputs do not need to wait for a mounted component to republish runtime state before downstream
+  bindings can read the value.
 - Static dashboard surfaces currently keep widget settings changes only for the current page session.
 - The custom workspace studio writes widget settings into the workspace draft, and those changes persist once the user saves the workspace.
 - Stateful widgets can report runtime state back through `WidgetComponentProps.onRuntimeStateChange` so Workspaces JSON snapshots can round-trip view state such as zoom, pan, or selected node context.

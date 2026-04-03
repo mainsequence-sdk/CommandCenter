@@ -54,6 +54,7 @@ import {
   DashboardRefreshProgressLine,
 } from "@/dashboards/DashboardControls";
 import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
+import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import {
   resolveDashboardCanvasCompanionCandidates,
@@ -132,6 +133,7 @@ import { WidgetCanvasControls } from "@/widgets/shared/widget-canvas-controls";
 import { MissingWidgetFrame } from "@/widgets/shared/widget-frame";
 import { getWidgetExplorerPath } from "@/features/widgets/widget-explorer";
 import type { WidgetInstancePresentation } from "@/widgets/types";
+import { WorkspaceRowCard } from "@/widgets/core/workspace-row/WorkspaceRowCard";
 
 interface CatalogDragPayload {
   widgetId: string;
@@ -254,7 +256,7 @@ function cloneWorkspaceGridLayout(
 }
 
 function serializeWorkspaceGridLayout(
-  layout: readonly Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">[],
+  layout: readonly CloneableWorkspaceGridLayoutItem[],
 ) {
   return JSON.stringify(
     [...layout]
@@ -265,6 +267,15 @@ function serializeWorkspaceGridLayout(
         y: item.y,
         w: item.w,
         h: item.h,
+        minW: item.minW,
+        maxW: item.maxW,
+        minH: item.minH,
+        maxH: item.maxH,
+        moved: item.moved,
+        static: item.static,
+        isDraggable: item.isDraggable,
+        isResizable: item.isResizable,
+        isBounded: item.isBounded,
       })),
   );
 }
@@ -877,7 +888,6 @@ function WorkspaceRowCanvasCard({
   onDuplicate,
   onOpenSettings,
   onRemove,
-  onSelect,
   onToggleCollapse,
   selected,
   title,
@@ -889,68 +899,27 @@ function WorkspaceRowCanvasCard({
   onDuplicate: () => void;
   onOpenSettings: () => void;
   onRemove: () => void;
-  onSelect: () => void;
   onToggleCollapse: () => void;
   selected: boolean;
   title: string;
 }) {
-  const childLabel =
-    childCount > 0 ? `${childCount} ${childCount === 1 ? "widget" : "widgets"}` : null;
-
   return (
-    <div
+    <WorkspaceRowCard
+      title={title}
+      accentColor={accentColor}
+      childCount={childCount}
+      collapsed={collapsed}
+      editable={editable}
+      selected={selected}
+      showCollapseToggle
+      showDragHint={editable}
+      onToggleCollapse={onToggleCollapse}
       className={cn(
-        "relative flex h-full min-h-0 items-center justify-between px-1.5 text-card-foreground",
-        editable && collapsed ? workspaceGridDraggableHandleClassName : undefined,
-        editable && collapsed ? "cursor-grab select-none active:cursor-grabbing" : undefined,
-        selected ? "text-foreground" : undefined,
+        editable ? workspaceGridDraggableHandleClassName : undefined,
+        editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
       )}
-      onPointerDownCapture={() => {
-        if (editable) {
-          onSelect();
-        }
-      }}
-      style={accentColor ? { color: accentColor } : undefined}
-    >
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 border-b border-border/70"
-        style={accentColor ? { borderBottomColor: accentColor } : undefined}
-      />
-
-      <div className="relative z-10 min-w-0 flex items-center gap-1.5">
-        <button
-          type="button"
-          className="inline-flex h-4 w-4 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-          aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
-          title={collapsed ? `Expand ${title}` : `Collapse ${title}`}
-          data-no-widget-drag="true"
-          onPointerDown={(event) => {
-            event.stopPropagation();
-          }}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleCollapse();
-          }}
-        >
-          {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        </button>
-        <span className="truncate text-[10px] font-medium uppercase tracking-[0.15em] text-foreground">
-          {title}
-        </span>
-        {childLabel ? (
-          <span className="truncate text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-            {childLabel}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="relative z-10 flex items-center gap-1">
-        {collapsed ? (
-          <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-            Drag row
-          </span>
-        ) : null}
-        {editable ? (
+      trailingContent={
+        editable ? (
           <WidgetActionMenu
             editable
             widgetId={WORKSPACE_ROW_WIDGET_ID}
@@ -959,9 +928,9 @@ function WorkspaceRowCanvasCard({
             onDuplicate={onDuplicate}
             onRemove={onRemove}
           />
-        ) : null}
-      </div>
-    </div>
+        ) : null
+      }
+    />
   );
 }
 
@@ -1066,9 +1035,6 @@ function BuilderWidgetCard({
           editable={editable}
           collapsed={rowCollapsed}
           childCount={rowChildCount}
-          onSelect={() => {
-            onSelect(instanceId);
-          }}
           onToggleCollapse={() => {
             onToggleRowCollapse?.(instanceId);
           }}
@@ -2471,20 +2437,25 @@ export function CustomDashboardStudioPage() {
       }}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
-        <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
-          <div
-            className="relative h-full min-h-full overflow-hidden"
-            style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
-          >
-            <DashboardRefreshProgressLine />
+        <DashboardWidgetExecutionProvider
+          scopeId={selectedDashboard.id}
+          widgets={resolvedDashboard.widgets}
+          writeRuntimeState={handleWidgetRuntimeStateChange}
+        >
+          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
             <div
-              className="pointer-events-none absolute inset-0"
-              style={{ backgroundImage: "var(--workspace-canvas-background)" }}
-            />
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
-            />
+              className="relative h-full min-h-full overflow-hidden"
+              style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
+            >
+              <DashboardRefreshProgressLine />
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{ backgroundImage: "var(--workspace-canvas-background)" }}
+              />
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
+              />
 
         {editMode ? (
           <WorkspaceWidgetRail
@@ -3161,8 +3132,9 @@ export function CustomDashboardStudioPage() {
             </div>
           </div>
             ) : null}
-          </div>
-        </DashboardWidgetDependenciesProvider>
+            </div>
+          </DashboardWidgetDependenciesProvider>
+        </DashboardWidgetExecutionProvider>
       </DashboardWidgetRegistryProvider>
     </DashboardControlsProvider>
   );

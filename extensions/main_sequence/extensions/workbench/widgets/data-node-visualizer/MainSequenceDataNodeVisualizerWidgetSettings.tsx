@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
@@ -80,6 +81,7 @@ function toColorInputValue(value: string | undefined, fallback: string) {
 export function MainSequenceDataNodeVisualizerWidgetSettings({
   draftProps,
   editable,
+  instanceId,
   onDraftPropsChange,
   controllerContext,
 }: WidgetSettingsComponentProps<MainSequenceDataNodeVisualizerWidgetProps>) {
@@ -94,9 +96,13 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
   const selectedDetail = context?.selectedDataNodeDetailQuery.data;
   const hasNoData = context?.hasNoData ?? false;
   const linkedDataset = context?.resolvedSourceDataset ?? null;
+  const hasPreviewSource = Boolean(resolvedConfig?.dataNodeId || context?.isFilterWidgetSource);
   const [previewModeOverride, setPreviewModeOverride] = useState<DataNodeVisualizerViewMode | null>(
     null,
   );
+  useResolveWidgetUpstream(instanceId, {
+    enabled: context?.requiresUpstreamResolution ?? false,
+  });
 
   const activePreviewMode = previewModeOverride ?? "chart";
 
@@ -169,7 +175,10 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
     linkedDataset?.status === "error"
       ? linkedDataset.error ?? "The linked Data Node failed to load rows."
       : null;
-  const previewIsLoading = linkedDataset?.status === "loading" || linkedDataset == null;
+  const previewIsLoading =
+    Boolean(context?.isAwaitingBoundSourceValue) ||
+    linkedDataset?.status === "loading" ||
+    linkedDataset == null;
 
   const previewSeriesResult = useMemo(
     () =>
@@ -203,6 +212,8 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
     previewRange.rangeStartMs && previewRange.rangeEndMs
       ? formatRangeSummary(previewRange.rangeStartMs, previewRange.rangeEndMs)
       : "Select a valid date range to preview";
+  const canRenderPreviewContent =
+    Boolean(context?.isFilterWidgetSource) || previewRange.hasValidRange;
   const previewChartEmptyMessage =
     previewRows.length > 0
       ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
@@ -296,7 +307,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
             Use the Bindings tab to connect this graph to a Data Node and enable the preview.
           </div>
-        ) : resolvedConfig.dataNodeId ? (
+        ) : hasPreviewSource ? (
           <div className="space-y-4">
             {hasNoData ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
@@ -304,6 +315,12 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
               </div>
             ) : (
               <>
+                {context?.isAwaitingBoundSourceValue ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                    Resolving the bound source widget so the graph preview can load the latest dataset and axis fields.
+                  </div>
+                ) : null}
+
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Button
@@ -370,7 +387,7 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
 
                 {!previewIsLoading &&
                 !previewErrorMessage &&
-                previewRange.hasValidRange &&
+                canRenderPreviewContent &&
                 (activePreviewMode === "table" || canRenderChartPreview) ? (
                   <>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -430,9 +447,13 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
         title="Series styling"
         description="Lock specific series colors after the preview resolves the active series list."
       >
-        {!resolvedConfig.dataNodeId || hasNoData ? (
+        {!hasPreviewSource || hasNoData ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
             Select a chartable Data Node dataset to configure per-series colors.
+          </div>
+        ) : context?.isAwaitingBoundSourceValue ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
+            Resolving the bound source widget before series-specific styling becomes available.
           </div>
         ) : previewIsLoading ? (
           <div className="grid gap-3 md:grid-cols-2">

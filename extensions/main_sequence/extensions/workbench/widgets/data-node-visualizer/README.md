@@ -51,6 +51,9 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - Remote data is fetched by the `Data Node` from `dynamic_table/{id}/get_data_between_dates_from_remote/`.
 - The live chart only reads mapped `x/y/group` fields from the linked Data Node dataset instead of owning
   its own backend query.
+- If the linked `Data Node` is itself backed by an executable upstream source such as `AppComponent`,
+  the visualizer now relies on the shared dashboard upstream-resolution path instead of requiring a
+  direct executable source itself.
 - Before rendering, chart series are normalized to chart-second precision so multiple rows that land
   in the same second collapse deterministically to the latest point instead of crashing the chart
   renderer.
@@ -73,6 +76,12 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - Visualization settings focus on the mounted chart renderer and provider-specific controls.
 - The preview can switch locally between chart and table without changing the live widget surface.
 - Table preview requests all available fields so the preview grid shows the full row shape, not only the mapped chart columns.
+- Axis pickers and preview now prefer runtime field inference from the resolved bound dataset, so
+  an `AppComponent -> Data Node -> Graph` chain can populate X/Y/group mappings from the actual
+  published frame even when there is no direct `dataNodeId` metadata at the graph layer.
+- When the linked `Data Node` is still waiting on an executable upstream source, both the mounted
+  widget and the settings preview now surface that as an explicit "resolving upstream source"
+  state instead of falling through to stale axis/preview messaging.
 - Fixed-date presets and inputs update the widget instance configuration directly.
 - The previewed series list also drives the per-series color editors, so overrides stay aligned with the current grouping output.
 - The preview summary also reports when chart-local group filters remove series before rendering.

@@ -6,11 +6,8 @@ import { dataNodeFilterWidgetController } from "./controller";
 import { MainSequenceDataNodeFilterWidget } from "./MainSequenceDataNodeFilterWidget";
 import { MainSequenceDataNodeFilterWidgetSettings } from "./MainSequenceDataNodeFilterWidgetSettings";
 import { DataNodeRailSummary } from "./DataNodeRailSummary";
-import { buildDataNodeFieldOptionsFromRows } from "../data-node-shared/dataNodeShared";
-import { buildMainSequenceDataSourceDescriptor } from "../../widget-contracts/mainSequenceDataSourceBundle";
 import {
-  normalizeDataNodeFilterProps,
-  normalizeDataNodeFilterRuntimeState,
+  resolveDataNodePublishedOutput,
   type MainSequenceDataNodeFilterWidgetProps,
 } from "./dataNodeFilterModel";
 import { dataNodeFilterSettingsSchema } from "./schema";
@@ -74,43 +71,12 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
         contract: MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT,
         description:
           "Publishes the canonical Main Sequence dataset bundle for downstream widgets.",
-        resolveValue: ({ props, runtimeState }) => {
-          const normalizedProps = normalizeDataNodeFilterProps(
-            props as MainSequenceDataNodeFilterWidgetProps,
-          );
-          const dataset = normalizeDataNodeFilterRuntimeState(runtimeState);
-          const status =
-            dataset?.status === "error"
-              ? "error"
-              : dataset?.status === "loading"
-                ? "loading"
-                : dataset?.status === "ready"
-                  ? "ready"
-                  : "idle";
-
-          return {
-            status,
-            error: dataset?.error,
-            columns: dataset?.columns ?? [],
-            rows: dataset?.rows ?? [],
-            fields: buildDataNodeFieldOptionsFromRows({
-              columns: dataset?.columns ?? [],
-              rows: dataset?.rows ?? [],
-            }),
-            source: buildMainSequenceDataSourceDescriptor({
-              dataNodeId:
-                typeof normalizedProps.dataNodeId === "number"
-                  ? normalizedProps.dataNodeId
-                  : undefined,
-              dateRangeMode: normalizedProps.dateRangeMode,
-              fixedStartMs: normalizedProps.fixedStartMs,
-              fixedEndMs: normalizedProps.fixedEndMs,
-              uniqueIdentifierList: normalizedProps.uniqueIdentifierList,
-              updatedAtMs: dataset?.updatedAtMs,
-              limit: dataset?.limit,
-            }),
-          };
-        },
+        resolveValue: ({ props, runtimeState, resolvedInputs }) =>
+          resolveDataNodePublishedOutput({
+            props: props as MainSequenceDataNodeFilterWidgetProps,
+            runtimeState,
+            resolvedInputs,
+          }),
       },
     ],
   },

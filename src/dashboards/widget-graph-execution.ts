@@ -39,6 +39,18 @@ function flattenResolvedInputs(
   });
 }
 
+function listValidResolvedInputs(
+  instanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+) {
+  return flattenResolvedInputs(snapshot.dependencies.resolveInputs(instanceId)).filter(
+    (input): input is ResolvedWidgetInput & { sourceWidgetId: string } =>
+      input.status === "valid" &&
+      typeof input.sourceWidgetId === "string" &&
+      input.sourceWidgetId.length > 0,
+  );
+}
+
 function mergeRuntimeStatePatch(
   runtimeState: Record<string, unknown> | undefined,
   patch: Record<string, unknown> | undefined,
@@ -203,24 +215,13 @@ export function buildDashboardExecutionSnapshot(args: {
   };
 }
 
-function listValidExecutableDependencyIds(
+function listValidDependencyIds(
   instanceId: string,
   snapshot: DashboardExecutionSnapshot,
 ) {
-  const resolvedInputs = snapshot.dependencies.resolveInputs(instanceId);
   const nextDependencyIds = new Set<string>();
 
-  for (const input of flattenResolvedInputs(resolvedInputs)) {
-    if (input.status !== "valid" || !input.sourceWidgetId) {
-      continue;
-    }
-
-    const sourceDefinition = snapshot.getDefinition(input.sourceWidgetId);
-
-    if (!sourceDefinition?.execution) {
-      continue;
-    }
-
+  for (const input of listValidResolvedInputs(instanceId, snapshot)) {
     nextDependencyIds.add(input.sourceWidgetId);
   }
 
@@ -230,18 +231,66 @@ function listValidExecutableDependencyIds(
 function collectTransitiveExecutableDependencyIds(
   instanceId: string,
   snapshot: DashboardExecutionSnapshot,
-  seen = new Set<string>(),
+  executableIds = new Set<string>(),
+  visited = new Set<string>(),
 ) {
-  for (const dependencyId of listValidExecutableDependencyIds(instanceId, snapshot)) {
-    if (seen.has(dependencyId)) {
-      continue;
-    }
-
-    seen.add(dependencyId);
-    collectTransitiveExecutableDependencyIds(dependencyId, snapshot, seen);
+  if (visited.has(instanceId)) {
+    return executableIds;
   }
 
-  return seen;
+  visited.add(instanceId);
+
+  for (const dependencyId of listValidDependencyIds(instanceId, snapshot)) {
+    const sourceDefinition = snapshot.getDefinition(dependencyId);
+
+    if (sourceDefinition?.execution) {
+      executableIds.add(dependencyId);
+    }
+
+    collectTransitiveExecutableDependencyIds(
+      dependencyId,
+      snapshot,
+      executableIds,
+      visited,
+    );
+  }
+
+  return executableIds;
+}
+
+function collectUpstreamResolutionSignatures(
+  instanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+  signatures = new Set<string>(),
+  visited = new Set<string>(),
+) {
+  if (visited.has(instanceId)) {
+    return signatures;
+  }
+
+  visited.add(instanceId);
+
+  for (const input of listValidResolvedInputs(instanceId, snapshot)) {
+    signatures.add(
+      [
+        instanceId,
+        input.inputId,
+        input.sourceWidgetId,
+        input.sourceOutputId ?? "",
+        input.binding?.transformId ?? "identity",
+        input.binding?.transformPath?.join(".") ?? "",
+      ].join(":"),
+    );
+
+    collectUpstreamResolutionSignatures(
+      input.sourceWidgetId,
+      snapshot,
+      signatures,
+      visited,
+    );
+  }
+
+  return signatures;
 }
 
 function collectExecutionOrder(
@@ -265,7 +314,7 @@ function collectExecutionOrder(
 
     activePath.push(instanceId);
 
-    for (const dependencyId of listValidExecutableDependencyIds(instanceId, snapshot)) {
+    for (const dependencyId of listValidDependencyIds(instanceId, snapshot)) {
       visit(dependencyId);
     }
 
@@ -289,6 +338,38 @@ export function listDashboardWidgetExecutionOrder(
   snapshot: DashboardExecutionSnapshot,
 ) {
   return collectExecutionOrder(targetInstanceId, snapshot);
+}
+
+export interface DashboardUpstreamResolutionRequirement {
+  executableInstanceIds: string[];
+  needsResolution: boolean;
+  requestKey: string;
+}
+
+export function buildDashboardUpstreamResolutionKey(
+  targetInstanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+) {
+  const signatures = [...collectUpstreamResolutionSignatures(targetInstanceId, snapshot)].sort();
+
+  if (signatures.length === 0) {
+    return `${targetInstanceId}::no-upstream-bindings`;
+  }
+
+  return `${targetInstanceId}::${signatures.join("::")}`;
+}
+
+export function resolveDashboardUpstreamRequirement(
+  targetInstanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+): DashboardUpstreamResolutionRequirement {
+  const executableInstanceIds = [...collectTransitiveExecutableDependencyIds(targetInstanceId, snapshot)];
+
+  return {
+    executableInstanceIds,
+    needsResolution: executableInstanceIds.length > 0,
+    requestKey: buildDashboardUpstreamResolutionKey(targetInstanceId, snapshot),
+  };
 }
 
 export interface ExecutedWidgetNodeResult {

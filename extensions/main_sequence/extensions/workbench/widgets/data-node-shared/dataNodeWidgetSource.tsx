@@ -75,6 +75,7 @@ export interface DataNodeWidgetSourceControllerContext<
   isFilterWidgetSource: boolean;
   isAwaitingBoundSourceValue: boolean;
   referencedFilterWidget: DashboardWidgetRegistryEntry | null;
+  requiresUpstreamResolution: boolean;
   resolvedSourceWidget: DashboardWidgetRegistryEntry | null;
   resolvedConfig: TResolvedConfig;
   resolvedSourceDataset: DataNodePublishedDataset | null;
@@ -85,6 +86,27 @@ export interface DataNodeWidgetSourceControllerContext<
   sourceMode: DataNodeWidgetSourceMode;
   sourceWidgetId?: string;
   supportsUniqueIdentifierList: boolean;
+}
+
+export interface ResolvedDataNodeWidgetSourceBinding {
+  filterWidgetOptions: PickerOption[];
+  hasCanonicalSourceBinding: boolean;
+  hasResolvedFilterWidgetSource: boolean;
+  isAwaitingBoundSourceValue: boolean;
+  isFilterWidgetSource: boolean;
+  referencedFilterWidget: DashboardWidgetRegistryEntry | null;
+  requiresUpstreamResolution: boolean;
+  resolvedSourceDataset: DataNodePublishedDataset | null;
+  resolvedSourceFrame: TabularFrameSourceV1 | null;
+  resolvedSourceInput: ReturnType<typeof useResolvedWidgetInput> extends infer T
+    ? T extends readonly unknown[]
+      ? never
+      : T
+    : never;
+  resolvedSourceProps: DataNodeWidgetSourceProps;
+  resolvedSourceWidget: DashboardWidgetRegistryEntry | null;
+  sourceMode: DataNodeWidgetSourceMode;
+  sourceWidgetId?: string;
 }
 
 interface CreateDataNodeWidgetSourceSchemaOptions<
@@ -439,7 +461,7 @@ export function useResolvedDataNodeWidgetSourceBinding<
 }: {
   props: TProps;
   currentWidgetInstanceId?: string;
-}) {
+}): ResolvedDataNodeWidgetSourceBinding {
   const widgetRegistry = useDashboardWidgetRegistry();
   const resolvedSourceInput = useResolvedWidgetInput(
     currentWidgetInstanceId,
@@ -525,10 +547,22 @@ export function useResolvedDataNodeWidgetSourceBinding<
   );
   const sourceMode: DataNodeWidgetSourceMode =
     expectsFilterWidgetSource ? "filter_widget" : "direct";
+  const hasCanonicalSourceBinding = resolvedInputBinding?.sourceWidgetId != null;
+  const resolvedSourceStatus =
+    resolvedSourceDataset?.status ??
+    resolvedSourceFrame?.status ??
+    (resolvedInputBinding?.value === undefined ? "idle" : null);
   const isAwaitingBoundSourceValue = Boolean(
-    resolvedInputBinding?.sourceWidgetId &&
-      resolvedInputBinding.status === "valid" &&
-      resolvedInputBinding.value === undefined,
+    hasCanonicalSourceBinding &&
+      resolvedInputBinding?.status === "valid" &&
+      (resolvedInputBinding.value === undefined ||
+        resolvedSourceStatus === "idle" ||
+        resolvedSourceStatus === "loading"),
+  );
+  const requiresUpstreamResolution = Boolean(
+    hasCanonicalSourceBinding &&
+      resolvedInputBinding?.status === "valid" &&
+      isAwaitingBoundSourceValue,
   );
 
   return {
@@ -539,9 +573,10 @@ export function useResolvedDataNodeWidgetSourceBinding<
         : resolvedSourceWidgetId != null
           ? referencedFilterWidget !== null
         : normalizedReference.sourceMode !== "filter_widget",
-    hasCanonicalSourceBinding: resolvedInputBinding?.sourceWidgetId != null,
+    hasCanonicalSourceBinding,
     isAwaitingBoundSourceValue,
     isFilterWidgetSource: expectsFilterWidgetSource,
+    requiresUpstreamResolution,
     referencedFilterWidget,
     resolvedSourceWidget,
     resolvedSourceDataset,
@@ -657,6 +692,7 @@ export function useDataNodeWidgetSourceControllerContext<
     hasResolvedFilterWidgetSource: sourceBinding.hasResolvedFilterWidgetSource,
     isAwaitingBoundSourceValue: sourceBinding.isAwaitingBoundSourceValue,
     isFilterWidgetSource: sourceBinding.isFilterWidgetSource,
+    requiresUpstreamResolution: sourceBinding.requiresUpstreamResolution,
     referencedFilterWidget: sourceBinding.referencedFilterWidget,
     resolvedSourceWidget: sourceBinding.resolvedSourceWidget,
     resolvedConfig,

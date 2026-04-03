@@ -5,6 +5,7 @@ import { BarChart3, CalendarClock, Database, Loader2 } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { resolveWidgetTransparentSurface } from "@/widgets/shared/chrome";
 import type { WidgetComponentProps } from "@/widgets/types";
 
@@ -23,6 +24,7 @@ import {
 } from "./dataNodeVisualizerModel";
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
 import { DataNodeVisualizerChartErrorBoundary } from "./DataNodeVisualizerChartErrorBoundary";
+import { resolveDataNodeFieldOptionsFromDataset } from "../data-node-shared/dataNodeShared";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
 
 type Props = WidgetComponentProps<MainSequenceDataNodeVisualizerWidgetProps>;
@@ -37,6 +39,9 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
+  });
+  useResolveWidgetUpstream(instanceId, {
+    enabled: sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
@@ -55,10 +60,24 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     enabled: Number.isFinite(dataNodeId) && dataNodeId > 0,
     staleTime: 300_000,
   });
+  const runtimeFieldOptions = useMemo(
+    () =>
+      resolveDataNodeFieldOptionsFromDataset({
+        columns: linkedDataset?.columns,
+        fields: linkedDataset?.fields,
+        rows: linkedDataset?.rows,
+      }),
+    [linkedDataset?.columns, linkedDataset?.fields, linkedDataset?.rows],
+  );
 
   const resolvedConfig = useMemo(
-    () => resolveDataNodeVisualizerConfig(effectiveProps, dataNodeDetailQuery.data),
-    [dataNodeDetailQuery.data, effectiveProps],
+    () =>
+      resolveDataNodeVisualizerConfig(
+        effectiveProps,
+        dataNodeDetailQuery.data,
+        runtimeFieldOptions.length > 0 ? runtimeFieldOptions : undefined,
+      ),
+    [dataNodeDetailQuery.data, effectiveProps, runtimeFieldOptions],
   );
   const resolvedRange = useMemo(
     () => resolveDataNodeVisualizerDateRange(resolvedConfig, rangeStartMs, rangeEndMs),
@@ -82,6 +101,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     [resolvedConfig, resolvedRange.rangeStartMs],
   );
   const hasSourceTableConfiguration = Boolean(dataNodeDetailQuery.data?.sourcetableconfiguration);
+  const hasDirectDataNodeSource = !sourceBinding.isFilterWidgetSource;
   const chartEmptyMessage =
     sourceRows.length > 0
       ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
@@ -140,7 +160,23 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     );
   }
 
-  if (!resolvedConfig.dataNodeId) {
+  if (sourceBinding.isAwaitingBoundSourceValue) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Resolving upstream source</div>
+          <p className="text-sm text-muted-foreground">
+            Refreshing the bound source widget so this graph can load its dataset.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!resolvedConfig.dataNodeId && hasDirectDataNodeSource) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -156,11 +192,11 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     );
   }
 
-  if (dataNodeDetailQuery.isLoading && !dataNodeDetailQuery.data) {
+  if (hasDirectDataNodeSource && dataNodeDetailQuery.isLoading && !dataNodeDetailQuery.data) {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
 
-  if (dataNodeDetailQuery.isError) {
+  if (hasDirectDataNodeSource && dataNodeDetailQuery.isError) {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
         {formatMainSequenceError(dataNodeDetailQuery.error)}
@@ -168,7 +204,7 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     );
   }
 
-  if (!hasSourceTableConfiguration) {
+  if (hasDirectDataNodeSource && !hasSourceTableConfiguration) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">

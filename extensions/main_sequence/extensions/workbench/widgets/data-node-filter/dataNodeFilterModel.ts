@@ -1,6 +1,9 @@
 import type { DataNodeDetail, DataNodeRemoteDataRow } from "../../../../common/api";
+import type { ResolvedWidgetInputs } from "@/widgets/types";
+import { normalizeTabularFrameSource } from "@/widgets/shared/tabular-frame-source";
 import {
   buildDataNodeFieldOptionsFromRows,
+  resolveDataNodeFieldOptionsFromDataset,
   resolveDataNodeDateRange,
   type DataNodeFieldOption,
 } from "../data-node-shared/dataNodeShared";
@@ -9,6 +12,7 @@ import {
   normalizeDataNodePublishedDataset,
   type DataNodePublishedDataset,
 } from "../data-node-shared/dataNodePublishedDataset";
+import { buildMainSequenceDataSourceDescriptor } from "../../widget-contracts/mainSequenceDataSourceBundle";
 import {
   normalizeDataNodeWidgetSourceReferenceProps,
   normalizeDataNodeWidgetSourceProps,
@@ -17,6 +21,7 @@ import {
   type DataNodeWidgetSourceProps,
   type ResolvedDataNodeWidgetSourceConfig,
 } from "../data-node-shared/dataNodeWidgetSource";
+import { DATA_NODE_SOURCE_INPUT_ID } from "../data-node-shared/widgetBindings";
 
 const defaultDataNodeFilterLimit = defaultDataNodePublishedDatasetLimit;
 
@@ -147,6 +152,110 @@ export function normalizeDataNodeFilterRuntimeState(
   value: unknown,
 ): DataNodeFilterRuntimeState | null {
   return normalizeDataNodePublishedDataset(value);
+}
+
+function resolveDataNodeSourceInput(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+) {
+  const resolvedEntry = resolvedInputs?.[DATA_NODE_SOURCE_INPUT_ID];
+
+  if (!resolvedEntry || Array.isArray(resolvedEntry)) {
+    return undefined;
+  }
+
+  return resolvedEntry.status === "valid" ? resolvedEntry : undefined;
+}
+
+export function resolveDataNodePublishedOutput(args: {
+  props: MainSequenceDataNodeFilterWidgetProps;
+  runtimeState?: Record<string, unknown>;
+  resolvedInputs?: ResolvedWidgetInputs;
+}) {
+  const normalizedProps = normalizeDataNodeFilterProps(args.props);
+  const runtimeDataset = normalizeDataNodeFilterRuntimeState(args.runtimeState);
+  const resolvedSourceInput = resolveDataNodeSourceInput(args.resolvedInputs);
+  const resolvedSourceFrame = normalizeTabularFrameSource(resolvedSourceInput?.value);
+
+  if (!resolvedSourceFrame) {
+    const status =
+      runtimeDataset?.status === "error"
+        ? "error"
+        : runtimeDataset?.status === "loading"
+          ? "loading"
+          : runtimeDataset?.status === "ready"
+            ? "ready"
+            : "idle";
+
+    return {
+      status,
+      error: runtimeDataset?.error,
+      columns: runtimeDataset?.columns ?? [],
+      rows: runtimeDataset?.rows ?? [],
+      fields: buildDataNodeFieldOptionsFromRows({
+        columns: runtimeDataset?.columns ?? [],
+        rows: runtimeDataset?.rows ?? [],
+      }),
+      source: buildMainSequenceDataSourceDescriptor({
+        dataNodeId:
+          typeof normalizedProps.dataNodeId === "number"
+            ? normalizedProps.dataNodeId
+            : undefined,
+        dateRangeMode: normalizedProps.dateRangeMode,
+        fixedStartMs: normalizedProps.fixedStartMs,
+        fixedEndMs: normalizedProps.fixedEndMs,
+        uniqueIdentifierList: normalizedProps.uniqueIdentifierList,
+        updatedAtMs: runtimeDataset?.updatedAtMs,
+        limit: runtimeDataset?.limit,
+      }),
+    };
+  }
+
+  const sourceFieldOptions = resolveDataNodeFieldOptionsFromDataset({
+    columns: resolvedSourceFrame.columns,
+    fields: resolvedSourceFrame.fields,
+    rows: resolvedSourceFrame.rows,
+  });
+  const resolvedConfig = resolveDataNodeFilterConfig(
+    normalizedProps,
+    undefined,
+    sourceFieldOptions.length > 0 ? sourceFieldOptions : undefined,
+  );
+  const transformedDataset =
+    resolvedSourceFrame.status === "ready"
+      ? buildDataNodeTransformedDataset(
+          resolvedSourceFrame.rows,
+          resolvedConfig,
+          resolvedSourceFrame.columns,
+        )
+      : null;
+
+  return {
+    status: resolvedSourceFrame.status,
+    error: resolvedSourceFrame.error,
+    columns:
+      transformedDataset?.columns ??
+      runtimeDataset?.columns ??
+      resolvedSourceFrame.columns,
+    rows:
+      transformedDataset?.rows ??
+      (resolvedSourceFrame.status === "ready" ? resolvedSourceFrame.rows : (runtimeDataset?.rows ?? [])),
+    fields:
+      transformedDataset?.availableFields ??
+      runtimeDataset?.fields ??
+      sourceFieldOptions,
+    source: buildMainSequenceDataSourceDescriptor({
+      dataNodeId:
+        typeof normalizedProps.dataNodeId === "number"
+          ? normalizedProps.dataNodeId
+          : undefined,
+      dateRangeMode: normalizedProps.dateRangeMode,
+      fixedStartMs: normalizedProps.fixedStartMs,
+      fixedEndMs: normalizedProps.fixedEndMs,
+      uniqueIdentifierList: normalizedProps.uniqueIdentifierList,
+      updatedAtMs: resolvedSourceFrame.source?.updatedAtMs ?? runtimeDataset?.updatedAtMs,
+      limit: resolvedConfig.limit,
+    }),
+  };
 }
 
 export function resolveDataNodeFilterConfig(

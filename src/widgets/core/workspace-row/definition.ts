@@ -12,7 +12,7 @@ export const workspaceRowWidget = defineWidget<WorkspaceRowWidgetProps>({
   category: "Workspace",
   kind: "custom",
   source: "core",
-  defaultSize: { w: 12, h: 1 },
+  defaultSize: { w: 12, h: 2 },
   requiredPermissions: ["dashboard:view"],
   tags: ["layout", "workspace", "row", "collapse", "group"],
   exampleProps: {

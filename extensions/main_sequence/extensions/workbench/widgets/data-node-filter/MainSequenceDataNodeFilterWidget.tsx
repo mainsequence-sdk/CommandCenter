@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarClock, Database, Loader2 } from "lucide-react";
 
 import { useDashboardControls } from "@/dashboards/DashboardControls";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -95,6 +96,9 @@ export function MainSequenceDataNodeFilterWidget({
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
+  });
+  useResolveWidgetUpstream(instanceId, {
+    enabled: sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
@@ -397,6 +401,13 @@ export function MainSequenceDataNodeFilterWidget({
     sourceBinding.isFilterWidgetSource
       ? !sourceBinding.hasResolvedFilterWidgetSource
       : !Number.isFinite(dataNodeId) || dataNodeId <= 0;
+  const sourceDatasetStatus = sourceBinding.isFilterWidgetSource
+    ? linkedDataset?.status ?? normalizedRuntimeState?.status ?? "idle"
+    : normalizedRuntimeState?.status ?? "idle";
+  const sourceWidgetLabel =
+    sourceBinding.resolvedSourceWidget?.title?.trim() ||
+    sourceBinding.resolvedSourceWidget?.id ||
+    null;
   const hasInvalidFixedRange =
     !sourceBinding.isFilterWidgetSource &&
     resolvedConfig.dateRangeMode === "fixed" &&
@@ -406,7 +417,7 @@ export function MainSequenceDataNodeFilterWidget({
     : null;
   const dataErrorMessage = sourceBinding.isFilterWidgetSource
     ? linkedDataset?.status === "error"
-      ? linkedDataset.error ?? "The upstream Data Node failed to load rows."
+      ? linkedDataset.error ?? "The upstream source widget failed to load rows."
       : null
     : dataQuery.isError
       ? formatMainSequenceError(dataQuery.error)
@@ -426,14 +437,15 @@ export function MainSequenceDataNodeFilterWidget({
               ? "data_error"
               : dataNodeDetailQuery.isLoading ||
                   dataQuery.isLoading ||
-                  (sourceBinding.isFilterWidgetSource &&
-                    (linkedDataset?.status === "loading" || linkedDataset == null))
+                  sourceDatasetStatus === "loading"
                 ? "loading"
                 : "ready";
 
   const hoverTitle =
     status === "idle"
-      ? "Data Node not configured"
+      ? sourceBinding.isFilterWidgetSource
+        ? "Source widget not configured"
+        : "Data Node not configured"
       : status === "range"
         ? "Fixed range is incomplete"
         : status === "detail_error"
@@ -448,7 +460,7 @@ export function MainSequenceDataNodeFilterWidget({
   const hoverDescription =
     status === "idle"
       ? sourceBinding.isFilterWidgetSource
-        ? "Choose an upstream Data Node in settings so this node can transform that dataset."
+        ? "Choose an upstream source widget in settings so this node can transform that dataset."
         : "Choose a data node in settings so this widget can own the shared dataset."
       : status === "range"
         ? "This Data Node needs both saved fixed dates before it can publish rows."
@@ -459,7 +471,9 @@ export function MainSequenceDataNodeFilterWidget({
           : status === "data_error"
               ? dataErrorMessage ?? "The canonical dataset request failed."
               : status === "loading"
-                ? "Linked widgets keep reading from this Data Node while the dataset refreshes."
+                ? sourceBinding.isFilterWidgetSource
+                  ? "Linked widgets keep reading from this bound source while the dataset refreshes."
+                  : "Linked widgets keep reading from this Data Node while the dataset refreshes."
                 : "Linked widgets should read rows from this Data Node instead of querying directly.";
   const publishedRowCount =
     nextRuntimeState?.rows.length ??
@@ -520,8 +534,15 @@ export function MainSequenceDataNodeFilterWidget({
             : "bg-muted-foreground/60";
   const hoverSummary = [
     `Status: ${hoverTitle}`,
-    `Data node: ${resolvedConfig.dataNodeLabel || (dataNodeId > 0 ? String(dataNodeId) : "Not selected")}`,
-    `Range: ${formatRangeSummary(resolvedRange.rangeStartMs, resolvedRange.rangeEndMs)}`,
+    `${sourceBinding.isFilterWidgetSource ? "Source widget" : "Data node"}: ${
+      sourceBinding.isFilterWidgetSource
+        ? (sourceWidgetLabel ?? "Not selected")
+        : (resolvedConfig.dataNodeLabel || (dataNodeId > 0 ? String(dataNodeId) : "Not selected"))
+    }`,
+    `Range: ${formatRangeSummary(
+      normalizedRuntimeState?.rangeStartMs ?? linkedDataset?.rangeStartMs ?? resolvedRange.rangeStartMs,
+      normalizedRuntimeState?.rangeEndMs ?? linkedDataset?.rangeEndMs ?? resolvedRange.rangeEndMs,
+    )}`,
     `Dataset: ${datasetSummary}`,
     `Transform: ${transformSummary}`,
     `Columns: ${(nextRuntimeState?.columns.length ?? requestedColumns.length).toLocaleString()} | Limit: ${resolvedConfig.limit.toLocaleString()}`,
@@ -547,16 +568,22 @@ export function MainSequenceDataNodeFilterWidget({
           description={hoverDescription}
           details={[
             {
-              label: "Data node",
+              label: sourceBinding.isFilterWidgetSource ? "Source widget" : "Data node",
               value:
-                resolvedConfig.dataNodeLabel ||
-                (dataNodeId > 0 ? dataNodeId : "Not selected"),
+                sourceBinding.isFilterWidgetSource
+                  ? (sourceWidgetLabel ?? "Not selected")
+                  : (resolvedConfig.dataNodeLabel ||
+                    (dataNodeId > 0 ? dataNodeId : "Not selected")),
             },
             {
               label: "Range",
               value: formatRangeSummary(
-                resolvedRange.rangeStartMs,
-                resolvedRange.rangeEndMs,
+                normalizedRuntimeState?.rangeStartMs ??
+                  linkedDataset?.rangeStartMs ??
+                  resolvedRange.rangeStartMs,
+                normalizedRuntimeState?.rangeEndMs ??
+                  linkedDataset?.rangeEndMs ??
+                  resolvedRange.rangeEndMs,
               ),
             },
             {

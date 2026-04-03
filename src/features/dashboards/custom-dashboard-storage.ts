@@ -103,6 +103,26 @@ function createId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function slugifyWidgetInstancePrefix(value: string) {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized || "widget";
+}
+
+function buildWidgetInstanceIdPrefix(
+  widget: Pick<WidgetDefinition, "id" | "title"> | Pick<DashboardWidgetInstance, "widgetId" | "title">,
+) {
+  if ("id" in widget) {
+    return slugifyWidgetInstancePrefix(widget.id || widget.title || "widget");
+  }
+
+  return slugifyWidgetInstancePrefix(widget.widgetId || widget.title || "widget");
+}
+
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -718,7 +738,7 @@ function buildWidgetInstance(
     : DEFAULT_WORKSPACE_WIDGET_SPAWN_ROWS;
 
   return {
-    id: createId("custom-widget"),
+    id: createId(buildWidgetInstanceIdPrefix(widget)),
     widgetId: widget.id,
     title: widget.title,
     props: cloneJson(widget.exampleProps ?? {}),
@@ -757,7 +777,7 @@ function cloneDashboardWidgetTree(
   const previousId = cloned.id;
 
   if (options?.refreshIds) {
-    cloned.id = createId("custom-widget");
+    cloned.id = createId(buildWidgetInstanceIdPrefix(cloned));
     options.idMap?.set(previousId, cloned.id);
   }
 
