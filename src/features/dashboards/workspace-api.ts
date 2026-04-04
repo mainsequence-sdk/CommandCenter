@@ -14,6 +14,14 @@ import {
   summarizeDashboardForWorkspaceList,
   type WorkspaceListItemSummary,
 } from "./workspace-list-summary";
+import {
+  applyWorkspaceUserStateToDashboard,
+  createEmptyWorkspaceUserState,
+  extractWorkspaceUserStateFromDashboard,
+  normalizeWorkspaceUserStatePayload,
+  stripWorkspaceUserStateFromDashboard,
+  type WorkspaceUserStateSnapshot,
+} from "./workspace-user-state";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const mockWorkspaceStorageKeyPrefix = "ms.command-center.mock-workspaces";
@@ -22,7 +30,7 @@ const mockWorkspaceJsonModules = import.meta.glob("/mock_data/workspaces/demo_wo
   import: "default",
 }) as Record<string, unknown>;
 
-class WorkspaceBackendRequestError extends Error {
+export class WorkspaceBackendRequestError extends Error {
   status: number;
   payload: unknown;
 
@@ -32,6 +40,10 @@ class WorkspaceBackendRequestError extends Error {
     this.status = status;
     this.payload = payload;
   }
+}
+
+export function isWorkspaceBackendNotFoundError(error: unknown) {
+  return error instanceof WorkspaceBackendRequestError && error.status === 404;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -254,6 +266,18 @@ function resolveWorkspaceDetailPath(workspaceId: string) {
   }
 
   return template.endsWith("/") ? `${template}${encodedId}/` : `${template}/${encodedId}/`;
+}
+
+function resolveWorkspaceUserStateListPath(workspaceId: string) {
+  const template = commandCenterConfig.workspaces.userStateListUrl.trim();
+
+  if (!template) {
+    return "";
+  }
+
+  const url = new URL(template, env.apiBaseUrl);
+  url.searchParams.set("workspace", workspaceId);
+  return `${url.pathname}${url.search}`;
 }
 
 function parseRequestJsonBody(body: RequestInit["body"]) {
@@ -635,7 +659,9 @@ function serializeWorkspaceMutationPayload(
     includeId?: boolean;
   },
 ) {
-  const normalizedDashboard = sanitizeDashboardDefinition(dashboard);
+  const normalizedDashboard = stripWorkspaceUserStateFromDashboard(
+    sanitizeDashboardDefinition(dashboard),
+  );
 
   if (options?.includeId ?? false) {
     return JSON.stringify(normalizedDashboard);
@@ -715,6 +741,7 @@ function applyFallbackWidgetGeometry(
 }
 
 function resolveMutationDashboardPayload(payload: unknown, fallback: DashboardDefinition) {
+  const fallbackUserState = extractWorkspaceUserStateFromDashboard(fallback);
   const resolved = coerceDashboardDefinition(payload);
   const payloadRecord = unwrapDashboardPayloadRecord(payload);
 
@@ -736,16 +763,22 @@ function resolveMutationDashboardPayload(payload: unknown, fallback: DashboardDe
       Array.isArray(fallback.companions) &&
       fallback.companions.length > 0
     ) {
-      return sanitizeDashboardDefinition({
-        ...nextResolved,
-        companions: fallback.companions,
-      });
+      return applyWorkspaceUserStateToDashboard(
+        sanitizeDashboardDefinition({
+          ...nextResolved,
+          companions: fallback.companions,
+        }),
+        fallbackUserState,
+      );
     }
 
-    return nextResolved;
+    return applyWorkspaceUserStateToDashboard(nextResolved, fallbackUserState);
   }
 
-  return normalizeDashboardDefinition(fallback);
+  return applyWorkspaceUserStateToDashboard(
+    normalizeDashboardDefinition(stripWorkspaceUserStateFromDashboard(fallback)),
+    fallbackUserState,
+  );
 }
 
 export function hasConfiguredWorkspaceBackend() {
@@ -753,6 +786,10 @@ export function hasConfiguredWorkspaceBackend() {
     commandCenterConfig.workspaces.listUrl.trim() &&
     commandCenterConfig.workspaces.detailUrl.trim(),
   );
+}
+
+export function hasConfiguredWorkspaceUserStateBackend() {
+  return Boolean(commandCenterConfig.workspaces.userStateListUrl.trim());
 }
 
 export async function fetchWorkspaceListSummariesFromBackend(): Promise<WorkspaceListItemSummary[]> {
@@ -800,6 +837,30 @@ export async function fetchWorkspaceDetailFromBackend(workspaceId: string) {
   }
 
   return dashboard;
+}
+
+export async function fetchWorkspaceUserStateFromBackend(
+  workspaceId: string,
+): Promise<WorkspaceUserStateSnapshot> {
+  const userStateListPath = resolveWorkspaceUserStateListPath(workspaceId);
+
+  if (!userStateListPath) {
+    return createEmptyWorkspaceUserState();
+  }
+
+  if (env.useMockData) {
+    const currentWorkspace =
+      readMockWorkspaceCollection(getCurrentMockWorkspaceUserId()).dashboards.find(
+        (dashboard) => dashboard.id === workspaceId,
+      ) ?? null;
+
+    return currentWorkspace
+      ? extractWorkspaceUserStateFromDashboard(currentWorkspace)
+      : createEmptyWorkspaceUserState();
+  }
+
+  const payload = await requestWorkspaceBackend(userStateListPath);
+  return normalizeWorkspaceUserStatePayload(payload);
 }
 
 export async function createWorkspaceInBackend(dashboard: DashboardDefinition) {

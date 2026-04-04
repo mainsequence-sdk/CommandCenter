@@ -1,4 +1,4 @@
-import { ArrowRight, Copy, LayoutTemplate, Settings2 } from "lucide-react";
+import { ArrowRight, Boxes, Copy, LayoutTemplate, Settings2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { SurfaceFavoriteButton } from "@/app/layout/SurfaceFavoriteButton";
@@ -20,58 +20,19 @@ import {
   isWorkspaceFavorited,
 } from "./workspace-favorites";
 
-function formatWorkspaceRange(workspace: Pick<
-  WorkspaceListItemSummary,
-  "selectedRange" | "customStartMs" | "customEndMs"
->) {
-  const selectedRange = workspace.selectedRange ?? "24h";
-
-  if (
-    selectedRange === "custom" &&
-    typeof workspace.customStartMs === "number" &&
-    typeof workspace.customEndMs === "number"
-  ) {
-    try {
-      const formatter = new Intl.DateTimeFormat(undefined, {
-        month: "short",
-        day: "numeric",
-      });
-
-      return `${formatter.format(new Date(workspace.customStartMs))} - ${formatter.format(new Date(workspace.customEndMs))}`;
-    } catch {
-      return "Custom";
-    }
+function formatWorkspaceUpdatedAt(workspace: Pick<WorkspaceListItemSummary, "updatedAt">) {
+  if (!workspace.updatedAt) {
+    return "Unknown";
   }
 
-  const rangeLabels: Record<string, string> = {
-    "15m": "15 min",
-    "1h": "1 hour",
-    "6h": "6 hours",
-    "24h": "24 hours",
-    "7d": "7 days",
-    "30d": "30 days",
-    "90d": "90 days",
-  };
-
-  return rangeLabels[selectedRange] ?? selectedRange;
-}
-
-function formatWorkspaceRefresh(workspace: Pick<WorkspaceListItemSummary, "refreshIntervalMs">) {
-  const refreshIntervalMs = workspace.refreshIntervalMs ?? null;
-
-  if (refreshIntervalMs === null) {
-    return "Off";
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(workspace.updatedAt));
+  } catch {
+    return workspace.updatedAt;
   }
-
-  if (refreshIntervalMs < 120_000) {
-    return `${Math.round(refreshIntervalMs / 1000)}s`;
-  }
-
-  if (refreshIntervalMs % 3_600_000 === 0) {
-    return `${Math.round(refreshIntervalMs / 3_600_000)}h`;
-  }
-
-  return `${Math.round(refreshIntervalMs / 60_000)}m`;
 }
 
 function buildCopiedWorkspaceTitle(title: string) {
@@ -86,7 +47,6 @@ export function WorkspacesPage() {
   const {
     user,
     workspaceListItems,
-    draftCollection,
     selectedDashboard,
     dirty,
     isHydrating,
@@ -211,6 +171,15 @@ export function WorkspacesPage() {
               <Badge variant="success">Saved</Badge>
             )}
             <Button
+              variant="outline"
+              onClick={() => {
+                navigate("/app/workspace-studio/widgets");
+              }}
+            >
+              <Boxes className="h-4 w-4" />
+              Saved widgets
+            </Button>
+            <Button
               onClick={() => {
                 void createWorkspace();
               }}
@@ -224,7 +193,7 @@ export function WorkspacesPage() {
 
         <div className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/78 shadow-[var(--shadow-panel)]">
           <div className="overflow-auto">
-            <table className="w-full min-w-[840px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
               <thead className="bg-background/55">
                 <tr className="border-b border-border/70">
                   <th className="w-14 px-3 py-3">
@@ -240,13 +209,7 @@ export function WorkspacesPage() {
                     Labels
                   </th>
                   <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Widgets
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Range
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Refresh
+                    Updated
                   </th>
                   <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                     Actions
@@ -300,16 +263,8 @@ export function WorkspacesPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 align-top">
-                      <Badge variant="neutral" className="border border-border/70 bg-background/40">
-                        {workspace.widgetCount}
-                      </Badge>
-                    </td>
                     <td className="px-4 py-3 align-top text-foreground">
-                      {formatWorkspaceRange(workspace)}
-                    </td>
-                    <td className="px-4 py-3 align-top text-foreground">
-                      {formatWorkspaceRefresh(workspace)}
+                      {formatWorkspaceUpdatedAt(workspace)}
                     </td>
                     <td className="px-4 py-3 align-top">
                       <div className="flex flex-wrap items-center gap-2">
@@ -328,11 +283,7 @@ export function WorkspacesPage() {
                           onClick={() => {
                             void (async () => {
                               const sourceWorkspace =
-                                persistenceMode === "backend"
-                                  ? await loadWorkspaceDetail(workspace.id)
-                                  : (draftCollection.dashboards.find(
-                                      (dashboard) => dashboard.id === workspace.id,
-                                    ) ?? null);
+                                await loadWorkspaceDetail(workspace.id);
 
                               if (!sourceWorkspace) {
                                 return;

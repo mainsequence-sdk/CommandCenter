@@ -122,12 +122,18 @@ import {
   updateDashboardWidgetRuntimeState,
   updateDashboardWidgetSettings,
 } from "./custom-dashboard-storage";
+import { SavedWidgetLibraryDialog } from "./SavedWidgetLibraryDialog";
+import { SavedWidgetSaveDialog } from "./SavedWidgetSaveDialog";
 import {
   WorkspaceSavingStatus,
   WorkspaceToolbarButton,
   WorkspaceWidgetRail,
 } from "./WorkspaceChrome";
 import { CustomWidgetSettingsPage } from "./CustomWidgetSettingsPage";
+import {
+  appendSavedWidgetGroupToDashboard,
+  appendSavedWidgetInstanceToDashboard,
+} from "./saved-widgets";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import {
   loadWidgetCatalogPreferences,
@@ -352,6 +358,7 @@ function WidgetActionMenu({
   onDuplicate,
   onOpenSettings,
   onRemove,
+  onSaveWidget,
   widgetId,
   widgetTitle,
 }: {
@@ -360,6 +367,7 @@ function WidgetActionMenu({
   onDuplicate: () => void;
   onOpenSettings: () => void;
   onRemove: () => void;
+  onSaveWidget?: () => void;
   widgetId: string;
   widgetTitle: string;
 }) {
@@ -481,6 +489,18 @@ function WidgetActionMenu({
 
                 {editable ? (
                   <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={itemClassName}
+                      onClick={() => {
+                        setOpen(false);
+                        onSaveWidget?.();
+                      }}
+                    >
+                      <Save className="h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1">Save widget</span>
+                    </button>
                     <button
                       type="button"
                       role="menuitem"
@@ -893,6 +913,7 @@ function WorkspaceRowCanvasCard({
   onDuplicate,
   onOpenSettings,
   onRemove,
+  onSaveWidget,
   onToggleCollapse,
   selected,
   title,
@@ -904,6 +925,7 @@ function WorkspaceRowCanvasCard({
   onDuplicate: () => void;
   onOpenSettings: () => void;
   onRemove: () => void;
+  onSaveWidget: () => void;
   onToggleCollapse: () => void;
   selected: boolean;
   title: string;
@@ -931,6 +953,7 @@ function WorkspaceRowCanvasCard({
             widgetTitle={title}
             onOpenSettings={onOpenSettings}
             onDuplicate={onDuplicate}
+            onSaveWidget={onSaveWidget}
             onRemove={onRemove}
           />
         ) : null
@@ -953,6 +976,7 @@ function BuilderWidgetCard({
   widgetRuntimeState,
   onRemove,
   onDuplicate,
+  onSaveWidget,
   onPropsChange,
   onPresentationChange,
   onRuntimeStateChange,
@@ -976,6 +1000,7 @@ function BuilderWidgetCard({
   widgetRuntimeState?: Record<string, unknown>;
   onRemove: (instanceId: string) => void;
   onDuplicate: (instanceId: string) => void;
+  onSaveWidget: (instanceId: string) => void;
   onPropsChange: (instanceId: string, props: Record<string, unknown>) => void;
   onPresentationChange: (
     instanceId: string,
@@ -1048,6 +1073,9 @@ function BuilderWidgetCard({
           }}
           onDuplicate={() => {
             onDuplicate(instanceId);
+          }}
+          onSaveWidget={() => {
+            onSaveWidget(instanceId);
           }}
           onRemove={() => {
             onRemove(instanceId);
@@ -1143,6 +1171,9 @@ function BuilderWidgetCard({
                 onDuplicate={() => {
                   onDuplicate(instanceId);
                 }}
+                onSaveWidget={() => {
+                  onSaveWidget(instanceId);
+                }}
                 onRemove={() => {
                   onRemove(instanceId);
                 }}
@@ -1173,6 +1204,9 @@ function BuilderWidgetCard({
             }}
             onDuplicate={() => {
               onDuplicate(instanceId);
+            }}
+            onSaveWidget={() => {
+              onSaveWidget(instanceId);
             }}
             onRemove={() => {
               onRemove(instanceId);
@@ -1212,7 +1246,7 @@ export function CustomDashboardStudioPage() {
     permissions,
     selectedDashboard,
     resolvedDashboard,
-    dirty,
+    selectedWorkspaceDirty,
     isSaving,
     selectedWorkspaceEditing,
     persistenceMode,
@@ -1224,6 +1258,7 @@ export function CustomDashboardStudioPage() {
     openWorkspaceSettings,
     setSelectedWorkspaceEditing,
     updateSelectedWorkspace,
+    updateSelectedWorkspaceUserState,
     saveWorkspaceDraft,
   } = useCustomWorkspaceStudio();
   const backendMode = persistenceMode === "backend";
@@ -1240,6 +1275,8 @@ export function CustomDashboardStudioPage() {
   const [hoveredPlacement, setHoveredPlacement] = useState<DashboardWidgetPlacement | null>(null);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [savedWidgetLibraryOpen, setSavedWidgetLibraryOpen] = useState(false);
+  const [savedWidgetSaveTargetId, setSavedWidgetSaveTargetId] = useState<string | null>(null);
   const editMode = selectedWorkspaceEditing;
   const [measuredGridMetrics, setMeasuredGridMetrics] = useState<GridMetrics | null>(null);
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
@@ -2094,11 +2131,11 @@ export function CustomDashboardStudioPage() {
       instanceId: string,
       runtimeState: Record<string, unknown> | undefined,
     ) => {
-      updateSelectedWorkspace((dashboard) =>
+      updateSelectedWorkspaceUserState((dashboard) =>
         updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
       );
     },
-    [updateSelectedWorkspace],
+    [updateSelectedWorkspaceUserState],
   );
 
   function handleAutoGridDragStart(
@@ -2293,6 +2330,10 @@ export function CustomDashboardStudioPage() {
               duplicateDashboardWidget(dashboard, instanceId),
             );
           }}
+          onSaveWidget={(instanceId) => {
+            setSelectedInstanceId(instanceId);
+            setSavedWidgetSaveTargetId(instanceId);
+          }}
           onPropsChange={(instanceId, props) => {
             updateSelectedWorkspace((dashboard) =>
               updateDashboardWidgetSettings(dashboard, instanceId, {
@@ -2444,7 +2485,9 @@ export function CustomDashboardStudioPage() {
       key={selectedDashboard.id}
       controls={selectedDashboard.controls}
       onStateChange={(state) => {
-        updateSelectedWorkspace((dashboard) => updateDashboardControlsState(dashboard, state));
+        updateSelectedWorkspaceUserState((dashboard) =>
+          updateDashboardControlsState(dashboard, state),
+        );
       }}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
@@ -2562,13 +2605,13 @@ export function CustomDashboardStudioPage() {
                     </WorkspaceToolbarButton>
                     {editMode ? (
                       <WorkspaceToolbarButton
-                        active={dirty}
+                        active={selectedWorkspaceDirty}
                         title="Save workspace"
                         onClick={handleSaveAction}
-                        disabled={!dirty}
-                        className={!dirty ? "opacity-50" : undefined}
+                        disabled={!selectedWorkspaceDirty}
+                        className={!selectedWorkspaceDirty ? "opacity-50" : undefined}
                       >
-                        {dirty ? (
+                        {selectedWorkspaceDirty ? (
                           <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-warning" />
                         ) : null}
                         <Save className="h-3.5 w-3.5" />
@@ -2584,6 +2627,16 @@ export function CustomDashboardStudioPage() {
                       <Badge variant="neutral" className="px-2 py-0.5 text-[10px] tracking-[0.14em]">
                         Syncing
                       </Badge>
+                    ) : null}
+                    {editMode ? (
+                      <WorkspaceToolbarButton
+                        title="Add saved widget"
+                        onClick={() => {
+                          setSavedWidgetLibraryOpen(true);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </WorkspaceToolbarButton>
                     ) : null}
                     {editMode ? (
                       <WorkspaceToolbarButton
@@ -3158,6 +3211,32 @@ export function CustomDashboardStudioPage() {
             ) : null}
         </div>
         {widgetSettingsOpen ? <CustomWidgetSettingsPage embedded /> : null}
+        <SavedWidgetSaveDialog
+          dashboard={selectedDashboard}
+          instanceId={savedWidgetSaveTargetId}
+          open={Boolean(savedWidgetSaveTargetId)}
+          onClose={() => {
+            setSavedWidgetSaveTargetId(null);
+          }}
+        />
+        <SavedWidgetLibraryDialog
+          open={savedWidgetLibraryOpen}
+          onClose={() => {
+            setSavedWidgetLibraryOpen(false);
+          }}
+          onImportWidget={(savedWidget) => {
+            updateSelectedWorkspace((dashboard) =>
+              appendSavedWidgetInstanceToDashboard(dashboard, savedWidget),
+            );
+            setSavedWidgetLibraryOpen(false);
+          }}
+          onImportGroup={(savedGroup) => {
+            updateSelectedWorkspace((dashboard) =>
+              appendSavedWidgetGroupToDashboard(dashboard, savedGroup),
+            );
+            setSavedWidgetLibraryOpen(false);
+          }}
+        />
       </div>
           </DashboardWidgetDependenciesProvider>
         </DashboardWidgetExecutionProvider>

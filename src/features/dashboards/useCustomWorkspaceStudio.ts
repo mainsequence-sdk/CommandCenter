@@ -6,17 +6,10 @@ import { useAuthStore } from "@/auth/auth-store";
 import { useToast } from "@/components/ui/toaster";
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import type { DashboardDefinition } from "@/dashboards/types";
-import {
-  createBlankDashboard,
-  sanitizeDashboardDefinition,
-  type UserDashboardCollection,
-} from "./custom-dashboard-storage";
+import { createBlankDashboard } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudioStore } from "./custom-workspace-studio-store";
 import { getWorkspacePersistenceMode } from "./workspace-persistence";
-import {
-  summarizeDashboardForWorkspaceList,
-  type WorkspaceListItemSummary,
-} from "./workspace-list-summary";
+import type { WorkspaceListItemSummary } from "./workspace-list-summary";
 
 export function useCustomWorkspaceStudio() {
   const user = useAuthStore((state) => state.session?.user);
@@ -34,8 +27,7 @@ export function useCustomWorkspaceStudio() {
       ? requestedViewParam
       : "dashboard";
 
-  const savedCollection = useCustomWorkspaceStudioStore((state) => state.savedCollection);
-  const draftCollection = useCustomWorkspaceStudioStore((state) => state.draftCollection);
+  const draftWorkspaceById = useCustomWorkspaceStudioStore((state) => state.draftWorkspaceById);
   const initializedUserId = useCustomWorkspaceStudioStore((state) => state.initializedUserId);
   const hydratingUserId = useCustomWorkspaceStudioStore((state) => state.hydratingUserId);
   const isHydrating = useCustomWorkspaceStudioStore((state) => state.isHydrating);
@@ -45,45 +37,43 @@ export function useCustomWorkspaceStudio() {
     (state) => state.workspaceLoadErrorById,
   );
   const persistedWorkspaceListItems = useCustomWorkspaceStudioStore((state) => state.workspaceListItems);
+  const dirtyWorkspaceIds = useCustomWorkspaceStudioStore((state) => state.dirtyWorkspaceIds);
   const error = useCustomWorkspaceStudioStore((state) => state.error);
+  const missingWorkspaceIds = useCustomWorkspaceStudioStore((state) => state.missingWorkspaceIds);
   const workspaceEditorModeById = useCustomWorkspaceStudioStore(
     (state) => state.workspaceEditorModeById,
   );
   const initialize = useCustomWorkspaceStudioStore((state) => state.initialize);
-  const updateDraftCollection = useCustomWorkspaceStudioStore((state) => state.updateDraftCollection);
+  const updateWorkspaceDraft = useCustomWorkspaceStudioStore((state) => state.updateWorkspaceDraft);
+  const updateWorkspaceUserState = useCustomWorkspaceStudioStore(
+    (state) => state.updateWorkspaceUserState,
+  );
+  const setStoredSelectedWorkspaceId = useCustomWorkspaceStudioStore(
+    (state) => state.setSelectedWorkspaceId,
+  );
   const createPersistedWorkspace = useCustomWorkspaceStudioStore((state) => state.createWorkspace);
   const deletePersistedWorkspace = useCustomWorkspaceStudioStore((state) => state.deleteWorkspace);
-  const resetDraftCollection = useCustomWorkspaceStudioStore((state) => state.resetDraftCollection);
+  const resetWorkspaceDraftInStore = useCustomWorkspaceStudioStore(
+    (state) => state.resetWorkspaceDraft,
+  );
   const saveWorkspace = useCustomWorkspaceStudioStore((state) => state.saveWorkspace);
   const loadWorkspaceDetail = useCustomWorkspaceStudioStore((state) => state.loadWorkspaceDetail);
   const setWorkspaceEditing = useCustomWorkspaceStudioStore((state) => state.setWorkspaceEditing);
 
   useEffect(() => {
-    void initialize(user?.id ?? null);
-  }, [initialize, user?.id]);
+    void initialize(user?.id ?? null, {
+      preloadList: !(
+        getWorkspacePersistenceMode() === "backend" &&
+        Boolean(requestedWorkspaceId)
+      ),
+    });
+  }, [initialize, requestedWorkspaceId, user?.id]);
 
   const selectedDashboard = useMemo(
-    () =>
-      requestedWorkspaceId
-        ? (draftCollection.dashboards.find((dashboard) => dashboard.id === requestedWorkspaceId) ?? null)
-        : null,
-    [draftCollection, requestedWorkspaceId],
+    () => (requestedWorkspaceId ? (draftWorkspaceById[requestedWorkspaceId] ?? null) : null),
+    [draftWorkspaceById, requestedWorkspaceId],
   );
-  const workspaceListItems = useMemo(
-    () =>
-      persistenceMode === "backend"
-        ? persistedWorkspaceListItems
-        : draftCollection.dashboards.map((dashboard) => summarizeDashboardForWorkspaceList(dashboard)),
-    [draftCollection.dashboards, persistedWorkspaceListItems, persistenceMode],
-  );
-  const requestedWorkspaceListed = useMemo(
-    () =>
-      requestedWorkspaceId
-        ? workspaceListItems.some((workspace) => workspace.id === requestedWorkspaceId)
-        : false,
-    [requestedWorkspaceId, workspaceListItems],
-  );
-
+  const workspaceListItems = persistedWorkspaceListItems;
   useEffect(() => {
     if (selectedWorkspaceView === "widget-settings" ? Boolean(requestedWidgetId) : !requestedWidgetId) {
       return;
@@ -100,11 +90,14 @@ export function useCustomWorkspaceStudio() {
   }, [requestedWidgetId, searchParams, selectedWorkspaceView, setSearchParams]);
 
   useEffect(() => {
+    setStoredSelectedWorkspaceId(requestedWorkspaceId);
+  }, [requestedWorkspaceId, setStoredSelectedWorkspaceId]);
+
+  useEffect(() => {
     if (
       persistenceMode !== "backend" ||
       !requestedWorkspaceId ||
       selectedDashboard ||
-      !requestedWorkspaceListed ||
       !initializedUserId ||
       loadingWorkspaceId === requestedWorkspaceId ||
       workspaceLoadErrorById[requestedWorkspaceId]
@@ -119,7 +112,6 @@ export function useCustomWorkspaceStudio() {
     loadingWorkspaceId,
     persistenceMode,
     requestedWorkspaceId,
-    requestedWorkspaceListed,
     selectedDashboard,
     workspaceLoadErrorById,
   ]);
@@ -130,19 +122,12 @@ export function useCustomWorkspaceStudio() {
   );
 
   const dirty = useMemo(
-    () => JSON.stringify(draftCollection) !== JSON.stringify(savedCollection),
-    [draftCollection, savedCollection],
-  );
-  const savedSelectedDashboard = useMemo(
-    () =>
-      requestedWorkspaceId
-        ? (savedCollection.dashboards.find((dashboard) => dashboard.id === requestedWorkspaceId) ?? null)
-        : null,
-    [requestedWorkspaceId, savedCollection],
+    () => Object.keys(dirtyWorkspaceIds).length > 0,
+    [dirtyWorkspaceIds],
   );
   const selectedWorkspaceDirty = useMemo(
-    () => JSON.stringify(selectedDashboard) !== JSON.stringify(savedSelectedDashboard),
-    [savedSelectedDashboard, selectedDashboard],
+    () => (requestedWorkspaceId ? (dirtyWorkspaceIds[requestedWorkspaceId] ?? false) : false),
+    [dirtyWorkspaceIds, requestedWorkspaceId],
   );
   const selectedWorkspaceEditing = useMemo(
     () =>
@@ -171,12 +156,14 @@ export function useCustomWorkspaceStudio() {
         requestedWorkspaceId &&
         !workspaceSelectionPending &&
         !selectedDashboard &&
-        (persistenceMode === "backend" ? !requestedWorkspaceListed : true),
+        (persistenceMode === "backend"
+          ? (missingWorkspaceIds[requestedWorkspaceId] ?? false)
+          : true),
       ),
     [
+      missingWorkspaceIds,
       persistenceMode,
       requestedWorkspaceId,
-      requestedWorkspaceListed,
       selectedDashboard,
       workspaceSelectionPending,
     ],
@@ -234,14 +221,21 @@ export function useCustomWorkspaceStudio() {
   function updateSelectedWorkspace(
     updater: (dashboard: DashboardDefinition) => DashboardDefinition,
   ) {
-    updateDraftCollection((current) => ({
-      ...current,
-      dashboards: current.dashboards.map((dashboard) =>
-        dashboard.id === selectedDashboard?.id
-          ? sanitizeDashboardDefinition(updater(dashboard))
-          : dashboard,
-      ),
-    }));
+    if (!selectedDashboard?.id) {
+      return;
+    }
+
+    updateWorkspaceDraft(selectedDashboard.id, updater);
+  }
+
+  function updateSelectedWorkspaceUserState(
+    updater: (dashboard: DashboardDefinition) => DashboardDefinition,
+  ) {
+    if (!selectedDashboard?.id) {
+      return;
+    }
+
+    updateWorkspaceUserState(selectedDashboard.id, updater);
   }
 
   async function createWorkspace(name?: string) {
@@ -276,7 +270,11 @@ export function useCustomWorkspaceStudio() {
   }
 
   function resetWorkspaceDraft() {
-    resetDraftCollection();
+    if (!selectedDashboard) {
+      return;
+    }
+
+    resetWorkspaceDraftInStore(selectedDashboard.id);
   }
 
   async function saveWorkspaceDraft() {
@@ -319,8 +317,6 @@ export function useCustomWorkspaceStudio() {
   return {
     user,
     permissions,
-    savedCollection,
-    draftCollection,
     workspaceListItems,
     isHydrating,
     isSaving,
@@ -342,8 +338,8 @@ export function useCustomWorkspaceStudio() {
     openWorkspaceSettings,
     openWidgetSettings,
     setSelectedWorkspaceEditing,
-    updateDraftCollection,
     updateSelectedWorkspace,
+    updateSelectedWorkspaceUserState,
     createWorkspace,
     createWorkspaceFromDefinition,
     deleteSelectedWorkspace,
@@ -354,8 +350,6 @@ export function useCustomWorkspaceStudio() {
 }
 
 export type CustomWorkspaceStudioState = {
-  savedCollection: UserDashboardCollection;
-  draftCollection: UserDashboardCollection;
   workspaceListItems: WorkspaceListItemSummary[];
   isHydrating: boolean;
   isSaving: boolean;

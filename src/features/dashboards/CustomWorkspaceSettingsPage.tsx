@@ -87,13 +87,12 @@ export function CustomWorkspaceSettingsPage() {
     workspaceListItems,
     selectedDashboard,
     resolvedDashboard,
-    dirty,
+    selectedWorkspaceDirty,
     isHydrating,
     isSaving,
     error,
     persistenceMode,
     setSelectedWorkspaceId,
-    updateDraftCollection,
     updateSelectedWorkspace,
     createWorkspace,
     createWorkspaceFromDefinition,
@@ -309,16 +308,7 @@ export function CustomWorkspaceSettingsPage() {
 
     const importedWorkspace = restoreWorkspaceFromSnapshot(parsedWorkspaceSnapshot.snapshot);
 
-    if (backendMode) {
-      await createWorkspaceFromDefinition(importedWorkspace);
-    } else {
-      updateDraftCollection((current) => ({
-        ...current,
-        dashboards: [importedWorkspace, ...current.dashboards],
-        selectedDashboardId: importedWorkspace.id,
-      }));
-      setSelectedWorkspaceId(importedWorkspace.id);
-    }
+    await createWorkspaceFromDefinition(importedWorkspace);
 
     closeJsonDialog();
   }
@@ -356,7 +346,7 @@ export function CustomWorkspaceSettingsPage() {
                 <Badge variant="neutral">Loading</Badge>
               ) : isSaving ? (
                 <Badge variant="neutral">Saving</Badge>
-              ) : dirty ? (
+              ) : selectedWorkspaceDirty ? (
                 <Badge variant="warning">Unsaved</Badge>
               ) : (
                 <Badge variant="success">Saved</Badge>
@@ -374,11 +364,18 @@ export function CustomWorkspaceSettingsPage() {
                 <LayoutTemplate className="h-4 w-4" />
                 New workspace
               </Button>
-              <Button variant="outline" onClick={resetWorkspaceDraft} disabled={!dirty}>
+              <Button
+                variant="outline"
+                onClick={resetWorkspaceDraft}
+                disabled={!selectedWorkspaceDirty}
+              >
                 <RotateCcw className="h-4 w-4" />
                 Reset
               </Button>
-              <Button onClick={saveWorkspaceDraft} disabled={!dirty || isSaving || isHydrating}>
+              <Button
+                onClick={saveWorkspaceDraft}
+                disabled={!selectedWorkspaceDirty || isSaving || isHydrating}
+              >
                 <Save className="h-4 w-4" />
                 Save
               </Button>

@@ -17,6 +17,7 @@ import { AdminBillingDetailsPage } from "@/extensions/core/apps/admin/AdminBilli
 import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/AdminGithubOrganizationsPage";
 import { AdminInvoicesPage } from "@/extensions/core/apps/admin/AdminInvoicesPage";
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
+import { SavedWidgetsPage } from "@/features/dashboards/SavedWidgetsPage";
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
 import { cyberpunkTheme } from "@/themes/presets/cyberpunk";
 import { draculaTheme } from "@/themes/presets/dracula";
@@ -51,6 +52,16 @@ const workspaceStudioApp: AppDefinition = {
       fullBleed: true,
       requiredPermissions: ["dashboard:view"],
       component: WorkspacesPage,
+    },
+    {
+      id: "widgets",
+      title: "Saved Widgets",
+      navLabel: "Saved Widgets",
+      description: "Browse reusable saved widget instances and widget groups.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["dashboard:view"],
+      component: SavedWidgetsPage,
     },
   ],
 };

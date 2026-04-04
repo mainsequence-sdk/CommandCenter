@@ -67,15 +67,25 @@ export function Topbar() {
   const workspaceCanvasMenuHidden = useShellStore((state) => state.workspaceCanvasMenuHidden);
   const setWorkspaceCanvasMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
   const initializeWorkspaceStudio = useCustomWorkspaceStudioStore((state) => state.initialize);
-  const workspaceDraftCollection = useCustomWorkspaceStudioStore((state) => state.draftCollection);
+  const workspaceListItems = useCustomWorkspaceStudioStore((state) => state.workspaceListItems);
   const isAdmin = user?.role === "admin";
+  const workspaceRouteParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search],
+  );
+  const requestedWorkspaceId = workspaceRouteParams.get("workspace");
+  const isDirectWorkspaceRoute =
+    env.includeWorkspaces &&
+    params.appId === "workspace-studio" &&
+    params.surfaceId === "workspaces" &&
+    Boolean(requestedWorkspaceId);
 
   const accessibleApps = getAccessibleApps(permissions);
   const adminMenuApps = getAccessibleAdminMenuApps(permissions);
   const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
   const favoriteSurfaces = getFavoriteSurfaceEntries(permissions, favoriteSurfaceIds);
   const favoriteWorkspaces = env.includeWorkspaces
-    ? getFavoriteWorkspaceEntries(workspaceDraftCollection.dashboards, favoriteWorkspaceIds)
+    ? getFavoriteWorkspaceEntries(workspaceListItems, favoriteWorkspaceIds)
     : [];
   const favoriteMenuItems = useMemo<FavoriteMenuItem[]>(
     () => [
@@ -122,8 +132,8 @@ export function Topbar() {
     env.includeWorkspaces &&
     params.appId === "workspace-studio" &&
     params.surfaceId === "workspaces" &&
-    Boolean(new URLSearchParams(location.search).get("workspace")) &&
-    new URLSearchParams(location.search).get("view") !== "settings" &&
+    Boolean(requestedWorkspaceId) &&
+    workspaceRouteParams.get("view") !== "settings" &&
     workspaceCanvasMenuHidden;
   const selectedSurfaceId = currentSurfaceVisible?.id ?? currentDefaultSurface?.id ?? "";
   const normalizedQuery = commandValue.trim().toLowerCase();
@@ -165,14 +175,6 @@ export function Topbar() {
       },
     })),
   ];
-
-  useEffect(() => {
-    if (!env.includeWorkspaces) {
-      return;
-    }
-
-    void initializeWorkspaceStudio(user?.id ?? null);
-  }, [initializeWorkspaceStudio, user?.id]);
 
   useEffect(() => {
     function focusSearch() {
@@ -414,6 +416,19 @@ export function Topbar() {
 
         <FavoriteSurfacesMenu
           items={favoriteMenuItems}
+          onOpenChange={(open) => {
+            if (
+              !open ||
+              !env.includeWorkspaces ||
+              !user?.id ||
+              favoriteWorkspaceIds.length === 0 ||
+              isDirectWorkspaceRoute
+            ) {
+              return;
+            }
+
+            void initializeWorkspaceStudio(user.id, { preloadList: true });
+          }}
           onSelect={(path) => {
             navigate(path);
           }}

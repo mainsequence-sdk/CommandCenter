@@ -15,15 +15,25 @@ import {
   Clock3,
   Database,
   Loader2,
+  Rows3,
   Table,
 } from "lucide-react";
 
+import {
+  useDashboardWidgetExecution,
+  type WidgetExecutionState,
+} from "@/dashboards/DashboardWidgetExecution";
+import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import { cn, titleCase } from "@/lib/utils";
 import type { WidgetInstancePresentation, WidgetDefinition } from "@/widgets/types";
 
 function resolveWidgetRailIcon(widget: WidgetDefinition) {
   if (widget.railIcon) {
     return widget.railIcon;
+  }
+
+  if (isWorkspaceRowWidgetId(widget.id)) {
+    return Rows3;
   }
 
   if (/data-node/i.test(widget.id) || /data node/i.test(widget.title)) {
@@ -45,8 +55,30 @@ function resolveWidgetRailIcon(widget: WidgetDefinition) {
   return Boxes;
 }
 
-function resolveWidgetRailStatusDotClass(runtimeState?: Record<string, unknown>) {
-  const status = typeof runtimeState?.status === "string" ? runtimeState.status : null;
+function resolveRuntimeStatus(runtimeState?: Record<string, unknown>) {
+  return typeof runtimeState?.status === "string" ? runtimeState.status : null;
+}
+
+function resolveWidgetRailStatusDotClass({
+  executionState,
+  runtimeState,
+}: {
+  executionState?: WidgetExecutionState;
+  runtimeState?: Record<string, unknown>;
+}) {
+  if (executionState?.status === "error") {
+    return "bg-danger";
+  }
+
+  if (executionState?.status === "running") {
+    return "bg-primary";
+  }
+
+  if (executionState?.status === "success") {
+    return "bg-success";
+  }
+
+  const status = resolveRuntimeStatus(runtimeState);
 
   if (status === "error" || status === "data_error" || status === "detail_error") {
     return "bg-danger";
@@ -64,21 +96,45 @@ function resolveWidgetRailStatusDotClass(runtimeState?: Record<string, unknown>)
     return "bg-success";
   }
 
-  return "bg-muted-foreground/55";
+  return "bg-success";
 }
 
-function resolveWidgetRailStatusLabel(runtimeState?: Record<string, unknown>) {
-  const status = typeof runtimeState?.status === "string" ? runtimeState.status : null;
+function resolveWidgetRailStatusLabel({
+  executionState,
+  runtimeState,
+}: {
+  executionState?: WidgetExecutionState;
+  runtimeState?: Record<string, unknown>;
+}) {
+  if (executionState?.status === "running") {
+    return "Running";
+  }
+
+  if (executionState?.status === "error") {
+    return executionState.error?.trim() ? "Execution error" : "Error";
+  }
+
+  if (executionState?.status === "success") {
+    return "Ready";
+  }
+
+  const status = resolveRuntimeStatus(runtimeState);
 
   if (!status) {
-    return "Idle";
+    return "Ready";
   }
 
   return titleCase(status.replaceAll("_", " "));
 }
 
-function isWidgetRailLoading(runtimeState?: Record<string, unknown>) {
-  return runtimeState?.status === "loading";
+function isWidgetRailLoading({
+  executionState,
+  runtimeState,
+}: {
+  executionState?: WidgetExecutionState;
+  runtimeState?: Record<string, unknown>;
+}) {
+  return executionState?.status === "running" || runtimeState?.status === "loading";
 }
 
 function RailHoverCard({
@@ -175,13 +231,18 @@ function RailHoverCard({
 function DefaultWidgetRailSummary({
   title,
   widget,
+  executionState,
   runtimeState,
 }: {
   title: string;
   widget: WidgetDefinition;
+  executionState?: WidgetExecutionState;
   runtimeState?: Record<string, unknown>;
 }) {
-  const statusLabel = resolveWidgetRailStatusLabel(runtimeState);
+  const statusLabel = resolveWidgetRailStatusLabel({
+    executionState,
+    runtimeState,
+  });
 
   return (
     <div className="pointer-events-none z-20 w-[220px] rounded-[calc(var(--radius)-4px)] border border-border/80 bg-popover/95 p-3 text-left shadow-xl backdrop-blur-sm">
@@ -276,6 +337,8 @@ export function WorkspaceWidgetRail({
   topOffsetClassName: string;
   onOpenWidget: (instanceId: string) => void;
 }) {
+  const widgetExecution = useDashboardWidgetExecution();
+
   if (widgets.length === 0) {
     return null;
   }
@@ -291,8 +354,15 @@ export function WorkspaceWidgetRail({
       {widgets.map(({ id, title, props, presentation, runtimeState, widget }) => {
         const Icon = resolveWidgetRailIcon(widget);
         const active = activeInstanceId === id;
-        const dotClassName = resolveWidgetRailStatusDotClass(runtimeState);
-        const loading = isWidgetRailLoading(runtimeState);
+        const executionState = widgetExecution?.getExecutionState(id);
+        const dotClassName = resolveWidgetRailStatusDotClass({
+          executionState,
+          runtimeState,
+        });
+        const loading = isWidgetRailLoading({
+          executionState,
+          runtimeState,
+        });
         const RailSummary =
           widget.railSummaryComponent as
             | ComponentType<{
@@ -316,6 +386,7 @@ export function WorkspaceWidgetRail({
           <DefaultWidgetRailSummary
             title={displayTitle}
             widget={widget}
+            executionState={executionState}
             runtimeState={runtimeState}
           />
         );

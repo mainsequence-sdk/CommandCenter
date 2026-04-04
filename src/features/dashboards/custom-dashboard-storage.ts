@@ -604,6 +604,13 @@ export function ensureUserDashboardCollectionSelection(
       ? collection.selectedDashboardId
       : dashboards[0]?.id ?? null;
 
+  if (
+    dashboards === collection.dashboards &&
+    selectedDashboardId === collection.selectedDashboardId
+  ) {
+    return collection;
+  }
+
   return {
     ...collection,
     dashboards,

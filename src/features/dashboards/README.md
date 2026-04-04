@@ -2,13 +2,14 @@
 
 This folder owns the `Workspaces` app experience shipped by the core extension.
 
-It currently covers five user flows:
+It currently covers six user flows:
 
 - the workspace index table
 - the workspace canvas editor
 - the workspace graph editor
 - the widget-instance settings page
 - the workspace settings page
+- the saved-widget library
 
 These flows are all part of one app surface, with instance state selected through query params.
 
@@ -19,6 +20,9 @@ These flows are all part of one app surface, with instance state selected throug
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
 - `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, labels, and backend-only sharing permissions.
+- `SavedWidgetsPage.tsx`: dedicated saved-widget and saved-widget-group library screen with metadata editing, JSON inspection, and permissions.
+- `SavedWidgetSaveDialog.tsx`: canvas action flow for saving the selected live workspace widget as a reusable saved widget or saved widget group.
+- `SavedWidgetLibraryDialog.tsx`: in-canvas library picker used to import saved widgets and groups back into the current workspace.
 - `WorkspaceChrome.tsx`: shared workspace toolbar-button and widget-rail chrome reused across canvas and graph views.
 - `WorkspaceComponentBrowser.tsx`: workspace component catalog drawer used for searching, favoriting, and adding widgets.
 - `WorkspaceGraphNode.tsx`: custom React Flow node renderer that exposes named widget input and output ports.
@@ -26,6 +30,8 @@ These flows are all part of one app surface, with instance state selected throug
 - `custom-workspace-studio-store.ts`: shared draft/saved workspace state used across the list, canvas, and settings views.
 - `custom-dashboard-storage.ts`: local-storage persistence, workspace creation helpers, grid migration logic, and widget mutation helpers.
 - `workspace-api.ts`: authenticated backend client for optional workspace list/detail persistence.
+- `saved-widgets-api.ts`: authenticated backend client for saved widget instance/group list, detail, create, and update flows.
+- `saved-widgets.ts`: pure snapshot/import helpers that keep saved widgets as a library/import layer instead of changing live workspace runtime persistence.
 - `workspace-list-summary.ts`: shared lightweight list-row contract used by the workspace index and backend list endpoint adapter.
 - `workspace-persistence.ts`: runtime switch that picks backend persistence when configured and local browser storage otherwise.
 - `workspace-favorites.ts`: helper functions for workspace-instance favorites and canonical workspace paths.
@@ -33,8 +39,10 @@ These flows are all part of one app surface, with instance state selected throug
 
 ## Current Model
 
-- The app is registered in `src/extensions/core/index.ts` as a single full-bleed page surface: `workspaces`.
+- The app is registered in `src/extensions/core/index.ts` as two full-bleed page surfaces:
+  `workspaces` and `widgets`.
 - The workspace list lives at `/app/workspace-studio/workspaces`.
+- The saved-widget library lives at `/app/workspace-studio/widgets`.
 - The app is only included when `VITE_INCLUDE_WORKSPACES=true`. When the flag is `false`, the runtime registry removes `workspace-studio` from navigation and route resolution.
 - Opening a workspace instance adds `?workspace=<id>`.
 - Opening the workspace graph adds `?workspace=<id>&view=graph`.
@@ -42,6 +50,7 @@ These flows are all part of one app surface, with instance state selected throug
 - Opening widget-instance settings adds `?workspace=<id>&view=widget-settings&widget=<instanceId>`.
 - Persistence is browser-local and user-scoped through `localStorage` by default.
 - If `workspaces.list_url` and `workspaces.detail_url` are configured in `config/command-center.yaml`, the studio switches to backend persistence instead of browser-local storage.
+- Saved widget instances and groups require the four `saved_widgets.*` endpoints in `config/command-center.yaml`.
 - When the user authenticates against a live backend, the app also syncs the frontend widget catalog
   to `widget_types.sync_url` once per browser session so backend workspace validation knows the
   available `widgetId` values before the first workspace save.
@@ -63,9 +72,10 @@ These flows are all part of one app surface, with instance state selected throug
 - In backend mode, the workspace index now renders from lightweight backend list summaries instead
   of full workspace documents. Full workspace detail is fetched only when a workspace is opened,
   copied, or otherwise needs the actual document body.
-- The workspace index intentionally shows user-facing metadata such as title, labels, widget count,
-  range, and refresh state, and should not expose internal grid-density details that users do not
-  directly manage from the list.
+- The workspace index intentionally shows only lightweight user-facing metadata from the backend
+  summary rows, such as title, description, labels, source, and updated time. It should not expose
+  fields that are not returned by the summary serializer or internal layout-density details that
+  users do not directly manage from the list.
 - Collection-level transport metadata such as the draft wrapper `savedAt` is internal store state.
   It must not be presented as workspace metadata in the workspace index or workspace settings UI.
 - In backend mode, the editor keeps a local draft and only persists changes when the user explicitly saves.
@@ -148,6 +158,18 @@ These flows are all part of one app surface, with instance state selected throug
 - The widget settings header now scopes its saved/unsaved badge and save-button enabled state to the
   selected workspace only. It must not reflect unrelated unsaved changes elsewhere in the workspace
   collection.
+- Workspace unsaved state is mutation-tracked per workspace in the shared studio store. The
+  runtime must not recompute dirty state by serializing the full workspace collection or the full
+  selected workspace during render. Workspace-scoped surfaces such as canvas, graph, widget
+  settings, and workspace settings should read `selectedWorkspaceDirty`; only the workspace index
+  should use the aggregate `dirty` flag when it intentionally wants to show that some workspace
+  draft in the current session is unsaved.
+- The shared store is now keyed by workspace id instead of pretending all loaded workspaces form
+  one draft document. `updateWorkspaceDraft(workspaceId, updater)` is the normal hot path for
+  editing one loaded workspace, while `workspaceListItems` stays the lightweight list/index source
+  and `selectedWorkspaceId` tracks the current active workspace independently of the detail cache.
+- Workspace reset actions are also scoped to the selected workspace. A reset button on one
+  workspace surface must not discard draft mutations belonging to other workspaces.
 - The dedicated widget settings page now also hosts a `Bindings` tab for widgets that declare
   inputs. Binding UI is page-level on purpose so graph edges stay separate from raw props editing,
   and each input now exposes explicit source-widget and source-output selectors instead of a single
@@ -165,10 +187,31 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget settings should also open the shell immediately, then hydrate heavy schema/controller/
   widget-specific sections asynchronously with scoped loading placeholders. Expensive settings
   widgets must not block the full overlay from appearing.
+- Workspace sidebar/rail status indicators should derive from the shared dashboard execution layer
+  first and only fall back to widget-specific runtime fields when no execution state exists. They
+  must not rely on one widget family writing a custom `runtimeState.status` convention to look
+  healthy.
 - Opening a workspace should also prefer immediate shell/canvas paint over a full-page loading
   blocker. If the requested workspace document is already available locally, the canvas should
   render at once and individual widgets should show their own loading states while background
   hydration/sync continues.
+- Direct backend routes such as `?workspace=<id>` must not gate detail loading behind the
+  workspace list endpoint. The client should query the workspace detail directly, and a `404`
+  from that detail endpoint is the authoritative signal that the requested workspace does not
+  exist.
+- In backend mode, the shared workspace document and the current user's runtime/view state are now
+  loaded separately. `GET workspaces.detail_url` returns only shared workspace structure, while
+  `GET workspaces.user_state_list_url?workspace=<id>` hydrates selected controls and widget
+  `runtimeState` locally after the shared canvas structure is available. Shared workspace mutations
+  must therefore strip current-user controls/runtime state from the payload sent back to the
+  backend.
+- The shared shell must not bootstrap the workspace list on mount. Workspace summaries now load
+  only from actual workspace surfaces or explicit workspace-favorites interaction, while direct
+  `?workspace=<id>` routes resolve through the detail endpoint first so canvas boot is never
+  serialized behind `/workspaces/`.
+- A workspace detail fetch may seed one summary row into `workspaceListItems`, but that must never
+  be treated as a hydrated workspace index. The Workspaces list route should always fetch the full
+  backend list before rendering the index as authoritative.
 - Canvas widget submit and widget-settings `Test request` now share one dashboard-level executable
   graph runner. Upstream executable dependencies run first, and refresh coordination stays in the
   shared dashboard execution layer rather than inside widget components.
@@ -189,6 +232,22 @@ These flows are all part of one app surface, with instance state selected throug
 - In backend mode, workspace settings also expose a `Permissions` tab that reuses the shared
   object-sharing assignment UI against the configured workspace backend endpoint root. Local
   browser-only workspaces keep the tab but explain that RBAC sharing requires backend persistence.
+- Saved widgets follow the same RBAC model. The saved-widget library now exposes editable metadata,
+  JSON inspection, and a `Permissions` tab backed by the saved-widget endpoint roots rather than a
+  workspace-specific ACL model.
+- Saving a widget does not convert the live workspace runtime into relational saved-widget rows.
+  Saved widgets are a reusable library/import layer. Import always clones the saved widget or group
+  back into normal workspace JSON with fresh widget ids.
+- Atomic saved widgets are now strictly self-contained. If a selected widget has widget bindings or
+  row-owned child widgets, the save flow requires `Widget group` instead of allowing a lossy atomic save.
+- Saved widget groups now treat group-level bindings as the canonical source of truth for internal
+  member edges. Member widget snapshots inside a group stay atomic and do not own `row.children`.
+- The saved-widget transport contract also reflects that split now: group member snapshots are not
+  serialized as full saved-widget-instance payloads, and group `binding_payload` stores only
+  edge-local metadata such as `source_output_id` and transform fields.
+- Canvas widget actions now include `Save widget`, and the workspace toolbar now includes
+  `Add saved widget` so reusable widgets can round-trip between the live workspace and the saved
+  widget library without leaving the canvas flow.
 - The canvas `Components` browser is optimized for large catalogs: dense rows, category/kind/source filters, favorites, recent widgets, and grouped category browse when search is empty.
 - If a workspace still references a widget id that is no longer registered, the canvas explains that the widget is legacy/unavailable and lets the user delete that stale instance directly.
 - Workspace deletion from settings uses the shared destructive confirmation dialog. In backend mode, the UI removes the workspace only after the backend confirms the delete.

@@ -38,11 +38,19 @@ fine as internal storage, but your serializer layer must map them explicitly. A 
 Also note that the current frontend backend adapter expects a split list/detail contract:
 
 - `GET workspaces.list_url`: lightweight workspace summaries only
-- `GET/PUT/DELETE workspaces.detail_url`: the full workspace document
+- `GET workspaces.detail_url`: shared workspace content only
+- `GET workspaces.user_state_list_url?workspace=<id>`: current user control/runtime state
+- `PUT/DELETE workspaces.detail_url`: shared workspace content only
 
-It does not yet persist `WorkspaceUserState` through separate endpoints. Today that means
-`controls.selectedRange`, `controls.selectedIntervalMs`, and widget-instance `runtimeState` can
-still arrive inside the main workspace document unless you strip or remap them server-side.
+The frontend now merges the current-user payload into the shared workspace locally after both
+requests resolve. That means:
+
+- `controls.selectedRange`, `controls.customStartMs`, `controls.customEndMs`
+- `controls.refresh.selectedIntervalMs`
+- widget-instance `runtimeState`
+
+must not be embedded in the shared workspace serializer anymore. Those fields belong to
+`WorkspaceUserState`.
 
 ## Recommended Django models
 

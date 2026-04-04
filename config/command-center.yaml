@@ -24,6 +24,13 @@ preferences:
 workspaces:
   list_url: /api/v1/command_center/workspaces/
   detail_url: /api/v1/command_center/workspaces/{id}/
+  user_state_list_url: /api/v1/command_center/workspace-user-states/
+
+saved_widgets:
+  instances_list_url: /api/v1/command_center/saved-widget-instances/
+  instances_detail_url: /api/v1/command_center/saved-widget-instances/{id}/
+  groups_list_url: /api/v1/command_center/saved-widget-groups/
+  groups_detail_url: /api/v1/command_center/saved-widget-groups/{id}/
 
 widget_types:
   sync_url: /api/v1/command_center/widget-types/sync/

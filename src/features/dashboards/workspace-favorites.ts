@@ -1,5 +1,4 @@
 import { getAppPath } from "@/apps/utils";
-import type { DashboardDefinition } from "@/dashboards/types";
 
 const WORKSPACE_FAVORITE_PREFIX = "workspace-studio::workspace::";
 
@@ -36,7 +35,10 @@ export function getWorkspacePath(workspaceId: string, view?: "settings") {
 }
 
 export function getFavoriteWorkspaceEntries(
-  workspaces: DashboardDefinition[],
+  workspaces: Array<{
+    id: string;
+    title: string;
+  }>,
   favoriteWorkspaceIds: string[],
 ): FavoriteWorkspaceEntry[] {
   const workspaceMap = new Map(

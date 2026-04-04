@@ -8,6 +8,7 @@ import type { DashboardDefinition } from "@/dashboards/types";
 import { env } from "@/config/env";
 import {
   fetchWorkspaceDetailFromBackend,
+  fetchWorkspaceUserStateFromBackend,
   fetchWorkspaceListSummariesFromBackend,
   clearLegacyMockWorkspaceCollection,
   hasConfiguredWorkspaceBackend,
@@ -16,6 +17,11 @@ import {
   saveWorkspaceInBackend,
 } from "./workspace-api";
 import { summarizeDashboardForWorkspaceList, type WorkspaceListItemSummary } from "./workspace-list-summary";
+import {
+  createEmptyWorkspaceUserState,
+  extractWorkspaceUserStateFromDashboard,
+  type WorkspaceUserStateSnapshot,
+} from "./workspace-user-state";
 
 export type WorkspacePersistenceMode = "backend" | "local";
 
@@ -97,6 +103,34 @@ export async function loadPersistedWorkspaceDetail(
   }
 
   return fetchWorkspaceDetailFromBackend(workspaceId);
+}
+
+export async function loadPersistedWorkspaceUserState(
+  userId: string,
+  workspaceId: string,
+): Promise<WorkspaceUserStateSnapshot> {
+  if (env.useMockData) {
+    const workspace =
+      readBundledMockWorkspaceCollection().dashboards.find((dashboard) => dashboard.id === workspaceId) ??
+      null;
+
+    return workspace
+      ? extractWorkspaceUserStateFromDashboard(workspace)
+      : createEmptyWorkspaceUserState();
+  }
+
+  if (!isWorkspaceBackendEnabled()) {
+    const { loadUserDashboardCollection } = await import("./custom-dashboard-storage");
+    const workspace =
+      loadUserDashboardCollection(userId).dashboards.find((dashboard) => dashboard.id === workspaceId) ??
+      null;
+
+    return workspace
+      ? extractWorkspaceUserStateFromDashboard(workspace)
+      : createEmptyWorkspaceUserState();
+  }
+
+  return fetchWorkspaceUserStateFromBackend(workspaceId);
 }
 
 export async function savePersistedWorkspace(

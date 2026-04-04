@@ -10,11 +10,8 @@ instead make the runtime cost explicit.
 
 Current behavior:
 
-- `useCustomWorkspaceStudio.ts` computes:
-  - `dirty = JSON.stringify(draftCollection) !== JSON.stringify(savedCollection)`
-  - `selectedWorkspaceDirty = JSON.stringify(selectedDashboard) !== JSON.stringify(savedSelectedDashboard)`
-- `CustomWidgetSettingsPage.tsx` also compares the selected workspace against its saved version
-  with `JSON.stringify(...)`.
+- The old implementation computed aggregate and selected-workspace dirty state by serializing full
+  workspace objects during render.
 
 Why this is a problem:
 
@@ -22,7 +19,7 @@ Why this is a problem:
 - The cost scales with total workspace size instead of the changed part.
 - It creates large temporary strings and unnecessary GC pressure.
 
-Planned fix:
+Implemented fix:
 
 - Replace deep serialization checks with explicit draft revisions and per-workspace dirty flags.
 - Dashboard update helpers should mark the workspace dirty when they mutate it.
@@ -30,7 +27,7 @@ Planned fix:
 - If we still need structural equality in a few places, compute a cached stable signature once per
   committed workspace update, not once per render.
 
-Status: `todo`
+Status: `done`
 
 ### 2. Full dependency model rebuild on any widget-array identity change
 
@@ -195,15 +192,13 @@ Status: `implemented`
 
 ## Fix order
 
-1. Remove `JSON.stringify(...)` render-time dirty checks.
-2. Introduce dependency topology vs resolution-cache split.
-3. Add cached upstream-resolution requirements at the provider level.
-4. Remove hidden full-workspace mounting from settings. Completed on 2026-04-03 through headless
+1. Introduce dependency topology vs resolution-cache split.
+2. Add cached upstream-resolution requirements at the provider level.
+3. Remove hidden full-workspace mounting from settings. Completed on 2026-04-03 through headless
    Data Node execution plus provider-backed widget settings.
 
 This order matters:
 
-- Fixing dirty checks reduces render churn immediately.
 - Fixing dependency invalidation reduces the biggest global recomputation cost.
 - Fixing upstream-resolution caching stops passive widgets from multiplying graph analysis.
 - Fixing settings runtime host removes the largest "edit one widget, run all widgets" cost.

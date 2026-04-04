@@ -18,6 +18,28 @@ import {
 import { useShellStore } from "@/stores/shell-store";
 import { useTheme } from "@/themes/ThemeProvider";
 
+const preferencesHydrationRequestByUserId = new Map<
+  string,
+  Promise<CommandCenterPreferencesSnapshot>
+>();
+
+function fetchCommandCenterPreferencesOnce(userId: string) {
+  const existingRequest = preferencesHydrationRequestByUserId.get(userId);
+
+  if (existingRequest) {
+    return existingRequest;
+  }
+
+  const request = fetchCommandCenterPreferences().finally(() => {
+    if (preferencesHydrationRequestByUserId.get(userId) === request) {
+      preferencesHydrationRequestByUserId.delete(userId);
+    }
+  });
+
+  preferencesHydrationRequestByUserId.set(userId, request);
+  return request;
+}
+
 function resolveActiveLanguage(): SupportedLanguage {
   const activeLanguage = i18n.resolvedLanguage ?? i18n.language;
   return isSupportedLanguage(activeLanguage) ? activeLanguage : defaultLanguage;
@@ -104,12 +126,13 @@ export function CommandCenterPreferencesProvider({
     }
 
     let cancelled = false;
+    const userId = sessionUserId;
     hydratedUserIdRef.current = null;
     lastSyncedSnapshotKeyRef.current = null;
     pendingSnapshotRef.current = null;
 
     async function hydratePreferences() {
-      const cachedSnapshot = readCachedCommandCenterPreferences(sessionUserId);
+      const cachedSnapshot = readCachedCommandCenterPreferences(userId);
 
       if (cachedSnapshot) {
         lastSyncedSnapshotKeyRef.current = serializeSnapshot(cachedSnapshot);
@@ -122,13 +145,13 @@ export function CommandCenterPreferencesProvider({
       }
 
       try {
-        const snapshot = await fetchCommandCenterPreferences();
+        const snapshot = await fetchCommandCenterPreferencesOnce(userId);
 
         if (cancelled) {
           return;
         }
 
-        writeCachedCommandCenterPreferences(sessionUserId, snapshot);
+        writeCachedCommandCenterPreferences(userId, snapshot);
         await applySnapshot(snapshot);
 
         lastSyncedSnapshotKeyRef.current = serializeSnapshot(snapshot);
@@ -144,7 +167,7 @@ export function CommandCenterPreferencesProvider({
         }
       } finally {
         if (!cancelled) {
-          hydratedUserIdRef.current = sessionUserId;
+          hydratedUserIdRef.current = userId;
         }
       }
     }

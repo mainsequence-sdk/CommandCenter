@@ -194,11 +194,6 @@ Expected list `GET` payload shape:
       "description": "Shared workspace for rates monitoring",
       "labels": ["rates", "monitoring"],
       "source": "user",
-      "widgetCount": 12,
-      "selectedRange": "24h",
-      "customStartMs": null,
-      "customEndMs": null,
-      "refreshIntervalMs": 60000,
       "updatedAt": "2026-04-03T12:00:00Z"
     }
   ]

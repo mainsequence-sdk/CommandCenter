@@ -28,12 +28,14 @@ interface FavoriteSurfacesMenuProps {
   items: FavoriteMenuItem[];
   onSelect: (path: string) => void;
   onToggleFavorite: (favoriteId: string) => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function FavoriteSurfacesMenu({
   items,
   onSelect,
   onToggleFavorite,
+  onOpenChange,
 }: FavoriteSurfacesMenuProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -64,6 +66,10 @@ export function FavoriteSurfacesMenu({
 
     return Array.from(groups.values());
   }, [items]);
+
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [onOpenChange, open]);
 
   useEffect(() => {
     if (!open) {

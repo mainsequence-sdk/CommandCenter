@@ -82,6 +82,13 @@ export interface CommandCenterConfig {
   workspaces: {
     listUrl: string;
     detailUrl: string;
+    userStateListUrl: string;
+  };
+  savedWidgets: {
+    instancesListUrl: string;
+    instancesDetailUrl: string;
+    groupsListUrl: string;
+    groupsDetailUrl: string;
   };
   widgetTypes: {
     syncUrl: string;
@@ -152,6 +159,13 @@ interface DefaultCommandCenterConfig {
   workspaces: {
     list_url: string;
     detail_url: string;
+    user_state_list_url: string;
+  };
+  saved_widgets: {
+    instances_list_url: string;
+    instances_detail_url: string;
+    groups_list_url: string;
+    groups_detail_url: string;
   };
   widget_types: {
     sync_url: string;
@@ -275,6 +289,13 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
   workspaces: {
     list_url: "",
     detail_url: "",
+    user_state_list_url: "",
+  },
+  saved_widgets: {
+    instances_list_url: "/api/v1/command_center/saved-widget-instances/",
+    instances_detail_url: "/api/v1/command_center/saved-widget-instances/{id}/",
+    groups_list_url: "/api/v1/command_center/saved-widget-groups/",
+    groups_detail_url: "/api/v1/command_center/saved-widget-groups/{id}/",
   },
   widget_types: {
     sync_url: "/api/v1/command_center/widget-types/sync/",
@@ -471,6 +492,7 @@ const parsedAppCache = getNestedObject(parsedApp, "cache");
 const parsedBranding = getNestedObject(parsedConfig, "branding");
 const parsedPreferences = getNestedObject(parsedConfig, "preferences");
 const parsedWorkspaces = getNestedObject(parsedConfig, "workspaces");
+const parsedSavedWidgets = getNestedObject(parsedConfig, "saved_widgets");
 const parsedWidgetTypes = getNestedObject(parsedConfig, "widget_types");
 const parsedAuth = getNestedObject(parsedConfig, "auth");
 const parsedAccessRbac = getNestedObject(parsedConfig, "access_rbac");
@@ -551,6 +573,28 @@ export const commandCenterConfig: CommandCenterConfig = {
   workspaces: {
     listUrl: readString(parsedWorkspaces.list_url, defaultRawConfig.workspaces.list_url),
     detailUrl: readString(parsedWorkspaces.detail_url, defaultRawConfig.workspaces.detail_url),
+    userStateListUrl: readString(
+      parsedWorkspaces.user_state_list_url,
+      defaultRawConfig.workspaces.user_state_list_url,
+    ),
+  },
+  savedWidgets: {
+    instancesListUrl: readString(
+      parsedSavedWidgets.instances_list_url,
+      defaultRawConfig.saved_widgets.instances_list_url,
+    ),
+    instancesDetailUrl: readString(
+      parsedSavedWidgets.instances_detail_url,
+      defaultRawConfig.saved_widgets.instances_detail_url,
+    ),
+    groupsListUrl: readString(
+      parsedSavedWidgets.groups_list_url,
+      defaultRawConfig.saved_widgets.groups_list_url,
+    ),
+    groupsDetailUrl: readString(
+      parsedSavedWidgets.groups_detail_url,
+      defaultRawConfig.saved_widgets.groups_detail_url,
+    ),
   },
   widgetTypes: {
     syncUrl: readString(parsedWidgetTypes.sync_url, defaultRawConfig.widget_types.sync_url),

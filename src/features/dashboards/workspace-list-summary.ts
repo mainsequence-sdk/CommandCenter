@@ -1,6 +1,4 @@
-import type { DashboardDefinition, DashboardTimeRangeKey } from "@/dashboards/types";
-
-export type WorkspaceListRangeKey = DashboardTimeRangeKey | "custom";
+import type { DashboardDefinition } from "@/dashboards/types";
 
 export interface WorkspaceListItemSummary {
   id: string;
@@ -8,11 +6,6 @@ export interface WorkspaceListItemSummary {
   description: string;
   labels: string[];
   source: string;
-  widgetCount: number;
-  selectedRange: WorkspaceListRangeKey;
-  customStartMs: number | null;
-  customEndMs: number | null;
-  refreshIntervalMs: number | null;
   updatedAt: string | null;
 }
 
@@ -38,39 +31,18 @@ function coerceStringArray(value: unknown) {
     : [];
 }
 
-function coerceNumberOrNull(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function coerceRangeKey(value: unknown) {
-  return typeof value === "string" && value.trim() ? (value as WorkspaceListRangeKey) : null;
-}
-
 export function summarizeDashboardForWorkspaceList(
-  dashboard: Pick<DashboardDefinition, "id" | "title" | "description" | "labels" | "source" | "widgets" | "controls">,
+  dashboard: Pick<DashboardDefinition, "id" | "title" | "description" | "labels" | "source">,
   options?: {
     updatedAt?: string | null;
   },
 ): WorkspaceListItemSummary {
-  const timeRange = dashboard.controls?.timeRange;
-  const refresh = dashboard.controls?.refresh;
-
   return {
     id: dashboard.id,
     title: dashboard.title,
     description: dashboard.description,
     labels: dashboard.labels ?? [],
     source: dashboard.source,
-    widgetCount: dashboard.widgets.length,
-    selectedRange: (timeRange?.selectedRange ?? timeRange?.defaultRange ?? "24h") as WorkspaceListRangeKey,
-    customStartMs: typeof timeRange?.customStartMs === "number" ? timeRange.customStartMs : null,
-    customEndMs: typeof timeRange?.customEndMs === "number" ? timeRange.customEndMs : null,
-    refreshIntervalMs:
-      typeof refresh?.selectedIntervalMs === "number" || refresh?.selectedIntervalMs === null
-        ? refresh.selectedIntervalMs
-        : typeof refresh?.defaultIntervalMs === "number" || refresh?.defaultIntervalMs === null
-          ? refresh.defaultIntervalMs
-          : null,
     updatedAt: options?.updatedAt ?? null,
   };
 }
@@ -94,8 +66,6 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
         description: typeof value.description === "string" ? value.description : "",
         labels: coerceStringArray(value.labels),
         source: typeof value.source === "string" && value.source.trim() ? value.source : "user",
-        widgets: value.widgets as DashboardDefinition["widgets"],
-        controls: isRecord(value.controls) ? (value.controls as DashboardDefinition["controls"]) : undefined,
       },
       {
         updatedAt:
@@ -120,13 +90,6 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
     description: typeof value.description === "string" ? value.description : "",
     labels: coerceStringArray(value.labels),
     source: typeof value.source === "string" && value.source.trim() ? value.source : "user",
-    widgetCount: typeof value.widgetCount === "number" && Number.isFinite(value.widgetCount)
-      ? Math.max(0, Math.round(value.widgetCount))
-      : 0,
-    selectedRange: coerceRangeKey(value.selectedRange) ?? "24h",
-    customStartMs: coerceNumberOrNull(value.customStartMs),
-    customEndMs: coerceNumberOrNull(value.customEndMs),
-    refreshIntervalMs: coerceNumberOrNull(value.refreshIntervalMs),
     updatedAt:
       typeof value.updatedAt === "string" && value.updatedAt.trim()
         ? value.updatedAt

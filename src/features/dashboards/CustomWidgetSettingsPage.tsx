@@ -80,15 +80,16 @@ export function CustomWidgetSettingsPage({
 } = {}) {
   const {
     user,
-    savedCollection,
     isSaving,
     persistenceMode,
     requestedWidgetId,
     selectedDashboard,
+    selectedWorkspaceDirty,
     resolvedDashboard,
     saveWorkspaceDraft,
     openDashboardView,
     updateSelectedWorkspace,
+    updateSelectedWorkspaceUserState,
   } = useCustomWorkspaceStudio();
 
   if (!user) {
@@ -260,20 +261,6 @@ export function CustomWidgetSettingsPage({
 
   const effectiveDraftState =
     instance && widget ? draftState ?? buildWidgetSettingsDraftState(instance, widget) : null;
-  const savedSelectedDashboardForPage = useMemo(
-    () =>
-      selectedDashboard
-        ? (savedCollection.dashboards.find((dashboard) => dashboard.id === selectedDashboard.id) ??
-          null)
-        : null,
-    [savedCollection.dashboards, selectedDashboard],
-  );
-  const selectedWorkspaceSettingsDirty = useMemo(
-    () =>
-      JSON.stringify(selectedDashboard ?? null) !==
-      JSON.stringify(savedSelectedDashboardForPage ?? null),
-    [savedSelectedDashboardForPage, selectedDashboard],
-  );
   const bindingPreviewInstance = useMemo(
     () =>
       instance && effectiveDraftState
@@ -351,14 +338,14 @@ export function CustomWidgetSettingsPage({
                   <div className="flex flex-wrap items-center gap-2">
                     {isSaving ? (
                       <WorkspaceSavingStatus className="bg-card/55" />
-                    ) : selectedWorkspaceSettingsDirty ? (
+                    ) : selectedWorkspaceDirty ? (
                       <Badge variant="warning">Unsaved workspace draft</Badge>
                     ) : (
                       <Badge variant="success">Workspace saved</Badge>
                     )}
                     <Button
                       onClick={() => void saveWorkspaceDraft()}
-                      disabled={isSaving || !selectedWorkspaceSettingsDirty}
+                      disabled={isSaving || !selectedWorkspaceDirty}
                     >
                       <Save className="h-4 w-4" />
                       Save workspace
@@ -533,7 +520,9 @@ export function CustomWidgetSettingsPage({
       key={selectedDashboard.id}
       controls={selectedDashboard.controls}
       onStateChange={(state) => {
-        updateSelectedWorkspace((dashboard) => updateDashboardControlsState(dashboard, state));
+        updateSelectedWorkspaceUserState((dashboard) =>
+          updateDashboardControlsState(dashboard, state),
+        );
       }}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
@@ -541,7 +530,7 @@ export function CustomWidgetSettingsPage({
           scopeId={selectedDashboard.id}
           widgets={resolvedDashboard.widgets}
           writeRuntimeState={(instanceId, runtimeState) => {
-            updateSelectedWorkspace((dashboard) =>
+            updateSelectedWorkspaceUserState((dashboard) =>
               updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
             );
           }}

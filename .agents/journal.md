@@ -126,7 +126,27 @@ Implemented:
 - Corrected the Data Node Graph line-style ownership: TradingView line styles are now stored in
   per-series overrides, not as one widget-level setting. Each resolved series can now keep its own
   stroke style alongside its per-series color override.
+- Added the first saved-widget frontend slice and documented the implementation checklist in
+  `implementation_history/saved-widgets-implementation-checklist.md`. The workspace runtime model
+  still stays JSON-first; saved widgets and saved widget groups are treated as a separate
+  library/import layer. The frontend now has dedicated saved-widget backend config entries,
+  a saved-widget API client, snapshot/import helpers that clone widgets back into workspaces with
+  fresh ids, a `Save widget` canvas action, an `Add saved widget` canvas import dialog, and a
+  dedicated `/app/workspace-studio/widgets` library surface with metadata editing and RBAC
+  permissions via `MainSequencePermissionsTab`.
+- Corrected the saved-widget slice after review. Atomic saved widgets are now strictly self-contained,
+  the save dialog forces `Widget group` for linked widgets and row-owned child structures, group save
+  emits canonical internal edges only through `SavedWidgetGroupBinding`, and group import rebuilds
+  live workspace bindings from those group-level edges instead of trusting member widget snapshots.
+- Tightened the saved-widget transport contract to match that model. Group member snapshots now use
+  their own atomic snapshot shape instead of the full saved-widget-instance mutation contract, group
+  serialization no longer emits member-level `bindings`, and group `binding_payload` only carries
+  edge-local metadata (`sourceOutputId` plus optional transform fields) rather than a full binding
+  object with stale source widget ids.
 
 Still missing:
 - Keep `Data Node` sidebar-only by product decision. Do not remove its effective compact/sidebar policy from the workspace model.
 - Remove the legacy `presentation.exposedFields[*].gridX/gridY/gridW/gridH` fallback path after older stored workspaces have been migrated forward safely.
+- Saved-widget follow-ups still missing from the plan:
+  archive/delete actions, richer group member/binding editing, and stronger backend-contract
+  validation against the live server response shapes.

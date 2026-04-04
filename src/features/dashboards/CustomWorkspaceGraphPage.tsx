@@ -589,7 +589,7 @@ export function CustomWorkspaceGraphPage() {
   const {
     user,
     permissions,
-    dirty,
+    selectedWorkspaceDirty,
     isSaving,
     selectedDashboard,
     resolvedDashboard,
@@ -597,6 +597,7 @@ export function CustomWorkspaceGraphPage() {
     openDashboardView,
     openWidgetSettings,
     updateSelectedWorkspace,
+    updateSelectedWorkspaceUserState,
   } = useCustomWorkspaceStudio();
   const [libraryOpen, setLibraryOpen] = useState(false);
 
@@ -642,7 +643,9 @@ export function CustomWorkspaceGraphPage() {
       key={selectedDashboard.id}
       controls={selectedDashboard.controls}
       onStateChange={(state) => {
-        updateSelectedWorkspace((dashboard) => updateDashboardControlsState(dashboard, state));
+        updateSelectedWorkspaceUserState((dashboard) =>
+          updateDashboardControlsState(dashboard, state),
+        );
       }}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
@@ -669,15 +672,15 @@ export function CustomWorkspaceGraphPage() {
                       <Boxes className="h-3.5 w-3.5" />
                     </WorkspaceToolbarButton>
                     <WorkspaceToolbarButton
-                      active={dirty}
+                      active={selectedWorkspaceDirty}
                       title="Save workspace"
                       onClick={() => {
                         void saveWorkspaceDraft();
                       }}
-                      disabled={!dirty || isSaving}
-                      className={!dirty ? "opacity-50" : undefined}
+                      disabled={!selectedWorkspaceDirty || isSaving}
+                      className={!selectedWorkspaceDirty ? "opacity-50" : undefined}
                     >
-                      {dirty ? (
+                      {selectedWorkspaceDirty ? (
                         <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-warning" />
                       ) : null}
                       <Save className="h-3.5 w-3.5" />
@@ -730,7 +733,7 @@ export function CustomWorkspaceGraphPage() {
                     );
                   }}
                   onRuntimeStateChange={(instanceId, state) => {
-                    updateSelectedWorkspace((dashboard) =>
+                    updateSelectedWorkspaceUserState((dashboard) =>
                       updateDashboardWidgetRuntimeState(dashboard, instanceId, state),
                     );
                   }}

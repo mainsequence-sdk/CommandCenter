@@ -51,6 +51,7 @@ to backend persistence instead:
 
 - `workspaces.list_url`
 - `workspaces.detail_url`
+- `workspaces.user_state_list_url`
 
 When users authenticate against a live backend, the client also pushes the current frontend widget
 catalog to:
@@ -111,9 +112,16 @@ description, category, settings schema, and IO/binding contracts still come from
 registry. The client now syncs that widget catalog separately on authenticated session startup so a
 production backend can validate `widgetId` references without expecting `workspace.widgets` to
 carry full type metadata.
-The current backend adapter also still saves selected control values and widget `runtimeState`
-inside the main workspace document because it does not yet have separate `WorkspaceUserState`
-endpoints.
+In backend mode, the frontend now treats the shared workspace document and the current user's
+runtime/view state as separate concerns:
+
+- `GET workspaces.detail_url`: shared workspace structure only
+- `GET workspaces.user_state_list_url?workspace=<id>`: current-user selected controls and widget
+  runtime state
+
+The client merges that user state locally after the shared workspace structure is loaded, and
+shared workspace saves no longer send selected control values or widget `runtimeState` back to the
+main workspace endpoint.
 
 The canvas uses a fine-grained grid and stores widget placement directly in the workspace model.
 `Custom` workspaces currently normalize onto one canonical dense manual grid: `48` columns,
@@ -151,6 +159,14 @@ The dedicated widget settings page now also hosts a `Bindings` tab for widgets t
 dependency inputs, so inter-widget edges are edited separately from normal settings rather than
 hidden in raw props JSON. The binding UI is explicit per input: users select both the upstream
 widget and the upstream output port, then see the final `output -> input` mapping directly.
+Unsaved state is tracked per workspace mutation, not derived by deep-comparing serialized
+workspace objects during render. Workspace-scoped pages should therefore use the selected
+workspace dirty flag, and reset actions should only revert the current workspace rather than the
+entire in-memory collection.
+The shared studio store now keeps loaded workspace documents keyed by workspace id instead of
+wrapping them in one in-memory collection model. `updateWorkspaceDraft(workspaceId, updater)` is
+the standard path for editing one loaded workspace, while `workspaceListItems` remains the
+lightweight list/index state and `selectedWorkspaceId` tracks the currently active workspace.
 The widget settings route now keeps only the shared dashboard runtime providers alive. It no
 longer hidden-mounts the whole workspace widget tree just to make sibling runtime available.
 Headless source publication now comes from executable widgets through the shared execution layer,
@@ -162,10 +178,16 @@ active overlay surface, so returning to the workspace does not trigger a full ca
 The settings shell should appear immediately. Heavy widget-specific configuration such as schema
 resolution, upstream preview work, or API discovery now hydrates asynchronously with local loading
 states instead of blocking the full overlay.
-Opening a workspace should follow the same rule. If the requested workspace model is already
-available in the current draft, the shell and canvas should render immediately and widgets should
-load from their own sources asynchronously. Full-page loading is reserved for the case where there
-is no usable workspace document yet.
+Opening a workspace should follow the same rule. The client should fetch shared workspace detail
+first so the shell and canvas can render as soon as the structure is available, then hydrate
+current-user controls/runtime locally from `workspaces.user_state_list_url` and let widgets load
+their own data asynchronously. Full-page loading is reserved for the case where there is no usable
+shared workspace document yet.
+For direct backend routes like `?workspace=<id>`, the client should start from
+`GET /workspaces/:id/` immediately instead of waiting for the workspace list to confirm that id
+first. A `404` from the detail endpoint is the authoritative "workspace does not exist" signal for
+that route. The per-user `workspace-user-states` fetch is secondary hydration only and must not
+block the canvas shell.
 The workspace graph is a dedicated React Flow view over those same canonical bindings. It renders
 all widget instances as nodes, including sidebar-only widgets and collapsed-row children, and lets
 users create or remove bindings visually without changing the saved canvas layout. The graph stays
