@@ -5,6 +5,7 @@ import * as echarts from "echarts";
 import type { EChartsOption } from "echarts";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetComponentProps } from "@/widgets/types";
@@ -354,6 +355,9 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
+  });
+  useResolveWidgetUpstream(instanceId, {
+    enabled: sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;

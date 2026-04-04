@@ -17,6 +17,12 @@
 - Feature components should import API functions from this directory instead of calling `fetch` directly.
 - Keep endpoint-specific formatting or transport concerns here so page components stay focused on UI and interaction logic.
 - Keep mock response handling centralized here rather than branching inside page components when adding new Main Sequence surfaces.
+- Shared dashboard request tracing also hooks in here. Workspace refresh diagnostics should attach
+  trace metadata to these shared API calls so graph/debug surfaces can show the real network path
+  without each widget inventing its own endpoint logger.
+- `fetchDataNodeDetail(...)` now also owns a small shared in-memory cache/in-flight dedupe layer.
+  That lets headless execution and mounted runtime consumers share the same `dynamic_table/{id}/`
+  GET instead of issuing parallel metadata requests for the same data node.
 - Summary consumers should read endpoint-specific add-ons from `summary.extensions` instead of legacy keys such as `summary`, `extra`, `extras`, or top-level `readme`.
 - Shareable-object permission helpers also live here. They all use the same suffix-based contract:
   the caller provides an object root plus object id, and the API layer appends the configured

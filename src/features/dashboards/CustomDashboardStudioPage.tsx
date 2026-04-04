@@ -23,6 +23,7 @@ import GridLayout, {
 
 import {
   BookOpenText,
+  Bug,
   Boxes,
   Clock3,
   ChevronDown,
@@ -129,6 +130,7 @@ import {
   WorkspaceToolbarButton,
   WorkspaceWidgetRail,
 } from "./WorkspaceChrome";
+import { WorkspaceRequestDebugPanel } from "./WorkspaceRequestDebugPanel";
 import { CustomWidgetSettingsPage } from "./CustomWidgetSettingsPage";
 import {
   appendSavedWidgetGroupToDashboard,
@@ -1239,7 +1241,11 @@ function BuilderWidgetCard({
   );
 }
 
-export function CustomDashboardStudioPage() {
+export function CustomDashboardStudioPage({
+  withRuntimeProviders = true,
+}: {
+  withRuntimeProviders?: boolean;
+} = {}) {
   const gridRef = useRef<HTMLDivElement | null>(null);
   const {
     user,
@@ -1275,6 +1281,7 @@ export function CustomDashboardStudioPage() {
   const [hoveredPlacement, setHoveredPlacement] = useState<DashboardWidgetPlacement | null>(null);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [requestDebugOpen, setRequestDebugOpen] = useState(false);
   const [savedWidgetLibraryOpen, setSavedWidgetLibraryOpen] = useState(false);
   const [savedWidgetSaveTargetId, setSavedWidgetSaveTargetId] = useState<string | null>(null);
   const editMode = selectedWorkspaceEditing;
@@ -1815,6 +1822,7 @@ export function CustomDashboardStudioPage() {
     }
 
     setLibraryOpen(false);
+    setRequestDebugOpen(false);
     setSelectedInstanceId(null);
     setCatalogDragPayload(null);
     setActiveCatalogDrag(null);
@@ -1826,6 +1834,7 @@ export function CustomDashboardStudioPage() {
 
   useEffect(() => {
     setLibraryOpen(false);
+    setRequestDebugOpen(false);
     setSelectedInstanceId(null);
     setCatalogDragPayload(null);
     setActiveCatalogDrag(null);
@@ -2480,36 +2489,20 @@ export function CustomDashboardStudioPage() {
     },
   );
 
-  return (
-    <DashboardControlsProvider
-      key={selectedDashboard.id}
-      controls={selectedDashboard.controls}
-      onStateChange={(state) => {
-        updateSelectedWorkspaceUserState((dashboard) =>
-          updateDashboardControlsState(dashboard, state),
-        );
-      }}
+  const content = (
+    <div
+      className="relative h-full min-h-full overflow-hidden"
+      style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
     >
-      <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
-        <DashboardWidgetExecutionProvider
-          scopeId={selectedDashboard.id}
-          widgets={resolvedDashboard.widgets}
-          writeRuntimeState={handleWidgetRuntimeStateChange}
-        >
-          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
-            <div
-              className="relative h-full min-h-full overflow-hidden"
-              style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
-            >
-              <DashboardRefreshProgressLine />
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{ backgroundImage: "var(--workspace-canvas-background)" }}
-              />
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
-              />
+      <DashboardRefreshProgressLine />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ backgroundImage: "var(--workspace-canvas-background)" }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
+      />
 
         <div
           className={cn(
@@ -2647,6 +2640,17 @@ export function CustomDashboardStudioPage() {
                         }}
                       >
                         <Boxes className="h-3.5 w-3.5" />
+                      </WorkspaceToolbarButton>
+                    ) : null}
+                    {editMode ? (
+                      <WorkspaceToolbarButton
+                        active={requestDebugOpen}
+                        title="Debug Request"
+                        onClick={() => {
+                          setRequestDebugOpen((current) => !current);
+                        }}
+                      >
+                        <Bug className="h-3.5 w-3.5" />
                       </WorkspaceToolbarButton>
                     ) : null}
                     {editMode ? (
@@ -3191,6 +3195,16 @@ export function CustomDashboardStudioPage() {
           </div>
         </aside>
 
+        <WorkspaceRequestDebugPanel
+          open={requestDebugOpen}
+          onClose={() => {
+            setRequestDebugOpen(false);
+          }}
+          placementClassName={dashboardMenuHidden ? "right-4 top-4 bottom-4" : "right-4 top-16 bottom-4"}
+          scopeId={selectedDashboard.id}
+          widgets={resolvedDashboard.widgets}
+        />
+
         {activeCatalogDrag ? (
           <div
             className="pointer-events-none fixed z-[90]"
@@ -3238,6 +3252,30 @@ export function CustomDashboardStudioPage() {
           }}
         />
       </div>
+  );
+
+  if (!withRuntimeProviders) {
+    return content;
+  }
+
+  return (
+    <DashboardControlsProvider
+      key={selectedDashboard.id}
+      controls={selectedDashboard.controls}
+      onStateChange={(state) => {
+        updateSelectedWorkspaceUserState((dashboard) =>
+          updateDashboardControlsState(dashboard, state),
+        );
+      }}
+    >
+      <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
+        <DashboardWidgetExecutionProvider
+          scopeId={selectedDashboard.id}
+          widgets={resolvedDashboard.widgets}
+          writeRuntimeState={handleWidgetRuntimeStateChange}
+        >
+          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+            {content}
           </DashboardWidgetDependenciesProvider>
         </DashboardWidgetExecutionProvider>
       </DashboardWidgetRegistryProvider>

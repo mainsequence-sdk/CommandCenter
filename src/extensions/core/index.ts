@@ -27,9 +27,9 @@ import { mainSequenceTheme } from "@/themes/presets/main-sequence";
 import { mainSequenceSpaceTheme } from "@/themes/presets/main-sequence-space";
 import { pandaTruenoTheme } from "@/themes/presets/panda-trueno";
 import { quartzLightTheme } from "@/themes/presets/quartz-light";
+import { sakuraTheme } from "@/themes/presets/sakura";
 import { sapphireTheme } from "@/themes/presets/sapphire";
 import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
-import { newsFeedWidget } from "@/widgets/core/news-feed/definition";
 import { appComponentWidget } from "@/widgets/core/app-component/definition";
 import { workspaceRowWidget } from "@/widgets/core/workspace-row/definition";
 
@@ -265,7 +265,7 @@ const coreExtension: AppExtension = {
   id: "core",
   title: "Core Extension",
   description: "Built-in terminal apps, dashboard surfaces, and theme presets.",
-  widgets: [newsFeedWidget, markdownNoteWidget, appComponentWidget, workspaceRowWidget],
+  widgets: [markdownNoteWidget, appComponentWidget, workspaceRowWidget],
   apps: [workspaceStudioApp, adminApp, accessRbacApp],
   themes: [
     mainSequenceSpaceTheme,
@@ -276,6 +276,7 @@ const coreExtension: AppExtension = {
     graphiteTheme,
     sapphireTheme,
     pandaTruenoTheme,
+    sakuraTheme,
     quartzLightTheme,
   ],
 };

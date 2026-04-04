@@ -14,6 +14,7 @@ Node payloads on a numeric days axis using ECharts.
 ## Data Contract
 
 - The widget expects rows coming from a linked `Data Node` widget runtime.
+- On workspace runtime surfaces it now behaves as a `consumer`: it reads the canonical published dataset and asks the shared execution layer to resolve upstream executable sources when needed.
 - The linked dataset must expose the standard compressed curve contract:
   - `time_index`
   - `unique_identifier`
@@ -45,3 +46,6 @@ Node payloads on a numeric days axis using ECharts.
   `extensions/main_sequence/common/`.
 - `Zero Curve` owns the compressed curve payload contract. The sibling `curve-plot/` widget should
   stay focused on generic mapped maturity/value datasets.
+- Runtime fetch ownership should stay with upstream execution owners such as `main-sequence-data-node`.
+  This widget may decompress and transform published rows locally, but it must not create its own
+  canonical backend data fetch path on workspace surfaces.

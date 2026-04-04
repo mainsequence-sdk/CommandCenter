@@ -59,5 +59,6 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
   railIcon: LineChart,
   schema: curvePlotSettingsSchema,
   controller: mainSequenceCurvePlotWidgetController,
+  workspaceRuntimeMode: "consumer",
   component: CurvePlotWidget,
 });

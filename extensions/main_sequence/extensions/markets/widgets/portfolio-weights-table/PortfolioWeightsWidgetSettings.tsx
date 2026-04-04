@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
-import type { PortfolioWeightsWidgetProps } from "./PortfolioWeightsWidget";
+import type { PortfolioWeightsWidgetProps } from "./portfolioWeightsRuntime";
 
 function normalizeTargetPortfolioId(value: string) {
   const parsed = Number(value);

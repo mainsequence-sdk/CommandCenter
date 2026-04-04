@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,20 +12,15 @@ import {
 } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
 
-import {
-  APP_COMPONENT_OPENAPI_CACHE_TTL_MS,
-  buildAppComponentOpenApiQueryKey,
-  fetchAppComponentOpenApiDocument,
-} from "./appComponentApi";
 import { executeAppComponent } from "./appComponentExecution";
 import { AppComponentFormSections } from "./AppComponentFormSections";
 import {
-  buildAppComponentGeneratedForm,
   normalizeAppComponentProps,
   normalizeAppComponentRuntimeState,
   resolveAppComponentBoundInputOverlay,
+  resolveAppComponentEffectiveOperationKey,
   resolveAppComponentInitialDraftValues,
-  resolveAppComponentOperation,
+  resolveAppComponentRuntimeGeneratedForm,
   tryResolveAppComponentBaseUrl,
   type AppComponentWidgetProps,
   type AppComponentWidgetRuntimeState,
@@ -71,49 +65,19 @@ export function AppComponentWidget({
     () => tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl),
     [normalizedProps.apiBaseUrl],
   );
-  const openApiQuery = useQuery({
-    queryKey: buildAppComponentOpenApiQueryKey(
-      resolvedBaseUrl,
-      normalizedProps.authMode ?? "session-jwt",
-    ),
-    queryFn: () =>
-      fetchAppComponentOpenApiDocument({
-        baseUrl: resolvedBaseUrl ?? "",
-        authMode: normalizedProps.authMode,
-      }),
-    enabled: resolvedBaseUrl !== null,
-    staleTime: APP_COMPONENT_OPENAPI_CACHE_TTL_MS,
-  });
-  const resolvedOperation = useMemo(
-    () =>
-      openApiQuery.data
-        ? resolveAppComponentOperation(
-            openApiQuery.data,
-            normalizedProps.method,
-            normalizedProps.path,
-          )
-        : null,
-    [normalizedProps.method, normalizedProps.path, openApiQuery.data],
-  );
   const generatedForm = useMemo(
-    () =>
-      openApiQuery.data
-        ? buildAppComponentGeneratedForm(
-            openApiQuery.data,
-            resolvedOperation,
-            normalizedProps.requestBodyContentType,
-          )
-        : null,
-    [normalizedProps.requestBodyContentType, openApiQuery.data, resolvedOperation],
+    () => resolveAppComponentRuntimeGeneratedForm(normalizedProps),
+    [normalizedProps],
   );
+  const operationKey = resolveAppComponentEffectiveOperationKey(normalizedProps);
   const initialDraftValues = useMemo(
     () =>
       resolveAppComponentInitialDraftValues(
         generatedForm,
         normalizedRuntimeState,
-        resolvedOperation?.record.key,
+        operationKey,
       ),
-    [generatedForm, normalizedRuntimeState, resolvedOperation?.record.key],
+    [generatedForm, normalizedRuntimeState, operationKey],
   );
   const initialDraftValuesKey = useMemo(
     () => JSON.stringify(initialDraftValues),
@@ -152,7 +116,7 @@ export function AppComponentWidget({
 
       commitRuntimeState({
         ...localRuntimeState,
-        operationKey: resolvedOperation?.record.key,
+        operationKey,
         draftValues: nextDraftValues,
       });
 
@@ -196,35 +160,20 @@ export function AppComponentWidget({
     );
   }
 
-  if (openApiQuery.isLoading) {
-    return (
-      <div className="flex h-full min-h-0 items-center justify-center p-4 md:p-5">
-        <div className="flex items-center gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28 px-4 py-3 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading OpenAPI schema…
-        </div>
-      </div>
-    );
-  }
-
-  if (openApiQuery.isError) {
-    return (
-      <AppComponentPlaceholder
-        title="Unable to load /openapi.json"
-        description={
-          openApiQuery.error instanceof Error
-            ? openApiQuery.error.message
-            : "The widget could not load the target OpenAPI document."
-        }
-      />
-    );
-  }
-
-  if (!normalizedProps.method || !normalizedProps.path || !resolvedOperation || !generatedForm) {
+  if (!normalizedProps.method || !normalizedProps.path) {
     return (
       <AppComponentPlaceholder
         title="No operation selected"
         description="Open widget settings, explore the API, and bind this widget instance to one route before sending requests."
+      />
+    );
+  }
+
+  if (!generatedForm) {
+    return (
+      <AppComponentPlaceholder
+        title="Request form not compiled"
+        description="This widget is missing both its saved compiled request form and enough binding metadata to rebuild one at runtime."
       />
     );
   }

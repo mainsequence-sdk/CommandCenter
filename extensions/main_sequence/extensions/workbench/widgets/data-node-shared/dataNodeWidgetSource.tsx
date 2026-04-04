@@ -18,7 +18,11 @@ import type {
 } from "@/widgets/types";
 
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
-import { fetchDataNodeDetail, type DataNodeDetail } from "../../../../common/api";
+import {
+  buildDataNodeDetailQueryKey,
+  fetchDataNodeDetail,
+  type DataNodeDetail,
+} from "../../../../common/api";
 import { DataNodeDateTimeField } from "./DataNodeDateTimeField";
 import { DataNodeQuickSearchPicker } from "./DataNodeQuickSearchPicker";
 import { normalizeDataNodePublishedDataset, type DataNodePublishedDataset } from "./dataNodePublishedDataset";
@@ -646,7 +650,7 @@ export function useDataNodeWidgetSourceControllerContext<
 >({
   props,
   currentWidgetInstanceId,
-  queryKeyScope,
+  queryKeyScope: _queryKeyScope,
   resolveConfig,
 }: {
   props: TProps;
@@ -657,7 +661,7 @@ export function useDataNodeWidgetSourceControllerContext<
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({ props, currentWidgetInstanceId });
   const selectedDataNodeId = Number(sourceBinding.resolvedSourceProps.dataNodeId ?? 0);
   const selectedDataNodeDetailQuery = useQuery({
-    queryKey: ["main_sequence", "widgets", queryKeyScope, "detail", selectedDataNodeId],
+    queryKey: buildDataNodeDetailQueryKey(selectedDataNodeId),
     queryFn: () => fetchDataNodeDetail(selectedDataNodeId),
     enabled: Number.isFinite(selectedDataNodeId) && selectedDataNodeId > 0,
     staleTime: 300_000,

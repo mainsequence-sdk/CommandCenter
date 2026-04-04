@@ -90,6 +90,7 @@ export interface AppComponentBindingSpec {
   operationKey: string;
   requestPorts: AppComponentBindingInputPortSpec[];
   responsePorts: AppComponentBindingOutputPortSpec[];
+  requestForm?: AppComponentGeneratedForm;
 }
 
 export interface OpenApiReference {
@@ -1864,11 +1865,100 @@ export function normalizeAppComponentBindingSpec(
       })
     : [];
 
+  const requestForm = normalizeAppComponentGeneratedForm(value.requestForm);
+
   return {
     version: 1,
     operationKey,
     requestPorts,
     responsePorts,
+    requestForm,
+  };
+}
+
+function normalizeAppComponentGeneratedField(
+  value: unknown,
+): AppComponentGeneratedField | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const key = typeof value.key === "string" ? value.key.trim() : "";
+  const label = typeof value.label === "string" ? value.label.trim() : "";
+
+  if (!key || !label) {
+    return undefined;
+  }
+
+  return {
+    key,
+    label,
+    description: typeof value.description === "string" ? value.description : undefined,
+    location:
+      value.location === "path" ||
+      value.location === "query" ||
+      value.location === "header" ||
+      value.location === "body"
+        ? value.location
+        : "body",
+    required: value.required === true,
+    kind:
+      value.kind === "string" ||
+      value.kind === "number" ||
+      value.kind === "integer" ||
+      value.kind === "boolean" ||
+      value.kind === "date" ||
+      value.kind === "date-time" ||
+      value.kind === "enum" ||
+      value.kind === "json"
+        ? value.kind
+        : "json",
+    enumValues: Array.isArray(value.enumValues)
+      ? value.enumValues.filter((entry): entry is string => typeof entry === "string")
+      : undefined,
+    paramName: typeof value.paramName === "string" ? value.paramName : undefined,
+    bodyPath: Array.isArray(value.bodyPath)
+      ? value.bodyPath.filter((entry): entry is string => typeof entry === "string")
+      : undefined,
+    rootBodyValue: value.rootBodyValue === true,
+    contentType: typeof value.contentType === "string" ? value.contentType : null,
+    defaultValue: "defaultValue" in value ? cloneJson(value.defaultValue) : undefined,
+    exampleValue: "exampleValue" in value ? cloneJson(value.exampleValue) : undefined,
+  };
+}
+
+function normalizeAppComponentGeneratedForm(
+  value: unknown,
+): AppComponentGeneratedForm | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const parameterFields = Array.isArray(value.parameterFields)
+    ? value.parameterFields.flatMap((entry) => {
+        const normalized = normalizeAppComponentGeneratedField(entry);
+        return normalized ? [normalized] : [];
+      })
+    : [];
+  const bodyFields = Array.isArray(value.bodyFields)
+    ? value.bodyFields.flatMap((entry) => {
+        const normalized = normalizeAppComponentGeneratedField(entry);
+        return normalized ? [normalized] : [];
+      })
+    : [];
+  const bodyRawField = normalizeAppComponentGeneratedField(value.bodyRawField);
+  const bodyMode =
+    value.bodyMode === "generated" || value.bodyMode === "raw" ? value.bodyMode : "none";
+
+  return {
+    parameterFields,
+    bodyFields,
+    bodyMode,
+    bodyRawField,
+    bodyContentType: typeof value.bodyContentType === "string" ? value.bodyContentType : null,
+    bodyRequired: value.bodyRequired === true,
+    unsupportedReason:
+      typeof value.unsupportedReason === "string" ? value.unsupportedReason : undefined,
   };
 }
 
@@ -2041,6 +2131,20 @@ export function buildAppComponentOperationKey(
   path: string,
 ) {
   return `${method.toUpperCase()} ${path}`;
+}
+
+export function resolveAppComponentEffectiveOperationKey(
+  props: Pick<AppComponentWidgetProps, "bindingSpec" | "method" | "path">,
+) {
+  if (props.bindingSpec?.operationKey) {
+    return props.bindingSpec.operationKey;
+  }
+
+  if (!props.method || !props.path) {
+    return undefined;
+  }
+
+  return buildAppComponentOperationKey(props.method, props.path);
 }
 
 export function formatAppComponentMethodLabel(method: AppComponentHttpMethod) {
@@ -2435,6 +2539,129 @@ export function buildAppComponentBindingSpec(
     operationKey: resolvedOperation.record.key,
     requestPorts,
     responsePorts,
+    requestForm: cloneJson(form),
+  };
+}
+
+function buildRuntimeGeneratedFieldFromBindingPort(
+  port: AppComponentBindingInputPortSpec,
+  requestBodyContentType?: string,
+): AppComponentGeneratedField {
+  const fieldKey = port.fieldKey || port.id;
+  const trimmedContentType =
+    typeof requestBodyContentType === "string" && requestBodyContentType.trim()
+      ? requestBodyContentType.trim()
+      : null;
+
+  if (port.location === "body") {
+    if (fieldKey === "body:raw") {
+      return {
+        key: fieldKey,
+        label: port.label,
+        description: port.description,
+        location: "body",
+        required: port.required,
+        kind: port.kind,
+        rootBodyValue: true,
+        bodyPath: [],
+        contentType: trimmedContentType,
+      };
+    }
+
+    const bodyPath =
+      fieldKey === "body:$"
+        ? []
+        : fieldKey.startsWith("body:")
+          ? fieldKey
+              .slice("body:".length)
+              .split(".")
+              .filter((segment) => segment.trim().length > 0)
+          : [];
+
+    return {
+      key: fieldKey,
+      label: port.label,
+      description: port.description,
+      location: "body",
+      required: port.required,
+      kind: port.kind,
+      bodyPath,
+      rootBodyValue: fieldKey === "body:$",
+      contentType: trimmedContentType,
+    };
+  }
+
+  const paramPrefix = `${port.location}:`;
+  const paramName = fieldKey.startsWith(paramPrefix)
+    ? fieldKey.slice(paramPrefix.length)
+    : fieldKey;
+
+  return {
+    key: fieldKey,
+    label: port.label,
+    description: port.description,
+    location: port.location,
+    required: port.required,
+    kind: port.kind,
+    paramName,
+  };
+}
+
+export function resolveAppComponentRuntimeGeneratedForm(
+  props: Pick<AppComponentWidgetProps, "bindingSpec" | "requestBodyContentType">,
+): AppComponentGeneratedForm | null {
+  const bindingSpec = normalizeAppComponentBindingSpec(props.bindingSpec);
+
+  if (!bindingSpec) {
+    return null;
+  }
+
+  if (bindingSpec.requestForm) {
+    return bindingSpec.requestForm;
+  }
+
+  const parameterFields = bindingSpec.requestPorts
+    .filter((port) => port.location !== "body")
+    .map((port) => buildRuntimeGeneratedFieldFromBindingPort(port, props.requestBodyContentType));
+  const bodyPorts = bindingSpec.requestPorts.filter((port) => port.location === "body");
+  const rawBodyPort = bodyPorts.find((port) => port.fieldKey === "body:raw");
+
+  if (rawBodyPort) {
+    return {
+      parameterFields,
+      bodyFields: [],
+      bodyMode: "raw",
+      bodyRawField: buildRuntimeGeneratedFieldFromBindingPort(
+        rawBodyPort,
+        props.requestBodyContentType,
+      ),
+      bodyContentType:
+        typeof props.requestBodyContentType === "string" && props.requestBodyContentType.trim()
+          ? props.requestBodyContentType.trim()
+          : null,
+      bodyRequired: rawBodyPort.required,
+      unsupportedReason:
+        "Runtime synthesized this request form from the saved widget binding because the compiled form was not persisted yet.",
+    };
+  }
+
+  const bodyFields = bodyPorts.map((port) =>
+    buildRuntimeGeneratedFieldFromBindingPort(port, props.requestBodyContentType),
+  );
+
+  return {
+    parameterFields,
+    bodyFields,
+    bodyMode: bodyFields.length > 0 ? "generated" : "none",
+    bodyContentType:
+      typeof props.requestBodyContentType === "string" && props.requestBodyContentType.trim()
+        ? props.requestBodyContentType.trim()
+        : null,
+    bodyRequired: bodyFields.some((field) => field.required),
+    unsupportedReason:
+      bindingSpec.requestForm === undefined
+        ? "Runtime synthesized this request form from the saved widget binding because the compiled form was not persisted yet."
+        : undefined,
   };
 }
 
@@ -2624,7 +2851,6 @@ export function resolveAppComponentInitialDraftValues(
 
 export function buildAppComponentRequest(
   props: AppComponentWidgetProps,
-  resolvedOperation: ResolvedAppComponentOperation | null,
   form: AppComponentGeneratedForm | null,
   draftValues: Record<string, string>,
 ): BuildAppComponentRequestResult {
@@ -2637,13 +2863,13 @@ export function buildAppComponentRequest(
     };
   }
 
-  if (!resolvedOperation || !form) {
+  if (!props.method || !props.path || !form) {
     return {
       errors: ["Select an API operation before sending a request."],
     };
   }
 
-  let resolvedPath = resolvedOperation.record.path;
+  let resolvedPath = props.path;
   const headers: Record<string, string> = {};
   const queryEntries = new Map<string, string>();
 
@@ -2760,7 +2986,7 @@ export function buildAppComponentRequest(
   return {
     errors: [],
     request: {
-      method: resolvedOperation.record.method.toUpperCase() as Uppercase<AppComponentHttpMethod>,
+      method: props.method.toUpperCase() as Uppercase<AppComponentHttpMethod>,
       url: requestUrl.toString(),
       headers,
       body,

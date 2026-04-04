@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 
-import { useQuery } from "@tanstack/react-query";
 import { BarChart3, CalendarClock, Database, Loader2 } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,10 +8,6 @@ import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution"
 import { resolveWidgetTransparentSurface } from "@/widgets/shared/chrome";
 import type { WidgetComponentProps } from "@/widgets/types";
 
-import {
-  fetchDataNodeDetail,
-  formatMainSequenceError,
-} from "../../../../common/api";
 import {
   buildDataNodeVisualizerChartSeries,
   buildDataNodeVisualizerSeries,
@@ -30,7 +25,11 @@ import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/data
 
 type Props = WidgetComponentProps<MainSequenceDataNodeVisualizerWidgetProps>;
 
-export function MainSequenceDataNodeVisualizerWidget({ props, presentation, instanceId }: Props) {
+export function MainSequenceDataNodeVisualizerWidget({
+  props,
+  presentation,
+  instanceId,
+}: Props) {
   const { rangeStartMs, rangeEndMs } = useDashboardControls();
   const transparentSurface = resolveWidgetTransparentSurface(presentation);
   const normalizedProps = useMemo(
@@ -53,14 +52,6 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     }),
     [effectiveSourceProps, normalizedProps],
   );
-  const dataNodeId = Number(effectiveSourceProps.dataNodeId ?? 0);
-
-  const dataNodeDetailQuery = useQuery({
-    queryKey: ["main_sequence", "widgets", "data_node_visualizer", "detail", dataNodeId],
-    queryFn: () => fetchDataNodeDetail(dataNodeId),
-    enabled: Number.isFinite(dataNodeId) && dataNodeId > 0,
-    staleTime: 300_000,
-  });
   const runtimeFieldOptions = useMemo(
     () =>
       resolveDataNodeFieldOptionsFromDataset({
@@ -75,10 +66,10 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     () =>
       resolveDataNodeVisualizerConfig(
         effectiveProps,
-        dataNodeDetailQuery.data,
+        undefined,
         runtimeFieldOptions.length > 0 ? runtimeFieldOptions : undefined,
       ),
-    [dataNodeDetailQuery.data, effectiveProps, runtimeFieldOptions],
+    [effectiveProps, runtimeFieldOptions],
   );
   const resolvedRange = useMemo(
     () => resolveDataNodeVisualizerDateRange(resolvedConfig, rangeStartMs, rangeEndMs),
@@ -105,8 +96,6 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
       ),
     [resolvedConfig, resolvedRange.rangeStartMs],
   );
-  const hasSourceTableConfiguration = Boolean(dataNodeDetailQuery.data?.sourcetableconfiguration);
-  const hasDirectDataNodeSource = !sourceBinding.isFilterWidgetSource;
   const chartEmptyMessage =
     sourceRows.length > 0
       ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
@@ -116,12 +105,14 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
       return null;
     }
 
-    const fallbackGroupField = dataNodeDetailQuery.data?.sourcetableconfiguration?.index_names?.[1];
+    const fallbackGroupField = runtimeFieldOptions.find(
+      (field) => field.key !== resolvedConfig.xField && field.key !== resolvedConfig.yField,
+    )?.key;
 
     return typeof fallbackGroupField === "string" && fallbackGroupField.trim()
       ? fallbackGroupField
       : null;
-  }, [dataNodeDetailQuery.data?.sourcetableconfiguration?.index_names, resolvedConfig.groupField]);
+  }, [resolvedConfig.groupField, resolvedConfig.xField, resolvedConfig.yField, runtimeFieldOptions]);
   const chartCollisionMessage = useMemo(() => {
     if (chartSeriesResult.collapsedPointCount <= 0) {
       return null;
@@ -181,44 +172,16 @@ export function MainSequenceDataNodeVisualizerWidget({ props, presentation, inst
     );
   }
 
-  if (!resolvedConfig.dataNodeId && hasDirectDataNodeSource) {
+  if (!sourceBinding.hasResolvedFilterWidgetSource || !linkedDataset) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
           <Database className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Configure the linked Data Node</div>
+          <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
           <p className="text-sm text-muted-foreground">
-            This chart only renders the dataset coming from its Data Node source.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (hasDirectDataNodeSource && dataNodeDetailQuery.isLoading && !dataNodeDetailQuery.data) {
-    return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
-  }
-
-  if (hasDirectDataNodeSource && dataNodeDetailQuery.isError) {
-    return (
-      <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-        {formatMainSequenceError(dataNodeDetailQuery.error)}
-      </div>
-    );
-  }
-
-  if (hasDirectDataNodeSource && !hasSourceTableConfiguration) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
-          <Database className="h-5 w-5" />
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">This data node has no data</div>
-          <p className="text-sm text-muted-foreground">
-            Choose another data node with table data to visualize it here.
+            This chart only renders the canonical dataset coming from a linked Data Node.
           </p>
         </div>
       </div>

@@ -44,5 +44,6 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   railSummaryComponent: AppComponentRailSummary,
   resolveIo: ({ props }) => resolveAppComponentWidgetIo(props),
   execution: appComponentExecutionDefinition,
+  workspaceRuntimeMode: "execution-owner",
   component: AppComponentWidget,
 });

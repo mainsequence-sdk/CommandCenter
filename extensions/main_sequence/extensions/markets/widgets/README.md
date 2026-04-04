@@ -5,10 +5,11 @@ This folder contains widget definitions and widget-owned presentation components
 ## Widgets
 
 - `curve-plot/`: live `Curve Plot` widget that renders yield-curve style datasets from a linked
-  Main Sequence `Data Node` widget with mapped maturity/value fields and Lightweight Charts.
+  Main Sequence `Data Node` widget with mapped maturity/value fields and Lightweight Charts. It is
+  now tagged as a workspace runtime `consumer`.
 - `zero-curve/`: live `Zero Curve` widget that renders compressed Main Sequence curve payloads on
-  a numeric days axis with ECharts.
-- `portfolio-weights-table/`: reusable `Portfolio Weights` widget plus the shared table renderer used by the portfolio detail flow; the module remains on disk but is not currently registered in the live widget catalog.
+  a numeric days axis with ECharts. It is now tagged as a workspace runtime `consumer`.
+- `portfolio-weights-table/`: reusable `Portfolio Weights` widget plus the shared table renderer used by the portfolio detail flow. The widget now has an execution-owner runtime path, but the module remains on disk and is not currently registered in the live widget catalog.
 
 ## Rules
 

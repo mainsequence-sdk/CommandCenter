@@ -32,7 +32,6 @@ import {
 } from "@/features/dashboards/workspace-favorites";
 import { AdminMenu } from "./AdminMenu";
 import { AppSurfaceSelector } from "./AppSurfaceSelector";
-import { AppDetailsDialog } from "./AppDetailsDialog";
 import { FavoriteSurfacesMenu, type FavoriteMenuItem } from "./FavoriteSurfacesMenu";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { SettingsDialog } from "./SettingsDialog";
@@ -47,7 +46,6 @@ export function Topbar() {
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const searchPanelRef = useRef<HTMLDivElement | null>(null);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
-  const [appDetailsOpen, setAppDetailsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchPaletteMode, setSearchPaletteMode] = useState(false);
   const [searchPanelStyle, setSearchPanelStyle] = useState<CSSProperties>();
@@ -283,7 +281,7 @@ export function Topbar() {
               size="sm"
               className="h-9 min-w-0 px-2.5 text-topbar-foreground"
               onClick={() => {
-                setAppDetailsOpen(true);
+                navigate(getAppPath(currentAppVisible.id));
               }}
             >
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card/65 text-topbar-foreground">
@@ -477,16 +475,6 @@ export function Topbar() {
         ) : null}
       </div>
 
-      {currentAppVisible ? (
-        <AppDetailsDialog
-          app={currentAppVisible}
-          open={appDetailsOpen}
-          onClose={() => {
-            setAppDetailsOpen(false);
-          }}
-          surfaces={currentAppSurfaces}
-        />
-      ) : null}
     </header>
   );
 }

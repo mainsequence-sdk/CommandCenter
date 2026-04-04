@@ -20,7 +20,7 @@ These flows are all part of one app surface, with instance state selected throug
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
 - `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, labels, and backend-only sharing permissions.
-- `SavedWidgetsPage.tsx`: dedicated saved-widget and saved-widget-group library screen with metadata editing, JSON inspection, and permissions.
+- `SavedWidgetsPage.tsx`: dedicated saved-widget and saved-widget-group library screen with metadata editing, deletion, JSON inspection, and permissions.
 - `SavedWidgetSaveDialog.tsx`: canvas action flow for saving the selected live workspace widget as a reusable saved widget or saved widget group.
 - `SavedWidgetLibraryDialog.tsx`: in-canvas library picker used to import saved widgets and groups back into the current workspace.
 - `WorkspaceChrome.tsx`: shared workspace toolbar-button and widget-rail chrome reused across canvas and graph views.
@@ -30,7 +30,7 @@ These flows are all part of one app surface, with instance state selected throug
 - `custom-workspace-studio-store.ts`: shared draft/saved workspace state used across the list, canvas, and settings views.
 - `custom-dashboard-storage.ts`: local-storage persistence, workspace creation helpers, grid migration logic, and widget mutation helpers.
 - `workspace-api.ts`: authenticated backend client for optional workspace list/detail persistence.
-- `saved-widgets-api.ts`: authenticated backend client for saved widget instance/group list, detail, create, and update flows.
+- `saved-widgets-api.ts`: authenticated backend client for saved widget instance/group list, detail, create, update, and delete flows. List parsing must stay strict to saved-widget list payloads; do not treat arbitrary workspace `widgets` arrays as saved-library results.
 - `saved-widgets.ts`: pure snapshot/import helpers that keep saved widgets as a library/import layer instead of changing live workspace runtime persistence.
 - `workspace-list-summary.ts`: shared lightweight list-row contract used by the workspace index and backend list endpoint adapter.
 - `workspace-persistence.ts`: runtime switch that picks backend persistence when configured and local browser storage otherwise.
@@ -72,6 +72,9 @@ These flows are all part of one app surface, with instance state selected throug
 - In backend mode, the workspace index now renders from lightweight backend list summaries instead
   of full workspace documents. Full workspace detail is fetched only when a workspace is opened,
   copied, or otherwise needs the actual document body.
+- Backend workspace list summary requests now always append `?fe_list=true` to the configured
+  `workspaces.list_url`. Only the index/list fetch uses that flag; detail and mutation routes keep
+  their existing request shape.
 - The workspace index intentionally shows only lightweight user-facing metadata from the backend
   summary rows, such as title, description, labels, source, and updated time. It should not expose
   fields that are not returned by the summary serializer or internal layout-density details that
@@ -215,6 +218,17 @@ These flows are all part of one app surface, with instance state selected throug
 - Canvas widget submit and widget-settings `Test request` now share one dashboard-level executable
   graph runner. Upstream executable dependencies run first, and refresh coordination stays in the
   shared dashboard execution layer rather than inside widget components.
+- Workspace refresh is now execution-scoped only. It must not invalidate the app-wide React Query
+  cache or refetch unrelated shell concerns such as notifications.
+- Real workspace runtime widgets now follow a single-owner rule. On canvas, graph, rail, and other
+  mounted runtime surfaces, a widget must either be an execution-owned runtime source or a pure
+  consumer of shared runtime/output. Hidden mounts must not become a second backend request owner,
+  and demo/mock widgets are intentionally out of scope for that migration until the real runtime
+  widget families are clean.
+- The workspace canvas and workspace graph routes now share one runtime/provider stack inside
+  `WorkspacesPage.tsx`. Switching between `?workspace=<id>` and `?workspace=<id>&view=graph` must
+  not recreate dashboard controls, dependency resolution, or execution state for the same
+  workspace id.
 - The workspace graph is now a dedicated route-level React Flow surface built on top of the shared
   dependency layer. It renders one node per widget instance, one edge per canonical binding, keeps
   graph coordinates session-local, stays inside the normal Workspaces shell with the standard app
@@ -224,6 +238,20 @@ These flows are all part of one app surface, with instance state selected throug
   `updateDashboardWidgetBindings(...)` instead of introducing a second graph-storage model. Output-heavy
   widgets now keep graph nodes compact by showing connected outputs first and exposing the rest
   through session-local `Add output` controls rather than rendering every possible port at once.
+  Clicking a graph node should also highlight that node's upstream dependency chain, including the
+  contributing nodes, the incoming connectors, and the specific input/output ports that participate
+  in the highlighted path. Clicking the graph background clears that dependency focus.
+  The graph view should also reflect shared dashboard execution: the left rail uses the same
+  execution-state source as the canvas, and graph nodes/edges animate during refresh so users can
+  see calculation flow through the dependency graph. Request debugging is now a shared workspace
+  surface available from both the canvas edit toolbar and graph mode, and it must use the same
+  shared refresh-cycle trace so the animation, refresh orchestration, and request log all describe
+  one canonical execution path. That request log should include logical cache hits and shared
+  in-flight reuse as explicit entries, not silently hide them.
+- The graph route must not hidden-mount the full workspace widget tree just to keep runtime alive.
+  Graph mode is a dependency/execution surface, not a second component-runtime host. If a widget
+  family still needs mounted side effects for graph correctness, that is a bug to fix in the
+  widget runtime contract rather than a reason to reintroduce a full hidden mount here.
 - The dedicated workspace settings page now uses the same scrollable full-page container model as
   the widget settings view, so long workspace configuration pages can be reached fully.
 - Saving widget-instance settings updates only that instance's title/props/presentation and must
@@ -237,9 +265,15 @@ These flows are all part of one app surface, with instance state selected throug
   workspace-specific ACL model.
 - Saving a widget does not convert the live workspace runtime into relational saved-widget rows.
   Saved widgets are a reusable library/import layer. Import always clones the saved widget or group
-  back into normal workspace JSON with fresh widget ids.
+  back into normal workspace JSON with fresh widget instance ids.
+- Saved widget snapshots store the widget definition key as `widgetTypeId` in the frontend layer.
+  Backend transports may still serialize that field as `widget_id`, but it refers to widget type,
+  not imported canvas instance identity.
 - Atomic saved widgets are now strictly self-contained. If a selected widget has widget bindings or
   row-owned child widgets, the save flow requires `Widget group` instead of allowing a lossy atomic save.
+- Widget-group save analysis now includes the selected widget structure plus the upstream widgets
+  required to satisfy its bindings. It must not expand to unrelated sibling widgets that only share
+  a common workspace source.
 - Saved widget groups now treat group-level bindings as the canonical source of truth for internal
   member edges. Member widget snapshots inside a group stay atomic and do not own `row.children`.
 - The saved-widget transport contract also reflects that split now: group member snapshots are not

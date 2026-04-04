@@ -6,7 +6,6 @@ to start from a blank screen.
 
 The current built-in widget set is intentionally opinionated:
 
-- feed-based situational awareness
 - narrative context and note-taking
 - API form generation and request submission
 - structural workspace composition
@@ -36,37 +35,6 @@ That means each widget can be:
 - documented once and composed many times
 
 ## Shipped core widgets
-
-### News Feed
-
-- **Widget id:** `news-feed`
-- **Category:** `Feeds`
-- **Kind:** `feed`
-- **Default size:** `4 x 5`
-- **Permissions:** `news:read`
-- **Example props:** `{ limit: 6 }`
-
-What it is:
-
-`News Feed` is the compact event tape for market-moving headlines and narrative context.
-
-What it is good for:
-
-- catalyst monitoring
-- macro pulse sidebars
-- event-driven desks
-- pre-open briefing surfaces
-
-Where it is used now:
-
-- `Demo / Overview`
-- `Demo / Cross-Asset`
-- `Admin / Admin Console`
-
-Why it matters:
-
-Strong operational dashboards are rarely just numbers. The news feed gives the platform a reusable
-context layer so users understand why a surface is moving, not only that it moved.
 
 ### Markdown
 
@@ -166,12 +134,11 @@ teams to hand-build one-off forms for every internal API action.
 
 The core extension currently uses the widget set in three ways:
 
-1. `News Feed` provides a reusable narrative/event context pattern for shipped surfaces.
-2. `Markdown` gives the platform a built-in narrative and documentation widget for operator-facing
+1. `Markdown` gives the platform a built-in narrative and documentation widget for operator-facing
    dashboards.
-3. `AppComponent` gives the platform a generic authenticated API form builder driven by OpenAPI
+2. `AppComponent` gives the platform a generic authenticated API form builder driven by OpenAPI
    instead of custom page-level forms.
-4. `Row` adds structural workspace composition as a first-class primitive inside the workspace
+3. `Row` adds structural workspace composition as a first-class primitive inside the workspace
    studio.
 
 ## When to build a new widget instead of reusing core
@@ -185,7 +152,6 @@ Build a new widget when:
 
 Reuse core widgets when:
 
-- you need a narrative or event feed
 - you need markdown-based documentation or notes
 - you need a generic OpenAPI-backed request form
 - you need structural row grouping in workspaces

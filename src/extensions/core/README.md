@@ -11,13 +11,13 @@ This extension owns the built-in registry entries that ship with Command Center 
 
 - the `Workspaces` app and its local-development workspace builder flows
 - the admin-facing built-in apps
-- the live core widget catalog, currently `news-feed`, `markdown-note`, `app-component`, and the collapsible `workspace-row`
+- the live core widget catalog, currently `markdown-note`, `app-component`, and the collapsible `workspace-row`
 - bundled theme presets that belong to the shell
 
 ## Dependencies
 
 - Core widget source still lives under `src/widgets/core/`.
-- This extension currently registers `news-feed`, `markdown-note`, `app-component`, and `workspace-row` in the live widget catalog.
+- This extension currently registers `markdown-note`, `app-component`, and `workspace-row` in the live widget catalog.
 - The core app shell composes optional capabilities through the shared registry instead of
   re-owning them locally.
 

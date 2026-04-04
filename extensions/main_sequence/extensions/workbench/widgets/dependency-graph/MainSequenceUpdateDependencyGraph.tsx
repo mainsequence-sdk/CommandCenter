@@ -27,6 +27,9 @@ function directionLabel(
 export function MainSequenceUpdateDependencyGraph({
   direction,
   enabled = true,
+  error: explicitError,
+  isLoading: explicitIsLoading,
+  payload: explicitPayload,
   queryKey,
   queryFn,
   runtimeState,
@@ -35,20 +38,35 @@ export function MainSequenceUpdateDependencyGraph({
 }: {
   direction: MainSequenceDependencyGraphDirection;
   enabled?: boolean;
-  queryKey: readonly unknown[];
-  queryFn: () => Promise<LocalTimeSerieDependencyGraphResponse>;
+  error?: string | null;
+  isLoading?: boolean;
+  payload?: LocalTimeSerieDependencyGraphResponse;
+  queryKey?: readonly unknown[];
+  queryFn?: () => Promise<LocalTimeSerieDependencyGraphResponse>;
   runtimeState?: MainSequenceDependencyGraphRuntimeState;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   variant?: "card" | "widget";
 }) {
   const { t } = useTranslation();
   const graphQuery = useQuery({
-    queryKey: [...queryKey, direction],
-    queryFn,
-    enabled,
+    queryKey: queryKey ? [...queryKey, direction] : ["main_sequence", "dependency_graph", variant, direction],
+    queryFn:
+      queryFn ??
+      (async () =>
+        explicitPayload ?? {
+          nodes: [],
+          edges: [],
+          groups: [],
+        }),
+    enabled: enabled && Boolean(queryFn),
   });
-  const payload = graphQuery.data;
-  const error = graphQuery.isError ? formatMainSequenceError(graphQuery.error) : null;
+  const payload = queryFn ? graphQuery.data : explicitPayload;
+  const error = queryFn
+    ? graphQuery.isError
+      ? formatMainSequenceError(graphQuery.error)
+      : null
+    : explicitError ?? null;
+  const isLoading = queryFn ? graphQuery.isLoading : explicitIsLoading === true;
 
   if (variant === "widget") {
     return (
@@ -85,7 +103,7 @@ export function MainSequenceUpdateDependencyGraph({
         <MainSequenceDependencyGraphExplorer
           direction={direction}
           payload={payload}
-          isLoading={graphQuery.isLoading}
+          isLoading={isLoading}
           error={error}
           runtimeState={runtimeState}
           onRuntimeStateChange={onRuntimeStateChange}
@@ -126,7 +144,7 @@ export function MainSequenceUpdateDependencyGraph({
         <MainSequenceDependencyGraphExplorer
           direction={direction}
           payload={payload}
-          isLoading={graphQuery.isLoading}
+          isLoading={isLoading}
           error={error}
           runtimeState={runtimeState}
           onRuntimeStateChange={onRuntimeStateChange}

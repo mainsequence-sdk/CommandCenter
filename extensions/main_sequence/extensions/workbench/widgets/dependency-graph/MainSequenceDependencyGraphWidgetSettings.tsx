@@ -5,21 +5,14 @@ import { cn } from "@/lib/utils";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import { fetchDataNodeDetail, formatMainSequenceError, listLocalTimeSeries } from "../../../../common/api";
-import type { MainSequenceDependencyGraphWidgetProps } from "./MainSequenceDependencyGraphWidget";
+import {
+  normalizeDependencyGraphDirection,
+  normalizeDependencyGraphSelectedId,
+  normalizeDependencyGraphSourceKind,
+  type MainSequenceDependencyGraphWidgetProps,
+} from "./dependencyGraphRuntime";
 import { DataNodeQuickSearchPicker } from "../data-node-shared/DataNodeQuickSearchPicker";
 import { SimpleTableUpdateQuickSearchPicker } from "../data-node-shared/SimpleTableUpdateQuickSearchPicker";
-
-function normalizeSourceKind(
-  value: unknown,
-): "data_node" | "simple_table" {
-  return value === "simple_table" ? "simple_table" : "data_node";
-}
-
-function normalizeDirection(
-  value: unknown,
-): "downstream" | "upstream" {
-  return value === "upstream" ? "upstream" : "downstream";
-}
 
 function SourceToggleButton({
   active,
@@ -54,17 +47,11 @@ export function MainSequenceDependencyGraphWidgetSettings({
   editable,
   onDraftPropsChange,
 }: WidgetSettingsComponentProps<MainSequenceDependencyGraphWidgetProps>) {
-  const sourceKind = normalizeSourceKind(draftProps.sourceKind);
-  const direction = normalizeDirection(draftProps.direction);
-  const dataNodeId =
-    Number.isFinite(Number(draftProps.dataNodeId)) && Number(draftProps.dataNodeId) > 0
-      ? Math.trunc(Number(draftProps.dataNodeId))
-      : undefined;
+  const sourceKind = normalizeDependencyGraphSourceKind(draftProps.sourceKind);
+  const direction = normalizeDependencyGraphDirection(draftProps.direction);
+  const dataNodeId = normalizeDependencyGraphSelectedId(draftProps.dataNodeId) || undefined;
   const simpleTableUpdateId =
-    Number.isFinite(Number(draftProps.simpleTableUpdateId)) &&
-    Number(draftProps.simpleTableUpdateId) > 0
-      ? Math.trunc(Number(draftProps.simpleTableUpdateId))
-      : undefined;
+    normalizeDependencyGraphSelectedId(draftProps.simpleTableUpdateId) || undefined;
   const selectedDataNodeQuery = useQuery({
     queryKey: [
       "main_sequence",

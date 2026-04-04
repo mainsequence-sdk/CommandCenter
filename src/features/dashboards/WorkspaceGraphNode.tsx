@@ -32,6 +32,7 @@ export interface WorkspaceGraphInputPortData {
   description?: string;
   required?: boolean;
   status: WorkspaceGraphPortStatus;
+  dependencyHighlighted?: boolean;
 }
 
 export interface WorkspaceGraphOutputPortData {
@@ -41,6 +42,7 @@ export interface WorkspaceGraphOutputPortData {
   description?: string;
   connectionCount: number;
   removable?: boolean;
+  dependencyHighlighted?: boolean;
 }
 
 export interface WorkspaceGraphNodeData extends Record<string, unknown> {
@@ -54,6 +56,11 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   inputs: WorkspaceGraphInputPortData[];
   outputs: WorkspaceGraphOutputPortData[];
   availableOutputs: WorkspaceGraphOutputPortData[];
+  executionStatus?: "idle" | "running" | "success" | "error";
+  executionFinishedAtMs?: number;
+  animationNowMs?: number;
+  dependencyHighlighted?: boolean;
+  dependencyRoot?: boolean;
   onRevealOutput?: (outputId: string) => void;
   onHideOutput?: (outputId: string) => void;
 }
@@ -77,12 +84,14 @@ function GraphPortHandle({
   position,
   className,
   style,
+  highlighted = false,
 }: {
   kind: WidgetGraphPortKind;
   portId: string;
   position: Position;
   className?: string;
   style?: React.CSSProperties;
+  highlighted?: boolean;
 }) {
   return (
     <Handle
@@ -95,6 +104,8 @@ function GraphPortHandle({
       style={style}
       className={cn(
         "!h-3 !w-3 !border-2 !border-background !bg-primary shadow-sm",
+        highlighted &&
+          "!bg-primary !ring-4 !ring-primary/25 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_35%,transparent),0_0_16px_-4px_color-mix(in_srgb,var(--primary)_65%,transparent)]",
         kind === "input" ? "!-left-1.5" : "!-right-1.5",
         className,
       )}
@@ -144,6 +155,12 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
   const [addOutputOpen, setAddOutputOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const WidgetIcon = resolveWidgetGraphIcon(data);
+  const recentlyCompleted = Boolean(
+    data.executionStatus === "success" &&
+      data.executionFinishedAtMs &&
+      data.animationNowMs &&
+      data.animationNowMs - data.executionFinishedAtMs < 1800,
+  );
 
   useEffect(() => {
     if (data.availableOutputs.length === 0) {
@@ -172,7 +189,26 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
     <div
       className={cn(
         "relative min-w-[250px] max-w-[300px] rounded-[18px] border bg-card/96 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl",
-        selected ? "border-primary/70 ring-2 ring-primary/25" : "border-border/75",
+        data.executionStatus === "running"
+          ? "border-primary/80 ring-2 ring-primary/20 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent),0_18px_34px_-24px_color-mix(in_srgb,var(--primary)_55%,transparent)]"
+          : undefined,
+        data.executionStatus === "error"
+          ? "border-danger/70 ring-2 ring-danger/15"
+          : undefined,
+        recentlyCompleted
+          ? "border-success/75 ring-2 ring-success/15 shadow-[0_0_0_1px_color-mix(in_srgb,var(--success)_20%,transparent),0_18px_34px_-24px_color-mix(in_srgb,var(--success)_55%,transparent)]"
+          : undefined,
+        data.dependencyHighlighted
+          ? "border-primary/55 bg-primary/5 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent),0_18px_34px_-24px_color-mix(in_srgb,var(--primary)_32%,transparent)]"
+          : undefined,
+        data.dependencyRoot
+          ? "border-primary ring-2 ring-primary/30 bg-primary/7 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_26%,transparent),0_18px_34px_-20px_color-mix(in_srgb,var(--primary)_46%,transparent)]"
+          : undefined,
+        selected && data.dependencyRoot
+          ? "border-primary/85 ring-2 ring-primary/30"
+          : selected
+            ? "border-primary/70 ring-2 ring-primary/25"
+            : "border-border/75",
       )}
     >
       {!expanded ? (
@@ -184,6 +220,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
               portId={input.id}
               position={Position.Left}
               className="!opacity-0"
+              highlighted={input.dependencyHighlighted}
               style={{ top: resolveCollapsedHandleTop(index, data.inputs.length) }}
             />
           ))}
@@ -194,6 +231,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
               portId={output.id}
               position={Position.Right}
               className="!opacity-0"
+              highlighted={output.dependencyHighlighted}
               style={{ top: resolveCollapsedHandleTop(index, data.outputs.length) }}
             />
           ))}
@@ -211,6 +249,14 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                 {data.title}
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
+                {data.executionStatus === "running" ? (
+                  <Badge
+                    variant="neutral"
+                    className="px-1.5 py-0.5 text-[8px] tracking-[0.12em] text-primary"
+                  >
+                    Running
+                  </Badge>
+                ) : null}
                 {data.widgetKind ? (
                   <Badge variant="neutral" className="px-1.5 py-0.5 text-[8px] tracking-[0.12em]">
                     {data.widgetKind}
@@ -272,9 +318,19 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
             data.inputs.map((input) => (
               <div
                 key={input.id}
-                className="nodrag nopan relative rounded-[12px] border border-border/70 bg-background/28 px-3 py-2"
+                className={cn(
+                  "nodrag nopan relative rounded-[12px] border px-3 py-2",
+                  input.dependencyHighlighted
+                    ? "border-primary/45 bg-primary/8 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_16%,transparent)]"
+                    : "border-border/70 bg-background/28",
+                )}
               >
-                <GraphPortHandle kind="input" portId={input.id} position={Position.Left} />
+                <GraphPortHandle
+                  kind="input"
+                  portId={input.id}
+                  position={Position.Left}
+                  highlighted={input.dependencyHighlighted}
+                />
                 <div className="flex items-start justify-between gap-2.5">
                   <div className="min-w-0">
                     <div className="truncate text-[12px] font-medium leading-4 text-foreground">
@@ -324,9 +380,19 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
             data.outputs.map((output) => (
               <div
                 key={output.id}
-                className="nodrag nopan relative rounded-[12px] border border-border/70 bg-background/28 px-3 py-2"
+                className={cn(
+                  "nodrag nopan relative rounded-[12px] border px-3 py-2",
+                  output.dependencyHighlighted
+                    ? "border-primary/45 bg-primary/8 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_16%,transparent)]"
+                    : "border-border/70 bg-background/28",
+                )}
               >
-                <GraphPortHandle kind="output" portId={output.id} position={Position.Right} />
+                <GraphPortHandle
+                  kind="output"
+                  portId={output.id}
+                  position={Position.Right}
+                  highlighted={output.dependencyHighlighted}
+                />
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate text-[12px] font-medium leading-4 text-foreground">

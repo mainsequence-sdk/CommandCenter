@@ -95,7 +95,7 @@ export function SavedWidgetLibraryDialog({
           entry.title,
           entry.description,
           entry.instanceTitle,
-          entry.widgetId,
+          entry.widgetTypeId,
           ...(entry.labels ?? []),
         ].some((field) => matchesSearch(field ?? "", searchValue));
       }),
@@ -202,11 +202,11 @@ export function SavedWidgetLibraryDialog({
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-foreground">{entry.title}</div>
                       <div className="truncate text-xs text-muted-foreground">
-                        {"widgetId" in entry ? entry.widgetId : `${entry.memberCount} members`}
+                        {"widgetTypeId" in entry ? entry.widgetTypeId : `${entry.memberCount} members`}
                       </div>
                     </div>
                     <Badge variant="neutral">
-                      {"widgetId" in entry ? "Widget" : "Group"}
+                      {"widgetTypeId" in entry ? "Widget" : "Group"}
                     </Badge>
                   </div>
                   {entry.description ? (
@@ -235,13 +235,13 @@ export function SavedWidgetLibraryDialog({
               <div className="space-y-4">
                 <div className="space-y-1">
                   <div className="text-lg font-semibold text-foreground">{selectedWidget.title}</div>
-                  <div className="text-sm text-muted-foreground">{selectedWidget.instanceTitle || selectedWidget.widgetId}</div>
+                  <div className="text-sm text-muted-foreground">{selectedWidget.instanceTitle || selectedWidget.widgetTypeId}</div>
                 </div>
                 {selectedWidget.description ? (
                   <div className="text-sm text-muted-foreground">{selectedWidget.description}</div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="neutral">{selectedWidget.widgetId}</Badge>
+                  <Badge variant="neutral">{selectedWidget.widgetTypeId}</Badge>
                   {selectedWidget.labels.map((label) => (
                     <Badge key={label} variant="neutral">
                       {label}

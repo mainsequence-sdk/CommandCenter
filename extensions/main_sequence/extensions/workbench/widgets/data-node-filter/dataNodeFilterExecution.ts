@@ -1,3 +1,4 @@
+import { buildDashboardExecutionRequestTraceMeta } from "@/dashboards/dashboard-request-trace";
 import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
@@ -221,6 +222,7 @@ async function executeDirectDataNodeSource(args: {
   runtimeState: DataNodeFilterRuntimeState | null;
   dashboardRangeStartMs?: number | null;
   dashboardRangeEndMs?: number | null;
+  requestTraceMeta?: ReturnType<typeof buildDashboardExecutionRequestTraceMeta>;
 }): Promise<WidgetExecutionResult> {
   const dataNodeId = Number(args.normalizedProps.dataNodeId ?? 0);
 
@@ -234,7 +236,7 @@ async function executeDirectDataNodeSource(args: {
   let detail: Awaited<ReturnType<typeof fetchDataNodeDetail>>;
 
   try {
-    detail = await fetchDataNodeDetail(dataNodeId);
+    detail = await fetchDataNodeDetail(dataNodeId, args.requestTraceMeta);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : formatMainSequenceError(error);
@@ -310,7 +312,7 @@ async function executeDirectDataNodeSource(args: {
       less_or_equal: true,
       limit: resolvedConfig.limit,
       offset: 0,
-    });
+    }, args.requestTraceMeta);
     const transformedDataset = buildDataNodeTransformedDataset(
       rows,
       resolvedConfig,
@@ -356,6 +358,7 @@ async function executeDirectDataNodeSource(args: {
 export async function executeDataNodeFilterWidget(
   context: WidgetExecutionContext<MainSequenceDataNodeFilterWidgetProps>,
 ): Promise<WidgetExecutionResult> {
+  const requestTraceMeta = buildDashboardExecutionRequestTraceMeta(context);
   const normalizedProps = normalizeDataNodeFilterProps(
     (context.targetOverrides?.props ?? context.props) as MainSequenceDataNodeFilterWidgetProps,
   );
@@ -381,6 +384,7 @@ export async function executeDataNodeFilterWidget(
     runtimeState: normalizedRuntimeState,
     dashboardRangeStartMs,
     dashboardRangeEndMs,
+    requestTraceMeta,
   });
 }
 

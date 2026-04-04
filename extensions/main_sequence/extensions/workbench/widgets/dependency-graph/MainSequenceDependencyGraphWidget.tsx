@@ -1,51 +1,35 @@
-import { useQuery } from "@tanstack/react-query";
 import { Network } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
+import { useWidgetExecutionState } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
-  fetchLocalTimeSerieDependencyGraph,
-  fetchSimpleTableUpdateDependencyGraph,
   formatMainSequenceError,
-  listLocalTimeSeries,
 } from "../../../../common/api";
 import { MainSequenceUpdateDependencyGraph } from "./MainSequenceUpdateDependencyGraph";
-
-export interface MainSequenceDependencyGraphWidgetProps extends Record<string, unknown> {
-  dataNodeId?: number;
-  direction?: "downstream" | "upstream";
-  sourceKind?: "data_node" | "simple_table";
-  simpleTableUpdateId?: number;
-}
-
-function normalizeSourceKind(
-  value: unknown,
-): "data_node" | "simple_table" {
-  return value === "simple_table" ? "simple_table" : "data_node";
-}
-
-function normalizeSelectedSourceId(value: unknown) {
-  const parsed = Number(value ?? 0);
-
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 0;
-  }
-
-  return Math.trunc(parsed);
-}
+import {
+  normalizeDependencyGraphDirection,
+  normalizeDependencyGraphRuntimeState,
+  normalizeDependencyGraphSelectedId,
+  normalizeDependencyGraphSourceKind,
+  type MainSequenceDependencyGraphWidgetProps,
+} from "./dependencyGraphRuntime";
 
 export function MainSequenceDependencyGraphWidget({
+  instanceId,
   props,
   runtimeState,
   onRuntimeStateChange,
 }: WidgetComponentProps<MainSequenceDependencyGraphWidgetProps>) {
   const { t } = useTranslation();
-  const direction = props.direction === "upstream" ? "upstream" : "downstream";
-  const sourceKind = normalizeSourceKind(props.sourceKind);
-  const selectedDataNodeId = normalizeSelectedSourceId(props.dataNodeId);
-  const selectedSimpleTableUpdateId = normalizeSelectedSourceId(props.simpleTableUpdateId);
+  const executionState = useWidgetExecutionState(instanceId);
+  const direction = normalizeDependencyGraphDirection(props.direction);
+  const sourceKind = normalizeDependencyGraphSourceKind(props.sourceKind);
+  const selectedDataNodeId = normalizeDependencyGraphSelectedId(props.dataNodeId);
+  const selectedSimpleTableUpdateId = normalizeDependencyGraphSelectedId(props.simpleTableUpdateId);
+  const normalizedRuntimeState = normalizeDependencyGraphRuntimeState(runtimeState);
   const directionLabel =
     direction === "upstream"
       ? t("mainSequenceDependencyGraph.settings.directionUpstreamShort")
@@ -59,30 +43,11 @@ export function MainSequenceDependencyGraphWidget({
     sourceKind === "simple_table"
       ? "Select a Simple Table update in widget settings to load upstream or downstream dependencies."
       : "Select a Data Node in widget settings. The graph uses the latest linked LocalTimeSerie update for that data node.";
-
-  const latestLocalTimeSerieQuery = useQuery({
-    queryKey: [
-      "main_sequence",
-      "widgets",
-      "dependency_graph_widget",
-      "data_node",
-      selectedDataNodeId,
-      "latest_local_time_serie",
-    ],
-    queryFn: async () => {
-      const page = await listLocalTimeSeries(selectedDataNodeId, { limit: 1, offset: 0 });
-      return page.results[0] ?? null;
-    },
-    enabled: sourceKind === "data_node" && selectedDataNodeId > 0,
-    staleTime: 300_000,
-  });
-
-  const resolvedLocalTimeSerieId =
-    sourceKind === "data_node"
-      ? normalizeSelectedSourceId(latestLocalTimeSerieQuery.data?.id)
-      : 0;
+  const isExecuting = executionState?.status === "running";
   const selectedSourceId =
-    sourceKind === "simple_table" ? selectedSimpleTableUpdateId : resolvedLocalTimeSerieId;
+    sourceKind === "simple_table"
+      ? selectedSimpleTableUpdateId
+      : (normalizedRuntimeState.resolvedLocalTimeSerieId ?? 0);
 
   if (
     (sourceKind === "data_node" && selectedDataNodeId <= 0) ||
@@ -105,33 +70,7 @@ export function MainSequenceDependencyGraphWidget({
     );
   }
 
-  if (sourceKind === "data_node" && latestLocalTimeSerieQuery.isLoading) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
-        <div className="text-sm font-medium text-foreground">Resolving Data Node update</div>
-        <p className="text-sm text-muted-foreground">
-          Loading the latest LocalTimeSerie update linked to the selected Data Node.
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <Badge variant="neutral">{sourceBadge}</Badge>
-          <Badge variant="neutral">{directionLabel}</Badge>
-        </div>
-      </div>
-    );
-  }
-
-  if (sourceKind === "data_node" && latestLocalTimeSerieQuery.isError) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-6 text-center">
-        <div className="text-sm font-medium text-foreground">Unable to resolve Data Node update</div>
-        <p className="text-sm text-danger">
-          {formatMainSequenceError(latestLocalTimeSerieQuery.error)}
-        </p>
-      </div>
-    );
-  }
-
-  if (sourceKind === "data_node" && selectedSourceId <= 0) {
+  if (sourceKind === "data_node" && normalizedRuntimeState.emptyReason === "no-linked-updates") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="text-sm font-medium text-foreground">No Data Node updates found</div>
@@ -142,22 +81,64 @@ export function MainSequenceDependencyGraphWidget({
     );
   }
 
+  if (normalizedRuntimeState.status === "error" && normalizedRuntimeState.error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-6 text-center">
+        <div className="text-sm font-medium text-foreground">Unable to load dependency graph</div>
+        <p className="text-sm text-danger">
+          {formatMainSequenceError(normalizedRuntimeState.error)}
+        </p>
+      </div>
+    );
+  }
+
+  if (
+    isExecuting ||
+    normalizedRuntimeState.status === "loading" ||
+    (!normalizedRuntimeState.payload && selectedSourceId > 0)
+  ) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="text-sm font-medium text-foreground">
+          {sourceKind === "data_node" ? "Resolving Data Node update" : "Loading dependency graph"}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {sourceKind === "data_node"
+            ? "Loading the latest LocalTimeSerie update linked to the selected Data Node."
+            : "Loading the dependency graph for the selected Simple Table update."}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Badge variant="neutral">{sourceBadge}</Badge>
+          <Badge variant="neutral">{directionLabel}</Badge>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <MainSequenceUpdateDependencyGraph
       direction={direction}
       enabled={selectedSourceId > 0}
-      queryKey={
-        sourceKind === "simple_table"
-          ? ["main_sequence", "simple_tables", "updates", "graph", selectedSourceId]
-          : ["main_sequence", "data_nodes", "local_updates", "graph", selectedSourceId]
+      error={normalizedRuntimeState.error ?? null}
+      isLoading={isExecuting}
+      payload={normalizedRuntimeState.payload}
+      runtimeState={normalizedRuntimeState}
+      onRuntimeStateChange={(nextState) =>
+        onRuntimeStateChange?.({
+          ...normalizedRuntimeState,
+          ...nextState,
+          payload: normalizedRuntimeState.payload,
+          error: normalizedRuntimeState.error,
+          status: normalizedRuntimeState.status,
+          sourceKind: normalizedRuntimeState.sourceKind,
+          direction: normalizedRuntimeState.direction,
+          selectedDataNodeId: normalizedRuntimeState.selectedDataNodeId,
+          selectedSimpleTableUpdateId: normalizedRuntimeState.selectedSimpleTableUpdateId,
+          resolvedLocalTimeSerieId: normalizedRuntimeState.resolvedLocalTimeSerieId,
+          emptyReason: normalizedRuntimeState.emptyReason,
+          lastLoadedAtMs: normalizedRuntimeState.lastLoadedAtMs,
+        })
       }
-      queryFn={() =>
-        sourceKind === "simple_table"
-          ? fetchSimpleTableUpdateDependencyGraph(selectedSourceId, direction)
-          : fetchLocalTimeSerieDependencyGraph(selectedSourceId, direction)
-      }
-      runtimeState={runtimeState}
-      onRuntimeStateChange={onRuntimeStateChange}
       variant="widget"
     />
   );

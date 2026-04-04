@@ -207,6 +207,12 @@ function buildEndpointUrl(path: string) {
   return url.toString();
 }
 
+function appendWorkspaceListFrontendFlag(path: string) {
+  const url = new URL(path, env.apiBaseUrl);
+  url.searchParams.set("fe_list", "true");
+  return `${url.pathname}${url.search}`;
+}
+
 function normalizeMockWorkspacePath(path: string) {
   const pathname = new URL(path, window.location.origin).pathname;
 
@@ -805,7 +811,7 @@ export async function fetchWorkspaceListSummariesFromBackend(): Promise<Workspac
     );
   }
 
-  const payload = await requestWorkspaceBackend(listPath);
+  const payload = await requestWorkspaceBackend(appendWorkspaceListFrontendFlag(listPath));
   return normalizeWorkspaceListSummariesPayload(payload);
 }
 

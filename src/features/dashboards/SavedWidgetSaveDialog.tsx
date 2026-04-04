@@ -56,7 +56,7 @@ export function SavedWidgetSaveDialog({
             hasStructuralChildren: false,
             requiresGroup: false,
             recommendedMode: "widget" as const,
-            connectedWidgetIds: [] as string[],
+            groupWidgetIds: [] as string[],
           },
     [dashboard, instanceId],
   );
@@ -149,7 +149,7 @@ export function SavedWidgetSaveDialog({
       contentClassName="space-y-5"
     >
       {!configured ? (
-        <div className="rounded-[calc(var(--radius)-4px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
+        <div className="rounded-[calc(var(--radius)-4px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
           Saved widget backend endpoints are not configured.
         </div>
       ) : null}
@@ -198,7 +198,7 @@ export function SavedWidgetSaveDialog({
           </div>
 
           {selectionAnalysis.requiresGroup ? (
-            <div className="rounded-[calc(var(--radius)-4px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
+            <div className="rounded-[calc(var(--radius)-4px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
               Atomic saved widgets must stay self-contained. Use <strong>Widget group</strong> to preserve linked widgets and row-owned child widgets.
             </div>
           ) : null}
@@ -214,7 +214,7 @@ export function SavedWidgetSaveDialog({
           <div className="flex flex-wrap gap-2">
             <Badge variant="neutral">
               {selectionAnalysis.hasDependencies
-                ? `${selectionAnalysis.connectedWidgetIds.length} linked widgets`
+                ? `${selectionAnalysis.groupWidgetIds.length} required widgets`
                 : selectionAnalysis.hasStructuralChildren
                   ? "Row structure detected"
                   : "Self-contained"}
@@ -230,7 +230,7 @@ export function SavedWidgetSaveDialog({
               <div>
                 {selectionAnalysis.hasStructuralChildren
                   ? "This selection includes row-owned child widgets. Save it as a group so each member stays atomic."
-                  : "This widget is part of a linked widget chain. Saving it as a group will preserve imported bindings between members."}
+                  : "This widget depends on upstream source widgets. Saving it as a group will preserve the required members and imported bindings between them."}
               </div>
             </div>
           ) : null}

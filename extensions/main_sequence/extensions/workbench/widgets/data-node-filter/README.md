@@ -18,7 +18,9 @@ charts and tables.
 - `dataNodeFilterModel.ts`: dataset-node config, runtime-state normalization, and transform helpers
   for aggregate, pivot, unpivot, and projection pipeline steps.
 - `MainSequenceDataNodeFilterWidget.tsx`: icon-only mounted runtime surface with hover details for
-  the saved source/range/transform and the published dataset.
+  the saved source/range/transform and the published dataset. On workspace runtime surfaces this
+  component is now a pure consumer of shared runtime state; it no longer owns the canonical
+  backend fetch path.
 - `MainSequenceDataNodeFilterWidgetSettings.tsx`: settings-only table preview for the selected data
   node or upstream Data Node input, including transformed output preview.
 
@@ -85,6 +87,10 @@ charts and tables.
   `AppComponent -> Data Node -> Graph/Table/Statistic` no longer need to wait for the mounted
   Data Node component to republish before downstream widgets or settings flows can resolve the
   transformed dataset.
+- The workspace/runtime component no longer re-fetches `dynamic_table/{id}/` or
+  `dynamic_table/{id}/get_data_between_dates_from_remote/`. The shared execution layer is the
+  canonical runtime owner for those requests, and the mounted token reads the resulting
+  `runtimeState` only.
 - That headless published dataset now preserves `rangeStartMs` / `rangeEndMs` as well, so
   downstream widgets and settings previews can show the actual upstream Data Node range instead of
   falling back to the dashboard range when the source is another `Data Node`.

@@ -56,10 +56,10 @@ function slugify(value: string) {
 }
 
 function buildInstanceIdPrefix(
-  widget: Pick<DashboardWidgetInstance, "title" | "widgetId"> | Pick<SavedWidgetInstanceRecord, "instanceTitle" | "widgetId" | "title">,
+  widget: Pick<DashboardWidgetInstance, "title" | "widgetId"> | Pick<SavedWidgetInstanceRecord, "instanceTitle" | "widgetTypeId" | "title">,
 ) {
   if ("instanceTitle" in widget) {
-    return slugify(widget.instanceTitle || widget.title || widget.widgetId);
+    return slugify(widget.instanceTitle || widget.title || widget.widgetTypeId);
   }
 
   return slugify(widget.title || widget.widgetId);
@@ -184,12 +184,12 @@ function hasDirectBindings(
   });
 }
 
-function collectConnectedWidgetIds(
+function collectRequiredWidgetIds(
   dashboard: DashboardDefinition,
   seedIds: readonly string[],
   widgetIndex: ReadonlyMap<string, DashboardWidgetInstance>,
 ) {
-  const adjacency = new Map<string, Set<string>>();
+  const upstreamByTarget = new Map<string, Set<string>>();
 
   flattenDashboardWidgets(dashboard.widgets).forEach((widget) => {
     iterateBindingEntries(widget.bindings).forEach(({ binding }) => {
@@ -197,10 +197,8 @@ function collectConnectedWidgetIds(
         return;
       }
 
-      adjacency.set(widget.id, adjacency.get(widget.id) ?? new Set());
-      adjacency.set(binding.sourceWidgetId, adjacency.get(binding.sourceWidgetId) ?? new Set());
-      adjacency.get(widget.id)?.add(binding.sourceWidgetId);
-      adjacency.get(binding.sourceWidgetId)?.add(widget.id);
+      upstreamByTarget.set(widget.id, upstreamByTarget.get(widget.id) ?? new Set());
+      upstreamByTarget.get(widget.id)?.add(binding.sourceWidgetId);
     });
   });
 
@@ -215,9 +213,9 @@ function collectConnectedWidgetIds(
     }
 
     visited.add(current);
-    adjacency.get(current)?.forEach((neighbor) => {
-      if (!visited.has(neighbor)) {
-        queue.push(neighbor);
+    upstreamByTarget.get(current)?.forEach((sourceId) => {
+      if (!visited.has(sourceId)) {
+        queue.push(sourceId);
       }
     });
   }
@@ -277,7 +275,7 @@ function buildAtomicSavedWidgetPayload(
     category: dashboard.category ?? "Custom",
     source: dashboard.source ?? "user",
     schemaVersion: 1,
-    widgetId: widget.widgetId,
+    widgetTypeId: widget.widgetId,
     instanceTitle: widget.title ?? "",
     props: cloneJson(widget.props ?? {}),
     presentation: cloneJson(widget.presentation),
@@ -301,7 +299,7 @@ function buildGroupMemberPayload(
     category: dashboard.category ?? "Custom",
     source: dashboard.source ?? "user",
     schemaVersion: 1,
-    widgetId: widget.widgetId,
+    widgetTypeId: widget.widgetId,
     instanceTitle: widget.title ?? "",
     props: cloneJson(widget.props ?? {}),
     presentation: cloneJson(widget.presentation),
@@ -394,20 +392,20 @@ function buildImportedWidgetInstance(
             : savedWidget.position.y,
       }
     : {
-        x: isWorkspaceRowWidgetId(savedWidget.widgetId) ? 0 : 0,
+        x: isWorkspaceRowWidgetId(savedWidget.widgetTypeId) ? 0 : 0,
         y: deltaY,
       };
 
   return {
     id: instanceId,
-    widgetId: savedWidget.widgetId,
+    widgetId: savedWidget.widgetTypeId,
     title: savedWidget.instanceTitle || savedWidget.title || undefined,
     props: cloneJson(savedWidget.props ?? {}),
     presentation: cloneJson(savedWidget.presentation),
     bindings: normalizeWidgetInstanceBindings(cloneJson(savedWidget.bindings)),
     row: savedWidget.row
       ? toShallowRowState({
-          widgetId: savedWidget.widgetId,
+          widgetId: savedWidget.widgetTypeId,
           row: savedWidget.row,
         })
       : undefined,
@@ -563,7 +561,7 @@ export interface SavedWidgetSelectionAnalysis {
   hasStructuralChildren: boolean;
   requiresGroup: boolean;
   recommendedMode: "widget" | "group";
-  connectedWidgetIds: string[];
+  groupWidgetIds: string[];
 }
 
 export function analyzeSavedWidgetSelection(
@@ -572,10 +570,10 @@ export function analyzeSavedWidgetSelection(
 ): SavedWidgetSelectionAnalysis {
   const widgetIndex = createWidgetIndex(dashboard);
   const structuralIds = getStructuralSelectionIds(dashboard, instanceId, widgetIndex);
-  const connectedIds = collectConnectedWidgetIds(dashboard, structuralIds, widgetIndex);
+  const requiredIds = collectRequiredWidgetIds(dashboard, structuralIds, widgetIndex);
   const orderedIds = flattenDashboardWidgets(dashboard.widgets)
     .map((widget) => widget.id)
-    .filter((id, index, allIds) => connectedIds.has(id) && allIds.indexOf(id) === index);
+    .filter((id, index, allIds) => requiredIds.has(id) && allIds.indexOf(id) === index);
   const hasStructuralChildren = structuralIds.length > 1;
   const hasDependencies =
     hasDirectBindings(structuralIds, widgetIndex) ||
@@ -587,7 +585,7 @@ export function analyzeSavedWidgetSelection(
     hasStructuralChildren,
     requiresGroup,
     recommendedMode: requiresGroup ? "group" : "widget",
-    connectedWidgetIds: orderedIds,
+    groupWidgetIds: orderedIds,
   };
 }
 
@@ -626,7 +624,7 @@ export function buildSavedWidgetGroupPayloadFromDashboard(
   },
 ) {
   const selection = analyzeSavedWidgetSelection(dashboard, instanceId);
-  const includedIds = new Set(selection.connectedWidgetIds);
+  const includedIds = new Set(selection.groupWidgetIds);
   const orderedWidgets = flattenDashboardWidgets(dashboard.widgets).filter((widget, index, allWidgets) =>
     includedIds.has(widget.id) && allWidgets.findIndex((entry) => entry.id === widget.id) === index,
   );

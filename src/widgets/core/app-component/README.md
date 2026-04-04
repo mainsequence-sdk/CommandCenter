@@ -33,7 +33,9 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - `appComponentExecution.ts`: pure executable-widget adapter for `AppComponent`. It resolves bound
   inputs, builds the request, submits it, and returns a runtime-state patch for the shared
   dashboard graph runner.
-- `AppComponentWidget.tsx`: runtime widget body that renders only the generated request inputs.
+- `AppComponentWidget.tsx`: runtime widget body that renders the saved compiled request form, or
+  synthesizes a compatible runtime form from the saved binding spec for legacy widgets. It must not
+  fetch OpenAPI schema on workspace runtime surfaces.
 - `AppComponentWidgetSettings.tsx`: settings experience for API discovery, operation selection, response-model inspection, and live request testing.
 - `AppComponentFormSections.tsx`: shared generated-input renderer reused by both the canvas widget and the settings-side test harness.
 
@@ -46,6 +48,10 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - Response inspection and request testing happen in widget settings; the mounted widget itself stays input-focused.
 - Dynamic bindings are compiled from the selected endpoint in settings and resolved synchronously
   from saved widget props at graph/binding time.
+- Settings own OpenAPI discovery. The runtime widget and shared execution path read the saved
+  compiled request form from `bindingSpec.requestForm` when present, and otherwise synthesize a
+  compatible fallback form from the saved binding ports for legacy widgets. Runtime still must not
+  fetch `/openapi.json`.
 - Binding still stays port-to-port. Nested response-field selection is stored on the binding edge
   as a transform, not as a second AppComponent-only wiring model.
 - Request execution now also goes through the shared dashboard execution coordinator when it is
@@ -71,6 +77,8 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   cross-widget composition path.
 - Keep request execution in `appComponentExecution.ts` and the dashboard execution layer. Do not
   reintroduce separate inline submit orchestration in the widget body or settings page.
+- Keep runtime schema ownership in settings. If runtime surfaces need more request metadata, persist
+  it into the binding spec; do not reintroduce runtime OpenAPI fetches in the mounted widget body.
 - `refreshOnDashboardRefresh` is a persisted widget prop. If backend widget-props validation exists,
   it must continue to allow this boolean field.
 - Keep the safe-response cache policy narrow unless product requirements change. Manual submit and

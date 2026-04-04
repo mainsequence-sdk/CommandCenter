@@ -1,10 +1,11 @@
 import { defineWidget } from "@/widgets/types";
 
+import { portfolioWeightsExecutionDefinition } from "./portfolioWeightsExecution";
 import {
   PortfolioWeightsWidget,
-  type PortfolioWeightsWidgetProps,
 } from "./PortfolioWeightsWidget";
 import { PortfolioWeightsWidgetSettings } from "./PortfolioWeightsWidgetSettings";
+import type { PortfolioWeightsWidgetProps } from "./portfolioWeightsRuntime";
 
 export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>({
   id: "portfolio-weights-table",
@@ -20,5 +21,7 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
     variant: "positions",
   },
   settingsComponent: PortfolioWeightsWidgetSettings,
+  execution: portfolioWeightsExecutionDefinition,
+  workspaceRuntimeMode: "execution-owner",
   component: PortfolioWeightsWidget,
 });

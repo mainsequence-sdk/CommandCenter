@@ -46,6 +46,7 @@ export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisuali
       },
     ],
   },
+  workspaceRuntimeMode: "consumer",
   railIcon: Table,
   settingsComponent: DataNodeTableWidgetSettings,
   component: DataNodeTableWidget,

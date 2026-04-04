@@ -51,5 +51,6 @@ export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWid
   railIcon: LineChart,
   schema: zeroCurveSettingsSchema,
   controller: mainSequenceZeroCurveWidgetController,
+  workspaceRuntimeMode: "consumer",
   component: ZeroCurveWidget,
 });

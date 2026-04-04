@@ -392,6 +392,7 @@ export interface DashboardWidgetGraphExecutionResult {
 }
 
 export interface ExecuteDashboardWidgetGraphArgs {
+  scopeId: string;
   widgets: DashboardWidgetInstance[];
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
   targetInstanceId: string;
@@ -512,6 +513,7 @@ export async function executeDashboardWidgetGraph(
       instanceId === args.targetInstanceId,
     );
     const executionContext = {
+      scopeId: args.scopeId,
       widgetId: instance.widgetId,
       instanceId,
       reason: nodeReason,

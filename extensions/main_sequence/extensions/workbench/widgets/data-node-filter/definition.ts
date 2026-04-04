@@ -84,6 +84,7 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
   schema: dataNodeFilterSettingsSchema,
   controller: dataNodeFilterWidgetController,
   execution: dataNodeFilterExecutionDefinition,
+  workspaceRuntimeMode: "execution-owner",
   settingsComponent: MainSequenceDataNodeFilterWidgetSettings,
   component: MainSequenceDataNodeFilterWidget,
 });

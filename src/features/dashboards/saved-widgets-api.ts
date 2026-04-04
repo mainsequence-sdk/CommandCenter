@@ -57,6 +57,19 @@ function readString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 
+function readFiniteNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
 function readStringArray(value: unknown) {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
@@ -198,7 +211,7 @@ export interface SavedWidgetInstanceSummary {
   labels: string[];
   source: string;
   category: string;
-  widgetId: string;
+  widgetTypeId: string;
   instanceTitle: string;
   updatedAt: string | null;
 }
@@ -259,7 +272,7 @@ export interface SavedWidgetInstanceMutationPayload {
   category?: string;
   source?: string;
   schemaVersion?: number;
-  widgetId: string;
+  widgetTypeId: string;
   instanceTitle?: string;
   props?: Record<string, unknown>;
   presentation?: WidgetInstancePresentation;
@@ -278,7 +291,7 @@ export interface SavedWidgetGroupMemberWidgetSnapshotPayload {
   category?: string;
   source?: string;
   schemaVersion?: number;
-  widgetId: string;
+  widgetTypeId: string;
   instanceTitle?: string;
   props?: Record<string, unknown>;
   presentation?: WidgetInstancePresentation;
@@ -326,9 +339,14 @@ function normalizeSavedWidgetInstanceSummary(value: unknown): SavedWidgetInstanc
       ? value.widget
       : value;
   const id = normalizeSavedWidgetId(value.id ?? nested.id);
-  const widgetId = readString(nested.widgetId ?? nested.widget_id).trim();
+  const widgetTypeId = readString(
+    nested.widgetTypeId ??
+      nested.widget_type_id ??
+      nested.widgetId ??
+      nested.widget_id,
+  ).trim();
 
-  if (!id || !widgetId) {
+  if (!id || !widgetTypeId) {
     return null;
   }
 
@@ -339,7 +357,7 @@ function normalizeSavedWidgetInstanceSummary(value: unknown): SavedWidgetInstanc
     labels: readStringArray(value.labels ?? nested.labels),
     source: readString(value.source ?? nested.source, "user"),
     category: readString(value.category ?? nested.category, "Custom"),
-    widgetId,
+    widgetTypeId,
     instanceTitle: readString(nested.instanceTitle ?? nested.instance_title ?? nested.title, ""),
     updatedAt:
       typeof value.updatedAt === "string"
@@ -501,6 +519,17 @@ function normalizeSavedWidgetGroupSummary(value: unknown): SavedWidgetGroupSumma
 
   const membersValue =
     value.members ?? value.group_members ?? value.widgets ?? value.saved_widget_instances;
+  const explicitMemberCount =
+    readFiniteNumber(value.memberCount) ??
+    readFiniteNumber(value.member_count) ??
+    readFiniteNumber(value.membersCount) ??
+    readFiniteNumber(value.members_count) ??
+    readFiniteNumber(value.widgetsCount) ??
+    readFiniteNumber(value.widgets_count) ??
+    readFiniteNumber(value.groupMembersCount) ??
+    readFiniteNumber(value.group_members_count) ??
+    readFiniteNumber(value.savedWidgetInstancesCount) ??
+    readFiniteNumber(value.saved_widget_instances_count);
 
   return {
     id,
@@ -510,13 +539,11 @@ function normalizeSavedWidgetGroupSummary(value: unknown): SavedWidgetGroupSumma
     source: readString(value.source, "user"),
     category: readString(value.category, "Custom"),
     memberCount:
-      typeof value.memberCount === "number"
-        ? value.memberCount
-        : typeof value.member_count === "number"
-          ? value.member_count
-          : Array.isArray(membersValue)
-            ? membersValue.length
-            : 0,
+      explicitMemberCount !== null
+        ? Math.max(0, Math.trunc(explicitMemberCount))
+        : Array.isArray(membersValue)
+          ? membersValue.length
+          : 0,
     updatedAt:
       typeof value.updatedAt === "string"
         ? value.updatedAt
@@ -568,6 +595,7 @@ function normalizeSavedWidgetGroupRecord(value: unknown): SavedWidgetGroupRecord
 function normalizeListPayload<T>(
   payload: unknown,
   normalizer: (value: unknown) => T | null,
+  candidateKeys: string[],
 ) {
   if (Array.isArray(payload)) {
     return payload
@@ -580,13 +608,7 @@ function normalizeListPayload<T>(
   }
 
   const candidateArrays = [
-    payload.results,
-    payload.rows,
-    payload.items,
-    payload.saved_widget_instances,
-    payload.saved_widget_groups,
-    payload.widgets,
-    payload.groups,
+    ...candidateKeys.map((key) => payload[key]),
   ];
 
   for (const candidate of candidateArrays) {
@@ -597,8 +619,7 @@ function normalizeListPayload<T>(
     }
   }
 
-  const single = normalizer(payload);
-  return single ? [single] : [];
+  return [];
 }
 
 function resolveDetailPath(template: string, id: string) {
@@ -623,7 +644,7 @@ function serializeSavedWidgetInstanceMutationPayload(payload: SavedWidgetInstanc
     category: payload.category ?? "Custom",
     source: payload.source ?? "user",
     schema_version: payload.schemaVersion ?? 1,
-    widget_id: payload.widgetId,
+    widget_id: payload.widgetTypeId,
     instance_title: payload.instanceTitle ?? "",
     props: payload.props ?? {},
     presentation: payload.presentation ?? {},
@@ -656,7 +677,7 @@ function serializeSavedWidgetGroupMutationPayload(payload: SavedWidgetGroupMutat
         category: member.widgetInstance.category ?? "Custom",
         source: member.widgetInstance.source ?? "user",
         schema_version: member.widgetInstance.schemaVersion ?? 1,
-        widget_id: member.widgetInstance.widgetId,
+        widget_id: member.widgetInstance.widgetTypeId,
         instance_title: member.widgetInstance.instanceTitle ?? "",
         props: member.widgetInstance.props ?? {},
         presentation: member.widgetInstance.presentation ?? {},
@@ -700,7 +721,11 @@ export async function fetchSavedWidgetInstancesFromBackend() {
   }
 
   const payload = await requestSavedWidgetBackend(listPath);
-  return normalizeListPayload(payload, normalizeSavedWidgetInstanceSummary);
+  return normalizeListPayload(
+    payload,
+    normalizeSavedWidgetInstanceSummary,
+    ["results", "rows", "items", "saved_widget_instances", "instances"],
+  );
 }
 
 export async function fetchSavedWidgetInstanceDetailFromBackend(id: string) {
@@ -765,6 +790,18 @@ export async function updateSavedWidgetInstanceInBackend(
   return record;
 }
 
+export async function deleteSavedWidgetInstanceInBackend(id: string) {
+  const detailPath = commandCenterConfig.savedWidgets.instancesDetailUrl.trim();
+
+  if (!detailPath) {
+    throw new Error("Saved widget instance detail endpoint is not configured.");
+  }
+
+  await requestSavedWidgetBackend(resolveDetailPath(detailPath, id), {
+    method: "DELETE",
+  });
+}
+
 export async function fetchSavedWidgetGroupsFromBackend() {
   const listPath = commandCenterConfig.savedWidgets.groupsListUrl.trim();
 
@@ -773,7 +810,11 @@ export async function fetchSavedWidgetGroupsFromBackend() {
   }
 
   const payload = await requestSavedWidgetBackend(listPath);
-  return normalizeListPayload(payload, normalizeSavedWidgetGroupSummary);
+  return normalizeListPayload(
+    payload,
+    normalizeSavedWidgetGroupSummary,
+    ["results", "rows", "items", "saved_widget_groups", "groups"],
+  );
 }
 
 export async function fetchSavedWidgetGroupDetailFromBackend(id: string) {
@@ -836,4 +877,16 @@ export async function updateSavedWidgetGroupInBackend(
   }
 
   return record;
+}
+
+export async function deleteSavedWidgetGroupInBackend(id: string) {
+  const detailPath = commandCenterConfig.savedWidgets.groupsDetailUrl.trim();
+
+  if (!detailPath) {
+    throw new Error("Saved widget group detail endpoint is not configured.");
+  }
+
+  await requestSavedWidgetBackend(resolveDetailPath(detailPath, id), {
+    method: "DELETE",
+  });
 }

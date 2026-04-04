@@ -1,3 +1,4 @@
+import { buildDashboardExecutionRequestTraceMeta } from "@/dashboards/dashboard-request-trace";
 import type {
   WidgetExecutionContext,
   WidgetExecutionDefinition,
@@ -6,18 +7,18 @@ import type {
 
 import {
   APP_COMPONENT_SAFE_RESPONSE_CACHE_TTL_MS,
-  fetchAppComponentOpenApiDocument,
   submitAppComponentRequest,
 } from "./appComponentApi";
 import {
-  buildAppComponentGeneratedForm,
+  buildAppComponentOperationKey,
   buildAppComponentRequest,
   extractAppComponentPublishedOutputs,
   normalizeAppComponentProps,
   normalizeAppComponentRuntimeState,
   resolveAppComponentBoundInputOverlay,
+  resolveAppComponentEffectiveOperationKey,
   resolveAppComponentInitialDraftValues,
-  resolveAppComponentOperation,
+  resolveAppComponentRuntimeGeneratedForm,
   tryResolveAppComponentBaseUrl,
   type AppComponentWidgetProps,
 } from "./appComponentModel";
@@ -48,6 +49,7 @@ function buildAppComponentErrorResult(
 export async function executeAppComponent(
   context: WidgetExecutionContext<AppComponentWidgetProps>,
 ): Promise<WidgetExecutionResult> {
+  const requestTraceMeta = buildDashboardExecutionRequestTraceMeta(context);
   const normalizedProps = normalizeAppComponentProps(
     (context.targetOverrides?.props ?? context.props) as AppComponentWidgetProps,
   );
@@ -55,45 +57,29 @@ export async function executeAppComponent(
     context.targetOverrides?.runtimeState ?? context.runtimeState,
   );
   const resolvedBaseUrl = tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl);
+  const generatedForm = resolveAppComponentRuntimeGeneratedForm(normalizedProps);
+  const operationKey = resolveAppComponentEffectiveOperationKey(normalizedProps) ??
+    (normalizedProps.method && normalizedProps.path
+      ? buildAppComponentOperationKey(normalizedProps.method, normalizedProps.path)
+      : undefined);
 
   if (!resolvedBaseUrl || !normalizedProps.method || !normalizedProps.path) {
     return buildAppComponentErrorResult(
       normalizedRuntimeState,
-      undefined,
+      operationKey,
       context.targetOverrides?.draftValues ?? normalizedRuntimeState.draftValues ?? {},
       "Select a valid API base URL and operation before executing this widget.",
     );
   }
 
-  let document: Awaited<ReturnType<typeof fetchAppComponentOpenApiDocument>>;
-
-  try {
-    document = await fetchAppComponentOpenApiDocument({
-      baseUrl: resolvedBaseUrl,
-      authMode: normalizedProps.authMode,
-    });
-  } catch (error) {
+  if (!generatedForm) {
     return buildAppComponentErrorResult(
       normalizedRuntimeState,
-      undefined,
+      operationKey,
       context.targetOverrides?.draftValues ?? normalizedRuntimeState.draftValues ?? {},
-      error instanceof Error
-        ? error.message
-        : "Unable to load the configured OpenAPI document.",
+      "This widget runtime is missing both its compiled request form and enough saved binding metadata to rebuild one.",
     );
   }
-
-  const resolvedOperation = resolveAppComponentOperation(
-    document,
-    normalizedProps.method,
-    normalizedProps.path,
-  );
-  const generatedForm = buildAppComponentGeneratedForm(
-    document,
-    resolvedOperation,
-    normalizedProps.requestBodyContentType,
-  );
-  const operationKey = resolvedOperation?.record.key;
   const initialDraftValues = resolveAppComponentInitialDraftValues(
     generatedForm,
     normalizedRuntimeState,
@@ -112,7 +98,6 @@ export async function executeAppComponent(
   const effectiveDraftValues = boundInputOverlay.values;
   const buildResult = buildAppComponentRequest(
     normalizedProps,
-    resolvedOperation,
     generatedForm,
     effectiveDraftValues,
   );
@@ -137,6 +122,7 @@ export async function executeAppComponent(
         enabled: shouldUseCachedAppComponentResponse(context.reason),
         ttlMs: APP_COMPONENT_SAFE_RESPONSE_CACHE_TTL_MS,
       },
+      traceMeta: requestTraceMeta,
     });
 
     return {

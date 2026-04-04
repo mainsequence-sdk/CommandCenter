@@ -1,6 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
 import {
   AllCommunityModule,
   type CellStyle,
@@ -15,10 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
-import {
-  fetchDataNodeDetail,
-  formatMainSequenceError,
-} from "../../../../common/api";
 import {
   resolveDataNodeDateRange,
 } from "../data-node-shared/dataNodeShared";
@@ -568,28 +563,17 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
     enabled: sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
-  const effectiveDataNodeId = Number(
-    linkedDataset?.dataNodeId ?? sourceBinding.resolvedSourceProps.dataNodeId ?? 0,
-  );
   const effectiveProps = useMemo(
     () => ({
       ...normalizedProps,
       ...sourceBinding.resolvedSourceProps,
-      dataNodeId: effectiveDataNodeId || undefined,
     }),
-    [effectiveDataNodeId, normalizedProps, sourceBinding.resolvedSourceProps],
+    [normalizedProps, sourceBinding.resolvedSourceProps],
   );
   const baseResolvedProps = useMemo(
     () => resolveDataNodeTableVisualizerProps(effectiveProps),
     [effectiveProps],
   );
-
-  const dataNodeDetailQuery = useQuery({
-    queryKey: ["main_sequence", "widgets", "data_node_table_visualizer", "detail", effectiveDataNodeId],
-    queryFn: () => fetchDataNodeDetail(effectiveDataNodeId),
-    enabled: Number.isFinite(effectiveDataNodeId) && effectiveDataNodeId > 0,
-    staleTime: 300_000,
-  });
 
   const resolvedRange = useMemo(
     () =>
@@ -600,26 +584,18 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
       ),
     [baseResolvedProps, rangeEndMs, rangeStartMs],
   );
-  const hasSourceTableConfiguration = Boolean(
-    dataNodeDetailQuery.data?.sourcetableconfiguration,
-  );
-  const hasPublishedFrame =
-    (linkedDataset?.status === "ready" &&
-      ((linkedDataset.rows?.length ?? 0) > 0 ||
-        (linkedDataset.columns?.length ?? 0) > 0)) ||
-    false;
   const sourceColumns = linkedDataset?.columns ?? [];
   const sourceRows = linkedDataset?.rows ?? [];
 
   const remoteFrame = useMemo(
     () =>
       buildDataNodeTableVisualizerFrameFromRemoteData(
-        dataNodeDetailQuery.data,
+        undefined,
         sourceRows,
         sourceColumns,
         linkedDataset?.fields ?? [],
       ),
-    [dataNodeDetailQuery.data, linkedDataset?.fields, sourceColumns, sourceRows],
+    [linkedDataset?.fields, sourceColumns, sourceRows],
   );
   const resolvedProps = useMemo(
     () => resolveDataNodeTableVisualizerPropsWithFrame(effectiveProps, remoteFrame),
@@ -742,44 +718,16 @@ export function DataNodeTableWidget({ props, instanceId }: Props) {
     return <Skeleton className="h-full" />;
   }
 
-  if (!resolvedProps.dataNodeId && !hasPublishedFrame) {
+  if (!sourceBinding.hasResolvedFilterWidgetSource || !linkedDataset) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
           <Database className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Configure the linked Data Node</div>
+          <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
           <p className="text-sm text-muted-foreground">
-            This table only renders the dataset coming from its Data Node source.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (dataNodeDetailQuery.isLoading && !dataNodeDetailQuery.data && !hasPublishedFrame) {
-    return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
-  }
-
-  if (dataNodeDetailQuery.isError && !hasPublishedFrame) {
-    return (
-      <div className="border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-        {formatMainSequenceError(dataNodeDetailQuery.error)}
-      </div>
-    );
-  }
-
-  if (!hasSourceTableConfiguration && !hasPublishedFrame) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
-          <Database className="h-5 w-5" />
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">This data node has no table data</div>
-          <p className="text-sm text-muted-foreground">
-            Choose another data node with source-table metadata to render it here.
+            This table only renders the canonical dataset coming from a linked Data Node.
           </p>
         </div>
       </div>

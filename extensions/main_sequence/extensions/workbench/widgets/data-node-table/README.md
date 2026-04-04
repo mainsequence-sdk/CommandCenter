@@ -131,6 +131,10 @@ At runtime, a published linked `Data Node` frame takes precedence over raw sourc
 That keeps the table usable for transformed upstream datasets, including chained aggregate and pivot
 nodes whose output shape no longer matches the original source metadata.
 
+When a linked Data Node frame is already available, the mounted table now treats that published
+dataset as the canonical runtime source and skips its own `dynamic_table/{id}/` detail lookup on
+workspace surfaces. Detail metadata is only fetched when no linked frame is available yet.
+
 The table does not care how many `Data Node` hops exist upstream. It always consumes the selected
 Data Node's final published frame only. That keeps the consumer contract stable as the pipeline
 grows deeper.

@@ -8,6 +8,7 @@ import {
 } from "lightweight-charts";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetComponentProps } from "@/widgets/types";
@@ -59,6 +60,9 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
+  });
+  useResolveWidgetUpstream(instanceId, {
+    enabled: sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = sourceBinding.resolvedSourceDataset;
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;

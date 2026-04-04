@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   applyEdgeChanges,
@@ -15,18 +15,23 @@ import {
   type XYPosition,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, Boxes, Save } from "lucide-react";
+import { ArrowLeft, Boxes, Bug, Save } from "lucide-react";
 
 import { getWidgetById } from "@/app/registry";
 import { hasAllPermissions } from "@/auth/permissions";
 import {
   DashboardControlsProvider,
   DashboardDataControls,
+  DashboardRefreshProgressLine,
 } from "@/dashboards/DashboardControls";
 import {
   DashboardWidgetDependenciesProvider,
   useDashboardWidgetDependencies,
 } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  DashboardWidgetExecutionProvider,
+  useDashboardWidgetExecution,
+} from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import {
   addWidgetGraphConnectionToBindings,
@@ -37,7 +42,7 @@ import {
   type DashboardWidgetDependencyGraph,
 } from "@/dashboards/widget-dependencies";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
-import type { ResolvedWidgetInputs, WidgetInstancePresentation } from "@/widgets/types";
+import type { ResolvedWidgetInputs } from "@/widgets/types";
 
 import {
   appendCatalogWidget,
@@ -59,9 +64,11 @@ import {
   WorkspaceToolbarButton,
   WorkspaceWidgetRail,
 } from "./WorkspaceChrome";
+import { WorkspaceRequestDebugPanel } from "./WorkspaceRequestDebugPanel";
 
 const GRAPH_NODE_HORIZONTAL_GAP = 420;
 const GRAPH_NODE_VERTICAL_GAP = 220;
+const GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS = 1800;
 const GRAPH_NODE_TYPES = {
   workspaceWidget: WorkspaceGraphNode,
 };
@@ -159,86 +166,24 @@ function layoutGraphNodes(graph: DashboardWidgetDependencyGraph) {
   return positions;
 }
 
-function HiddenWidgetRuntimeMount({
-  instances,
-  permissions,
-  onRuntimeStateChange,
-}: {
-  instances: DashboardWidgetInstance[];
-  permissions: string[];
-  onRuntimeStateChange: (instanceId: string, state: Record<string, unknown> | undefined) => void;
-}) {
-  return (
-    <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
-      {instances.map((instance) => {
-        const widget = getWidgetById(instance.widgetId);
-
-        if (!widget) {
-          return null;
-        }
-
-        const required = [
-          ...(widget.requiredPermissions ?? []),
-          ...(instance.requiredPermissions ?? []),
-        ];
-
-        if (!hasAllPermissions(permissions, required)) {
-          return null;
-        }
-
-        const Component = widget.component as ComponentType<{
-          widget: typeof widget;
-          instanceId?: string;
-          instanceTitle?: string;
-          props: Record<string, unknown>;
-          presentation?: WidgetInstancePresentation;
-          runtimeState?: Record<string, unknown>;
-          onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-        }>;
-
-        return (
-          <div key={instance.id} className="h-px w-px overflow-hidden">
-            <Component
-              widget={widget}
-              instanceId={instance.id}
-              instanceTitle={instance.title}
-              props={instance.props ?? {}}
-              presentation={instance.presentation}
-              runtimeState={instance.runtimeState}
-              onRuntimeStateChange={(state) => {
-                onRuntimeStateChange(instance.id, state);
-              }}
-            />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function WorkspaceGraphCanvas({
-  permissions,
   onBindingsChange,
-  onRuntimeStateChange,
 }: {
-  permissions: string[];
   onBindingsChange: (
     instanceId: string,
     bindings: DashboardWidgetInstance["bindings"],
   ) => void;
-  onRuntimeStateChange: (instanceId: string, state: Record<string, unknown> | undefined) => void;
 }) {
   const dependencyModel = useDashboardWidgetDependencies();
+  const widgetExecution = useDashboardWidgetExecution();
   const [nodes, setNodes] = useState<WorkspaceGraphFlowNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  const [dependencyFocusNodeId, setDependencyFocusNodeId] = useState<string | null>(null);
   const [visibleOutputIdsByNodeId, setVisibleOutputIdsByNodeId] = useState<Record<string, string[]>>(
     {},
   );
+  const [animationNowMs, setAnimationNowMs] = useState(() => Date.now());
 
-  const widgetInstances = useMemo(
-    () => dependencyModel?.entries.map(({ instance }) => instance) ?? [],
-    [dependencyModel],
-  );
   const instanceIndex = useMemo(
     () => createDashboardWidgetEntryIndex(dependencyModel?.entries ?? []),
     [dependencyModel],
@@ -247,6 +192,58 @@ function WorkspaceGraphCanvas({
     () => (dependencyModel ? layoutGraphNodes(dependencyModel.graph) : new Map<string, XYPosition>()),
     [dependencyModel],
   );
+  const executionStateByNodeId = useMemo(
+    () =>
+      Object.fromEntries(
+        (dependencyModel?.graph.nodes ?? []).map((node) => [
+          node.id,
+          widgetExecution?.getExecutionState(node.id),
+        ] as const),
+      ),
+    [dependencyModel, widgetExecution],
+  );
+
+  useEffect(() => {
+    const now = Date.now();
+    const shouldAnimate = Object.values(executionStateByNodeId).some((state) => {
+      if (!state) {
+        return false;
+      }
+
+      if (state.status === "running") {
+        return true;
+      }
+
+      return Boolean(
+        state.finishedAtMs &&
+          now - state.finishedAtMs < GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS,
+      );
+    });
+
+    if (!shouldAnimate) {
+      setAnimationNowMs(now);
+      return undefined;
+    }
+
+    setAnimationNowMs(now);
+    const intervalId = window.setInterval(() => {
+      setAnimationNowMs(Date.now());
+    }, 120);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [executionStateByNodeId]);
+
+  useEffect(() => {
+    if (!dependencyModel || !dependencyFocusNodeId) {
+      return;
+    }
+
+    if (!dependencyModel.graph.nodes.some((node) => node.id === dependencyFocusNodeId)) {
+      setDependencyFocusNodeId(null);
+    }
+  }, [dependencyFocusNodeId, dependencyModel]);
 
   useEffect(() => {
     if (!dependencyModel) {
@@ -285,6 +282,69 @@ function WorkspaceGraphCanvas({
     });
   }, [dependencyModel]);
 
+  const dependencyHighlight = useMemo(() => {
+    const highlightedNodeIds = new Set<string>();
+    const highlightedEdgeIds = new Set<string>();
+    const highlightedInputIdsByNodeId = new Map<string, Set<string>>();
+    const highlightedOutputIdsByNodeId = new Map<string, Set<string>>();
+
+    if (!dependencyModel || !dependencyFocusNodeId) {
+      return {
+        highlightedNodeIds,
+        highlightedEdgeIds,
+        highlightedInputIdsByNodeId,
+        highlightedOutputIdsByNodeId,
+      };
+    }
+
+    const incomingEdgesByNodeId = new Map<string, typeof dependencyModel.graph.edges>();
+
+    for (const edge of dependencyModel.graph.edges) {
+      const currentEdges = incomingEdgesByNodeId.get(edge.to) ?? [];
+      currentEdges.push(edge);
+      incomingEdgesByNodeId.set(edge.to, currentEdges);
+    }
+
+    const queue = [dependencyFocusNodeId];
+    const visitedNodeIds = new Set<string>();
+
+    while (queue.length > 0) {
+      const currentNodeId = queue.shift()!;
+
+      if (visitedNodeIds.has(currentNodeId)) {
+        continue;
+      }
+
+      visitedNodeIds.add(currentNodeId);
+      highlightedNodeIds.add(currentNodeId);
+
+      for (const edge of incomingEdgesByNodeId.get(currentNodeId) ?? []) {
+        highlightedEdgeIds.add(edge.id);
+        highlightedNodeIds.add(edge.from);
+        highlightedNodeIds.add(edge.to);
+
+        const targetInputs = highlightedInputIdsByNodeId.get(edge.to) ?? new Set<string>();
+        targetInputs.add(edge.toPort);
+        highlightedInputIdsByNodeId.set(edge.to, targetInputs);
+
+        const sourceOutputs = highlightedOutputIdsByNodeId.get(edge.from) ?? new Set<string>();
+        sourceOutputs.add(edge.fromPort);
+        highlightedOutputIdsByNodeId.set(edge.from, sourceOutputs);
+
+        if (!visitedNodeIds.has(edge.from)) {
+          queue.push(edge.from);
+        }
+      }
+    }
+
+    return {
+      highlightedNodeIds,
+      highlightedEdgeIds,
+      highlightedInputIdsByNodeId,
+      highlightedOutputIdsByNodeId,
+    };
+  }, [dependencyFocusNodeId, dependencyModel]);
+
   const derivedNodes = useMemo<WorkspaceGraphFlowNode[]>(() => {
     if (!dependencyModel) {
       return [];
@@ -313,6 +373,8 @@ function WorkspaceGraphCanvas({
         required:
           resolvedIo?.inputs?.find((candidate) => candidate.id === input.id)?.required,
         status: resolveInputPortStatus(resolvedInputs, input.id),
+        dependencyHighlighted:
+          dependencyHighlight.highlightedInputIdsByNodeId.get(node.id)?.has(input.id) ?? false,
       }));
       const outputs: WorkspaceGraphOutputPortData[] = node.outputs.map((output) => ({
         id: output.id,
@@ -321,6 +383,8 @@ function WorkspaceGraphCanvas({
         description:
           resolvedIo?.outputs?.find((candidate) => candidate.id === output.id)?.description,
         connectionCount: outputsByPort.get(output.id) ?? 0,
+        dependencyHighlighted:
+          dependencyHighlight.highlightedOutputIdsByNodeId.get(node.id)?.has(output.id) ?? false,
       }));
       const locallyVisibleOutputIds = new Set(visibleOutputIdsByNodeId[node.id] ?? []);
       const visibleOutputs = outputs.filter(
@@ -332,6 +396,7 @@ function WorkspaceGraphCanvas({
       const availableOutputs = outputs.filter(
         (output) => output.connectionCount === 0 && !locallyVisibleOutputIds.has(output.id),
       );
+      const executionState = executionStateByNodeId[node.id];
 
       return {
         id: node.id,
@@ -349,6 +414,12 @@ function WorkspaceGraphCanvas({
           inputs,
           outputs: visibleOutputs,
           availableOutputs,
+          executionStatus: executionState?.status,
+          executionFinishedAtMs: executionState?.finishedAtMs,
+          animationNowMs,
+          dependencyHighlighted:
+            dependencyHighlight.highlightedNodeIds.has(node.id) && node.id !== dependencyFocusNodeId,
+          dependencyRoot: node.id === dependencyFocusNodeId,
           onRevealOutput: (outputId) => {
             setVisibleOutputIdsByNodeId((current) => {
               const currentOutputIds = current[node.id] ?? [];
@@ -387,7 +458,15 @@ function WorkspaceGraphCanvas({
         } satisfies WorkspaceGraphNodeData,
       } satisfies WorkspaceGraphFlowNode;
     });
-  }, [dependencyModel, layoutedPositions, visibleOutputIdsByNodeId]);
+  }, [
+    animationNowMs,
+    dependencyFocusNodeId,
+    dependencyHighlight,
+    dependencyModel,
+    executionStateByNodeId,
+    layoutedPositions,
+    visibleOutputIdsByNodeId,
+  ]);
 
   const derivedEdges = useMemo<Edge[]>(() => {
     if (!dependencyModel) {
@@ -412,6 +491,31 @@ function WorkspaceGraphCanvas({
       }
 
       const broken = edge.status !== "valid";
+      const sourceExecutionState = executionStateByNodeId[edge.from];
+      const targetExecutionState = executionStateByNodeId[edge.to];
+      const sourceRecentlyCompleted = Boolean(
+        sourceExecutionState?.finishedAtMs &&
+          animationNowMs - sourceExecutionState.finishedAtMs < GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS,
+      );
+      const targetRecentlyCompleted = Boolean(
+        targetExecutionState?.finishedAtMs &&
+          animationNowMs - targetExecutionState.finishedAtMs < GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS,
+      );
+      const edgeRunning =
+        sourceExecutionState?.status === "running" ||
+        targetExecutionState?.status === "running";
+      const edgeRecentlyCompleted = !edgeRunning && (sourceRecentlyCompleted || targetRecentlyCompleted);
+      const edgeStroke = broken
+        ? "var(--color-danger)"
+        : edgeRunning
+          ? "var(--color-primary)"
+          : edgeRecentlyCompleted
+            ? "var(--color-success)"
+            : "color-mix(in srgb, var(--border) 82%, transparent)";
+      const dependencyHighlighted = dependencyHighlight.highlightedEdgeIds.has(edge.id);
+      const highlightedStroke = broken
+        ? "color-mix(in srgb, var(--color-danger) 82%, white 18%)"
+        : "color-mix(in srgb, var(--color-primary) 78%, white 22%)";
 
       return [
         {
@@ -422,20 +526,31 @@ function WorkspaceGraphCanvas({
           targetHandle: buildWidgetGraphHandleId("input", edge.toPort),
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: broken ? "var(--color-danger)" : "var(--color-primary)",
+            color: dependencyHighlighted ? highlightedStroke : edgeStroke,
           },
           style: {
-            stroke: broken ? "var(--color-danger)" : "var(--color-primary)",
-            strokeWidth: broken ? 2 : 2.5,
+            stroke: dependencyHighlighted ? highlightedStroke : edgeStroke,
+            strokeWidth: dependencyHighlighted
+              ? 4
+              : broken
+                ? 2
+                : edgeRunning
+                  ? 3.5
+                  : edgeRecentlyCompleted
+                    ? 3
+                    : 2.5,
             strokeDasharray: broken ? "8 6" : undefined,
+            filter: dependencyHighlighted
+              ? "drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 40%, transparent))"
+              : undefined,
           },
-          animated: false,
+          animated: edgeRunning,
           deletable: true,
           selectable: true,
         } satisfies Edge,
       ];
     });
-  }, [dependencyModel]);
+  }, [animationNowMs, dependencyHighlight.highlightedEdgeIds, dependencyModel, executionStateByNodeId]);
 
   useEffect(() => {
     setNodes((currentNodes) => {
@@ -554,11 +669,6 @@ function WorkspaceGraphCanvas({
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      <HiddenWidgetRuntimeMount
-        instances={widgetInstances}
-        permissions={permissions}
-        onRuntimeStateChange={onRuntimeStateChange}
-      />
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -576,7 +686,13 @@ function WorkspaceGraphCanvas({
         nodesDraggable
         nodesConnectable
         edgesReconnectable={false}
-        className="bg-transparent"
+        className="workspace-graph-flow bg-transparent"
+        onNodeClick={(_event, node) => {
+          setDependencyFocusNodeId(node.id);
+        }}
+        onPaneClick={() => {
+          setDependencyFocusNodeId(null);
+        }}
       >
         <Background gap={18} size={1.5} color="color-mix(in srgb, var(--border) 58%, transparent)" />
         <Controls showInteractive={false} />
@@ -585,7 +701,11 @@ function WorkspaceGraphCanvas({
   );
 }
 
-export function CustomWorkspaceGraphPage() {
+export function CustomWorkspaceGraphPage({
+  withRuntimeProviders = true,
+}: {
+  withRuntimeProviders?: boolean;
+} = {}) {
   const {
     user,
     permissions,
@@ -600,9 +720,11 @@ export function CustomWorkspaceGraphPage() {
     updateSelectedWorkspaceUserState,
   } = useCustomWorkspaceStudio();
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [requestDebugOpen, setRequestDebugOpen] = useState(false);
 
   useEffect(() => {
     setLibraryOpen(false);
+    setRequestDebugOpen(false);
   }, [selectedDashboard?.id]);
 
   if (!user) {
@@ -638,6 +760,118 @@ export function CustomWorkspaceGraphPage() {
       : [];
   });
 
+  const content = (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="sticky top-0 z-40 border-b border-primary/55 bg-background/82 px-0 py-2 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--primary)_22%,transparent)] backdrop-blur-xl">
+        <DashboardDataControls
+          controls={selectedDashboard.controls}
+          leftActions={
+            <>
+              <WorkspaceToolbarButton
+                title="Return to workspace"
+                onClick={openDashboardView}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+              </WorkspaceToolbarButton>
+              <WorkspaceToolbarButton
+                active={libraryOpen}
+                title="Components"
+                onClick={() => {
+                  setLibraryOpen((current) => !current);
+                }}
+              >
+                <Boxes className="h-3.5 w-3.5" />
+              </WorkspaceToolbarButton>
+              <WorkspaceToolbarButton
+                active={requestDebugOpen}
+                title="Debug Request"
+                onClick={() => {
+                  setRequestDebugOpen((current) => !current);
+                }}
+              >
+                <Bug className="h-3.5 w-3.5" />
+              </WorkspaceToolbarButton>
+              <WorkspaceToolbarButton
+                active={selectedWorkspaceDirty}
+                title="Save workspace"
+                onClick={() => {
+                  void saveWorkspaceDraft();
+                }}
+                disabled={!selectedWorkspaceDirty || isSaving}
+                className={!selectedWorkspaceDirty ? "opacity-50" : undefined}
+              >
+                {selectedWorkspaceDirty ? (
+                  <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-warning" />
+                ) : null}
+                <Save className="h-3.5 w-3.5" />
+              </WorkspaceToolbarButton>
+              {isSaving ? <WorkspaceSavingStatus /> : null}
+            </>
+          }
+        />
+      </div>
+
+      <div
+        className="relative min-h-0 flex-1 overflow-hidden"
+        style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
+      >
+        <DashboardRefreshProgressLine className="absolute top-0 left-0 right-0 z-30" />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ backgroundImage: "var(--workspace-canvas-background)" }}
+        />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
+        />
+
+        <WorkspaceWidgetRail
+          widgets={railWidgets}
+          activeInstanceId={null}
+          topOffsetClassName="top-4"
+          onOpenWidget={(instanceId) => {
+            openWidgetSettings(instanceId);
+          }}
+        />
+
+        <WorkspaceComponentBrowser
+          open={libraryOpen}
+          permissions={permissions}
+          userId={user.id}
+          topOffsetClassName="top-12"
+          onOpenChange={setLibraryOpen}
+          onAddWidget={(widget) => {
+            updateSelectedWorkspace((dashboard) => appendCatalogWidget(dashboard, widget));
+          }}
+        />
+
+        <div className="absolute inset-0 pl-12">
+          <WorkspaceGraphCanvas
+            onBindingsChange={(instanceId, bindings) => {
+              updateSelectedWorkspace((dashboard) =>
+                updateDashboardWidgetBindings(dashboard, instanceId, bindings),
+              );
+            }}
+          />
+        </div>
+
+        <WorkspaceRequestDebugPanel
+          open={requestDebugOpen}
+          onClose={() => {
+            setRequestDebugOpen(false);
+          }}
+          placementClassName="right-4 top-4 bottom-4"
+          scopeId={selectedDashboard.id}
+          widgets={resolvedDashboard.widgets}
+        />
+      </div>
+    </div>
+  );
+
+  if (!withRuntimeProviders) {
+    return content;
+  }
+
   return (
     <DashboardControlsProvider
       key={selectedDashboard.id}
@@ -649,99 +883,19 @@ export function CustomWorkspaceGraphPage() {
       }}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
-        <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
-          <div className="flex h-full min-h-0 flex-col overflow-hidden">
-            <div className="sticky top-0 z-40 border-b border-primary/55 bg-background/82 px-0 py-2 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--primary)_22%,transparent)] backdrop-blur-xl">
-              <DashboardDataControls
-                controls={selectedDashboard.controls}
-                leftActions={
-                  <>
-                    <WorkspaceToolbarButton
-                      title="Return to workspace"
-                      onClick={openDashboardView}
-                    >
-                      <ArrowLeft className="h-3.5 w-3.5" />
-                    </WorkspaceToolbarButton>
-                    <WorkspaceToolbarButton
-                      active={libraryOpen}
-                      title="Components"
-                      onClick={() => {
-                        setLibraryOpen((current) => !current);
-                      }}
-                    >
-                      <Boxes className="h-3.5 w-3.5" />
-                    </WorkspaceToolbarButton>
-                    <WorkspaceToolbarButton
-                      active={selectedWorkspaceDirty}
-                      title="Save workspace"
-                      onClick={() => {
-                        void saveWorkspaceDraft();
-                      }}
-                      disabled={!selectedWorkspaceDirty || isSaving}
-                      className={!selectedWorkspaceDirty ? "opacity-50" : undefined}
-                    >
-                      {selectedWorkspaceDirty ? (
-                        <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-warning" />
-                      ) : null}
-                      <Save className="h-3.5 w-3.5" />
-                    </WorkspaceToolbarButton>
-                    {isSaving ? <WorkspaceSavingStatus /> : null}
-                  </>
-                }
-              />
-            </div>
-
-            <div
-              className="relative min-h-0 flex-1 overflow-hidden"
-              style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
-            >
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{ backgroundImage: "var(--workspace-canvas-background)" }}
-              />
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
-              />
-
-              <WorkspaceWidgetRail
-                widgets={railWidgets}
-                activeInstanceId={null}
-                topOffsetClassName="top-4"
-                onOpenWidget={(instanceId) => {
-                  openWidgetSettings(instanceId);
-                }}
-              />
-
-              <WorkspaceComponentBrowser
-                open={libraryOpen}
-                permissions={permissions}
-                userId={user.id}
-                topOffsetClassName="top-12"
-                onOpenChange={setLibraryOpen}
-                onAddWidget={(widget) => {
-                  updateSelectedWorkspace((dashboard) => appendCatalogWidget(dashboard, widget));
-                }}
-              />
-
-              <div className="absolute inset-0 pl-12">
-                <WorkspaceGraphCanvas
-                  permissions={permissions}
-                  onBindingsChange={(instanceId, bindings) => {
-                    updateSelectedWorkspace((dashboard) =>
-                      updateDashboardWidgetBindings(dashboard, instanceId, bindings),
-                    );
-                  }}
-                  onRuntimeStateChange={(instanceId, state) => {
-                    updateSelectedWorkspaceUserState((dashboard) =>
-                      updateDashboardWidgetRuntimeState(dashboard, instanceId, state),
-                    );
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </DashboardWidgetDependenciesProvider>
+        <DashboardWidgetExecutionProvider
+          scopeId={selectedDashboard.id}
+          widgets={resolvedDashboard.widgets}
+          writeRuntimeState={(instanceId, runtimeState) => {
+            updateSelectedWorkspaceUserState((dashboard) =>
+              updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+            );
+          }}
+        >
+          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+            {content}
+          </DashboardWidgetDependenciesProvider>
+        </DashboardWidgetExecutionProvider>
       </DashboardWidgetRegistryProvider>
     </DashboardControlsProvider>
   );

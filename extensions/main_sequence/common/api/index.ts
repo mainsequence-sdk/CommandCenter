@@ -1,6 +1,10 @@
 import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
+import {
+  startDashboardRequestTrace,
+  type DashboardRequestTraceMeta,
+} from "@/dashboards/dashboard-request-trace";
 import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
@@ -19,6 +23,15 @@ const portfolioGroupEndpoint = "/orm/api/assets/portfolio_group/";
 const targetPortfolioEndpoint = "/orm/api/assets/target_portfolio/";
 const assetTranslationTableEndpoint = "/orm/api/assets/asset-translation-tables/";
 export const mainSequenceRegistryPageSize = 25;
+const DATA_NODE_DETAIL_CACHE_TTL_MS = 300_000;
+
+interface DataNodeDetailCacheEntry {
+  expiresAt: number;
+  promise?: Promise<DataNodeDetail>;
+  value?: DataNodeDetail;
+}
+
+const dataNodeDetailCache = new Map<string, DataNodeDetailCacheEntry>();
 
 interface PaginatedResponse<T> {
   count: number;
@@ -2863,6 +2876,7 @@ async function requestJson<T>(
   path = "",
   init?: RequestInit,
   search?: Record<string, QueryValue>,
+  traceMeta?: DashboardRequestTraceMeta,
 ) {
   const requestUrl = buildEndpointUrl(endpoint, path, search);
 
@@ -2911,10 +2925,19 @@ async function requestJson<T>(
   }
 
   let response: Response;
+  const requestTrace = startDashboardRequestTrace(traceMeta, {
+    method: init?.method,
+    url: requestUrl,
+  });
 
   try {
     response = await sendRequest();
   } catch (error) {
+    requestTrace?.fail(
+      error instanceof Error
+        ? error.message
+        : "The browser could not reach the Main Sequence API.",
+    );
     throw new MainSequenceApiError(
       "The browser could not reach the Main Sequence API.",
       0,
@@ -2931,6 +2954,14 @@ async function requestJson<T>(
   }
 
   const payload = await readResponsePayload(response);
+  requestTrace?.finish({
+    status: response.status,
+    ok: response.ok,
+    error:
+      response.ok
+        ? undefined
+        : readMessageFromPayload(payload) || `Main Sequence API request failed with ${response.status}.`,
+  });
 
   if (!response.ok) {
     throw new MainSequenceApiError(
@@ -3531,7 +3562,10 @@ export function fetchTargetPortfolioSummary(targetPortfolioId: number) {
   );
 }
 
-export function fetchTargetPortfolioWeightsPositionDetails(targetPortfolioId: number) {
+export function fetchTargetPortfolioWeightsPositionDetails(
+  targetPortfolioId: number,
+  traceMeta?: DashboardRequestTraceMeta,
+) {
   if (isWidgetPreviewMode()) {
     return Promise.resolve(buildWidgetPreviewPortfolioWeightsResponse(targetPortfolioId));
   }
@@ -3539,6 +3573,9 @@ export function fetchTargetPortfolioWeightsPositionDetails(targetPortfolioId: nu
   return requestJson<TargetPortfolioWeightsPositionDetailsResponse>(
     targetPortfolioEndpoint,
     `${targetPortfolioId}/weights-position-details/`,
+    undefined,
+    undefined,
+    traceMeta,
   );
 }
 
@@ -4796,9 +4833,11 @@ export async function listLocalTimeSeries(
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
+    traceMeta,
   }: {
     limit?: number;
     offset?: number;
+    traceMeta?: DashboardRequestTraceMeta;
   } = {},
 ) {
   const payload = await requestJson<
@@ -4807,7 +4846,7 @@ export async function listLocalTimeSeries(
     limit,
     offset,
     remote_table: remoteTableId,
-  });
+  }, traceMeta);
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
 
@@ -5508,15 +5547,75 @@ export function fetchDataNodeSummary(dataNodeId: number) {
   );
 }
 
-export function fetchDataNodeDetail(dataNodeId: number) {
+export function buildDataNodeDetailQueryKey(dataNodeId: number) {
+  return ["main_sequence", "data_node", "detail", dataNodeId] as const;
+}
+
+function buildDataNodeDetailCacheKey(dataNodeId: number) {
+  const userId = useAuthStore.getState().session?.user.id ?? "anonymous";
+  return `${userId}:${dataNodeId}`;
+}
+
+export function fetchDataNodeDetail(
+  dataNodeId: number,
+  traceMeta?: DashboardRequestTraceMeta,
+) {
   if (isWidgetPreviewMode()) {
     return Promise.resolve(buildWidgetPreviewDataNodeDetail(dataNodeId));
   }
 
-  return requestJson<DataNodeDetail>(
+  const cacheKey = buildDataNodeDetailCacheKey(dataNodeId);
+  const now = Date.now();
+  const cachedEntry = dataNodeDetailCache.get(cacheKey);
+  const requestUrl = buildEndpointUrl(dynamicTableMetadataEndpoint, `${dataNodeId}/`);
+
+  if (cachedEntry?.value && cachedEntry.expiresAt > now) {
+    startDashboardRequestTrace(traceMeta, {
+      method: "GET",
+      url: requestUrl,
+    })?.finish({
+      ok: true,
+      status: 200,
+      resolution: "cache-hit",
+    });
+    return Promise.resolve(cachedEntry.value);
+  }
+
+  if (cachedEntry?.promise) {
+    startDashboardRequestTrace(traceMeta, {
+      method: "GET",
+      url: requestUrl,
+    })?.finish({
+      ok: true,
+      status: 200,
+      resolution: "shared-promise",
+    });
+    return cachedEntry.promise;
+  }
+
+  const requestPromise = requestJson<DataNodeDetail>(
     dynamicTableMetadataEndpoint,
     `${dataNodeId}/`,
-  );
+    undefined,
+    undefined,
+    traceMeta,
+  ).then((detail) => {
+    dataNodeDetailCache.set(cacheKey, {
+      value: detail,
+      expiresAt: Date.now() + DATA_NODE_DETAIL_CACHE_TTL_MS,
+    });
+    return detail;
+  }).catch((error) => {
+    dataNodeDetailCache.delete(cacheKey);
+    throw error;
+  });
+
+  dataNodeDetailCache.set(cacheKey, {
+    expiresAt: now + DATA_NODE_DETAIL_CACHE_TTL_MS,
+    promise: requestPromise,
+  });
+
+  return requestPromise;
 }
 
 export function fetchSourceTableConfigurationStats(sourceTableConfigurationId: number) {
@@ -5608,6 +5707,7 @@ export async function fetchDataNodeLastObservation(dataNodeId: number) {
 export async function fetchDataNodeDataBetweenDatesFromRemote(
   dataNodeId: number,
   input: DataNodeRemoteDataRequest,
+  traceMeta?: DashboardRequestTraceMeta,
 ) {
   if (isWidgetPreviewMode()) {
     return buildWidgetPreviewDataNodeRows(input);
@@ -5620,6 +5720,8 @@ export async function fetchDataNodeDataBetweenDatesFromRemote(
       method: "POST",
       body: JSON.stringify(input),
     },
+    undefined,
+    traceMeta,
   );
 
   return normalizeDataNodeRemoteDataRows(payload);
@@ -5663,6 +5765,7 @@ export function updateLocalTimeSerieRunConfiguration(
 export function fetchLocalTimeSerieDependencyGraph(
   localTimeSerieId: number,
   direction: "downstream" | "upstream",
+  traceMeta?: DashboardRequestTraceMeta,
 ) {
   if (isWidgetPreviewMode()) {
     return Promise.resolve(buildWidgetPreviewDependencyGraph(localTimeSerieId, direction));
@@ -5673,6 +5776,7 @@ export function fetchLocalTimeSerieDependencyGraph(
     `${localTimeSerieId}/dependencies-graph/`,
     undefined,
     { direction },
+    traceMeta,
   ).then((payload) =>
     normalizeDependencyGraphPayload(payload, "LocalTimeSerie dependency graph"),
   );
@@ -5681,12 +5785,14 @@ export function fetchLocalTimeSerieDependencyGraph(
 export function fetchSimpleTableUpdateDependencyGraph(
   simpleTableUpdateId: number,
   direction: "downstream" | "upstream",
+  traceMeta?: DashboardRequestTraceMeta,
 ) {
   return requestJson<unknown>(
     simpleTableEndpoint,
     `update/${simpleTableUpdateId}/dependencies-graph/`,
     undefined,
     { direction },
+    traceMeta,
   ).then((payload) =>
     normalizeDependencyGraphPayload(payload, "SimpleTableUpdate dependency graph"),
   );

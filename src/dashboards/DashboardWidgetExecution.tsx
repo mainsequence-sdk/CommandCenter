@@ -10,6 +10,14 @@ import {
 
 import { getWidgetById } from "@/app/registry";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
+import {
+  beginDashboardRequestTraceCycle,
+  buildDashboardExecutionRequestTraceMeta,
+  completeDashboardRequestTraceCycle,
+  type DashboardRequestTraceMeta,
+  type DashboardRequestTraceReason,
+  type DashboardRequestTraceSource,
+} from "@/dashboards/dashboard-request-trace";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import {
   buildDashboardUpstreamResolutionKey,
@@ -53,6 +61,8 @@ export interface ResolveWidgetUpstreamHookOptions
 }
 
 interface DashboardWidgetExecutionContextValue {
+  scopeId: string;
+  activeRefreshCycleId?: string;
   executeWidgetGraph: (
     targetInstanceId: string,
     options: ExecuteWidgetGraphOptions,
@@ -129,6 +139,7 @@ export function DashboardWidgetExecutionProvider({
   const inFlightRef = useRef(new Map<string, Promise<DashboardWidgetGraphExecutionResult>>());
   const refreshCycleRef = useRef<string | null>(null);
   const initialRefreshCompletedRef = useRef(false);
+  const [activeRefreshCycleId, setActiveRefreshCycleId] = useState<string>();
   const [executionStates, setExecutionStates] = useState<Record<string, WidgetExecutionState>>({});
 
   useEffect(() => {
@@ -199,6 +210,7 @@ export function DashboardWidgetExecutionProvider({
     }
 
     const executionPromise = executeDashboardWidgetGraph({
+      scopeId,
       widgets: widgetsRef.current,
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
       targetInstanceId,
@@ -264,10 +276,25 @@ export function DashboardWidgetExecutionProvider({
 
     const sharedExecutedInstanceIds = new Set<string>();
     let cancelled = false;
+    let hadExecutionError = false;
 
     async function executeInitialRefresh() {
+      beginDashboardRequestTraceCycle({
+        scopeId,
+        refreshCycleId,
+      });
+      setActiveRefreshCycleId(refreshCycleId);
+
       for (const targetInstanceId of refreshTargets) {
         if (cancelled) {
+          completeDashboardRequestTraceCycle({
+            scopeId,
+            refreshCycleId,
+            status: "cancelled",
+          });
+          setActiveRefreshCycleId((current) =>
+            current === refreshCycleId ? undefined : current,
+          );
           return;
         }
 
@@ -283,9 +310,19 @@ export function DashboardWidgetExecutionProvider({
 
           widgetsRef.current = result.widgets;
         } catch {
+          hadExecutionError = true;
           // Keep initial refresh isolated from rendering.
         }
       }
+
+      completeDashboardRequestTraceCycle({
+        scopeId,
+        refreshCycleId,
+        status: hadExecutionError ? "error" : "success",
+      });
+      setActiveRefreshCycleId((current) =>
+        current === refreshCycleId ? undefined : current,
+      );
     }
 
     void executeInitialRefresh();
@@ -321,10 +358,25 @@ export function DashboardWidgetExecutionProvider({
 
     const sharedExecutedInstanceIds = new Set<string>();
     let cancelled = false;
+    let hadExecutionError = false;
 
     async function executeRefreshCycle() {
+      beginDashboardRequestTraceCycle({
+        scopeId,
+        refreshCycleId,
+      });
+      setActiveRefreshCycleId(refreshCycleId);
+
       for (const targetInstanceId of refreshTargets) {
         if (cancelled) {
+          completeDashboardRequestTraceCycle({
+            scopeId,
+            refreshCycleId,
+            status: "cancelled",
+          });
+          setActiveRefreshCycleId((current) =>
+            current === refreshCycleId ? undefined : current,
+          );
           return;
         }
 
@@ -340,9 +392,19 @@ export function DashboardWidgetExecutionProvider({
 
           widgetsRef.current = result.widgets;
         } catch {
+          hadExecutionError = true;
           // Keep refresh orchestration isolated from render surfaces.
         }
       }
+
+      completeDashboardRequestTraceCycle({
+        scopeId,
+        refreshCycleId,
+        status: hadExecutionError ? "error" : "success",
+      });
+      setActiveRefreshCycleId((current) =>
+        current === refreshCycleId ? undefined : current,
+      );
     }
 
     void executeRefreshCycle();
@@ -350,10 +412,12 @@ export function DashboardWidgetExecutionProvider({
     return () => {
       cancelled = true;
     };
-  }, [dashboardState, effectiveResolveWidgetDefinition, lastRefreshedAt]);
+  }, [dashboardState, effectiveResolveWidgetDefinition, lastRefreshedAt, scopeId]);
 
   const value = useMemo<DashboardWidgetExecutionContextValue>(
     () => ({
+      scopeId,
+      activeRefreshCycleId,
       executeWidgetGraph: (targetInstanceId, options) =>
         runGraph(targetInstanceId, options),
       resolveUpstream: (targetInstanceId, options) =>
@@ -382,7 +446,7 @@ export function DashboardWidgetExecutionProvider({
         };
       },
     }),
-    [dashboardState, effectiveResolveWidgetDefinition, executionStates],
+    [activeRefreshCycleId, dashboardState, effectiveResolveWidgetDefinition, executionStates, scopeId],
   );
 
   return (
@@ -444,3 +508,36 @@ export function useWidgetExecutionState(instanceId?: string) {
     [context, instanceId],
   );
 }
+
+export function useDashboardWidgetRequestTraceMeta({
+  instanceId,
+  reason,
+  source = "component",
+  widgetId,
+}: {
+  instanceId?: string;
+  reason?: DashboardRequestTraceReason;
+  source?: DashboardRequestTraceSource;
+  widgetId?: string;
+}) {
+  const context = useDashboardWidgetExecution();
+
+  return useMemo<DashboardRequestTraceMeta | undefined>(() => {
+    if (!context?.scopeId) {
+      return undefined;
+    }
+
+    return {
+      scopeId: context.scopeId,
+      refreshCycleId: context.activeRefreshCycleId,
+      instanceId,
+      widgetId,
+      source,
+      reason:
+        reason ??
+        (context.activeRefreshCycleId ? "dashboard-refresh" : "component-query"),
+    };
+  }, [context?.activeRefreshCycleId, context?.scopeId, instanceId, reason, source, widgetId]);
+}
+
+export { buildDashboardExecutionRequestTraceMeta };

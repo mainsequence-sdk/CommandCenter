@@ -15,6 +15,7 @@ mounted in the dashboard/workspace.
 ## Data Contract
 
 - The widget expects rows coming from a linked `Data Node` widget runtime.
+- On workspace runtime surfaces it now behaves as a `consumer`: it reads the canonical published dataset and asks the shared execution layer to resolve upstream executable sources when that dataset is not ready yet.
 - `maturityField` should contain tenors like `3M`, `2Y`, or numeric maturity values.
 - `valueField` should contain the numeric yield/rate values.
 - `curveField` is optional and splits the dataset into multiple named curves such as `Current`,
@@ -32,3 +33,6 @@ mounted in the dashboard/workspace.
   axis with a time-series chart.
 - The compressed Main Sequence `curve` payload contract now belongs to the sibling `zero-curve/`
   widget. This widget should stay focused on generic mapped maturity/value datasets.
+- Runtime fetch ownership should stay with upstream execution owners such as `main-sequence-data-node`.
+  This widget may derive local chart series from the published rows, but it must not introduce its
+  own canonical backend data fetch path on workspace surfaces.

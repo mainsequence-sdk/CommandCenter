@@ -15,6 +15,8 @@ surfaces and the editable workspace studio.
   `grid-template-columns` string for Auto grid and also provides the temporary runtime rewrite used
   when `custom` dashboards collapse to full-width cards on smaller screens.
 - `DashboardControls.tsx`: shared dashboard controls and time-range/refresh coordination.
+  Workspace refresh now only advances the dashboard execution cycle; it must not invalidate the
+  global React Query cache or refetch unrelated shell data such as notifications.
 - `DashboardWidgetRegistry.tsx`: runtime widget-instance registry used for linked-widget
   composition.
 - `widget-dependencies.ts`: shared binding normalization, resolved-input resolution, and static
@@ -31,6 +33,11 @@ surfaces and the editable workspace studio.
   refresh-cycle handoff from dashboard controls. It also carries the current dashboard control
   range into widget executors so headless source widgets can respect the active time window even
   outside the main canvas route.
+- `dashboard-request-trace.ts`: shared refresh-cycle request trace store. Execution-driven
+  widgets and component-side widget queries can attach request metadata there so graph/debug
+  surfaces inspect one canonical refresh request log instead of inventing local endpoint trackers.
+  Cache hits and shared in-flight request reuse should still be traced there as logical requests,
+  marked distinctly from real network fetches.
 - `react-grid-layout-adapter.ts`: adapter utilities for the workspace studio's
   `react-grid-layout`-managed canvas. This file converts resolved dashboard widgets into RGL items,
   converts committed RGL layouts back into widget `position/layout`, and exposes the shared
@@ -80,6 +87,9 @@ surfaces and the editable workspace studio.
   execution runner consumes dependency snapshots, but execution side effects, runtime-state patch
   application, and refresh dedupe live in `widget-graph-execution.ts` /
   `DashboardWidgetExecution.tsx`, not in `widget-dependencies.ts`.
+- Refresh request tracing must follow that same split. Graph animation, refresh-cycle ownership,
+  and request-debug surfaces should all read the shared execution/request-trace path rather than
+  instrumenting one graph view in isolation.
 - Upstream resolution is now recursive across passive hops. The graph runner walks all valid
   upstream bindings, traverses through passive widgets, and executes only the ancestors that
   actually implement `WidgetDefinition.execution`. This is important for chains like

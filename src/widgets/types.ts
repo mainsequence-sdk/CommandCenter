@@ -224,6 +224,7 @@ export interface WidgetExecutionTargetOverrides<
 export interface WidgetExecutionContext<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
+  scopeId?: string;
   widgetId: string;
   instanceId: string;
   reason: WidgetExecutionReason;
@@ -243,6 +244,10 @@ export interface WidgetExecutionResult {
 }
 
 export type WidgetExecutionRefreshPolicy = "manual-only" | "allow-refresh";
+export type WidgetWorkspaceRuntimeMode =
+  | "execution-owner"
+  | "consumer"
+  | "local-ui";
 
 export interface WidgetExecutionDefinition<
   TProps extends Record<string, unknown> = Record<string, unknown>,
@@ -367,6 +372,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   io?: WidgetIoDefinition<TProps>;
   resolveIo?: (args: WidgetIoResolverArgs<TProps>) => WidgetIoDefinition<TProps> | undefined;
   execution?: WidgetExecutionDefinition<TProps>;
+  workspaceRuntimeMode?: WidgetWorkspaceRuntimeMode;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;

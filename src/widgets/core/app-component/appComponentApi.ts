@@ -1,6 +1,10 @@
 import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
+import {
+  startDashboardRequestTrace,
+  type DashboardRequestTraceMeta,
+} from "@/dashboards/dashboard-request-trace";
 import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
 import {
@@ -260,9 +264,11 @@ async function sendAuthenticatedRequest(
   {
     authMode,
     init,
+    traceMeta,
   }: {
     authMode: AppComponentAuthMode;
     init?: RequestInit;
+    traceMeta?: DashboardRequestTraceMeta;
   },
 ) {
   async function execute() {
@@ -288,10 +294,19 @@ async function sendAuthenticatedRequest(
   }
 
   let response: Response;
+  const requestTrace = startDashboardRequestTrace(traceMeta, {
+    method: init?.method,
+    url: requestUrl,
+  });
 
   try {
     response = await execute();
   } catch (error) {
+    requestTrace?.fail(
+      error instanceof Error
+        ? error.message
+        : "The browser could not reach the configured API.",
+    );
     throw new Error(
       error instanceof Error
         ? error.message
@@ -307,15 +322,22 @@ async function sendAuthenticatedRequest(
     }
   }
 
+  requestTrace?.finish({
+    status: response.status,
+    ok: response.ok,
+  });
+
   return response;
 }
 
 export async function fetchAppComponentOpenApiDocument({
   baseUrl,
   authMode,
+  traceMeta,
 }: {
   baseUrl: string;
   authMode?: AppComponentAuthMode;
+  traceMeta?: DashboardRequestTraceMeta;
 }) {
   const normalizedAuthMode = normalizeAppComponentAuthMode(authMode);
   const resolvedBaseUrl = tryResolveAppComponentBaseUrl(baseUrl);
@@ -332,12 +354,28 @@ export async function fetchAppComponentOpenApiDocument({
   const cachedDocument = pruneExpiredEntry(openApiDocumentCache, openApiCacheKey);
 
   if (cachedDocument) {
+    startDashboardRequestTrace(traceMeta, {
+      method: "GET",
+      url: buildAppComponentOpenApiUrl(resolvedBaseUrl) ?? resolvedBaseUrl,
+    })?.finish({
+      ok: true,
+      status: 200,
+      resolution: "cache-hit",
+    });
     return cloneSerializable(cachedDocument.value);
   }
 
   const inFlightDocumentRequest = inFlightOpenApiRequests.get(openApiCacheKey);
 
   if (inFlightDocumentRequest) {
+    startDashboardRequestTrace(traceMeta, {
+      method: "GET",
+      url: buildAppComponentOpenApiUrl(resolvedBaseUrl) ?? resolvedBaseUrl,
+    })?.finish({
+      ok: true,
+      status: 200,
+      resolution: "shared-promise",
+    });
     return cloneSerializable(await inFlightDocumentRequest);
   }
 
@@ -350,6 +388,7 @@ export async function fetchAppComponentOpenApiDocument({
   const requestPromise = (async () => {
     const response = await sendAuthenticatedRequest(openApiUrl, {
       authMode: normalizedAuthMode,
+      traceMeta,
     });
     const payload = await readResponseBody(response);
 
@@ -391,6 +430,7 @@ export async function submitAppComponentRequest({
   headers,
   body,
   cache,
+  traceMeta,
 }: {
   authMode?: AppComponentAuthMode;
   method: string;
@@ -398,6 +438,7 @@ export async function submitAppComponentRequest({
   headers?: Record<string, string>;
   body?: string;
   cache?: AppComponentResponseCacheOptions;
+  traceMeta?: DashboardRequestTraceMeta;
 }) {
   const normalizedAuthMode = normalizeAppComponentAuthMode(authMode);
   const normalizedMethod = method.trim().toUpperCase();
@@ -422,12 +463,28 @@ export async function submitAppComponentRequest({
     const cachedResponse = pruneExpiredEntry(safeResponseCache, cacheKey);
 
     if (cachedResponse) {
+      startDashboardRequestTrace(traceMeta, {
+        method: normalizedMethod,
+        url,
+      })?.finish({
+        ok: true,
+        status: cachedResponse.value.status,
+        resolution: "cache-hit",
+      });
       return cloneSerializable(cachedResponse.value);
     }
 
     const inFlightResponse = inFlightSafeResponses.get(cacheKey);
 
     if (inFlightResponse) {
+      startDashboardRequestTrace(traceMeta, {
+        method: normalizedMethod,
+        url,
+      })?.finish({
+        ok: true,
+        status: 200,
+        resolution: "shared-promise",
+      });
       return cloneSerializable(await inFlightResponse);
     }
 
@@ -439,6 +496,7 @@ export async function submitAppComponentRequest({
           headers,
           body,
         },
+        traceMeta,
       });
       const normalizedResponse = {
         ok: response.ok,
@@ -475,6 +533,7 @@ export async function submitAppComponentRequest({
       headers,
       body,
     },
+    traceMeta,
   });
 
   return {

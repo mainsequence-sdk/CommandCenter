@@ -1,11 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { useWidgetExecutionState } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
-  fetchTargetPortfolioWeightsPositionDetails,
   formatMainSequenceError,
 } from "../../../../common/api";
 import {
@@ -14,27 +13,27 @@ import {
   PortfolioWeightsTable,
   type PortfolioWeightsTableVariant,
 } from "./PortfolioWeightsTable";
-
-export interface PortfolioWeightsWidgetProps extends Record<string, unknown> {
-  portfolioId?: number;
-  targetPortfolioId?: number;
-  variant?: PortfolioWeightsTableVariant;
-  tableMinWidth?: number;
-}
+import {
+  normalizePortfolioWeightsRuntimeState,
+  normalizePortfolioWeightsTargetId,
+  normalizePortfolioWeightsVariant,
+  type PortfolioWeightsWidgetProps,
+} from "./portfolioWeightsRuntime";
 
 type Props = WidgetComponentProps<PortfolioWeightsWidgetProps>;
 
-export function PortfolioWeightsWidget({ props }: Props) {
-  const targetPortfolioId = Number(props.portfolioId ?? props.targetPortfolioId ?? "");
-  const variant: PortfolioWeightsTableVariant = props.variant === "summary" ? "summary" : "positions";
+export function PortfolioWeightsWidget({ instanceId, props, runtimeState }: Props) {
+  const executionState = useWidgetExecutionState(instanceId);
+  const targetPortfolioId = normalizePortfolioWeightsTargetId(props);
+  const variant: PortfolioWeightsTableVariant = normalizePortfolioWeightsVariant(props.variant);
   const tableMinWidth =
     typeof props.tableMinWidth === "number" ? props.tableMinWidth : variant === "summary" ? 680 : 760;
-
-  const weightsDetailsQuery = useQuery({
-    queryKey: ["main_sequence", "widgets", "portfolio_weights", targetPortfolioId, variant],
-    queryFn: () => fetchTargetPortfolioWeightsPositionDetails(targetPortfolioId),
-    enabled: Number.isFinite(targetPortfolioId) && targetPortfolioId > 0,
-  });
+  const normalizedRuntimeState = normalizePortfolioWeightsRuntimeState(runtimeState);
+  const payload = normalizedRuntimeState.payload;
+  const isLoading =
+    executionState?.status === "running" ||
+    normalizedRuntimeState.status === "loading" ||
+    (!payload && targetPortfolioId > 0 && normalizedRuntimeState.status !== "error");
 
   if (!Number.isFinite(targetPortfolioId) || targetPortfolioId <= 0) {
     return (
@@ -46,7 +45,7 @@ export function PortfolioWeightsWidget({ props }: Props) {
     );
   }
 
-  if (weightsDetailsQuery.isLoading) {
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
@@ -57,12 +56,12 @@ export function PortfolioWeightsWidget({ props }: Props) {
     );
   }
 
-  if (weightsDetailsQuery.isError) {
+  if (normalizedRuntimeState.status === "error") {
     return (
       <Card>
         <CardContent className="p-5">
           <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {formatMainSequenceError(weightsDetailsQuery.error)}
+            {formatMainSequenceError(normalizedRuntimeState.error)}
           </div>
         </CardContent>
       </Card>
@@ -71,12 +70,12 @@ export function PortfolioWeightsWidget({ props }: Props) {
 
   const rows =
     variant === "summary"
-      ? normalizePortfolioWeightSummaryRows(weightsDetailsQuery.data?.weights ?? null)
-      : weightsDetailsQuery.data?.rows ?? [];
+      ? normalizePortfolioWeightSummaryRows(payload?.weights ?? null)
+      : payload?.rows ?? [];
   const columnDefs =
     variant === "summary"
-      ? weightsDetailsQuery.data?.summaryColumnDefs ?? []
-      : weightsDetailsQuery.data?.columnDefs ?? [];
+      ? payload?.summaryColumnDefs ?? []
+      : payload?.columnDefs ?? [];
 
   return (
     <div className="space-y-0">
@@ -87,7 +86,7 @@ export function PortfolioWeightsWidget({ props }: Props) {
         columnDefs={columnDefs}
         rows={rows}
         expandableAssetRows={variant === "summary"}
-        positionMap={weightsDetailsQuery.data?.position_map ?? null}
+        positionMap={payload?.position_map ?? null}
         preferredPositionColumns={variant === "positions"}
         emptyMessage={
           variant === "summary"

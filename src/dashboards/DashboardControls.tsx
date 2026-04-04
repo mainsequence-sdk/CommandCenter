@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ChevronDown,
@@ -886,7 +885,6 @@ export function DashboardControlsProvider({
   onStateChange?: (state: DashboardControlsState) => void;
 }) {
   const location = useLocation();
-  const queryClient = useQueryClient();
   const refreshLockRef = useRef(false);
   const resolvedConfig = useMemo(() => resolveControlsConfig(controls), [controls]);
   const kioskMode = useShellStore((state) => state.kioskMode);
@@ -1071,7 +1069,7 @@ export function DashboardControlsProvider({
     setLastRefreshedAt(Date.now());
 
     try {
-      await queryClient.invalidateQueries();
+      await Promise.resolve();
     } finally {
       refreshLockRef.current = false;
       setIsRefreshing(false);

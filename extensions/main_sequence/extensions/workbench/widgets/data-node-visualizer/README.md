@@ -64,6 +64,9 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - Remote data is fetched by the `Data Node` from `dynamic_table/{id}/get_data_between_dates_from_remote/`.
 - The live chart only reads mapped `x/y/group` fields from the linked Data Node dataset instead of owning
   its own backend query.
+- When that linked dataset is already published by an upstream `Data Node`, the mounted runtime
+  visualizer also skips its own `dynamic_table/{id}/` detail lookup and resolves field mappings
+  from the canonical published frame instead.
 - If the linked `Data Node` is itself backed by an executable upstream source such as `AppComponent`,
   the visualizer now relies on the shared dashboard upstream-resolution path instead of requiring a
   direct executable source itself.

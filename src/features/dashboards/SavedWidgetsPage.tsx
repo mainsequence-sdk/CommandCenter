@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Layers3, Save, Shield } from "lucide-react";
+import { Boxes, Layers3, Save, Shield, Trash2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
+import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,8 @@ import { useToast } from "@/components/ui/toaster";
 import { commandCenterConfig } from "@/config/command-center";
 import { MainSequencePermissionsTab } from "../../../extensions/main_sequence/common/components/MainSequencePermissionsTab";
 import {
+  deleteSavedWidgetGroupInBackend,
+  deleteSavedWidgetInstanceInBackend,
   fetchSavedWidgetGroupDetailFromBackend,
   fetchSavedWidgetGroupsFromBackend,
   fetchSavedWidgetInstanceDetailFromBackend,
@@ -59,10 +62,25 @@ export function SavedWidgetsPage() {
   const selectedKind = searchParams.get("kind") === "groups" ? "groups" : "widgets";
   const selectedId = searchParams.get("savedWidget");
   const [detailTab, setDetailTab] = useState<SavedWidgetsDetailTab>("overview");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [labelsValue, setLabelsValue] = useState("");
+
+  function selectEntry(kind: SavedWidgetsPageTab, id: string | null) {
+    const nextParams = new URLSearchParams(searchParams);
+
+    nextParams.set("kind", kind);
+
+    if (id) {
+      nextParams.set("savedWidget", id);
+    } else {
+      nextParams.delete("savedWidget");
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }
 
   const instancesQuery = useQuery({
     queryKey: ["saved-widgets", "instances"],
@@ -148,7 +166,7 @@ export function SavedWidgetsPage() {
           category: selectedInstance.category,
           source: selectedInstance.source,
           schemaVersion: selectedInstance.schemaVersion,
-          widgetId: selectedInstance.widgetId,
+          widgetTypeId: selectedInstance.widgetTypeId,
           instanceTitle: selectedInstance.instanceTitle,
           props: selectedInstance.props,
           presentation: selectedInstance.presentation,
@@ -183,7 +201,7 @@ export function SavedWidgetsPage() {
                 category: member.widgetInstance.category,
                 source: member.widgetInstance.source,
                 schemaVersion: member.widgetInstance.schemaVersion,
-                widgetId: member.widgetInstance.widgetId,
+                widgetTypeId: member.widgetInstance.widgetTypeId,
                 instanceTitle: member.widgetInstance.instanceTitle,
                 props: member.widgetInstance.props,
                 presentation: member.widgetInstance.presentation,
@@ -226,13 +244,47 @@ export function SavedWidgetsPage() {
       });
     },
   });
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedRecord || !selectedId) {
+        throw new Error("Select a saved widget first.");
+      }
+
+      if (selectedKind === "widgets") {
+        await deleteSavedWidgetInstanceInBackend(selectedId);
+        return;
+      }
+
+      await deleteSavedWidgetGroupInBackend(selectedId);
+    },
+    onSuccess: async () => {
+      selectEntry(selectedKind, null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["saved-widgets", "instances"] }),
+        queryClient.invalidateQueries({ queryKey: ["saved-widgets", "groups"] }),
+        queryClient.invalidateQueries({ queryKey: ["saved-widgets", selectedKind, selectedId] }),
+      ]);
+      setDeleteDialogOpen(false);
+      toast({
+        title: selectedKind === "widgets" ? "Saved widget deleted" : "Saved widget group deleted",
+        variant: "success",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: selectedKind === "widgets" ? "Unable to delete saved widget" : "Unable to delete saved widget group",
+        description: error instanceof Error ? error.message : "Unknown delete error.",
+        variant: "error",
+      });
+    },
+  });
 
   const filteredWidgets = useMemo(
     () =>
       (instancesQuery.data ?? []).filter((entry) =>
         !searchValue.trim()
           ? true
-          : [entry.title, entry.description, entry.instanceTitle, entry.widgetId, ...entry.labels]
+          : [entry.title, entry.description, entry.instanceTitle, entry.widgetTypeId, ...entry.labels]
               .join(" ")
               .toLowerCase()
               .includes(searchValue.toLowerCase()),
@@ -252,20 +304,6 @@ export function SavedWidgetsPage() {
     selectedKind === "widgets"
       ? commandCenterConfig.savedWidgets.instancesListUrl.trim()
       : commandCenterConfig.savedWidgets.groupsListUrl.trim();
-
-  function selectEntry(kind: SavedWidgetsPageTab, id: string | null) {
-    const nextParams = new URLSearchParams(searchParams);
-
-    nextParams.set("kind", kind);
-
-    if (id) {
-      nextParams.set("savedWidget", id);
-    } else {
-      nextParams.delete("savedWidget");
-    }
-
-    setSearchParams(nextParams, { replace: true });
-  }
 
   return (
     <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
@@ -335,7 +373,7 @@ export function SavedWidgetsPage() {
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-foreground">{entry.title}</div>
                       <div className="truncate text-xs text-muted-foreground">
-                        {"widgetId" in entry ? entry.widgetId : `${entry.memberCount} members`}
+                        {"widgetTypeId" in entry ? entry.widgetTypeId : `${entry.memberCount} members`}
                       </div>
                     </div>
                     {entry.description ? (
@@ -359,19 +397,29 @@ export function SavedWidgetsPage() {
                     <div className="text-xl font-semibold text-foreground">{selectedRecord.title}</div>
                     <div className="text-sm text-muted-foreground">
                       {selectedKind === "widgets"
-                        ? `${selectedInstance?.instanceTitle || selectedInstance?.widgetId}`
+                        ? `${selectedInstance?.instanceTitle || selectedInstance?.widgetTypeId}`
                         : `${selectedGroup?.memberCount ?? 0} members`}
                     </div>
                   </div>
-                  <Button
-                    onClick={() => {
-                      void updateMutation.mutateAsync();
-                    }}
-                    disabled={!title.trim() || updateMutation.isPending}
-                  >
-                    <Save className="h-4 w-4" />
-                    Save
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        void updateMutation.mutateAsync();
+                      }}
+                      disabled={!title.trim() || updateMutation.isPending}
+                    >
+                      <Save className="h-4 w-4" />
+                      Save
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2" role="tablist" aria-label="Saved widget detail tabs">
@@ -423,7 +471,7 @@ export function SavedWidgetsPage() {
                     <div className="space-y-3 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/25 p-4 text-sm text-muted-foreground">
                       {selectedKind === "widgets" && selectedInstance ? (
                         <>
-                          <div>Widget type: <span className="text-foreground">{selectedInstance.widgetId}</span></div>
+                          <div>Widget type: <span className="text-foreground">{selectedInstance.widgetTypeId}</span></div>
                           <div>Instance title: <span className="text-foreground">{selectedInstance.instanceTitle || "Untitled"}</span></div>
                           <div>Layout: <span className="text-foreground">{formatLayoutSize(selectedInstance.layout)}</span></div>
                           <div>Companions: <span className="text-foreground">{selectedInstance.companions.length}</span></div>
@@ -457,6 +505,42 @@ export function SavedWidgetsPage() {
           </div>
         </div>
       </div>
+      <ActionConfirmationDialog
+        open={deleteDialogOpen && Boolean(selectedRecord)}
+        onClose={() => {
+          if (!deleteMutation.isPending) {
+            setDeleteDialogOpen(false);
+          }
+        }}
+        onConfirm={async () => {
+          await deleteMutation.mutateAsync();
+        }}
+        title={selectedKind === "widgets" ? "Delete Saved Widget" : "Delete Saved Widget Group"}
+        actionLabel="delete"
+        confirmButtonLabel="Delete"
+        confirmWord="DELETE"
+        objectLabel={selectedKind === "widgets" ? "saved widget" : "saved widget group"}
+        objectSummary={
+          selectedRecord ? (
+            <div className="space-y-1">
+              <div className="font-medium text-foreground">{selectedRecord.title}</div>
+              <div className="text-xs text-muted-foreground">
+                {selectedKind === "widgets"
+                  ? (selectedInstance?.widgetTypeId ?? "Saved widget")
+                  : `${selectedGroup?.memberCount ?? 0} members`}
+              </div>
+            </div>
+          ) : undefined
+        }
+        description={
+          selectedKind === "widgets"
+            ? "This removes the saved widget instance from the reusable library."
+            : "This removes the saved widget group and its canonical member/binding snapshot from the reusable library."
+        }
+        specialText="This action removes the saved library entry. It does not delete any live workspace widgets that were imported from it."
+        tone="danger"
+        isPending={deleteMutation.isPending}
+      />
     </div>
   );
 }

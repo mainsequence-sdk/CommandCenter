@@ -47,10 +47,10 @@ Example:
 
 ```ts
 {
-  id: "overview-news",
-  widgetId: "news-feed",
-  title: "Market News",
-  props: { limit: 5 },
+  id: "overview-notes",
+  widgetId: "markdown-note",
+  title: "Operator Notes",
+  props: { content: "## Notes\n\nKeep the desk commentary here." },
   layout: { cols: 4, rows: 5 },
   position: { x: 4 }
 }

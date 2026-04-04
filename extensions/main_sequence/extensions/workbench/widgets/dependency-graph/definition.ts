@@ -1,10 +1,11 @@
 import { defineWidget } from "@/widgets/types";
 
+import { dependencyGraphExecutionDefinition } from "./dependencyGraphExecution";
 import {
   MainSequenceDependencyGraphWidget,
-  type MainSequenceDependencyGraphWidgetProps,
 } from "./MainSequenceDependencyGraphWidget";
 import { MainSequenceDependencyGraphWidgetSettings } from "./MainSequenceDependencyGraphWidgetSettings";
+import type { MainSequenceDependencyGraphWidgetProps } from "./dependencyGraphRuntime";
 
 export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDependencyGraphWidgetProps>({
   id: "main-sequence-dependency-graph",
@@ -24,5 +25,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
     selectedNodeId: "desk-curve-signal",
   },
   settingsComponent: MainSequenceDependencyGraphWidgetSettings,
+  execution: dependencyGraphExecutionDefinition,
+  workspaceRuntimeMode: "execution-owner",
   component: MainSequenceDependencyGraphWidget,
 });

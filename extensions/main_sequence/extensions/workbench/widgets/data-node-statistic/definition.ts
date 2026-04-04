@@ -55,6 +55,7 @@ export const mainSequenceDataNodeStatisticWidget = defineWidget<MainSequenceData
       },
     ],
   },
+  workspaceRuntimeMode: "consumer",
   railIcon: Calculator,
   settingsComponent: StatisticWidgetSettings,
   component: StatisticWidget,

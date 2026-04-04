@@ -1,12 +1,10 @@
 import { useMemo } from "react";
 
-import { useQuery } from "@tanstack/react-query";
 import { CalendarClock, Database, Loader2 } from "lucide-react";
 
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import type { WidgetRailSummaryComponentProps } from "@/widgets/types";
 
-import { fetchDataNodeDetail, formatMainSequenceError } from "../../../../common/api";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
 import {
   formatDataNodeFilterTransformSummary,
@@ -41,6 +39,7 @@ export function DataNodeRailSummary({
   instanceId,
   props,
   runtimeState,
+  title,
 }: WidgetRailSummaryComponentProps<MainSequenceDataNodeFilterWidgetProps>) {
   const {
     rangeStartMs: dashboardRangeStartMs,
@@ -72,15 +71,14 @@ export function DataNodeRailSummary({
       effectiveProps.dataNodeId ??
       0,
   );
-  const detailQuery = useQuery({
-    queryKey: ["main_sequence", "widgets", "data_node_filter", "rail_detail", dataNodeId],
-    queryFn: () => fetchDataNodeDetail(dataNodeId),
-    enabled: Number.isFinite(dataNodeId) && dataNodeId > 0,
-    staleTime: 300_000,
-  });
   const resolvedConfig = useMemo(
-    () => resolveDataNodeFilterConfig(effectiveProps, detailQuery.data),
-    [detailQuery.data, effectiveProps],
+    () =>
+      resolveDataNodeFilterConfig(
+        effectiveProps,
+        undefined,
+        normalizedRuntimeState?.fields ?? linkedDataset?.fields,
+      ),
+    [effectiveProps, linkedDataset?.fields, normalizedRuntimeState?.fields],
   );
   const resolvedRange = useMemo(
     () =>
@@ -91,7 +89,6 @@ export function DataNodeRailSummary({
       ),
     [dashboardRangeEndMs, dashboardRangeStartMs, resolvedConfig],
   );
-  const hasSourceTableConfiguration = Boolean(detailQuery.data?.sourcetableconfiguration);
   const sourceDatasetStatus = sourceBinding.isFilterWidgetSource
     ? linkedDataset?.status ?? normalizedRuntimeState?.status ?? "idle"
     : normalizedRuntimeState?.status ?? "idle";
@@ -107,9 +104,6 @@ export function DataNodeRailSummary({
     !sourceBinding.isFilterWidgetSource &&
     resolvedConfig.dateRangeMode === "fixed" &&
     !resolvedRange.hasValidRange;
-  const detailErrorMessage = detailQuery.isError
-    ? formatMainSequenceError(detailQuery.error)
-    : null;
   const runtimeErrorMessage =
     sourceBinding.isFilterWidgetSource
       ? linkedDataset?.status === "error"
@@ -119,25 +113,19 @@ export function DataNodeRailSummary({
           : null
       : normalizedRuntimeState?.status === "error"
         ? normalizedRuntimeState.error ?? "The canonical dataset request failed."
-      : null;
+        : null;
   const status =
     isUnconfigured
       ? "idle"
       : hasInvalidFixedRange
         ? "range"
-        : detailErrorMessage
-          ? "detail_error"
-          : !hasSourceTableConfiguration &&
-              !sourceBinding.isFilterWidgetSource &&
-              !detailQuery.isLoading
-            ? "metadata_error"
-            : runtimeErrorMessage
-              ? "data_error"
-              : detailQuery.isLoading || sourceDatasetStatus === "loading"
-                ? "loading"
-                : sourceDatasetStatus === "ready"
-                  ? "ready"
-                  : "idle";
+        : runtimeErrorMessage
+          ? "data_error"
+          : sourceDatasetStatus === "loading"
+            ? "loading"
+            : sourceDatasetStatus === "ready"
+              ? "ready"
+              : "idle";
 
   const hoverTitle =
     status === "idle"
@@ -146,15 +134,11 @@ export function DataNodeRailSummary({
         : "Data Node not configured"
       : status === "range"
         ? "Fixed range is incomplete"
-        : status === "detail_error"
-          ? "Data node lookup failed"
-          : status === "metadata_error"
-            ? "Missing table metadata"
-            : status === "data_error"
-              ? "Dataset request failed"
-              : status === "loading"
-                ? "Refreshing dataset"
-                : "Canonical dataset ready";
+        : status === "data_error"
+          ? "Dataset request failed"
+          : status === "loading"
+            ? "Refreshing dataset"
+            : "Canonical dataset ready";
   const hoverDescription =
     status === "idle"
       ? sourceBinding.isFilterWidgetSource
@@ -162,17 +146,20 @@ export function DataNodeRailSummary({
         : "Choose a data node in settings so this widget can own the shared dataset."
       : status === "range"
         ? "This Data Node needs both saved fixed dates before it can publish rows."
-        : status === "detail_error"
-          ? detailErrorMessage ?? "Unable to load data node metadata."
-          : status === "metadata_error"
-            ? "This data node has no source-table metadata, so it cannot publish rows."
-            : status === "data_error"
-              ? runtimeErrorMessage ?? "The canonical dataset request failed."
-              : status === "loading"
-                ? sourceBinding.isFilterWidgetSource
+        : status === "data_error"
+          ? runtimeErrorMessage ?? "The canonical dataset request failed."
+          : status === "loading"
+            ? sourceBinding.isFilterWidgetSource
               ? "Linked widgets keep reading from this bound source while the dataset refreshes."
-                  : "Linked widgets keep reading from this Data Node while the dataset refreshes."
-                : "Linked widgets should read rows from this Data Node instead of querying directly.";
+              : "Linked widgets keep reading from this Data Node while the dataset refreshes."
+            : "Linked widgets should read rows from this Data Node instead of querying directly.";
+  const widgetTitle =
+    typeof title === "string" && title.trim()
+      ? title.trim()
+      : sourceBinding.isFilterWidgetSource
+        ? (sourceWidgetLabel ?? "Data Node")
+        : (resolvedConfig.dataNodeLabel || "Data Node");
+  const hoverSummary = `${hoverTitle}. ${hoverDescription}`;
   const displayedRows =
     status === "ready"
       ? (linkedDataset?.rows ?? normalizedRuntimeState?.rows ?? [])
@@ -200,12 +187,10 @@ export function DataNodeRailSummary({
         ? `${publishedRowCount.toLocaleString()} rows`
         : status === "data_error"
           ? "Request failed"
-          : status === "metadata_error"
-            ? "Unavailable"
-            : "Waiting for dataset";
+          : "Waiting for dataset";
   const transformSummary = formatDataNodeFilterTransformSummary(resolvedConfig);
   const Icon =
-    status === "idle" || status === "detail_error" || status === "metadata_error"
+    status === "idle"
       ? Database
       : status === "range"
         ? CalendarClock
@@ -213,7 +198,7 @@ export function DataNodeRailSummary({
           ? Loader2
           : Database;
   const iconToneClass =
-    status === "detail_error" || status === "metadata_error" || status === "data_error"
+    status === "data_error"
       ? "border-danger/40 bg-danger/10 text-danger"
       : status === "range"
         ? "border-warning/40 bg-warning/10 text-warning"
@@ -223,8 +208,8 @@ export function DataNodeRailSummary({
 
   return (
     <DataNodeHoverPanel
-      title={hoverTitle}
-      description={hoverDescription}
+      title={widgetTitle}
+      description={hoverSummary}
       details={[
         {
           label: sourceBinding.isFilterWidgetSource ? "Source widget" : "Data node",

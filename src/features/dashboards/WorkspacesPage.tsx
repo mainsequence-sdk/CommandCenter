@@ -4,6 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { SurfaceFavoriteButton } from "@/app/layout/SurfaceFavoriteButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DashboardControlsProvider } from "@/dashboards/DashboardControls";
+import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
+import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
+import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { useShellStore } from "@/stores/shell-store";
 import { CustomDashboardStudioPage } from "./CustomDashboardStudioPage";
 import { CustomWorkspaceGraphPage } from "./CustomWorkspaceGraphPage";
@@ -11,6 +15,8 @@ import { CustomWorkspaceSettingsPage } from "./CustomWorkspaceSettingsPage";
 import {
   createWorkspaceSnapshot,
   restoreWorkspaceFromSnapshot,
+  updateDashboardControlsState,
+  updateDashboardWidgetRuntimeState,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import type { WorkspaceListItemSummary } from "./workspace-list-summary";
@@ -55,11 +61,13 @@ export function WorkspacesPage() {
     persistenceMode,
     createWorkspace,
     createWorkspaceFromDefinition,
+    resolvedDashboard,
     workspaceSelectionPending,
     requestedWorkspaceMissing,
     requestedWorkspaceId,
     selectedWorkspaceView,
     loadWorkspaceDetail,
+    updateSelectedWorkspaceUserState,
   } = useCustomWorkspaceStudio();
   const backendMode = persistenceMode === "backend";
 
@@ -126,12 +134,44 @@ export function WorkspacesPage() {
   }
 
   if (requestedWorkspaceId && selectedDashboard) {
-    return selectedWorkspaceView === "settings" ? (
-      <CustomWorkspaceSettingsPage />
-    ) : selectedWorkspaceView === "graph" ? (
-      <CustomWorkspaceGraphPage />
-    ) : (
-      <CustomDashboardStudioPage />
+    if (selectedWorkspaceView === "settings") {
+      return <CustomWorkspaceSettingsPage />;
+    }
+
+    if (!resolvedDashboard) {
+      return null;
+    }
+
+    return (
+      <DashboardControlsProvider
+        key={selectedDashboard.id}
+        controls={selectedDashboard.controls}
+        onStateChange={(state) => {
+          updateSelectedWorkspaceUserState((dashboard) =>
+            updateDashboardControlsState(dashboard, state),
+          );
+        }}
+      >
+        <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
+          <DashboardWidgetExecutionProvider
+            scopeId={selectedDashboard.id}
+            widgets={resolvedDashboard.widgets}
+            writeRuntimeState={(instanceId, runtimeState) => {
+              updateSelectedWorkspaceUserState((dashboard) =>
+                updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+              );
+            }}
+          >
+            <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+              {selectedWorkspaceView === "graph" ? (
+                <CustomWorkspaceGraphPage withRuntimeProviders={false} />
+              ) : (
+                <CustomDashboardStudioPage withRuntimeProviders={false} />
+              )}
+            </DashboardWidgetDependenciesProvider>
+          </DashboardWidgetExecutionProvider>
+        </DashboardWidgetRegistryProvider>
+      </DashboardControlsProvider>
     );
   }
 

@@ -68,10 +68,13 @@ const financialMarketsMonitorDashboard: DashboardDefinition = {
       position: { x: 8 },
     },
     {
-      id: "overview-news",
-      widgetId: "news-feed",
-      title: "Headline Tape",
-      props: { limit: 5 },
+      id: "overview-notes",
+      widgetId: "markdown-note",
+      title: "Desk Notes",
+      props: {
+        content:
+          "## Desk Notes\n\n- Watch the opening rates move.\n- Confirm the first liquidity window.\n- Track any large spread dislocations.",
+      },
       layout: { cols: 12, rows: 5 },
     },
   ],
