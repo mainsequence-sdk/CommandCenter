@@ -5,6 +5,10 @@ import {
   isWorkspaceRowCollapsed,
   isWorkspaceRowWidgetId,
 } from "@/dashboards/structural-widgets";
+import {
+  resolveLegacyWidgetBindingTransformFields,
+  resolveWidgetBindingTransformSteps,
+} from "@/dashboards/widget-binding-transforms";
 import type {
   DashboardCompanionLayoutItem,
   DashboardDefinition,
@@ -314,11 +318,15 @@ function buildGroupMemberPayload(
 function toGroupBindingPayload(
   binding: WidgetPortBinding,
 ): SavedWidgetGroupBindingPayload {
+  const transformSteps = resolveWidgetBindingTransformSteps(binding);
+  const legacy = resolveLegacyWidgetBindingTransformFields(binding);
+
   return {
     sourceOutputId: binding.sourceOutputId,
-    transformId: binding.transformId,
-    transformPath: binding.transformPath,
-    transformContractId: binding.transformContractId,
+    transformSteps: transformSteps.length > 0 ? cloneJson(transformSteps) : undefined,
+    transformId: legacy.transformId,
+    transformPath: legacy.transformPath,
+    transformContractId: legacy.transformContractId,
   };
 }
 
@@ -435,6 +443,7 @@ function buildCanonicalImportedBindings(
       ? [{
           sourceWidgetId,
           sourceOutputId: entry.sourceOutputId,
+          transformSteps: cloneJson(entry.transformSteps),
           transformId: entry.transformId,
           transformPath: entry.transformPath,
           transformContractId: entry.transformContractId,
@@ -488,6 +497,7 @@ function buildLegacyImportedBindings(
         return [{
           sourceWidgetId,
           sourceOutputId: binding.sourceOutputId,
+          transformSteps: cloneJson(binding.transformSteps),
           transformId: binding.transformId,
           transformPath: binding.transformPath,
           transformContractId: binding.transformContractId,

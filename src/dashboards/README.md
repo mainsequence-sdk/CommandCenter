@@ -28,11 +28,11 @@ surfaces and the editable workspace studio.
   execution snapshots, walks valid upstream executable dependencies, applies runtime-state patches,
   and provides the refresh-target selection helpers used by the execution provider.
 - `DashboardWidgetExecution.tsx`: React provider/hooks layer for executable widget graphs. It owns
-  `executeWidgetGraph(...)`, generic passive-consumer upstream resolution through
-  `resolveUpstream(...)` / `useResolveWidgetUpstream(...)`, in-flight dedupe, per-instance execution status, and
-  refresh-cycle handoff from dashboard controls. It also carries the current dashboard control
-  range into widget executors so headless source widgets can respect the active time window even
-  outside the main canvas route.
+  `executeWidgetGraph(...)`, source-driven `executeWidgetFlow(...)`, generic passive-consumer
+  upstream resolution through `resolveUpstream(...)` / `useResolveWidgetUpstream(...)`, in-flight
+  dedupe, per-instance execution status, and refresh-cycle handoff from dashboard controls. It
+  also carries the current dashboard control range into widget executors so headless source
+  widgets can respect the active time window even outside the main canvas route.
 - `dashboard-request-trace.ts`: shared refresh-cycle request trace store. Execution-driven
   widgets and component-side widget queries can attach request metadata there so graph/debug
   surfaces inspect one canonical refresh request log instead of inventing local endpoint trackers.
@@ -87,6 +87,19 @@ surfaces and the editable workspace studio.
   execution runner consumes dependency snapshots, but execution side effects, runtime-state patch
   application, and refresh dedupe live in `widget-graph-execution.ts` /
   `DashboardWidgetExecution.tsx`, not in `widget-dependencies.ts`.
+- `executeWidgetGraph(...)` must stay target-scoped: it resolves upstream executable ancestors and
+  executes the selected target graph only. Source widgets that need downstream propagation after a
+  manual action should use `executeWidgetFlow(...)`, which runs the source graph first and then
+  schedules downstream executable targets derived from canonical widget bindings.
+- `executeWidgetFlow(...)` is branch-aware, not workspace-global. In a linear executable chain like
+  `A -> B -> C`, a manual action on `A` should execute `A`, then `B`, then `C` when all required
+  runtime/request inputs are satisfiable. In a branching graph like `A -> B` and `A -> C`, a
+  failure on `B` should stop that branch while still allowing `C` to run if its own inputs are
+  satisfiable.
+- For `AppComponent`, missing required request arguments fail during execution-time request
+  building, not during topology discovery. The AppComponent error path now clears response-derived
+  outputs for that failed run so deeper widgets in the same linear chain stop instead of consuming
+  stale response data.
 - Refresh request tracing must follow that same split. Graph animation, refresh-cycle ownership,
   and request-debug surfaces should all read the shared execution/request-trace path rather than
   instrumenting one graph view in isolation.

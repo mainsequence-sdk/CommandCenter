@@ -19,6 +19,7 @@ import {
   resolveWidgetHeaderVisibility,
   resolveWidgetTransparentSurface,
 } from "@/widgets/shared/chrome";
+import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
 import {
   resolveDefaultWidgetPresentation,
@@ -199,42 +200,49 @@ function WidgetSettingsAdvancedSections<
   });
 
   return (
-    <>
-      {widget.schema ? (
-        <WidgetSchemaForm
-          widget={widget}
-          draftProps={resolvedDraftProps}
-          onDraftPropsChange={onDraftPropsChange}
-          draftPresentation={resolvedDraftPresentation}
-          onDraftPresentationChange={(nextPresentation) => {
-            onDraftPresentationChange?.(nextPresentation);
-          }}
-          editable={editable}
-          context={controllerContext}
-        />
-      ) : null}
+    <WidgetErrorBoundary
+      widgetId={widget.id}
+      widgetTitle={instanceTitle}
+      instanceId={instance.id}
+      surface="settings"
+    >
+      <>
+        {widget.schema ? (
+          <WidgetSchemaForm
+            widget={widget}
+            draftProps={resolvedDraftProps}
+            onDraftPropsChange={onDraftPropsChange}
+            draftPresentation={resolvedDraftPresentation}
+            onDraftPresentationChange={(nextPresentation) => {
+              onDraftPresentationChange?.(nextPresentation);
+            }}
+            editable={editable}
+            context={controllerContext}
+          />
+        ) : null}
 
-      {SettingsComponent ? (
-        <SettingsComponent
-          widget={widget}
-          instanceId={instance.id}
-          draftProps={resolvedDraftProps}
-          onDraftPropsChange={onDraftPropsChange}
-          draftPresentation={resolvedDraftPresentation}
-          onDraftPresentationChange={(nextPresentation) => {
-            onDraftPresentationChange?.(nextPresentation);
-          }}
-          controllerContext={controllerContext}
-          instanceTitle={instanceTitle}
-          onInstanceTitleChange={(nextTitle) => {
-            if (controlledTitle) {
-              onDraftTitleChange?.(nextTitle);
-            }
-          }}
-          editable={editable}
-        />
-      ) : null}
-    </>
+        {SettingsComponent ? (
+          <SettingsComponent
+            widget={widget}
+            instanceId={instance.id}
+            draftProps={resolvedDraftProps}
+            onDraftPropsChange={onDraftPropsChange}
+            draftPresentation={resolvedDraftPresentation}
+            onDraftPresentationChange={(nextPresentation) => {
+              onDraftPresentationChange?.(nextPresentation);
+            }}
+            controllerContext={controllerContext}
+            instanceTitle={instanceTitle}
+            onInstanceTitleChange={(nextTitle) => {
+              if (controlledTitle) {
+                onDraftTitleChange?.(nextTitle);
+              }
+            }}
+            editable={editable}
+          />
+        ) : null}
+      </>
+    </WidgetErrorBoundary>
   );
 }
 

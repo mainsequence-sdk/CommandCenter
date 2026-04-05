@@ -7,7 +7,7 @@ This directory contains reusable widget presentation primitives that are shared 
 - `widget-frame.tsx`: standard card shell for registered widget instances, including the header chrome, optional widget-defined header actions, and state placeholders.
 - `chrome.ts`: shared helpers for widget chrome options such as per-instance header visibility, plus shared widget-shell markers used by themes to style widget containers consistently.
 - `widget-settings.tsx`: shared settings trigger plus the reusable full-page settings panel used to edit widget instances outside the old modal flow. It also exports the shared duplicate trigger used by workspace widget chrome.
-- `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering nested value exploration, transform selection, compatibility messaging, preview, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors.
+- `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, preview, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors.
 - `tabular-frame-source.ts`: shared generic tabular-frame contract and normalization helpers used when widgets bind table-like datasets across extension boundaries. It defines the platform-level `columns + rows + fields + source` shape so widget families do not invent incompatible table payloads.
 - `widget-schema.ts`: shared helpers for widget schema visibility, controller context resolution, and exposed-field presentation state.
 - `widget-schema-form.tsx`: generic settings form renderer for schema-based widget fields. The form
@@ -21,7 +21,8 @@ This directory contains reusable widget presentation primitives that are shared 
 
 - Settings are intentionally instance-scoped: the shared panel edits the current dashboard widget instance, not the underlying widget definition.
 - The shared settings panel is generic by default and can be extended per widget through `WidgetDefinition.schema`, `WidgetDefinition.controller`, and `WidgetDefinition.settingsComponent`.
-- Structured output exploration belongs in the shared source explorer contract, not in widget-specific binding hacks. Widgets should expose `valueDescriptor` metadata on outputs, and shared binding surfaces should consume that metadata to render nested-field exploration consistently.
+- Structured output exploration belongs in the shared source explorer contract, not in widget-specific binding hacks. Widgets should expose `valueDescriptor` metadata on outputs, and shared binding surfaces should consume that metadata to render whole-output binding, array-item selection, and nested-field extraction consistently.
+- Array outputs are not flattened into pseudo-ports by the shared binding layer. The explorer keeps the graph edge anchored to the source output port, then optionally applies ordered binding transforms such as `select-array-item` followed by `extract-path`.
 - Generic table-like widget bindings should use `tabular-frame-source.ts` instead of inventing extension-specific row contracts. Keep source-specific metadata nested under `source` and keep field schemas limited to generic metadata like `key`, `label`, `type`, `description`, and `nullable`.
   The canonical shared payload is:
   ```ts

@@ -32,6 +32,7 @@ import {
 } from "./appComponentApi";
 import { executeAppComponent } from "./appComponentExecution";
 import {
+  AppComponentFieldEditor,
   AppComponentFormSections,
   type AppComponentFieldBindingDisplayState,
 } from "./AppComponentFormSections";
@@ -42,14 +43,18 @@ import {
   buildAppComponentOpenApiUrl,
   formatAppComponentFieldLocation,
   formatAppComponentMethodLabel,
+  listAppComponentRenderableFields,
+  listAppComponentRenderableParameterFields,
   listAppComponentOperations,
   listAppComponentRequestBodyContentTypes,
   normalizeAppComponentProps,
   normalizeAppComponentBindingSpec,
   normalizeAppComponentRuntimeState,
+  reconcileAppComponentRequestInputMap,
   resolveAppComponentFieldBindingStates,
   resolveAppComponentBoundInputOverlay,
   resolveAppComponentInitialDraftValues,
+  resolveAppComponentMappedRequestForms,
   resolveAppComponentOperation,
   resolveAppComponentResponseModelPreview,
   resolveAppComponentResponseModelStatus,
@@ -272,14 +277,27 @@ export function AppComponentWidgetSettings({
         : null,
     [normalizedProps.requestBodyContentType, openApiQuery.data, resolvedOperation],
   );
+  const mappedRequestForms = useMemo(
+    () => resolveAppComponentMappedRequestForms(generatedForm, normalizedProps),
+    [generatedForm, normalizedProps],
+  );
+  const mappedSubmissionForm = mappedRequestForms.submissionForm;
+  const mappedCardForm = mappedRequestForms.cardForm;
+  const requestFieldCatalog = useMemo(
+    () => listAppComponentRenderableFields(generatedForm),
+    [generatedForm],
+  );
   const initialTestDraftValues = useMemo(
     () =>
       resolveAppComponentInitialDraftValues(
-        generatedForm,
+        mappedSubmissionForm,
         {},
         resolvedOperation?.record.key,
+        {
+          prefillValues: mappedRequestForms.prefillValues,
+        },
       ),
-    [generatedForm, resolvedOperation?.record.key],
+    [mappedRequestForms.prefillValues, mappedSubmissionForm, resolvedOperation?.record.key],
   );
   const initialTestDraftValuesKey = useMemo(
     () => JSON.stringify(initialTestDraftValues),
@@ -288,14 +306,19 @@ export function AppComponentWidgetSettings({
   const [testDraftValues, setTestDraftValues] =
     useState<Record<string, string>>(initialTestDraftValues);
   const boundInputOverlay = useMemo(
-    () => resolveAppComponentBoundInputOverlay(generatedForm, testDraftValues, resolvedInputs),
-    [generatedForm, resolvedInputs, testDraftValues],
+    () =>
+      resolveAppComponentBoundInputOverlay(
+        mappedSubmissionForm,
+        testDraftValues,
+        resolvedInputs,
+      ),
+    [mappedSubmissionForm, resolvedInputs, testDraftValues],
   );
   const effectiveTestDraftValues = boundInputOverlay.values;
   const boundFieldKeys = boundInputOverlay.boundFieldKeys;
   const fieldBindingStates = useMemo(
-    () => resolveAppComponentFieldBindingStates(generatedForm, resolvedInputs),
-    [generatedForm, resolvedInputs],
+    () => resolveAppComponentFieldBindingStates(mappedSubmissionForm, resolvedInputs),
+    [mappedSubmissionForm, resolvedInputs],
   );
   const fieldBindingDisplayStates = useMemo(() => {
     return Object.fromEntries(
@@ -393,6 +416,24 @@ export function AppComponentWidgetSettings({
     () => JSON.stringify(normalizedResolvedBindingSpec ?? null),
     [normalizedResolvedBindingSpec],
   );
+  const normalizedRequestInputMap = normalizedProps.requestInputMap;
+  const reconciledRequestInputMap = useMemo(
+    () =>
+      reconcileAppComponentRequestInputMap(
+        normalizedRequestInputMap,
+        generatedForm,
+        resolvedOperation?.record.key,
+      ),
+    [generatedForm, normalizedRequestInputMap, resolvedOperation?.record.key],
+  );
+  const currentRequestInputMapSerialized = useMemo(
+    () => JSON.stringify(normalizedRequestInputMap ?? null),
+    [normalizedRequestInputMap],
+  );
+  const nextRequestInputMapSerialized = useMemo(
+    () => JSON.stringify(reconciledRequestInputMap ?? null),
+    [reconciledRequestInputMap],
+  );
   const [testState, setTestState] = useState<AppComponentSettingsTestState>({
     status: "idle",
   });
@@ -412,6 +453,7 @@ export function AppComponentWidgetSettings({
       return {
         ...nextProps,
         bindingSpec: options?.preserveSelection ? nextProps.bindingSpec : undefined,
+        requestInputMap: options?.preserveSelection ? nextProps.requestInputMap : undefined,
       };
     }
 
@@ -439,10 +481,18 @@ export function AppComponentWidgetSettings({
           ),
         )
       : undefined;
+    const nextRequestInputMap = options?.preserveSelection
+      ? reconcileAppComponentRequestInputMap(
+          normalizedNextProps.requestInputMap,
+          nextGeneratedForm,
+          nextResolvedOperation?.record.key,
+        )
+      : undefined;
 
     return {
       ...nextProps,
       bindingSpec: nextBindingSpec,
+      requestInputMap: nextRequestInputMap,
     };
   }
 
@@ -463,10 +513,14 @@ export function AppComponentWidgetSettings({
     }
 
     if (!normalizedProps.method || !normalizedProps.path) {
-      if (normalizedProps.bindingSpec !== undefined) {
+      if (
+        normalizedProps.bindingSpec !== undefined ||
+        normalizedProps.requestInputMap !== undefined
+      ) {
         onDraftPropsChange({
           ...draftPropsRef.current,
           bindingSpec: undefined,
+          requestInputMap: undefined,
         });
       }
       return;
@@ -476,18 +530,26 @@ export function AppComponentWidgetSettings({
       return;
     }
 
-    if (currentBindingSpecSerialized === nextBindingSpecSerialized) {
+    if (
+      currentBindingSpecSerialized === nextBindingSpecSerialized &&
+      currentRequestInputMapSerialized === nextRequestInputMapSerialized
+    ) {
       return;
     }
 
     onDraftPropsChange({
       ...draftPropsRef.current,
       bindingSpec: normalizedResolvedBindingSpec,
+      requestInputMap: reconciledRequestInputMap,
     });
   }, [
     currentBindingSpecSerialized,
+    currentRequestInputMapSerialized,
     editable,
     nextBindingSpecSerialized,
+    nextRequestInputMapSerialized,
+    normalizedProps.requestInputMap,
+    reconciledRequestInputMap,
     normalizedResolvedBindingSpec,
     normalizedProps.bindingSpec,
     normalizedProps.method,
@@ -495,6 +557,81 @@ export function AppComponentWidgetSettings({
     openApiQuery.data,
     onDraftPropsChange,
   ]);
+
+  const hiddenRequiredFieldWarnings = useMemo(() => {
+    if (!mappedSubmissionForm || !mappedCardForm) {
+      return [];
+    }
+
+    const visibleFieldKeys = new Set(
+      listAppComponentRenderableFields(mappedCardForm).map((field) => field.key),
+    );
+
+    return listAppComponentRenderableFields(mappedSubmissionForm).flatMap((field) => {
+      if (visibleFieldKeys.has(field.key) || !field.required) {
+        return [];
+      }
+
+      const bindingState = fieldBindingStates[field.key];
+      const hasValidBinding = bindingState?.status === "valid";
+      const initialValue = initialTestDraftValues[field.key] ?? "";
+
+      if (hasValidBinding || initialValue.trim().length > 0) {
+        return [];
+      }
+
+      return [{
+        key: field.key,
+        message: `${field.label} is required, hidden on the card, and currently has no bound or prefilled value.`,
+      }];
+    });
+  }, [
+    fieldBindingStates,
+    initialTestDraftValues,
+    mappedCardForm,
+    mappedSubmissionForm,
+  ]);
+
+  function updateRequestInputMapField(
+    fieldKey: string,
+    patch: {
+      visibleOnCard?: boolean;
+      label?: string;
+      prefillValue?: string;
+    },
+  ) {
+    if (!resolvedOperation) {
+      return;
+    }
+
+    const currentMap =
+      normalizedProps.requestInputMap?.operationKey === resolvedOperation.record.key
+        ? normalizedProps.requestInputMap
+        : {
+            version: 1 as const,
+            operationKey: resolvedOperation.record.key,
+            fields: {},
+          };
+
+    onDraftPropsChange(
+      buildNextDraftProps(
+        {
+          requestInputMap: {
+            version: 1,
+            operationKey: resolvedOperation.record.key,
+            fields: {
+              ...currentMap.fields,
+              [fieldKey]: {
+                ...currentMap.fields[fieldKey],
+                ...patch,
+              },
+            },
+          },
+        },
+        { preserveSelection: true },
+      ),
+    );
+  }
 
   async function handleTestSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -623,6 +760,50 @@ export function AppComponentWidgetSettings({
             </span>
             <span className="block text-sm text-muted-foreground">
               When enabled, dashboard refresh runs this AppComponent request again and republishes its outputs.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-3 py-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-border"
+            checked={normalizedProps.showResponse === true}
+            disabled={!editable}
+            onChange={(event) => {
+              onDraftPropsChange(buildNextDraftProps({
+                showResponse: event.target.checked,
+              }, { preserveSelection: true }));
+            }}
+          />
+          <span className="space-y-1">
+            <span className="block text-sm font-medium text-topbar-foreground">
+              Show response on card
+            </span>
+            <span className="block text-sm text-muted-foreground">
+              When enabled, the canvas card renders the latest response using the same generated field layout as the request inputs, but read-only.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-3 py-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-border"
+            checked={normalizedProps.hideRequestButton === true}
+            disabled={!editable}
+            onChange={(event) => {
+              onDraftPropsChange(buildNextDraftProps({
+                hideRequestButton: event.target.checked,
+              }, { preserveSelection: true }));
+            }}
+          />
+          <span className="space-y-1">
+            <span className="block text-sm font-medium text-topbar-foreground">
+              Hide request button
+            </span>
+            <span className="block text-sm text-muted-foreground">
+              When enabled, the card hides its manual submit button so the widget can act only as an upstream calculation or refresh-driven component.
             </span>
           </span>
         </label>
@@ -928,12 +1109,16 @@ export function AppComponentWidgetSettings({
                         Parameters
                       </div>
                       <div className="mt-2 space-y-2">
-                        {generatedForm?.parameterFields.length ? (
-                          generatedForm.parameterFields.map((field) => (
+                        {listAppComponentRenderableParameterFields(generatedForm).length ? (
+                          listAppComponentRenderableParameterFields(generatedForm).map((field) => (
                             <div key={field.key} className="text-xs text-muted-foreground">
                               <span className="font-medium text-foreground">{field.label}</span>{" "}
                               · {formatAppComponentFieldLocation(field.location)}
                               {field.required ? " · required" : ""}
+                              {field.uiEnhancement?.widget === "select2" &&
+                              field.uiEnhancement.role === "async-select-search"
+                                ? " · select2 async search"
+                                : ""}
                             </div>
                           ))
                         ) : (
@@ -978,19 +1163,182 @@ export function AppComponentWidgetSettings({
             </div>
 
             {resolvedOperation ? (
-              <form className="space-y-4" onSubmit={handleTestSubmit}>
+              <>
+                <section className={widgetTightFormSectionClass}>
+                  <div className="space-y-1">
+                    <div className={widgetTightFormTitleClass}>Input Mapping</div>
+                    <p className={widgetTightFormDescriptionClass}>
+                      Overlay the generated request form without mutating the underlying OpenAPI binding. Hide fields from the canvas card, rename their labels, or prefill values that still submit even when the field stays hidden.
+                    </p>
+                  </div>
+
+                  {requestFieldCatalog.length > 0 ? (
+                    <div className="space-y-3">
+                      {requestFieldCatalog.map((field) => {
+                        const fieldConfig = mappedRequestForms.activeInputMap?.fields[field.key];
+                        const showOnCard = fieldConfig?.visibleOnCard !== false;
+
+                        return (
+                          <div
+                            key={field.key}
+                            className="space-y-4 rounded-[calc(var(--radius)-7px)] border border-border/65 bg-background/30 p-4"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-medium text-foreground">
+                                  {field.label}
+                                </span>
+                                <Badge variant="neutral">
+                                  {formatAppComponentFieldLocation(field.location)}
+                                </Badge>
+                                {field.required ? (
+                                  <Badge variant="warning" className="py-0.5">
+                                    Required
+                                  </Badge>
+                                ) : null}
+                                {fieldBindingDisplayStates[field.key]?.isBound ? (
+                                  <Badge variant="success" className="py-0.5">
+                                    Bound
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              {field.description ? (
+                                <p className={widgetTightFormDescriptionClass}>
+                                  {field.description}
+                                </p>
+                              ) : null}
+                            </div>
+
+                            <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                              <div className="space-y-2">
+                                <span className="text-sm font-medium text-topbar-foreground">
+                                  Card visibility
+                                </span>
+                                <div className="flex items-center gap-2 rounded-[calc(var(--radius)-7px)] border border-border/65 bg-background/35 px-3 py-2 text-sm text-foreground">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-border"
+                                    checked={showOnCard}
+                                    disabled={!editable}
+                                    onChange={(event) => {
+                                      updateRequestInputMapField(field.key, {
+                                        visibleOnCard: event.target.checked,
+                                      });
+                                    }}
+                                  />
+                                  <span>Show on card</span>
+                                </div>
+                              </div>
+
+                              <label className="space-y-2">
+                                <span className="text-sm font-medium text-topbar-foreground">
+                                  Card label
+                                </span>
+                                <Input
+                                  value={fieldConfig?.label ?? ""}
+                                  readOnly={!editable}
+                                  placeholder={field.label}
+                                  onChange={(event) => {
+                                    updateRequestInputMapField(field.key, {
+                                      label: event.target.value,
+                                    });
+                                  }}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                  Leave blank to keep the generated label.
+                                </p>
+                              </label>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium text-topbar-foreground">
+                                Prefill value
+                              </div>
+                              <AppComponentFieldEditor
+                                compact
+                                disabled={!editable}
+                                field={field}
+                                title={field.description}
+                                value={fieldConfig?.prefillValue ?? ""}
+                                onChange={(nextValue) => {
+                                  updateRequestInputMapField(field.key, {
+                                    prefillValue: nextValue,
+                                  });
+                                }}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Leave blank to keep the generated default/example. Prefills still apply during request execution even when the field is hidden on the card.
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-[calc(var(--radius)-7px)] border border-border/65 bg-background/30 px-3 py-3 text-sm text-muted-foreground">
+                      This operation does not expose request inputs to map.
+                    </div>
+                  )}
+
+                  {hiddenRequiredFieldWarnings.length > 0 ? (
+                    <div className="space-y-2 rounded-[calc(var(--radius)-7px)] border border-warning/35 bg-warning/10 px-3 py-3 text-sm text-warning">
+                      <div className="font-medium text-foreground">Hidden required fields</div>
+                      {hiddenRequiredFieldWarnings.map((warning) => (
+                        <div key={warning.key}>{warning.message}</div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className={widgetTightFormInsetSectionClass}>
+                    <div className="space-y-1">
+                      <div className={widgetTightFormLabelClass}>Card Preview</div>
+                      <p className={widgetTightFormDescriptionClass}>
+                        This uses the same generated-form renderer as the canvas card. Hidden fields remain part of request execution but disappear from this preview.
+                      </p>
+                    </div>
+
+                    {mappedCardForm &&
+                    (mappedCardForm.parameterFields.length > 0 ||
+                      mappedCardForm.bodyMode !== "none") ? (
+                      <AppComponentFormSections
+                        boundFieldKeys={boundFieldKeys}
+                        disabled
+                        fieldBindingStates={fieldBindingDisplayStates}
+                        form={mappedCardForm}
+                        mode="compact"
+                        requestContext={{
+                          props: normalizedProps,
+                          submissionForm: mappedSubmissionForm,
+                        }}
+                        values={effectiveTestDraftValues}
+                        onValueChange={() => {
+                          return;
+                        }}
+                        onValuePatch={() => {
+                          return;
+                        }}
+                      />
+                    ) : (
+                      <div className="rounded-[calc(var(--radius)-7px)] border border-border/65 bg-background/30 px-3 py-3 text-sm text-muted-foreground">
+                        No request inputs are currently exposed on the canvas card.
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <form className="space-y-4" onSubmit={handleTestSubmit}>
                 <section className={widgetTightFormSectionClass}>
                   <div className="space-y-1">
                     <div className={widgetTightFormTitleClass}>Test Request</div>
                     <p className={widgetTightFormDescriptionClass}>
                       Send a request from settings and inspect the live response here. The canvas
-                      widget only keeps the generated inputs.
+                      widget can also render the latest response when Show response on card is enabled.
                     </p>
                   </div>
 
-                  {generatedForm &&
-                  (generatedForm.parameterFields.length > 0 ||
-                    generatedForm.bodyMode !== "none") ? (
+                  {mappedSubmissionForm &&
+                  (mappedSubmissionForm.parameterFields.length > 0 ||
+                    mappedSubmissionForm.bodyMode !== "none") ? (
                     <AppComponentFormSections
                       boundFieldKeys={boundFieldKeys}
                       disabled={
@@ -998,7 +1346,11 @@ export function AppComponentWidgetSettings({
                         executionState?.status === "running"
                       }
                       fieldBindingStates={fieldBindingDisplayStates}
-                      form={generatedForm}
+                      form={mappedSubmissionForm}
+                      requestContext={{
+                        props: normalizedProps,
+                        submissionForm: mappedSubmissionForm,
+                      }}
                       values={effectiveTestDraftValues}
                       onValueChange={(fieldKey, nextValue) => {
                         if (fieldBindingStates[fieldKey]?.isBound) {
@@ -1008,6 +1360,12 @@ export function AppComponentWidgetSettings({
                         setTestDraftValues((current) => ({
                           ...current,
                           [fieldKey]: nextValue,
+                        }));
+                      }}
+                      onValuePatch={(patch) => {
+                        setTestDraftValues((current) => ({
+                          ...current,
+                          ...patch,
                         }));
                       }}
                     />
@@ -1077,7 +1435,8 @@ export function AppComponentWidgetSettings({
                     </pre>
                   </div>
                 </section>
-              </form>
+                </form>
+              </>
             ) : null}
           </div>
         ) : null}

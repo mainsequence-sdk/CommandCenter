@@ -1,5 +1,15 @@
-import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -18,9 +28,18 @@ import {
 } from "@/widgets/shared/form-density";
 
 import {
+  buildAppComponentRequest,
+  buildAppComponentEditableFormGeneratedField,
+  listAppComponentRenderableBodyFields,
+  listAppComponentRenderableParameterFields,
+  resolveAppComponentResponseValueAtPath,
+  type AppComponentEditableFormFieldDefinition,
+  type AppComponentEditableFormSession,
   type AppComponentGeneratedField,
   type AppComponentGeneratedForm,
+  type AppComponentWidgetProps,
 } from "./appComponentModel";
+import { submitAppComponentRequest } from "./appComponentApi";
 
 export interface AppComponentFieldBindingDisplayState {
   isBound: boolean;
@@ -30,8 +49,35 @@ export interface AppComponentFieldBindingDisplayState {
   statusVariant?: "neutral" | "warning" | "danger" | "success";
 }
 
+interface AppComponentFormRequestContext {
+  props: AppComponentWidgetProps;
+  submissionForm: AppComponentGeneratedForm | null;
+}
+
+interface AppComponentAsyncSelectOption {
+  label: string;
+  value: string;
+}
+
 function isMultilineField(field: AppComponentGeneratedField) {
   return field.kind === "json";
+}
+
+function readAsyncSelectOptionField(
+  value: unknown,
+  path: string[],
+) {
+  if (path.length === 0) {
+    return value;
+  }
+
+  return resolveAppComponentResponseValueAtPath(value, path);
+}
+
+function buildAsyncSelectLabel(value: unknown) {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+    ? String(value)
+    : "";
 }
 
 function FieldDescriptionHint({ description }: { description: string }) {
@@ -127,7 +173,250 @@ function FieldDescriptionHint({ description }: { description: string }) {
   );
 }
 
-function FieldEditor({
+function AsyncSelectSearchFieldEditor({
+  disabled,
+  field,
+  requestContext,
+  title,
+  value,
+  values,
+  onChange,
+  onValuePatch,
+}: {
+  disabled: boolean;
+  field: AppComponentGeneratedField;
+  requestContext?: AppComponentFormRequestContext;
+  title?: string;
+  value: string;
+  values: Record<string, string>;
+  onChange: (nextValue: string) => void;
+  onValuePatch?: (patch: Record<string, string>) => void;
+}) {
+  const enhancement =
+    field.uiEnhancement?.widget === "select2" &&
+    field.uiEnhancement.role === "async-select-search"
+    ? field.uiEnhancement
+    : undefined;
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedValue(value);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [value]);
+
+  const lookupValues = (() => {
+    if (!enhancement) {
+      return values;
+    }
+
+    const patch = Object.fromEntries(
+      enhancement.searchFieldKeys.map((fieldKey) => [fieldKey, debouncedValue]),
+    ) as Record<string, string>;
+
+    if (enhancement.pageFieldKey) {
+      patch[enhancement.pageFieldKey] = "1";
+    }
+
+    return {
+      ...values,
+      ...patch,
+    };
+  })();
+  const lookupRequest = enhancement && requestContext?.submissionForm
+    ? buildAppComponentRequest(
+        requestContext.props,
+        requestContext.submissionForm,
+        lookupValues,
+      )
+    : undefined;
+  const lookupQuery = useQuery({
+    queryKey: [
+      "app-component",
+      "async-select-search",
+      requestContext?.props.apiBaseUrl ?? "invalid",
+      requestContext?.props.method ?? "unknown",
+      requestContext?.props.path ?? "unknown",
+      field.key,
+      debouncedValue,
+      JSON.stringify(lookupValues),
+    ],
+    queryFn: async () => {
+      if (!enhancement || !lookupRequest?.request) {
+        return {
+          options: [] as AppComponentAsyncSelectOption[],
+          hasMore: false,
+        };
+      }
+
+      const response = await submitAppComponentRequest({
+        authMode: requestContext?.props.authMode,
+        method: lookupRequest.request.method,
+        url: lookupRequest.request.url,
+        headers: lookupRequest.request.headers,
+        body: lookupRequest.request.body,
+        cache: {
+          enabled: true,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          typeof response.body === "string"
+            ? response.body
+            : `Search request failed with ${response.status}.`,
+        );
+      }
+
+      const items = resolveAppComponentResponseValueAtPath(response.body, enhancement.itemsPath);
+      const optionEntries = Array.isArray(items)
+        ? items.flatMap((item) => {
+            const optionLabel = buildAsyncSelectLabel(
+              readAsyncSelectOptionField(item, enhancement.itemLabelFieldPath),
+            );
+            const optionValue = buildAsyncSelectLabel(
+              readAsyncSelectOptionField(item, enhancement.itemValueFieldPath),
+            );
+
+            if (!optionLabel || !optionValue) {
+              return [];
+            }
+
+            return [{
+              label: optionLabel,
+              value: optionValue,
+            } satisfies AppComponentAsyncSelectOption];
+          })
+        : [];
+      const paginationValue =
+        enhancement.paginationPath && enhancement.paginationPath.length > 0
+          ? resolveAppComponentResponseValueAtPath(response.body, enhancement.paginationPath)
+          : undefined;
+      const hasMore =
+        enhancement.paginationMoreField &&
+        paginationValue &&
+        typeof paginationValue === "object" &&
+        !Array.isArray(paginationValue) &&
+        enhancement.paginationMoreField in paginationValue
+          ? (paginationValue as Record<string, unknown>)[enhancement.paginationMoreField] === true
+          : false;
+
+      return {
+        options: optionEntries,
+        hasMore,
+      };
+    },
+    enabled:
+      disabled !== true &&
+      Boolean(enhancement) &&
+      Boolean(requestContext?.submissionForm) &&
+      debouncedValue.trim().length > 0 &&
+      Boolean(lookupRequest?.request),
+    staleTime: 30_000,
+  });
+
+  const activeEnhancement = enhancement;
+
+  if (!activeEnhancement) {
+    return null;
+  }
+
+  function applySearchPatch(nextSearch: string) {
+    const enhancementConfig = activeEnhancement;
+
+    if (!enhancementConfig) {
+      return;
+    }
+
+    const patch = Object.fromEntries(
+      enhancementConfig.searchFieldKeys.map((fieldKey) => [fieldKey, nextSearch]),
+    ) as Record<string, string>;
+
+    if (enhancementConfig.pageFieldKey) {
+      patch[enhancementConfig.pageFieldKey] = "1";
+    }
+
+    if (onValuePatch) {
+      onValuePatch(patch);
+      return;
+    }
+
+    onChange(nextSearch);
+  }
+
+  return (
+    <div className="space-y-2">
+      <Input
+        value={value}
+        readOnly={disabled}
+        title={title}
+        placeholder="Search and choose an option"
+        className={widgetTightFormInputClass}
+        onChange={(event) => {
+          applySearchPatch(event.target.value);
+        }}
+      />
+
+      {lookupRequest && lookupRequest.errors.length > 0 && value.trim().length > 0 ? (
+        <div className="rounded-[calc(var(--radius)-7px)] border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          {lookupRequest.errors.join(" ")}
+        </div>
+      ) : null}
+
+      {lookupQuery.isFetching ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Searching…
+        </div>
+      ) : null}
+
+      {lookupQuery.error instanceof Error ? (
+        <div className="rounded-[calc(var(--radius)-7px)] border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+          {lookupQuery.error.message}
+        </div>
+      ) : null}
+
+      {lookupQuery.data?.options.length ? (
+        <div className="max-h-56 overflow-auto rounded-[calc(var(--radius)-7px)] border border-border/65 bg-background/35">
+          {lookupQuery.data.options.map((option) => (
+            <button
+              key={`${option.value}:${option.label}`}
+              type="button"
+              className="flex w-full items-center justify-between gap-3 border-b border-border/50 px-3 py-2 text-left text-sm text-foreground last:border-b-0 hover:bg-muted/40"
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={() => {
+                applySearchPatch(option.label);
+              }}
+            >
+              <span className="min-w-0 truncate">{option.label}</span>
+              {option.value !== option.label ? (
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                  {option.value}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ) : value.trim().length > 0 && !lookupQuery.isFetching && !lookupQuery.error ? (
+        <div className="text-xs text-muted-foreground">No matching options.</div>
+      ) : null}
+
+      {lookupQuery.data?.hasMore ? (
+        <div className="text-xs text-muted-foreground">
+          More results are available. Refine the search text to narrow the list.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function AppComponentFieldEditor({
   compact = false,
   disabled,
   field,
@@ -135,6 +424,9 @@ function FieldEditor({
   title,
   value,
   onChange,
+  values,
+  requestContext,
+  onValuePatch,
 }: {
   compact?: boolean;
   disabled: boolean;
@@ -143,8 +435,37 @@ function FieldEditor({
   title?: string;
   value: string;
   onChange: (nextValue: string) => void;
+  values?: Record<string, string>;
+  requestContext?: AppComponentFormRequestContext;
+  onValuePatch?: (patch: Record<string, string>) => void;
 }) {
+  if (
+    field.uiEnhancement?.widget === "select2" &&
+    field.uiEnhancement?.role === "async-select-search" &&
+    values &&
+    requestContext
+  ) {
+    return (
+      <AsyncSelectSearchFieldEditor
+        disabled={disabled}
+        field={field}
+        requestContext={requestContext}
+        title={title}
+        value={value}
+        values={values}
+        onChange={onChange}
+        onValuePatch={onValuePatch}
+      />
+    );
+  }
+
   if (field.kind === "enum") {
+    const optionEntries =
+      field.optionEntries ?? (field.enumValues ?? []).map((entry) => ({
+        value: entry,
+        label: entry,
+      }));
+
     return (
       <Select
         id={inputId}
@@ -157,9 +478,9 @@ function FieldEditor({
         }}
       >
         {!field.required ? <option value="">Not set</option> : null}
-        {(field.enumValues ?? []).map((entry) => (
-          <option key={entry} value={entry}>
-            {entry}
+        {optionEntries.map((entry) => (
+          <option key={entry.value} value={entry.value}>
+            {entry.label}
           </option>
         ))}
       </Select>
@@ -237,14 +558,20 @@ function CompactField({
   bound,
   disabled,
   field,
+  requestContext,
   value,
+  values,
   onChange,
+  onValuePatch,
 }: {
   bound?: boolean;
   disabled: boolean;
   field: AppComponentGeneratedField;
+  requestContext?: AppComponentFormRequestContext;
   value: string;
+  values: Record<string, string>;
   onChange: (nextValue: string) => void;
+  onValuePatch?: (patch: Record<string, string>) => void;
 }) {
   const inputId = useId();
 
@@ -270,9 +597,113 @@ function CompactField({
           inputId={inputId}
           title={field.description}
           value={value}
+          values={values}
+          requestContext={requestContext}
           onChange={onChange}
+          onValuePatch={onValuePatch}
         />
       </div>
+    </div>
+  );
+}
+
+function FieldEditor(props: ComponentProps<typeof AppComponentFieldEditor>) {
+  return <AppComponentFieldEditor {...props} />;
+}
+
+function EditableFormField({
+  disabled,
+  field,
+  session,
+  onValueChange,
+}: {
+  disabled: boolean;
+  field: AppComponentEditableFormFieldDefinition;
+  session: AppComponentEditableFormSession;
+  onValueChange: (token: string, nextValue: string) => void;
+}) {
+  const generatedField = buildAppComponentEditableFormGeneratedField(field);
+  const inputId = useId();
+
+  return (
+    <label
+      className={cn(
+        widgetTightFormFieldClass,
+        generatedField.kind === "json" ? "md:col-span-2" : undefined,
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={widgetTightFormLabelClass}>{field.label}</span>
+        {field.required ? (
+          <Badge variant="warning" className="py-0.5">
+            Required
+          </Badge>
+        ) : null}
+        {field.editable !== true ? <Badge variant="neutral">Read only</Badge> : null}
+      </div>
+      {field.description ? (
+        <p className={widgetTightFormDescriptionClass}>{field.description}</p>
+      ) : null}
+      <FieldEditor
+        disabled={disabled || field.editable !== true}
+        field={generatedField}
+        inputId={inputId}
+        title={field.description}
+        value={session.valuesByToken[field.token] ?? ""}
+        values={session.valuesByToken}
+        onChange={(nextValue) => {
+          onValueChange(field.token, nextValue);
+        }}
+      />
+    </label>
+  );
+}
+
+export function AppComponentEditableFormSections({
+  disabled,
+  session,
+  onValueChange,
+}: {
+  disabled: boolean;
+  session: AppComponentEditableFormSession;
+  onValueChange: (token: string, nextValue: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      {session.title || session.description ? (
+        <section className={widgetTightFormSectionClass}>
+          <div className="space-y-1">
+            {session.title ? (
+              <div className={widgetTightFormTitleClass}>{session.title}</div>
+            ) : null}
+            {session.description ? (
+              <p className={widgetTightFormDescriptionClass}>{session.description}</p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {session.sections.map((section) => (
+        <section key={section.id} className={widgetTightFormSectionClass}>
+          <div className="space-y-1">
+            <div className={widgetTightFormTitleClass}>{section.title}</div>
+            {section.description ? (
+              <p className={widgetTightFormDescriptionClass}>{section.description}</p>
+            ) : null}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {section.fields.map((field) => (
+              <EditableFormField
+                key={field.token}
+                disabled={disabled}
+                field={field}
+                session={session}
+                onValueChange={onValueChange}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
@@ -283,23 +714,31 @@ export function AppComponentFormSections({
   fieldBindingStates,
   form,
   mode = "default",
+  requestContext,
   values,
   onValueChange,
+  onValuePatch,
 }: {
   boundFieldKeys?: Set<string>;
   disabled: boolean;
   fieldBindingStates?: Record<string, AppComponentFieldBindingDisplayState | undefined>;
   form: AppComponentGeneratedForm;
   mode?: "default" | "compact";
+  requestContext?: AppComponentFormRequestContext;
   values: Record<string, string>;
   onValueChange: (fieldKey: string, nextValue: string) => void;
+  onValuePatch?: (patch: Record<string, string>) => void;
 }) {
   if (mode === "compact") {
+    const parameterFields = listAppComponentRenderableParameterFields(form);
+    const bodyFields = listAppComponentRenderableBodyFields(form);
+    const bodyRawField = form.bodyRawField?.hiddenFromForm === true ? undefined : form.bodyRawField;
+
     return (
       <div className="space-y-3">
-        {form.parameterFields.length > 0 ? (
+        {parameterFields.length > 0 ? (
           <div className="space-y-2">
-            {form.parameterFields.map((field) => (
+            {parameterFields.map((field) => (
               <CompactField
                 key={field.key}
                 bound={fieldBindingStates?.[field.key]?.isBound ?? boundFieldKeys?.has(field.key)}
@@ -308,18 +747,21 @@ export function AppComponentFormSections({
                   Boolean(fieldBindingStates?.[field.key]?.isBound ?? boundFieldKeys?.has(field.key))
                 }
                 field={field}
+                requestContext={requestContext}
                 value={values[field.key] ?? ""}
+                values={values}
                 onChange={(nextValue) => {
                   onValueChange(field.key, nextValue);
                 }}
+                onValuePatch={onValuePatch}
               />
             ))}
           </div>
         ) : null}
 
-        {form.bodyMode === "generated" ? (
+        {form.bodyMode === "generated" && bodyFields.length > 0 ? (
           <div className="space-y-2">
-            {form.bodyFields.map((field) => (
+            {bodyFields.map((field) => (
               <CompactField
                 key={field.key}
                 bound={fieldBindingStates?.[field.key]?.isBound ?? boundFieldKeys?.has(field.key)}
@@ -328,42 +770,52 @@ export function AppComponentFormSections({
                   Boolean(fieldBindingStates?.[field.key]?.isBound ?? boundFieldKeys?.has(field.key))
                 }
                 field={field}
+                requestContext={requestContext}
                 value={values[field.key] ?? ""}
+                values={values}
                 onChange={(nextValue) => {
                   onValueChange(field.key, nextValue);
                 }}
+                onValuePatch={onValuePatch}
               />
             ))}
           </div>
         ) : null}
 
-        {form.bodyMode === "raw" && form.bodyRawField ? (
+        {form.bodyMode === "raw" && bodyRawField ? (
           <CompactField
             bound={
-              fieldBindingStates?.[form.bodyRawField.key]?.isBound ??
-              boundFieldKeys?.has(form.bodyRawField.key)
+              fieldBindingStates?.[bodyRawField.key]?.isBound ??
+              boundFieldKeys?.has(bodyRawField.key)
             }
             disabled={
               disabled ||
               Boolean(
-                fieldBindingStates?.[form.bodyRawField.key]?.isBound ??
-                  boundFieldKeys?.has(form.bodyRawField.key),
+                fieldBindingStates?.[bodyRawField.key]?.isBound ??
+                  boundFieldKeys?.has(bodyRawField.key),
               )
             }
-            field={form.bodyRawField}
-            value={values[form.bodyRawField.key] ?? ""}
+            field={bodyRawField}
+            requestContext={requestContext}
+            value={values[bodyRawField.key] ?? ""}
+            values={values}
             onChange={(nextValue) => {
-              onValueChange(form.bodyRawField!.key, nextValue);
+              onValueChange(bodyRawField.key, nextValue);
             }}
+            onValuePatch={onValuePatch}
           />
         ) : null}
       </div>
     );
   }
 
+  const parameterFields = listAppComponentRenderableParameterFields(form);
+  const bodyFields = listAppComponentRenderableBodyFields(form);
+  const bodyRawField = form.bodyRawField?.hiddenFromForm === true ? undefined : form.bodyRawField;
+
   return (
     <>
-      {form.parameterFields.length > 0 ? (
+      {parameterFields.length > 0 ? (
         <section className={widgetTightFormSectionClass}>
           <div className="space-y-1">
             <div className={widgetTightFormTitleClass}>Request Parameters</div>
@@ -372,7 +824,7 @@ export function AppComponentFormSections({
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {form.parameterFields.map((field) => (
+            {parameterFields.map((field) => (
               <label key={field.key} className={widgetTightFormFieldClass}>
                 {(() => {
                   const bindingState = fieldBindingStates?.[field.key];
@@ -414,9 +866,12 @@ export function AppComponentFormSections({
                   field={field}
                   title={field.description}
                   value={values[field.key] ?? ""}
+                  values={values}
+                  requestContext={requestContext}
                   onChange={(nextValue) => {
                     onValueChange(field.key, nextValue);
                   }}
+                  onValuePatch={onValuePatch}
                 />
                     </>
                   );
@@ -427,7 +882,7 @@ export function AppComponentFormSections({
         </section>
       ) : null}
 
-      {form.bodyMode !== "none" ? (
+      {form.bodyMode !== "none" && (bodyFields.length > 0 || bodyRawField) ? (
         <section className={widgetTightFormSectionClass}>
           <div className="space-y-1">
             <div className={widgetTightFormTitleClass}>Request Body</div>
@@ -438,7 +893,7 @@ export function AppComponentFormSections({
 
           {form.bodyMode === "generated" ? (
             <div className="grid gap-3 md:grid-cols-2">
-              {form.bodyFields.map((field) => (
+              {bodyFields.map((field) => (
                 <label key={field.key} className={widgetTightFormFieldClass}>
                   {(() => {
                     const bindingState = fieldBindingStates?.[field.key];
@@ -483,9 +938,12 @@ export function AppComponentFormSections({
                     field={field}
                     title={field.description}
                     value={values[field.key] ?? ""}
+                    values={values}
+                    requestContext={requestContext}
                     onChange={(nextValue) => {
                       onValueChange(field.key, nextValue);
                     }}
+                    onValuePatch={onValuePatch}
                   />
                       </>
                     );
@@ -493,12 +951,12 @@ export function AppComponentFormSections({
                 </label>
               ))}
             </div>
-          ) : form.bodyRawField ? (
+          ) : bodyRawField ? (
             <div className={widgetTightFormInsetSectionClass}>
               {(() => {
-                const bindingState = fieldBindingStates?.[form.bodyRawField.key];
+                const bindingState = fieldBindingStates?.[bodyRawField.key];
                 const isBound =
-                  bindingState?.isBound ?? boundFieldKeys?.has(form.bodyRawField.key);
+                  bindingState?.isBound ?? boundFieldKeys?.has(bodyRawField.key);
 
                 return (
                   <>
@@ -507,9 +965,9 @@ export function AppComponentFormSections({
                 {isBound ? <Badge variant="neutral">Bound</Badge> : null}
                 {form.bodyRequired ? <Badge variant="warning">Required</Badge> : null}
               </div>
-              {form.bodyRawField.description ? (
+                {bodyRawField.description ? (
                 <p className={widgetTightFormDescriptionClass}>
-                  {form.bodyRawField.description}
+                  {bodyRawField.description}
                 </p>
               ) : null}
               {bindingState?.isBound ? (
@@ -531,12 +989,15 @@ export function AppComponentFormSections({
               ) : null}
               <FieldEditor
                 disabled={disabled || Boolean(isBound)}
-                field={form.bodyRawField}
-                title={form.bodyRawField.description}
-                value={values[form.bodyRawField.key] ?? ""}
+                field={bodyRawField}
+                title={bodyRawField.description}
+                value={values[bodyRawField.key] ?? ""}
+                values={values}
+                requestContext={requestContext}
                 onChange={(nextValue) => {
-                  onValueChange(form.bodyRawField!.key, nextValue);
+                  onValueChange(bodyRawField.key, nextValue);
                 }}
+                onValuePatch={onValuePatch}
               />
                   </>
                 );

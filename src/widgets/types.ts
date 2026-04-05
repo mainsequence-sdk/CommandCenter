@@ -97,9 +97,28 @@ export type WidgetValueDescriptor =
   | WidgetArrayValueDescriptor
   | WidgetUnknownValueDescriptor;
 
+export type WidgetSelectArrayItemMode = "first" | "last" | "index";
+
+export interface WidgetSelectArrayItemTransformStep {
+  id: "select-array-item";
+  mode?: WidgetSelectArrayItemMode;
+  index?: number;
+}
+
+export interface WidgetExtractPathTransformStep {
+  id: "extract-path";
+  path?: string[];
+  contractId?: WidgetContractId;
+}
+
+export type WidgetBindingTransformStep =
+  | WidgetSelectArrayItemTransformStep
+  | WidgetExtractPathTransformStep;
+
 export interface WidgetPortBinding {
   sourceWidgetId: string;
   sourceOutputId: string;
+  transformSteps?: WidgetBindingTransformStep[];
   transformId?: string;
   transformPath?: string[];
   transformContractId?: WidgetContractId;
@@ -204,7 +223,8 @@ export type WidgetExecutionReason =
   | "manual-submit"
   | "settings-test"
   | "dashboard-refresh"
-  | "manual-recalculate";
+  | "manual-recalculate"
+  | "upstream-update";
 
 export interface WidgetExecutionDashboardState {
   timeRangeKey: string;

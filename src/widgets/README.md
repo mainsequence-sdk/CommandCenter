@@ -23,8 +23,8 @@ This directory contains the Command Center widget platform, including the shared
   dataflow surface, while `execution` is the opt-in runtime contract for widgets that actively run
   work and publish outputs through runtime-state patches.
 - Output ports can optionally describe their structured value shape through `valueDescriptor`, and
-  canonical bindings can attach lightweight transform metadata such as nested path extraction
-  without changing the underlying port-to-port graph model.
+  canonical bindings can attach lightweight transform metadata such as array-item selection and
+  nested path extraction without changing the underlying port-to-port graph model.
 - Widget definitions now inherit one shared platform default size through `defineWidget(...)`. Only
   true structural exceptions, such as the workspace row widget, should override that default at the
   definition layer.
@@ -53,7 +53,10 @@ This directory contains the Command Center widget platform, including the shared
   inputs, including inputs resolved dynamically from saved widget instance configuration. Do not
   stuff inter-widget graph edges into raw props editors.
 - The binding UI keeps graph edges port-to-port, but a selected binding can now optionally project a
-  nested field from a structured output before compatibility is evaluated against the target input.
+  selected array item or nested field from a structured output before compatibility is evaluated
+  against the target input. Ordered `transformSteps` are the canonical model, while legacy
+  `transformId` / `transformPath` fields remain only as a backward-compatible mirror for older
+  persisted dashboards.
 - Executable widget graphs are coordinated from the dashboard layer, not by widgets calling each
   other directly. Widget execution should return runtime-state patches and let the shared
   dependency model resolve outputs from runtime state.

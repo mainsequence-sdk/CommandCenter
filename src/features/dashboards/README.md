@@ -215,9 +215,11 @@ These flows are all part of one app surface, with instance state selected throug
 - A workspace detail fetch may seed one summary row into `workspaceListItems`, but that must never
   be treated as a hydrated workspace index. The Workspaces list route should always fetch the full
   backend list before rendering the index as authoritative.
-- Canvas widget submit and widget-settings `Test request` now share one dashboard-level executable
-  graph runner. Upstream executable dependencies run first, and refresh coordination stays in the
-  shared dashboard execution layer rather than inside widget components.
+- Canvas widget submit and widget-settings `Test request` both use the shared dashboard execution
+  layer, but they no longer mean the same thing. Canvas-side source actions such as AppComponent
+  `Submit` now use source-driven flow execution so downstream executable dependents can rerun
+  immediately after the source publishes new runtime state. Settings-side `Test request` remains
+  target-scoped and isolated to the selected widget graph.
 - Workspace refresh is now execution-scoped only. It must not invalidate the app-wide React Query
   cache or refetch unrelated shell concerns such as notifications.
 - Real workspace runtime widgets now follow a single-owner rule. On canvas, graph, rail, and other

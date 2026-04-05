@@ -44,6 +44,7 @@ import {
   resolveWidgetHeaderVisibility,
   resolveWidgetSidebarOnly,
 } from "@/widgets/shared/chrome";
+import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
 import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
 import {
   getVisibleWidgetSchemaFields,
@@ -497,23 +498,30 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
               return (
                 <div key={instance.id} className="h-px w-px overflow-hidden">
-                  <Component
-                    widget={widget}
+                  <WidgetErrorBoundary
+                    widgetId={widget.id}
+                    widgetTitle={instance.title ?? widget.title}
                     instanceId={instance.id}
-                    instanceTitle={instance.title}
-                    props={instance.props ?? {}}
-                    presentation={instance.presentation}
-                    runtimeState={instance.runtimeState}
-                    onRuntimeStateChange={(state) => {
-                      setWidgetOverrides((current) => ({
-                        ...current,
-                        [instance.id]: {
-                          ...current[instance.id],
-                          runtimeState: state ?? null,
-                        },
-                      }));
-                    }}
-                  />
+                    surface="hidden"
+                  >
+                    <Component
+                      widget={widget}
+                      instanceId={instance.id}
+                      instanceTitle={instance.title}
+                      props={instance.props ?? {}}
+                      presentation={instance.presentation}
+                      runtimeState={instance.runtimeState}
+                      onRuntimeStateChange={(state) => {
+                        setWidgetOverrides((current) => ({
+                          ...current,
+                          [instance.id]: {
+                            ...current[instance.id],
+                            runtimeState: state ?? null,
+                          },
+                        }));
+                      }}
+                    />
+                  </WidgetErrorBoundary>
                 </div>
               );
             })}
@@ -714,23 +722,30 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                             setSettingsInstanceId(instance.id);
                           }}
                         >
-                          <Component
-                            widget={widget}
+                          <WidgetErrorBoundary
+                            widgetId={widget.id}
+                            widgetTitle={instance.title ?? widget.title}
                             instanceId={instance.id}
-                            instanceTitle={instance.title}
-                            props={instance.props ?? {}}
-                            presentation={instance.presentation}
-                            runtimeState={instance.runtimeState}
-                            onRuntimeStateChange={(state) => {
-                              setWidgetOverrides((current) => ({
-                                ...current,
-                                [instance.id]: {
-                                  ...current[instance.id],
-                                  runtimeState: state ?? null,
-                                },
-                              }));
-                            }}
-                          />
+                            surface="canvas"
+                          >
+                            <Component
+                              widget={widget}
+                              instanceId={instance.id}
+                              instanceTitle={instance.title}
+                              props={instance.props ?? {}}
+                              presentation={instance.presentation}
+                              runtimeState={instance.runtimeState}
+                              onRuntimeStateChange={(state) => {
+                                setWidgetOverrides((current) => ({
+                                  ...current,
+                                  [instance.id]: {
+                                    ...current[instance.id],
+                                    runtimeState: state ?? null,
+                                  },
+                                }));
+                              }}
+                            />
+                          </WidgetErrorBoundary>
                         </WidgetFrame>
                       </div>
                     );
@@ -831,23 +846,30 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                             setSettingsInstanceId(instance.id);
                           }}
                         >
-                          <Component
-                            widget={widget}
+                          <WidgetErrorBoundary
+                            widgetId={widget.id}
+                            widgetTitle={instance.title ?? widget.title}
                             instanceId={instance.id}
-                            instanceTitle={instance.title}
-                            props={instance.props ?? {}}
-                            presentation={instance.presentation}
-                            runtimeState={instance.runtimeState}
-                            onRuntimeStateChange={(state) => {
-                              setWidgetOverrides((current) => ({
-                                ...current,
-                                [instance.id]: {
-                                  ...current[instance.id],
-                                  runtimeState: state ?? null,
-                                },
-                              }));
-                            }}
-                          />
+                            surface="canvas"
+                          >
+                            <Component
+                              widget={widget}
+                              instanceId={instance.id}
+                              instanceTitle={instance.title}
+                              props={instance.props ?? {}}
+                              presentation={instance.presentation}
+                              runtimeState={instance.runtimeState}
+                              onRuntimeStateChange={(state) => {
+                                setWidgetOverrides((current) => ({
+                                  ...current,
+                                  [instance.id]: {
+                                    ...current[instance.id],
+                                    runtimeState: state ?? null,
+                                  },
+                                }));
+                              }}
+                            />
+                          </WidgetErrorBoundary>
                         </WidgetFrame>
                       </div>
                     </div>

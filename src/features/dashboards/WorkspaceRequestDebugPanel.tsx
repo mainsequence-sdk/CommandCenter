@@ -21,6 +21,8 @@ function formatReasonLabel(reason: DashboardRequestTraceEntry["reason"]) {
       return "Recalculate";
     case "manual-submit":
       return "Manual submit";
+    case "upstream-update":
+      return "Upstream update";
     case "settings-test":
       return "Settings test";
     case "component-query":

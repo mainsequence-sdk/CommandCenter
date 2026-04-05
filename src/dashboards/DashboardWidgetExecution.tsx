@@ -24,6 +24,7 @@ import {
   resolveDashboardUpstreamRequirement,
   buildDashboardExecutionSnapshot,
   executeDashboardWidgetGraph,
+  listDashboardDownstreamExecutionTargets,
   listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
   type DashboardUpstreamResolutionRequirement,
@@ -60,6 +61,16 @@ export interface ResolveWidgetUpstreamHookOptions
   enabled: boolean;
 }
 
+export interface DashboardWidgetFlowExecutionResult {
+  status: "success" | "error" | "skipped";
+  error?: string;
+  widgets: DashboardWidgetInstance[];
+  sourceInstanceId: string;
+  sourceResult: DashboardWidgetGraphExecutionResult;
+  downstreamResults: DashboardWidgetGraphExecutionResult[];
+  executedInstanceIds: Set<string>;
+}
+
 interface DashboardWidgetExecutionContextValue {
   scopeId: string;
   activeRefreshCycleId?: string;
@@ -67,6 +78,10 @@ interface DashboardWidgetExecutionContextValue {
     targetInstanceId: string,
     options: ExecuteWidgetGraphOptions,
   ) => Promise<DashboardWidgetGraphExecutionResult>;
+  executeWidgetFlow: (
+    sourceInstanceId: string,
+    options: ExecuteWidgetGraphOptions,
+  ) => Promise<DashboardWidgetFlowExecutionResult>;
   resolveUpstream: (
     targetInstanceId: string,
     options?: ResolveWidgetUpstreamOptions,
@@ -137,6 +152,9 @@ export function DashboardWidgetExecutionProvider({
   );
   const widgetsRef = useRef(widgets);
   const inFlightRef = useRef(new Map<string, Promise<DashboardWidgetGraphExecutionResult>>());
+  const inFlightFlowRef = useRef(
+    new Map<string, Promise<DashboardWidgetFlowExecutionResult>>(),
+  );
   const refreshCycleRef = useRef<string | null>(null);
   const initialRefreshCompletedRef = useRef(false);
   const [activeRefreshCycleId, setActiveRefreshCycleId] = useState<string>();
@@ -253,6 +271,157 @@ export function DashboardWidgetExecutionProvider({
     });
 
     inFlightRef.current.set(dedupeKey, executionPromise);
+    return executionPromise;
+  }
+
+  function buildFlowExecutionKey(
+    sourceInstanceId: string,
+    options: ExecuteWidgetGraphOptions,
+  ) {
+    return [
+      "flow",
+      buildExecutionKey(sourceInstanceId, options),
+    ].join("::");
+  }
+
+  async function runFlow(
+    sourceInstanceId: string,
+    options: ExecuteWidgetGraphOptions,
+  ) {
+    const dedupeKey = buildFlowExecutionKey(sourceInstanceId, options);
+    const inFlight = inFlightFlowRef.current.get(dedupeKey);
+
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const executionPromise = (async () => {
+      const sharedExecutedInstanceIds = new Set<string>();
+      const flowCycleId =
+        options.refreshCycleId ??
+        `flow:${scopeId}:${sourceInstanceId}:${Date.now().toString(36)}`;
+
+      beginDashboardRequestTraceCycle({
+        scopeId,
+        refreshCycleId: flowCycleId,
+        kind: "activity",
+        activate: false,
+        label: "Manual widget flow",
+      });
+
+      try {
+        const sourceResult = await runGraph(
+          sourceInstanceId,
+          {
+            ...options,
+            refreshCycleId: flowCycleId,
+          },
+          sharedExecutedInstanceIds,
+        );
+        let workingWidgets = sourceResult.widgets;
+        const downstreamResults: DashboardWidgetGraphExecutionResult[] = [];
+        let flowError = sourceResult.error;
+        let flowStatus: DashboardWidgetFlowExecutionResult["status"] =
+          sourceResult.status === "error"
+            ? "error"
+            : sourceResult.status === "success"
+              ? "success"
+              : "skipped";
+
+        if (sourceResult.status === "success") {
+          let snapshot = buildDashboardExecutionSnapshot({
+            widgets: workingWidgets,
+            resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+          });
+          const downstreamTargets = listDashboardDownstreamExecutionTargets(
+            sourceInstanceId,
+            snapshot,
+          );
+
+          for (const targetInstanceId of downstreamTargets) {
+            snapshot = buildDashboardExecutionSnapshot({
+              widgets: workingWidgets,
+              resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+            });
+
+            const requirement = resolveDashboardUpstreamRequirement(
+              targetInstanceId,
+              snapshot,
+            );
+
+            if (!requirement.executableInstanceIds.includes(sourceInstanceId)) {
+              continue;
+            }
+
+            const downstreamResult = await runGraph(
+              targetInstanceId,
+              {
+                reason: "upstream-update",
+                refreshCycleId: flowCycleId,
+              },
+              sharedExecutedInstanceIds,
+            );
+
+            downstreamResults.push(downstreamResult);
+            workingWidgets = downstreamResult.widgets;
+            widgetsRef.current = workingWidgets;
+
+            if (downstreamResult.status === "error") {
+              flowStatus = "error";
+              flowError = flowError ?? downstreamResult.error;
+            }
+          }
+        }
+
+        completeDashboardRequestTraceCycle({
+          scopeId,
+          refreshCycleId: flowCycleId,
+          status: flowStatus === "error" ? "error" : "success",
+        });
+
+        return {
+          status: flowStatus,
+          error: flowError,
+          widgets: workingWidgets,
+          sourceInstanceId,
+          sourceResult,
+          downstreamResults,
+          executedInstanceIds: sharedExecutedInstanceIds,
+        } satisfies DashboardWidgetFlowExecutionResult;
+      } catch (error) {
+        const fallbackSourceResult: DashboardWidgetGraphExecutionResult = {
+          status: "error",
+          error:
+            error instanceof Error
+              ? error.message
+              : "Widget flow execution failed.",
+          widgets: widgetsRef.current,
+          targetInstanceId: sourceInstanceId,
+          nodeResults: [],
+          executedInstanceIds: sharedExecutedInstanceIds,
+        };
+
+        completeDashboardRequestTraceCycle({
+          scopeId,
+          refreshCycleId: flowCycleId,
+          status: "error",
+        });
+
+        return {
+          status: "error",
+          error: fallbackSourceResult.error,
+          widgets: widgetsRef.current,
+          sourceInstanceId,
+          sourceResult: fallbackSourceResult,
+          downstreamResults: [],
+          executedInstanceIds: sharedExecutedInstanceIds,
+        } satisfies DashboardWidgetFlowExecutionResult;
+      }
+    })().finally(() => {
+      inFlightFlowRef.current.delete(dedupeKey);
+    });
+
+    inFlightFlowRef.current.set(dedupeKey, executionPromise);
     return executionPromise;
   }
 
@@ -420,6 +589,8 @@ export function DashboardWidgetExecutionProvider({
       activeRefreshCycleId,
       executeWidgetGraph: (targetInstanceId, options) =>
         runGraph(targetInstanceId, options),
+      executeWidgetFlow: (sourceInstanceId, options) =>
+        runFlow(sourceInstanceId, options),
       resolveUpstream: (targetInstanceId, options) =>
         runGraph(targetInstanceId, {
           reason: "manual-recalculate",
@@ -446,7 +617,13 @@ export function DashboardWidgetExecutionProvider({
         };
       },
     }),
-    [activeRefreshCycleId, dashboardState, effectiveResolveWidgetDefinition, executionStates, scopeId],
+    [
+      activeRefreshCycleId,
+      dashboardState,
+      effectiveResolveWidgetDefinition,
+      executionStates,
+      scopeId,
+    ],
   );
 
   return (

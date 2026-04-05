@@ -37,6 +37,10 @@ export type AppComponentGeneratedFieldKind =
   | "enum"
   | "json";
 
+export type AppComponentEditableFormFieldKind =
+  | AppComponentGeneratedFieldKind
+  | "percent";
+
 export interface AppComponentWidgetProps extends Record<string, unknown> {
   apiBaseUrl?: string;
   authMode?: AppComponentAuthMode;
@@ -44,7 +48,10 @@ export interface AppComponentWidgetProps extends Record<string, unknown> {
   path?: string;
   requestBodyContentType?: string;
   bindingSpec?: AppComponentBindingSpec;
+  requestInputMap?: AppComponentRequestInputMap;
   showHeader?: boolean;
+  showResponse?: boolean;
+  hideRequestButton?: boolean;
   refreshOnDashboardRefresh?: boolean;
 }
 
@@ -60,6 +67,61 @@ export interface AppComponentWidgetRuntimeState extends Record<string, unknown> 
   lastResponseHeaders?: Record<string, string>;
   error?: string;
   publishedOutputs?: Record<string, unknown>;
+  editableFormSession?: AppComponentEditableFormSession;
+}
+
+export interface AppComponentEditableFormChoice {
+  value: unknown;
+  label: string;
+}
+
+export interface AppComponentEditableFormFieldDefinition {
+  token: string;
+  name: string;
+  label: string;
+  kind: AppComponentEditableFormFieldKind;
+  editable: boolean;
+  required: boolean;
+  value?: unknown;
+  defaultValue?: unknown;
+  description?: string;
+  formatter?: string | null;
+  choices?: AppComponentEditableFormChoice[] | null;
+  extra?: Record<string, unknown> | null;
+}
+
+export interface AppComponentEditableFormSectionDefinition {
+  id: string;
+  title: string;
+  description?: string;
+  fields: AppComponentEditableFormFieldDefinition[];
+  extra?: Record<string, unknown> | null;
+}
+
+export interface AppComponentEditableFormDefinition {
+  version: 1;
+  formId?: string;
+  title?: string;
+  description?: string;
+  sections: AppComponentEditableFormSectionDefinition[];
+  meta?: Record<string, unknown> | null;
+}
+
+export interface AppComponentEditableFormSession {
+  version: 1;
+  operationKey?: string;
+  widget: "definition-v1";
+  formId?: string;
+  title?: string;
+  description?: string;
+  sections: AppComponentEditableFormSectionDefinition[];
+  meta?: Record<string, unknown> | null;
+  valuesByToken: Record<string, string>;
+}
+
+export interface AppComponentResponseUiEditableFormDescriptor {
+  role: "editable-form";
+  widget: "definition-v1";
 }
 
 export interface AppComponentBindingInputPortSpec {
@@ -93,6 +155,18 @@ export interface AppComponentBindingSpec {
   requestForm?: AppComponentGeneratedForm;
 }
 
+export interface AppComponentRequestInputMapFieldConfig {
+  visibleOnCard?: boolean;
+  label?: string;
+  prefillValue?: string;
+}
+
+export interface AppComponentRequestInputMap {
+  version: 1;
+  operationKey: string;
+  fields: Record<string, AppComponentRequestInputMapFieldConfig>;
+}
+
 export interface OpenApiReference {
   $ref: string;
 }
@@ -113,6 +187,18 @@ export interface OpenApiSchema {
   allOf?: Array<OpenApiSchema | OpenApiReference>;
   anyOf?: Array<OpenApiSchema | OpenApiReference>;
   oneOf?: Array<OpenApiSchema | OpenApiReference>;
+  openapi_extra?: Record<string, unknown>;
+  json_schema_extra?: Record<string, unknown>;
+  "x-ui-role"?: unknown;
+  "x-ui-widget"?: unknown;
+  "x-ui-selection-type"?: unknown;
+  "x-search-param"?: unknown;
+  "x-search-param-aliases"?: unknown;
+  "x-items-path"?: unknown;
+  "x-item-value-field"?: unknown;
+  "x-item-label-field"?: unknown;
+  "x-pagination-path"?: unknown;
+  "x-pagination-more-field"?: unknown;
 }
 
 export interface OpenApiParameter {
@@ -122,6 +208,18 @@ export interface OpenApiParameter {
   required?: boolean;
   schema?: OpenApiSchema | OpenApiReference;
   example?: unknown;
+  openapi_extra?: Record<string, unknown>;
+  json_schema_extra?: Record<string, unknown>;
+  "x-ui-role"?: unknown;
+  "x-ui-widget"?: unknown;
+  "x-ui-selection-type"?: unknown;
+  "x-search-param"?: unknown;
+  "x-search-param-aliases"?: unknown;
+  "x-items-path"?: unknown;
+  "x-item-value-field"?: unknown;
+  "x-item-label-field"?: unknown;
+  "x-pagination-path"?: unknown;
+  "x-pagination-more-field"?: unknown;
 }
 
 export interface OpenApiMediaType {
@@ -148,6 +246,18 @@ export interface OpenApiOperation {
   parameters?: Array<OpenApiParameter | OpenApiReference>;
   requestBody?: OpenApiRequestBody | OpenApiReference;
   responses?: Record<string, OpenApiResponse | OpenApiReference>;
+  openapi_extra?: Record<string, unknown>;
+  json_schema_extra?: Record<string, unknown>;
+  "x-ui-role"?: unknown;
+  "x-ui-widget"?: unknown;
+  "x-ui-selection-type"?: unknown;
+  "x-search-param"?: unknown;
+  "x-search-param-aliases"?: unknown;
+  "x-items-path"?: unknown;
+  "x-item-value-field"?: unknown;
+  "x-item-label-field"?: unknown;
+  "x-pagination-path"?: unknown;
+  "x-pagination-more-field"?: unknown;
 }
 
 export interface OpenApiPathItem {
@@ -205,13 +315,36 @@ export interface AppComponentGeneratedField {
   required: boolean;
   kind: AppComponentGeneratedFieldKind;
   enumValues?: string[];
+  optionEntries?: Array<{
+    value: string;
+    label: string;
+  }>;
   paramName?: string;
   bodyPath?: string[];
   rootBodyValue?: boolean;
   contentType?: string | null;
   defaultValue?: unknown;
   exampleValue?: unknown;
+  hiddenFromForm?: boolean;
+  uiEnhancement?: AppComponentGeneratedFieldUiEnhancement;
 }
+
+export interface AppComponentAsyncSelectSearchFieldEnhancement {
+  role: "async-select-search";
+  widget: "select2";
+  selectionType: "single";
+  searchFieldKeys: string[];
+  pageFieldKey?: string;
+  limitFieldKey?: string;
+  itemsPath: string[];
+  itemValueFieldPath: string[];
+  itemLabelFieldPath: string[];
+  paginationPath?: string[];
+  paginationMoreField?: string;
+}
+
+export type AppComponentGeneratedFieldUiEnhancement =
+  | AppComponentAsyncSelectSearchFieldEnhancement;
 
 export interface AppComponentGeneratedForm {
   parameterFields: AppComponentGeneratedField[];
@@ -284,6 +417,19 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+const openApiUiExtensionKeys = [
+  "x-ui-role",
+  "x-ui-widget",
+  "x-ui-selection-type",
+  "x-search-param",
+  "x-search-param-aliases",
+  "x-items-path",
+  "x-item-value-field",
+  "x-item-label-field",
+  "x-pagination-path",
+  "x-pagination-more-field",
+] as const;
+
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -316,6 +462,213 @@ function normalizeHeadersRecord(value: unknown) {
   );
 
   return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function mergeOpenApiExtensionRecord(
+  preferred: Record<string, unknown> | undefined,
+  fallback: Record<string, unknown> | undefined,
+) {
+  if (preferred && fallback) {
+    return {
+      ...fallback,
+      ...preferred,
+    };
+  }
+
+  return preferred ?? fallback;
+}
+
+function mergeOpenApiUiExtensions(
+  preferred: OpenApiSchema | undefined,
+  fallback: OpenApiSchema | undefined,
+) {
+  const next: Partial<OpenApiSchema> = {};
+  const openApiExtra = mergeOpenApiExtensionRecord(
+    preferred?.openapi_extra,
+    fallback?.openapi_extra,
+  );
+  const jsonSchemaExtra = mergeOpenApiExtensionRecord(
+    preferred?.json_schema_extra,
+    fallback?.json_schema_extra,
+  );
+
+  if (openApiExtra) {
+    next.openapi_extra = openApiExtra;
+  }
+
+  if (jsonSchemaExtra) {
+    next.json_schema_extra = jsonSchemaExtra;
+  }
+
+  for (const key of openApiUiExtensionKeys) {
+    const value = preferred?.[key] ?? fallback?.[key];
+
+    if (value !== undefined) {
+      next[key] = value;
+    }
+  }
+
+  return next;
+}
+
+function normalizeExtensionPath(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) {
+    return undefined;
+  }
+
+  return value
+    .split(".")
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+}
+
+function readOpenApiExtensionValue(
+  source: unknown,
+  key: string,
+) {
+  if (!isPlainRecord(source)) {
+    return undefined;
+  }
+
+  if (key in source) {
+    return source[key];
+  }
+
+  const nestedOpenApiExtra = source.openapi_extra;
+
+  if (isPlainRecord(nestedOpenApiExtra) && key in nestedOpenApiExtra) {
+    return nestedOpenApiExtra[key];
+  }
+
+  const nestedJsonSchemaExtra = source.json_schema_extra;
+
+  if (isPlainRecord(nestedJsonSchemaExtra) && key in nestedJsonSchemaExtra) {
+    return nestedJsonSchemaExtra[key];
+  }
+
+  return undefined;
+}
+
+function readOpenApiExtensionString(
+  parameter: OpenApiParameter | undefined,
+  schema: OpenApiSchema | undefined,
+  key: string,
+) {
+  const parameterValue = readOpenApiExtensionValue(parameter, key);
+
+  if (typeof parameterValue === "string" && parameterValue.trim()) {
+    return parameterValue.trim();
+  }
+
+  const schemaValue = readOpenApiExtensionValue(schema, key);
+  return typeof schemaValue === "string" && schemaValue.trim() ? schemaValue.trim() : undefined;
+}
+
+function readOpenApiExtensionStringFromSources(
+  key: string,
+  ...sources: unknown[]
+) {
+  for (const source of sources) {
+    const value = readOpenApiExtensionValue(source, key);
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+}
+
+function readOpenApiExtensionStringArray(
+  parameter: OpenApiParameter | undefined,
+  schema: OpenApiSchema | undefined,
+  key: string,
+) {
+  const parameterValue = readOpenApiExtensionValue(parameter, key);
+
+  if (Array.isArray(parameterValue)) {
+    return parameterValue.flatMap((entry) =>
+      typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+    );
+  }
+
+  const schemaValue = readOpenApiExtensionValue(schema, key);
+
+  if (!Array.isArray(schemaValue)) {
+    return [];
+  }
+
+  return schemaValue.flatMap((entry) =>
+    typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+  );
+}
+
+function readOpenApiExtensionStringArrayFromSources(
+  key: string,
+  ...sources: unknown[]
+) {
+  for (const source of sources) {
+    const value = readOpenApiExtensionValue(source, key);
+
+    if (!Array.isArray(value)) {
+      continue;
+    }
+
+    return value.flatMap((entry) =>
+      typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+    );
+  }
+
+  return [];
+}
+
+function isMeaningfulAppComponentRequestInputMapFieldConfig(
+  value: AppComponentRequestInputMapFieldConfig | undefined,
+) {
+  if (!value) {
+    return false;
+  }
+
+  return (
+    value.visibleOnCard === false ||
+    value.label !== undefined ||
+    (typeof value.prefillValue === "string" && value.prefillValue.trim().length > 0)
+  );
+}
+
+function cloneAppComponentGeneratedField(
+  field: AppComponentGeneratedField,
+): AppComponentGeneratedField {
+  return {
+    ...field,
+    enumValues: field.enumValues ? [...field.enumValues] : undefined,
+    optionEntries: field.optionEntries ? cloneJson(field.optionEntries) : undefined,
+    bodyPath: field.bodyPath ? [...field.bodyPath] : undefined,
+    defaultValue:
+      field.defaultValue !== undefined ? cloneJson(field.defaultValue) : undefined,
+    exampleValue:
+      field.exampleValue !== undefined ? cloneJson(field.exampleValue) : undefined,
+    hiddenFromForm: field.hiddenFromForm === true,
+    uiEnhancement: field.uiEnhancement ? cloneJson(field.uiEnhancement) : undefined,
+  };
+}
+
+function cloneAppComponentGeneratedForm(
+  form: AppComponentGeneratedForm,
+): AppComponentGeneratedForm {
+  return {
+    parameterFields: form.parameterFields.map((field) =>
+      cloneAppComponentGeneratedField(field),
+    ),
+    bodyFields: form.bodyFields.map((field) => cloneAppComponentGeneratedField(field)),
+    bodyMode: form.bodyMode,
+    bodyRawField: form.bodyRawField
+      ? cloneAppComponentGeneratedField(form.bodyRawField)
+      : undefined,
+    bodyContentType: form.bodyContentType ?? null,
+    bodyRequired: form.bodyRequired,
+    unsupportedReason: form.unsupportedReason,
+  };
 }
 
 function unescapeOpenApiRefToken(token: string) {
@@ -421,6 +774,18 @@ function resolveOpenApiSchema(
             nextMerged.required = Array.from(
               new Set([...(nextMerged.required ?? []), ...(part.required ?? [])]),
             );
+            nextMerged.openapi_extra = mergeOpenApiExtensionRecord(
+              nextMerged.openapi_extra,
+              part.openapi_extra,
+            );
+            nextMerged.json_schema_extra = mergeOpenApiExtensionRecord(
+              nextMerged.json_schema_extra,
+              part.json_schema_extra,
+            );
+
+            for (const key of openApiUiExtensionKeys) {
+              nextMerged[key] = nextMerged[key] ?? part[key];
+            }
           }
 
           return nextMerged;
@@ -447,6 +812,7 @@ function resolveOpenApiSchema(
 
   return {
     ...candidate,
+    ...mergeOpenApiUiExtensions(merged, candidate),
     title: merged.title ?? candidate.title,
     description: merged.description ?? candidate.description,
     default: merged.default ?? candidate.default,
@@ -741,6 +1107,19 @@ function resolveSchemaSeedValue(schema?: OpenApiSchema) {
   return schema?.default ?? schema?.example;
 }
 
+function buildGeneratedFieldSeedProps({
+  defaultValue,
+  exampleValue,
+}: {
+  defaultValue?: unknown;
+  exampleValue?: unknown;
+}) {
+  return {
+    ...(defaultValue !== undefined ? { defaultValue } : {}),
+    ...(exampleValue !== undefined ? { exampleValue } : {}),
+  };
+}
+
 function resolveDateInputSeed(value: unknown) {
   if (typeof value !== "string") {
     return value === undefined || value === null ? "" : String(value);
@@ -966,8 +1345,10 @@ function buildParameterField(
     kind: resolveFieldKind(schema),
     enumValues: Array.isArray(schema?.enum) ? schema.enum.map((entry) => String(entry)) : undefined,
     paramName: parameter.name,
-    defaultValue: schema?.default,
-    exampleValue: parameter.example ?? resolveSchemaSeedValue(schema),
+    ...buildGeneratedFieldSeedProps({
+      defaultValue: schema?.default,
+      exampleValue: parameter.example ?? resolveSchemaSeedValue(schema),
+    }),
   };
 }
 
@@ -1000,8 +1381,10 @@ function createBodyField(
     bodyPath: path,
     rootBodyValue,
     contentType,
-    defaultValue: schema?.default,
-    exampleValue,
+    ...buildGeneratedFieldSeedProps({
+      defaultValue: schema?.default,
+      exampleValue,
+    }),
   };
 }
 
@@ -1034,7 +1417,9 @@ function collectBodyFieldsFromSchema(
       bodyPath: path,
       rootBodyValue: path.length === 0,
       contentType,
-      exampleValue,
+      ...buildGeneratedFieldSeedProps({
+        exampleValue,
+      }),
     });
     return;
   }
@@ -1054,8 +1439,10 @@ function collectBodyFieldsFromSchema(
         bodyPath: path,
         rootBodyValue: path.length === 0,
         contentType,
-        defaultValue: schema.default,
-        exampleValue: exampleValue ?? schema.example,
+        ...buildGeneratedFieldSeedProps({
+          defaultValue: schema.default,
+          exampleValue: exampleValue ?? schema.example,
+        }),
       });
       return;
     }
@@ -1140,6 +1527,149 @@ function collectOperationParameters(
   return Array.from(entries.values());
 }
 
+function resolveAsyncSelectSearchOperationEnhancement(
+  operation: OpenApiOperation,
+  parameterFields: AppComponentGeneratedField[],
+): AppComponentAsyncSelectSearchFieldEnhancement | undefined {
+  const uiWidget = readOpenApiExtensionStringFromSources("x-ui-widget", operation);
+  const uiRole = readOpenApiExtensionStringFromSources("x-ui-role", operation);
+
+  if (uiWidget !== "select2" || uiRole !== "async-select-search") {
+    return undefined;
+  }
+
+  const selectionType = readOpenApiExtensionStringFromSources(
+    "x-ui-selection-type",
+    operation,
+  );
+
+  if (selectionType && selectionType !== "single") {
+    return undefined;
+  }
+
+  const searchParam = readOpenApiExtensionStringFromSources(
+    "x-search-param",
+    operation,
+  );
+  const searchParamAliases = readOpenApiExtensionStringArrayFromSources(
+    "x-search-param-aliases",
+    operation,
+  );
+  const itemsPath = normalizeExtensionPath(
+    readOpenApiExtensionStringFromSources("x-items-path", operation),
+  );
+  const itemValueFieldPath = normalizeExtensionPath(
+    readOpenApiExtensionStringFromSources("x-item-value-field", operation),
+  );
+  const itemLabelFieldPath = normalizeExtensionPath(
+    readOpenApiExtensionStringFromSources("x-item-label-field", operation),
+  );
+
+  if (!searchParam || !itemsPath || !itemValueFieldPath || !itemLabelFieldPath) {
+    return undefined;
+  }
+
+  const availableFieldKeys = new Set(parameterFields.map((field) => field.key));
+  const searchFieldKeys = [searchParam, ...searchParamAliases]
+    .map((name) => `query:${name}`)
+    .filter((fieldKey, index, entries) =>
+      availableFieldKeys.has(fieldKey) && entries.indexOf(fieldKey) === index,
+    );
+
+  if (searchFieldKeys.length === 0) {
+    return undefined;
+  }
+
+  const pageFieldKey = availableFieldKeys.has("query:page") ? "query:page" : undefined;
+  const limitFieldKey = availableFieldKeys.has("query:limit") ? "query:limit" : undefined;
+  const paginationPath = normalizeExtensionPath(
+    readOpenApiExtensionStringFromSources("x-pagination-path", operation),
+  );
+
+  return {
+    role: "async-select-search",
+    widget: "select2",
+    selectionType: "single",
+    searchFieldKeys,
+    pageFieldKey,
+    limitFieldKey,
+    itemsPath,
+    itemValueFieldPath,
+    itemLabelFieldPath,
+    paginationPath,
+    paginationMoreField: readOpenApiExtensionStringFromSources(
+      "x-pagination-more-field",
+      operation,
+    ),
+  };
+}
+
+function resolveOperationUiEnhancement(
+  operation: OpenApiOperation,
+  parameterFields: AppComponentGeneratedField[],
+) {
+  const uiWidget = readOpenApiExtensionStringFromSources("x-ui-widget", operation);
+
+  if (!uiWidget) {
+    return undefined;
+  }
+
+  switch (uiWidget) {
+    case "select2":
+      return resolveAsyncSelectSearchOperationEnhancement(operation, parameterFields);
+    default:
+      return undefined;
+  }
+}
+
+function applyOperationUiEnhancements(
+  parameterFields: AppComponentGeneratedField[],
+  operation: OpenApiOperation,
+) {
+  if (parameterFields.length === 0) {
+    return parameterFields;
+  }
+
+  const nextFields = parameterFields.map((field) => cloneAppComponentGeneratedField(field));
+  const fieldsByKey = new Map(nextFields.map((field) => [field.key, field] as const));
+  const enhancement = resolveOperationUiEnhancement(operation, nextFields);
+
+  if (!enhancement) {
+    return parameterFields;
+  }
+
+  const searchParam = readOpenApiExtensionStringFromSources("x-search-param", operation);
+  const anchorFieldKey =
+    searchParam && fieldsByKey.has(`query:${searchParam}`)
+      ? `query:${searchParam}`
+      : enhancement.searchFieldKeys[0];
+  const anchorField = anchorFieldKey ? fieldsByKey.get(anchorFieldKey) : undefined;
+
+  if (!anchorField) {
+    return parameterFields;
+  }
+
+  anchorField.uiEnhancement = enhancement;
+
+  for (const linkedFieldKey of [
+    ...enhancement.searchFieldKeys,
+    enhancement.pageFieldKey,
+    enhancement.limitFieldKey,
+  ]) {
+    if (!linkedFieldKey || linkedFieldKey === anchorField.key) {
+      continue;
+    }
+
+    const linkedField = fieldsByKey.get(linkedFieldKey);
+
+    if (linkedField) {
+      linkedField.hiddenFromForm = true;
+    }
+  }
+
+  return nextFields;
+}
+
 function buildAppComponentInputPortSpec(
   field: AppComponentGeneratedField,
 ): AppComponentBindingInputPortSpec {
@@ -1199,6 +1729,36 @@ function pickPrimaryAppComponentResponseEntry(
   const preferred2xx = entries.find((entry) => /^2\d\d$/i.test(entry.statusCode));
 
   return preferred2xx ?? entries[0] ?? null;
+}
+
+export function resolveAppComponentResponseUiEditableFormDescriptor(
+  document: OpenApiDocument,
+  resolvedOperation: ResolvedAppComponentOperation | null,
+): AppComponentResponseUiEditableFormDescriptor | undefined {
+  if (!resolvedOperation) {
+    return undefined;
+  }
+
+  const primaryResponseEntry = pickPrimaryAppComponentResponseEntry(document, resolvedOperation);
+  const uiRole = readOpenApiExtensionStringFromSources(
+    "x-ui-role",
+    resolvedOperation.operation,
+    primaryResponseEntry?.schema,
+  );
+  const uiWidget = readOpenApiExtensionStringFromSources(
+    "x-ui-widget",
+    resolvedOperation.operation,
+    primaryResponseEntry?.schema,
+  );
+
+  if (uiRole !== "editable-form" || uiWidget !== "definition-v1") {
+    return undefined;
+  }
+
+  return {
+    role: "editable-form",
+    widget: "definition-v1",
+  };
 }
 
 function buildAppComponentResponsePortId(path: string[]) {
@@ -1750,8 +2310,69 @@ export function normalizeAppComponentProps(
         ? props.requestBodyContentType.trim()
         : undefined,
     bindingSpec: normalizeAppComponentBindingSpec(props.bindingSpec),
+    requestInputMap: normalizeAppComponentRequestInputMap(props.requestInputMap),
     showHeader: props.showHeader !== false,
+    showResponse: props.showResponse === true,
+    hideRequestButton: props.hideRequestButton === true,
     refreshOnDashboardRefresh: props.refreshOnDashboardRefresh !== false,
+  };
+}
+
+export function normalizeAppComponentRequestInputMapFieldConfig(
+  value: unknown,
+): AppComponentRequestInputMapFieldConfig | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const normalized = {
+    visibleOnCard: typeof value.visibleOnCard === "boolean" ? value.visibleOnCard : undefined,
+    label:
+      typeof value.label === "string" && value.label.trim() ? value.label.trim() : undefined,
+    prefillValue: typeof value.prefillValue === "string" ? value.prefillValue : undefined,
+  } satisfies AppComponentRequestInputMapFieldConfig;
+
+  return isMeaningfulAppComponentRequestInputMapFieldConfig(normalized)
+    ? normalized
+    : undefined;
+}
+
+export function normalizeAppComponentRequestInputMap(
+  value: unknown,
+): AppComponentRequestInputMap | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  if ("version" in value && value.version !== 1) {
+    return undefined;
+  }
+
+  const operationKey = typeof value.operationKey === "string" ? value.operationKey.trim() : "";
+
+  if (!operationKey) {
+    return undefined;
+  }
+
+  const fields = isPlainRecord(value.fields)
+    ? Object.fromEntries(
+        Object.entries(value.fields).flatMap(([fieldKey, entry]) => {
+          const normalizedFieldKey = fieldKey.trim();
+          const normalizedConfig = normalizeAppComponentRequestInputMapFieldConfig(entry);
+
+          if (!normalizedFieldKey || !normalizedConfig) {
+            return [];
+          }
+
+          return [[normalizedFieldKey, normalizedConfig] as const];
+        }),
+      )
+    : {};
+
+  return {
+    version: 1,
+    operationKey,
+    fields,
   };
 }
 
@@ -1876,6 +2497,73 @@ export function normalizeAppComponentBindingSpec(
   };
 }
 
+function normalizeAppComponentGeneratedFieldUiEnhancement(
+  value: unknown,
+): AppComponentGeneratedFieldUiEnhancement | undefined {
+  if (!isPlainRecord(value) || value.role !== "async-select-search") {
+    return undefined;
+  }
+
+  const searchFieldKeys = Array.isArray(value.searchFieldKeys)
+    ? value.searchFieldKeys.flatMap((entry) =>
+        typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+      )
+    : [];
+  const itemsPath = Array.isArray(value.itemsPath)
+    ? value.itemsPath.flatMap((entry) =>
+        typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+      )
+    : [];
+  const itemValueFieldPath = Array.isArray(value.itemValueFieldPath)
+    ? value.itemValueFieldPath.flatMap((entry) =>
+        typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+      )
+    : [];
+  const itemLabelFieldPath = Array.isArray(value.itemLabelFieldPath)
+    ? value.itemLabelFieldPath.flatMap((entry) =>
+        typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+      )
+    : [];
+  const paginationPath = Array.isArray(value.paginationPath)
+    ? value.paginationPath.flatMap((entry) =>
+        typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+      )
+    : undefined;
+
+  if (
+    value.widget !== "select2" ||
+    searchFieldKeys.length === 0 ||
+    itemsPath.length === 0 ||
+    itemValueFieldPath.length === 0 ||
+    itemLabelFieldPath.length === 0
+  ) {
+    return undefined;
+  }
+
+  return {
+    role: "async-select-search",
+    widget: "select2",
+    selectionType: "single",
+    searchFieldKeys,
+    pageFieldKey:
+      typeof value.pageFieldKey === "string" && value.pageFieldKey.trim()
+        ? value.pageFieldKey.trim()
+        : undefined,
+    limitFieldKey:
+      typeof value.limitFieldKey === "string" && value.limitFieldKey.trim()
+        ? value.limitFieldKey.trim()
+        : undefined,
+    itemsPath,
+    itemValueFieldPath,
+    itemLabelFieldPath,
+    paginationPath,
+    paginationMoreField:
+      typeof value.paginationMoreField === "string" && value.paginationMoreField.trim()
+        ? value.paginationMoreField.trim()
+        : undefined,
+  };
+}
+
 function normalizeAppComponentGeneratedField(
   value: unknown,
 ): AppComponentGeneratedField | undefined {
@@ -1916,14 +2604,45 @@ function normalizeAppComponentGeneratedField(
     enumValues: Array.isArray(value.enumValues)
       ? value.enumValues.filter((entry): entry is string => typeof entry === "string")
       : undefined,
+    optionEntries: Array.isArray(value.optionEntries)
+      ? value.optionEntries.flatMap((entry) => {
+          if (!isPlainRecord(entry)) {
+            return [];
+          }
+
+          const optionValue =
+            typeof entry.value === "string" ? entry.value : undefined;
+          const optionLabel =
+            typeof entry.label === "string" && entry.label.trim()
+              ? entry.label.trim()
+              : undefined;
+
+          if (!optionValue || !optionLabel) {
+            return [];
+          }
+
+          return [{
+            value: optionValue,
+            label: optionLabel,
+          }] as const;
+        })
+      : undefined,
     paramName: typeof value.paramName === "string" ? value.paramName : undefined,
     bodyPath: Array.isArray(value.bodyPath)
       ? value.bodyPath.filter((entry): entry is string => typeof entry === "string")
       : undefined,
     rootBodyValue: value.rootBodyValue === true,
     contentType: typeof value.contentType === "string" ? value.contentType : null,
-    defaultValue: "defaultValue" in value ? cloneJson(value.defaultValue) : undefined,
-    exampleValue: "exampleValue" in value ? cloneJson(value.exampleValue) : undefined,
+    defaultValue:
+      "defaultValue" in value && value.defaultValue !== undefined
+        ? cloneJson(value.defaultValue)
+        : undefined,
+    exampleValue:
+      "exampleValue" in value && value.exampleValue !== undefined
+        ? cloneJson(value.exampleValue)
+        : undefined,
+    hiddenFromForm: value.hiddenFromForm === true,
+    uiEnhancement: normalizeAppComponentGeneratedFieldUiEnhancement(value.uiEnhancement),
   };
 }
 
@@ -1959,6 +2678,234 @@ function normalizeAppComponentGeneratedForm(
     bodyRequired: value.bodyRequired === true,
     unsupportedReason:
       typeof value.unsupportedReason === "string" ? value.unsupportedReason : undefined,
+  };
+}
+
+function normalizeAppComponentEditableFormFieldKind(
+  value: unknown,
+): AppComponentEditableFormFieldKind | undefined {
+  switch (value) {
+    case "string":
+    case "number":
+    case "integer":
+    case "boolean":
+    case "date":
+    case "date-time":
+    case "enum":
+    case "json":
+    case "percent":
+      return value;
+    default:
+      return undefined;
+  }
+}
+
+function normalizeAppComponentEditableFormChoice(
+  value: unknown,
+): AppComponentEditableFormChoice | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const label = typeof value.label === "string" ? value.label.trim() : "";
+
+  if (!label) {
+    return undefined;
+  }
+
+  return {
+    label,
+    value: "value" in value ? cloneJson(value.value) : undefined,
+  };
+}
+
+function normalizeAppComponentEditableFormFieldDefinition(
+  value: unknown,
+): AppComponentEditableFormFieldDefinition | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const token = typeof value.token === "string" ? value.token.trim() : "";
+  const name = typeof value.name === "string" ? value.name.trim() : "";
+  const label = typeof value.label === "string" ? value.label.trim() : "";
+  const kind = normalizeAppComponentEditableFormFieldKind(value.kind);
+
+  if (!token || !name || !label || !kind || typeof value.editable !== "boolean") {
+    return undefined;
+  }
+
+  return {
+    token,
+    name,
+    label,
+    kind,
+    editable: value.editable,
+    required: value.required === true,
+    value:
+      "value" in value && value.value !== undefined ? cloneJson(value.value) : undefined,
+    defaultValue:
+      "default_value" in value && value.default_value !== undefined
+        ? cloneJson(value.default_value)
+        : "defaultValue" in value && value.defaultValue !== undefined
+          ? cloneJson(value.defaultValue)
+          : undefined,
+    description:
+      typeof value.description === "string" ? value.description : undefined,
+    formatter:
+      typeof value.formatter === "string"
+        ? value.formatter
+        : value.formatter === null
+          ? null
+          : undefined,
+    choices: Array.isArray(value.choices)
+      ? value.choices.flatMap((entry) => {
+          const normalized = normalizeAppComponentEditableFormChoice(entry);
+          return normalized ? [normalized] : [];
+        })
+      : value.choices === null
+        ? null
+        : undefined,
+    extra: isPlainRecord(value.extra)
+      ? cloneJson(value.extra)
+      : value.extra === null
+        ? null
+        : undefined,
+  };
+}
+
+function normalizeAppComponentEditableFormSectionDefinition(
+  value: unknown,
+): AppComponentEditableFormSectionDefinition | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const id = typeof value.id === "string" ? value.id.trim() : "";
+  const title = typeof value.title === "string" ? value.title.trim() : "";
+
+  if (!id || !title) {
+    return undefined;
+  }
+
+  return {
+    id,
+    title,
+    description:
+      typeof value.description === "string" ? value.description : undefined,
+    fields: Array.isArray(value.fields)
+      ? value.fields.flatMap((entry) => {
+          const normalized = normalizeAppComponentEditableFormFieldDefinition(entry);
+          return normalized ? [normalized] : [];
+        })
+      : [],
+    extra: isPlainRecord(value.extra)
+      ? cloneJson(value.extra)
+      : value.extra === null
+        ? null
+        : undefined,
+  };
+}
+
+function normalizeAppComponentEditableFormDefinition(
+  value: unknown,
+): AppComponentEditableFormDefinition | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  if ("version" in value && value.version !== 1) {
+    return undefined;
+  }
+
+  const sections = Array.isArray(value.sections)
+    ? value.sections.flatMap((entry) => {
+        const normalized = normalizeAppComponentEditableFormSectionDefinition(entry);
+        return normalized ? [normalized] : [];
+      })
+    : [];
+
+  if (sections.length === 0) {
+    return undefined;
+  }
+
+  return {
+    version: 1,
+    formId:
+      typeof value.form_id === "string" && value.form_id.trim()
+        ? value.form_id.trim()
+        : typeof value.formId === "string" && value.formId.trim()
+          ? value.formId.trim()
+          : undefined,
+    title:
+      typeof value.title === "string" && value.title.trim()
+        ? value.title.trim()
+        : undefined,
+    description:
+      typeof value.description === "string" && value.description.trim()
+        ? value.description.trim()
+        : undefined,
+    sections,
+    meta: isPlainRecord(value.meta)
+      ? cloneJson(value.meta)
+      : value.meta === null
+        ? null
+        : undefined,
+  };
+}
+
+function normalizeAppComponentEditableFormSession(
+  value: unknown,
+): AppComponentEditableFormSession | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  if ("version" in value && value.version !== 1) {
+    return undefined;
+  }
+
+  if (value.widget !== "definition-v1") {
+    return undefined;
+  }
+
+  const sections = Array.isArray(value.sections)
+    ? value.sections.flatMap((entry) => {
+        const normalized = normalizeAppComponentEditableFormSectionDefinition(entry);
+        return normalized ? [normalized] : [];
+      })
+    : [];
+
+  if (sections.length === 0) {
+    return undefined;
+  }
+
+  return {
+    version: 1,
+    operationKey:
+      typeof value.operationKey === "string" && value.operationKey.trim()
+        ? value.operationKey.trim()
+        : undefined,
+    widget: "definition-v1",
+    formId:
+      typeof value.formId === "string" && value.formId.trim()
+        ? value.formId.trim()
+        : undefined,
+    title:
+      typeof value.title === "string" && value.title.trim()
+        ? value.title.trim()
+        : undefined,
+    description:
+      typeof value.description === "string" && value.description.trim()
+        ? value.description.trim()
+        : undefined,
+    sections,
+    meta: isPlainRecord(value.meta)
+      ? cloneJson(value.meta)
+      : value.meta === null
+        ? null
+        : undefined,
+    valuesByToken: normalizeStringRecord(value.valuesByToken),
   };
 }
 
@@ -2005,6 +2952,9 @@ export function normalizeAppComponentRuntimeState(
     publishedOutputs: isPlainRecord(cloned.publishedOutputs)
       ? cloneJson(cloned.publishedOutputs)
       : undefined,
+    editableFormSession: normalizeAppComponentEditableFormSession(
+      cloned.editableFormSession,
+    ),
   };
 }
 
@@ -2379,8 +3329,10 @@ export function buildAppComponentGeneratedForm(
     return null;
   }
 
-  const parameterFields = collectOperationParameters(document, resolvedOperation).map((parameter) =>
-    buildParameterField(document, parameter),
+  const operationParameters = collectOperationParameters(document, resolvedOperation);
+  const parameterFields = applyOperationUiEnhancements(
+    operationParameters.map((parameter) => buildParameterField(document, parameter)),
+    resolvedOperation.operation,
   );
   const requestBody = resolveOpenApiRequestBody(document, resolvedOperation.operation.requestBody);
   const contentType =
@@ -2523,8 +3475,12 @@ export function buildAppComponentBindingSpec(
   ];
   const responsePorts: AppComponentBindingOutputPortSpec[] = [];
   const primaryResponseEntry = pickPrimaryAppComponentResponseEntry(document, resolvedOperation);
+  const responseUiEditableForm = resolveAppComponentResponseUiEditableFormDescriptor(
+    document,
+    resolvedOperation,
+  );
 
-  if (primaryResponseEntry) {
+  if (primaryResponseEntry && !responseUiEditableForm) {
     collectResponsePortsFromSchema(document, primaryResponseEntry.schema, {
       path: [],
       statusCode: primaryResponseEntry.statusCode,
@@ -2665,6 +3621,222 @@ export function resolveAppComponentRuntimeGeneratedForm(
   };
 }
 
+export function listAppComponentGeneratedFields(
+  form: AppComponentGeneratedForm | null,
+): AppComponentGeneratedField[] {
+  if (!form) {
+    return [];
+  }
+
+  return [
+    ...form.parameterFields,
+    ...(form.bodyMode === "generated" ? form.bodyFields : []),
+    ...(form.bodyMode === "raw" && form.bodyRawField ? [form.bodyRawField] : []),
+  ];
+}
+
+export function listAppComponentRenderableFields(
+  form: AppComponentGeneratedForm | null,
+): AppComponentGeneratedField[] {
+  return listAppComponentGeneratedFields(form).filter((field) => field.hiddenFromForm !== true);
+}
+
+export function listAppComponentRenderableParameterFields(
+  form: AppComponentGeneratedForm | null,
+) {
+  return (form?.parameterFields ?? []).filter((field) => field.hiddenFromForm !== true);
+}
+
+export function listAppComponentRenderableBodyFields(
+  form: AppComponentGeneratedForm | null,
+) {
+  return (form?.bodyFields ?? []).filter((field) => field.hiddenFromForm !== true);
+}
+
+export function resolveAppComponentActiveRequestInputMap(
+  props: Pick<AppComponentWidgetProps, "requestInputMap" | "bindingSpec" | "method" | "path">,
+): AppComponentRequestInputMap | undefined {
+  const inputMap = normalizeAppComponentRequestInputMap(props.requestInputMap);
+  const operationKey = resolveAppComponentEffectiveOperationKey(props);
+
+  if (!inputMap || !operationKey || inputMap.operationKey !== operationKey) {
+    return undefined;
+  }
+
+  return inputMap;
+}
+
+export function reconcileAppComponentRequestInputMap(
+  inputMap: AppComponentRequestInputMap | undefined,
+  form: AppComponentGeneratedForm | null,
+  operationKey: string | undefined,
+): AppComponentRequestInputMap | undefined {
+  if (!inputMap || !form || !operationKey || inputMap.operationKey !== operationKey) {
+    return undefined;
+  }
+
+  const validFieldKeys = new Set(listAppComponentGeneratedFields(form).map((field) => field.key));
+  const fields = Object.fromEntries(
+    Object.entries(inputMap.fields).flatMap(([fieldKey, config]) => {
+      if (!validFieldKeys.has(fieldKey) || !isMeaningfulAppComponentRequestInputMapFieldConfig(config)) {
+        return [];
+      }
+
+      return [[fieldKey, config] as const];
+    }),
+  );
+
+  return Object.keys(fields).length > 0
+    ? {
+        version: 1,
+        operationKey,
+        fields,
+      }
+    : undefined;
+}
+
+function applyAppComponentRequestInputFieldConfig(
+  field: AppComponentGeneratedField,
+  config: AppComponentRequestInputMapFieldConfig | undefined,
+) {
+  const nextField = cloneAppComponentGeneratedField(field);
+
+  if (config?.label) {
+    nextField.label = config.label;
+  }
+
+  return nextField;
+}
+
+function shouldShowAppComponentRequestFieldOnCard(
+  field: AppComponentGeneratedField,
+  inputMap: AppComponentRequestInputMap | undefined,
+) {
+  return (
+    field.hiddenFromForm !== true &&
+    inputMap?.fields[field.key]?.visibleOnCard !== false
+  );
+}
+
+function buildAppComponentCardRequestForm(
+  submissionForm: AppComponentGeneratedForm,
+  inputMap: AppComponentRequestInputMap | undefined,
+): AppComponentGeneratedForm {
+  const parameterFields = submissionForm.parameterFields.filter((field) =>
+    shouldShowAppComponentRequestFieldOnCard(field, inputMap),
+  );
+  const bodyFields =
+    submissionForm.bodyMode === "generated"
+      ? submissionForm.bodyFields.filter((field) =>
+          shouldShowAppComponentRequestFieldOnCard(field, inputMap),
+        )
+      : [];
+  const bodyRawField =
+    submissionForm.bodyMode === "raw" &&
+    submissionForm.bodyRawField &&
+    shouldShowAppComponentRequestFieldOnCard(submissionForm.bodyRawField, inputMap)
+      ? cloneAppComponentGeneratedField(submissionForm.bodyRawField)
+      : undefined;
+  const bodyMode =
+    submissionForm.bodyMode === "generated"
+      ? bodyFields.length > 0
+        ? "generated"
+        : "none"
+      : bodyRawField
+        ? "raw"
+        : "none";
+
+  return {
+    parameterFields: parameterFields.map((field) => cloneAppComponentGeneratedField(field)),
+    bodyFields: bodyFields.map((field) => cloneAppComponentGeneratedField(field)),
+    bodyMode,
+    bodyRawField,
+    bodyContentType: bodyMode === "none" ? null : submissionForm.bodyContentType ?? null,
+    bodyRequired: bodyMode === "none" ? false : submissionForm.bodyRequired,
+    unsupportedReason: bodyMode === "none" ? undefined : submissionForm.unsupportedReason,
+  };
+}
+
+export function resolveAppComponentRequestInputPrefillValues(
+  inputMap: AppComponentRequestInputMap | undefined,
+  form: AppComponentGeneratedForm | null,
+) {
+  if (!inputMap || !form) {
+    return {} as Record<string, string>;
+  }
+
+  const validFieldKeys = new Set(listAppComponentGeneratedFields(form).map((field) => field.key));
+
+  return Object.fromEntries(
+    Object.entries(inputMap.fields).flatMap(([fieldKey, config]) => {
+      if (
+        !validFieldKeys.has(fieldKey) ||
+        typeof config.prefillValue !== "string" ||
+        config.prefillValue.trim().length === 0
+      ) {
+        return [];
+      }
+
+      return [[fieldKey, config.prefillValue] as const];
+    }),
+  ) as Record<string, string>;
+}
+
+export function resolveAppComponentMappedRequestForms(
+  form: AppComponentGeneratedForm | null,
+  props: Pick<
+    AppComponentWidgetProps,
+    "requestInputMap" | "bindingSpec" | "method" | "path"
+  >,
+) {
+  if (!form) {
+    return {
+      submissionForm: null,
+      cardForm: null,
+      activeInputMap: undefined,
+      prefillValues: {} as Record<string, string>,
+    };
+  }
+
+  const operationKey = resolveAppComponentEffectiveOperationKey(props);
+  const activeInputMap = reconcileAppComponentRequestInputMap(
+    resolveAppComponentActiveRequestInputMap(props),
+    form,
+    operationKey,
+  );
+  const submissionForm = cloneAppComponentGeneratedForm(form);
+
+  submissionForm.parameterFields = submissionForm.parameterFields.map((field) =>
+    applyAppComponentRequestInputFieldConfig(field, activeInputMap?.fields[field.key]),
+  );
+
+  if (submissionForm.bodyMode === "generated") {
+    submissionForm.bodyFields = submissionForm.bodyFields.map((field) =>
+      applyAppComponentRequestInputFieldConfig(field, activeInputMap?.fields[field.key]),
+    );
+  } else if (submissionForm.bodyMode === "raw" && submissionForm.bodyRawField) {
+    submissionForm.bodyRawField = applyAppComponentRequestInputFieldConfig(
+      submissionForm.bodyRawField,
+      activeInputMap?.fields[submissionForm.bodyRawField.key],
+    );
+  }
+
+  return {
+    submissionForm,
+    cardForm: buildAppComponentCardRequestForm(submissionForm, activeInputMap),
+    activeInputMap,
+    prefillValues: resolveAppComponentRequestInputPrefillValues(activeInputMap, submissionForm),
+  };
+}
+
+export function resolveAppComponentRequestInputDisplayLabel(
+  props: Pick<AppComponentWidgetProps, "requestInputMap" | "bindingSpec" | "method" | "path">,
+  fieldKey: string,
+  fallbackLabel: string,
+) {
+  return resolveAppComponentActiveRequestInputMap(props)?.fields[fieldKey]?.label ?? fallbackLabel;
+}
+
 export function resolveAppComponentResponseValueAtPath(
   responseBody: unknown,
   responsePath: string[],
@@ -2688,6 +3860,333 @@ export function resolveAppComponentResponseValueAtPath(
   }
 
   return cloneJson(currentValue);
+}
+
+function resolveAppComponentResponseDisplayFieldKind(
+  kind: AppComponentBindingOutputPortSpec["kind"],
+) {
+  return kind === "enum" ? "string" : kind;
+}
+
+function resolveAppComponentEditableFormGeneratedFieldKind(
+  kind: AppComponentEditableFormFieldKind,
+): AppComponentGeneratedFieldKind {
+  return kind === "percent" ? "number" : kind;
+}
+
+function serializeAppComponentEditableFormChoiceValue(value: unknown) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value ?? "");
+  }
+}
+
+export function buildAppComponentEditableFormGeneratedField(
+  field: AppComponentEditableFormFieldDefinition,
+): AppComponentGeneratedField {
+  const optionEntries = Array.isArray(field.choices)
+    ? field.choices.map((choice) => ({
+        value: serializeAppComponentEditableFormChoiceValue(choice.value),
+        label: choice.label,
+      }))
+    : undefined;
+
+  return {
+    key: field.token,
+    label: field.label,
+    description: field.description,
+    location: "body",
+    required: field.required === true,
+    kind: resolveAppComponentEditableFormGeneratedFieldKind(field.kind),
+    enumValues: optionEntries?.map((entry) => entry.value),
+    optionEntries,
+    defaultValue:
+      field.value !== undefined
+        ? cloneJson(field.value)
+        : field.defaultValue !== undefined
+          ? cloneJson(field.defaultValue)
+          : undefined,
+  };
+}
+
+function listAppComponentEditableFormFields(
+  session: AppComponentEditableFormSession | undefined,
+) {
+  if (!session) {
+    return [];
+  }
+
+  return session.sections.flatMap((section) => section.fields);
+}
+
+function resolveAppComponentEditableFormFieldSeedValue(
+  field: AppComponentEditableFormFieldDefinition,
+) {
+  const seed = field.value !== undefined ? field.value : field.defaultValue;
+
+  if (seed === undefined) {
+    return "";
+  }
+
+  return serializeAppComponentBoundFieldValue(
+    buildAppComponentEditableFormGeneratedField(field),
+    seed,
+  );
+}
+
+export function resolveAppComponentEditableFormSessionFromResponse(args: {
+  responseBody: unknown;
+  operationKey?: string;
+  previousSession?: AppComponentEditableFormSession;
+  responseUiDescriptor?: AppComponentResponseUiEditableFormDescriptor;
+}): AppComponentEditableFormSession | undefined {
+  if (args.responseUiDescriptor?.widget !== "definition-v1") {
+    return undefined;
+  }
+
+  const definition = normalizeAppComponentEditableFormDefinition(args.responseBody);
+
+  if (!definition) {
+    return undefined;
+  }
+
+  const canReusePreviousValues =
+    args.previousSession?.widget === "definition-v1" &&
+    args.previousSession.operationKey === args.operationKey &&
+    (
+      (definition.formId && args.previousSession.formId === definition.formId) ||
+      (!definition.formId && !args.previousSession.formId)
+    );
+  const previousValuesByToken = canReusePreviousValues
+    ? args.previousSession?.valuesByToken
+    : undefined;
+  const valuesByToken = Object.fromEntries(
+    definition.sections.flatMap((section) =>
+      section.fields.map((field) => [
+        field.token,
+        previousValuesByToken?.[field.token] ??
+          resolveAppComponentEditableFormFieldSeedValue(field),
+      ] as const),
+    ),
+  );
+
+  return {
+    version: 1,
+    operationKey: args.operationKey,
+    widget: "definition-v1",
+    formId: definition.formId,
+    title: definition.title,
+    description: definition.description,
+    sections: cloneJson(definition.sections),
+    meta: definition.meta ? cloneJson(definition.meta) : definition.meta,
+    valuesByToken,
+  };
+}
+
+export function updateAppComponentEditableFormSessionValue(
+  session: AppComponentEditableFormSession | undefined,
+  token: string,
+  rawValue: string,
+): AppComponentEditableFormSession | undefined {
+  if (!session || !token.trim()) {
+    return session;
+  }
+
+  const field = listAppComponentEditableFormFields(session).find(
+    (entry) => entry.token === token,
+  );
+
+  if (!field || field.editable !== true) {
+    return session;
+  }
+
+  return {
+    ...session,
+    sections: cloneJson(session.sections),
+    meta: session.meta ? cloneJson(session.meta) : session.meta,
+    valuesByToken: {
+      ...session.valuesByToken,
+      [token]: rawValue,
+    },
+  };
+}
+
+export function resolveAppComponentEditableFormFieldParsedValue(
+  field: AppComponentEditableFormFieldDefinition,
+  rawValue: string,
+) {
+  if (
+    field.kind === "enum" &&
+    Array.isArray(field.choices) &&
+    field.choices.length > 0
+  ) {
+    const trimmed = rawValue.trim();
+
+    if (!trimmed) {
+      return undefined;
+    }
+
+    const matchedChoice = field.choices.find(
+      (choice) => serializeAppComponentEditableFormChoiceValue(choice.value) === trimmed,
+    );
+
+    return matchedChoice ? cloneJson(matchedChoice.value) : trimmed;
+  }
+
+  const parsed = parseFieldInput(
+    buildAppComponentEditableFormGeneratedField(field),
+    rawValue,
+  );
+
+  return parsed.error || parsed.empty ? undefined : parsed.value;
+}
+
+export function resolveAppComponentEditableFormRootValue(
+  session: AppComponentEditableFormSession | undefined,
+) {
+  if (!session) {
+    return undefined;
+  }
+
+  const valuesByToken = Object.fromEntries(
+    listAppComponentEditableFormFields(session).map((field) => [
+      field.token,
+      resolveAppComponentEditableFormFieldParsedValue(
+        field,
+        session.valuesByToken[field.token] ?? "",
+      ),
+    ]),
+  );
+
+  return {
+    form_id: session.formId,
+    title: session.title,
+    description: session.description,
+    values: valuesByToken,
+    meta: session.meta ?? null,
+  };
+}
+
+export function resolveAppComponentEditableFormPublishedOutputs(
+  session: AppComponentEditableFormSession | undefined,
+) {
+  if (!session) {
+    return undefined;
+  }
+
+  const outputs: Record<string, unknown> = {
+    "editable-form:$": resolveAppComponentEditableFormRootValue(session),
+  };
+
+  for (const field of listAppComponentEditableFormFields(session)) {
+    outputs[`editable-form:field:${field.token}`] =
+      resolveAppComponentEditableFormFieldParsedValue(
+        field,
+        session.valuesByToken[field.token] ?? "",
+      );
+  }
+
+  return outputs;
+}
+
+function buildAppComponentResponseDisplayFields(
+  bindingSpec?: AppComponentBindingSpec,
+  responseBody?: unknown,
+): AppComponentGeneratedField[] {
+  const responsePorts = bindingSpec?.responsePorts ?? [];
+
+  if (responsePorts.length > 0) {
+    const nonRootPorts = responsePorts.filter((port) => port.responsePath.length > 0);
+    const displayPorts = nonRootPorts.length > 0 ? nonRootPorts : responsePorts;
+
+    return displayPorts.map((port) => ({
+      key: port.id,
+      label: port.label,
+      description: port.description,
+      location: "body",
+      required: false,
+      kind: resolveAppComponentResponseDisplayFieldKind(port.kind),
+      bodyPath: port.responsePath,
+      rootBodyValue: port.responsePath.length === 0,
+      contentType: port.contentType,
+    }));
+  }
+
+  if (responseBody === undefined) {
+    return [];
+  }
+
+  let kind: AppComponentGeneratedFieldKind;
+
+  if (typeof responseBody === "boolean") {
+    kind = "boolean";
+  } else if (typeof responseBody === "number") {
+    kind = Number.isInteger(responseBody) ? "integer" : "number";
+  } else if (typeof responseBody === "string") {
+    kind = "string";
+  } else {
+    kind = "json";
+  }
+
+  return [{
+    key: "response:$",
+    label: "Response Body",
+    location: "body",
+    required: false,
+    kind,
+    bodyPath: [],
+    rootBodyValue: true,
+    contentType: null,
+  }];
+}
+
+export function resolveAppComponentResponseDisplayForm(
+  props: Pick<AppComponentWidgetProps, "bindingSpec">,
+  responseBody?: unknown,
+): AppComponentGeneratedForm | null {
+  const bindingSpec = normalizeAppComponentBindingSpec(props.bindingSpec);
+  const fields = buildAppComponentResponseDisplayFields(bindingSpec, responseBody);
+
+  if (fields.length === 0) {
+    return null;
+  }
+
+  return {
+    parameterFields: fields,
+    bodyFields: [],
+    bodyMode: "none",
+    bodyRequired: false,
+  };
+}
+
+export function resolveAppComponentResponseDisplayValues(
+  form: AppComponentGeneratedForm | null,
+  props: Pick<AppComponentWidgetProps, "bindingSpec">,
+  responseBody?: unknown,
+) {
+  if (!form || responseBody === undefined) {
+    return {};
+  }
+
+  const bindingSpec = normalizeAppComponentBindingSpec(props.bindingSpec);
+  const responsePortsById = new Map((bindingSpec?.responsePorts ?? []).map((port) => [port.id, port] as const));
+
+  return Object.fromEntries(
+    form.parameterFields.map((field) => {
+      const port = responsePortsById.get(field.key);
+      const value = port
+        ? resolveAppComponentResponseValueAtPath(responseBody, port.responsePath)
+        : field.rootBodyValue
+          ? responseBody
+          : undefined;
+
+      return [
+        field.key,
+        value === undefined ? "" : serializeAppComponentBoundFieldValue(field, value),
+      ];
+    }),
+  ) as Record<string, string>;
 }
 
 export function serializeAppComponentBoundFieldValue(
@@ -2723,11 +4222,7 @@ export function resolveAppComponentBoundInputOverlay(
     };
   }
 
-  const candidateFields = [
-    ...form.parameterFields,
-    ...(form.bodyMode === "generated" ? form.bodyFields : []),
-    ...(form.bodyMode === "raw" && form.bodyRawField ? [form.bodyRawField] : []),
-  ];
+  const candidateFields = listAppComponentGeneratedFields(form);
 
   for (const field of candidateFields) {
     const resolvedEntry = resolvedInputs[field.key];
@@ -2768,11 +4263,7 @@ export function resolveAppComponentFieldBindingStates(
     return {};
   }
 
-  const candidateFields = [
-    ...form.parameterFields,
-    ...(form.bodyMode === "generated" ? form.bodyFields : []),
-    ...(form.bodyMode === "raw" && form.bodyRawField ? [form.bodyRawField] : []),
-  ];
+  const candidateFields = listAppComponentGeneratedFields(form);
 
   return Object.fromEntries(
     candidateFields.map((field) => {
@@ -2813,6 +4304,9 @@ export function resolveAppComponentInitialDraftValues(
   form: AppComponentGeneratedForm | null,
   runtimeState: AppComponentWidgetRuntimeState,
   operationKey: string | undefined,
+  options?: {
+    prefillValues?: Record<string, string>;
+  },
 ) {
   if (!form) {
     return {};
@@ -2837,6 +4331,12 @@ export function resolveAppComponentInitialDraftValues(
       form.bodyRawField.contentType,
       form.bodyRawField.exampleValue,
     );
+  }
+
+  if (options?.prefillValues) {
+    for (const [fieldKey, value] of Object.entries(options.prefillValues)) {
+      nextValues[fieldKey] = value;
+    }
   }
 
   if (!reuseRuntimeValues) {

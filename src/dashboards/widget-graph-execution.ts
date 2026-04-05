@@ -1,13 +1,17 @@
 import type { DashboardWidgetInstance } from "@/dashboards/types";
+import { buildWidgetBindingTransformSignature } from "@/dashboards/widget-binding-transforms";
 import {
   collectDashboardWidgetEntries,
   createDashboardWidgetDependencyModel,
   createDashboardWidgetEntryIndex,
+  normalizeWidgetInstanceBindings,
   type DashboardWidgetDependencyModel,
 } from "@/dashboards/widget-dependencies";
 import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
+  WidgetPortBinding,
+  WidgetPortBindingValue,
   WidgetDefinition,
   WidgetExecutionDashboardState,
   WidgetExecutionContext,
@@ -38,6 +42,14 @@ function flattenResolvedInputs(
 
     return Array.isArray(entry) ? entry : [entry];
   });
+}
+
+function toBindingArray(value: WidgetPortBindingValue | undefined): WidgetPortBinding[] {
+  if (!value) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
 }
 
 function listValidResolvedInputs(
@@ -278,8 +290,7 @@ function collectUpstreamResolutionSignatures(
         input.inputId,
         input.sourceWidgetId,
         input.sourceOutputId ?? "",
-        input.binding?.transformId ?? "identity",
-        input.binding?.transformPath?.join(".") ?? "",
+        buildWidgetBindingTransformSignature(input.binding),
       ].join(":"),
     );
 
@@ -339,6 +350,155 @@ export function listDashboardWidgetExecutionOrder(
   snapshot: DashboardExecutionSnapshot,
 ) {
   return collectExecutionOrder(targetInstanceId, snapshot);
+}
+
+function buildCanonicalDownstreamBindingIndex(
+  snapshot: DashboardExecutionSnapshot,
+) {
+  const downstreamIndex = new Map<string, Set<string>>();
+
+  for (const { instance } of snapshot.dependencies.entries) {
+    const bindings = normalizeWidgetInstanceBindings(instance.bindings);
+
+    if (!bindings) {
+      continue;
+    }
+
+    for (const bindingValue of Object.values(bindings)) {
+      for (const binding of toBindingArray(bindingValue)) {
+        const sourceWidgetId = binding.sourceWidgetId.trim();
+
+        if (!sourceWidgetId) {
+          continue;
+        }
+
+        const nextTargets = downstreamIndex.get(sourceWidgetId) ?? new Set<string>();
+        nextTargets.add(instance.id);
+        downstreamIndex.set(sourceWidgetId, nextTargets);
+      }
+    }
+  }
+
+  return downstreamIndex;
+}
+
+function collectCanonicalDownstreamReachableIds(
+  sourceInstanceId: string,
+  downstreamIndex: ReadonlyMap<string, Set<string>>,
+) {
+  const reachable = new Set<string>();
+  const queue = [...(downstreamIndex.get(sourceInstanceId) ?? [])];
+
+  while (queue.length > 0) {
+    const instanceId = queue.shift();
+
+    if (!instanceId || reachable.has(instanceId)) {
+      continue;
+    }
+
+    reachable.add(instanceId);
+
+    for (const downstreamId of downstreamIndex.get(instanceId) ?? []) {
+      if (!reachable.has(downstreamId)) {
+        queue.push(downstreamId);
+      }
+    }
+  }
+
+  return reachable;
+}
+
+export function listDashboardDownstreamExecutionTargets(
+  sourceInstanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+) {
+  const downstreamIndex = buildCanonicalDownstreamBindingIndex(snapshot);
+  const reachableIds = collectCanonicalDownstreamReachableIds(
+    sourceInstanceId,
+    downstreamIndex,
+  );
+
+  if (reachableIds.size === 0) {
+    return [];
+  }
+
+  const stableOrder = snapshot.dependencies.entries.map(({ instance }) => instance.id);
+  const stableOrderIndex = new Map(
+    stableOrder.map((instanceId, index) => [instanceId, index] as const),
+  );
+  const indegreeById = new Map<string, number>();
+
+  for (const instanceId of reachableIds) {
+    indegreeById.set(instanceId, 0);
+  }
+
+  for (const [fromId, nextTargets] of downstreamIndex.entries()) {
+    if (fromId !== sourceInstanceId && !reachableIds.has(fromId)) {
+      continue;
+    }
+
+    for (const targetId of nextTargets) {
+      if (!reachableIds.has(targetId)) {
+        continue;
+      }
+
+      if (fromId === sourceInstanceId) {
+        continue;
+      }
+
+      indegreeById.set(targetId, (indegreeById.get(targetId) ?? 0) + 1);
+    }
+  }
+
+  const queue = stableOrder.filter(
+    (instanceId) =>
+      reachableIds.has(instanceId) && (indegreeById.get(instanceId) ?? 0) === 0,
+  );
+  const orderedIds: string[] = [];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    queue.sort(
+      (left, right) =>
+        (stableOrderIndex.get(left) ?? Number.MAX_SAFE_INTEGER) -
+        (stableOrderIndex.get(right) ?? Number.MAX_SAFE_INTEGER),
+    );
+    const instanceId = queue.shift();
+
+    if (!instanceId || visited.has(instanceId)) {
+      continue;
+    }
+
+    visited.add(instanceId);
+    orderedIds.push(instanceId);
+
+    for (const downstreamId of downstreamIndex.get(instanceId) ?? []) {
+      if (!reachableIds.has(downstreamId)) {
+        continue;
+      }
+
+      const nextDegree = (indegreeById.get(downstreamId) ?? 0) - 1;
+      indegreeById.set(downstreamId, nextDegree);
+
+      if (nextDegree <= 0 && !visited.has(downstreamId)) {
+        queue.push(downstreamId);
+      }
+    }
+  }
+
+  for (const instanceId of stableOrder) {
+    if (reachableIds.has(instanceId) && !visited.has(instanceId)) {
+      orderedIds.push(instanceId);
+    }
+  }
+
+  return orderedIds.filter((instanceId) => {
+    if (instanceId === sourceInstanceId) {
+      return false;
+    }
+
+    return Boolean(snapshot.getDefinition(instanceId)?.execution);
+  });
 }
 
 export interface DashboardUpstreamResolutionRequirement {

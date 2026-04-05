@@ -143,6 +143,7 @@ import {
   saveWidgetCatalogPreferences,
 } from "./widget-catalog-preferences";
 import { WidgetCanvasControls } from "@/widgets/shared/widget-canvas-controls";
+import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
 import { MissingWidgetFrame } from "@/widgets/shared/widget-frame";
 import { getWidgetExplorerPath } from "@/features/widgets/widget-explorer";
 import type { WidgetInstancePresentation } from "@/widgets/types";
@@ -1223,17 +1224,24 @@ function BuilderWidgetCard({
             editable ? "pointer-events-none select-none" : undefined,
           )}
         >
-          <Component
-            widget={widget}
+          <WidgetErrorBoundary
+            widgetId={widget.id}
+            widgetTitle={title}
             instanceId={instanceId}
-            instanceTitle={instanceTitle}
-            props={widgetRenderProps}
-            presentation={widgetPresentation}
-            runtimeState={widgetRuntimeState}
-            onRuntimeStateChange={(state) => {
-              onRuntimeStateChange(instanceId, state);
-            }}
-          />
+            surface="canvas"
+          >
+            <Component
+              widget={widget}
+              instanceId={instanceId}
+              instanceTitle={instanceTitle}
+              props={widgetRenderProps}
+              presentation={widgetPresentation}
+              runtimeState={widgetRuntimeState}
+              onRuntimeStateChange={(state) => {
+                onRuntimeStateChange(instanceId, state);
+              }}
+            />
+          </WidgetErrorBoundary>
         </div>
 
       </section>
@@ -2552,17 +2560,24 @@ export function CustomDashboardStudioPage({
 
             return (
               <div key={instance.id} className="h-px w-px overflow-hidden">
-                <Component
-                  widget={widget}
+                <WidgetErrorBoundary
+                  widgetId={widget.id}
+                  widgetTitle={instance.title ?? widget.title}
                   instanceId={instance.id}
-                  instanceTitle={instance.title}
-                  props={instance.props ?? {}}
-                  presentation={instance.presentation}
-                  runtimeState={instance.runtimeState}
-                  onRuntimeStateChange={(state) => {
-                    handleWidgetRuntimeStateChange(instance.id, state);
-                  }}
-                />
+                  surface="hidden"
+                >
+                  <Component
+                    widget={widget}
+                    instanceId={instance.id}
+                    instanceTitle={instance.title}
+                    props={instance.props ?? {}}
+                    presentation={instance.presentation}
+                    runtimeState={instance.runtimeState}
+                    onRuntimeStateChange={(state) => {
+                      handleWidgetRuntimeStateChange(instance.id, state);
+                    }}
+                  />
+                </WidgetErrorBoundary>
               </div>
             );
           })}

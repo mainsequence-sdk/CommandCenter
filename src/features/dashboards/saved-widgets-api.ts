@@ -1,6 +1,10 @@
 import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
+import {
+  normalizeWidgetBindingTransformSteps,
+  resolveLegacyWidgetBindingTransformFields,
+} from "@/dashboards/widget-binding-transforms";
 import type {
   DashboardCompanionLayoutItem,
   DashboardWidgetInstance,
@@ -443,6 +447,12 @@ function normalizeSavedWidgetGroupBindingRecord(
   const bindingPayload = sourceOutputId
     ? {
         sourceOutputId,
+        transformSteps:
+          isRecord(rawBindingPayload)
+            ? normalizeWidgetBindingTransformSteps(
+                rawBindingPayload.transformSteps ?? rawBindingPayload.transform_steps,
+              )
+            : undefined,
         transformId:
           isRecord(rawBindingPayload) && typeof rawBindingPayload.transformId === "string"
             ? rawBindingPayload.transformId
@@ -693,12 +703,17 @@ function serializeSavedWidgetGroupMutationPayload(payload: SavedWidgetGroupMutat
       target_member_key: binding.targetMemberKey,
       input_id: binding.inputId,
       binding_payload: binding.bindingPayload
-        ? {
-            source_output_id: binding.bindingPayload.sourceOutputId,
-            transform_id: binding.bindingPayload.transformId ?? null,
-            transform_path: binding.bindingPayload.transformPath ?? null,
-            transform_contract_id: binding.bindingPayload.transformContractId ?? null,
-          }
+        ? (() => {
+            const legacy = resolveLegacyWidgetBindingTransformFields(binding.bindingPayload);
+
+            return {
+              source_output_id: binding.bindingPayload.sourceOutputId,
+              transform_steps: binding.bindingPayload.transformSteps ?? null,
+              transform_id: legacy.transformId ?? null,
+              transform_path: legacy.transformPath ?? null,
+              transform_contract_id: legacy.transformContractId ?? null,
+            };
+          })()
         : null,
     })),
   });

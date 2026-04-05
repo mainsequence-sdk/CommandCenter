@@ -1,6 +1,9 @@
 import type {
+  WidgetBindingTransformStep,
   WidgetContractId,
+  WidgetExtractPathTransformStep,
   WidgetPortBinding,
+  WidgetSelectArrayItemMode,
   WidgetValueDescriptor,
 } from "@/widgets/types";
 import {
@@ -19,6 +22,65 @@ const DEFAULT_DESCRIPTOR_MAX_DEPTH = 4;
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isValidArrayItemIndex(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function normalizePath(path: unknown): string[] | undefined {
+  if (!Array.isArray(path)) {
+    return undefined;
+  }
+
+  const normalized = path.flatMap((entry) =>
+    typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+  );
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeArrayItemMode(value: unknown): WidgetSelectArrayItemMode | undefined {
+  if (value === "first" || value === "last" || value === "index") {
+    return value;
+  }
+
+  return undefined;
+}
+
+function normalizeTransformStep(
+  value: unknown,
+): WidgetBindingTransformStep | null {
+  if (!isPlainRecord(value) || typeof value.id !== "string") {
+    return null;
+  }
+
+  if (value.id === "select-array-item") {
+    const mode = normalizeArrayItemMode(value.mode);
+    const index = isValidArrayItemIndex(value.index) ? value.index : undefined;
+
+    return {
+      id: "select-array-item",
+      mode,
+      index,
+    };
+  }
+
+  if (value.id === "extract-path") {
+    const path = normalizePath(value.path);
+    const contractId =
+      typeof value.contractId === "string" && value.contractId.trim()
+        ? (value.contractId.trim() as WidgetContractId)
+        : undefined;
+
+    return {
+      id: "extract-path",
+      path,
+      contractId,
+    };
+  }
+
+  return null;
 }
 
 function inferPrimitiveContract(value: unknown): WidgetContractId {
@@ -157,6 +219,127 @@ export function getWidgetValueDescriptorAtPath(
     : getWidgetValueDescriptorAtPath(field.value, rest);
 }
 
+export function normalizeWidgetBindingTransformSteps(
+  value: unknown,
+): WidgetBindingTransformStep[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value
+    .map((entry) => normalizeTransformStep(entry))
+    .filter((entry): entry is WidgetBindingTransformStep => entry !== null);
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+export function resolveWidgetBindingTransformSteps(
+  binding:
+    | Pick<
+        WidgetPortBinding,
+        "transformSteps" | "transformId" | "transformPath" | "transformContractId"
+      >
+    | undefined,
+): WidgetBindingTransformStep[] {
+  const normalizedSteps = normalizeWidgetBindingTransformSteps(binding?.transformSteps);
+
+  if (normalizedSteps?.length) {
+    return normalizedSteps;
+  }
+
+  const transformId = binding?.transformId?.trim();
+
+  if (!transformId || transformId === "identity") {
+    return [];
+  }
+
+  if (transformId === "extract-path") {
+    return [{
+      id: "extract-path",
+      path: normalizePath(binding?.transformPath),
+      contractId: binding?.transformContractId,
+    } satisfies WidgetExtractPathTransformStep];
+  }
+
+  return [];
+}
+
+export function buildWidgetBindingTransformSignature(
+  binding:
+    | Pick<
+        WidgetPortBinding,
+        "transformSteps" | "transformId" | "transformPath" | "transformContractId"
+      >
+    | undefined,
+): string {
+  const steps = resolveWidgetBindingTransformSteps(binding);
+
+  if (steps.length === 0) {
+    const transformId = binding?.transformId?.trim();
+    return !transformId || transformId === "identity" ? "identity" : transformId;
+  }
+
+  return steps
+    .map((step) => {
+      if (step.id === "select-array-item") {
+        if (step.mode === "index") {
+          return `select-array-item:index:${isValidArrayItemIndex(step.index) ? step.index : "pending"}`;
+        }
+
+        return `select-array-item:${step.mode ?? "pending"}`;
+      }
+
+      return `extract-path:${step.path?.join(".") ?? "pending"}`;
+    })
+    .join("|");
+}
+
+export function resolveLegacyWidgetBindingTransformFields(
+  binding:
+    | Pick<
+        WidgetPortBinding,
+        "transformSteps" | "transformId" | "transformPath" | "transformContractId"
+      >
+    | undefined,
+): Pick<WidgetPortBinding, "transformId" | "transformPath" | "transformContractId"> {
+  const steps = resolveWidgetBindingTransformSteps(binding);
+
+  if (steps.length === 1 && steps[0]?.id === "extract-path") {
+    return {
+      transformId: "extract-path",
+      transformPath: steps[0].path,
+      transformContractId: steps[0].contractId,
+    };
+  }
+
+  const transformId = binding?.transformId?.trim();
+
+  return {
+    transformId: transformId || undefined,
+    transformPath: normalizePath(binding?.transformPath),
+    transformContractId: binding?.transformContractId,
+  };
+}
+
+function resolveArrayItemIndex(
+  items: readonly unknown[],
+  step: Extract<WidgetBindingTransformStep, { id: "select-array-item" }>,
+) {
+  if (step.mode === "first") {
+    return items.length > 0 ? 0 : null;
+  }
+
+  if (step.mode === "last") {
+    return items.length > 0 ? items.length - 1 : null;
+  }
+
+  if (step.mode === "index" && isValidArrayItemIndex(step.index)) {
+    return step.index < items.length ? step.index : null;
+  }
+
+  return null;
+}
+
 export interface WidgetValuePathOption {
   path: string[];
   label: string;
@@ -225,9 +408,10 @@ export function applyWidgetBindingTransform(
     coerceTabularFrameValueDescriptorContract(
       source.valueDescriptor ?? inferWidgetValueDescriptor(source.value, source.contractId),
     ) ?? inferWidgetValueDescriptor(source.value, source.contractId);
+  const transformSteps = resolveWidgetBindingTransformSteps(binding);
   const transformId = binding?.transformId?.trim();
 
-  if (!transformId || transformId === "identity") {
+  if (transformSteps.length === 0 && (!transformId || transformId === "identity")) {
     return {
       status: "valid",
       value: source.value,
@@ -237,8 +421,122 @@ export function applyWidgetBindingTransform(
     };
   }
 
-  if (transformId === "extract-path") {
-    const path = binding?.transformPath ?? [];
+  if (transformSteps.length === 0) {
+    return {
+      status: "transform-invalid",
+      value: source.value,
+      contractId: source.contractId,
+      valueDescriptor: baseDescriptor,
+    };
+  }
+
+  let currentValue = source.value;
+  let currentDescriptor = baseDescriptor;
+  let currentContractId =
+    resolveTabularFrameDescriptorContract(baseDescriptor) ?? baseDescriptor.contract;
+
+  for (const step of transformSteps) {
+    if (step.id === "select-array-item") {
+      if (currentDescriptor.kind !== "array") {
+        return {
+          status: "transform-invalid",
+          value: source.value,
+          contractId: source.contractId,
+          valueDescriptor: baseDescriptor,
+        };
+      }
+
+      const itemDescriptor =
+        coerceTabularFrameValueDescriptorContract(
+          currentDescriptor.items ??
+          (Array.isArray(currentValue) && currentValue.length > 0
+            ? inferWidgetValueDescriptor(currentValue[0])
+            : undefined),
+        ) ??
+        currentDescriptor.items ??
+        (Array.isArray(currentValue) && currentValue.length > 0
+          ? inferWidgetValueDescriptor(currentValue[0])
+          : undefined);
+
+      if (currentValue === undefined) {
+        if (!itemDescriptor) {
+          return {
+            status: "transform-invalid",
+            value: source.value,
+            contractId: source.contractId,
+            valueDescriptor: baseDescriptor,
+          };
+        }
+
+        currentValue = undefined;
+        currentDescriptor = itemDescriptor;
+        currentContractId =
+          resolveTabularFrameDescriptorContract(itemDescriptor) ?? itemDescriptor.contract;
+        continue;
+      }
+
+      if (!Array.isArray(currentValue)) {
+        return {
+          status: "transform-invalid",
+          value: source.value,
+          contractId: source.contractId,
+          valueDescriptor: baseDescriptor,
+        };
+      }
+
+      const selectedIndex = resolveArrayItemIndex(currentValue, step);
+
+      if (selectedIndex === null) {
+        if (!itemDescriptor) {
+          return {
+            status: "transform-invalid",
+            value: source.value,
+            contractId: source.contractId,
+            valueDescriptor: baseDescriptor,
+          };
+        }
+
+        currentValue = undefined;
+        currentDescriptor = itemDescriptor;
+        currentContractId =
+          resolveTabularFrameDescriptorContract(itemDescriptor) ?? itemDescriptor.contract;
+        continue;
+      }
+
+      const nestedValue = currentValue[selectedIndex];
+
+      if (nestedValue === undefined) {
+        if (!itemDescriptor) {
+          return {
+            status: "transform-invalid",
+            value: source.value,
+            contractId: source.contractId,
+            valueDescriptor: baseDescriptor,
+          };
+        }
+
+        currentValue = undefined;
+        currentDescriptor = itemDescriptor;
+        currentContractId =
+          resolveTabularFrameDescriptorContract(itemDescriptor) ?? itemDescriptor.contract;
+        continue;
+      }
+
+      const nestedDescriptor =
+        coerceTabularFrameValueDescriptorContract(
+          itemDescriptor ?? inferWidgetValueDescriptor(nestedValue),
+        ) ??
+        itemDescriptor ??
+        inferWidgetValueDescriptor(nestedValue);
+
+      currentValue = nestedValue;
+      currentDescriptor = nestedDescriptor;
+      currentContractId =
+        resolveTabularFrameDescriptorContract(nestedDescriptor) ?? nestedDescriptor.contract;
+      continue;
+    }
+
+    const path = step.path ?? [];
 
     if (path.length === 0) {
       return {
@@ -249,14 +547,14 @@ export function applyWidgetBindingTransform(
       };
     }
 
-    const nestedValue = getWidgetValueAtPath(source.value, path);
     const nestedDescriptor =
       coerceTabularFrameValueDescriptorContract(
-        getWidgetValueDescriptorAtPath(baseDescriptor, path) ??
-        inferWidgetValueDescriptor(nestedValue),
-      ) ?? inferWidgetValueDescriptor(nestedValue);
+        getWidgetValueDescriptorAtPath(currentDescriptor, path),
+      ) ?? getWidgetValueDescriptorAtPath(currentDescriptor, path);
+    const nestedValue =
+      currentValue === undefined ? undefined : getWidgetValueAtPath(currentValue, path);
 
-    if (nestedValue === undefined) {
+    if (!nestedDescriptor && nestedValue === undefined) {
       return {
         status: "transform-invalid",
         value: source.value,
@@ -265,21 +563,31 @@ export function applyWidgetBindingTransform(
       };
     }
 
-    return {
-      status: "valid",
-      value: nestedValue,
-      contractId:
-        binding?.transformContractId ??
-        resolveTabularFrameDescriptorContract(nestedDescriptor) ??
-        nestedDescriptor.contract,
-      valueDescriptor: nestedDescriptor,
-    };
+    const resolvedNestedDescriptor =
+      nestedDescriptor ??
+      (nestedValue !== undefined ? inferWidgetValueDescriptor(nestedValue) : undefined);
+
+    if (!resolvedNestedDescriptor) {
+      return {
+        status: "transform-invalid",
+        value: source.value,
+        contractId: source.contractId,
+        valueDescriptor: baseDescriptor,
+      };
+    }
+
+    currentValue = nestedValue;
+    currentDescriptor = resolvedNestedDescriptor;
+    currentContractId =
+      step.contractId ??
+      resolveTabularFrameDescriptorContract(resolvedNestedDescriptor) ??
+      resolvedNestedDescriptor.contract;
   }
 
   return {
-    status: "transform-invalid",
-    value: source.value,
-    contractId: source.contractId,
-    valueDescriptor: baseDescriptor,
+    status: "valid",
+    value: currentValue,
+    contractId: currentContractId,
+    valueDescriptor: currentDescriptor,
   };
 }

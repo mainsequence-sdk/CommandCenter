@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -12,16 +13,31 @@ import {
 } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
 
-import { executeAppComponent } from "./appComponentExecution";
-import { AppComponentFormSections } from "./AppComponentFormSections";
 import {
+  APP_COMPONENT_OPENAPI_CACHE_TTL_MS,
+  buildAppComponentOpenApiQueryKey,
+  fetchAppComponentOpenApiDocument,
+} from "./appComponentApi";
+import { executeAppComponent } from "./appComponentExecution";
+import {
+  AppComponentEditableFormSections,
+  AppComponentFormSections,
+} from "./AppComponentFormSections";
+import {
+  buildAppComponentGeneratedForm,
   normalizeAppComponentProps,
   normalizeAppComponentRuntimeState,
+  resolveAppComponentEditableFormPublishedOutputs,
   resolveAppComponentBoundInputOverlay,
   resolveAppComponentEffectiveOperationKey,
   resolveAppComponentInitialDraftValues,
+  resolveAppComponentMappedRequestForms,
+  resolveAppComponentOperation,
+  resolveAppComponentResponseDisplayForm,
+  resolveAppComponentResponseDisplayValues,
   resolveAppComponentRuntimeGeneratedForm,
   tryResolveAppComponentBaseUrl,
+  updateAppComponentEditableFormSessionValue,
   type AppComponentWidgetProps,
   type AppComponentWidgetRuntimeState,
 } from "./appComponentModel";
@@ -65,19 +81,67 @@ export function AppComponentWidget({
     () => tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl),
     [normalizedProps.apiBaseUrl],
   );
-  const generatedForm = useMemo(
+  const runtimeOpenApiQuery = useQuery({
+    queryKey: buildAppComponentOpenApiQueryKey(
+      resolvedBaseUrl,
+      normalizedProps.authMode ?? "session-jwt",
+    ),
+    queryFn: () =>
+      fetchAppComponentOpenApiDocument({
+        baseUrl: resolvedBaseUrl ?? "",
+        authMode: normalizedProps.authMode,
+      }),
+    enabled:
+      resolvedBaseUrl !== null &&
+      Boolean(normalizedProps.method) &&
+      Boolean(normalizedProps.path),
+    staleTime: APP_COMPONENT_OPENAPI_CACHE_TTL_MS,
+  });
+  const runtimeResolvedOperation = useMemo(
+    () =>
+      runtimeOpenApiQuery.data
+        ? resolveAppComponentOperation(
+            runtimeOpenApiQuery.data,
+            normalizedProps.method,
+            normalizedProps.path,
+          )
+        : null,
+    [normalizedProps.method, normalizedProps.path, runtimeOpenApiQuery.data],
+  );
+  const persistedGeneratedForm = useMemo(
     () => resolveAppComponentRuntimeGeneratedForm(normalizedProps),
     [normalizedProps],
   );
+  const liveGeneratedForm = useMemo(
+    () =>
+      runtimeOpenApiQuery.data
+        ? buildAppComponentGeneratedForm(
+            runtimeOpenApiQuery.data,
+            runtimeResolvedOperation,
+            normalizedProps.requestBodyContentType,
+          )
+        : null,
+    [normalizedProps.requestBodyContentType, runtimeOpenApiQuery.data, runtimeResolvedOperation],
+  );
+  const generatedForm = liveGeneratedForm ?? persistedGeneratedForm;
+  const mappedRequestForms = useMemo(
+    () => resolveAppComponentMappedRequestForms(generatedForm, normalizedProps),
+    [generatedForm, normalizedProps],
+  );
+  const submissionForm = mappedRequestForms.submissionForm;
+  const cardForm = mappedRequestForms.cardForm;
   const operationKey = resolveAppComponentEffectiveOperationKey(normalizedProps);
   const initialDraftValues = useMemo(
     () =>
       resolveAppComponentInitialDraftValues(
-        generatedForm,
+        submissionForm,
         normalizedRuntimeState,
         operationKey,
+        {
+          prefillValues: mappedRequestForms.prefillValues,
+        },
       ),
-    [generatedForm, normalizedRuntimeState, operationKey],
+    [mappedRequestForms.prefillValues, normalizedRuntimeState, operationKey, submissionForm],
   );
   const initialDraftValuesKey = useMemo(
     () => JSON.stringify(initialDraftValues),
@@ -87,9 +151,29 @@ export function AppComponentWidget({
   const [localRuntimeState, setLocalRuntimeState] =
     useState<AppComponentWidgetRuntimeState>(normalizedRuntimeState);
   const boundInputOverlay = useMemo(
-    () => resolveAppComponentBoundInputOverlay(generatedForm, draftValues, resolvedInputs),
-    [draftValues, generatedForm, resolvedInputs],
+    () => resolveAppComponentBoundInputOverlay(submissionForm, draftValues, resolvedInputs),
+    [draftValues, resolvedInputs, submissionForm],
   );
+  const responseForm = useMemo(
+    () =>
+      normalizedProps.showResponse
+        ? resolveAppComponentResponseDisplayForm(
+            normalizedProps,
+            localRuntimeState.lastResponseBody,
+          )
+        : null,
+    [localRuntimeState.lastResponseBody, normalizedProps],
+  );
+  const responseValues = useMemo(
+    () =>
+      resolveAppComponentResponseDisplayValues(
+        responseForm,
+        normalizedProps,
+        localRuntimeState.lastResponseBody,
+      ),
+    [localRuntimeState.lastResponseBody, normalizedProps, responseForm],
+  );
+  const editableFormSession = localRuntimeState.editableFormSession;
   const effectiveDraftValues = boundInputOverlay.values;
   const boundFieldKeys = boundInputOverlay.boundFieldKeys;
   const isExecuting = executionState?.status === "running";
@@ -124,11 +208,33 @@ export function AppComponentWidget({
     });
   }
 
+  function updateEditableFormValue(token: string, nextValue: string) {
+    const nextSession = updateAppComponentEditableFormSessionValue(
+      localRuntimeState.editableFormSession,
+      token,
+      nextValue,
+    );
+
+    if (!nextSession) {
+      return;
+    }
+
+    commitRuntimeState({
+      ...localRuntimeState,
+      editableFormSession: nextSession,
+      publishedOutputs: resolveAppComponentEditableFormPublishedOutputs(nextSession),
+    });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (normalizedProps.hideRequestButton) {
+      return;
+    }
+
     if (widgetExecution && instanceId) {
-      await widgetExecution.executeWidgetGraph(instanceId, {
+      await widgetExecution.executeWidgetFlow(instanceId, {
         reason: "manual-submit",
       });
       return;
@@ -169,7 +275,7 @@ export function AppComponentWidget({
     );
   }
 
-  if (!generatedForm) {
+  if (!submissionForm || !cardForm) {
     return (
       <AppComponentPlaceholder
         title="Request form not compiled"
@@ -182,34 +288,96 @@ export function AppComponentWidget({
     <div className="h-full min-h-0 p-4 md:p-5">
       <form className="flex h-full min-h-0 flex-col gap-3" onSubmit={handleSubmit}>
         <div className="min-h-0 flex-1 overflow-auto pr-1">
-          {generatedForm.parameterFields.length === 0 && generatedForm.bodyMode === "none" ? (
+          {cardForm.parameterFields.length === 0 && cardForm.bodyMode === "none" ? (
             <p className="text-xs text-muted-foreground">
-              This operation does not define any request inputs.
+              No request inputs are exposed on this card. Configure them in widget settings or drive this widget through upstream bindings and refresh execution.
             </p>
           ) : (
             <AppComponentFormSections
               boundFieldKeys={boundFieldKeys}
               disabled={isExecuting || localRuntimeState.status === "submitting"}
-              form={generatedForm}
+              form={cardForm}
               mode="compact"
+              requestContext={{
+                props: normalizedProps,
+                submissionForm,
+              }}
               values={effectiveDraftValues}
               onValueChange={updateDraftValue}
+              onValuePatch={(patch) => {
+                setDraftValues((current) => {
+                  const nextDraftValues = {
+                    ...current,
+                    ...patch,
+                  };
+
+                  commitRuntimeState({
+                    ...localRuntimeState,
+                    operationKey,
+                    draftValues: nextDraftValues,
+                  });
+
+                  return nextDraftValues;
+                });
+              }}
             />
           )}
+
+          {normalizedProps.showResponse ? (
+            <section className="mt-4 space-y-2 border-t border-border/60 pt-3">
+              <div className="space-y-1">
+                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  Response
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  {localRuntimeState.lastResponseStatus ? (
+                    <span className="rounded-[calc(var(--radius)-7px)] border border-border/70 bg-background/45 px-2 py-1 font-medium text-foreground">
+                      {localRuntimeState.lastResponseStatus}
+                    </span>
+                  ) : null}
+                  <span>
+                    {localRuntimeState.lastResponseBody === undefined
+                      ? "No response yet."
+                      : "Latest response body from this widget instance."}
+                  </span>
+                </div>
+              </div>
+
+              {editableFormSession ? (
+                <AppComponentEditableFormSections
+                  disabled={isExecuting || localRuntimeState.status === "submitting"}
+                  session={editableFormSession}
+                  onValueChange={updateEditableFormValue}
+                />
+              ) : responseForm && localRuntimeState.lastResponseBody !== undefined ? (
+                <AppComponentFormSections
+                  disabled
+                  form={responseForm}
+                  mode="compact"
+                  values={responseValues}
+                  onValueChange={() => {
+                    return;
+                  }}
+                />
+              ) : null}
+            </section>
+          ) : null}
         </div>
 
         <div className="mt-auto flex items-end justify-between gap-3">
           <div className="min-h-4 text-xs text-danger">
             {localRuntimeState.status === "error" ? localRuntimeState.error : ""}
           </div>
-          <Button type="submit" disabled={isExecuting || localRuntimeState.status === "submitting"}>
-            {isExecuting || localRuntimeState.status === "submitting" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-            Submit
-          </Button>
+          {!normalizedProps.hideRequestButton ? (
+            <Button type="submit" disabled={isExecuting || localRuntimeState.status === "submitting"}>
+              {isExecuting || localRuntimeState.status === "submitting" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              Submit
+            </Button>
+          ) : null}
         </div>
       </form>
     </div>

@@ -15,7 +15,9 @@ import type {
 } from "@/widgets/types";
 import {
   applyWidgetBindingTransform,
+  buildWidgetBindingTransformSignature,
   inferWidgetValueDescriptor,
+  normalizeWidgetBindingTransformSteps,
 } from "@/dashboards/widget-binding-transforms";
 
 export interface FlattenedDashboardWidgetEntry {
@@ -165,6 +167,9 @@ function normalizeBinding(value: unknown): WidgetPortBinding | null {
     typeof record.transformContractId === "string" && record.transformContractId.trim()
       ? (record.transformContractId.trim() as WidgetContractId)
       : undefined;
+  const transformSteps = normalizeWidgetBindingTransformSteps(
+    record.transformSteps ?? record.transform_steps,
+  );
 
   if (!sourceWidgetId || !sourceOutputId) {
     return null;
@@ -173,6 +178,7 @@ function normalizeBinding(value: unknown): WidgetPortBinding | null {
   return {
     sourceWidgetId,
     sourceOutputId,
+    transformSteps,
     transformId: transformId || undefined,
     transformPath: transformPath && transformPath.length > 0 ? transformPath : undefined,
     transformContractId: transformContractId || undefined,
@@ -625,7 +631,7 @@ function buildGraph(
         }
 
         return [{
-          id: `${entry.sourceWidgetId}:${entry.sourceOutputId}${entry.binding?.transformPath?.length ? `:${entry.binding.transformPath.join(".")}` : ""}->${instance.id}:${entry.inputId}`,
+          id: `${entry.sourceWidgetId}:${entry.sourceOutputId}:${buildWidgetBindingTransformSignature(entry.binding)}->${instance.id}:${entry.inputId}`,
           from: entry.sourceWidgetId,
           fromPort: entry.sourceOutputId,
           to: instance.id,

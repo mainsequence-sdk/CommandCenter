@@ -83,21 +83,29 @@ This descriptor is the platform-wide way to describe nested object/array/primiti
 Widgets that know their output schema ahead of time, such as `AppComponent`, should populate it
 statically. Widgets that do not should still work through runtime shape inference.
 
-### 5. The first transform type is path extraction
+### 5. Binding transforms are an ordered pipeline
 
-Bindings will support an additive transform model.
+Bindings support an additive, ordered transform model.
 
-The first supported transform is:
+The supported transforms in this slice are:
 
+- `select-array-item`
 - `extract-path`
 
-It projects a nested path such as:
+`select-array-item` resolves one element from an `array<...>` output before compatibility is
+checked. Supported selection modes are:
+
+- `first`
+- `last`
+- `index`
+
+`extract-path` projects a nested object path such as:
 
 - `["context", "date"]`
 - `["defaults", "options", "currency"]`
 
-No expression language, array indexing DSL, or multi-stage transform pipeline is part of this
-first slice.
+The transform pipeline remains explicit and shallow. We are not adding a general expression
+language or path DSL such as `results[0].id`.
 
 ### 6. The binding UI should show outputs first, then compatibility
 
@@ -106,8 +114,9 @@ The shared binding panel should:
 1. let the user pick a source widget
 2. let the user pick a source output port
 3. if the output is structured, optionally choose `Use whole output` or `Extract nested field`
-4. let the user select a nested path
-5. then show whether the transformed output is compatible with the target input
+4. if the output is an array, optionally choose `Use whole collection`, `Use first item`, `Use last item`, or `Use item at index`
+5. if the selected value is structured, optionally choose `Use whole value` or `Extract nested field`
+6. then show whether the transformed output is compatible with the target input
 
 Incompatibility should be explained, not hidden through premature filtering.
 
@@ -121,11 +130,28 @@ Canonical bindings remain port-to-port and gain optional transform metadata:
 interface WidgetPortBinding {
   sourceWidgetId: string;
   sourceOutputId: string;
+  transformSteps?: WidgetBindingTransformStep[];
   transformId?: string;
   transformPath?: string[];
   transformContractId?: WidgetContractId;
 }
+
+type WidgetBindingTransformStep =
+  | {
+      id: "select-array-item";
+      mode?: "first" | "last" | "index";
+      index?: number;
+    }
+  | {
+      id: "extract-path";
+      path?: string[];
+      contractId?: WidgetContractId;
+    };
 ```
+
+Legacy `transformId` / `transformPath` / `transformContractId` stay in the model as a backward-
+compatible mirror for old dashboards and persisted payloads. New multi-step bindings use
+`transformSteps` as the canonical representation.
 
 ### Output descriptor
 
@@ -188,8 +214,8 @@ This ADR covers the implementation slice we will land now:
 2. add shared transform utilities and runtime descriptor inference
 3. update the dependency engine to resolve outputs and apply transforms before validation
 4. expose resolved outputs to the binding UI
-5. update the binding panel with `Value mapping` and nested-path selection
-6. update `AppComponent` outputs to include a structured root descriptor while keeping flat outputs
+5. update the binding panel with collection-item selection plus nested-path extraction
+6. keep legacy single-step bindings working while persisting the new ordered transform steps
 7. update graph/edge diagnostics without changing graph topology
 8. update docs and module READMEs
 
@@ -198,8 +224,7 @@ This ADR covers the implementation slice we will land now:
 This ADR does not decide:
 
 - expression-based transforms
-- multi-stage transform pipelines
-- array indexing syntax beyond future additive support
+- arbitrary array filtering or lookup expressions
 - graph-level rendering of nested paths as separate nodes
 - removal of existing flat output ports from `AppComponent`
 
@@ -215,7 +240,8 @@ This ADR does not decide:
    - runtime descriptor inference
    - nested path enumeration
    - nested path lookup
-   - `extract-path` application
+   - array-item selection
+   - ordered transform-step application
 
 3. Update `src/dashboards/widget-dependencies.ts` to:
    - normalize new binding fields
@@ -227,8 +253,8 @@ This ADR does not decide:
 
 5. Update `src/widgets/shared/WidgetBindingPanel.tsx` to:
    - show source widgets and source outputs
-   - show `Value mapping`
-   - show nested-path selection for structured outputs
+   - show collection handling for array outputs
+   - show nested-path selection for structured outputs or selected array items
    - preview transformed values and derived contracts
    - show compatibility after transformation
 
@@ -242,4 +268,3 @@ This ADR does not decide:
    - `docs/core-widgets.md`
    - `src/widgets/README.md`
    - `src/widgets/core/app-component/README.md`
-

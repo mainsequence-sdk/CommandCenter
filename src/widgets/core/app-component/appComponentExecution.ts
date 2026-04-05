@@ -7,17 +7,24 @@ import type {
 
 import {
   APP_COMPONENT_SAFE_RESPONSE_CACHE_TTL_MS,
+  fetchAppComponentOpenApiDocument,
   submitAppComponentRequest,
 } from "./appComponentApi";
 import {
+  buildAppComponentGeneratedForm,
   buildAppComponentOperationKey,
   buildAppComponentRequest,
   extractAppComponentPublishedOutputs,
   normalizeAppComponentProps,
   normalizeAppComponentRuntimeState,
+  resolveAppComponentEditableFormPublishedOutputs,
+  resolveAppComponentEditableFormSessionFromResponse,
   resolveAppComponentBoundInputOverlay,
   resolveAppComponentEffectiveOperationKey,
   resolveAppComponentInitialDraftValues,
+  resolveAppComponentMappedRequestForms,
+  resolveAppComponentOperation,
+  resolveAppComponentResponseUiEditableFormDescriptor,
   resolveAppComponentRuntimeGeneratedForm,
   tryResolveAppComponentBaseUrl,
   type AppComponentWidgetProps,
@@ -40,10 +47,62 @@ function buildAppComponentErrorResult(
       operationKey,
       draftValues,
       status: "error",
+      lastExecutedAtMs: undefined,
+      lastRequestUrl: undefined,
+      lastResponseStatus: undefined,
+      lastResponseStatusText: undefined,
+      lastResponseHeaders: undefined,
+      lastResponseBody: undefined,
+      publishedOutputs: undefined,
+      editableFormSession: undefined,
       error,
     },
     error,
   };
+}
+
+async function resolveLiveAppComponentExecutionArtifacts(
+  props: AppComponentWidgetProps,
+) {
+  const fallbackForm = resolveAppComponentRuntimeGeneratedForm(props);
+  const resolvedBaseUrl = tryResolveAppComponentBaseUrl(props.apiBaseUrl);
+
+  if (!resolvedBaseUrl || !props.method || !props.path) {
+    return {
+      form: fallbackForm,
+      document: null,
+      resolvedOperation: null,
+    };
+  }
+
+  try {
+    const document = await fetchAppComponentOpenApiDocument({
+      baseUrl: resolvedBaseUrl,
+      authMode: props.authMode,
+    });
+    const resolvedOperation = resolveAppComponentOperation(
+      document,
+      props.method,
+      props.path,
+    );
+    const liveForm = buildAppComponentGeneratedForm(
+      document,
+      resolvedOperation,
+      props.requestBodyContentType,
+    );
+
+    return {
+      form: liveForm ?? fallbackForm,
+      document,
+      resolvedOperation,
+    };
+  } catch {
+    return {
+      form: fallbackForm,
+      document: null,
+      resolvedOperation: null,
+    };
+  }
 }
 
 export async function executeAppComponent(
@@ -57,7 +116,10 @@ export async function executeAppComponent(
     context.targetOverrides?.runtimeState ?? context.runtimeState,
   );
   const resolvedBaseUrl = tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl);
-  const generatedForm = resolveAppComponentRuntimeGeneratedForm(normalizedProps);
+  const executionArtifacts = await resolveLiveAppComponentExecutionArtifacts(normalizedProps);
+  const generatedForm = executionArtifacts.form;
+  const mappedRequestForms = resolveAppComponentMappedRequestForms(generatedForm, normalizedProps);
+  const submissionForm = mappedRequestForms.submissionForm;
   const operationKey = resolveAppComponentEffectiveOperationKey(normalizedProps) ??
     (normalizedProps.method && normalizedProps.path
       ? buildAppComponentOperationKey(normalizedProps.method, normalizedProps.path)
@@ -72,7 +134,7 @@ export async function executeAppComponent(
     );
   }
 
-  if (!generatedForm) {
+  if (!submissionForm) {
     return buildAppComponentErrorResult(
       normalizedRuntimeState,
       operationKey,
@@ -81,9 +143,12 @@ export async function executeAppComponent(
     );
   }
   const initialDraftValues = resolveAppComponentInitialDraftValues(
-    generatedForm,
+    submissionForm,
     normalizedRuntimeState,
     operationKey,
+    {
+      prefillValues: mappedRequestForms.prefillValues,
+    },
   );
   const requestedDraftValues = {
     ...initialDraftValues,
@@ -91,14 +156,14 @@ export async function executeAppComponent(
     ...(context.targetOverrides?.draftValues ?? {}),
   };
   const boundInputOverlay = resolveAppComponentBoundInputOverlay(
-    generatedForm,
+    submissionForm,
     requestedDraftValues,
     context.resolvedInputs,
   );
   const effectiveDraftValues = boundInputOverlay.values;
   const buildResult = buildAppComponentRequest(
     normalizedProps,
-    generatedForm,
+    submissionForm,
     effectiveDraftValues,
   );
 
@@ -125,6 +190,29 @@ export async function executeAppComponent(
       traceMeta: requestTraceMeta,
     });
 
+    const editableFormSession =
+      response.ok &&
+      executionArtifacts.document &&
+      executionArtifacts.resolvedOperation
+        ? resolveAppComponentEditableFormSessionFromResponse({
+            responseBody: response.body,
+            operationKey,
+            previousSession: normalizedRuntimeState.editableFormSession,
+            responseUiDescriptor: resolveAppComponentResponseUiEditableFormDescriptor(
+              executionArtifacts.document,
+              executionArtifacts.resolvedOperation,
+            ),
+          })
+        : undefined;
+    const publishedOutputs = response.ok
+      ? editableFormSession
+        ? resolveAppComponentEditableFormPublishedOutputs(editableFormSession)
+        : extractAppComponentPublishedOutputs(
+            response.body,
+            normalizedProps.bindingSpec,
+          )
+      : undefined;
+
     return {
       status: response.ok ? "success" : "error",
       runtimeStatePatch: {
@@ -137,18 +225,14 @@ export async function executeAppComponent(
         lastResponseStatusText: response.statusText,
         lastResponseHeaders: response.headers,
         lastResponseBody: response.body,
+        editableFormSession,
         error:
           response.ok
             ? undefined
             : typeof response.body === "string"
               ? response.body
               : `Request failed with ${response.status}.`,
-        publishedOutputs: response.ok
-          ? extractAppComponentPublishedOutputs(
-              response.body,
-              normalizedProps.bindingSpec,
-            )
-          : undefined,
+        publishedOutputs,
       },
       error:
         response.ok

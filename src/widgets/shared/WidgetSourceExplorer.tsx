@@ -3,16 +3,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   applyWidgetBindingTransform,
+  resolveLegacyWidgetBindingTransformFields,
   listWidgetValueDescriptorPaths,
+  resolveWidgetBindingTransformSteps,
   type WidgetValuePathOption,
 } from "@/dashboards/widget-binding-transforms";
 import { cn } from "@/lib/utils";
 import type {
+  WidgetBindingTransformStep,
   WidgetContractId,
   WidgetPortBinding,
+  WidgetSelectArrayItemMode,
   WidgetValueDescriptor,
 } from "@/widgets/types";
 
@@ -106,15 +111,39 @@ function resolveDraftBindingStatusVariant(
 function buildBindingMappingSummary(
   inputLabel: string,
   sourceOutputLabel: string | undefined,
-  transformId: string,
-  transformPath: string[] | undefined,
+  transformSteps: WidgetBindingTransformStep[],
 ) {
   if (!sourceOutputLabel) {
     return "No mapping selected";
   }
 
-  if (transformId === "extract-path" && transformPath && transformPath.length > 0) {
-    return `${sourceOutputLabel}.${transformPath.join(".")} -> ${inputLabel}`;
+  let sourceLabel = sourceOutputLabel;
+
+  transformSteps.forEach((step) => {
+    if (step.id === "select-array-item") {
+      if (step.mode === "first") {
+        sourceLabel = `${sourceLabel}[first]`;
+        return;
+      }
+
+      if (step.mode === "last") {
+        sourceLabel = `${sourceLabel}[last]`;
+        return;
+      }
+
+      if (step.mode === "index") {
+        sourceLabel = `${sourceLabel}[${typeof step.index === "number" ? step.index : "?"}]`;
+      }
+      return;
+    }
+
+    if (step.path?.length) {
+      sourceLabel = `${sourceLabel}.${step.path.join(".")}`;
+    }
+  });
+
+  if (sourceLabel !== sourceOutputLabel) {
+    return `${sourceLabel} -> ${inputLabel}`;
   }
 
   return `${sourceOutputLabel} -> ${inputLabel}`;
@@ -148,24 +177,30 @@ function buildPathKey(path: string[] | undefined) {
   return (path ?? []).join(".");
 }
 
+function isValidArrayIndex(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
 function resolvePathOptionLabel(option: WidgetValuePathOption) {
   return option.label.split(" / ").at(-1) ?? option.label;
 }
 
-function updateBindingTransform(
+function replaceBindingTransformSteps(
   binding: WidgetPortBinding,
-  options: {
-    transformId?: string;
-    transformPath?: string[];
-    transformContractId?: WidgetContractId;
-  },
+  transformSteps: WidgetBindingTransformStep[],
 ): WidgetPortBinding {
-  return {
+  const nextBinding = {
     sourceWidgetId: binding.sourceWidgetId,
     sourceOutputId: binding.sourceOutputId,
-    transformId: options.transformId,
-    transformPath: options.transformPath,
-    transformContractId: options.transformContractId,
+    transformSteps: transformSteps.length > 0 ? transformSteps : undefined,
+  } satisfies WidgetPortBinding;
+  const legacy = resolveLegacyWidgetBindingTransformFields(nextBinding);
+
+  return {
+    ...nextBinding,
+    transformId: legacy.transformId,
+    transformPath: legacy.transformPath,
+    transformContractId: legacy.transformContractId,
   };
 }
 
@@ -362,31 +397,113 @@ export function WidgetSourceExplorer({
     () => selectedOutputOptions.find((option) => option.id === value?.sourceOutputId),
     [selectedOutputOptions, value?.sourceOutputId],
   );
-  const currentTransformId =
-    value?.transformId === "extract-path" ? "extract-path" : "identity";
-  const pathOptions = useMemo(
-    () => listWidgetValueDescriptorPaths(selectedOutput?.valueDescriptor),
-    [selectedOutput?.valueDescriptor],
+  const transformSteps = useMemo(
+    () => resolveWidgetBindingTransformSteps(value),
+    [value],
   );
-  const selectedPathKey = buildPathKey(value?.transformPath);
-  const selectedPathOption = useMemo(
-    () => pathOptions.find((option) => buildPathKey(option.path) === selectedPathKey),
-    [pathOptions, selectedPathKey],
-  );
-  const transformedOutput = useMemo(
+  const arraySelectionStep = useMemo(
     () =>
-      selectedOutput && value
-        ? applyWidgetBindingTransform(value, {
+      transformSteps.find(
+        (
+          step,
+        ): step is Extract<WidgetBindingTransformStep, { id: "select-array-item" }> =>
+          step.id === "select-array-item",
+      ),
+    [transformSteps],
+  );
+  const extractPathStep = useMemo(
+    () =>
+      transformSteps.find(
+        (
+          step,
+        ): step is Extract<WidgetBindingTransformStep, { id: "extract-path" }> =>
+          step.id === "extract-path",
+      ),
+    [transformSteps],
+  );
+  const selectedOutputDescriptor = selectedOutput?.valueDescriptor;
+  const selectedOutputIsArray = selectedOutputDescriptor?.kind === "array";
+  const selectedOutputStructured = isStructuredOutput(selectedOutput);
+  const currentCollectionMode =
+    selectedOutputIsArray ? (arraySelectionStep?.mode ?? "identity") : "identity";
+  const currentValueMappingMode = extractPathStep ? "extract-path" : "identity";
+  const collectionOnlyBinding = useMemo(() => {
+    if (!selectedSourceWidget || !selectedOutput) {
+      return undefined;
+    }
+
+    return replaceBindingTransformSteps(
+      {
+        sourceWidgetId: selectedSourceWidget.id,
+        sourceOutputId: selectedOutput.id,
+      },
+      arraySelectionStep ? [arraySelectionStep] : [],
+    );
+  }, [arraySelectionStep, selectedOutput, selectedSourceWidget]);
+  const collectionOutput = useMemo(
+    () =>
+      selectedOutput && collectionOnlyBinding
+        ? applyWidgetBindingTransform(collectionOnlyBinding, {
             contractId: selectedOutput.contract,
             value: selectedOutput.value,
             valueDescriptor: selectedOutput.valueDescriptor,
           })
         : undefined,
-    [selectedOutput, value],
+    [collectionOnlyBinding, selectedOutput],
+  );
+  const pathSourceDescriptor = useMemo(() => {
+    if (selectedOutputIsArray) {
+      if (collectionOutput?.status === "valid") {
+        return collectionOutput.valueDescriptor;
+      }
+
+      return selectedOutputDescriptor?.kind === "array"
+        ? selectedOutputDescriptor.items
+        : undefined;
+    }
+
+    return selectedOutput?.valueDescriptor;
+  }, [collectionOutput, selectedOutput?.valueDescriptor, selectedOutputDescriptor, selectedOutputIsArray]);
+  const pathOptions = useMemo(
+    () => listWidgetValueDescriptorPaths(pathSourceDescriptor),
+    [pathSourceDescriptor],
+  );
+  const selectedPathKey = buildPathKey(extractPathStep?.path);
+  const selectedPathOption = useMemo(
+    () => pathOptions.find((option) => buildPathKey(option.path) === selectedPathKey),
+    [pathOptions, selectedPathKey],
+  );
+  const bindingForEvaluation = useMemo(() => {
+    if (!selectedSourceWidget || !selectedOutput) {
+      return value;
+    }
+
+    return replaceBindingTransformSteps(
+      {
+        sourceWidgetId: selectedSourceWidget.id,
+        sourceOutputId: selectedOutput.id,
+      },
+      transformSteps,
+    );
+  }, [selectedOutput, selectedSourceWidget, transformSteps, value]);
+  const transformedOutput = useMemo(
+    () =>
+      selectedOutput && bindingForEvaluation
+        ? applyWidgetBindingTransform(bindingForEvaluation, {
+            contractId: selectedOutput.contract,
+            value: selectedOutput.value,
+            valueDescriptor: selectedOutput.valueDescriptor,
+          })
+        : undefined,
+    [bindingForEvaluation, selectedOutput],
   );
   const selectedOutputContractId =
     selectedOutput?.valueDescriptor?.contract ?? selectedOutput?.contract;
-  const selectedOutputStructured = isStructuredOutput(selectedOutput);
+  const collectionSelectionPending =
+    selectedOutputIsArray && arraySelectionStep
+      ? !arraySelectionStep.mode ||
+        (arraySelectionStep.mode === "index" && !isValidArrayIndex(arraySelectionStep.index))
+      : false;
 
   const evaluation: WidgetSourceExplorerEvaluation =
     !selectedSourceWidgetId
@@ -417,8 +534,18 @@ export function WidgetSourceExplorer({
                 contractId: undefined,
                 value: undefined,
               }
-            : currentTransformId === "extract-path" &&
-                (!value.transformPath || value.transformPath.length === 0)
+            : collectionSelectionPending
+              ? {
+                  status: "pending",
+                  message:
+                    currentCollectionMode === "index"
+                      ? "Choose which collection item index to bind."
+                      : "Choose how to resolve a single item from this collection.",
+                  contractId: selectedOutput.contract,
+                  value: selectedOutput.value,
+                }
+              : currentValueMappingMode === "extract-path" &&
+                  (!extractPathStep?.path || extractPathStep.path.length === 0)
               ? {
                   status: "pending",
                   message: "Choose a nested field to continue.",
@@ -429,8 +556,10 @@ export function WidgetSourceExplorer({
                 ? {
                     status: "transform-invalid",
                     message:
-                      currentTransformId === "extract-path"
+                      currentValueMappingMode === "extract-path"
                         ? "The selected nested path could not be resolved from this output."
+                        : arraySelectionStep
+                          ? "The selected collection item could not be resolved from this output."
                         : "The selected output could not be transformed.",
                     contractId: selectedOutput.contract,
                     value: selectedOutput.value,
@@ -438,7 +567,7 @@ export function WidgetSourceExplorer({
                 : acceptedContracts.includes(transformedOutput.contractId)
                   ? {
                       status: "valid",
-                      message: `Compatible after ${currentTransformId === "extract-path" ? "nested field extraction" : "direct binding"}.`,
+                      message: `Compatible after ${currentValueMappingMode === "extract-path" ? "value extraction" : arraySelectionStep ? "collection item selection" : "direct binding"}.`,
                       contractId: transformedOutput.contractId,
                       value: transformedOutput.value,
                     }
@@ -448,6 +577,13 @@ export function WidgetSourceExplorer({
                       contractId: transformedOutput.contractId,
                       value: transformedOutput.value,
                     };
+  const showObjectValueMappingControls =
+    !selectedOutputIsArray &&
+    (selectedOutput?.valueDescriptor?.kind === "object" || currentValueMappingMode === "extract-path");
+  const showArrayValueMappingControls =
+    selectedOutputIsArray &&
+    currentCollectionMode !== "identity" &&
+    (pathSourceDescriptor?.kind === "object" || currentValueMappingMode === "extract-path");
 
   return (
     <div className="space-y-4">
@@ -482,21 +618,25 @@ export function WidgetSourceExplorer({
               );
               const nextOutputContractId =
                 nextOutput?.valueDescriptor?.contract ?? nextOutput?.contract;
-              const shouldDefaultToNestedPath =
-                isStructuredOutput(nextOutput) &&
-                !(nextOutputContractId
-                  ? acceptedContracts.includes(nextOutputContractId)
-                  : false);
+              const canDirectBind = nextOutputContractId
+                ? acceptedContracts.includes(nextOutputContractId)
+                : false;
+              const defaultTransformSteps: WidgetBindingTransformStep[] =
+                nextOutput?.valueDescriptor?.kind === "array" && !canDirectBind
+                  ? [{ id: "select-array-item" }]
+                  : isStructuredOutput(nextOutput) && !canDirectBind
+                    ? [{ id: "extract-path" }]
+                    : [];
 
               onBindingChange(
                 selectedSourceWidget && nextSourceOutputId && nextOutput
-                  ? {
-                      sourceWidgetId: selectedSourceWidget.id,
-                      sourceOutputId: nextSourceOutputId,
-                      transformId: shouldDefaultToNestedPath ? "extract-path" : undefined,
-                      transformPath: undefined,
-                      transformContractId: undefined,
-                    }
+                  ? replaceBindingTransformSteps(
+                      {
+                        sourceWidgetId: selectedSourceWidget.id,
+                        sourceOutputId: nextSourceOutputId,
+                      },
+                      defaultTransformSteps,
+                    )
                   : undefined,
               );
             }}
@@ -533,7 +673,9 @@ export function WidgetSourceExplorer({
               ) : null}
               {isStructuredOutput(selectedOutput) ? (
                 <div className="mt-1 text-xs text-muted-foreground">
-                  Structured output. Choose whether to bind the whole output or drill into a nested field below.
+                  {selectedOutputIsArray
+                    ? "Collection output. Bind the whole collection or select one item before drilling into nested fields."
+                    : "Structured output. Choose whether to bind the whole output or drill into a nested field below."}
                 </div>
               ) : null}
             </div>
@@ -544,114 +686,268 @@ export function WidgetSourceExplorer({
       {value?.sourceOutputId ? (
         <div className="space-y-3">
           {selectedOutputStructured ? (
-            <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
-              <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Value mapping
-                </label>
-                <Select
-                  className={cn(!editable ? "cursor-not-allowed opacity-70" : undefined)}
-                  value={currentTransformId}
-                  disabled={!editable}
-                  onChange={(event) => {
-                    const nextTransformId = event.target.value;
+            <div className="space-y-3">
+              {selectedOutputIsArray ? (
+                <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Collection handling
+                    </label>
+                    <Select
+                      className={cn(!editable ? "cursor-not-allowed opacity-70" : undefined)}
+                      value={currentCollectionMode}
+                      disabled={!editable}
+                      onChange={(event) => {
+                        if (!selectedSourceWidget || !selectedOutput) {
+                          return;
+                        }
 
-                    onBindingChange(
-                      value
-                        ? updateBindingTransform(value, {
-                            transformId:
-                              nextTransformId === "extract-path" ? "extract-path" : undefined,
-                            transformPath: undefined,
-                            transformContractId: undefined,
-                          })
-                        : undefined,
-                    );
-                  }}
-                >
-                  <option value="identity">Use whole output</option>
-                  <option value="extract-path" disabled={pathOptions.length === 0}>
-                    Extract nested field
-                  </option>
-                </Select>
-              </div>
+                        const nextMode = event.target.value;
+                        const nextSteps: WidgetBindingTransformStep[] =
+                          nextMode === "identity"
+                            ? []
+                            : [{
+                                id: "select-array-item",
+                                mode: nextMode as WidgetSelectArrayItemMode,
+                                index:
+                                  nextMode === "index" && arraySelectionStep?.mode === "index"
+                                    ? arraySelectionStep.index
+                                    : undefined,
+                              }];
 
-              {currentTransformId === "extract-path" ? (
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Nested field explorer
-                  </label>
-                  <div className="overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24">
-                    {pathOptions.length === 0 ? (
-                      <div className="px-3 py-3 text-sm text-muted-foreground">
-                        This output does not expose any nested fields.
-                      </div>
-                    ) : (
-                      <div className="max-h-72 overflow-y-auto p-2">
-                        <div className="space-y-2">
-                          {pathOptions.map((option) => {
-                            const optionKey = buildPathKey(option.path);
-                            const selected = optionKey === selectedPathKey;
-                            const optionCompatible = acceptedContracts.includes(option.contractId);
+                        if (nextMode !== "identity" && extractPathStep) {
+                          nextSteps.push(extractPathStep);
+                        }
 
-                            return (
-                              <button
-                                key={optionKey}
-                                type="button"
-                                disabled={!editable}
-                                className={cn(
-                                  "w-full rounded-[calc(var(--radius)-8px)] border px-3 py-2 text-left transition-colors",
-                                  selected
-                                    ? "border-primary/40 bg-primary/8"
-                                    : "border-border/60 bg-background/36 hover:border-primary/25 hover:bg-muted/20",
-                                  !editable ? "cursor-not-allowed opacity-70" : undefined,
-                                )}
-                                onClick={() => {
-                                  onBindingChange(
-                                    value
-                                      ? updateBindingTransform(value, {
-                                          transformId: "extract-path",
-                                          transformPath: option.path,
-                                          transformContractId: option.contractId,
-                                        })
-                                      : undefined,
-                                  );
-                                }}
-                              >
-                                <div
-                                  className="space-y-1"
-                                  style={{ paddingLeft: `${option.depth * 16}px` }}
-                                >
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="font-medium text-foreground">
-                                      {resolvePathOptionLabel(option)}
-                                    </span>
-                                    <Badge variant={optionCompatible ? "secondary" : "warning"}>
-                                      {formatValueDescriptorType(option.valueDescriptor)}
-                                    </Badge>
-                                    {option.required ? <Badge variant="warning">Required</Badge> : null}
-                                  </div>
-                                  <div className="font-mono text-[11px] text-muted-foreground">
-                                    {option.path.join(".")}
-                                  </div>
-                                  {option.description ? (
-                                    <div className="text-xs text-muted-foreground">
-                                      {option.description}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                        onBindingChange(
+                          replaceBindingTransformSteps(
+                            {
+                              sourceWidgetId: selectedSourceWidget.id,
+                              sourceOutputId: selectedOutput.id,
+                            },
+                            nextSteps,
+                          ),
+                        );
+                      }}
+                    >
+                      <option value="identity">Use whole collection</option>
+                      <option value="first">Use first item</option>
+                      <option value="last">Use last item</option>
+                      <option value="index">Use item at index</option>
+                    </Select>
+
+                    {currentCollectionMode === "index" ? (
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={isValidArrayIndex(arraySelectionStep?.index) ? String(arraySelectionStep.index) : ""}
+                        disabled={!editable}
+                        placeholder="0"
+                        onChange={(event) => {
+                          if (!selectedSourceWidget || !selectedOutput) {
+                            return;
+                          }
+
+                          const rawValue = event.target.value.trim();
+                          const nextIndex =
+                            rawValue === ""
+                              ? undefined
+                              : Number.isInteger(Number(rawValue)) && Number(rawValue) >= 0
+                                ? Number(rawValue)
+                                : undefined;
+                          const nextSteps: WidgetBindingTransformStep[] = [{
+                            id: "select-array-item",
+                            mode: "index",
+                            index: nextIndex,
+                          }];
+
+                          if (extractPathStep) {
+                            nextSteps.push(extractPathStep);
+                          }
+
+                          onBindingChange(
+                            replaceBindingTransformSteps(
+                              {
+                                sourceWidgetId: selectedSourceWidget.id,
+                                sourceOutputId: selectedOutput.id,
+                              },
+                              nextSteps,
+                            ),
+                          );
+                        }}
+                      />
+                    ) : null}
                   </div>
-                  {selectedPathOption ? (
-                    <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 px-3 py-2 text-xs text-muted-foreground">
-                      Selected path:{" "}
-                      <span className="font-mono text-foreground">
-                        {selectedPathOption.path.join(".")}
-                      </span>
+
+                  <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 px-3 py-2 text-sm">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Collection result
+                    </div>
+                    <div className="mt-1 font-medium text-foreground">
+                      {currentCollectionMode === "identity"
+                        ? "The full collection will be passed through."
+                        : collectionOutput?.status === "valid"
+                          ? `Selected item resolves to ${formatValueDescriptorType(collectionOutput.valueDescriptor)}.`
+                          : "Pick a valid collection item to continue."}
+                    </div>
+                    {collectionOutput?.status === "valid" && collectionOutput.contractId ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">{collectionOutput.contractId}</Badge>
+                      </div>
+                    ) : null}
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Choose a single item before drilling into nested fields or binding to scalar inputs.
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {showObjectValueMappingControls || showArrayValueMappingControls ? (
+                <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Value mapping
+                    </label>
+                    <Select
+                      className={cn(!editable ? "cursor-not-allowed opacity-70" : undefined)}
+                      value={currentValueMappingMode}
+                      disabled={!editable}
+                      onChange={(event) => {
+                        if (!selectedSourceWidget || !selectedOutput) {
+                          return;
+                        }
+
+                        const nextTransformId = event.target.value;
+                        const nextSteps: WidgetBindingTransformStep[] = [];
+
+                        if (selectedOutputIsArray && arraySelectionStep) {
+                          nextSteps.push(arraySelectionStep);
+                        }
+
+                        if (nextTransformId === "extract-path") {
+                          nextSteps.push({
+                            id: "extract-path",
+                          });
+                        }
+
+                        onBindingChange(
+                          replaceBindingTransformSteps(
+                            {
+                              sourceWidgetId: selectedSourceWidget.id,
+                              sourceOutputId: selectedOutput.id,
+                            },
+                            nextSteps,
+                          ),
+                        );
+                      }}
+                    >
+                      <option value="identity">
+                        {selectedOutputIsArray ? "Use selected item" : "Use whole output"}
+                      </option>
+                      <option value="extract-path" disabled={pathOptions.length === 0}>
+                        Extract nested field
+                      </option>
+                    </Select>
+                  </div>
+
+                  {currentValueMappingMode === "extract-path" ? (
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                        Nested field explorer
+                      </label>
+                      <div className="overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24">
+                        {pathOptions.length === 0 ? (
+                          <div className="px-3 py-3 text-sm text-muted-foreground">
+                            {selectedOutputIsArray && !arraySelectionStep
+                              ? "Choose a collection item before drilling into nested fields."
+                              : "This output does not expose any nested fields."}
+                          </div>
+                        ) : (
+                          <div className="max-h-72 overflow-y-auto p-2">
+                            <div className="space-y-2">
+                              {pathOptions.map((option) => {
+                                const optionKey = buildPathKey(option.path);
+                                const selected = optionKey === selectedPathKey;
+                                const optionCompatible = acceptedContracts.includes(option.contractId);
+                                const prefixSteps: WidgetBindingTransformStep[] = [];
+
+                                if (selectedOutputIsArray && arraySelectionStep) {
+                                  prefixSteps.push(arraySelectionStep);
+                                }
+
+                                return (
+                                  <button
+                                    key={optionKey}
+                                    type="button"
+                                    disabled={!editable}
+                                    className={cn(
+                                      "w-full rounded-[calc(var(--radius)-8px)] border px-3 py-2 text-left transition-colors",
+                                      selected
+                                        ? "border-primary/40 bg-primary/8"
+                                        : "border-border/60 bg-background/36 hover:border-primary/25 hover:bg-muted/20",
+                                      !editable ? "cursor-not-allowed opacity-70" : undefined,
+                                    )}
+                                    onClick={() => {
+                                      if (!selectedSourceWidget || !selectedOutput) {
+                                        return;
+                                      }
+
+                                      onBindingChange(
+                                        replaceBindingTransformSteps(
+                                          {
+                                            sourceWidgetId: selectedSourceWidget.id,
+                                            sourceOutputId: selectedOutput.id,
+                                          },
+                                          [
+                                            ...prefixSteps,
+                                            {
+                                              id: "extract-path",
+                                              path: option.path,
+                                              contractId: option.contractId,
+                                            },
+                                          ],
+                                        ),
+                                      );
+                                    }}
+                                  >
+                                    <div
+                                      className="space-y-1"
+                                      style={{ paddingLeft: `${option.depth * 16}px` }}
+                                    >
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-medium text-foreground">
+                                          {resolvePathOptionLabel(option)}
+                                        </span>
+                                        <Badge variant={optionCompatible ? "secondary" : "warning"}>
+                                          {formatValueDescriptorType(option.valueDescriptor)}
+                                        </Badge>
+                                        {option.required ? <Badge variant="warning">Required</Badge> : null}
+                                      </div>
+                                      <div className="font-mono text-[11px] text-muted-foreground">
+                                        {option.path.join(".")}
+                                      </div>
+                                      {option.description ? (
+                                        <div className="text-xs text-muted-foreground">
+                                          {option.description}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {selectedPathOption ? (
+                        <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 px-3 py-2 text-xs text-muted-foreground">
+                          Selected path:{" "}
+                          <span className="font-mono text-foreground">
+                            {selectedPathOption.path.join(".")}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -667,8 +963,7 @@ export function WidgetSourceExplorer({
               {buildBindingMappingSummary(
                 inputLabel,
                 selectedOutput?.label,
-                currentTransformId,
-                value?.transformPath,
+                transformSteps,
               )}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-2">
