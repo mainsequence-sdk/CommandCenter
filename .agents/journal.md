@@ -143,6 +143,10 @@ Implemented:
   serialization no longer emits member-level `bindings`, and group `binding_payload` only carries
   edge-local metadata (`sourceOutputId` plus optional transform fields) rather than a full binding
   object with stale source widget ids.
+- Enabled a tightly sanitized raw-HTML subset in the shared markdown renderer so Markdown widgets
+  can render authored HTML tables and inline images. The renderer now uses `rehype-raw` together
+  with `rehype-sanitize`, restricted to a small allowlist for tables, images, headings, and links
+  rather than enabling arbitrary HTML.
 
 Still missing:
 - Keep `Data Node` sidebar-only by product decision. Do not remove its effective compact/sidebar policy from the workspace model.

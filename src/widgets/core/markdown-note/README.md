@@ -22,5 +22,6 @@ This widget renders Markdown-authored narrative content inside dashboards and wo
   stack.
 - Keep props JSON-serializable so existing dashboard persistence flows continue to work without extra
   adapters.
-- Do not enable raw HTML rendering unless there is an explicit security review and a sanitization
-  plan.
+- Raw HTML is now allowed only through the shared `MarkdownContent` sanitizer allowlist for a small
+  subset of tags and attributes needed for authored content such as tables, images, headings, and
+  links. Keep the schema tight and do not widen it casually.

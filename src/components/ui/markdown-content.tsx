@@ -1,9 +1,49 @@
 import type { ComponentPropsWithoutRef } from "react";
 
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { cn } from "@/lib/utils";
+
+const markdownSanitizeSchema = {
+  ...defaultSchema,
+  tagNames: Array.from(
+    new Set([
+      ...(defaultSchema.tagNames ?? []),
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
+      "img",
+    ]),
+  ),
+  attributes: {
+    ...defaultSchema.attributes,
+    table: [...(defaultSchema.attributes?.table ?? [])],
+    thead: [...(defaultSchema.attributes?.thead ?? [])],
+    tbody: [...(defaultSchema.attributes?.tbody ?? [])],
+    tr: [...(defaultSchema.attributes?.tr ?? [])],
+    th: [...(defaultSchema.attributes?.th ?? []), "align", "colspan", "rowspan"],
+    td: [...(defaultSchema.attributes?.td ?? []), "align", "colspan", "rowspan"],
+    img: [
+      ...(defaultSchema.attributes?.img ?? []),
+      "src",
+      "alt",
+      "title",
+      "height",
+      "width",
+    ],
+  },
+  protocols: {
+    ...defaultSchema.protocols,
+    href: ["http", "https", "mailto"],
+    src: ["http", "https"],
+  },
+};
 
 export interface MarkdownContentProps {
   content: string;
@@ -25,6 +65,10 @@ export function MarkdownContent({
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[
+          rehypeRaw,
+          [rehypeSanitize, markdownSanitizeSchema],
+        ]}
         components={{
           h1: ({ className: headingClassName, ...props }) => (
             <h1
