@@ -146,13 +146,6 @@ export function CustomWorkspaceSettingsPage() {
       <CardContent className="space-y-4">
         <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
           <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            Storage scope
-          </div>
-          <div className="mt-2 text-foreground">{persistenceMode} / {user.id}</div>
-        </div>
-
-        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/30 p-4 text-sm">
-          <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
             Layout
           </div>
           <div className="mt-2 space-y-1 text-foreground">
@@ -317,7 +310,7 @@ export function CustomWorkspaceSettingsPage() {
     <>
       <div className="relative h-full overflow-hidden">
         <div className="h-full overflow-y-auto px-4 py-4 pb-10 md:px-6 md:py-6">
-          <div className="mx-auto max-w-5xl space-y-6">
+          <div className="w-full space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -421,7 +414,8 @@ export function CustomWorkspaceSettingsPage() {
             </div>
 
             {activeTab === "configuration" ? (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="max-w-6xl">
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
               <Card>
                 <CardHeader>
                   <CardTitle>Workspace configuration</CardTitle>
@@ -657,9 +651,10 @@ export function CustomWorkspaceSettingsPage() {
               </Card>
 
               {modelDetailsCard}
+              </div>
             </div>
             ) : (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="w-full">
               <Card>
                 <CardHeader>
                   <CardTitle>Workspace sharing</CardTitle>
@@ -687,8 +682,6 @@ export function CustomWorkspaceSettingsPage() {
                   )}
                 </CardContent>
               </Card>
-
-              {modelDetailsCard}
             </div>
             )}
           </div>

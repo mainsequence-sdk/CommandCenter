@@ -273,7 +273,7 @@ function RbacTransferSection({
         {label}
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_112px_minmax(0,1fr)]">
+      <div className="grid gap-3 2xl:grid-cols-[minmax(0,1fr)_112px_minmax(0,1fr)]">
         <TransferListPane
           label="Available"
           items={availableItems}
@@ -411,9 +411,9 @@ export function RbacAssignmentMatrix({
   }
 
   return (
-    <div className={cn("grid gap-6 xl:grid-cols-2", className)}>
+    <div className={cn("grid gap-6 2xl:grid-cols-2", className)}>
       {notice ? (
-        <div className="xl:col-span-2">
+        <div className="2xl:col-span-2">
           <div className="flex flex-wrap items-center gap-3 rounded-[calc(var(--radius)-4px)] border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
             <Badge variant={notice.tone ?? "primary"}>{notice.badgeLabel}</Badge>
             <span>{notice.message}</span>
