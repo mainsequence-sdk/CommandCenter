@@ -25,6 +25,9 @@
   GET instead of issuing parallel metadata requests for the same data node.
 - Summary consumers should read endpoint-specific add-ons from `summary.extensions` instead of legacy keys such as `summary`, `extra`, `extras`, or top-level `readme`.
 - Link-driven graph surfaces may also fetch backend-provided `summary_url` and `graph_url` values through shared helpers here instead of teaching feature components to build those endpoints by hand.
+- Shared quick-search helpers also live here for picker-style settings UIs. Main Sequence widgets
+  should resolve selectable backend objects such as projects or data nodes through these helpers
+  instead of asking users to type raw ids.
 - Shareable-object permission helpers also live here. They all use the same suffix-based contract:
   the caller provides an object root plus object id, and the API layer appends the configured
   `candidate-users`, `can-view`, `can-edit`, and add/remove permission suffixes from

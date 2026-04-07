@@ -771,6 +771,34 @@ export function AppComponentWidgetSettings({
           </span>
         </label>
 
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-topbar-foreground">
+            Card form columns
+          </span>
+          <Select
+            value={normalizedProps.compactCardLayout ?? "one-column"}
+            disabled={!editable}
+            onChange={(event) => {
+              onDraftPropsChange(
+                buildNextDraftProps(
+                  {
+                    compactCardLayout: event.target.value as AppComponentWidgetProps["compactCardLayout"],
+                  },
+                  { preserveSelection: true },
+                ),
+              );
+            }}
+          >
+            <option value="one-column">1 column</option>
+            <option value="two-columns">2 columns</option>
+            <option value="three-columns">3 columns</option>
+          </Select>
+          <p className="text-sm text-muted-foreground">
+            Controls the mounted card layout for request inputs and response fields. Use 2 or 3
+            columns for wide forms; JSON and raw body editors still stay full-width.
+          </p>
+        </label>
+
         <div className="flex flex-wrap items-center gap-2">
           <a href={docsUrl ?? "#"} target="_blank" rel="noreferrer" className={linkClassName(!docsUrl)}>
             <ArrowUpRight className="h-3.5 w-3.5" />
@@ -982,6 +1010,13 @@ export function AppComponentWidgetSettings({
                       mappedCardForm.bodyMode !== "none") ? (
                       <AppComponentFormSections
                         boundFieldKeys={boundFieldKeys}
+                        compactColumnCount={
+                          normalizedProps.compactCardLayout === "three-columns"
+                            ? 3
+                            : normalizedProps.compactCardLayout === "two-columns"
+                              ? 2
+                              : 1
+                        }
                         disabled
                         fieldBindingStates={fieldBindingDisplayStates}
                         form={mappedCardForm}

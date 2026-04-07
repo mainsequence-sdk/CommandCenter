@@ -64,6 +64,20 @@ function isMultilineField(field: AppComponentGeneratedField) {
   return field.kind === "json";
 }
 
+function isCompactWideField(field: AppComponentGeneratedField) {
+  return isMultilineField(field);
+}
+
+function buildCompactGridStyle(columnCount: number): CSSProperties | undefined {
+  if (columnCount <= 1) {
+    return undefined;
+  }
+
+  return {
+    gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+  };
+}
+
 function readAsyncSelectOptionField(
   value: unknown,
   path: string[],
@@ -563,6 +577,7 @@ function CompactField({
   disabled,
   field,
   requestContext,
+  style,
   value,
   values,
   onChange,
@@ -572,6 +587,7 @@ function CompactField({
   disabled: boolean;
   field: AppComponentGeneratedField;
   requestContext?: AppComponentFormRequestContext;
+  style?: CSSProperties;
   value: string;
   values: Record<string, string>;
   onChange: (nextValue: string) => void;
@@ -580,7 +596,7 @@ function CompactField({
   const inputId = useId();
 
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5" style={style}>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-medium text-foreground">
         <label htmlFor={inputId} className="min-w-0 truncate">
           {field.label}
@@ -714,6 +730,7 @@ export function AppComponentEditableFormSections({
 
 export function AppComponentFormSections({
   boundFieldKeys,
+  compactColumnCount = 1,
   disabled,
   fieldBindingStates,
   form,
@@ -724,6 +741,7 @@ export function AppComponentFormSections({
   onValuePatch,
 }: {
   boundFieldKeys?: Set<string>;
+  compactColumnCount?: 1 | 2 | 3;
   disabled: boolean;
   fieldBindingStates?: Record<string, AppComponentFieldBindingDisplayState | undefined>;
   form: AppComponentGeneratedForm;
@@ -737,11 +755,20 @@ export function AppComponentFormSections({
     const parameterFields = listAppComponentRenderableParameterFields(form);
     const bodyFields = listAppComponentRenderableBodyFields(form);
     const bodyRawField = form.bodyRawField?.hiddenFromForm === true ? undefined : form.bodyRawField;
+    const compactGridStyle = buildCompactGridStyle(compactColumnCount);
+    const resolveCompactFieldStyle = (field: AppComponentGeneratedField) =>
+      compactColumnCount > 1 && isCompactWideField(field)
+        ? ({ gridColumn: "1 / -1" } satisfies CSSProperties)
+        : undefined;
 
     return (
       <div className="space-y-3">
         {parameterFields.length > 0 ? (
           <div className="space-y-2">
+            <div
+              className="grid items-start gap-2.5"
+              style={compactGridStyle}
+            >
             {parameterFields.map((field) => (
               <CompactField
                 key={field.key}
@@ -752,6 +779,7 @@ export function AppComponentFormSections({
                 }
                 field={field}
                 requestContext={requestContext}
+                style={resolveCompactFieldStyle(field)}
                 value={values[field.key] ?? ""}
                 values={values}
                 onChange={(nextValue) => {
@@ -760,11 +788,16 @@ export function AppComponentFormSections({
                 onValuePatch={onValuePatch}
               />
             ))}
+            </div>
           </div>
         ) : null}
 
         {form.bodyMode === "generated" && bodyFields.length > 0 ? (
           <div className="space-y-2">
+            <div
+              className="grid items-start gap-2.5"
+              style={compactGridStyle}
+            >
             {bodyFields.map((field) => (
               <CompactField
                 key={field.key}
@@ -775,6 +808,7 @@ export function AppComponentFormSections({
                 }
                 field={field}
                 requestContext={requestContext}
+                style={resolveCompactFieldStyle(field)}
                 value={values[field.key] ?? ""}
                 values={values}
                 onChange={(nextValue) => {
@@ -783,6 +817,7 @@ export function AppComponentFormSections({
                 onValuePatch={onValuePatch}
               />
             ))}
+            </div>
           </div>
         ) : null}
 
@@ -801,6 +836,11 @@ export function AppComponentFormSections({
             }
             field={bodyRawField}
             requestContext={requestContext}
+            style={
+              compactColumnCount > 1
+                ? ({ gridColumn: "1 / -1" } satisfies CSSProperties)
+                : undefined
+            }
             value={values[bodyRawField.key] ?? ""}
             values={values}
             onChange={(nextValue) => {

@@ -29,6 +29,10 @@ export type AppComponentAuthMode = "session-jwt" | "none";
 export type AppComponentApiTargetMode =
   | "manual"
   | "main-sequence-resource-release";
+export type AppComponentCompactCardLayout =
+  | "one-column"
+  | "two-columns"
+  | "three-columns";
 export type AppComponentFieldLocation = "path" | "query" | "header" | "body";
 export type AppComponentGeneratedFieldKind =
   | "string"
@@ -70,6 +74,7 @@ export interface AppComponentWidgetProps extends Record<string, unknown> {
   requestBodyContentType?: string;
   bindingSpec?: AppComponentBindingSpec;
   requestInputMap?: AppComponentRequestInputMap;
+  compactCardLayout?: AppComponentCompactCardLayout;
   showHeader?: boolean;
   showResponse?: boolean;
   hideRequestButton?: boolean;
@@ -2376,11 +2381,20 @@ export function normalizeAppComponentProps(
         : undefined,
     bindingSpec: normalizeAppComponentBindingSpec(props.bindingSpec),
     requestInputMap: normalizeAppComponentRequestInputMap(props.requestInputMap),
+    compactCardLayout: normalizeAppComponentCompactCardLayout(props.compactCardLayout),
     showHeader: props.showHeader !== false,
     showResponse: props.showResponse === true,
     hideRequestButton: props.hideRequestButton === true,
     refreshOnDashboardRefresh: props.refreshOnDashboardRefresh !== false,
   };
+}
+
+export function normalizeAppComponentCompactCardLayout(
+  value: unknown,
+): AppComponentCompactCardLayout {
+  return value === "two-columns" || value === "three-columns" || value === "one-column"
+    ? value
+    : "one-column";
 }
 
 export function normalizeAppComponentServiceHeader(

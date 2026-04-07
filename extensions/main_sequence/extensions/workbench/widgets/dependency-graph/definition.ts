@@ -11,7 +11,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
   id: "main-sequence-dependency-graph",
   title: "Dependency Graph",
   description: "Main Sequence dependency graph widget for update relationships across platform resources.",
-  category: "Main Sequence Workbench",
+  category: "Main Sequence Infrastructure",
   kind: "chart",
   source: "main_sequence_workbench",
   requiredPermissions: ["dashboard:view"],

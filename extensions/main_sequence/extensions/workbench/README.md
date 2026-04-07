@@ -21,9 +21,9 @@ This nested extension owns the administrative and operational Main Sequence Foun
 - Keep Foundry-only pages, routes, and widgets here.
 - Move code into `../../common/` only when it is meant to be reused by another Main Sequence extension.
 - `index.ts` currently registers `main-sequence-dependency-graph`,
-  `main-sequence-data-node-visualizer`, `main-sequence-data-node`,
-  `main-sequence-data-node-statistic`, and `data-node-table-visualizer` in the live widget
-  catalog.
+  `main-sequence-project-infra-graph`, `main-sequence-data-node-visualizer`,
+  `main-sequence-data-node`, `main-sequence-data-node-statistic`, and
+  `data-node-table-visualizer` in the live widget catalog.
 
 ## Naming note
 

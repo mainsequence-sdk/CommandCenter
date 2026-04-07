@@ -13,6 +13,8 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   response output so binding edges can optionally extract nested fields without changing graph
   topology.
 - Render the generated request inputs directly inside the widget body and optionally expose the latest response there as a read-only generated form.
+- Let each widget instance choose the mounted card's compact form density explicitly with a saved
+  1/2/3-column layout setting.
 - Submit requests with the current shell JWT by default so the widget follows the same auth path as the rest of the app.
 - Persist per-instance route selection and binding metadata in widget props, and round-trip draft
   inputs plus the latest response through widget runtime state.
@@ -63,6 +65,9 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   exchange-launch token flow.
 - Complex or unsupported body schemas fall back to a raw request-body editor instead of blocking the user completely.
 - Response inspection and request testing happen in widget settings; the mounted widget itself stays input-focused.
+- The mounted widget's compact request/response card renderer now obeys a saved `compactCardLayout`
+  setting. Scalar-heavy forms can render in 1, 2, or 3 columns, while multiline JSON/raw-body
+  fields stay full-width and scroll remains the fallback.
 - Dynamic bindings are compiled from the selected endpoint in settings and resolved synchronously
   from saved widget props at graph/binding time.
 - Settings still own endpoint selection and binding compilation, but runtime and shared execution
@@ -135,6 +140,8 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   `mainSequenceReleaseTransport.ts`. Do not bolt resource-release token logic onto the generic
   manual auth path.
 - Keep the widget generic. Product-specific API presets should be modeled as preconfigured widget instances or future helper modules, not hardcoded into the core widget itself.
+- Keep compact-card layout control local to the mounted widget path. Settings-side schema
+  discovery and test forms intentionally keep their separate layout rules.
 - Keep `bindingSpec.operationKey`, widget `method/path`, and runtime `operationKey` aligned. Dynamic
   outputs must not resolve against stale responses from a different endpoint selection.
 - Keep the structured response descriptor and the flattened response ports aligned. The flat ports

@@ -6,6 +6,7 @@ import { mainSequenceDataNodeGraphWidget } from "./widgets/data-node-visualizer/
 import { mainSequenceDataNodeStatisticWidget } from "./widgets/data-node-statistic/definition";
 import { mainSequenceDataNodeTableWidget } from "./widgets/data-node-table/definition";
 import { mainSequenceDependencyGraphWidget } from "./widgets/dependency-graph/definition";
+import { mainSequenceProjectInfraGraphWidget } from "./widgets/project-infra-graph/definition";
 
 const mainSequenceWorkbenchExtension: AppExtension = {
   id: "main_sequence_workbench",
@@ -13,6 +14,7 @@ const mainSequenceWorkbenchExtension: AppExtension = {
   description: "Foundry surfaces and widgets for Main Sequence backend administration.",
   widgets: [
     mainSequenceDependencyGraphWidget,
+    mainSequenceProjectInfraGraphWidget,
     mainSequenceDataNodeGraphWidget,
     mainSequenceDataNodeFilterWidget,
     mainSequenceDataNodeStatisticWidget,

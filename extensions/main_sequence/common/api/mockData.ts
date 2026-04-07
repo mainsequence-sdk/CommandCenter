@@ -1360,6 +1360,36 @@ function handleProjects(route: string, method: string, searchParams: URLSearchPa
     return paginate(sortDescendingById(state.projects), searchParams.get("limit"), searchParams.get("offset"));
   }
 
+  if (route === "/projects/quick-search/" && method === "GET") {
+    const q = readString(searchParams.get("q")).trim().toLowerCase();
+
+    if (q.length < 3) {
+      return {
+        error: "Query must contain at least 3 characters.",
+        field: "q",
+      };
+    }
+
+    const requestedLimit = readNumber(searchParams.get("limit"));
+    const limit = Math.max(1, Math.min(50, requestedLimit > 0 ? requestedLimit : 50));
+
+    return state.projects
+      .filter((project) => {
+        const id = readNumber(project.id);
+        const projectName = readString(project.project_name);
+        return projectName.toLowerCase().includes(q) || String(id).includes(q);
+      })
+      .slice(0, limit)
+      .map((project) => ({
+        id: readNumber(project.id),
+        project_name: readString(project.project_name),
+        repository_branch: isRecord(project.latest_commit)
+          ? readString(project.latest_commit.branch)
+          : "",
+        cluster_id: null,
+      }));
+  }
+
   if (route === "/projects/" && method === "POST") {
     const body = parseBody(init);
     const record = {

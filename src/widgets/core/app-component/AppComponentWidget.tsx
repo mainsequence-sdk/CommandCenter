@@ -181,6 +181,12 @@ export function AppComponentWidget({
   useEffect(() => {
     setLocalRuntimeState(normalizedRuntimeState);
   }, [runtimeState]);
+  const compactColumnCount =
+    normalizedProps.compactCardLayout === "three-columns"
+      ? 3
+      : normalizedProps.compactCardLayout === "two-columns"
+        ? 2
+        : 1;
 
   function commitRuntimeState(nextState: AppComponentWidgetRuntimeState) {
     setLocalRuntimeState(nextState);
@@ -291,6 +297,7 @@ export function AppComponentWidget({
           ) : (
             <AppComponentFormSections
               boundFieldKeys={boundFieldKeys}
+              compactColumnCount={compactColumnCount}
               disabled={isExecuting || localRuntimeState.status === "submitting"}
               form={cardForm}
               mode="compact"
@@ -347,6 +354,7 @@ export function AppComponentWidget({
                 />
               ) : responseForm && localRuntimeState.lastResponseBody !== undefined ? (
                 <AppComponentFormSections
+                  compactColumnCount={compactColumnCount}
                   disabled
                   form={responseForm}
                   mode="compact"

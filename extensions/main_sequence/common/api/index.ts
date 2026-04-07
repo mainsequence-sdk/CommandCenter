@@ -1294,6 +1294,13 @@ export interface DataNodeQuickSearchRecord {
   identifier: string | null;
 }
 
+export interface ProjectQuickSearchRecord {
+  id: number;
+  project_name: string;
+  repository_branch: string;
+  cluster_id?: number | null;
+}
+
 export interface LocalTimeSerieQuickSearchRecord {
   id: number;
   update_hash: string;
@@ -3172,6 +3179,26 @@ export async function listProjects({
     ...page,
     results: [...page.results].sort((left, right) => right.id - left.id),
   };
+}
+
+export async function quickSearchProjects({
+  limit = 50,
+  q,
+}: {
+  limit?: number;
+  q: string;
+}) {
+  const payload = await requestJson<ProjectQuickSearchRecord[]>(
+    commandCenterConfig.mainSequence.endpoint,
+    "projects/quick-search/",
+    undefined,
+    {
+      limit,
+      q: q.trim(),
+    },
+  );
+
+  return Array.isArray(payload) ? payload : [];
 }
 
 export async function listAssets({

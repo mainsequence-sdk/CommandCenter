@@ -27,6 +27,8 @@ This widget folder owns the reusable update dependency graph renderer used by da
 - The shared renderer supports mixed update-node graphs where `data_node_update` and `simple_table_update` nodes can appear in the same payload.
 - Graph fetch helpers validate the payload shape before rendering, so HTML redirects or other non-graph 200 responses surface as errors instead of a false empty-state.
 - The widget follows the shared widget contract with `requiredPermissions`, `exampleProps`, and a typed `settingsComponent`.
+- In the workspace component browser this widget belongs under the `Main Sequence Infrastructure`
+  category.
 - The Data Node settings path now reuses the same Dynamic Table quick-search component as the main
   `Data Node` widget instead of searching `local_time_serie` rows directly.
 - The same widget now selects between the LocalTimeSerie dependency endpoint and the SimpleTableUpdate dependency endpoint entirely from widget props, so dashboards do not need separate dependency-graph widget types for Data Nodes vs Simple Tables.

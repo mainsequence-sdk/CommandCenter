@@ -31,6 +31,7 @@ function readCommitSha(scope: ProjectInfraGraphScope) {
 
 export function ProjectInfraGraphInspector({
   canGoBack,
+  compact = false,
   currentScope,
   onExploreGraph,
   onGoBack,
@@ -40,6 +41,7 @@ export function ProjectInfraGraphInspector({
   summaryLoading,
 }: {
   canGoBack: boolean;
+  compact?: boolean;
   currentScope: ProjectInfraGraphScope;
   onExploreGraph: (node: ProjectInfraGraphRecordNode) => void;
   onGoBack: () => void;
@@ -56,7 +58,7 @@ export function ProjectInfraGraphInspector({
   );
 
   return (
-    <div className="flex h-full min-h-[720px] flex-col gap-4">
+    <div className={compact ? "flex h-full min-h-[360px] flex-col gap-3" : "flex h-full min-h-[720px] flex-col gap-4"}>
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
