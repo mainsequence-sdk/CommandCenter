@@ -26,6 +26,7 @@ import {
 } from "@/widgets/shared/form-density";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
+import { DataNodeFieldSchemaInspector } from "../data-node-shared/DataNodeFieldSchemaInspector";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
 import {
   buildDataNodeTableVisualizerFrameFromRemoteData,
@@ -699,6 +700,14 @@ export function DataNodeTableWidgetSettings({
           </div>
         </div>
       </section>
+
+      <DataNodeFieldSchemaInspector
+        title="Incoming field schema"
+        description="Inspect the resolved source schema this table receives before local column formatting is applied."
+        fields={linkedDataset?.fields ?? []}
+        rows={frameRowsSource}
+        emptyMessage="Bind this table to a Data Node to inspect its incoming schema."
+      />
 
       <section className={sectionClass}>
         <div className="flex flex-wrap items-start justify-between gap-3">

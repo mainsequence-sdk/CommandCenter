@@ -22,13 +22,26 @@ charts and tables.
   component is now a pure consumer of shared runtime state; it no longer owns the canonical
   backend fetch path.
 - `MainSequenceDataNodeFilterWidgetSettings.tsx`: settings-only table preview for the selected data
-  node or upstream Data Node input, including transformed output preview.
+  node or upstream Data Node input, including transformed output preview and a modal-driven
+  inspector for the final published field schema.
+- `ManualDataNodeEditor.tsx`: modal spreadsheet-style editor for the `Manual table` source mode,
+  including editable grid cells plus CSV/TSV import.
 
 ## Behavior
 
 - The widget shares the same data-source and date-range settings pattern as the data-node graph
   widget, but it can now either fetch directly from a Main Sequence data node or consume another
   `Data Node` widget as its input.
+- The same widget also supports a `Manual table` source mode. In that mode, authored columns/rows
+  are stored in shared widget props, published through the same execution/runtime contract, and
+  consumed downstream exactly like a fetched Data Node dataset.
+- Manual-table authoring now happens in a dedicated modal editor so the settings sidebar stays
+  compact. The editor supports direct grid editing plus CSV/tab-separated paste import that replaces
+  the current manual table.
+- The modal editor is transactional: `Apply` commits the edited table into the current workspace
+  draft, while `Cancel` or closing the dialog discards the in-modal edits.
+- Manual tables do not hit the backend at runtime. The shared execution layer materializes the
+  authored rows into the canonical published dataset locally.
 - Other widgets reference this widget as their data source instead of owning duplicate
   data-node/date-range selection flow.
 - If the selected data node exposes `unique_identifier` as the second index, the widget can also
@@ -75,6 +88,11 @@ charts and tables.
   `dynamic_table/{id}/get_data_between_dates_from_remote/`.
 - For upstream sources, the preview reads the upstream Data Node runtime dataset and shows the
   transformed output locally.
+- For manual sources, the preview reads the authored rows locally and shows the transformed output
+  without requiring a date range or backend fetch.
+- The settings page also exposes the final published field schema in a modal inspector so the user
+  can see which fields are backend-declared, manual, inferred, or derived after the current
+  transform chain is applied.
 - Chaining is intentionally one rule repeated at every hop: a Data Node reads the immediate upstream
   Data Node's published `DataNodePublishedDataset`, applies its own transform, and republishes a new
   dataset. That means `Node A -> Node B -> Node C -> Table/Graph/Statistic` uses the same contract
@@ -94,3 +112,7 @@ charts and tables.
 - That headless published dataset now preserves `rangeStartMs` / `rangeEndMs` as well, so
   downstream widgets and settings previews can show the actual upstream Data Node range instead of
   falling back to the dashboard range when the source is another `Data Node`.
+- For raw direct-query datasets, the published schema now preserves backend field metadata instead
+  of immediately collapsing everything to row-only inference. When transforms create or reshape
+  fields, the published schema marks those fields as `derived` and carries the lineage forward to
+  downstream consumers.

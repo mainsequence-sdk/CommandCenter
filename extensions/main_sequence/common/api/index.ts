@@ -2161,6 +2161,52 @@ export type EntitySummaryHeader = SummaryResponse;
 export type ProjectSummaryHeader = SummaryResponse;
 export type DataNodeSummaryHeader = SummaryResponse;
 export type LocalTimeSerieSummaryHeader = SummaryResponse;
+export interface ProjectInfraGraphGroup {
+  data: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ProjectInfraGraphNodeLinks {
+  detail_url?: string | null;
+  summary_url?: string | null;
+  graph_url?: string | null;
+}
+
+export interface ProjectInfraGraphNodeProperties extends Record<string, unknown> {
+  links?: ProjectInfraGraphNodeLinks;
+}
+
+export interface ProjectInfraGraphNode {
+  id: string;
+  node_type: string;
+  depth: number;
+  card_title: string;
+  card_subtitle: string | null;
+  parent: string | null;
+  detail_url: string | null;
+  summary_url: string | null;
+  graph_url: string | null;
+  icon: string | null;
+  color: string | null;
+  background_color: string | null;
+  badges: string[];
+  properties: ProjectInfraGraphNodeProperties;
+}
+
+export interface ProjectInfraGraphEdge {
+  source: string;
+  target: string;
+  kind: string;
+  properties: Record<string, unknown>;
+}
+
+export interface ProjectInfraGraphResponse {
+  nodes: ProjectInfraGraphNode[];
+  edges: ProjectInfraGraphEdge[];
+  groups: ProjectInfraGraphGroup[];
+}
 export interface ResourceReleaseSummaryExtensions extends MainSequenceSummaryExtensions {
   readme?: ResourceReleaseReadmeSummary;
 }
@@ -4991,6 +5037,30 @@ export function fetchProjectDetail(projectId: number) {
     commandCenterConfig.mainSequence.endpoint,
     `projects/${projectId}/`,
   );
+}
+
+export function fetchProjectInfraGraph(
+  projectId: number,
+  {
+    commitSha,
+  }: {
+    commitSha?: string;
+  } = {},
+) {
+  return requestJson<ProjectInfraGraphResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `projects/${projectId}/infra-graph/`,
+    undefined,
+    { commit_sha: commitSha },
+  );
+}
+
+export function fetchProjectInfraGraphByUrl(graphUrl: string) {
+  return requestJson<ProjectInfraGraphResponse>(graphUrl);
+}
+
+export function fetchMainSequenceSummaryByUrl(summaryUrl: string) {
+  return requestJson<SummaryResponse>(summaryUrl);
 }
 
 export function updateProjectSettings({

@@ -43,6 +43,7 @@ export function StatisticWidget({ props, instanceId }: Props) {
     () => buildDataNodeStatisticCards(linkedDataset?.rows ?? [], resolvedConfig),
     [linkedDataset?.rows, resolvedConfig],
   );
+  const sourceLabel = sourceBinding.resolvedSourceWidget?.title?.trim() || undefined;
 
   if (!sourceBinding.hasResolvedFilterWidgetSource) {
     return (
@@ -122,7 +123,12 @@ export function StatisticWidget({ props, instanceId }: Props) {
 
   return (
     <div className="flex h-full min-h-0 flex-col justify-center">
-      <StatisticCardGrid cards={statisticResult.cards} fillHeight />
+      <StatisticCardGrid
+        cards={statisticResult.cards}
+        fillHeight
+        showSourceLabel={resolvedConfig.showSourceLabel}
+        sourceLabel={sourceLabel}
+      />
     </div>
   );
 }

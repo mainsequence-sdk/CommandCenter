@@ -393,6 +393,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   resolveIo?: (args: WidgetIoResolverArgs<TProps>) => WidgetIoDefinition<TProps> | undefined;
   execution?: WidgetExecutionDefinition<TProps>;
   workspaceRuntimeMode?: WidgetWorkspaceRuntimeMode;
+  workspaceIcon?: ComponentType<{ className?: string }>;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
   component: ComponentType<WidgetComponentProps<TProps>>;

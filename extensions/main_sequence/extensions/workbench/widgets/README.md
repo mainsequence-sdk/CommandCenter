@@ -13,6 +13,8 @@ catalog.
 - Each widget folder should document both the reusable widget definition and the expected instance-level configuration model.
 - Main Sequence apps may mount preconfigured widget instances, while dashboard/workspace builders may expose instance settings for the same widget definition.
 - Current widget folders include `dependency-graph/` for mixed update dependency-graph rendering,
+  `project-infra-graph/` for project-scoped infrastructure graph exploration in the project detail
+  shell,
   `data-node-visualizer/` for the data-node graph widget, `data-node-filter/` for the lightweight
   source-and-transform Data Node widget, `data-node-statistic/` for the statistic/KPI consumer
   widget, `data-node-table/` for the data-node table widget, and `data-node-shared/` for reusable

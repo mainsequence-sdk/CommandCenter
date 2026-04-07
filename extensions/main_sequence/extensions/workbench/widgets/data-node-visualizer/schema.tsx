@@ -15,6 +15,19 @@ const chartTypeOptions: PickerOption[] = [
   { value: "bar", label: "Bar", description: "Bar-style time series." },
 ];
 
+const providerOptions: PickerOption[] = [
+  {
+    value: "tradingview",
+    label: "TradingView",
+    description: "Lightweight Charts renderer with dense time-scale controls.",
+  },
+  {
+    value: "echarts",
+    label: "ECharts",
+    description: "Canvas renderer with richer axis and pane layout handling.",
+  },
+];
+
 const axisModeOptions: PickerOption[] = [
   { value: "shared", label: "Shared axis", description: "Keep all series in one pane." },
   {
@@ -189,6 +202,27 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
   ],
   additionalFields: [
     {
+      id: "provider",
+      label: "Provider",
+      description: "Choose which chart engine renders this graph.",
+      settingsColumnSpan: 1,
+      sectionId: "visualization",
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <PickerFieldSetting
+          value={context.resolvedConfig.provider}
+          onChange={(value) => {
+            onDraftPropsChange({
+              ...draftProps,
+              provider: value === "echarts" ? "echarts" : "tradingview",
+            });
+          }}
+          options={providerOptions}
+          placeholder="Select a provider"
+          disabled={!editable}
+        />
+      ),
+    },
+    {
       id: "chartType",
       label: "Chart type",
       description: "Choose the primary chart renderer mode.",
@@ -316,10 +350,10 @@ export const dataNodeVisualizerSettingsSchema: WidgetSettingsSchema<
     {
       id: "minBarSpacingPx",
       label: "Min point spacing",
-      description: "Lower this to fit longer histories into the initial X-axis viewport.",
+      description: "TradingView only. Lower this to fit longer histories into the initial X-axis viewport.",
       settingsColumnSpan: 1,
       sectionId: "field-mapping",
-      isVisible: ({ context }) => !context.hasNoData,
+      isVisible: ({ context }) => !context.hasNoData && context.resolvedConfig.provider === "tradingview",
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
         <Input
           type="number"

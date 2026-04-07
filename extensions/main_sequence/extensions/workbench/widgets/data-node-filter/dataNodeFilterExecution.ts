@@ -19,6 +19,7 @@ import { resolveDataNodeFieldOptionsFromDataset } from "../data-node-shared/data
 import { normalizeDataNodePublishedDataset } from "../data-node-shared/dataNodePublishedDataset";
 import { DATA_NODE_SOURCE_INPUT_ID } from "../data-node-shared/widgetBindings";
 import {
+  buildManualDataNodeSourceDataset,
   buildDataNodeTransformedDataset,
   normalizeDataNodeFilterProps,
   normalizeDataNodeFilterRuntimeState,
@@ -66,6 +67,7 @@ function buildDataNodeRuntimeState(args: {
     error: args.error,
     source: buildMainSequenceDataSourceDescriptor({
       dataNodeId: args.resolvedConfig.dataNodeId,
+      dataNodeLabel: args.resolvedConfig.dataNodeLabel,
       dateRangeMode: args.resolvedConfig.dateRangeMode,
       fixedStartMs: args.resolvedConfig.fixedStartMs,
       fixedEndMs: args.resolvedConfig.fixedEndMs,
@@ -108,6 +110,56 @@ function buildInvalidBoundSourceResult(args: {
       rangeStartMs: args.runtimeState?.rangeStartMs ?? null,
       rangeEndMs: args.runtimeState?.rangeEndMs ?? null,
       error,
+    }),
+  };
+}
+
+async function executeManualDataNodeSource(args: {
+  normalizedProps: MainSequenceDataNodeFilterWidgetProps;
+  runtimeState: DataNodeFilterRuntimeState | null;
+}): Promise<WidgetExecutionResult> {
+  const manualSourceDataset = buildManualDataNodeSourceDataset(args.normalizedProps);
+  const resolvedConfig = resolveDataNodeFilterConfig(
+    args.normalizedProps,
+    undefined,
+    manualSourceDataset.fields,
+  );
+
+  if (manualSourceDataset.status !== "ready") {
+    return {
+      status: "success",
+      runtimeStatePatch: buildDataNodeRuntimeState({
+        runtimeState: args.runtimeState,
+        resolvedConfig,
+        status: "idle",
+        columns: [],
+        rows: [],
+        fields: manualSourceDataset.fields,
+        rangeStartMs: null,
+        rangeEndMs: null,
+      }),
+    };
+  }
+
+  const transformedDataset = buildDataNodeTransformedDataset(
+    manualSourceDataset.rows,
+    resolvedConfig,
+    manualSourceDataset.columns,
+    manualSourceDataset.fields,
+  );
+
+  return {
+    status: "success",
+    runtimeStatePatch: buildDataNodeRuntimeState({
+      runtimeState: args.runtimeState,
+      resolvedConfig,
+      status: "ready",
+      columns: transformedDataset.columns,
+      rows: transformedDataset.rows,
+      fields: transformedDataset.availableFields,
+      rangeStartMs: null,
+      rangeEndMs: null,
+      updatedAtMs: Date.now(),
     }),
   };
 }
@@ -199,6 +251,7 @@ async function executeBoundDataNodeSource(args: {
     sourceFrame.rows,
     resolvedConfig,
     sourceFrame.columns,
+    sourceFieldOptions,
   );
 
   return {
@@ -317,6 +370,7 @@ async function executeDirectDataNodeSource(args: {
       rows,
       resolvedConfig,
       requestedColumns,
+      resolvedConfig.availableFields,
     );
 
     return {
@@ -369,6 +423,13 @@ export async function executeDataNodeFilterWidget(
   const dashboardRangeStartMs = context.dashboardState?.rangeStartMs ?? null;
   const dashboardRangeEndMs = context.dashboardState?.rangeEndMs ?? null;
 
+  if (normalizedProps.sourceMode === "manual") {
+    return executeManualDataNodeSource({
+      normalizedProps,
+      runtimeState: normalizedRuntimeState,
+    });
+  }
+
   if (resolvedSourceInput?.status === "valid" && resolvedSourceInput.sourceWidgetId) {
     return executeBoundDataNodeSource({
       normalizedProps,
@@ -397,6 +458,7 @@ function canExecuteDataNodeFilterWidget(
   const resolvedSourceInput = resolveDataNodeSourceInput(context.resolvedInputs);
 
   return Boolean(
+    normalizedProps.sourceMode === "manual" ||
     (typeof normalizedProps.dataNodeId === "number" && normalizedProps.dataNodeId > 0) ||
     (resolvedSourceInput?.status === "valid" && resolvedSourceInput.sourceWidgetId),
   );

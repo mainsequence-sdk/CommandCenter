@@ -38,6 +38,10 @@ This directory contains reusable widget presentation primitives that are shared 
       description?: string | null,
       nullable?: boolean,
       nativeType?: string | null,
+      provenance?: "backend" | "manual" | "inferred" | "derived",
+      reason?: string | null,
+      derivedFrom?: string[],
+      warnings?: string[],
     }>,
     source?: {
       kind: string,
@@ -51,6 +55,9 @@ This directory contains reusable widget presentation primitives that are shared 
   Required fields are `columns` and `rows`. `status`, `fields`, `error`, and `source` are optional.
   When `status` is omitted, the shared normalizer infers `ready` if rows or columns are present,
   `error` if an error message exists, and `idle` otherwise.
+  When `fields` are present, widget families should preserve declared metadata where possible and
+  use `provenance`, `reason`, `derivedFrom`, and `warnings` to explain how runtime typing was
+  resolved instead of silently overwriting the schema with row-only inference.
 - Widget definitions can also set `showRawPropsEditor: false` when the shared raw JSON props editor should stay hidden and the widget should be configured only through structured settings controls.
 - The shared settings panel can also expose an optional remove action from the host surface. This is important for sidebar-only widgets, because they may not have an on-canvas card chrome with a delete button.
 - Schema-backed fields can optionally be exposed on the canvas through instance-level presentation state as companion cards outside the widget frame instead of being trapped inside the widget settings page.
@@ -83,9 +90,10 @@ This directory contains reusable widget presentation primitives that are shared 
   `gridX/gridY/gridW/gridH` presentation fields remain only as a backward-compatible migration
   fallback for older stored workspaces.
 - Companion-field hosts should only create a canvas wrapper when at least one field is actually visible. Sidebar-only widgets with no exposed canvas fields must not leave behind empty grid items or invisible hit areas.
-- Widget definitions can optionally provide `railIcon` and `railSummaryComponent` so workspace-style
-  surfaces can show meaningful per-widget icons and hover summaries in the shared edit rail without
-  hardcoding widget-specific logic into the canvas host.
+- Widget definitions can optionally provide `workspaceIcon` and `railSummaryComponent` so
+  workspace-style surfaces can show meaningful per-widget icons and hover summaries without
+  hardcoding widget-specific logic into the canvas host. The older `railIcon` field now exists
+  only as a backward-compatible fallback for widget definitions that have not migrated yet.
 - Widget definitions can also provide `defaultPresentation`. This is the shared way to make a widget start as `sidebar` or `canvas` by default, or to seed other presentation defaults, without hardcoding per-widget behavior in the dashboard hosts.
 - The shared widget frame does not inject default body padding. Widget authors own internal spacing inside the widget implementation.
 - Missing-widget placeholders explain that the current client does not recognize the stored widget id. Customizable surfaces may attach a direct delete action so stale legacy instances can be removed.

@@ -107,12 +107,16 @@ function StatisticCard({
   card,
   fillHeight,
   showCharts,
+  showSourceLabel,
   singleCard,
+  sourceLabel,
 }: {
   card: DataNodeStatisticCard;
   fillHeight: boolean;
   showCharts: boolean;
+  showSourceLabel: boolean;
   singleCard: boolean;
+  sourceLabel?: string;
 }) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [cardSize, setCardSize] = useState<{ height: number; width: number } | null>(null);
@@ -257,6 +261,16 @@ function StatisticCard({
             ) : null}
           </div>
         </div>
+
+        {showSourceLabel && sourceLabel ? (
+          <div
+            className="mt-2 truncate text-left text-[10px] text-muted-foreground/85"
+            style={{ color: cardTextColor ? withAlpha(cardTextColor, 0.76) : undefined }}
+            title={sourceLabel}
+          >
+            {sourceLabel}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -266,10 +280,14 @@ export function StatisticCardGrid({
   cards,
   fillHeight = false,
   showCharts = true,
+  showSourceLabel = false,
+  sourceLabel,
 }: {
   cards: readonly DataNodeStatisticCard[];
   fillHeight?: boolean;
   showCharts?: boolean;
+  showSourceLabel?: boolean;
+  sourceLabel?: string;
 }) {
   const singleCard = cards.length === 1;
   const multiCardColumnCount = Math.max(1, Math.min(cards.length, 4));
@@ -297,7 +315,9 @@ export function StatisticCardGrid({
             card={card}
             fillHeight={fillHeight}
             showCharts={showCharts}
+            showSourceLabel={showSourceLabel}
             singleCard={singleCard}
+            sourceLabel={sourceLabel}
           />
         );
       })}

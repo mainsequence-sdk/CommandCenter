@@ -19,6 +19,7 @@ import {
   type MainSequenceDataNodeVisualizerWidgetProps,
 } from "./dataNodeVisualizerModel";
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
+import { EChartsSeriesChart } from "./EChartsSeriesChart";
 import { DataNodeVisualizerChartErrorBoundary } from "./DataNodeVisualizerChartErrorBoundary";
 import { resolveDataNodeFieldOptionsFromDataset } from "../data-node-shared/dataNodeShared";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
@@ -249,17 +250,29 @@ export function MainSequenceDataNodeVisualizerWidget({
                   The chart could not be rendered. Try grouping the rows into separate series or choosing a different time field.
                 </div>
               )}
-            >
-              <TradingViewSeriesChart
-                chartType={resolvedConfig.chartType}
-                emptyMessage={chartEmptyMessage}
-                minBarSpacingPx={resolvedConfig.minBarSpacingPx}
-                normalizationTimeMs={normalizationTimeMs}
-                series={chartSeriesResult.series}
-                seriesAxisMode={resolvedConfig.seriesAxisMode}
-                timeAxisMode={effectiveTimeAxisMode}
-                transparentSurface={transparentSurface}
-              />
+                      >
+              {resolvedConfig.provider === "echarts" ? (
+                <EChartsSeriesChart
+                  chartType={resolvedConfig.chartType}
+                  emptyMessage={chartEmptyMessage}
+                  normalizationTimeMs={normalizationTimeMs}
+                  series={chartSeriesResult.series}
+                  seriesAxisMode={resolvedConfig.seriesAxisMode}
+                  timeAxisMode={effectiveTimeAxisMode}
+                  transparentSurface={transparentSurface}
+                />
+              ) : (
+                <TradingViewSeriesChart
+                  chartType={resolvedConfig.chartType}
+                  emptyMessage={chartEmptyMessage}
+                  minBarSpacingPx={resolvedConfig.minBarSpacingPx}
+                  normalizationTimeMs={normalizationTimeMs}
+                  series={chartSeriesResult.series}
+                  seriesAxisMode={resolvedConfig.seriesAxisMode}
+                  timeAxisMode={effectiveTimeAxisMode}
+                  transparentSurface={transparentSurface}
+                />
+              )}
             </DataNodeVisualizerChartErrorBoundary>
           </div>
         </div>

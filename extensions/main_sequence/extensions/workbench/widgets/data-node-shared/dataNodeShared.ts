@@ -7,10 +7,42 @@ import type {
 import type {
   TabularFrameFieldSchema,
   TabularFrameFieldType,
+  TabularFrameFieldProvenance,
 } from "@/widgets/shared/tabular-frame-source";
 
 export type DataNodeDateRangeMode = "dashboard" | "fixed";
 export type DataNodeFieldOption = TabularFrameFieldSchema;
+
+function fieldTypeFamily(type: TabularFrameFieldType) {
+  if (type === "integer" || type === "number") {
+    return "numeric";
+  }
+
+  if (type === "date" || type === "datetime" || type === "time") {
+    return "temporal";
+  }
+
+  return type;
+}
+
+function uniqueWarningMessages(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+
+  return values.filter((value): value is string => {
+    if (!value?.trim()) {
+      return false;
+    }
+
+    const nextValue = value.trim();
+
+    if (seen.has(nextValue)) {
+      return false;
+    }
+
+    seen.add(nextValue);
+    return true;
+  });
+}
 
 export function formatDataNodeFieldMetadata(field: DataNodeFieldOption) {
   return [
@@ -164,6 +196,73 @@ function inferTypeFromSamples(samples: unknown[]): TabularFrameFieldType {
   return "string";
 }
 
+function sampleValueLooksLikeLocaleDate(value: unknown) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return false;
+  }
+
+  return /^(\d{2})[-/](\d{2})[-/](\d{4})$/.test(trimmed);
+}
+
+function sampleValueHasAmbiguousDayMonthOrder(value: unknown) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+
+  if (!match) {
+    return false;
+  }
+
+  const first = Number(match[1]);
+  const second = Number(match[2]);
+  return Number.isFinite(first) && Number.isFinite(second) && first <= 12 && second <= 12;
+}
+
+function buildFieldWarningsFromSamples(samples: unknown[]) {
+  const warnings: string[] = [];
+
+  if (samples.some((value) => sampleValueLooksLikeLocaleDate(value))) {
+    warnings.push(
+      "Sample values use locale-style date strings. Prefer YYYY-MM-DD or an explicit time parser.",
+    );
+  }
+
+  if (samples.some((value) => sampleValueHasAmbiguousDayMonthOrder(value))) {
+    warnings.push(
+      "Some sampled dates are ambiguous because both day and month are <= 12.",
+    );
+  }
+
+  return warnings;
+}
+
+function mergeFieldWarnings(
+  ...warningSets: Array<readonly string[] | string | undefined | null>
+) {
+  return uniqueWarningMessages(
+    warningSets.flatMap((warnings) =>
+      typeof warnings === "string" ? [warnings] : (warnings ?? []),
+    ),
+  );
+}
+
+function cloneFieldOption(field: DataNodeFieldOption): DataNodeFieldOption {
+  return {
+    ...field,
+    derivedFrom: field.derivedFrom ? [...field.derivedFrom] : undefined,
+    warnings: field.warnings ? [...field.warnings] : undefined,
+  };
+}
+
 function getFieldOptionLabel(
   key: string,
   detail?: DataNodeDetail | null,
@@ -263,24 +362,39 @@ export function buildDataNodeFieldOptions(detail?: DataNodeDetail | null) {
       description: getFieldOptionDescription(key, detail),
       nativeType,
       type,
+      provenance: "backend",
+      reason: "Resolved from Data Node source-table metadata.",
     };
   });
 }
 
 export function buildDataNodeFieldOptionsFromRows(input: {
-  columns?: string[];
+  columns?: readonly string[];
   rows?: readonly DataNodeRemoteDataRow[];
+}, options?: {
+  provenance?: TabularFrameFieldProvenance;
+  reasonByKey?: Record<string, string | undefined>;
+  derivedFromByKey?: Record<string, string[] | undefined>;
 }) {
   const orderedKeys = uniqueStrings([
     ...(input.columns ?? []),
     ...((input.rows ?? []).flatMap((row) => Object.keys(row))),
   ]);
+  const provenance = options?.provenance ?? "inferred";
 
   return orderedKeys.map<DataNodeFieldOption>((key) => {
     const samples = (input.rows ?? [])
       .map((row) => row[key])
       .filter((value) => value !== null && value !== undefined && value !== "");
     const type = inferTypeFromSamples(samples);
+    const warnings = buildFieldWarningsFromSamples(samples);
+    const reason =
+      options?.reasonByKey?.[key] ??
+      (provenance === "manual"
+        ? "Configured manually in the Data Node editor."
+        : provenance === "derived"
+          ? "Derived from transformed dataset rows."
+          : "Inferred from sampled dataset rows.");
 
     return {
       key,
@@ -288,6 +402,10 @@ export function buildDataNodeFieldOptionsFromRows(input: {
       description: null,
       nativeType: null,
       type,
+      provenance,
+      reason,
+      derivedFrom: options?.derivedFromByKey?.[key],
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
   });
 }
@@ -331,13 +449,34 @@ export function resolveDataNodeFieldOptionsFromDataset(input: {
       const fallbackField = fallbackFieldByKey.get(key);
 
       return [{
-        ...fallbackField,
-        ...declaredField,
+        ...cloneFieldOption(fallbackField ?? { key, type: "unknown" }),
+        ...cloneFieldOption(declaredField),
         key,
         label: declaredField.label?.trim() || fallbackField?.label || key,
         description: declaredField.description ?? fallbackField?.description ?? null,
         nativeType: declaredField.nativeType ?? fallbackField?.nativeType ?? null,
         type: declaredField.type ?? fallbackField?.type ?? "unknown",
+        provenance: declaredField.provenance ?? fallbackField?.provenance,
+        reason: declaredField.reason ?? fallbackField?.reason ?? null,
+        derivedFrom: declaredField.derivedFrom ?? fallbackField?.derivedFrom,
+        warnings:
+          mergeFieldWarnings(
+            declaredField.warnings,
+            fallbackField?.warnings,
+            fallbackField &&
+              fieldTypeFamily(declaredField.type) !== fieldTypeFamily(fallbackField.type)
+              ? `Runtime samples look like ${fallbackField.type}, but the declared schema resolves this field as ${declaredField.type}.`
+              : null,
+          ).length > 0
+            ? mergeFieldWarnings(
+                declaredField.warnings,
+                fallbackField?.warnings,
+                fallbackField &&
+                  fieldTypeFamily(declaredField.type) !== fieldTypeFamily(fallbackField.type)
+                  ? `Runtime samples look like ${fallbackField.type}, but the declared schema resolves this field as ${declaredField.type}.`
+                  : null,
+              )
+            : undefined,
       }];
     }
 

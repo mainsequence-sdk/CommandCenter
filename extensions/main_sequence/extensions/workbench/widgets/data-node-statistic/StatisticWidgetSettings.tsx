@@ -31,6 +31,7 @@ import {
   type DataNodeStatisticTone,
   type MainSequenceDataNodeStatisticWidgetProps,
 } from "./statisticModel";
+import { DataNodeFieldSchemaInspector } from "../data-node-shared/DataNodeFieldSchemaInspector";
 import { useResolvedDataNodeWidgetSourceBinding } from "../data-node-shared/dataNodeWidgetSource";
 
 const sectionClass = widgetTightFormSectionClass;
@@ -126,6 +127,19 @@ const statisticToneOptions: Array<{
   { value: "danger", label: "Danger" },
 ];
 
+const sourceLabelDisplayOptions = [
+  {
+    value: "hidden",
+    label: "Hidden",
+    description: "Do not render the source widget label on the statistic card.",
+  },
+  {
+    value: "visible",
+    label: "Show source label",
+    description: "Render the bound Data Node title in the lower-left corner of each card.",
+  },
+];
+
 export function StatisticWidgetSettings({
   draftProps,
   editable,
@@ -190,6 +204,7 @@ export function StatisticWidgetSettings({
   const colorMode = resolvedDraft.colorMode ?? "none";
   const rangeRules = resolvedDraft.rangeRules ?? [];
   const changeStyles = resolvedDraft.changeStyles ?? {};
+  const sourceLabel = sourceBinding.resolvedSourceWidget?.title?.trim() || undefined;
 
   return (
     <div className="space-y-3">
@@ -219,6 +234,14 @@ export function StatisticWidgetSettings({
           </div>
         </div>
       </section>
+
+      <DataNodeFieldSchemaInspector
+        title="Resolved source schema"
+        description="Inspect the field schema this statistic resolves before it reduces the incoming dataset into cards."
+        fields={availableFields}
+        rows={linkedDataset?.rows ?? []}
+        emptyMessage="Bind this statistic to a Data Node to inspect its source schema."
+      />
 
       <section className={sectionClass}>
         <div className="grid gap-3 md:grid-cols-2">
@@ -321,6 +344,22 @@ export function StatisticWidgetSettings({
                 });
               }}
               className="h-8 text-xs"
+              disabled={!editable}
+            />
+          </div>
+
+          <div className={fieldClass}>
+            <label className={labelClass}>Source label</label>
+            <PickerField
+              value={resolvedDraft.showSourceLabel ? "visible" : "hidden"}
+              onChange={(value) => {
+                onDraftPropsChange({
+                  ...draftProps,
+                  showSourceLabel: value === "visible",
+                });
+              }}
+              options={sourceLabelDisplayOptions}
+              placeholder="Hidden"
               disabled={!editable}
             />
           </div>
@@ -608,7 +647,11 @@ export function StatisticWidgetSettings({
               No statistic output is available for the current Data Node rows.
             </div>
           ) : (
-            <StatisticCardGrid cards={statisticResult.cards} />
+            <StatisticCardGrid
+              cards={statisticResult.cards}
+              showSourceLabel={resolvedDraft.showSourceLabel === true}
+              sourceLabel={sourceLabel}
+            />
           )}
         </div>
       </section>

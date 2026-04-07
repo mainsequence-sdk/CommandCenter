@@ -28,6 +28,10 @@ This directory contains the Command Center widget platform, including the shared
 - Widget definitions now inherit one shared platform default size through `defineWidget(...)`. Only
   true structural exceptions, such as the workspace row widget, should override that default at the
   definition layer.
+- Widget definitions can now also declare one canonical `workspaceIcon`. Workspace rails, graph
+  cards, and other workspace surfaces should resolve icons through that shared definition-level
+  field plus the shared workspace icon resolver. Legacy `railIcon` remains only as a backward-
+  compatible fallback while older widgets migrate.
 - Live backend mode now also projects widget definitions into a JSON-safe type manifest and syncs
   that catalog on authenticated session startup. Runtime-only function properties such as React
   components, controller hooks, `resolveIo`, and output resolvers are not sent verbatim; the sync

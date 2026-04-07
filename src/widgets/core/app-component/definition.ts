@@ -46,7 +46,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   },
   settingsComponent: AppComponentWidgetSettings,
   showRawPropsEditor: false,
-  railIcon: Braces,
+  workspaceIcon: Braces,
   railSummaryComponent: AppComponentRailSummary,
   resolveIo: ({ props, runtimeState }) => resolveAppComponentWidgetIo(props, runtimeState),
   execution: appComponentExecutionDefinition,

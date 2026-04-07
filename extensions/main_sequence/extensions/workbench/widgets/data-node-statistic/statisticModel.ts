@@ -48,6 +48,7 @@ export interface MainSequenceDataNodeStatisticWidgetProps
   orderField?: string;
   prefix?: string;
   rangeRules?: DataNodeStatisticRangeRule[];
+  showSourceLabel?: boolean;
   statisticMode?: DataNodeStatisticMode;
   suffix?: string;
   valueField?: string;
@@ -62,6 +63,7 @@ export interface ResolvedDataNodeStatisticConfig {
   orderField?: string;
   prefix?: string;
   rangeRules: DataNodeStatisticRangeRule[];
+  showSourceLabel: boolean;
   sourceMode: "filter_widget";
   sourceWidgetId?: string;
   statisticMode: DataNodeStatisticMode;
@@ -159,6 +161,10 @@ function normalizeText(value: unknown) {
   }
 
   return value;
+}
+
+function normalizeBoolean(value: unknown) {
+  return value === true;
 }
 
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
@@ -672,6 +678,7 @@ export function resolveDataNodeStatisticConfig(
     orderField: normalizeFieldKey(props.orderField, availableFields),
     prefix: normalizeText(props.prefix),
     rangeRules: normalizeStatisticRangeRules(props.rangeRules),
+    showSourceLabel: normalizeBoolean(props.showSourceLabel),
     sourceMode: "filter_widget",
     sourceWidgetId: sourceReference.sourceWidgetId,
     statisticMode,
@@ -701,6 +708,7 @@ export function normalizeDataNodeStatisticProps(
     decimals: resolved.decimals,
     prefix: resolved.prefix,
     rangeRules: resolved.rangeRules,
+    showSourceLabel: resolved.showSourceLabel,
     suffix: resolved.suffix,
   } satisfies MainSequenceDataNodeStatisticWidgetProps;
 }

@@ -28,7 +28,9 @@ import {
   type MainSequenceDataNodeVisualizerWidgetProps,
 } from "./dataNodeVisualizerModel";
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
+import { EChartsSeriesChart } from "./EChartsSeriesChart";
 import { DataNodeVisualizerChartErrorBoundary } from "./DataNodeVisualizerChartErrorBoundary";
+import { DataNodeFieldSchemaInspector } from "../data-node-shared/DataNodeFieldSchemaInspector";
 import {
   resolveDataNodeWidgetPrefilledFixedRange,
   resolveDataNodeWidgetPreviewAnchorMs,
@@ -350,6 +352,14 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
 
   return (
     <div className="space-y-4">
+      <DataNodeFieldSchemaInspector
+        title="Resolved source schema"
+        description="Inspect the resolved field schema this graph is using for axis selection, grouping, and date parsing."
+        fields={resolvedConfig.availableFields}
+        rows={previewRows}
+        emptyMessage="Bind this graph to a Data Node to inspect its source schema."
+      />
+
       <SettingsSection
         title="Preview"
         description="Check the current mapping against the current range. Table mode stays inside settings only."
@@ -472,16 +482,28 @@ export function MainSequenceDataNodeVisualizerWidgetSettings({
                           </div>
                         )}
                       >
-                        <TradingViewSeriesChart
-                          chartType={resolvedConfig.chartType}
-                          className="min-h-[280px]"
-                          emptyMessage={previewChartEmptyMessage}
-                          minBarSpacingPx={resolvedConfig.minBarSpacingPx}
-                          normalizationTimeMs={previewNormalizationTimeMs}
-                          series={previewChartSeriesResult.series}
-                          seriesAxisMode={resolvedConfig.seriesAxisMode}
-                          timeAxisMode={previewTimeAxisMode}
-                        />
+                        {resolvedConfig.provider === "echarts" ? (
+                          <EChartsSeriesChart
+                            chartType={resolvedConfig.chartType}
+                            className="min-h-[280px]"
+                            emptyMessage={previewChartEmptyMessage}
+                            normalizationTimeMs={previewNormalizationTimeMs}
+                            series={previewChartSeriesResult.series}
+                            seriesAxisMode={resolvedConfig.seriesAxisMode}
+                            timeAxisMode={previewTimeAxisMode}
+                          />
+                        ) : (
+                          <TradingViewSeriesChart
+                            chartType={resolvedConfig.chartType}
+                            className="min-h-[280px]"
+                            emptyMessage={previewChartEmptyMessage}
+                            minBarSpacingPx={resolvedConfig.minBarSpacingPx}
+                            normalizationTimeMs={previewNormalizationTimeMs}
+                            series={previewChartSeriesResult.series}
+                            seriesAxisMode={resolvedConfig.seriesAxisMode}
+                            timeAxisMode={previewTimeAxisMode}
+                          />
+                        )}
                       </DataNodeVisualizerChartErrorBoundary>
                     )}
                   </>

@@ -13,7 +13,10 @@ This widget turns Main Sequence data-node table data into configurable charts, w
   linked Data Node's canonical row dataset, sanitizes second-level chart collisions, and renders
   the mounted chart with widget-local fallback messaging.
 - `MainSequenceDataNodeVisualizerWidgetSettings.tsx`: advanced settings panel for preview and
-  series styling, rendered below the shared schema-driven settings form.
+  series styling, rendered below the shared schema-driven settings form. It also includes a
+  modal-driven source-schema inspector so chart field typing is visible instead of implicit.
+- `EChartsSeriesChart.tsx`: ECharts renderer for line, area, and bar visualizations using the same
+  resolved chart-series contract as TradingView.
 - `TradingViewSeriesChart.tsx`: TradingView Lightweight Charts renderer for line, area, and bar
   visualizations, with an internal fallback when the chart library rejects a dataset.
 - `DataNodeVisualizerChartErrorBoundary.tsx`: local boundary that prevents chart failures from
@@ -28,12 +31,14 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - The widget definition is reusable, but each chart instance now owns only chart mapping and display
   behavior such as axis selections, grouping, provider, chart type, normalization, and series
   styling.
+- Provider is now a real per-widget choice. `TradingView` uses Lightweight Charts, and `ECharts`
+  uses the local ECharts renderer.
 - Series stroke styling is per-series through `seriesOverrides`. For TradingView-backed line and
   area charts, each resolved series can now choose its own built-in line style (`Solid`,
   `Dotted`, `Dashed`, `Large dashed`, `Sparse dotted`) alongside its per-series color override.
 - Time-axis interpretation is also per-widget. Each chart can force `Date`, force `DateTime`, or
   leave the mode on `Auto`, which infers the behavior from the bound X-field values.
-- X-axis density is also per-widget through `minBarSpacingPx`. This is a TradingView
+- X-axis density is also per-widget through `minBarSpacingPx`. This is a TradingView-only
   time-scale control that determines how tightly long histories can compress into the initial
   viewport. Lower values allow the chart to fit longer series instead of opening on the most
   recent tail.
@@ -102,6 +107,9 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - Axis pickers and preview now prefer runtime field inference from the resolved bound dataset, so
   an `AppComponent -> Data Node -> Graph` chain can populate X/Y/group mappings from the actual
   published frame even when there is no direct `dataNodeId` metadata at the graph layer.
+- The graph settings now expose the resolved source schema in a modal so users can inspect the
+  field provenance, declared/native types, warnings, and sample values that drive axis and group
+  selection.
 - When the linked `Data Node` is still waiting on an executable upstream source, both the mounted
   widget and the settings preview now surface that as an explicit "resolving upstream source"
   state instead of falling through to stale axis/preview messaging.
@@ -122,4 +130,4 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - Y axis defaults to the first non-index numeric field.
 - Date range defaults to the dashboard date until the widget is switched to a fixed range.
 - When normalization is enabled without an explicit anchor date, the chart rebases each series to the first visible date in the active range.
-- Provider starts with TradingView Lightweight Charts, but the config model leaves room for additional providers later.
+- Supported providers are currently `TradingView` (Lightweight Charts) and `ECharts`.

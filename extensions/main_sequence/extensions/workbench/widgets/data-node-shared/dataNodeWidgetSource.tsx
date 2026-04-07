@@ -8,7 +8,11 @@ import { useDashboardWidgetRegistry, type DashboardWidgetRegistryEntry } from "@
 import { useResolvedWidgetInput } from "@/dashboards/DashboardWidgetDependencies";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { normalizeTabularFrameSource, type TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
+import {
+  normalizeTabularFrameSource,
+  type TabularFrameFieldType,
+  type TabularFrameSourceV1,
+} from "@/widgets/shared/tabular-frame-source";
 import type {
   WidgetFieldCanvasRendererProps,
   WidgetFieldDefinition,
@@ -29,6 +33,7 @@ import { normalizeDataNodePublishedDataset, type DataNodePublishedDataset } from
 import { DATA_NODE_SOURCE_INPUT_ID } from "./widgetBindings";
 import { resolveMainSequenceDataSourceContext } from "../../widget-contracts/mainSequenceDataSourceBundle";
 import {
+  buildDataNodeFieldOptionsFromRows,
   buildDataNodeFieldOptions,
   formatDataNodeLabel,
   formatDataNodeFieldMetadata,
@@ -37,13 +42,20 @@ import {
 } from "./dataNodeShared";
 
 export const mainSequenceDataNodeWidgetId = "main-sequence-data-node";
-export type DataNodeWidgetSourceMode = "direct" | "filter_widget";
+export type DataNodeWidgetSourceMode = "direct" | "filter_widget" | "manual";
+
+export interface ManualDataNodeColumnDefinition {
+  key: string;
+  type: TabularFrameFieldType;
+}
 
 export interface DataNodeWidgetSourceProps extends Record<string, unknown> {
   dataNodeId?: number;
   dateRangeMode?: DataNodeDateRangeMode;
   fixedEndMs?: number;
   fixedStartMs?: number;
+  manualColumns?: ManualDataNodeColumnDefinition[];
+  manualRows?: Array<Record<string, unknown>>;
   uniqueIdentifierList?: string[];
 }
 
@@ -123,6 +135,7 @@ interface CreateDataNodeWidgetSourceSchemaOptions<
   dataSourceSectionDescription?: string;
   dateRangeSectionDescription?: string;
   enableFilterWidgetSource?: boolean;
+  enableManualSource?: boolean;
   filterWidgetOnly?: boolean;
   mapDataNodeChange?: (nextDataNodeId: number | undefined, currentProps: TProps) => TProps;
   selectionHelpText?: string;
@@ -156,6 +169,10 @@ function uniqueStrings(values: Array<string | null | undefined>) {
     seen.add(value);
     return true;
   });
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function normalizePositiveInteger(value: unknown) {
@@ -195,7 +212,108 @@ function normalizeUniqueIdentifierList(value: unknown) {
 }
 
 function normalizeSourceMode(value: unknown): DataNodeWidgetSourceMode {
-  return value === "filter_widget" ? "filter_widget" : "direct";
+  return value === "filter_widget" || value === "manual" ? value : "direct";
+}
+
+function normalizeManualColumnType(value: unknown): TabularFrameFieldType {
+  return value === "string" ||
+    value === "number" ||
+    value === "integer" ||
+    value === "boolean" ||
+    value === "datetime" ||
+    value === "date" ||
+    value === "time" ||
+    value === "json"
+    ? value
+    : "string";
+}
+
+function buildFallbackManualColumnKey(index: number) {
+  return `column_${index + 1}`;
+}
+
+function createUniqueManualColumnKey(
+  requestedKey: string,
+  usedKeys: Set<string>,
+  fallbackIndex: number,
+) {
+  const trimmed = requestedKey.trim();
+  const baseKey = trimmed || buildFallbackManualColumnKey(fallbackIndex);
+
+  if (!usedKeys.has(baseKey)) {
+    usedKeys.add(baseKey);
+    return baseKey;
+  }
+
+  let suffix = 2;
+  let candidate = `${baseKey}_${suffix}`;
+
+  while (usedKeys.has(candidate)) {
+    suffix += 1;
+    candidate = `${baseKey}_${suffix}`;
+  }
+
+  usedKeys.add(candidate);
+  return candidate;
+}
+
+export function normalizeManualDataNodeColumns(value: unknown): ManualDataNodeColumnDefinition[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const usedKeys = new Set<string>();
+
+  return value.flatMap((entry, index) => {
+    const rawKey =
+      isPlainRecord(entry) && typeof entry.key === "string"
+        ? entry.key
+        : typeof entry === "string"
+          ? entry
+          : "";
+    const key = createUniqueManualColumnKey(rawKey, usedKeys, index);
+
+    return [{
+      key,
+      type:
+        isPlainRecord(entry)
+          ? normalizeManualColumnType(entry.type)
+          : "string",
+    } satisfies ManualDataNodeColumnDefinition];
+  });
+}
+
+export function normalizeManualDataNodeRows(value: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is Record<string, unknown> => isPlainRecord(entry));
+}
+
+export function buildManualDataNodeFieldOptions(input: {
+  columns?: ManualDataNodeColumnDefinition[];
+  rows?: Array<Record<string, unknown>>;
+}) {
+  const normalizedColumns = normalizeManualDataNodeColumns(input.columns);
+
+  if (normalizedColumns.length > 0) {
+    return normalizedColumns.map<DataNodeFieldOption>((column) => ({
+      key: column.key,
+      label: column.key,
+      type: column.type,
+      nullable: true,
+      provenance: "manual",
+      reason: "Configured manually in the Data Node editor.",
+    }));
+  }
+
+  return buildDataNodeFieldOptionsFromRows({
+    columns: [],
+    rows: normalizeManualDataNodeRows(input.rows),
+  }, {
+    provenance: "manual",
+  });
 }
 
 function normalizeSourceWidgetId(value: unknown) {
@@ -550,7 +668,9 @@ export function useResolvedDataNodeWidgetSourceBinding<
     [expectsFilterWidgetSource, props, referencedFilterWidget?.props, resolvedSourceContext],
   );
   const sourceMode: DataNodeWidgetSourceMode =
-    expectsFilterWidgetSource ? "filter_widget" : "direct";
+    expectsFilterWidgetSource
+      ? "filter_widget"
+      : normalizeSourceMode(normalizedReference.sourceMode);
   const hasCanonicalSourceBinding = resolvedInputBinding?.sourceWidgetId != null;
   const resolvedSourceStatus =
     resolvedSourceDataset?.status ??
@@ -596,15 +716,28 @@ export function resolveDataNodeWidgetSourceConfig(
   props: DataNodeWidgetSourceProps,
   detail?: DataNodeDetail | null,
 ): ResolvedDataNodeWidgetSourceConfig {
+  const sourceMode = normalizeSourceMode(
+    (props as Partial<DataNodeWidgetSourceReferenceProps>).sourceMode,
+  );
   const dataNodeId = normalizePositiveInteger(props.dataNodeId);
   const dateRangeMode: DataNodeDateRangeMode =
     props.dateRangeMode === "fixed" ? "fixed" : "dashboard";
   const fixedStartMs = normalizeTimestampMs(props.fixedStartMs);
   const fixedEndMs = normalizeTimestampMs(props.fixedEndMs);
-  const availableFields = buildDataNodeFieldOptions(detail);
+  const manualColumns = normalizeManualDataNodeColumns(props.manualColumns);
+  const manualRows = normalizeManualDataNodeRows(props.manualRows);
+  const availableFields =
+    sourceMode === "manual"
+      ? buildManualDataNodeFieldOptions({
+          columns: manualColumns,
+          rows: manualRows,
+        })
+      : buildDataNodeFieldOptions(detail);
   const normalizedUniqueIdentifierList = normalizeUniqueIdentifierList(props.uniqueIdentifierList);
   const supportsIdentifierList =
-    detail != null
+    sourceMode === "manual"
+      ? false
+      : detail != null
       ? supportsUniqueIdentifierList(detail)
       : normalizedUniqueIdentifierList !== undefined;
   const uniqueIdentifierList =
@@ -616,10 +749,13 @@ export function resolveDataNodeWidgetSourceConfig(
 
   return {
     availableFields,
-    dataNodeId,
-    dataNodeLabel: formatDataNodeLabel(
-      detail ?? (dataNodeId ? { id: dataNodeId, storage_hash: "", identifier: null } : null),
-    ),
+    dataNodeId: sourceMode === "manual" ? undefined : dataNodeId,
+    dataNodeLabel:
+      sourceMode === "manual"
+        ? "Manual table"
+        : formatDataNodeLabel(
+            detail ?? (dataNodeId ? { id: dataNodeId, storage_hash: "", identifier: null } : null),
+          ),
     dateRangeMode,
     fixedEndMs,
     fixedStartMs,
@@ -640,6 +776,8 @@ export function normalizeDataNodeWidgetSourceProps<TProps extends DataNodeWidget
     dateRangeMode: resolved.dateRangeMode,
     fixedStartMs: resolved.fixedStartMs,
     fixedEndMs: resolved.fixedEndMs,
+    manualColumns: normalizeManualDataNodeColumns(props.manualColumns),
+    manualRows: normalizeManualDataNodeRows(props.manualRows),
     uniqueIdentifierList: resolved.uniqueIdentifierList,
   } satisfies TProps;
 }
@@ -663,7 +801,10 @@ export function useDataNodeWidgetSourceControllerContext<
   const selectedDataNodeDetailQuery = useQuery({
     queryKey: buildDataNodeDetailQueryKey(selectedDataNodeId),
     queryFn: () => fetchDataNodeDetail(selectedDataNodeId),
-    enabled: Number.isFinite(selectedDataNodeId) && selectedDataNodeId > 0,
+    enabled:
+      sourceBinding.sourceMode !== "manual" &&
+      Number.isFinite(selectedDataNodeId) &&
+      selectedDataNodeId > 0,
     staleTime: 300_000,
   });
 
@@ -692,7 +833,10 @@ export function useDataNodeWidgetSourceControllerContext<
     filterWidgetOptions: sourceBinding.filterWidgetOptions,
     fieldPickerOptions,
     hasLoadedDataNodeDetail,
-    hasNoData: hasLoadedDataNodeDetail && !hasSourceTableConfiguration,
+    hasNoData:
+      sourceBinding.sourceMode === "manual"
+        ? false
+        : hasLoadedDataNodeDetail && !hasSourceTableConfiguration,
     hasResolvedFilterWidgetSource: sourceBinding.hasResolvedFilterWidgetSource,
     isAwaitingBoundSourceValue: sourceBinding.isAwaitingBoundSourceValue,
     isFilterWidgetSource: sourceBinding.isFilterWidgetSource,
@@ -721,6 +865,7 @@ export function createDataNodeWidgetSourceSettingsSchema<
   dataSourceSectionDescription = "Pick the data node and optional unique identifiers for this widget instance.",
   dateRangeSectionDescription = "Choose whether this widget follows the dashboard date or keeps its own range.",
   enableFilterWidgetSource = false,
+  enableManualSource = false,
   filterWidgetOnly = false,
   mapDataNodeChange = defaultMapDataNodeChange,
   selectionHelpText = "Choose the table this widget should read from.",
@@ -790,7 +935,12 @@ export function createDataNodeWidgetSourceSettingsSchema<
         onChange={(value) => {
           onDraftPropsChange({
             ...draftProps,
-            sourceMode: value === "filter_widget" ? "filter_widget" : "direct",
+            sourceMode:
+              value === "filter_widget"
+                ? "filter_widget"
+                : value === "manual"
+                  ? "manual"
+                  : "direct",
           });
         }}
         options={[
@@ -799,11 +949,20 @@ export function createDataNodeWidgetSourceSettingsSchema<
             label: "Direct query",
             description: "This widget owns its own data node and date-range source.",
           },
-          {
-            value: "filter_widget",
-            label: "Data Node",
-            description: "Read source settings from another Data Node in this dashboard.",
-          },
+          ...(enableFilterWidgetSource
+            ? [{
+                value: "filter_widget",
+                label: "Data Node",
+                description: "Read source settings from another Data Node in this dashboard.",
+              }]
+            : []),
+          ...(enableManualSource
+            ? [{
+                value: "manual",
+                label: "Manual table",
+                description: "Author rows and columns directly inside this Data Node.",
+              }]
+            : []),
         ]}
         placeholder="Select a source mode"
         disabled={!editable}
@@ -1041,7 +1200,7 @@ export function createDataNodeWidgetSourceSettingsSchema<
   ];
 
   const fields: WidgetFieldDefinition<TProps, TContext>[] = [
-    ...(enableFilterWidgetSource
+    ...((enableFilterWidgetSource || enableManualSource)
       ? [
           {
             id: "sourceMode",
@@ -1051,14 +1210,16 @@ export function createDataNodeWidgetSourceSettingsSchema<
             isVisible: () => !filterWidgetOnly,
             renderSettings: SourceModeField,
           } satisfies WidgetFieldDefinition<TProps, TContext>,
-          {
+          ...(enableFilterWidgetSource
+            ? [{
             id: "sourceWidgetId",
             label: "Data Node",
             description: "Reference a Data Node from this dashboard.",
             sectionId: "data-source",
             isVisible: ({ context }) => filterWidgetOnly || context.sourceMode === "filter_widget",
             renderSettings: FilterWidgetPickerField,
-          } satisfies WidgetFieldDefinition<TProps, TContext>,
+          } satisfies WidgetFieldDefinition<TProps, TContext>]
+            : []),
         ]
       : []),
     {
@@ -1074,7 +1235,10 @@ export function createDataNodeWidgetSourceSettingsSchema<
         defaultWidth: 340,
         defaultHeight: 96,
       },
-      isVisible: ({ context }) => !filterWidgetOnly && context.sourceMode !== "filter_widget",
+      isVisible: ({ context }) =>
+        !filterWidgetOnly &&
+        context.sourceMode !== "filter_widget" &&
+        context.sourceMode !== "manual",
       renderSettings: DataNodePickerField,
       renderCanvas: DataNodePickerCanvasField,
     },
@@ -1094,6 +1258,7 @@ export function createDataNodeWidgetSourceSettingsSchema<
       isVisible: ({ context }) =>
         !filterWidgetOnly &&
         context.sourceMode !== "filter_widget" &&
+        context.sourceMode !== "manual" &&
         context.supportsUniqueIdentifierList &&
         !context.hasNoData,
       renderSettings: UniqueIdentifierField,
@@ -1104,7 +1269,10 @@ export function createDataNodeWidgetSourceSettingsSchema<
       label: "Mode",
       description: "Follow the dashboard range or save an independent fixed range.",
       sectionId: "date-range",
-      isVisible: ({ context }) => !filterWidgetOnly && context.sourceMode !== "filter_widget",
+      isVisible: ({ context }) =>
+        !filterWidgetOnly &&
+        context.sourceMode !== "filter_widget" &&
+        context.sourceMode !== "manual",
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
         <PickerFieldSetting
           value={context.resolvedConfig.dateRangeMode}
@@ -1129,6 +1297,7 @@ export function createDataNodeWidgetSourceSettingsSchema<
       isVisible: ({ context }) =>
         !filterWidgetOnly &&
         context.sourceMode !== "filter_widget" &&
+        context.sourceMode !== "manual" &&
         context.resolvedConfig.dateRangeMode === "fixed",
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
         <DataNodeDateTimeField
@@ -1152,6 +1321,7 @@ export function createDataNodeWidgetSourceSettingsSchema<
       isVisible: ({ context }) =>
         !filterWidgetOnly &&
         context.sourceMode !== "filter_widget" &&
+        context.sourceMode !== "manual" &&
         context.resolvedConfig.dateRangeMode === "fixed",
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
         <DataNodeDateTimeField

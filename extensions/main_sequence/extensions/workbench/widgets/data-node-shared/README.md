@@ -11,7 +11,8 @@ data-node metadata and remote rows.
   This is the standard hop-local dataset shape used by `Data Node Graph`, `Data Node Table`, and
   `Statistic`: `status`, `dataNodeId`, `columns: string[]`, `rows: Record<string, unknown>[]`,
   optional normalized `fields`, optional `source`, plus range metadata, identifiers, and update
-  timestamps.
+  timestamps. Published `fields` now carry schema provenance metadata as well:
+  `provenance`, `reason`, `derivedFrom`, and `warnings`.
 - `dataNodeWidgetSource.tsx`: reusable source/date-range widget contract used by workbench widgets
   that select a data node, expose optional `unique_identifier` filters, and save a fixed or
   dashboard-driven date range. It also resolves latest-observation anchors used to prefill missing
@@ -29,6 +30,9 @@ data-node metadata and remote rows.
 - `widgetBindings.ts`: shared binding ids for Data Node-family composition.
 - `DataNodePreviewTable.tsx`: reusable simple table preview used inside settings flows that inspect
   fetched data-node rows without mounting the full table formatter widget.
+- `DataNodeFieldSchemaInspector.tsx`: reusable modal-driven schema inspector used by Data Node
+  widgets to show the resolved field contract, provenance, warnings, and representative sample
+  values without dumping long schema tables inline into settings pages.
 - `DataNodeQuickSearchPicker.tsx`: reusable remote-search picker for selecting a data node from
   widget settings or companion-card controls.
 - `LocalTimeSerieQuickSearchPicker.tsx`: reusable remote-search picker for selecting a
@@ -67,6 +71,13 @@ Keep the consumer contract explicit:
   `columns + rows` plus optional normalized `fields` and `source` metadata.
 - Consumer widgets may derive local series, frames, or KPI cards, but they should not mutate the
   upstream transport shape.
+- Published `fields` should stay honest about origin:
+  - preserve backend-declared metadata when a source column survives unchanged
+  - mark authored manual fields as `manual`
+  - mark transform-created fields as `derived`
+  - use `inferred` only when no authoritative schema is available
+- Widget settings that depend on field typing should expose that runtime contract through the shared
+  schema inspector instead of silently inferring types with no user visibility.
 
 Shared source/date-range widgets should keep fixed-date editing compact. If the shared source schema
 adds more small controls in the future, prefer the same `settingsColumnSpan` contract instead of

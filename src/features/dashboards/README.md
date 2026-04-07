@@ -254,6 +254,10 @@ These flows are all part of one app surface, with instance state selected throug
   Graph mode is a dependency/execution surface, not a second component-runtime host. If a widget
   family still needs mounted side effects for graph correctness, that is a bug to fix in the
   widget runtime contract rather than a reason to reintroduce a full hidden mount here.
+- Workspace iconography should also stay unified across surfaces. The left rail, graph cards, and
+  any other workspace-owned icon affordances must resolve icons from the shared widget-definition
+  field `workspaceIcon` through `resolveWorkspaceWidgetIcon(...)` instead of duplicating widget-id
+  heuristics in each surface.
 - The dedicated workspace settings page now uses the same scrollable full-page container model as
   the widget settings view, so long workspace configuration pages can be reached fully.
 - Saving widget-instance settings updates only that instance's title/props/presentation and must

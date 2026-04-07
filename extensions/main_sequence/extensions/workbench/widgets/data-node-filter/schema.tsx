@@ -7,8 +7,9 @@ export const dataNodeFilterSettingsSchema = createDataNodeWidgetSourceSettingsSc
   DataNodeFilterControllerContext
 >({
   enableFilterWidgetSource: false,
+  enableManualSource: true,
   dataNodeCanvasQueryScope: "data_node_filter_canvas",
   dataSourceSectionDescription:
-    "Pick the direct data node this widget should query when it is not bound to another widget.",
+    "Pick the direct data node this widget should query, or switch to Manual table to author rows locally.",
   selectionHelpText: "Choose the data node this widget should inspect directly.",
 });

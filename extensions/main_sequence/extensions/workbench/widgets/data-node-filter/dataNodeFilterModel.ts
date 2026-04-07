@@ -1,6 +1,9 @@
 import type { DataNodeDetail, DataNodeRemoteDataRow } from "../../../../common/api";
 import type { ResolvedWidgetInputs } from "@/widgets/types";
-import { normalizeTabularFrameSource } from "@/widgets/shared/tabular-frame-source";
+import {
+  normalizeTabularFrameSource,
+  type TabularFrameFieldType,
+} from "@/widgets/shared/tabular-frame-source";
 import {
   buildDataNodeFieldOptionsFromRows,
   resolveDataNodeFieldOptionsFromDataset,
@@ -14,6 +17,9 @@ import {
 } from "../data-node-shared/dataNodePublishedDataset";
 import { buildMainSequenceDataSourceDescriptor } from "../../widget-contracts/mainSequenceDataSourceBundle";
 import {
+  buildManualDataNodeFieldOptions,
+  normalizeManualDataNodeColumns,
+  normalizeManualDataNodeRows,
   normalizeDataNodeWidgetSourceReferenceProps,
   normalizeDataNodeWidgetSourceProps,
   resolveDataNodeWidgetSourceConfig,
@@ -57,6 +63,74 @@ function uniqueStrings(values: Array<string | null | undefined>) {
     seen.add(value);
     return true;
   });
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function coerceManualDataNodeCellValue(
+  value: unknown,
+  type: TabularFrameFieldType,
+) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string" && !value.trim()) {
+    return null;
+  }
+
+  if (type === "boolean") {
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      if (/^true$/i.test(value.trim())) {
+        return true;
+      }
+
+      if (/^false$/i.test(value.trim())) {
+        return false;
+      }
+    }
+
+    return null;
+  }
+
+  if (type === "number" || type === "integer") {
+    const parsed =
+      typeof value === "number"
+        ? value
+        : typeof value === "string"
+          ? Number(value.trim())
+          : Number.NaN;
+
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+
+    return type === "integer" ? Math.trunc(parsed) : parsed;
+  }
+
+  if (type === "json") {
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+
+    return value;
+  }
+
+  if (type === "datetime" || type === "date" || type === "time") {
+    return typeof value === "string" ? value.trim() : String(value);
+  }
+
+  return typeof value === "string" ? value : String(value);
 }
 
 function isNumericValue(value: unknown): value is number {
@@ -209,6 +283,42 @@ function resolveDataNodeSourceInput(
   return resolvedEntry.status === "valid" ? resolvedEntry : undefined;
 }
 
+export function buildManualDataNodeSourceDataset(
+  props: MainSequenceDataNodeFilterWidgetProps,
+): DataNodePublishedDataset {
+  const manualColumns = normalizeManualDataNodeColumns(props.manualColumns);
+  const rawRows = normalizeManualDataNodeRows(props.manualRows);
+  const fields = buildManualDataNodeFieldOptions({
+    columns: manualColumns,
+    rows: rawRows,
+  });
+  const columns = fields.map((field) => field.key);
+  const rows = rawRows.map<DataNodeRemoteDataRow>((row) =>
+    Object.fromEntries(
+      columns.map((columnKey) => {
+        const fieldType = fields.find((field) => field.key === columnKey)?.type ?? "string";
+        const nextValue = isPlainRecord(row) ? row[columnKey] : null;
+        return [columnKey, coerceManualDataNodeCellValue(nextValue, fieldType)];
+      }),
+    ),
+  );
+  const hasConfiguredManualTable = columns.length > 0;
+
+  return {
+    status: hasConfiguredManualTable ? "ready" : "idle",
+    columns,
+    rows,
+    fields,
+    limit: normalizePositiveInteger(props.limit) ?? defaultDataNodeFilterLimit,
+    rangeStartMs: null,
+    rangeEndMs: null,
+    source: buildMainSequenceDataSourceDescriptor({
+      dataNodeLabel: "Manual table",
+      limit: normalizePositiveInteger(props.limit) ?? defaultDataNodeFilterLimit,
+    }),
+  };
+}
+
 export function resolveDataNodePublishedOutput(args: {
   props: MainSequenceDataNodeFilterWidgetProps;
   runtimeState?: Record<string, unknown>;
@@ -216,9 +326,46 @@ export function resolveDataNodePublishedOutput(args: {
 }) {
   const normalizedProps = normalizeDataNodeFilterProps(args.props);
   const runtimeDataset = normalizeDataNodeFilterRuntimeState(args.runtimeState);
+  const normalizedSourceReference = normalizeDataNodeWidgetSourceReferenceProps(args.props);
   const resolvedSourceInput = resolveDataNodeSourceInput(args.resolvedInputs);
   const resolvedSourceFrame = normalizeTabularFrameSource(resolvedSourceInput?.value);
   const resolvedSourceDataset = normalizeDataNodePublishedDataset(resolvedSourceInput?.value);
+
+  if (normalizedSourceReference.sourceMode === "manual") {
+    const manualSourceDataset = buildManualDataNodeSourceDataset(normalizedProps);
+    const resolvedConfig = resolveDataNodeFilterConfig(
+      normalizedProps,
+      undefined,
+      manualSourceDataset.fields,
+    );
+    const transformedDataset =
+      manualSourceDataset.status === "ready"
+        ? buildDataNodeTransformedDataset(
+            manualSourceDataset.rows,
+            resolvedConfig,
+            manualSourceDataset.columns,
+            manualSourceDataset.fields,
+          )
+        : null;
+
+    return {
+      status: manualSourceDataset.status,
+      error: runtimeDataset?.error,
+      columns: transformedDataset?.columns ?? manualSourceDataset.columns,
+      rows:
+        transformedDataset?.rows ??
+        (manualSourceDataset.status === "ready" ? manualSourceDataset.rows : []),
+      fields: transformedDataset?.availableFields ?? manualSourceDataset.fields,
+      rangeStartMs: null,
+      rangeEndMs: null,
+      updatedAtMs: runtimeDataset?.updatedAtMs,
+      source: buildMainSequenceDataSourceDescriptor({
+        dataNodeLabel: "Manual table",
+        updatedAtMs: runtimeDataset?.updatedAtMs,
+        limit: resolvedConfig.limit,
+      }),
+    };
+  }
 
   if (!resolvedSourceFrame) {
     const status =
@@ -273,6 +420,7 @@ export function resolveDataNodePublishedOutput(args: {
           resolvedSourceFrame.rows,
           resolvedConfig,
           resolvedSourceFrame.columns,
+          sourceFieldOptions,
         )
       : null;
 
@@ -415,6 +563,198 @@ export function resolveDataNodeFilterDateRange(
 
 function collectRowKeys(rows: readonly DataNodeRemoteDataRow[]) {
   return uniqueStrings(rows.flatMap((row) => Object.keys(row)));
+}
+
+function cloneFieldOption(field: DataNodeFieldOption): DataNodeFieldOption {
+  return {
+    ...field,
+    derivedFrom: field.derivedFrom ? [...field.derivedFrom] : undefined,
+    warnings: field.warnings ? [...field.warnings] : undefined,
+  };
+}
+
+function mergeWarnings(
+  ...warnings: Array<readonly string[] | undefined | null>
+) {
+  return uniqueStrings(warnings.flatMap((entry) => entry ?? []));
+}
+
+function buildDerivedField(
+  key: string,
+  fallbackField: DataNodeFieldOption | undefined,
+  input: {
+    label?: string;
+    description: string;
+    derivedFrom: string[];
+    sourceField?: DataNodeFieldOption;
+    typeOverride?: DataNodeFieldOption["type"];
+    nativeType?: string | null;
+  },
+): DataNodeFieldOption {
+  return {
+    ...(fallbackField ? cloneFieldOption(fallbackField) : { key, type: "unknown" as const }),
+    key,
+    label: input.label ?? input.sourceField?.label ?? fallbackField?.label ?? key,
+    description: input.description,
+    nativeType: input.nativeType ?? null,
+    type: input.typeOverride ?? fallbackField?.type ?? input.sourceField?.type ?? "unknown",
+    provenance: "derived",
+    reason: input.description,
+    derivedFrom: uniqueStrings(input.derivedFrom),
+    warnings:
+      mergeWarnings(fallbackField?.warnings, input.sourceField?.warnings).length > 0
+        ? mergeWarnings(fallbackField?.warnings, input.sourceField?.warnings)
+        : undefined,
+  };
+}
+
+function buildPreservedField(
+  key: string,
+  sourceField: DataNodeFieldOption | undefined,
+  fallbackField: DataNodeFieldOption | undefined,
+): DataNodeFieldOption {
+  if (!sourceField && fallbackField) {
+    return fallbackField;
+  }
+
+  if (!sourceField) {
+    return {
+      key,
+      label: key,
+      type: "unknown",
+      provenance: "inferred",
+      reason: "Inferred from transformed dataset rows.",
+    };
+  }
+
+  return {
+    ...cloneFieldOption(sourceField),
+    key,
+    label: sourceField.label?.trim() || fallbackField?.label || key,
+    description: sourceField.description ?? fallbackField?.description ?? null,
+    nativeType: sourceField.nativeType ?? fallbackField?.nativeType ?? null,
+    type: sourceField.type ?? fallbackField?.type ?? "unknown",
+    warnings:
+      mergeWarnings(sourceField.warnings, fallbackField?.warnings).length > 0
+        ? mergeWarnings(sourceField.warnings, fallbackField?.warnings)
+        : undefined,
+  };
+}
+
+function buildDataNodeTransformedFieldOptions(args: {
+  columns: readonly string[];
+  rows: readonly DataNodeRemoteDataRow[];
+  sourceFields?: readonly DataNodeFieldOption[];
+  config: Pick<
+    ResolvedDataNodeFilterConfig,
+    | "aggregateMode"
+    | "keyFields"
+    | "pivotField"
+    | "pivotValueField"
+    | "projectFields"
+    | "transformMode"
+    | "unpivotFieldName"
+    | "unpivotValueFieldName"
+    | "unpivotValueFields"
+  >;
+}) {
+  const fallbackFields = buildDataNodeFieldOptionsFromRows(
+    {
+      columns: args.columns,
+      rows: args.rows,
+    },
+    {
+      provenance: args.config.transformMode === "none" ? "inferred" : "derived",
+    },
+  );
+  const fallbackFieldByKey = new Map(fallbackFields.map((field) => [field.key, field]));
+  const sourceFieldByKey = new Map(
+    (args.sourceFields ?? []).map((field) => [field.key, field]),
+  );
+  const keyFields = new Set(args.config.keyFields ?? []);
+  const unpivotValueFields = args.config.unpivotValueFields ?? [];
+  const pivotValueField = args.config.pivotValueField
+    ? sourceFieldByKey.get(args.config.pivotValueField)
+    : undefined;
+
+  return args.columns.map<DataNodeFieldOption>((key) => {
+    const fallbackField = fallbackFieldByKey.get(key);
+    const sourceField = sourceFieldByKey.get(key);
+
+    if (args.config.transformMode === "none") {
+      return buildPreservedField(key, sourceField, fallbackField);
+    }
+
+    if (args.config.transformMode === "aggregate") {
+      if (keyFields.has(key)) {
+        return buildPreservedField(key, sourceField, fallbackField);
+      }
+
+      return buildDerivedField(key, fallbackField, {
+        sourceField,
+        description: `Derived by aggregating ${key} with ${args.config.aggregateMode}.`,
+        derivedFrom: [key],
+        nativeType:
+          args.config.aggregateMode === "first" || args.config.aggregateMode === "last"
+            ? (sourceField?.nativeType ?? null)
+            : null,
+      });
+    }
+
+    if (args.config.transformMode === "pivot") {
+      if (keyFields.has(key)) {
+        return buildPreservedField(key, sourceField, fallbackField);
+      }
+
+      return buildDerivedField(key, fallbackField, {
+        label: key,
+        sourceField: pivotValueField,
+        description: `Derived pivot column from ${args.config.pivotValueField ?? "value"} by ${args.config.pivotField ?? "pivot field"} using ${args.config.aggregateMode}.`,
+        derivedFrom: uniqueStrings([
+          args.config.pivotField,
+          args.config.pivotValueField,
+        ]),
+      });
+    }
+
+    if (args.config.transformMode === "unpivot") {
+      if (keyFields.has(key)) {
+        return buildPreservedField(key, sourceField, fallbackField);
+      }
+
+      if (key === args.config.unpivotFieldName) {
+        return buildDerivedField(key, fallbackField, {
+          label: key,
+          description: `Generated unpivot label field from ${unpivotValueFields.length.toLocaleString()} source columns.`,
+          derivedFrom: unpivotValueFields,
+          typeOverride: "string",
+          nativeType: null,
+        });
+      }
+
+      if (key === args.config.unpivotValueFieldName) {
+        const firstSourceValueField = unpivotValueFields
+          .map((fieldKey) => sourceFieldByKey.get(fieldKey))
+          .find((field) => field != null);
+
+        return buildDerivedField(key, fallbackField, {
+          label: key,
+          sourceField: firstSourceValueField,
+          description: `Generated unpivot value field from ${unpivotValueFields.length.toLocaleString()} source columns.`,
+          derivedFrom: unpivotValueFields,
+          nativeType: null,
+        });
+      }
+    }
+
+    return fallbackField ?? {
+      key,
+      label: key,
+      type: "unknown",
+      provenance: "inferred",
+      reason: "Inferred from transformed dataset rows.",
+    };
+  });
 }
 
 function projectTransformedDataset(
@@ -786,6 +1126,7 @@ export function buildDataNodeTransformedDataset(
     | "unpivotValueFields"
   >,
   knownColumns?: readonly string[],
+  sourceFields?: readonly DataNodeFieldOption[],
 ) {
   const columns = uniqueStrings([
     ...(knownColumns ?? []),
@@ -815,9 +1156,11 @@ export function buildDataNodeTransformedDataset(
   return {
     columns: projectedDataset.columns,
     rows: projectedDataset.rows,
-    availableFields: buildDataNodeFieldOptionsFromRows({
+    availableFields: buildDataNodeTransformedFieldOptions({
       columns: projectedDataset.columns,
       rows: projectedDataset.rows,
+      sourceFields,
+      config,
     }),
   };
 }

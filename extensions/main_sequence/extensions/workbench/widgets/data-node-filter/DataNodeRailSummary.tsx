@@ -65,6 +65,8 @@ export function DataNodeRailSummary({
     }),
     [normalizedProps, sourceBinding.resolvedSourceProps],
   );
+  const isManualSource = sourceBinding.sourceMode === "manual";
+  const manualColumnCount = normalizedProps.manualColumns?.length ?? 0;
   const dataNodeId = Number(
     normalizedRuntimeState?.dataNodeId ??
       linkedDataset?.dataNodeId ??
@@ -99,9 +101,12 @@ export function DataNodeRailSummary({
   const isUnconfigured =
     sourceBinding.isFilterWidgetSource
       ? !sourceBinding.hasResolvedFilterWidgetSource
-      : !Number.isFinite(dataNodeId) || dataNodeId <= 0;
+      : isManualSource
+        ? manualColumnCount === 0
+        : !Number.isFinite(dataNodeId) || dataNodeId <= 0;
   const hasInvalidFixedRange =
     !sourceBinding.isFilterWidgetSource &&
+    !isManualSource &&
     resolvedConfig.dateRangeMode === "fixed" &&
     !resolvedRange.hasValidRange;
   const runtimeErrorMessage =
@@ -131,19 +136,27 @@ export function DataNodeRailSummary({
     status === "idle"
       ? sourceBinding.isFilterWidgetSource
         ? "Source widget not configured"
-        : "Data Node not configured"
+        : isManualSource
+          ? "Manual table not configured"
+          : "Data Node not configured"
       : status === "range"
         ? "Fixed range is incomplete"
         : status === "data_error"
           ? "Dataset request failed"
           : status === "loading"
-            ? "Refreshing dataset"
-            : "Canonical dataset ready";
+            ? isManualSource
+              ? "Preparing manual dataset"
+              : "Refreshing dataset"
+            : isManualSource
+              ? "Manual dataset ready"
+              : "Canonical dataset ready";
   const hoverDescription =
     status === "idle"
       ? sourceBinding.isFilterWidgetSource
         ? "Choose an upstream source widget in settings so this node can transform that dataset."
-        : "Choose a data node in settings so this widget can own the shared dataset."
+        : isManualSource
+          ? "Add at least one column in settings so this widget can publish a local table."
+          : "Choose a data node in settings so this widget can own the shared dataset."
       : status === "range"
         ? "This Data Node needs both saved fixed dates before it can publish rows."
         : status === "data_error"
@@ -151,8 +164,12 @@ export function DataNodeRailSummary({
           : status === "loading"
             ? sourceBinding.isFilterWidgetSource
               ? "Linked widgets keep reading from this bound source while the dataset refreshes."
-              : "Linked widgets keep reading from this Data Node while the dataset refreshes."
-            : "Linked widgets should read rows from this Data Node instead of querying directly.";
+              : isManualSource
+                ? "Linked widgets keep reading from this manual table while the dataset refreshes."
+                : "Linked widgets keep reading from this Data Node while the dataset refreshes."
+            : isManualSource
+              ? "Linked widgets should read rows from this authored manual table instead of querying directly."
+              : "Linked widgets should read rows from this Data Node instead of querying directly.";
   const widgetTitle =
     typeof title === "string" && title.trim()
       ? title.trim()
@@ -179,7 +196,9 @@ export function DataNodeRailSummary({
   const publishedRowCount = displayedRows.length;
   const identifierSummary = resolvedConfig.uniqueIdentifierList?.length
     ? `${resolvedConfig.uniqueIdentifierList.length.toLocaleString()} identifiers`
-    : "No identifier selection";
+    : isManualSource
+      ? "Not applicable"
+      : "No identifier selection";
   const datasetSummary =
     status === "loading"
       ? "Loading rows"
@@ -187,7 +206,22 @@ export function DataNodeRailSummary({
         ? `${publishedRowCount.toLocaleString()} rows`
         : status === "data_error"
           ? "Request failed"
-          : "Waiting for dataset";
+          : isManualSource
+            ? "Add at least one column"
+            : "Waiting for dataset";
+  const rangeSummary = isManualSource
+    ? "Manual table"
+    : formatRangeSummary(displayedRangeStartMs, displayedRangeEndMs);
+  const sourceDetailLabel = sourceBinding.isFilterWidgetSource
+    ? "Source widget"
+    : isManualSource
+      ? "Source mode"
+      : "Data node";
+  const sourceDetailValue = sourceBinding.isFilterWidgetSource
+    ? (sourceWidgetLabel ?? "Not selected")
+    : isManualSource
+      ? "Manual table"
+      : (resolvedConfig.dataNodeLabel || (dataNodeId > 0 ? dataNodeId : "Not selected"));
   const transformSummary = formatDataNodeFilterTransformSummary(resolvedConfig);
   const Icon =
     status === "idle"
@@ -212,19 +246,12 @@ export function DataNodeRailSummary({
       description={hoverSummary}
       details={[
         {
-          label: sourceBinding.isFilterWidgetSource ? "Source widget" : "Data node",
-          value:
-            sourceBinding.isFilterWidgetSource
-              ? (sourceWidgetLabel ?? "Not selected")
-              : (resolvedConfig.dataNodeLabel ||
-                (dataNodeId > 0 ? dataNodeId : "Not selected")),
+          label: sourceDetailLabel,
+          value: sourceDetailValue,
         },
         {
           label: "Range",
-          value: formatRangeSummary(
-            displayedRangeStartMs,
-            displayedRangeEndMs,
-          ),
+          value: rangeSummary,
         },
         {
           label: "Dataset",

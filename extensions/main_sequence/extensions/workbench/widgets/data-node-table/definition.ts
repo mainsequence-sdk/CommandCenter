@@ -47,7 +47,7 @@ export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisuali
     ],
   },
   workspaceRuntimeMode: "consumer",
-  railIcon: Table,
+  workspaceIcon: Table,
   settingsComponent: DataNodeTableWidgetSettings,
   component: DataNodeTableWidget,
 });

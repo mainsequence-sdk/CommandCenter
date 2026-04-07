@@ -17,7 +17,7 @@ import {
   type ResolvedDataNodeWidgetSourceConfig,
 } from "../data-node-shared/dataNodeWidgetSource";
 
-export type DataNodeVisualizerProvider = "tradingview";
+export type DataNodeVisualizerProvider = "tradingview" | "echarts";
 export type DataNodeVisualizerChartType = "line" | "area" | "bar";
 export type DataNodeVisualizerViewMode = "chart" | "table";
 export type DataNodeVisualizerSeriesAxisMode = "shared" | "separate";
@@ -147,6 +147,10 @@ function normalizeTimeAxisMode(value: unknown): DataNodeVisualizerTimeAxisMode {
   return value === "date" || value === "datetime" ? value : "auto";
 }
 
+function normalizeProvider(value: unknown): DataNodeVisualizerProvider {
+  return value === "echarts" ? "echarts" : "tradingview";
+}
+
 export function normalizeDataNodeVisualizerLineStyle(value: unknown): DataNodeVisualizerLineStyle {
   return value === "dotted" ||
     value === "dashed" ||
@@ -239,7 +243,7 @@ export function resolveDataNodeVisualizerConfig(
     fieldOptionsOverride && fieldOptionsOverride.length > 0
       ? fieldOptionsOverride
       : sourceConfig.availableFields;
-  const provider: DataNodeVisualizerProvider = "tradingview";
+  const provider = normalizeProvider(props.provider);
   const chartType: DataNodeVisualizerChartType =
     props.chartType === "area" || props.chartType === "bar" ? props.chartType : "line";
   const limit = Math.max(1, Math.min(normalizePositiveInteger(props.limit) ?? defaultVisualizerLimit, 14_000));

@@ -41,7 +41,7 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
   defaultPresentation: {
     placementMode: "sidebar",
   },
-  railIcon: Database,
+  workspaceIcon: Database,
   railSummaryComponent: DataNodeRailSummary,
   io: {
     inputs: [

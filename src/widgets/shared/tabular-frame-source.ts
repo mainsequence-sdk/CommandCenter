@@ -15,6 +15,12 @@ export type TabularFrameFieldType =
   | "json"
   | "unknown";
 
+export type TabularFrameFieldProvenance =
+  | "backend"
+  | "manual"
+  | "inferred"
+  | "derived";
+
 export interface TabularFrameFieldSchema {
   key: string;
   label?: string;
@@ -22,6 +28,10 @@ export interface TabularFrameFieldSchema {
   type: TabularFrameFieldType;
   nullable?: boolean;
   nativeType?: string | null;
+  provenance?: TabularFrameFieldProvenance;
+  reason?: string | null;
+  derivedFrom?: string[];
+  warnings?: string[];
 }
 
 export interface TabularFrameSourceDescriptor {
@@ -99,6 +109,39 @@ function normalizeFieldType(value: unknown): TabularFrameFieldType {
     : "unknown";
 }
 
+function normalizeFieldProvenance(value: unknown): TabularFrameFieldProvenance | undefined {
+  return value === "backend" ||
+    value === "manual" ||
+    value === "inferred" ||
+    value === "derived"
+    ? value
+    : undefined;
+}
+
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const seen = new Set<string>();
+  const normalized = value.flatMap((entry) => {
+    if (typeof entry !== "string" || !entry.trim()) {
+      return [];
+    }
+
+    const nextValue = entry.trim();
+
+    if (seen.has(nextValue)) {
+      return [];
+    }
+
+    seen.add(nextValue);
+    return [nextValue];
+  });
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 function normalizeFields(value: unknown) {
   if (!Array.isArray(value)) {
     return undefined;
@@ -131,6 +174,13 @@ function normalizeFields(value: unknown) {
         typeof entry.nativeType === "string" && entry.nativeType.trim()
           ? entry.nativeType.trim()
           : null,
+      provenance: normalizeFieldProvenance(entry.provenance),
+      reason:
+        typeof entry.reason === "string" && entry.reason.trim()
+          ? entry.reason.trim()
+          : null,
+      derivedFrom: normalizeStringArray(entry.derivedFrom),
+      warnings: normalizeStringArray(entry.warnings),
     } satisfies TabularFrameFieldSchema];
   });
 

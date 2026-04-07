@@ -37,6 +37,7 @@ import { MainSequenceEntitySummaryCard } from "../../../../common/components/Mai
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceProjectCodeTab } from "./MainSequenceProjectCodeTab";
 import { MainSequenceProjectDataNodeUpdatesTab } from "./MainSequenceProjectDataNodeUpdatesTab";
+import { MainSequenceProjectInfraGraphTab } from "./MainSequenceProjectInfraGraphTab";
 import { MainSequenceProjectImagesTab } from "./MainSequenceProjectImagesTab";
 import { MainSequenceProjectJobsTab } from "./MainSequenceProjectJobsTab";
 import { MainSequenceProjectResourceReleasesTab } from "./MainSequenceProjectResourceReleasesTab";
@@ -76,6 +77,12 @@ const projectDetailTabs = [
     id: "code",
     label: "Code",
     title: "Code",
+    body: "Coming soon.",
+  },
+  {
+    id: "infra-graph",
+    label: "Infra Graph",
+    title: "Infra Graph",
     body: "Coming soon.",
   },
   {
@@ -747,6 +754,8 @@ export function MainSequenceProjectsPage() {
                       projectId={selectedProjectId}
                       onJobCreated={() => selectProjectDetailTab("jobs")}
                     />
+                  ) : activeTab.id === "infra-graph" && selectedProjectId > 0 ? (
+                    <MainSequenceProjectInfraGraphTab projectId={selectedProjectId} />
                   ) : activeTab.id === "jobs" && selectedProjectId > 0 ? (
                     <MainSequenceProjectJobsTab
                       onCloseJobDetail={closeJobDetail}

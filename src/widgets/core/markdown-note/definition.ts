@@ -41,6 +41,6 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
     openLinksInNewTab: true,
   },
   settingsComponent: MarkdownNoteWidgetSettings,
-  railIcon: FileText,
+  workspaceIcon: FileText,
   component: MarkdownNoteWidget,
 });

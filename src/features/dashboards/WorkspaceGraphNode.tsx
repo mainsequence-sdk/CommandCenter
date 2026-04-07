@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
 
+import { getWidgetById } from "@/app/registry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -8,20 +9,14 @@ import {
   buildWidgetGraphHandleId,
   type WidgetGraphPortKind,
 } from "@/dashboards/widget-dependencies";
-import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import {
-  BarChart3,
-  Boxes,
   ChevronDown,
   ChevronRight,
-  Clock3,
-  Database,
   Plus,
-  Rows3,
-  Table,
   X,
 } from "lucide-react";
+import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
 
 export type WorkspaceGraphPortStatus = "connected" | "unbound" | "broken";
 
@@ -113,30 +108,6 @@ function GraphPortHandle({
   );
 }
 
-function resolveWidgetGraphIcon(data: WorkspaceGraphNodeData) {
-  if (isWorkspaceRowWidgetId(data.widgetId)) {
-    return Rows3;
-  }
-
-  if (/data-node/i.test(data.widgetId) || /data node/i.test(data.title)) {
-    return Database;
-  }
-
-  if (data.widgetKind === "chart") {
-    return BarChart3;
-  }
-
-  if (data.widgetKind === "table") {
-    return Table;
-  }
-
-  if (data.widgetKind === "feed") {
-    return Clock3;
-  }
-
-  return Boxes;
-}
-
 function resolveCollapsedHandleTop(index: number, total: number) {
   if (total <= 1) {
     return 56;
@@ -154,7 +125,14 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
   const [selectedHiddenOutputId, setSelectedHiddenOutputId] = useState("");
   const [addOutputOpen, setAddOutputOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const WidgetIcon = resolveWidgetGraphIcon(data);
+  const widgetDefinition = getWidgetById(data.widgetId);
+  const WidgetIcon = resolveWorkspaceWidgetIcon(
+    widgetDefinition ?? {
+      id: data.widgetId,
+      title: data.title,
+      kind: data.widgetKind,
+    },
+  );
   const recentlyCompleted = Boolean(
     data.executionStatus === "success" &&
       data.executionFinishedAtMs &&

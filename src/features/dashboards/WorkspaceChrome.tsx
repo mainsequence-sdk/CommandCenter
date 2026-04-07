@@ -10,50 +10,16 @@ import {
 import { createPortal } from "react-dom";
 
 import {
-  BarChart3,
-  Boxes,
-  Clock3,
-  Database,
   Loader2,
-  Rows3,
-  Table,
 } from "lucide-react";
 
 import {
   useDashboardWidgetExecution,
   type WidgetExecutionState,
 } from "@/dashboards/DashboardWidgetExecution";
-import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import { cn, titleCase } from "@/lib/utils";
 import type { WidgetInstancePresentation, WidgetDefinition } from "@/widgets/types";
-
-function resolveWidgetRailIcon(widget: WidgetDefinition) {
-  if (widget.railIcon) {
-    return widget.railIcon;
-  }
-
-  if (isWorkspaceRowWidgetId(widget.id)) {
-    return Rows3;
-  }
-
-  if (/data-node/i.test(widget.id) || /data node/i.test(widget.title)) {
-    return Database;
-  }
-
-  if (widget.kind === "chart") {
-    return BarChart3;
-  }
-
-  if (widget.kind === "table") {
-    return Table;
-  }
-
-  if (widget.kind === "feed") {
-    return Clock3;
-  }
-
-  return Boxes;
-}
+import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
 
 function resolveRuntimeStatus(runtimeState?: Record<string, unknown>) {
   return typeof runtimeState?.status === "string" ? runtimeState.status : null;
@@ -352,7 +318,7 @@ export function WorkspaceWidgetRail({
       aria-label="Canvas widget rail"
     >
       {widgets.map(({ id, title, props, presentation, runtimeState, widget }) => {
-        const Icon = resolveWidgetRailIcon(widget);
+        const Icon = resolveWorkspaceWidgetIcon(widget);
         const active = activeInstanceId === id;
         const executionState = widgetExecution?.getExecutionState(id);
         const dotClassName = resolveWidgetRailStatusDotClass({

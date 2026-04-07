@@ -18,22 +18,27 @@ import {
   formatMainSequenceError,
 } from "../../../../common/api";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
+import { DataNodeFieldSchemaInspector } from "../data-node-shared/DataNodeFieldSchemaInspector";
 import { DataNodePreviewTable } from "../data-node-shared/DataNodePreviewTable";
 import { resolveDataNodeFieldOptionsFromDataset } from "../data-node-shared/dataNodeShared";
 import {
   buildDataNodeRemoteRowsQueryKey,
+  normalizeManualDataNodeColumns,
+  normalizeManualDataNodeRows,
   resolveDataNodeWidgetPrefilledFixedRange,
   resolveDataNodeWidgetPreviewAnchorMs,
   useResolvedDataNodeWidgetSourceBinding,
 } from "../data-node-shared/dataNodeWidgetSource";
 import type { DataNodeFilterControllerContext } from "./controller";
 import {
+  buildManualDataNodeSourceDataset,
   buildDataNodeTransformedDataset,
   type DataNodeGroupAggregateMode,
   type DataNodeTransformMode,
   resolveDataNodeFilterDateRange,
   type MainSequenceDataNodeFilterWidgetProps,
 } from "./dataNodeFilterModel";
+import { ManualDataNodeEditor } from "./ManualDataNodeEditor";
 
 const transformModeOptions: PickerOption[] = [
   {
@@ -219,6 +224,15 @@ export function MainSequenceDataNodeFilterWidgetSettings({
   const selectedDetail = context?.selectedDataNodeDetailQuery.data;
   const hasNoData = context?.hasNoData ?? false;
   const linkedDataset = context?.resolvedSourceDataset ?? null;
+  const isManualSource = (context?.sourceMode ?? sourceBinding.sourceMode) === "manual";
+  const manualColumns = useMemo(
+    () => normalizeManualDataNodeColumns(draftProps.manualColumns),
+    [draftProps.manualColumns],
+  );
+  const manualRows = useMemo(
+    () => normalizeManualDataNodeRows(draftProps.manualRows),
+    [draftProps.manualRows],
+  );
   useResolveWidgetUpstream(instanceId, {
     enabled: sourceBinding.requiresUpstreamResolution,
   });
@@ -231,7 +245,10 @@ export function MainSequenceDataNodeFilterWidgetSettings({
       selectedDataNodeId,
     ],
     queryFn: () => fetchDataNodeLastObservation(selectedDataNodeId),
-    enabled: Number.isFinite(selectedDataNodeId) && selectedDataNodeId > 0,
+    enabled:
+      !isManualSource &&
+      Number.isFinite(selectedDataNodeId) &&
+      selectedDataNodeId > 0,
     staleTime: 300_000,
   });
   const previewAnchorMs = useMemo(
@@ -239,7 +256,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
     [lastObservationQuery.data, selectedDetail],
   );
   useEffect(() => {
-    if (!editable || !resolvedConfig) {
+    if (!editable || !resolvedConfig || isManualSource) {
       return;
     }
 
@@ -271,6 +288,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
     dashboardRangeEndMs,
     dashboardRangeStartMs,
     editable,
+    isManualSource,
     onDraftPropsChange,
     previewAnchorMs,
     resolvedConfig,
@@ -307,14 +325,21 @@ export function MainSequenceDataNodeFilterWidgetSettings({
         offset: 0,
       }),
     enabled:
+      !isManualSource &&
       Boolean(resolvedConfig?.dataNodeId) &&
       previewRange.hasValidRange &&
       !hasNoData &&
       !context?.isFilterWidgetSource,
   });
-  const previewSourceRows = context?.isFilterWidgetSource
-    ? (linkedDataset?.rows ?? [])
-    : (previewQuery.data ?? []);
+  const manualSourceDataset = useMemo(
+    () => buildManualDataNodeSourceDataset(draftProps),
+    [draftProps],
+  );
+  const previewSourceRows = isManualSource
+    ? manualSourceDataset.rows
+    : context?.isFilterWidgetSource
+      ? (linkedDataset?.rows ?? [])
+      : (previewQuery.data ?? []);
   const draftTransformMode = normalizeDraftTransformMode(draftProps.transformMode);
   const draftPivotField = normalizeDraftFieldValue(draftProps.pivotField);
   const draftPivotValueField = normalizeDraftFieldValue(draftProps.pivotValueField);
@@ -386,8 +411,9 @@ export function MainSequenceDataNodeFilterWidgetSettings({
               ...draftPreviewConfig.availableFields.map((field) => field.key),
               ...previewSourceRows.flatMap((row) => Object.keys(row)),
             ]),
+            draftPreviewConfig.availableFields,
           )
-        : { columns: [], rows: [] },
+        : { columns: [], rows: [], availableFields: [] },
     [draftPreviewConfig, previewSourceRows],
   );
   const transformedPreview = useMemo(
@@ -400,8 +426,9 @@ export function MainSequenceDataNodeFilterWidgetSettings({
               ...draftPreviewConfig.availableFields.map((field) => field.key),
               ...previewSourceRows.flatMap((row) => Object.keys(row)),
             ]),
+            draftPreviewConfig.availableFields,
           )
-        : { columns: [], rows: [] },
+        : { columns: [], rows: [], availableFields: [] },
     [draftPreviewConfig, previewSourceRows],
   );
   const previewColumns = useMemo(
@@ -412,20 +439,42 @@ export function MainSequenceDataNodeFilterWidgetSettings({
     previewRange.rangeStartMs && previewRange.rangeEndMs
       ? formatRangeSummary(previewRange.rangeStartMs, previewRange.rangeEndMs)
       : "Select a valid date range to preview";
+  const manualSourceSummary =
+    manualColumns.length > 0
+      ? `${manualColumns.length.toLocaleString()} columns • ${manualRows.length.toLocaleString()} rows`
+      : "Add at least one column to start the manual table.";
   const boundSourceRangeSummary =
     linkedDataset?.rangeStartMs && linkedDataset?.rangeEndMs
       ? formatRangeSummary(linkedDataset.rangeStartMs, linkedDataset.rangeEndMs)
       : null;
   const directQueryIdentifier =
-    !context?.isFilterWidgetSource && typeof selectedDetail?.identifier === "string"
+    !isManualSource &&
+    !context?.isFilterWidgetSource &&
+    typeof selectedDetail?.identifier === "string"
       ? selectedDetail.identifier.trim()
       : "";
+  const previewLoading = isManualSource
+    ? false
+    : context?.isFilterWidgetSource
+      ? linkedDataset?.status === "loading" || linkedDataset == null
+      : previewQuery.isLoading;
+  const previewErrorMessage = isManualSource
+    ? null
+    : context?.isFilterWidgetSource
+      ? linkedDataset?.status === "error"
+        ? linkedDataset.error ?? "The upstream source widget failed to load rows."
+        : null
+      : previewQuery.isError
+        ? formatMainSequenceError(previewQuery.error)
+        : null;
+  const previewHasResolvedSource = isManualSource || context?.isFilterWidgetSource || previewRange.hasValidRange;
 
   if (!resolvedConfig || !draftPreviewConfig) {
     return null;
   }
 
   const hasPreviewSource =
+    isManualSource ||
     Boolean(resolvedConfig.dataNodeId) ||
     (context?.isFilterWidgetSource === true && context.hasResolvedFilterWidgetSource);
 
@@ -460,31 +509,57 @@ export function MainSequenceDataNodeFilterWidgetSettings({
 
   return (
     <div className="space-y-4">
+      {isManualSource ? (
+        <SettingsSection
+          title="Manual table"
+          description="Create a local table by defining columns and filling rows directly in this widget."
+        >
+          <ManualDataNodeEditor
+            columns={manualColumns}
+            rows={manualRows}
+            editable={editable}
+            onChange={({ columns: nextColumns, rows: nextRows }) => {
+              onDraftPropsChange({
+                ...draftProps,
+                manualColumns: nextColumns,
+                manualRows: nextRows,
+              });
+            }}
+          />
+        </SettingsSection>
+      ) : null}
+
       <SettingsSection
         title="Dataset"
         description="This widget owns the canonical row dataset that linked graphs and tables consume."
       >
-        <div className="space-y-2">
-          <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Remote row limit
-          </label>
-          <Input
-            type="number"
-            min={100}
-            max={20000}
-            value={resolvedConfig.limit}
-            disabled={!editable}
-            onChange={(event) => {
-              onDraftPropsChange({
-                ...draftProps,
-                limit: Number(event.target.value),
-              });
-            }}
-          />
-          <p className="text-sm text-muted-foreground">
-            Linked widgets only receive rows from this dataset, so this limit defines the maximum shared working set.
-          </p>
-        </div>
+        {isManualSource ? (
+          <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-3 py-3 text-sm text-muted-foreground">
+            {manualSourceSummary}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Remote row limit
+            </label>
+            <Input
+              type="number"
+              min={100}
+              max={20000}
+              value={resolvedConfig.limit}
+              disabled={!editable}
+              onChange={(event) => {
+                onDraftPropsChange({
+                  ...draftProps,
+                  limit: Number(event.target.value),
+                });
+              }}
+            />
+            <p className="text-sm text-muted-foreground">
+              Linked widgets only receive rows from this dataset, so this limit defines the maximum shared working set.
+            </p>
+          </div>
+        )}
       </SettingsSection>
 
       <SettingsSection
@@ -861,6 +936,14 @@ export function MainSequenceDataNodeFilterWidgetSettings({
         </div>
       </SettingsSection>
 
+      <DataNodeFieldSchemaInspector
+        title="Published field schema"
+        description="Inspect the resolved schema this Data Node will publish downstream after the current transform settings are applied."
+        fields={transformedPreview.availableFields ?? []}
+        rows={transformedPreview.rows}
+        emptyMessage="No published field schema is available yet."
+      />
+
       <SettingsSection
         title="Preview"
         description="Inspect the selected source as a table before saving. This widget keeps the preview table in settings only."
@@ -889,12 +972,18 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                 Unpivot mode is selected. Choose at least one value column to melt into long-form rows.
               </div>
             ) : null}
-            {hasNoData ? (
+            {!isManualSource && hasNoData ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
                 This data node has no data, so no preview is available.
               </div>
             ) : !context?.isFilterWidgetSource || context.hasResolvedFilterWidgetSource ? (
               <>
+                {isManualSource ? (
+                  <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-3 py-3 text-sm text-muted-foreground">
+                    {manualSourceSummary}
+                  </div>
+                ) : null}
+
                 {directQueryIdentifier ? (
                   <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-3 py-3">
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -906,7 +995,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                   </div>
                 ) : null}
 
-                {!context?.isFilterWidgetSource ? (
+                {!isManualSource && !context?.isFilterWidgetSource ? (
                   <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-3 py-2 text-sm text-muted-foreground">
                     {previewRangeSummary}
                   </div>
@@ -916,7 +1005,7 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                   </div>
                 ) : null}
 
-                {!context?.isFilterWidgetSource && previewAnchorMs !== null ? (
+                {!isManualSource && !context?.isFilterWidgetSource && previewAnchorMs !== null ? (
                   <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-3 py-3">
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                       Latest observation
@@ -930,36 +1019,20 @@ export function MainSequenceDataNodeFilterWidgetSettings({
                   </div>
                 ) : null}
 
-                {(context?.isFilterWidgetSource
-                  ? linkedDataset?.status === "loading" || linkedDataset == null
-                  : previewQuery.isLoading) ? (
+                {previewLoading ? (
                   <div className="grid gap-3">
                     <Skeleton className="h-6 w-48 rounded-[calc(var(--radius)-8px)]" />
                     <Skeleton className="h-[280px] rounded-[calc(var(--radius)-6px)]" />
                   </div>
                 ) : null}
 
-                {(context?.isFilterWidgetSource
-                  ? linkedDataset?.status === "error"
-                  : previewQuery.isError) ? (
+                {previewErrorMessage ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                    {context?.isFilterWidgetSource
-                      ? linkedDataset?.error ?? "The upstream source widget failed to load rows."
-                      : formatMainSequenceError(previewQuery.error)}
+                    {previewErrorMessage}
                   </div>
                 ) : null}
 
-                {!(
-                  context?.isFilterWidgetSource
-                    ? linkedDataset?.status === "loading" || linkedDataset == null
-                    : previewQuery.isLoading
-                ) &&
-                !(
-                  context?.isFilterWidgetSource
-                    ? linkedDataset?.status === "error"
-                    : previewQuery.isError
-                ) &&
-                (context?.isFilterWidgetSource || previewRange.hasValidRange) ? (
+                {!previewLoading && !previewErrorMessage && previewHasResolvedSource ? (
                   <>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span>{transformedPreview.rows.length.toLocaleString()} preview rows</span>

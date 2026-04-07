@@ -32,7 +32,9 @@ widget is intentionally configuration-heavy:
   value labels, and numeric rules. Column schema and display formatting are edited together inside
   each per-column card. The linked-source section is intentionally minimal: choose a `Data Node`
   widget, then move directly into table formatting. The form uses the shared
-  tight-density widget settings classes so large table configs stay compact.
+  tight-density widget settings classes so large table configs stay compact. It also exposes a
+  modal-driven incoming-schema inspector so users can see the resolved field contract before local
+  table formatting is applied.
 - `dataNodeTableModel.ts`: shared config model, live frame helpers, defaults, formatters, and helper
   functions used by both renderer and settings.
 - `../data-node-shared/`: shared data-node picker, datetime field, metadata inference, and range
@@ -80,6 +82,8 @@ dataset into a local grid frame contract:
 - `rows<Record<string, unknown>>[]`
 - optional published `fields[]` schema used before row-sample inference
 - schema fallback inferred from column metadata and sampled rows when published field metadata is absent
+- field provenance metadata on `fields[]` so the table can distinguish backend, manual, inferred,
+  and derived columns
 
 Canonical example:
 
@@ -134,6 +138,10 @@ nodes whose output shape no longer matches the original source metadata.
 When a linked Data Node frame is already available, the mounted table now treats that published
 dataset as the canonical runtime source and skips its own `dynamic_table/{id}/` detail lookup on
 workspace surfaces. Detail metadata is only fetched when no linked frame is available yet.
+
+The settings page now surfaces the incoming field schema through the shared modal inspector so the
+user can see why a column is typed as numeric, date-like, derived, or ambiguous before adjusting
+table-specific formatting rules.
 
 The table does not care how many `Data Node` hops exist upstream. It always consumes the selected
 Data Node's final published frame only. That keeps the consumer contract stable as the pipeline

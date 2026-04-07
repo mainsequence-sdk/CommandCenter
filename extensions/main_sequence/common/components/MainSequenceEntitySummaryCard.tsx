@@ -185,6 +185,7 @@ function SummaryHighlightField({
 
   return (
     <div className="min-w-[148px] max-w-full flex-none rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-[var(--summary-highlight-card-padding-x)] py-[var(--summary-highlight-card-padding-y)]">
+      <div className="min-w-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
           {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
@@ -231,6 +232,7 @@ function SummaryHighlightField({
           {field.meta}
         </div>
       ) : null}
+      </div>
     </div>
   );
 }
@@ -255,8 +257,8 @@ export function MainSequenceEntitySummaryCard({
     <>
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-            <div className="space-y-1.5">
+          <div className="flex flex-col gap-3">
+            <div className="space-y-1.5 min-w-0">
               <CardTitle className="text-lg">{summary.entity.title}</CardTitle>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 {summary.inline_fields.map((field) => {
@@ -272,7 +274,7 @@ export function MainSequenceEntitySummaryCard({
                   return (
                     <div
                       key={field.key}
-                      className="inline-flex min-w-0 max-w-[460px] items-center gap-1.5"
+                      className="inline-flex min-w-0 max-w-full items-center gap-1.5"
                       title={field.meta || fieldValue}
                     >
                       {isClickable ? (
@@ -305,7 +307,7 @@ export function MainSequenceEntitySummaryCard({
                 })}
               </div>
             </div>
-            <div className="flex flex-col items-start gap-2 xl:items-end">
+            <div className="flex flex-col items-start gap-2">
               {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
               <div className="flex flex-wrap items-center gap-2">
                 {summary.badges.map((badge) => (
@@ -325,7 +327,7 @@ export function MainSequenceEntitySummaryCard({
           ) : null}
 
           {summary.highlight_fields.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-[var(--summary-highlight-gap)]">
+            <div className="mt-3 grid gap-[var(--summary-highlight-gap)] [grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
               {summary.highlight_fields.map((field) => (
                 <SummaryHighlightField
                   key={field.key}
@@ -341,7 +343,7 @@ export function MainSequenceEntitySummaryCard({
         {summary.stats.length > 0 ? (
           <CardContent className="pt-4">
             <div className="mt-4">
-              <div className="grid gap-[var(--summary-stat-grid-gap)] md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-[var(--summary-stat-grid-gap)] [grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr))]">
                 {summary.stats.map((item) => (
                   <div
                     key={item.key}

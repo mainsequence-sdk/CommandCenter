@@ -6,6 +6,7 @@ This feature owns the Main Sequence project registry and project detail experien
 
 - `MainSequenceProjectsPage.tsx`: project registry page and project detail shell.
 - `MainSequenceProjectCodeTab.tsx`: repository browser and code preview tab.
+- `MainSequenceProjectInfraGraphTab.tsx`: project-scoped infrastructure graph tab wrapper.
 - `MainSequenceCreateJobDialog.tsx`: dialog for creating a job from a repository file.
 - `MainSequenceProjectImagesTab.tsx`: project image listing and related image state.
 - `MainSequenceProjectJobsTab.tsx`: project-scoped jobs tab.
@@ -19,10 +20,11 @@ This feature owns the Main Sequence project registry and project detail experien
 ## Notes
 
 - Project-only tabs and dialogs should remain here even when they are large.
-- The active project detail tabs are `Code`, `Jobs`, `Images`, `Resource Releases`, `Data Nodes Updates`, `Settings`, and `Permissions`.
+- The active project detail tabs are `Code`, `Infra Graph`, `Jobs`, `Images`, `Resource Releases`, `Data Nodes Updates`, `Settings`, and `Permissions`.
 - Shared registry controls should stay in `../../components`.
 - The settings tab reuses the shared project form-options query and writes through the project detail `PATCH` endpoint.
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.
+- The infra graph tab is backed by the dedicated `widgets/project-infra-graph/` module. It follows the backend link contract directly: click inspects via `summary_url`, and `Explore graph` drills down via `graph_url`. The graph presentation is intentionally project-centric, with the project node centered and the rest of the infrastructure arranged radially instead of in column lanes.
 - The resource releases tab supports project resource release creation flows for dashboard, agent, and fastapi release kinds.
 - FastAPI resource release details now expose a `Test API` tab. It reuses the shared AppComponent schema explorer and request-form runner, but keeps the output intentionally raw and developer-oriented.
 - The `Test API` tab is gated strictly from `resource_type` in the resource release summary payload, not from badge labels or other presentation-only fields.

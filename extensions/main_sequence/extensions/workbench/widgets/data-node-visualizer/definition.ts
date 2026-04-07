@@ -75,7 +75,7 @@ export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNode
       },
     ],
   },
-  railIcon: BarChart3,
+  workspaceIcon: BarChart3,
   workspaceRuntimeMode: "consumer",
   schema: dataNodeVisualizerSettingsSchema,
   controller: dataNodeVisualizerWidgetController,

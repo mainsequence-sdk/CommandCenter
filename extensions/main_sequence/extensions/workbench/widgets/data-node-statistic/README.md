@@ -12,7 +12,7 @@ local statistic reduction, and renders one or more KPI-style cards.
 - `StatisticWidget.tsx`: mounted widget renderer that consumes the selected Data Node's published
   dataset and renders statistic cards or state placeholders.
 - `StatisticWidgetSettings.tsx`: settings editor for source binding, statistic selection, grouping,
-  formatting, card coloring, and preview.
+  formatting, card coloring, preview, and a modal-driven source-schema inspector.
 - `StatisticCardGrid.tsx`: card renderer for grouped statistics plus the single-card sparkline
   treatment used when one numeric result is displayed.
 
@@ -34,6 +34,9 @@ their own transport format on top of the Data Node pipeline.
 
 - Source selection belongs to a sibling `Data Node`, not to this widget.
 - The widget only performs local display reduction on the incoming published rows.
+- The settings surface now exposes the resolved source schema in a modal so the user can inspect
+  field provenance, inferred typing, warnings, and representative sample values before choosing a
+  value field or group field.
 - Supported reductions are `last`, `first`, `max`, `min`, `sum`, `mean`, and `count`.
 - Grouping is optional and limited to one group field in v1, so the widget can render either a
   single KPI or one KPI card per group.
@@ -49,6 +52,8 @@ their own transport format on top of the Data Node pipeline.
   directly in the statistic value.
 - The card header now shows `Statistic · Field`, so the user can tell both the reduction being
   applied and which column it is using.
+- The source widget title can optionally render in the lower-left corner of each statistic card.
+  That display is instance-owned and defaults to hidden.
 - The suffix/unit is rendered smaller than the main value so units stay readable without competing
   with the KPI.
 - Card coloring supports:
