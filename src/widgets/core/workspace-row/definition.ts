@@ -9,7 +9,7 @@ export const workspaceRowWidget = defineWidget<WorkspaceRowWidgetProps>({
   title: "Row",
   description:
     "Workspace row header that can collapse or expand the following sibling widgets.",
-  category: "Workspace",
+  category: "Core",
   kind: "custom",
   source: "core",
   defaultSize: { w: 12, h: 2 },

@@ -11,7 +11,7 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
   id: "portfolio-weights-table",
   title: "Portfolio Weights",
   description: "Reusable target-portfolio weights widget backed by the Markets weights-position-details endpoint.",
-  category: "Portfolio",
+  category: "Main Sequence Markets",
   kind: "table",
   source: "main_sequence_markets",
   requiredPermissions: ["marketdata:read"],

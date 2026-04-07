@@ -14,7 +14,7 @@ export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNode
   id: "main-sequence-data-node-visualizer",
   title: "Data Node Graph",
   description: "Turns Main Sequence data-node tables into charts, with a settings-only table preview.",
-  category: "DataNodes",
+  category: "Main Sequence Data Nodes",
   kind: "chart",
   source: "main_sequence_workbench",
   requiredPermissions: ["dashboard:view"],

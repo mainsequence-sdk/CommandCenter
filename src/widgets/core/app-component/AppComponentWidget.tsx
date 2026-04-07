@@ -25,6 +25,7 @@ import {
 } from "./AppComponentFormSections";
 import {
   buildAppComponentGeneratedForm,
+  hasAppComponentDiscoveryTarget,
   normalizeAppComponentProps,
   normalizeAppComponentRuntimeState,
   resolveAppComponentEditableFormPublishedOutputs,
@@ -36,7 +37,6 @@ import {
   resolveAppComponentResponseDisplayForm,
   resolveAppComponentResponseDisplayValues,
   resolveAppComponentRuntimeGeneratedForm,
-  tryResolveAppComponentBaseUrl,
   updateAppComponentEditableFormSessionValue,
   type AppComponentWidgetProps,
   type AppComponentWidgetRuntimeState,
@@ -77,22 +77,18 @@ export function AppComponentWidget({
     () => normalizeAppComponentRuntimeState(runtimeState),
     [runtimeState],
   );
-  const resolvedBaseUrl = useMemo(
-    () => tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl),
-    [normalizedProps.apiBaseUrl],
+  const discoveryConfigured = useMemo(
+    () => hasAppComponentDiscoveryTarget(normalizedProps),
+    [normalizedProps],
   );
   const runtimeOpenApiQuery = useQuery({
-    queryKey: buildAppComponentOpenApiQueryKey(
-      resolvedBaseUrl,
-      normalizedProps.authMode ?? "session-jwt",
-    ),
+    queryKey: buildAppComponentOpenApiQueryKey(normalizedProps),
     queryFn: () =>
       fetchAppComponentOpenApiDocument({
-        baseUrl: resolvedBaseUrl ?? "",
-        authMode: normalizedProps.authMode,
+        props: normalizedProps,
       }),
     enabled:
-      resolvedBaseUrl !== null &&
+      discoveryConfigured &&
       Boolean(normalizedProps.method) &&
       Boolean(normalizedProps.path),
     staleTime: APP_COMPONENT_OPENAPI_CACHE_TTL_MS,
@@ -257,11 +253,11 @@ export function AppComponentWidget({
     }
   }
 
-  if (!resolvedBaseUrl) {
+  if (!discoveryConfigured) {
     return (
       <AppComponentPlaceholder
         title="No API URL configured"
-        description="Open widget settings and enter the OpenAPI URL, Swagger docs URL, or service root before trying to build a request form."
+        description="Open widget settings and enter the OpenAPI URL, Swagger docs URL, or service root, or select a Main Sequence FastAPI resource release before trying to build a request form."
       />
     );
   }

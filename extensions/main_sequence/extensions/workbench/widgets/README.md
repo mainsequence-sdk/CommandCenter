@@ -1,8 +1,8 @@
 # Main Sequence Widgets
 
 This folder contains Main Sequence workbench widget modules. The workbench extension currently
-registers the Dependency Graph, Data Node, data-node graph, data-node statistic, and data-node
-table widgets in the live widget catalog.
+registers the Dependency Graph plus the Main Sequence Data Node widget family in the live widget
+catalog.
 
 ## Rules
 
@@ -17,6 +17,13 @@ table widgets in the live widget catalog.
   source-and-transform Data Node widget, `data-node-statistic/` for the statistic/KPI consumer
   widget, `data-node-table/` for the data-node table widget, and `data-node-shared/` for reusable
   picker/date-range primitives plus the shared published-dataset contract reused by those widgets.
+- Treat `data-node-filter/`, `data-node-visualizer/`, `data-node-statistic/`, `data-node-table/`,
+  and the shared `data-node-shared/` contract bundle as the Main Sequence Data Node family.
+  `dependency-graph/` remains a separate Workbench widget and should not be bucketed into the Data
+  Node family just because it can inspect Data Node updates.
+- In the workspace component browser, the Data Node family should appear under
+  `Main Sequence Data Nodes`, while `dependency-graph/` should appear under
+  `Main Sequence Workbench`.
 - Main Sequence data-node consumers now adapt the platform-level generic tabular-frame contract
   (`core.tabular_frame@v1`) rather than inventing a widget-local table payload. Keep source-specific
   metadata under `source.context` and keep reusable field metadata normalized as `fields[]` with

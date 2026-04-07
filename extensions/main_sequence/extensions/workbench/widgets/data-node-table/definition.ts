@@ -15,7 +15,7 @@ export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisuali
   id: "data-node-table-visualizer",
   title: "Data Node Table",
   description: "Main Sequence table formatter for live data-node rows with instance-owned field config.",
-  category: "DataNodes",
+  category: "Main Sequence Data Nodes",
   kind: "table",
   source: "main_sequence_workbench",
   requiredPermissions: ["dashboard:view"],

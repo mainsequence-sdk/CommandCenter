@@ -10,12 +10,12 @@ import type { MainSequenceDependencyGraphWidgetProps } from "./dependencyGraphRu
 export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDependencyGraphWidgetProps>({
   id: "main-sequence-dependency-graph",
   title: "Dependency Graph",
-  description: "Main Sequence dependency graph widget for Data Node and Simple Table updates.",
-  category: "Main Sequence",
+  description: "Main Sequence dependency graph widget for update relationships across platform resources.",
+  category: "Main Sequence Workbench",
   kind: "chart",
   source: "main_sequence_workbench",
   requiredPermissions: ["dashboard:view"],
-  tags: ["main-sequence", "data-node", "simple-table", "dependency", "graph"],
+  tags: ["main-sequence", "simple-table", "dependency", "graph", "workbench"],
   exampleProps: {
     sourceKind: "data_node",
     dataNodeId: 714,

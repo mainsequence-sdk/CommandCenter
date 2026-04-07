@@ -17,6 +17,7 @@ import {
   extractAppComponentPublishedOutputs,
   normalizeAppComponentProps,
   normalizeAppComponentRuntimeState,
+  hasAppComponentDiscoveryTarget,
   resolveAppComponentEditableFormPublishedOutputs,
   resolveAppComponentEditableFormSessionFromResponse,
   resolveAppComponentBoundInputOverlay,
@@ -26,7 +27,8 @@ import {
   resolveAppComponentOperation,
   resolveAppComponentResponseUiEditableFormDescriptor,
   resolveAppComponentRuntimeGeneratedForm,
-  tryResolveAppComponentBaseUrl,
+  resolveAppComponentDisplayBaseUrl,
+  resolveAppComponentRequestBaseUrl,
   type AppComponentWidgetProps,
 } from "./appComponentModel";
 
@@ -65,7 +67,7 @@ async function resolveLiveAppComponentExecutionArtifacts(
   props: AppComponentWidgetProps,
 ) {
   const fallbackForm = resolveAppComponentRuntimeGeneratedForm(props);
-  const resolvedBaseUrl = tryResolveAppComponentBaseUrl(props.apiBaseUrl);
+  const resolvedBaseUrl = resolveAppComponentRequestBaseUrl(props);
 
   if (!resolvedBaseUrl || !props.method || !props.path) {
     return {
@@ -77,8 +79,7 @@ async function resolveLiveAppComponentExecutionArtifacts(
 
   try {
     const document = await fetchAppComponentOpenApiDocument({
-      baseUrl: resolvedBaseUrl,
-      authMode: props.authMode,
+      props,
     });
     const resolvedOperation = resolveAppComponentOperation(
       document,
@@ -115,7 +116,8 @@ export async function executeAppComponent(
   const normalizedRuntimeState = normalizeAppComponentRuntimeState(
     context.targetOverrides?.runtimeState ?? context.runtimeState,
   );
-  const resolvedBaseUrl = tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl);
+  const resolvedBaseUrl = resolveAppComponentRequestBaseUrl(normalizedProps);
+  const displayBaseUrl = resolveAppComponentDisplayBaseUrl(normalizedProps);
   const executionArtifacts = await resolveLiveAppComponentExecutionArtifacts(normalizedProps);
   const generatedForm = executionArtifacts.form;
   const mappedRequestForms = resolveAppComponentMappedRequestForms(generatedForm, normalizedProps);
@@ -130,7 +132,9 @@ export async function executeAppComponent(
       normalizedRuntimeState,
       operationKey,
       context.targetOverrides?.draftValues ?? normalizedRuntimeState.draftValues ?? {},
-      "Select a valid API base URL and operation before executing this widget.",
+      displayBaseUrl
+        ? "Select an API operation before executing this widget."
+        : "Select a valid API base URL or Main Sequence resource release and operation before executing this widget.",
     );
   }
 
@@ -178,7 +182,7 @@ export async function executeAppComponent(
 
   try {
     const response = await submitAppComponentRequest({
-      authMode: normalizedProps.authMode,
+      transportProps: normalizedProps,
       method: buildResult.request.method,
       url: buildResult.request.url,
       headers: buildResult.request.headers,
@@ -260,7 +264,7 @@ export const appComponentExecutionDefinition = {
     );
 
     return Boolean(
-      tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl) &&
+      hasAppComponentDiscoveryTarget(normalizedProps) &&
         normalizedProps.method &&
         normalizedProps.path,
     );

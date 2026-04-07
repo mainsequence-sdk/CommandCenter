@@ -9,7 +9,18 @@ This folder contains widget definitions and widget-owned presentation components
   now tagged as a workspace runtime `consumer`.
 - `zero-curve/`: live `Zero Curve` widget that renders compressed Main Sequence curve payloads on
   a numeric days axis with ECharts. It is now tagged as a workspace runtime `consumer`.
+- `price-chart`: the stable `price-chart` widget id is classified as `main_sequence_markets`, even
+  though its Lightweight Charts renderer implementation still lives in
+  `src/widgets/extensions/lightweight-charts/`.
+- `positions-table`: the stable `positions-table` widget id is classified as
+  `main_sequence_markets`, even though its AG Grid renderer implementation still lives in
+  `src/widgets/extensions/ag-grid/`.
 - `portfolio-weights-table/`: reusable `Portfolio Weights` widget plus the shared table renderer used by the portfolio detail flow. The widget now has an execution-owner runtime path, but the module remains on disk and is not currently registered in the live widget catalog.
+
+## Browser Grouping
+
+- `Curve Plot`, `Zero Curve`, `Price Chart`, `Positions Table`, and `Portfolio Weights` should all
+  appear under the `Main Sequence Markets` widget-browser category.
 
 ## Rules
 

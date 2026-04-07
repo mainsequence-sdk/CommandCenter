@@ -7,7 +7,7 @@ export const marketKpisWidget: WidgetDefinition<{ symbol?: string }> = {
   title: "Market KPIs",
   description: "Small summary cards for desk, exposure, and alert metrics.",
   category: "Market",
-  kind: "kpi",
+  kind: "custom",
   source: "demo",
   defaultSize: { w: 4, h: 4 },
   requiredPermissions: ["dashboard:view"],

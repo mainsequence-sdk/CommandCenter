@@ -15,10 +15,10 @@ import { fetchAppComponentOpenApiDocument } from "@/widgets/core/app-component/a
 import {
   buildAppComponentBindingSpec,
   buildAppComponentGeneratedForm,
+  hasAppComponentDiscoveryTarget,
   normalizeAppComponentBindingSpec,
   normalizeAppComponentProps,
   resolveAppComponentOperation,
-  tryResolveAppComponentBaseUrl,
   type AppComponentWidgetProps,
 } from "@/widgets/core/app-component/appComponentModel";
 import {
@@ -158,7 +158,7 @@ export function CustomWidgetSettingsPage({
       );
 
       return Boolean(
-        normalizedProps.apiBaseUrl &&
+        hasAppComponentDiscoveryTarget(normalizedProps) &&
           normalizedProps.method &&
           normalizedProps.path &&
           shouldRepairAppComponentBindingSpec(normalizedProps),
@@ -181,16 +181,14 @@ export function CustomWidgetSettingsPage({
           const normalizedProps = normalizeAppComponentProps(
             (dashboardWidget.props ?? {}) as AppComponentWidgetProps,
           );
-          const resolvedBaseUrl = tryResolveAppComponentBaseUrl(normalizedProps.apiBaseUrl);
 
-          if (!resolvedBaseUrl || !normalizedProps.method || !normalizedProps.path) {
+          if (!hasAppComponentDiscoveryTarget(normalizedProps) || !normalizedProps.method || !normalizedProps.path) {
             return null;
           }
 
           try {
             const document = await fetchAppComponentOpenApiDocument({
-              baseUrl: resolvedBaseUrl,
-              authMode: normalizedProps.authMode,
+              props: normalizedProps,
             });
             const resolvedOperation = resolveAppComponentOperation(
               document,

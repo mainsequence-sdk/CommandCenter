@@ -4,12 +4,12 @@ import { defineWidget } from "@/widgets/types";
 export const priceChartWidget = defineWidget<{ symbol?: string }>({
   id: "price-chart",
   title: "Price Chart",
-  description: "Optional Lightweight Charts widget wired to a mock market data stream.",
-  category: "Market",
+  description: "Main Sequence Markets price chart widget backed by Lightweight Charts.",
+  category: "Main Sequence Markets",
   kind: "chart",
-  source: "lightweight-charts",
+  source: "main_sequence_markets",
   requiredPermissions: ["marketdata:read"],
-  tags: ["realtime", "market", "optional", "charts"],
+  tags: ["main-sequence", "markets", "market", "price-chart", "lightweight-charts"],
   exampleProps: { symbol: "AAPL" },
   component: PriceChartWidget,
 });

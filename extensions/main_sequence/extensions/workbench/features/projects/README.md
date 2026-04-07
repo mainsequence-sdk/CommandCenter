@@ -10,6 +10,7 @@ This feature owns the Main Sequence project registry and project detail experien
 - `MainSequenceProjectImagesTab.tsx`: project image listing and related image state.
 - `MainSequenceProjectJobsTab.tsx`: project-scoped jobs tab.
 - `MainSequenceProjectResourceReleasesTab.tsx`: resource release tab for projects.
+- `MainSequenceResourceReleaseApiTestTab.tsx`: developer-focused FastAPI release tester that reuses the shared AppComponent OpenAPI explorer and request runner.
 - `MainSequenceProjectSettingsTab.tsx`: project settings tab with the data source/base image pickers used by project creation plus project-secret assignment controls.
 - `MainSequenceJobRunsTab.tsx`: run listing within the project context.
 - `MainSequenceJobRunLogsTab.tsx`: logs tab for selected job runs.
@@ -23,6 +24,17 @@ This feature owns the Main Sequence project registry and project detail experien
 - The settings tab reuses the shared project form-options query and writes through the project detail `PATCH` endpoint.
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.
 - The resource releases tab supports project resource release creation flows for dashboard, agent, and fastapi release kinds.
+- FastAPI resource release details now expose a `Test API` tab. It reuses the shared AppComponent schema explorer and request-form runner, but keeps the output intentionally raw and developer-oriented.
+- The `Test API` tab is gated strictly from `resource_type` in the resource release summary payload, not from badge labels or other presentation-only fields.
+- Schema-load and request failures in that tab now report the target URL, auth mode, JWT-attachment state, and whether the browser used the local loopback proxy or a direct cross-origin fetch.
+- The `Test API` tab now runs through the same Main Sequence resource-release transport as the
+  AppComponent widget. For FastAPI releases, it first calls the resource-release
+  `exchange-launch` endpoint, then sends the public FastAPI request with the returned launch token
+  plus `X-FastAPI-ID`. It no longer relies on the generic AppComponent session-JWT transport for
+  those public API calls.
+- The tab still exposes the same additional-header editor as AppComponent settings, but the
+  transport-owned `Authorization` and `X-FastAPI-ID` headers win over any user-configured header
+  entries.
 - The project registry polls every 60 seconds only while the current page still contains an uninitialized project, and those rows render a spinner instead of a warning pill.
 - The project images tab polls every 60 seconds only while the current page still contains a building image, and those rows render a spinner instead of a warning pill.
 - The create-project dialog auto-selects the first available data source and default base image once form options load.

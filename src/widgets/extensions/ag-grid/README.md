@@ -1,6 +1,6 @@
 # AG Grid Widgets
 
-This folder contains the AG Grid-backed widget modules owned by the `ag-grid` extension.
+This folder contains the AG Grid-backed widget modules used by the live widget catalog.
 
 ## Entry Points
 
@@ -10,7 +10,8 @@ This folder contains the AG Grid-backed widget modules owned by the `ag-grid` ex
 
 ## Current Status
 
-- `positions-table` is currently registered in the live widget catalog from `src/extensions/ag-grid/index.ts`.
+- `positions-table` keeps its stable widget id here, but its business-source metadata is now
+  classified as `main_sequence_markets`.
 
 ## Maintenance Notes
 

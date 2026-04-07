@@ -25,7 +25,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
   id: "markdown-note",
   title: "Markdown",
   description: "Render Markdown notes, runbooks, and narrative context inside a dashboard widget.",
-  category: "Content",
+  category: "Core",
   kind: "custom",
   source: "core",
   requiredPermissions: ["dashboard:view"],

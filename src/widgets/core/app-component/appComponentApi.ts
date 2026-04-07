@@ -9,12 +9,21 @@ import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
 import {
   appComponentMockOpenApiDocument,
+  buildAppComponentConfiguredHeadersKey,
   buildAppComponentOpenApiUrl,
+  isAppComponentMainSequenceResourceReleaseMode,
   normalizeAppComponentAuthMode,
-  tryResolveAppComponentBaseUrl,
+  resolveAppComponentDisplayBaseUrl,
+  resolveAppComponentRequestBaseUrl,
+  resolveAppComponentConfiguredHeadersRecord,
   type AppComponentAuthMode,
+  type AppComponentWidgetProps,
   type OpenApiDocument,
 } from "./appComponentModel";
+import {
+  buildMainSequenceReleaseTransportIdentityKey,
+  sendMainSequenceReleaseRequest,
+} from "./mainSequenceReleaseTransport";
 
 const appComponentProxyPrefix = "/__app_component_proxy__";
 export const APP_COMPONENT_OPENAPI_CACHE_TTL_MS =
@@ -65,10 +74,28 @@ function pruneExpiredEntry<T>(cache: Map<string, CachedEntry<T>>, key: string) {
   return cachedEntry;
 }
 
-function buildOpenApiCacheKey(baseUrl: string, authMode: AppComponentAuthMode) {
+function buildAppComponentTransportIdentityKey(
+  props: Pick<
+    AppComponentWidgetProps,
+    "apiTargetMode" | "authMode" | "mainSequenceResourceRelease"
+  >,
+) {
+  if (isAppComponentMainSequenceResourceReleaseMode(props)) {
+    return buildMainSequenceReleaseTransportIdentityKey(props);
+  }
+
+  return `manual:${normalizeAppComponentAuthMode(props.authMode)}`;
+}
+
+function buildOpenApiCacheKey(props: AppComponentWidgetProps) {
   const session = useAuthStore.getState().session;
   const userId = session?.user.id ?? "anonymous";
-  return `${userId}::${authMode}::${baseUrl}`;
+  const baseUrl =
+    resolveAppComponentDisplayBaseUrl(props) ??
+    props.mainSequenceResourceRelease?.publicUrl ??
+    "invalid";
+
+  return `${userId}::${buildAppComponentTransportIdentityKey(props)}::${baseUrl}::${buildAppComponentConfiguredHeadersKey(props.serviceHeaders)}`;
 }
 
 async function sha256Hex(value: string) {
@@ -81,13 +108,15 @@ async function sha256Hex(value: string) {
 }
 
 async function buildSafeResponseCacheKey({
-  authMode,
+  transportIdentity,
   body,
+  headers,
   method,
   url,
 }: {
-  authMode: AppComponentAuthMode;
+  transportIdentity: string;
   body?: string;
+  headers?: Record<string, string>;
   method: string;
   url: string;
 }) {
@@ -95,8 +124,13 @@ async function buildSafeResponseCacheKey({
   const userId = session?.user.id ?? "anonymous";
   const normalizedMethod = method.trim().toUpperCase();
   const bodyHash = await sha256Hex(body ?? "");
+  const headersHash = await sha256Hex(
+    JSON.stringify(
+      Object.entries(headers ?? {}).sort(([left], [right]) => left.localeCompare(right)),
+    ),
+  );
 
-  return `${userId}::${authMode}::${normalizedMethod}::${url}::${bodyHash}`;
+  return `${userId}::${transportIdentity}::${normalizedMethod}::${url}::${bodyHash}::${headersHash}`;
 }
 
 function buildTransportUrl(requestUrl: string) {
@@ -107,6 +141,50 @@ function buildTransportUrl(requestUrl: string) {
   }
 
   return resolvedUrl.toString();
+}
+
+function describeTransportStrategy(requestUrl: string) {
+  const resolvedUrl = new URL(requestUrl);
+  const proxied = import.meta.env.DEV && isLoopbackHostname(resolvedUrl.hostname);
+
+  return {
+    proxied,
+    resolvedUrl,
+    transportUrl: proxied
+      ? `${appComponentProxyPrefix}?target=${encodeURIComponent(resolvedUrl.toString())}`
+      : resolvedUrl.toString(),
+  };
+}
+
+function buildTransportErrorMessage(
+  requestUrl: string,
+  authMode: AppComponentAuthMode,
+  error: unknown,
+) {
+  const { proxied, resolvedUrl } = describeTransportStrategy(requestUrl);
+  const session = useAuthStore.getState().session;
+  const originalMessage =
+    error instanceof Error && error.message.trim()
+      ? error.message.trim()
+      : "The browser failed before receiving an HTTP response.";
+  const authMessage =
+    authMode === "session-jwt"
+      ? session?.token
+        ? `Auth mode is session-jwt and the current session JWT was attached to the request.`
+        : `Auth mode is session-jwt but there is no session JWT available in the current browser session.`
+      : "Auth mode is none, so no Authorization header was sent.";
+  const transportMessage = import.meta.env.DEV
+    ? proxied
+      ? "The request went through the local AppComponent proxy because the target host is loopback."
+      : "The request was sent directly from the browser because this target is not loopback, so browser CORS, TLS, DNS, or network policy can fail before the API returns an HTTP response."
+    : "The request was sent directly from the browser to the configured target URL.";
+
+  return [
+    `Could not reach ${resolvedUrl.toString()}.`,
+    authMessage,
+    transportMessage,
+    `Browser error: ${originalMessage}`,
+  ].join(" ");
 }
 
 export interface AppComponentTransportResponse {
@@ -253,10 +331,20 @@ async function submitMockRequest({
 }
 
 export function buildAppComponentOpenApiQueryKey(
-  baseUrl: string | null,
-  authMode: AppComponentAuthMode,
+  props: AppComponentWidgetProps,
 ) {
-  return ["app-component", "openapi", baseUrl ?? "invalid", authMode] as const;
+  const normalizedProps = {
+    ...props,
+    authMode: normalizeAppComponentAuthMode(props.authMode),
+  } satisfies AppComponentWidgetProps;
+
+  return [
+    "app-component",
+    "openapi",
+    buildAppComponentTransportIdentityKey(normalizedProps),
+    resolveAppComponentDisplayBaseUrl(normalizedProps) ?? "invalid",
+    buildAppComponentConfiguredHeadersKey(normalizedProps.serviceHeaders),
+  ] as const;
 }
 
 async function sendAuthenticatedRequest(
@@ -271,6 +359,8 @@ async function sendAuthenticatedRequest(
     traceMeta?: DashboardRequestTraceMeta;
   },
 ) {
+  const { transportUrl } = describeTransportStrategy(requestUrl);
+
   async function execute() {
     const headers = new Headers(init?.headers);
     const session = useAuthStore.getState().session;
@@ -287,7 +377,7 @@ async function sendAuthenticatedRequest(
       headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
     }
 
-    return fetch(buildTransportUrl(requestUrl), {
+    return fetch(transportUrl, {
       ...init,
       headers,
     });
@@ -302,16 +392,9 @@ async function sendAuthenticatedRequest(
   try {
     response = await execute();
   } catch (error) {
-    requestTrace?.fail(
-      error instanceof Error
-        ? error.message
-        : "The browser could not reach the configured API.",
-    );
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : "The browser could not reach the configured API.",
-    );
+    const transportErrorMessage = buildTransportErrorMessage(requestUrl, authMode, error);
+    requestTrace?.fail(transportErrorMessage);
+    throw new Error(transportErrorMessage);
   }
 
   if (response.status === 401 && authMode === "session-jwt") {
@@ -331,32 +414,36 @@ async function sendAuthenticatedRequest(
 }
 
 export async function fetchAppComponentOpenApiDocument({
-  baseUrl,
-  authMode,
+  props,
   traceMeta,
 }: {
-  baseUrl: string;
-  authMode?: AppComponentAuthMode;
+  props: AppComponentWidgetProps;
   traceMeta?: DashboardRequestTraceMeta;
 }) {
-  const normalizedAuthMode = normalizeAppComponentAuthMode(authMode);
-  const resolvedBaseUrl = tryResolveAppComponentBaseUrl(baseUrl);
-
-  if (!resolvedBaseUrl) {
-    throw new Error("AppComponent requires a valid API base URL.");
-  }
+  const normalizedProps = {
+    ...props,
+    authMode: normalizeAppComponentAuthMode(props.authMode),
+  } satisfies AppComponentWidgetProps;
+  const requestBaseUrl = resolveAppComponentRequestBaseUrl(normalizedProps);
 
   if (env.useMockData || isWidgetPreviewMode()) {
     return appComponentMockOpenApiDocument satisfies OpenApiDocument;
   }
 
-  const openApiCacheKey = buildOpenApiCacheKey(resolvedBaseUrl, normalizedAuthMode);
+  if (!requestBaseUrl) {
+    throw new Error(
+      "AppComponent requires a valid API base URL or a Main Sequence resource release before loading OpenAPI.",
+    );
+  }
+
+  const openApiCacheKey = buildOpenApiCacheKey(normalizedProps);
   const cachedDocument = pruneExpiredEntry(openApiDocumentCache, openApiCacheKey);
+  const openApiUrl = buildAppComponentOpenApiUrl(requestBaseUrl);
 
   if (cachedDocument) {
     startDashboardRequestTrace(traceMeta, {
       method: "GET",
-      url: buildAppComponentOpenApiUrl(resolvedBaseUrl) ?? resolvedBaseUrl,
+      url: openApiUrl ?? requestBaseUrl,
     })?.finish({
       ok: true,
       status: 200,
@@ -370,7 +457,7 @@ export async function fetchAppComponentOpenApiDocument({
   if (inFlightDocumentRequest) {
     startDashboardRequestTrace(traceMeta, {
       method: "GET",
-      url: buildAppComponentOpenApiUrl(resolvedBaseUrl) ?? resolvedBaseUrl,
+      url: openApiUrl ?? requestBaseUrl,
     })?.finish({
       ok: true,
       status: 200,
@@ -379,17 +466,30 @@ export async function fetchAppComponentOpenApiDocument({
     return cloneSerializable(await inFlightDocumentRequest);
   }
 
-  const openApiUrl = buildAppComponentOpenApiUrl(resolvedBaseUrl);
-
   if (!openApiUrl) {
     throw new Error("AppComponent requires a valid API URL.");
   }
 
   const requestPromise = (async () => {
-    const response = await sendAuthenticatedRequest(openApiUrl, {
-      authMode: normalizedAuthMode,
-      traceMeta,
-    });
+    const response = isAppComponentMainSequenceResourceReleaseMode(normalizedProps)
+      ? await sendMainSequenceReleaseRequest(openApiUrl, {
+          props: normalizedProps,
+          init: {
+            headers: resolveAppComponentConfiguredHeadersRecord(
+              normalizedProps.serviceHeaders,
+            ),
+          },
+          traceMeta,
+        })
+      : await sendAuthenticatedRequest(openApiUrl, {
+          authMode: normalizedProps.authMode ?? "session-jwt",
+          init: {
+            headers: resolveAppComponentConfiguredHeadersRecord(
+              normalizedProps.serviceHeaders,
+            ),
+          },
+          traceMeta,
+        });
     const payload = await readResponseBody(response);
 
     if (!response.ok) {
@@ -397,7 +497,9 @@ export async function fetchAppComponentOpenApiDocument({
         typeof payload === "string"
           ? payload
           : response.status === 401
-            ? "OpenAPI request was rejected. Refresh the session or verify the target API."
+            ? isAppComponentMainSequenceResourceReleaseMode(normalizedProps)
+              ? "OpenAPI request was rejected by the selected Main Sequence FastAPI release."
+              : "OpenAPI request was rejected. Refresh the session or verify the target API."
             : `OpenAPI request failed with ${response.status}.`,
       );
     }
@@ -424,7 +526,7 @@ export async function fetchAppComponentOpenApiDocument({
 }
 
 export async function submitAppComponentRequest({
-  authMode,
+  transportProps,
   method,
   url,
   headers,
@@ -432,7 +534,7 @@ export async function submitAppComponentRequest({
   cache,
   traceMeta,
 }: {
-  authMode?: AppComponentAuthMode;
+  transportProps: AppComponentWidgetProps;
   method: string;
   url: string;
   headers?: Record<string, string>;
@@ -440,7 +542,10 @@ export async function submitAppComponentRequest({
   cache?: AppComponentResponseCacheOptions;
   traceMeta?: DashboardRequestTraceMeta;
 }) {
-  const normalizedAuthMode = normalizeAppComponentAuthMode(authMode);
+  const normalizedTransportProps = {
+    ...transportProps,
+    authMode: normalizeAppComponentAuthMode(transportProps.authMode),
+  } satisfies AppComponentWidgetProps;
   const normalizedMethod = method.trim().toUpperCase();
   const shouldUseSafeResponseCache =
     cache?.enabled === true && isSafeCacheableMethod(normalizedMethod);
@@ -455,8 +560,11 @@ export async function submitAppComponentRequest({
 
   if (shouldUseSafeResponseCache) {
     const cacheKey = await buildSafeResponseCacheKey({
-      authMode: normalizedAuthMode,
+      transportIdentity: buildAppComponentTransportIdentityKey(
+        normalizedTransportProps,
+      ),
       body,
+      headers,
       method: normalizedMethod,
       url,
     });
@@ -489,15 +597,27 @@ export async function submitAppComponentRequest({
     }
 
     const requestPromise = (async () => {
-      const response = await sendAuthenticatedRequest(url, {
-        authMode: normalizedAuthMode,
-        init: {
-          method: normalizedMethod,
-          headers,
-          body,
-        },
-        traceMeta,
-      });
+      const response = isAppComponentMainSequenceResourceReleaseMode(
+        normalizedTransportProps,
+      )
+        ? await sendMainSequenceReleaseRequest(url, {
+            props: normalizedTransportProps,
+            init: {
+              method: normalizedMethod,
+              headers,
+              body,
+            },
+            traceMeta,
+          })
+        : await sendAuthenticatedRequest(url, {
+            authMode: normalizedTransportProps.authMode ?? "session-jwt",
+            init: {
+              method: normalizedMethod,
+              headers,
+              body,
+            },
+            traceMeta,
+          });
       const normalizedResponse = {
         ok: response.ok,
         status: response.status,
@@ -526,15 +646,27 @@ export async function submitAppComponentRequest({
     }
   }
 
-  const response = await sendAuthenticatedRequest(url, {
-    authMode: normalizedAuthMode,
-    init: {
-      method: normalizedMethod,
-      headers,
-      body,
-    },
-    traceMeta,
-  });
+  const response = isAppComponentMainSequenceResourceReleaseMode(
+    normalizedTransportProps,
+  )
+    ? await sendMainSequenceReleaseRequest(url, {
+        props: normalizedTransportProps,
+        init: {
+          method: normalizedMethod,
+          headers,
+          body,
+        },
+        traceMeta,
+      })
+    : await sendAuthenticatedRequest(url, {
+        authMode: normalizedTransportProps.authMode ?? "session-jwt",
+        init: {
+          method: normalizedMethod,
+          headers,
+          body,
+        },
+        traceMeta,
+      });
 
   return {
     ok: response.ok,

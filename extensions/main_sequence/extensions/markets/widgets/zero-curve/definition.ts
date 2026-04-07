@@ -13,7 +13,7 @@ export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWid
   id: "main-sequence-zero-curve",
   title: "Zero Curve",
   description: "Compressed Curve Data Node chart rendered on a numeric days axis with ECharts.",
-  category: "Rates",
+  category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",
   requiredPermissions: ["marketdata:read"],

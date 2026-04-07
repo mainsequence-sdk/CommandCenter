@@ -26,6 +26,9 @@ export type AppComponentHttpMethod =
   | "head";
 
 export type AppComponentAuthMode = "session-jwt" | "none";
+export type AppComponentApiTargetMode =
+  | "manual"
+  | "main-sequence-resource-release";
 export type AppComponentFieldLocation = "path" | "query" | "header" | "body";
 export type AppComponentGeneratedFieldKind =
   | "string"
@@ -41,8 +44,26 @@ export type AppComponentEditableFormFieldKind =
   | AppComponentGeneratedFieldKind
   | "percent";
 
+export interface AppComponentServiceHeader {
+  name: string;
+  value: string;
+}
+
+export interface AppComponentMainSequenceResourceReleaseRef {
+  releaseId: number;
+  label?: string;
+  projectName?: string;
+  releaseKind?: string;
+  publicUrl?: string;
+  exchangeLaunchUrl?: string;
+  subdomain?: string;
+}
+
 export interface AppComponentWidgetProps extends Record<string, unknown> {
+  apiTargetMode?: AppComponentApiTargetMode;
+  mainSequenceResourceRelease?: AppComponentMainSequenceResourceReleaseRef;
   apiBaseUrl?: string;
+  serviceHeaders?: AppComponentServiceHeader[];
   authMode?: AppComponentAuthMode;
   method?: AppComponentHttpMethod;
   path?: string;
@@ -2189,6 +2210,14 @@ export function normalizeAppComponentAuthMode(
   return value === "none" ? "none" : "session-jwt";
 }
 
+export function normalizeAppComponentApiTargetMode(
+  value: unknown,
+): AppComponentApiTargetMode {
+  return value === "main-sequence-resource-release"
+    ? "main-sequence-resource-release"
+    : "manual";
+}
+
 export function normalizeAppComponentMethod(
   value: unknown,
 ): AppComponentHttpMethod | undefined {
@@ -2201,6 +2230,37 @@ export function normalizeAppComponentMethod(
   return supportedHttpMethods.includes(normalized as AppComponentHttpMethod)
     ? (normalized as AppComponentHttpMethod)
     : undefined;
+}
+
+export function normalizeAppComponentMainSequenceResourceRelease(
+  value: unknown,
+): AppComponentMainSequenceResourceReleaseRef | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const rawReleaseId =
+    typeof value.releaseId === "number" ? value.releaseId : Number(value.releaseId);
+  const releaseId =
+    Number.isFinite(rawReleaseId) && rawReleaseId > 0 ? Math.trunc(rawReleaseId) : null;
+
+  if (!releaseId) {
+    return undefined;
+  }
+
+  function readOptionalString(entry: unknown) {
+    return typeof entry === "string" && entry.trim() ? entry.trim() : undefined;
+  }
+
+  return {
+    releaseId,
+    label: readOptionalString(value.label),
+    projectName: readOptionalString(value.projectName),
+    releaseKind: readOptionalString(value.releaseKind)?.toLowerCase(),
+    publicUrl: readOptionalString(value.publicUrl),
+    exchangeLaunchUrl: readOptionalString(value.exchangeLaunchUrl),
+    subdomain: readOptionalString(value.subdomain),
+  };
 }
 
 function normalizeWidgetValueDescriptor(
@@ -2297,10 +2357,15 @@ export function normalizeAppComponentProps(
 ): AppComponentWidgetProps {
   return {
     ...props,
+    apiTargetMode: normalizeAppComponentApiTargetMode(props.apiTargetMode),
+    mainSequenceResourceRelease: normalizeAppComponentMainSequenceResourceRelease(
+      props.mainSequenceResourceRelease,
+    ),
     apiBaseUrl:
       typeof props.apiBaseUrl === "string" && props.apiBaseUrl.trim()
         ? props.apiBaseUrl.trim()
         : undefined,
+    serviceHeaders: normalizeAppComponentServiceHeaders(props.serviceHeaders),
     authMode: normalizeAppComponentAuthMode(props.authMode),
     method: normalizeAppComponentMethod(props.method),
     path:
@@ -2316,6 +2381,162 @@ export function normalizeAppComponentProps(
     hideRequestButton: props.hideRequestButton === true,
     refreshOnDashboardRefresh: props.refreshOnDashboardRefresh !== false,
   };
+}
+
+export function normalizeAppComponentServiceHeader(
+  value: unknown,
+): AppComponentServiceHeader | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const name = typeof value.name === "string" ? value.name.trim() : "";
+  const headerValue =
+    typeof value.value === "string"
+      ? value.value
+      : value.value == null
+        ? ""
+        : String(value.value);
+
+  return {
+    name,
+    value: headerValue,
+  };
+}
+
+export function normalizeAppComponentServiceHeaders(
+  value: unknown,
+): AppComponentServiceHeader[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value.flatMap((entry) => {
+    const next = normalizeAppComponentServiceHeader(entry);
+    return next ? [next] : [];
+  });
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+export function resolveAppComponentConfiguredHeadersRecord(
+  value: AppComponentServiceHeader[] | undefined,
+) {
+  if (!Array.isArray(value) || value.length === 0) {
+    return {};
+  }
+
+  const headers: Record<string, string> = {};
+
+  for (const entry of value) {
+    const name = typeof entry.name === "string" ? entry.name.trim() : "";
+
+    if (!name) {
+      continue;
+    }
+
+    headers[name] = typeof entry.value === "string" ? entry.value : "";
+  }
+
+  return headers;
+}
+
+export function buildAppComponentConfiguredHeadersKey(
+  value: AppComponentServiceHeader[] | undefined,
+) {
+  const headers = resolveAppComponentConfiguredHeadersRecord(value);
+  const entries = Object.entries(headers).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+
+  return JSON.stringify(entries);
+}
+
+export function isAppComponentMainSequenceResourceReleaseMode(
+  props: Pick<
+    AppComponentWidgetProps,
+    "apiTargetMode" | "mainSequenceResourceRelease"
+  >,
+) {
+  return (
+    normalizeAppComponentApiTargetMode(props.apiTargetMode) ===
+      "main-sequence-resource-release" &&
+    Boolean(props.mainSequenceResourceRelease?.releaseId)
+  );
+}
+
+function buildAppComponentSyntheticReleaseBaseUrl(releaseId: number) {
+  return `https://resource-release-${releaseId}.invalid`;
+}
+
+export function resolveAppComponentDisplayBaseUrl(
+  props: Pick<
+    AppComponentWidgetProps,
+    "apiBaseUrl" | "apiTargetMode" | "mainSequenceResourceRelease"
+  >,
+) {
+  if (isAppComponentMainSequenceResourceReleaseMode(props)) {
+    return props.mainSequenceResourceRelease?.publicUrl ?? props.apiBaseUrl ?? undefined;
+  }
+
+  return props.apiBaseUrl;
+}
+
+export function resolveAppComponentRequestBaseUrl(
+  props: Pick<
+    AppComponentWidgetProps,
+    "apiBaseUrl" | "apiTargetMode" | "mainSequenceResourceRelease"
+  >,
+) {
+  const displayBaseUrl = resolveAppComponentDisplayBaseUrl(props);
+  const resolvedDisplayBaseUrl = tryResolveAppComponentBaseUrl(displayBaseUrl);
+
+  if (resolvedDisplayBaseUrl) {
+    return resolvedDisplayBaseUrl;
+  }
+
+  if (isAppComponentMainSequenceResourceReleaseMode(props)) {
+    return buildAppComponentSyntheticReleaseBaseUrl(
+      props.mainSequenceResourceRelease!.releaseId,
+    );
+  }
+
+  return null;
+}
+
+export function hasAppComponentDiscoveryTarget(
+  props: Pick<
+    AppComponentWidgetProps,
+    "apiBaseUrl" | "apiTargetMode" | "mainSequenceResourceRelease"
+  >,
+) {
+  if (isAppComponentMainSequenceResourceReleaseMode(props)) {
+    return true;
+  }
+
+  return tryResolveAppComponentBaseUrl(props.apiBaseUrl) !== null;
+}
+
+function setAppComponentRequestHeader(
+  headers: Record<string, string>,
+  name: string,
+  value: string,
+) {
+  const normalizedName = name.trim();
+
+  if (!normalizedName) {
+    return;
+  }
+
+  const existingKey = Object.keys(headers).find(
+    (key) => key.toLowerCase() === normalizedName.toLowerCase(),
+  );
+
+  if (existingKey && existingKey !== normalizedName) {
+    delete headers[existingKey];
+  }
+
+  headers[normalizedName] = value;
 }
 
 export function normalizeAppComponentRequestInputMapFieldConfig(
@@ -4355,11 +4576,11 @@ export function buildAppComponentRequest(
   draftValues: Record<string, string>,
 ): BuildAppComponentRequestResult {
   const errors: string[] = [];
-  const baseUrl = tryResolveAppComponentBaseUrl(props.apiBaseUrl);
+  const baseUrl = resolveAppComponentRequestBaseUrl(props);
 
   if (!baseUrl) {
     return {
-      errors: ["Enter a valid API base URL before sending a request."],
+      errors: ["Enter a valid API base URL or select a Main Sequence resource release before sending a request."],
     };
   }
 
@@ -4370,7 +4591,7 @@ export function buildAppComponentRequest(
   }
 
   let resolvedPath = props.path;
-  const headers: Record<string, string> = {};
+  const headers = resolveAppComponentConfiguredHeadersRecord(props.serviceHeaders);
   const queryEntries = new Map<string, string>();
 
   for (const field of form.parameterFields) {
@@ -4396,7 +4617,7 @@ export function buildAppComponentRequest(
     }
 
     if (field.location === "header" && field.paramName) {
-      headers[field.paramName] = transportValue;
+      setAppComponentRequestHeader(headers, field.paramName, transportValue);
     }
   }
 
@@ -4438,7 +4659,7 @@ export function buildAppComponentRequest(
     }
 
     if (body && form.bodyContentType) {
-      headers["Content-Type"] = form.bodyContentType;
+      setAppComponentRequestHeader(headers, "Content-Type", form.bodyContentType);
     }
   } else if (form.bodyMode === "raw" && form.bodyRawField) {
     const rawValue = draftValues[form.bodyRawField.key] ?? "";
@@ -4450,7 +4671,7 @@ export function buildAppComponentRequest(
     } else if (form.bodyContentType?.includes("json")) {
       try {
         body = JSON.stringify(JSON.parse(rawValue));
-        headers["Content-Type"] = form.bodyContentType;
+        setAppComponentRequestHeader(headers, "Content-Type", form.bodyContentType);
       } catch (error) {
         errors.push(
           error instanceof Error ? error.message : "Request body must be valid JSON.",
@@ -4460,7 +4681,7 @@ export function buildAppComponentRequest(
       body = rawValue;
 
       if (form.bodyContentType) {
-        headers["Content-Type"] = form.bodyContentType;
+        setAppComponentRequestHeader(headers, "Content-Type", form.bodyContentType);
       }
     }
   }

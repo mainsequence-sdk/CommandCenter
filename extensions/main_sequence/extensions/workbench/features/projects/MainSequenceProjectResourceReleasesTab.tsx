@@ -53,6 +53,7 @@ import { MainSequenceRegistrySearch } from "../../../../common/components/MainSe
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
+import { MainSequenceResourceReleaseApiTestTab } from "./MainSequenceResourceReleaseApiTestTab";
 
 const projectResourceReleaseFetchLimit = 500;
 const releaseKindToProjectResourceType = {
@@ -67,9 +68,9 @@ const emptyPermissionAssignments: RbacAssignmentValue = {
 const resourceReleasePermissionsObjectUrl = "resource-release";
 
 type ReleaseKind = keyof typeof releaseKindToProjectResourceType;
-type ResourceReleaseDetailTabId = "readme" | "permissions";
+type ResourceReleaseDetailTabId = "readme" | "permissions" | "test-api";
 
-const resourceReleaseDetailTabs = [
+const baseResourceReleaseDetailTabs = [
   { id: "readme", label: "README" },
   { id: "permissions", label: "Permissions" },
 ] as const;
@@ -298,6 +299,13 @@ function getResourceReleaseReadme(
   extensions?: ResourceReleaseSummaryExtensions,
 ): ResourceReleaseReadmeSummary | undefined {
   return extensions?.readme;
+}
+
+function getResourceReleaseSummaryResourceType(
+  summary: EntitySummaryHeader | null,
+) {
+  const resourceTypeField = summary?.inline_fields.find((field) => field.key === "resource_type");
+  return typeof resourceTypeField?.value === "string" ? resourceTypeField.value : null;
 }
 
 function mergeRbacIds(...lists: Array<Array<string | number>>) {
@@ -691,6 +699,20 @@ export function MainSequenceProjectResourceReleasesTab({
   const resourceReleaseSummary =
     resourceReleaseSummaryQuery.data ??
     (selectedReleaseFromList ? buildFallbackResourceReleaseSummary(selectedReleaseFromList) : null);
+  const selectedResourceReleaseKind =
+    getResourceReleaseSummaryResourceType(resourceReleaseSummary) ??
+    selectedReleaseFromList?.release_kind ??
+    null;
+  const resourceReleaseDetailTabs = useMemo(
+    (): ReadonlyArray<{ id: ResourceReleaseDetailTabId; label: string }> =>
+      selectedResourceReleaseKind === "fastapi"
+        ? [
+            ...baseResourceReleaseDetailTabs,
+            { id: "test-api", label: "Test API" },
+          ]
+        : baseResourceReleaseDetailTabs,
+    [selectedResourceReleaseKind],
+  );
   const resourceReleaseTitle =
     resourceReleaseSummary?.entity.title ??
     selectedReleaseFromList?.subdomain ??
@@ -1033,6 +1055,14 @@ export function MainSequenceProjectResourceReleasesTab({
   }, [selectedResourceReleaseId]);
 
   useEffect(() => {
+    if (resourceReleaseDetailTabs.some((tab) => tab.id === selectedDetailTabId)) {
+      return;
+    }
+
+    setSelectedDetailTabId("readme");
+  }, [resourceReleaseDetailTabs, selectedDetailTabId]);
+
+  useEffect(() => {
     setPermissionsValue(emptyPermissionAssignments);
   }, [selectedResourceReleaseId]);
 
@@ -1164,6 +1194,13 @@ export function MainSequenceProjectResourceReleasesTab({
                         </div>
                       )}
                     </div>
+                  ) : selectedDetailTabId === "test-api" ? (
+                    resourceReleaseSummary && selectedResourceReleaseId ? (
+                      <MainSequenceResourceReleaseApiTestTab
+                        releaseSummary={resourceReleaseSummary}
+                        resourceReleaseId={selectedResourceReleaseId}
+                      />
+                    ) : null
                   ) : (
                     <div className="space-y-4">
                       {permissionsTabLoading ? (

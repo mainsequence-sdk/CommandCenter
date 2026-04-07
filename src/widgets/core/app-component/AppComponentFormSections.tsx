@@ -28,6 +28,7 @@ import {
 } from "@/widgets/shared/form-density";
 
 import {
+  buildAppComponentConfiguredHeadersKey,
   buildAppComponentRequest,
   buildAppComponentEditableFormGeneratedField,
   listAppComponentRenderableBodyFields,
@@ -238,11 +239,14 @@ function AsyncSelectSearchFieldEditor({
     queryKey: [
       "app-component",
       "async-select-search",
+      requestContext?.props.apiTargetMode ?? "manual",
+      requestContext?.props.mainSequenceResourceRelease?.releaseId ?? "none",
       requestContext?.props.apiBaseUrl ?? "invalid",
       requestContext?.props.method ?? "unknown",
       requestContext?.props.path ?? "unknown",
       field.key,
       debouncedValue,
+      buildAppComponentConfiguredHeadersKey(requestContext?.props.serviceHeaders),
       JSON.stringify(lookupValues),
     ],
     queryFn: async () => {
@@ -254,7 +258,7 @@ function AsyncSelectSearchFieldEditor({
       }
 
       const response = await submitAppComponentRequest({
-        authMode: requestContext?.props.authMode,
+        transportProps: requestContext?.props ?? {},
         method: lookupRequest.request.method,
         url: lookupRequest.request.url,
         headers: lookupRequest.request.headers,

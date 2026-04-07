@@ -3,7 +3,9 @@ import type { WidgetRailSummaryComponentProps } from "@/widgets/types";
 
 import {
   buildAppComponentOperationKey,
+  isAppComponentMainSequenceResourceReleaseMode,
   normalizeAppComponentProps,
+  resolveAppComponentDisplayBaseUrl,
   type AppComponentWidgetProps,
 } from "./appComponentModel";
 
@@ -53,7 +55,15 @@ function splitEndpointLabel(endpointLabel: string) {
 }
 
 function resolveServiceLabel(props: AppComponentWidgetProps) {
-  const raw = typeof props.apiBaseUrl === "string" ? props.apiBaseUrl.trim() : "";
+  const raw = resolveAppComponentDisplayBaseUrl(props)?.trim() ?? "";
+
+  if (
+    !raw &&
+    isAppComponentMainSequenceResourceReleaseMode(props) &&
+    props.mainSequenceResourceRelease?.label
+  ) {
+    return props.mainSequenceResourceRelease.label;
+  }
 
   if (!raw) {
     return "Not configured";
@@ -117,7 +127,11 @@ export function AppComponentRailSummary({
         <div className="flex items-start justify-between gap-3">
           <span className="text-muted-foreground">Auth</span>
           <span className="font-medium text-foreground">
-            {normalizedProps.authMode === "none" ? "None" : "Session JWT"}
+            {isAppComponentMainSequenceResourceReleaseMode(normalizedProps)
+              ? "Release token"
+              : normalizedProps.authMode === "none"
+                ? "None"
+                : "Session JWT"}
           </span>
         </div>
         <div className="flex items-start justify-between gap-3">

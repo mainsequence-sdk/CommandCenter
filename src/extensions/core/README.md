@@ -18,6 +18,10 @@ This extension owns the built-in registry entries that ship with Command Center 
 
 - Core widget source still lives under `src/widgets/core/`.
 - This extension currently registers `markdown-note`, `app-component`, and `workspace-row` in the live widget catalog.
+- Treat `AppComponent`, `Markdown`, and `Row` as core shell widgets. Their stable widget ids,
+  props, and runtime behavior should stay generic and must not be reclassified as Main Sequence
+  product widgets.
+- In the workspace component browser these widgets should stay grouped under the `Core` category.
 - The core app shell composes optional capabilities through the shared registry instead of
   re-owning them locally.
 

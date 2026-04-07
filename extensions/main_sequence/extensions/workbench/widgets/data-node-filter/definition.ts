@@ -22,7 +22,7 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
   id: "main-sequence-data-node",
   title: "Data Node",
   description: "Stores a reusable Main Sequence dataset node, with a settings-only table preview.",
-  category: "DataNodes",
+  category: "Main Sequence Data Nodes",
   kind: "custom",
   source: "main_sequence_workbench",
   requiredPermissions: ["dashboard:view"],

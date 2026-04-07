@@ -29,21 +29,38 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - `appComponentDynamicIo.ts`: per-instance `resolveIo(...)` implementation that turns the compiled
   binding spec into dynamic widget ports, including the structured response output descriptor used
   by the shared binding transform UI.
-- `appComponentApi.ts`: authenticated OpenAPI fetch and request submission helpers, including the local mock transport used by explorer and mock mode.
+- `appComponentApi.ts`: target-aware OpenAPI fetch and request submission helpers, including the
+  local mock transport used by explorer and mock mode.
+- `mainSequenceReleaseTransport.ts`: Main Sequence resource-release transport that exchanges the
+  selected release id for a short-lived FastAPI RPC token, then calls the public API with
+  `Authorization: Bearer <launch token>` plus `X-FastAPI-ID`.
 - `appComponentExecution.ts`: pure executable-widget adapter for `AppComponent`. It resolves bound
   inputs, builds the request, submits it, and returns a runtime-state patch for the shared
   dashboard graph runner.
 - `AppComponentWidget.tsx`: runtime widget body that prefers a live OpenAPI-backed generated form
   when the configured endpoint is reachable, then falls back to the saved compiled request form or
   the legacy binding-spec synthesis path.
-- `AppComponentWidgetSettings.tsx`: settings experience for API discovery, operation selection, response-model inspection, and live request testing.
+- `AppComponentWidgetSettings.tsx`: settings experience for API discovery, operation selection, response-model inspection, widget-specific input mapping, and live request testing.
 - `AppComponentFormSections.tsx`: shared generated-input renderer reused by both the canvas widget and the settings-side test harness.
+- `useAppComponentSchemaExplorer.ts`: shared OpenAPI discovery hook used by widget settings and other AppComponent-powered API testing surfaces.
+- `AppComponentSchemaDiscoverySection.tsx`: reusable schema/operation explorer used by AppComponent settings and non-widget developer tooling.
+- `AppComponentRequestTestSection.tsx`: reusable dev-focused request runner surface that renders generated request inputs plus raw request/response diagnostics.
+- `AppComponentMainSequenceResourceReleasePicker.tsx`: optional Main Sequence FastAPI release
+  picker used by AppComponent settings to switch a widget instance from manual URL mode into the
+  exchange-launch transport.
 
 ## Phase 1 Scope
 
 - One widget instance maps to one selected OpenAPI operation.
 - If the user pastes an explicit `/openapi.json` URL, schema discovery uses that exact endpoint.
 - The widget supports path, query, and header parameters plus generated JSON request bodies.
+- The widget also supports a static `serviceHeaders` overlay. Those headers apply to both schema
+  discovery and request execution, while OpenAPI-declared header parameters still render as normal
+  generated request inputs.
+- AppComponent now has two target modes:
+  `manual` uses the configured API URL plus the selected auth mode, while
+  `main-sequence-resource-release` uses a selected Main Sequence FastAPI resource release and the
+  exchange-launch token flow.
 - Complex or unsupported body schemas fall back to a raw request-body editor instead of blocking the user completely.
 - Response inspection and request testing happen in widget settings; the mounted widget itself stays input-focused.
 - Dynamic bindings are compiled from the selected endpoint in settings and resolved synchronously
@@ -95,10 +112,28 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   (`dashboard-refresh` / `manual-recalculate`) so identical AppComponent sources do not fan out into
   repeated network calls across widgets. Both TTLs are configured at the app level in
   `config/command-center.yaml`, not hardcoded in the widget.
+- Transport failures during schema discovery or request execution now surface explicit context:
+  target URL, auth mode, whether a session JWT was attached, and whether dev mode used the local
+  loopback proxy or a direct browser fetch.
+- The OpenAPI explorer and raw request tester are now reusable outside the widget settings flow.
+  The Main Sequence workbench uses the same AppComponent discovery/request surfaces to expose a
+  developer-focused `Test API` tab for FastAPI resource releases.
+- In Main Sequence resource-release mode, AppComponent first calls
+  `/orm/api/pods/resource-release/<id>/exchange-launch/`, expects a FastAPI token launch payload,
+  then sends the real OpenAPI and operation requests with the returned launch token plus
+  `X-FastAPI-ID`. The normal session JWT is not sent to the public FastAPI in this mode.
+- Launch tokens are kept in memory only. They are refreshed before expiry and retried once on
+  `401`, which keeps FastAPI resource-release widgets usable across the current 120-second backend
+  token lifetime without persisting those launch tokens in widget props.
 
 ## Maintenance Notes
 
 - Keep transport auth aligned with the existing shell JWT flow. If the app-wide auth header behavior changes, update `appComponentApi.ts` in the same change.
+- Keep the transport split explicit:
+  manual mode is generic AppComponent transport,
+  while Main Sequence resource-release mode is the exchange-launch transport owned by
+  `mainSequenceReleaseTransport.ts`. Do not bolt resource-release token logic onto the generic
+  manual auth path.
 - Keep the widget generic. Product-specific API presets should be modeled as preconfigured widget instances or future helper modules, not hardcoded into the core widget itself.
 - Keep `bindingSpec.operationKey`, widget `method/path`, and runtime `operationKey` aligned. Dynamic
   outputs must not resolve against stale responses from a different endpoint selection.
@@ -129,6 +164,11 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - `requestInputMap` is also a persisted widget prop. Keep it scoped by `operationKey`, and treat it
   as a UI/execution overlay only. Do not mutate `bindingSpec.requestForm`, request port ids, or
   binding field keys when applying label, visibility, or prefill customizations.
+- `serviceHeaders` is also a persisted widget prop. Treat it as transport-level configuration for
+  the selected service, not as a replacement for OpenAPI-declared header parameters. Static service
+  headers should apply to both `/openapi.json` discovery and the final operation request. In Main
+  Sequence resource-release mode, the transport-owned `Authorization` and `X-FastAPI-ID` headers
+  must still win over any user-configured header entries.
 - Form-render resolution is widget-first:
   if the selected OpenAPI operation does not expose `x-ui-widget`, AppComponent always falls back
   to the standard generated renderer. If the selected operation exposes `x-ui-widget`, AppComponent
@@ -174,5 +214,8 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   new `form_id` resets the editable form session to the backend-provided values.
 - Keep the safe-response cache policy narrow unless product requirements change. Manual submit and
   settings-side test execution intentionally bypass response caching so the user can force a fresh request.
+- AppComponent settings intentionally keep the Main Sequence release search collapsed behind an
+  explicit button. Keep that UX compact; selecting a release should switch the widget into the
+  dedicated release transport without cluttering the default manual URL flow.
 - If product requirements change, update the app-level cache TTLs in `config/command-center.yaml`
   and the configuration docs in the same change so widget behavior and deployment expectations stay aligned.

@@ -13,8 +13,8 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   id: "app-component",
   title: "AppComponent",
   description:
-    "OpenAPI-driven request form widget that discovers one route and submits requests with the current session JWT by default.",
-  category: "API",
+    "OpenAPI-driven request form widget that discovers one route and can run either against a manual service URL or a Main Sequence FastAPI resource release.",
+  category: "Core",
   kind: "custom",
   source: "core",
   defaultSize: { w: 8, h: 8 },
@@ -24,6 +24,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   requiredPermissions: ["dashboard:view"],
   tags: ["openapi", "swagger", "api", "forms", "requests"],
   exampleProps: {
+    apiTargetMode: "manual",
     apiBaseUrl: "",
     authMode: "session-jwt",
     showHeader: true,
@@ -32,6 +33,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
     refreshOnDashboardRefresh: true,
   },
   mockProps: {
+    apiTargetMode: "manual",
     apiBaseUrl: "",
     authMode: "session-jwt",
     method: "post",

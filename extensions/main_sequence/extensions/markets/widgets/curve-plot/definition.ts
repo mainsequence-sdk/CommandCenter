@@ -13,7 +13,7 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
   id: "main-sequence-curve-plot",
   title: "Curve Plot",
   description: "DataNode-backed tenor curve chart rendered from mapped maturity and yield fields.",
-  category: "Rates",
+  category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",
   requiredPermissions: ["marketdata:read"],
