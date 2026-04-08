@@ -378,8 +378,8 @@ export function RbacPolicyStudio({
                   : "No unsaved changes.")}
           </div>
           <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/35 px-3 py-3 text-sm text-muted-foreground">
-            Hidden system policies such as `admin` and `platform-admin` are not shown here. Those
-            access classes stay backend-enforced.
+            The hidden `platform-admin` policy is not shown here. That access class stays
+            backend-enforced.
           </div>
         </CardContent>
       </Card>

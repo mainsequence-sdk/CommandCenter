@@ -154,7 +154,7 @@ That component provides:
 - CRUD against `/api/v1/command_center/access-policies/`
 - `slugified_name` as the visible policy key while detail routes still use integer ids
 - fixed built-in `light-user`, `dev-user`, and `org-admin-user` policies that stay read-only in the org-admin UI
-- hidden backend-enforced admin-class policies such as `admin` and `platform-admin`
+- hidden backend-enforced `platform-admin` policy
 - editable shell permission bundles
 
 The shell app access model is now explicit:

@@ -210,7 +210,7 @@ The application:
 - loads shell policy definitions through `command_center_access.access_policies.*`
 - loads, previews, and saves user shell-access assignments through `command_center_access.users.*`
 - expects the fixed `light-user`, `dev-user`, and `org-admin-user` shell policies to be created by the backend
-- hides backend-enforced admin-class policies such as `admin` and `platform-admin` from the organization-admin policy UI
+- hides the backend-enforced `platform-admin` policy from the organization-admin policy UI
 - refreshes the notifications feed using `app.notifications_refresh_interval_ms`
 - uses user initials for account surfaces when no user-specific avatar is provided
 

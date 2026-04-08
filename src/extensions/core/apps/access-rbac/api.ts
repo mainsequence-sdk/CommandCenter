@@ -67,7 +67,7 @@ export interface UserShellAccessPatchInput {
   denyPermissions: Permission[];
 }
 
-const hiddenAccessPolicySlugs = new Set(["admin", "platform-admin"]);
+const hiddenAccessPolicySlugs = new Set(["platform-admin"]);
 export const BUILTIN_ACCESS_POLICY_DETAILS = {
   "light-user": {
     slugifiedName: "light-user",

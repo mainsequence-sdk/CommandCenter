@@ -188,8 +188,7 @@ Important behavior:
 
 - the frontend uses `slugified_name` as the stable policy key
 - policy detail routes still use the integer `id`
-- the org-admin-facing UI hides backend-enforced admin-class policies such as `admin` and
-  `platform-admin`
+- the org-admin-facing UI hides the backend-enforced `platform-admin` policy
 - the built-in `light-user`, `dev-user`, and `org-admin-user` policies are expected to be created
   by the backend and are treated as read-only in the frontend
 
