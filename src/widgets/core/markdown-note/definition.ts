@@ -28,7 +28,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
   category: "Core",
   kind: "custom",
   source: "core",
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["workspaces:view"],
   tags: ["markdown", "notes", "documentation", "content"],
   exampleProps: {
     content: exampleContent,

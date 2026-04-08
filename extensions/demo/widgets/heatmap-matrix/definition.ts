@@ -11,7 +11,7 @@ export const heatmapMatrixWidget: WidgetDefinition<{ desk?: string }> = {
   kind: "chart",
   source: "demo",
   defaultSize: { w: 10, h: 8 },
-  requiredPermissions: ["marketdata:read"],
+  requiredPermissions: ["main_sequence_markets:view"],
   tags: ["heatmap", "mock", "market", "matrix", "charts", "demo"],
   exampleProps: { desk: "Global Macro" },
   component: HeatmapMatrixWidget,

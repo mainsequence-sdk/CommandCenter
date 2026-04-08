@@ -42,7 +42,7 @@ That means each widget can be:
 - **Category:** `Content`
 - **Kind:** `custom`
 - **Default size:** `6 x 6`
-- **Permissions:** `dashboard:view`
+- **Permissions:** `workspaces:view`
 - **Example props:** narrative markdown note content
 
 What it is:
@@ -71,7 +71,7 @@ way to mix explanation, instructions, and lightweight tables into operational su
 - **Category:** `Workspace`
 - **Kind:** `custom`
 - **Default size:** `12 x 1`
-- **Permissions:** `dashboard:view`
+- **Permissions:** `workspaces:view`
 
 What it is:
 
@@ -100,7 +100,7 @@ widget positions.
 - **Category:** `API`
 - **Kind:** `custom`
 - **Default size:** `8 x 8`
-- **Permissions:** `dashboard:view`
+- **Permissions:** `workspaces:view`
 - **Example props:** explicit OpenAPI URL, Swagger docs URL, or service root plus auth mode; route binding is instance-scoped
 
 What it is:

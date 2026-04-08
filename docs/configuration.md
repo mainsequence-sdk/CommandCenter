@@ -4,6 +4,9 @@
 
 Command Center keeps user-editable runtime configuration outside `src/` so branding and backend integration details are separated from application functionality.
 
+Organization authorization policy does not belong in this file. The YAML maps where to read
+backend-provided auth fields, but it must not define which users are `ORG_ADMIN` or platform-admin.
+
 The current configuration entrypoint is:
 
 ```text
@@ -81,7 +84,10 @@ auth:
       email: email
       team: team
       role: role
+      organization_role: organization_role
       permissions: permissions
+      platform_permissions: platform_permissions
+      is_platform_admin: is_platform_admin
       date_joined: date_joined
       is_active: is_active
       last_login: last_login
@@ -95,22 +101,29 @@ auth:
         email: email
         team: team
         role: role
+        organization_role: organization_role
         permissions: permissions
-        groups: groups
+        platform_permissions: platform_permissions
+        is_platform_admin: is_platform_admin
         date_joined: date_joined
         is_active: is_active
         last_login: last_login
         mfa_enabled: mfa_enabled
         organization_teams: organization_teams
-      role_groups:
-        admin: Organization Admin
-        user:
 
 access_rbac:
   users:
     list_url: /user/api/user/
   groups:
     list_url: /user/api/user/get_rbac_groups/
+
+command_center_access:
+  access_policies:
+    list_url: /api/v1/command_center/access-policies/
+    detail_url: /api/v1/command_center/access-policies/{id}/
+  users:
+    shell_access_url: /api/v1/command_center/users/{user_id}/shell-access/
+    shell_access_preview_url: /api/v1/command_center/users/{user_id}/shell-access/preview/
 
 notifications:
   list_url: /user/api/notifications/
@@ -150,9 +163,13 @@ notifications:
 - `auth.jwt.claim_mapping.*`: token-claim or response-field paths used to build the frontend session and RBAC permissions
 - `auth.jwt.user_details.url`: authenticated endpoint fetched immediately after successful login and refresh
 - `auth.jwt.user_details.response_mapping.*`: field paths used to map the user-details payload into the frontend session user
-- `auth.jwt.user_details.role_groups.*`: comma-separated group names that map backend groups into the built-in `admin` / `user` access classes
+- `auth.jwt.claim_mapping.platform_permissions` and `auth.jwt.user_details.response_mapping.platform_permissions`: field paths used to resolve platform-only permissions such as `platform_admin:access`
+- `auth.jwt.claim_mapping.is_platform_admin` and `auth.jwt.user_details.response_mapping.is_platform_admin`: optional boolean field paths used to mark a session as platform-admin
 - `access_rbac.users.list_url`: authenticated endpoint used by the Access & RBAC app user inspector to search the user directory
-- `access_rbac.groups.list_url`: authenticated endpoint used by the Access & RBAC policy studio to load assignable RBAC groups
+- `command_center_access.access_policies.list_url`: authenticated list/create endpoint for visible Command Center shell policies
+- `command_center_access.access_policies.detail_url`: authenticated detail/update/delete endpoint for one Command Center shell policy; the frontend replaces `{id}` with the integer policy id
+- `command_center_access.users.shell_access_url`: authenticated read/update endpoint for one user's Command Center shell assignments; the frontend replaces `{user_id}` with the inspected user id
+- `command_center_access.users.shell_access_preview_url`: authenticated preview endpoint that resolves a draft shell-access payload without saving it
 - `notifications.list_url`: endpoint used to fetch the notification feed
 - `notifications.detail_url`: endpoint used to fetch a single notification body
 - `notifications.mark_read_url`: endpoint used to mark one notification as read
@@ -187,9 +204,13 @@ The application:
 - fetches configured user details after JWT login succeeds
 - revalidates persisted JWT sessions against the configured user-details endpoint before granting access
 - maps configured token claims and user-details fields into the frontend session user
-- derives built-in shell access classes from configured backend groups
+- derives organization-admin and platform-admin access from backend-owned claims or user-details fields
+- resolves shell visibility from the authenticated user's shell-access `effective_permissions`
 - queries the configured Access & RBAC users endpoint when an admin searches the user directory
-- queries the configured Access & RBAC groups endpoint when an admin assigns RBAC groups to shell policies
+- loads shell policy definitions through `command_center_access.access_policies.*`
+- loads, previews, and saves user shell-access assignments through `command_center_access.users.*`
+- expects the fixed `light-user`, `dev-user`, and `org-admin-user` shell policies to be created by the backend
+- hides backend-enforced admin-class policies such as `admin` and `platform-admin` from the organization-admin policy UI
 - refreshes the notifications feed using `app.notifications_refresh_interval_ms`
 - uses user initials for account surfaces when no user-specific avatar is provided
 

@@ -21,7 +21,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   responsive: {
     minWidthPx: 420,
   },
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["workspaces:view"],
   tags: ["openapi", "swagger", "api", "forms", "requests"],
   exampleProps: {
     apiTargetMode: "manual",

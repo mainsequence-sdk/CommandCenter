@@ -17,7 +17,7 @@ export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNode
   category: "Main Sequence Data Nodes",
   kind: "chart",
   source: "main_sequence_workbench",
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["main_sequence_foundry:view"],
   tags: ["main-sequence", "data-node", "visualization", "tradingview", "table"],
   exampleProps: {
     sourceMode: "filter_widget",

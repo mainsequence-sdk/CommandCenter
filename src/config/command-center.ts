@@ -24,7 +24,10 @@ export interface CommandCenterAuthConfig {
       email: string;
       team: string;
       role: string;
+      organizationRole: string;
       permissions: string;
+      platformPermissions: string;
+      isPlatformAdmin: string;
       dateJoined: string;
       isActive: string;
       lastLogin: string;
@@ -33,24 +36,21 @@ export interface CommandCenterAuthConfig {
     };
     userDetails: {
       url: string;
-      groupsUrl: string;
       responseMapping: {
         userId: string;
         name: string;
         email: string;
         team: string;
         role: string;
+        organizationRole: string;
         permissions: string;
-        groups: string;
+        platformPermissions: string;
+        isPlatformAdmin: string;
         dateJoined: string;
         isActive: string;
         lastLogin: string;
         mfaEnabled: string;
         organizationTeams: string;
-      };
-      roleGroups: {
-        admin: string;
-        user: string;
       };
     };
   };
@@ -98,8 +98,15 @@ export interface CommandCenterConfig {
     users: {
       listUrl: string;
     };
-    groups: {
+  };
+  commandCenterAccess: {
+    accessPolicies: {
       listUrl: string;
+      detailUrl: string;
+    };
+    users: {
+      shellAccessUrl: string;
+      shellAccessPreviewUrl: string;
     };
   };
   mainSequence: {
@@ -192,7 +199,10 @@ interface DefaultCommandCenterConfig {
         email: string;
         team: string;
         role: string;
+        organization_role: string;
         permissions: string;
+        platform_permissions: string;
+        is_platform_admin: string;
         date_joined: string;
         is_active: string;
         last_login: string;
@@ -201,24 +211,21 @@ interface DefaultCommandCenterConfig {
       };
       user_details: {
         url: string;
-        groups_url: string;
         response_mapping: {
           user_id: string;
           name: string;
           email: string;
           team: string;
           role: string;
+          organization_role: string;
           permissions: string;
-          groups: string;
+          platform_permissions: string;
+          is_platform_admin: string;
           date_joined: string;
           is_active: string;
           last_login: string;
           mfa_enabled: string;
           organization_teams: string;
-        };
-        role_groups: {
-          admin: string;
-          user: string;
         };
       };
     };
@@ -227,8 +234,15 @@ interface DefaultCommandCenterConfig {
     users: {
       list_url: string;
     };
-    groups: {
+  };
+  command_center_access: {
+    access_policies: {
       list_url: string;
+      detail_url: string;
+    };
+    users: {
+      shell_access_url: string;
+      shell_access_preview_url: string;
     };
   };
   main_sequence: {
@@ -322,7 +336,10 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
         email: "email",
         team: "team",
         role: "role",
+        organization_role: "organization_role",
         permissions: "permissions",
+        platform_permissions: "platform_permissions",
+        is_platform_admin: "is_platform_admin",
         date_joined: "date_joined",
         is_active: "is_active",
         last_login: "last_login",
@@ -331,24 +348,21 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
       },
       user_details: {
         url: "/user/api/user/get_user_details/",
-        groups_url: "/user/api/user/get_user_details/",
         response_mapping: {
           user_id: "id",
           name: "name",
           email: "email",
           team: "team",
           role: "role",
+          organization_role: "organization_role",
           permissions: "permissions",
-          groups: "groups",
+          platform_permissions: "platform_permissions",
+          is_platform_admin: "is_platform_admin",
           date_joined: "date_joined",
           is_active: "is_active",
           last_login: "last_login",
           mfa_enabled: "mfa_enabled",
           organization_teams: "organization_teams",
-        },
-        role_groups: {
-          admin: "Organization Admin",
-          user: "",
         },
       },
     },
@@ -357,8 +371,16 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     users: {
       list_url: "/user/api/user/",
     },
-    groups: {
-      list_url: "/user/api/user/get_rbac_groups/",
+  },
+  command_center_access: {
+    access_policies: {
+      list_url: "/api/v1/command_center/access-policies/",
+      detail_url: "/api/v1/command_center/access-policies/{id}/",
+    },
+    users: {
+      shell_access_url: "/api/v1/command_center/users/{user_id}/shell-access/",
+      shell_access_preview_url:
+        "/api/v1/command_center/users/{user_id}/shell-access/preview/",
     },
   },
   main_sequence: {
@@ -496,6 +518,7 @@ const parsedSavedWidgets = getNestedObject(parsedConfig, "saved_widgets");
 const parsedWidgetTypes = getNestedObject(parsedConfig, "widget_types");
 const parsedAuth = getNestedObject(parsedConfig, "auth");
 const parsedAccessRbac = getNestedObject(parsedConfig, "access_rbac");
+const parsedCommandCenterAccess = getNestedObject(parsedConfig, "command_center_access");
 const parsedMainSequence = getNestedObject(parsedConfig, "main_sequence");
 const parsedNotifications = getNestedObject(parsedConfig, "notifications");
 const parsedAuthJwt = getNestedObject(parsedAuth, "jwt");
@@ -504,9 +527,12 @@ const parsedAuthResponseFields = getNestedObject(parsedAuthJwt, "response_fields
 const parsedAuthClaimMapping = getNestedObject(parsedAuthJwt, "claim_mapping");
 const parsedAuthUserDetails = getNestedObject(parsedAuthJwt, "user_details");
 const parsedAuthUserDetailsMapping = getNestedObject(parsedAuthUserDetails, "response_mapping");
-const parsedAuthUserDetailsRoleGroups = getNestedObject(parsedAuthUserDetails, "role_groups");
 const parsedAccessRbacUsers = getNestedObject(parsedAccessRbac, "users");
-const parsedAccessRbacGroups = getNestedObject(parsedAccessRbac, "groups");
+const parsedCommandCenterAccessPolicies = getNestedObject(
+  parsedCommandCenterAccess,
+  "access_policies",
+);
+const parsedCommandCenterAccessUsers = getNestedObject(parsedCommandCenterAccess, "users");
 const parsedMainSequencePermissions = getNestedObject(parsedMainSequence, "permissions");
 
 const logoLightmodeFile = readString(
@@ -660,9 +686,21 @@ export const commandCenterConfig: CommandCenterConfig = {
           parsedAuthClaimMapping.role,
           defaultRawConfig.auth.jwt.claim_mapping.role,
         ),
+        organizationRole: readString(
+          parsedAuthClaimMapping.organization_role,
+          defaultRawConfig.auth.jwt.claim_mapping.organization_role,
+        ),
         permissions: readString(
           parsedAuthClaimMapping.permissions,
           defaultRawConfig.auth.jwt.claim_mapping.permissions,
+        ),
+        platformPermissions: readString(
+          parsedAuthClaimMapping.platform_permissions,
+          defaultRawConfig.auth.jwt.claim_mapping.platform_permissions,
+        ),
+        isPlatformAdmin: readString(
+          parsedAuthClaimMapping.is_platform_admin,
+          defaultRawConfig.auth.jwt.claim_mapping.is_platform_admin,
         ),
         dateJoined: readString(
           parsedAuthClaimMapping.date_joined,
@@ -690,10 +728,6 @@ export const commandCenterConfig: CommandCenterConfig = {
           parsedAuthUserDetails.url,
           defaultRawConfig.auth.jwt.user_details.url,
         ),
-        groupsUrl: readString(
-          parsedAuthUserDetails.groups_url,
-          defaultRawConfig.auth.jwt.user_details.groups_url,
-        ),
         responseMapping: {
           userId: readString(
             parsedAuthUserDetailsMapping.user_id,
@@ -715,13 +749,21 @@ export const commandCenterConfig: CommandCenterConfig = {
             parsedAuthUserDetailsMapping.role,
             defaultRawConfig.auth.jwt.user_details.response_mapping.role,
           ),
+          organizationRole: readString(
+            parsedAuthUserDetailsMapping.organization_role,
+            defaultRawConfig.auth.jwt.user_details.response_mapping.organization_role,
+          ),
           permissions: readString(
             parsedAuthUserDetailsMapping.permissions,
             defaultRawConfig.auth.jwt.user_details.response_mapping.permissions,
           ),
-          groups: readString(
-            parsedAuthUserDetailsMapping.groups,
-            defaultRawConfig.auth.jwt.user_details.response_mapping.groups,
+          platformPermissions: readString(
+            parsedAuthUserDetailsMapping.platform_permissions,
+            defaultRawConfig.auth.jwt.user_details.response_mapping.platform_permissions,
+          ),
+          isPlatformAdmin: readString(
+            parsedAuthUserDetailsMapping.is_platform_admin,
+            defaultRawConfig.auth.jwt.user_details.response_mapping.is_platform_admin,
           ),
           dateJoined: readString(
             parsedAuthUserDetailsMapping.date_joined,
@@ -739,20 +781,10 @@ export const commandCenterConfig: CommandCenterConfig = {
             parsedAuthUserDetailsMapping.mfa_enabled,
             defaultRawConfig.auth.jwt.user_details.response_mapping.mfa_enabled,
           ),
-          organizationTeams: readString(
-            parsedAuthUserDetailsMapping.organization_teams,
-            defaultRawConfig.auth.jwt.user_details.response_mapping.organization_teams,
-          ),
-        },
-        roleGroups: {
-          admin: readString(
-            parsedAuthUserDetailsRoleGroups.admin,
-            defaultRawConfig.auth.jwt.user_details.role_groups.admin,
-          ),
-          user: readString(
-            parsedAuthUserDetailsRoleGroups.user,
-            defaultRawConfig.auth.jwt.user_details.role_groups.user,
-          ),
+        organizationTeams: readString(
+          parsedAuthUserDetailsMapping.organization_teams,
+          defaultRawConfig.auth.jwt.user_details.response_mapping.organization_teams,
+        ),
         },
       },
     },
@@ -764,10 +796,26 @@ export const commandCenterConfig: CommandCenterConfig = {
         defaultRawConfig.access_rbac.users.list_url,
       ),
     },
-    groups: {
+  },
+  commandCenterAccess: {
+    accessPolicies: {
       listUrl: readString(
-        parsedAccessRbacGroups.list_url,
-        defaultRawConfig.access_rbac.groups.list_url,
+        parsedCommandCenterAccessPolicies.list_url,
+        defaultRawConfig.command_center_access.access_policies.list_url,
+      ),
+      detailUrl: readString(
+        parsedCommandCenterAccessPolicies.detail_url,
+        defaultRawConfig.command_center_access.access_policies.detail_url,
+      ),
+    },
+    users: {
+      shellAccessUrl: readString(
+        parsedCommandCenterAccessUsers.shell_access_url,
+        defaultRawConfig.command_center_access.users.shell_access_url,
+      ),
+      shellAccessPreviewUrl: readString(
+        parsedCommandCenterAccessUsers.shell_access_preview_url,
+        defaultRawConfig.command_center_access.users.shell_access_preview_url,
       ),
     },
   },

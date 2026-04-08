@@ -1,8 +1,7 @@
 import { useAuthStore } from "@/auth/auth-store";
+import { hasOrganizationAdminAccess } from "@/auth/permissions";
 
 import type { TeamMemberRecord } from "./api";
-
-const organizationAdminGroup = "Organization Admin";
 
 export const teamPermissionsObjectUrl = "/user/api/team/";
 export const teamsRegistryPath = "/app/access-rbac/teams";
@@ -40,13 +39,7 @@ export function getTeamDetailPath(teamId: number) {
 }
 
 export function useCanManageTeamCrud() {
-  const sessionGroups = useAuthStore((state) => state.session?.user.groups ?? []);
-  const sessionRole = useAuthStore((state) => state.session?.user.role ?? "");
+  const user = useAuthStore((state) => state.session?.user ?? null);
 
-  return (
-    sessionGroups.includes(organizationAdminGroup) ||
-    sessionRole === organizationAdminGroup ||
-    sessionRole === "org_admin" ||
-    sessionRole === "admin"
-  );
+  return hasOrganizationAdminAccess(user);
 }

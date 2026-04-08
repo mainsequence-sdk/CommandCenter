@@ -1,4 +1,5 @@
 import {
+  useMemo,
   useLayoutEffect,
   useRef,
   useState,
@@ -20,6 +21,9 @@ import {
 import { cn, titleCase } from "@/lib/utils";
 import type { WidgetInstancePresentation, WidgetDefinition } from "@/widgets/types";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
+
+const WORKSPACE_RAIL_SCROLL_TRACK_HEIGHT_PX = 128;
+const WORKSPACE_RAIL_SCROLL_THUMB_HEIGHT_PX = 10;
 
 function resolveRuntimeStatus(runtimeState?: Record<string, unknown>) {
   return typeof runtimeState?.status === "string" ? runtimeState.status : null;
@@ -290,10 +294,15 @@ export function WorkspaceWidgetRail({
   activeInstanceId,
   topOffsetClassName,
   onOpenWidget,
+  scrollSync,
 }: {
   widgets: Array<{
     id: string;
     title?: string;
+    layout?: {
+      x: number;
+      y: number;
+    };
     props?: Record<string, unknown>;
     presentation?: WidgetInstancePresentation;
     runtimeState?: Record<string, unknown>;
@@ -302,11 +311,102 @@ export function WorkspaceWidgetRail({
   activeInstanceId: string | null;
   topOffsetClassName: string;
   onOpenWidget: (instanceId: string) => void;
+  scrollSync?: {
+    progress: number;
+    canScroll: boolean;
+    onProgressChange: (progress: number) => void;
+  };
 }) {
   const widgetExecution = useDashboardWidgetExecution();
+  const listViewportRef = useRef<HTMLDivElement | null>(null);
+  const listContentRef = useRef<HTMLDivElement | null>(null);
+  const [listMaxOffset, setListMaxOffset] = useState(0);
+  const orderedWidgets = useMemo(
+    () =>
+      [...widgets].sort((left, right) => {
+        const leftY = left.layout?.y ?? Number.MAX_SAFE_INTEGER;
+        const rightY = right.layout?.y ?? Number.MAX_SAFE_INTEGER;
 
-  if (widgets.length === 0) {
+        if (leftY !== rightY) {
+          return leftY - rightY;
+        }
+
+        const leftX = left.layout?.x ?? Number.MAX_SAFE_INTEGER;
+        const rightX = right.layout?.x ?? Number.MAX_SAFE_INTEGER;
+
+        if (leftX !== rightX) {
+          return leftX - rightX;
+        }
+
+        const leftLabel = (left.title ?? left.widget.title ?? left.id).trim().toLowerCase();
+        const rightLabel = (right.title ?? right.widget.title ?? right.id).trim().toLowerCase();
+
+        if (leftLabel !== rightLabel) {
+          return leftLabel.localeCompare(rightLabel);
+        }
+
+        return left.id.localeCompare(right.id);
+      }),
+    [widgets],
+  );
+  const clampedScrollProgress = Math.min(1, Math.max(0, scrollSync?.progress ?? 0));
+  const listOffset = scrollSync?.canScroll ? clampedScrollProgress * listMaxOffset : 0;
+  const trackTravelPx = WORKSPACE_RAIL_SCROLL_TRACK_HEIGHT_PX - WORKSPACE_RAIL_SCROLL_THUMB_HEIGHT_PX;
+  const thumbOffsetPx = scrollSync?.canScroll ? clampedScrollProgress * trackTravelPx : 0;
+
+  useLayoutEffect(() => {
+    const viewport = listViewportRef.current;
+    const content = listContentRef.current;
+
+    if (!viewport || !content || typeof window === "undefined") {
+      setListMaxOffset(0);
+      return undefined;
+    }
+
+    const viewportElement = viewport;
+    const contentElement = content;
+
+    function updateOffsets() {
+      const nextMaxOffset = Math.max(
+        0,
+        contentElement.scrollHeight - viewportElement.clientHeight,
+      );
+      setListMaxOffset((current) => (current === nextMaxOffset ? current : nextMaxOffset));
+    }
+
+    updateOffsets();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateOffsets();
+    });
+
+    resizeObserver.observe(viewportElement);
+    resizeObserver.observe(contentElement);
+    window.addEventListener("resize", updateOffsets);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateOffsets);
+    };
+  }, [orderedWidgets.length]);
+
+  if (orderedWidgets.length === 0) {
     return null;
+  }
+
+  function updateScrollProgressFromPointer(clientY: number, trackElement: HTMLDivElement) {
+    if (!scrollSync?.canScroll) {
+      return;
+    }
+
+    const rect = trackElement.getBoundingClientRect();
+    const relativeY = clientY - rect.top - WORKSPACE_RAIL_SCROLL_THUMB_HEIGHT_PX / 2;
+    const nextProgress =
+      trackTravelPx > 0
+        ? Math.min(1, Math.max(0, relativeY / trackTravelPx))
+        : 0;
+
+    scrollSync.onProgressChange(nextProgress);
   }
 
   return (
@@ -317,72 +417,139 @@ export function WorkspaceWidgetRail({
       )}
       aria-label="Canvas widget rail"
     >
-      {widgets.map(({ id, title, props, presentation, runtimeState, widget }) => {
-        const Icon = resolveWorkspaceWidgetIcon(widget);
-        const active = activeInstanceId === id;
-        const executionState = widgetExecution?.getExecutionState(id);
-        const dotClassName = resolveWidgetRailStatusDotClass({
-          executionState,
-          runtimeState,
-        });
-        const loading = isWidgetRailLoading({
-          executionState,
-          runtimeState,
-        });
-        const RailSummary =
-          widget.railSummaryComponent as
-            | ComponentType<{
-                title: string;
-                instanceId?: string;
-                props: Record<string, unknown>;
-                presentation?: WidgetInstancePresentation;
-                runtimeState?: Record<string, unknown>;
-              }>
-            | undefined;
-        const displayTitle = title ?? widget.title;
-        const summaryContent = RailSummary ? (
-          <RailSummary
-            title={displayTitle}
-            instanceId={id}
-            props={(props ?? {}) as Record<string, unknown>}
-            presentation={presentation}
-            runtimeState={runtimeState}
-          />
-        ) : (
-          <DefaultWidgetRailSummary
-            title={displayTitle}
-            widget={widget}
-            executionState={executionState}
-            runtimeState={runtimeState}
-          />
-        );
-
-        return (
-          <RailHoverCard key={id} content={summaryContent}>
-            <button
-              type="button"
-              className={cn(
-                "relative flex h-7 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground",
-                active ? "text-primary" : undefined,
-              )}
-              aria-label={`Open settings for ${displayTitle}`}
-              title={displayTitle}
-              onClick={() => {
-                onOpenWidget(id);
-              }}
-            >
-              <Icon className={cn("h-4 w-4", loading ? "animate-spin" : undefined)} />
-              <span
-                className={cn(
-                  "absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full",
-                  dotClassName,
-                  loading ? "animate-pulse" : undefined,
-                )}
+      <div ref={listViewportRef} className="min-h-0 flex-1 overflow-hidden">
+        <div
+          ref={listContentRef}
+          className="flex flex-col items-center gap-1 will-change-transform"
+          style={{
+            transform: listOffset > 0 ? `translateY(-${listOffset}px)` : undefined,
+          }}
+        >
+          {orderedWidgets.map(({ id, title, props, presentation, runtimeState, widget }) => {
+            const Icon = resolveWorkspaceWidgetIcon(widget);
+            const active = activeInstanceId === id;
+            const executionState = widgetExecution?.getExecutionState(id);
+            const dotClassName = resolveWidgetRailStatusDotClass({
+              executionState,
+              runtimeState,
+            });
+            const loading = isWidgetRailLoading({
+              executionState,
+              runtimeState,
+            });
+            const RailSummary =
+              widget.railSummaryComponent as
+                | ComponentType<{
+                    title: string;
+                    instanceId?: string;
+                    props: Record<string, unknown>;
+                    presentation?: WidgetInstancePresentation;
+                    runtimeState?: Record<string, unknown>;
+                  }>
+                | undefined;
+            const displayTitle = title ?? widget.title;
+            const summaryContent = RailSummary ? (
+              <RailSummary
+                title={displayTitle}
+                instanceId={id}
+                props={(props ?? {}) as Record<string, unknown>}
+                presentation={presentation}
+                runtimeState={runtimeState}
               />
-            </button>
-          </RailHoverCard>
-        );
-      })}
+            ) : (
+              <DefaultWidgetRailSummary
+                title={displayTitle}
+                widget={widget}
+                executionState={executionState}
+                runtimeState={runtimeState}
+              />
+            );
+
+            return (
+              <RailHoverCard key={id} content={summaryContent}>
+                <button
+                  type="button"
+                  className={cn(
+                    "relative flex h-7 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground",
+                    active ? "text-primary" : undefined,
+                  )}
+                  aria-label={`Open settings for ${displayTitle}`}
+                  title={displayTitle}
+                  onClick={() => {
+                    onOpenWidget(id);
+                  }}
+                >
+                  <Icon className={cn("h-4 w-4", loading ? "animate-spin" : undefined)} />
+                  <span
+                    className={cn(
+                      "absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full",
+                      dotClassName,
+                      loading ? "animate-pulse" : undefined,
+                    )}
+                  />
+                </button>
+              </RailHoverCard>
+            );
+          })}
+        </div>
+      </div>
+
+      {scrollSync ? (
+        <div className="flex w-full items-center justify-center pt-2 pb-1">
+          <div
+            className={cn(
+              "relative flex w-5 justify-center",
+              scrollSync.canScroll ? "cursor-pointer" : "opacity-40",
+            )}
+            style={{ height: `${WORKSPACE_RAIL_SCROLL_TRACK_HEIGHT_PX}px` }}
+            onPointerDown={(event) => {
+              const track = event.currentTarget;
+              updateScrollProgressFromPointer(event.clientY, track);
+              track.setPointerCapture(event.pointerId);
+
+              const handlePointerMove = (moveEvent: PointerEvent) => {
+                updateScrollProgressFromPointer(moveEvent.clientY, track);
+              };
+              const handlePointerEnd = (endEvent: PointerEvent) => {
+                track.releasePointerCapture(endEvent.pointerId);
+                track.removeEventListener("pointermove", handlePointerMove);
+                track.removeEventListener("pointerup", handlePointerEnd);
+                track.removeEventListener("pointercancel", handlePointerEnd);
+              };
+
+              track.addEventListener("pointermove", handlePointerMove);
+              track.addEventListener("pointerup", handlePointerEnd);
+              track.addEventListener("pointercancel", handlePointerEnd);
+            }}
+            aria-label="Workspace viewport scroller"
+            title="Move the workspace viewport"
+          >
+            <div
+              className="absolute left-1/2 top-0 h-full -translate-x-1/2"
+              style={{
+                width: "16px",
+                backgroundImage:
+                  "repeating-linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 34%, transparent) 0 2px, transparent 2px 9px)",
+                opacity: scrollSync.canScroll ? 0.9 : 0.45,
+              }}
+            />
+            <div
+              className={cn(
+                "absolute left-1/2 rounded-full transition-[transform,background-color,opacity] duration-150",
+                scrollSync.canScroll ? "bg-primary" : "bg-primary/45",
+              )}
+              style={{
+                width: "18px",
+                height: "2px",
+                boxShadow:
+                  "0 0 0 1px color-mix(in srgb, var(--background) 70%, transparent), 0 0 10px color-mix(in srgb, var(--primary) 32%, transparent)",
+                opacity: scrollSync.canScroll ? 1 : 0.7,
+                transform: `translate(-50%, ${thumbOffsetPx + WORKSPACE_RAIL_SCROLL_THUMB_HEIGHT_PX / 2}px)`,
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
     </aside>
   );
 }

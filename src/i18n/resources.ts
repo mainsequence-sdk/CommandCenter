@@ -18,9 +18,9 @@ export const resources = {
         expandSidebar: "Expand {{app}}",
       },
       userMenu: {
-        admin: "Admin",
+        admin: "Organization Admin",
         open: "Open user menu",
-        openAdmin: "Open admin menu",
+        openAdmin: "Open organization admin menu",
         settings: "Settings",
         adminSettings: "Admin Settings",
         adminPanel: "Admin Panel",
@@ -52,8 +52,9 @@ export const resources = {
         notificationShellReadySubtitle: "Branding, theme, and auth settings are active.",
         notificationSearchReadyTitle: "Command search is ready",
         notificationSearchReadySubtitle: "Use Command+K or Control+K to jump across apps.",
-        notificationAdminReadyTitle: "Admin surfaces available",
-        notificationAdminReadySubtitle: "Access & RBAC and Admin are ready.",
+        notificationAdminReadyTitle: "Organization admin surfaces available",
+        notificationAdminReadySubtitle:
+          "Access & RBAC and Organization Admin are ready. Admin Settings requires platform-admin access.",
         notificationUserReadyTitle: "User settings available",
         notificationUserReadySubtitle: "Open the left user menu to manage your preferences.",
       },
@@ -73,7 +74,7 @@ export const resources = {
         adminTitle: "Admin Settings",
         userTitle: "User Settings",
         adminDescription:
-          "Shell configuration, environment visibility, and operator preferences.",
+          "Platform-level auth visibility, configuration diagnostics, and superuser settings.",
         userDescription: "Personal preferences and command center display options.",
         generalNav: "General",
         authNav: "Auth",
@@ -84,7 +85,7 @@ export const resources = {
         accountDescription: "Current session identity and access profile.",
         authTitle: "Auth",
         authDescription:
-          "JWT endpoints and the RBAC group mapping that resolves backend roles into the shell Admin and User application groups.",
+          "JWT endpoints and the read-only mapping from backend-owned org-admin and platform-admin fields into the shell session.",
         configurationTitle: "Configuration",
         configurationDescription:
           "Read-only visibility into the YAML-backed application configuration loaded by this command center.",
@@ -120,12 +121,13 @@ export const resources = {
           "This endpoint is queried on demand to show the current RBAC groups returned for the signed-in session.",
         authRoleGroupMapping: "Platform access mapping",
         authRoleGroupMappingHelp:
-          "This config key maps backend RBAC groups into the shell Admin and User application groups.",
-        authAdminGroup: "Admin RBAC group",
-        authAdminGroupHelp: "If this backend RBAC group is present, the shell resolves the user as Admin.",
-        authUserGroup: "User application group",
+          "The frontend maps backend-owned auth fields into shell identity, then resolves shell permissions from the shell-access endpoint.",
+        authAdminGroup: "User-details groups field",
+        authAdminGroupHelp:
+          "Field path that returns RBAC group objects for the authenticated user for diagnostics and display.",
+        authUserGroup: "Shell access source",
         authUserGroupHelp:
-          "This mapping is the non-admin fallback the shell uses when no admin RBAC group matches.",
+          "Organization-admin shell access now comes from shell-access effective_permissions, not from auth groups.",
         authUserFallback: "Fallback for all other authenticated users",
         authCurrentGroups: "Current RBAC groups",
         authCurrentGroupsHelp:
@@ -229,9 +231,9 @@ export const resources = {
         expandSidebar: "Expandir {{app}}",
       },
       userMenu: {
-        admin: "Admin",
+        admin: "Administración de la organización",
         open: "Abrir menú de usuario",
-        openAdmin: "Abrir menú de administrador",
+        openAdmin: "Abrir menú de administración de la organización",
         settings: "Configuración",
         adminSettings: "Configuración de administrador",
         adminPanel: "Panel de administración",
@@ -266,8 +268,9 @@ export const resources = {
         notificationSearchReadyTitle: "La búsqueda por comandos está lista",
         notificationSearchReadySubtitle:
           "Usa Command+K o Control+K para saltar entre apps y superficies.",
-        notificationAdminReadyTitle: "Superficies de admin disponibles",
-        notificationAdminReadySubtitle: "Access & RBAC y Admin ya están listos.",
+        notificationAdminReadyTitle: "Superficies de administración de la organización disponibles",
+        notificationAdminReadySubtitle:
+          "Access & RBAC y Administración de la organización ya están listos. Admin Settings requiere acceso de platform-admin.",
         notificationUserReadyTitle: "Configuración de usuario disponible",
         notificationUserReadySubtitle:
           "Abre el menú de usuario izquierdo para gestionar tus preferencias.",
@@ -437,9 +440,9 @@ export const resources = {
         expandSidebar: "{{app}} erweitern",
       },
       userMenu: {
-        admin: "Admin",
+        admin: "Organisationsverwaltung",
         open: "Benutzermenü öffnen",
-        openAdmin: "Admin-Menü öffnen",
+        openAdmin: "Menü für Organisationsverwaltung öffnen",
         settings: "Einstellungen",
         adminSettings: "Admin-Einstellungen",
         adminPanel: "Admin-Panel",
@@ -474,8 +477,9 @@ export const resources = {
         notificationSearchReadyTitle: "Befehlssuche ist bereit",
         notificationSearchReadySubtitle:
           "Nutze Command+K oder Control+K, um zwischen Apps und Flächen zu springen.",
-        notificationAdminReadyTitle: "Admin-Flächen verfügbar",
-        notificationAdminReadySubtitle: "Access & RBAC und Admin sind bereit.",
+        notificationAdminReadyTitle: "Flächen für Organisationsverwaltung verfügbar",
+        notificationAdminReadySubtitle:
+          "Access & RBAC und Organisationsverwaltung sind bereit. Admin Settings erfordert Platform-Admin-Zugriff.",
         notificationUserReadyTitle: "Benutzereinstellungen verfügbar",
         notificationUserReadySubtitle:
           "Öffne das linke Benutzermenü, um deine Präferenzen zu verwalten.",
@@ -646,9 +650,9 @@ export const resources = {
         expandSidebar: "Développer {{app}}",
       },
       userMenu: {
-        admin: "Admin",
+        admin: "Administration de l'organisation",
         open: "Ouvrir le menu utilisateur",
-        openAdmin: "Ouvrir le menu admin",
+        openAdmin: "Ouvrir le menu d'administration de l'organisation",
         settings: "Paramètres",
         adminSettings: "Paramètres administrateur",
         adminPanel: "Panneau d’administration",
@@ -684,8 +688,9 @@ export const resources = {
         notificationSearchReadyTitle: "La recherche par commande est prête",
         notificationSearchReadySubtitle:
           "Utilisez Command+K ou Control+K pour naviguer entre apps et surfaces.",
-        notificationAdminReadyTitle: "Surfaces admin disponibles",
-        notificationAdminReadySubtitle: "Access & RBAC et Admin sont prêts.",
+        notificationAdminReadyTitle: "Surfaces d'administration de l'organisation disponibles",
+        notificationAdminReadySubtitle:
+          "Access & RBAC et Administration de l'organisation sont prêts. Admin Settings exige un accès platform-admin.",
         notificationUserReadyTitle: "Paramètres utilisateur disponibles",
         notificationUserReadySubtitle:
           "Ouvrez le menu utilisateur de gauche pour gérer vos préférences.",
@@ -858,9 +863,9 @@ export const resources = {
         expandSidebar: "Espandi {{app}}",
       },
       userMenu: {
-        admin: "Admin",
+        admin: "Amministrazione organizzazione",
         open: "Apri menu utente",
-        openAdmin: "Apri menu admin",
+        openAdmin: "Apri menu amministrazione organizzazione",
         settings: "Impostazioni",
         adminSettings: "Impostazioni admin",
         adminPanel: "Pannello admin",
@@ -895,8 +900,9 @@ export const resources = {
         notificationSearchReadyTitle: "La ricerca comandi è pronta",
         notificationSearchReadySubtitle:
           "Usa Command+K o Control+K per saltare tra app e superfici.",
-        notificationAdminReadyTitle: "Superfici admin disponibili",
-        notificationAdminReadySubtitle: "Access & RBAC e Admin sono pronti.",
+        notificationAdminReadyTitle: "Superfici di amministrazione organizzazione disponibili",
+        notificationAdminReadySubtitle:
+          "Access & RBAC e Amministrazione organizzazione sono pronti. Admin Settings richiede accesso platform-admin.",
         notificationUserReadyTitle: "Impostazioni utente disponibili",
         notificationUserReadySubtitle:
           "Apri il menu utente a sinistra per gestire le tue preferenze.",

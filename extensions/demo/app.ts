@@ -33,7 +33,7 @@ const financialMarketsMonitorDashboard: DashboardDefinition = {
   description: "Market monitoring workspace with KPIs, charts, portfolio state, and live-looking feeds.",
   category: "Demo",
   source: "demo",
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["main_sequence_markets:view"],
   widgets: [
     {
       id: "overview-kpis",
@@ -86,7 +86,7 @@ export const demoApp: AppDefinition = {
   description: "Mock application suite with industry-specific demo surfaces.",
   source: "demo",
   icon: LayoutDashboard,
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["workspaces:view"],
   defaultSurfaceId: "overview",
   surfaces: [
     {
@@ -96,7 +96,7 @@ export const demoApp: AppDefinition = {
       description: "Landing page for the demo application, workspaces, and Main Sequence widget story.",
       kind: "page",
       navigationSection: financialMarketsSection,
-      requiredPermissions: ["dashboard:view"],
+      requiredPermissions: ["workspaces:view"],
       component: DemoOverviewPage,
     },
     {
@@ -106,7 +106,7 @@ export const demoApp: AppDefinition = {
       description: "Financial-markets monitoring surface powered by mock widgets and reusable layouts.",
       kind: "dashboard",
       navigationSection: financialMarketsSection,
-      requiredPermissions: ["dashboard:view"],
+      requiredPermissions: ["main_sequence_markets:view"],
       dashboard: financialMarketsMonitorDashboard,
     },
     {
@@ -116,7 +116,7 @@ export const demoApp: AppDefinition = {
       description: "Mock supply-chain operating view for lane risk, facilities, and supplier exposure.",
       kind: "page",
       navigationSection: supplyChainSection,
-      requiredPermissions: ["dashboard:view"],
+      requiredPermissions: ["workspaces:view"],
       component: SupplyChainControlTowerPage,
     },
     {
@@ -126,7 +126,7 @@ export const demoApp: AppDefinition = {
       description: "Mock healthcare operations view for patient flow, staffing, and unit pressure.",
       kind: "page",
       navigationSection: healthcareSection,
-      requiredPermissions: ["dashboard:view"],
+      requiredPermissions: ["workspaces:view"],
       component: HealthcareOperationsPage,
     },
   ],

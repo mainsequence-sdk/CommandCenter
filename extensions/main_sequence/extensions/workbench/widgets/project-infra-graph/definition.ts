@@ -18,7 +18,7 @@ export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProj
   responsive: {
     minWidthPx: 560,
   },
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["main_sequence_foundry:view"],
   tags: ["main-sequence", "project", "infra", "graph", "resources", "releases"],
   exampleProps: {
     projectId: 81,

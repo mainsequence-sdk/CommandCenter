@@ -1,4 +1,4 @@
-export const builtinAppRoles = ["user", "admin"] as const;
+export const builtinAppRoles = ["user", "org_admin", "platform_admin"] as const;
 
 export type BuiltinAppRole = (typeof builtinAppRoles)[number];
 export type AppRole = string;
@@ -22,6 +22,9 @@ export interface AppUser {
   plan?: string;
   team: string;
   role: AppRole;
+  organizationRole?: string;
+  platformPermissions?: Permission[];
+  isPlatformAdmin?: boolean;
   permissions: Permission[];
   groups?: string[];
   dateJoined?: string;

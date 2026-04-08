@@ -8,7 +8,7 @@ export const priceChartWidget = defineWidget<{ symbol?: string }>({
   category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",
-  requiredPermissions: ["marketdata:read"],
+  requiredPermissions: ["main_sequence_markets:view"],
   tags: ["main-sequence", "markets", "market", "price-chart", "lightweight-charts"],
   exampleProps: { symbol: "AAPL" },
   component: PriceChartWidget,

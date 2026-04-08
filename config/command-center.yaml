@@ -55,7 +55,10 @@ auth:
       email: email
       team: team
       role: role
+      organization_role: organization_role
       permissions: permissions
+      platform_permissions: platform_permissions
+      is_platform_admin: is_platform_admin
       date_joined: date_joined
       is_active: is_active
       last_login: last_login
@@ -63,29 +66,33 @@ auth:
       organization_teams: organization_teams
     user_details:
       url: /user/api/user/get_user_details/
-      groups_url: /user/api/user/get_rbac_groups/
       response_mapping:
         user_id: id
         name: name
         email: email
         team: team
         role: role
+        organization_role: organization_role
         permissions: permissions
-        groups: groups
+        platform_permissions: platform_permissions
+        is_platform_admin: is_platform_admin
         date_joined: date_joined
         is_active: is_active
         last_login: last_login
         mfa_enabled: mfa_enabled
         organization_teams: organization_teams
-      role_groups:
-        admin: Organization Admin
-        user: ""
 
 access_rbac:
   users:
     list_url: /user/api/user/
-  groups:
-    list_url: /user/api/user/get_rbac_groups/
+
+command_center_access:
+  access_policies:
+    list_url: /api/v1/command_center/access-policies/
+    detail_url: /api/v1/command_center/access-policies/{id}/
+  users:
+    shell_access_url: /api/v1/command_center/users/{user_id}/shell-access/
+    shell_access_preview_url: /api/v1/command_center/users/{user_id}/shell-access/preview/
 
 main_sequence:
   endpoint: /orm/api/pods/

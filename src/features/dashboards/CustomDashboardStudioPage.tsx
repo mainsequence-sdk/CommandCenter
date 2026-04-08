@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import GridLayout, {
   verticalCompactor,
   type Layout as ReactGridLayoutLayout,
@@ -1254,7 +1255,9 @@ export function CustomDashboardStudioPage({
 }: {
   withRuntimeProviders?: boolean;
 } = {}) {
+  const navigate = useNavigate();
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const canvasScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const {
     user,
     permissions,
@@ -1292,6 +1295,10 @@ export function CustomDashboardStudioPage({
   const [requestDebugOpen, setRequestDebugOpen] = useState(false);
   const [savedWidgetLibraryOpen, setSavedWidgetLibraryOpen] = useState(false);
   const [savedWidgetSaveTargetId, setSavedWidgetSaveTargetId] = useState<string | null>(null);
+  const [canvasScrollSync, setCanvasScrollSync] = useState({
+    progress: 0,
+    canScroll: false,
+  });
   const editMode = selectedWorkspaceEditing;
   const [measuredGridMetrics, setMeasuredGridMetrics] = useState<GridMetrics | null>(null);
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
@@ -2478,6 +2485,7 @@ export function CustomDashboardStudioPage({
           {
             id: instance.id,
             title: instance.title,
+            layout: instance.layout,
             props: instance.props,
             presentation: instance.presentation,
             runtimeState: instance.runtimeState,
@@ -2496,6 +2504,87 @@ export function CustomDashboardStudioPage({
       rowHeight: runtimeRowHeight,
     },
   );
+
+  const handleCanvasScrollProgressChange = useCallback((nextProgress: number) => {
+    const scrollElement = canvasScrollContainerRef.current;
+
+    if (!scrollElement) {
+      return;
+    }
+
+    const maxScrollTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+    const clampedProgress = Math.min(1, Math.max(0, nextProgress));
+    scrollElement.scrollTop = maxScrollTop * clampedProgress;
+  }, []);
+
+  useLayoutEffect(() => {
+    const scrollElement = canvasScrollContainerRef.current;
+
+    if (!scrollElement || typeof window === "undefined") {
+      setCanvasScrollSync({
+        progress: 0,
+        canScroll: false,
+      });
+      return undefined;
+    }
+
+    const element = scrollElement;
+
+    let frameId = 0;
+
+    function updateScrollSync() {
+      const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight);
+      const nextCanScroll = maxScrollTop > 0;
+      const nextProgress = nextCanScroll ? element.scrollTop / maxScrollTop : 0;
+
+      setCanvasScrollSync((current) => {
+        if (
+          current.canScroll === nextCanScroll &&
+          Math.abs(current.progress - nextProgress) < 0.001
+        ) {
+          return current;
+        }
+
+        return {
+          progress: nextProgress,
+          canScroll: nextCanScroll,
+        };
+      });
+    }
+
+    function scheduleUpdate() {
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(updateScrollSync);
+    }
+
+    scheduleUpdate();
+
+    const resizeObserver = new ResizeObserver(() => {
+      scheduleUpdate();
+    });
+
+    resizeObserver.observe(scrollElement);
+    Array.from(element.children).forEach((child) => {
+      resizeObserver.observe(child);
+    });
+    element.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      element.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+    };
+  }, [
+    canvasMinHeight,
+    dashboardMenuHidden,
+    editMode,
+    layoutKind,
+    resolvedDashboard?.widgets.length,
+    visibleCompanionCandidates.length,
+    widgetSettingsOpen,
+  ]);
 
   const content = (
     <div
@@ -2524,6 +2613,11 @@ export function CustomDashboardStudioPage({
             widgets={railWidgets}
             activeInstanceId={selectedInstanceId}
             topOffsetClassName="top-4"
+            scrollSync={canvasScrollSync.canScroll ? {
+              progress: canvasScrollSync.progress,
+              canScroll: canvasScrollSync.canScroll,
+              onProgressChange: handleCanvasScrollProgressChange,
+            } : undefined}
             onOpenWidget={(instanceId) => {
               setSelectedInstanceId(instanceId);
               openWidgetSettings(instanceId);
@@ -2584,6 +2678,7 @@ export function CustomDashboardStudioPage({
         </div>
 
         <div
+          ref={canvasScrollContainerRef}
           className={cn(
             "absolute inset-0 overflow-auto pr-4 pb-4 transition-[padding] duration-200",
             editMode ? "pl-12" : "pl-4",
@@ -2635,16 +2730,6 @@ export function CustomDashboardStudioPage({
                       <Badge variant="neutral" className="px-2 py-0.5 text-[10px] tracking-[0.14em]">
                         Syncing
                       </Badge>
-                    ) : null}
-                    {editMode ? (
-                      <WorkspaceToolbarButton
-                        title="Add saved widget"
-                        onClick={() => {
-                          setSavedWidgetLibraryOpen(true);
-                        }}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </WorkspaceToolbarButton>
                     ) : null}
                     {editMode ? (
                       <WorkspaceToolbarButton
@@ -3142,6 +3227,28 @@ export function CustomDashboardStudioPage({
                     Clear filters
                   </Button>
                 ) : null}
+              </div>
+
+              <div className="mt-3 rounded-[18px] border border-border/70 bg-background/32 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground">Saved widgets</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Open the saved widgets library page to browse and manage reusable widget instances and groups.
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => {
+                      navigate("/app/workspace-studio/widgets");
+                    }}
+                  >
+                    <BookOpenText className="h-3.5 w-3.5" />
+                    Open
+                  </Button>
+                </div>
               </div>
             </div>
 

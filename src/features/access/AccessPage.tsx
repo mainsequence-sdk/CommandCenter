@@ -86,7 +86,7 @@ export function AccessPage() {
     },
     {
       label: "Access Explorer",
-      requiredPermissions: ["rbac:view"],
+      requiredPermissions: ["org_admin:view"],
     },
   ];
   const accessibleActions = utilityActions.filter((action) =>
@@ -216,9 +216,9 @@ export function AccessPage() {
           <CardHeader>
             <CardTitle>Access class matrix</CardTitle>
             <CardDescription>
-              The current shell only keeps two built-in access classes: Admin and User. The live
-              session can still arrive through configured JWT claims or explicit backend
-              permissions.
+              The current shell keeps three built-in access classes: User, Organization Admin, and
+              Platform Admin. The live session can still arrive through configured JWT claims or
+              explicit backend permissions.
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">

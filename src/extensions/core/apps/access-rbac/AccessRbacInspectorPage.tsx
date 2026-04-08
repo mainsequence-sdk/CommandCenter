@@ -6,7 +6,7 @@ export function AccessRbacInspectorPage() {
   return (
     <AccessRbacSurfaceLayout
       title="User access inspector"
-      description="Search the user directory and inspect how one specific user resolves through roles, permissions, and effective shell access."
+      description="Search the user directory, assign visible shell policies, apply direct grants or denies, and inspect the resulting effective Command Center access for one user."
     >
       <div className="max-w-6xl">
         <UserAccessInspectorPanel sessionUser={sessionUser} />

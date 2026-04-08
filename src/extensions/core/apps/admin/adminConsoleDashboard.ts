@@ -6,7 +6,7 @@ export const adminConsoleDashboard: DashboardDefinition = {
   description: "Operational view for platform owners and compliance admins.",
   category: "Operations",
   source: "core",
-  requiredPermissions: ["rbac:view"],
+  requiredPermissions: ["org_admin:view"],
   widgets: [
     {
       id: "admin-curve-ust",

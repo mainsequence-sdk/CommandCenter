@@ -17,6 +17,9 @@ Shared shell navigation and chrome for the Command Center application.
 - Clicking the current-app chip should navigate to the app home route via `getAppPath(app.id)`.
 - Surface-level navigation stays in `AppSurfaceSelector.tsx`; it is the control for switching within the current app.
 - App metadata must not interrupt normal navigation flows with a modal on the primary app-title click path.
+- The topbar now separates the `Organization Admin` menu from `Admin Settings`.
+- `Organization Admin` is organization-scoped navigation. `Admin Settings` is a separate
+  platform-admin-only modal and must not be exposed through the org-admin menu.
 
 ## Maintenance Notes
 

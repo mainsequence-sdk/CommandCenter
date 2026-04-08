@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { Rows3, Search, ShieldCheck } from "lucide-react";
+import { Rows3, Search, Settings2, ShieldCheck } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -19,7 +19,11 @@ import {
   getSurfacePath,
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
-import { hasAnyPermission } from "@/auth/permissions";
+import {
+  hasAnyPermission,
+  hasOrganizationAdminAccess,
+  hasPlatformAdminAccess,
+} from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +49,7 @@ export function Topbar() {
   const searchRef = useRef<HTMLInputElement | null>(null);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const searchPanelRef = useRef<HTMLDivElement | null>(null);
-  const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
+  const [platformSettingsOpen, setPlatformSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchPaletteMode, setSearchPaletteMode] = useState(false);
   const [searchPanelStyle, setSearchPanelStyle] = useState<CSSProperties>();
@@ -66,7 +70,8 @@ export function Topbar() {
   const setWorkspaceCanvasMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
   const initializeWorkspaceStudio = useCustomWorkspaceStudioStore((state) => state.initialize);
   const workspaceListItems = useCustomWorkspaceStudioStore((state) => state.workspaceListItems);
-  const isAdmin = user?.role === "admin";
+  const canAccessOrganizationAdmin = hasOrganizationAdminAccess(user);
+  const canAccessPlatformAdminSettings = hasPlatformAdminAccess(user);
   const workspaceRouteParams = useMemo(
     () => new URLSearchParams(location.search),
     [location.search],
@@ -444,13 +449,12 @@ export function Topbar() {
 
         <NotificationsMenu />
 
-        {isAdmin ? (
+        {canAccessOrganizationAdmin ? (
           <>
             <AdminMenu
               actions={adminMenuActions}
               align="end"
               placement="bottom"
-              settingsLabel={t("userMenu.adminSettings")}
               triggerLabel={t("userMenu.openAdmin")}
               triggerClassName="min-w-0 gap-2 rounded-md border border-border/80 bg-card/70 px-3 py-1.5 text-left text-topbar-foreground transition-colors hover:bg-muted/50"
               triggerContent={
@@ -459,16 +463,27 @@ export function Topbar() {
                   <span className="text-sm font-medium">{t("userMenu.admin")}</span>
                 </>
               }
-              onOpenSettings={() => {
-                setAdminSettingsOpen(true);
-              }}
             />
+            {canAccessPlatformAdminSettings ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="min-w-0 gap-2 rounded-md border border-border/80 bg-card/70 px-3 py-1.5 text-topbar-foreground transition-colors hover:bg-muted/50"
+                onClick={() => {
+                  setPlatformSettingsOpen(true);
+                }}
+              >
+                <Settings2 className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{t("userMenu.adminSettings")}</span>
+              </Button>
+            ) : null}
             <SettingsDialog
-              mode="admin"
-              open={adminSettingsOpen}
+              mode="platform"
+              open={platformSettingsOpen}
               user={user ?? undefined}
               onClose={() => {
-                setAdminSettingsOpen(false);
+                setPlatformSettingsOpen(false);
               }}
             />
           </>

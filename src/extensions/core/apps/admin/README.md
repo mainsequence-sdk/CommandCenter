@@ -1,11 +1,11 @@
-# Admin
+# Organization Admin
 
 This app is owned by the core extension.
 
 Keep the admin app implementation in this folder:
 
 - shared in-app navigation and surface chrome
-- organization-facing admin tools and future operator surfaces that belong to the built-in admin domain
+- organization-facing admin tools that belong to the built-in organization-admin domain
 
 Registration stays in:
 
@@ -33,6 +33,8 @@ Maintenance notes:
 - Add new admin surfaces here instead of reviving `src/features/admin/`
 - Keep the app extension-owned so admin navigation, favorites, and search stay consistent with
   `Access & RBAC`
+- This app is for organization-scoped administration only. Platform-only controls belong in the
+  separate `Admin Settings` modal, not in this app.
 - Legacy `/app/admin-panel` links should continue redirecting into this app
 - Keep organization user bulk actions aligned with `/user/api/user/` backend endpoints and
   their confirmation semantics

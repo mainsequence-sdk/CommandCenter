@@ -8,7 +8,7 @@ export const positionsTableWidget = defineWidget<Record<string, unknown>>({
   category: "Main Sequence Markets",
   kind: "table",
   source: "main_sequence_markets",
-  requiredPermissions: ["portfolio:read"],
+  requiredPermissions: ["main_sequence_markets:view"],
   tags: ["main-sequence", "markets", "portfolio", "positions", "ag-grid", "table"],
   exampleProps: {},
   component: PositionsTableWidget,

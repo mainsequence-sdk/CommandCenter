@@ -6,7 +6,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getAppPath } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
-import { normalizeBuiltinRole } from "@/auth/permissions";
+import { hasOrganizationAdminAccess } from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -360,7 +360,7 @@ export function MainSequenceClusterDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const userRole = useAuthStore((state) => state.session?.user.role ?? null);
+  const user = useAuthStore((state) => state.session?.user ?? null);
   const clusterId = Number(rawClusterId ?? "");
   const isClusterIdValid = Number.isFinite(clusterId) && clusterId > 0;
   const [desiredNodeCountValue, setDesiredNodeCountValue] = useState("");
@@ -369,7 +369,7 @@ export function MainSequenceClusterDetailPage() {
   const activeTab = normalizeClusterDetailTab(rawTab);
   const namespaceFilter = normalizeQueryParam(searchParams.get("namespace"));
   const nodePoolFilter = normalizeQueryParam(searchParams.get("node_pool"));
-  const showScaleControl = userRole ? normalizeBuiltinRole(userRole) === "admin" : true;
+  const showScaleControl = user ? hasOrganizationAdminAccess(user) : true;
   const desiredNodeCountInput = desiredNodeCountValue.trim();
   const scaleValidationError = useMemo(() => {
     if (!desiredNodeCountInput) {

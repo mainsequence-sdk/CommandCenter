@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 
 import { getAccessiblePrimaryApps } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
-import { getRoleLabel, hasAnyPermission } from "@/auth/permissions";
+import { getAccessProfileLabel, hasAnyPermission } from "@/auth/permissions";
 import { BrandWordmark } from "@/components/brand/BrandWordmark";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { Avatar } from "@/components/ui/avatar";
@@ -171,8 +171,7 @@ export function Sidebar() {
   const chatFeature = useOptionalChatFeature();
 
   const userName = user?.name?.trim() || app.name;
-  const userRole = user?.role?.trim() || "User";
-  const userRoleLabel = getRoleLabel(userRole);
+  const userRoleLabel = getAccessProfileLabel(user);
   const permissions = user?.permissions ?? [];
   const assistantShortcutLabel =
     typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)

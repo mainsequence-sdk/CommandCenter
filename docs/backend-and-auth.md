@@ -64,7 +64,9 @@ through the `workspaces.*` config block.
 
 ## Authentication model
 
-By default, the login surface uses a JWT-based auth flow: it posts credentials to the configured token endpoint, then fetches user details and stores the resolved session locally.
+By default, the login surface uses a two-step JWT-based auth flow: it posts credentials to the
+configured token endpoint, fetches user details for identity, then fetches the current user's
+Command Center shell-access record and stores the resolved session locally.
 
 For local development only, `VITE_BYPASS_AUTH=true` switches the login surface back to a mock access-class picker that bypasses backend auth entirely.
 
@@ -81,6 +83,9 @@ Important distinction:
 - JWT/session storage is auth/session state, not product preference state
 - shell preferences use a separate optional backend integration and are safe to leave browser-local in development
 - workspace persistence is also a separate optional integration and can stay browser-local until the backend endpoints are ready
+- organization-admin navigation and platform-only Admin Settings are separate access concerns
+- hiding the Admin Settings modal in the frontend is not the security boundary; the backend must
+  enforce platform-admin authorization on every sensitive endpoint
 
 ## JWT configuration contract
 
@@ -107,7 +112,10 @@ auth:
       email: email
       team: team
       role: role
+      organization_role: organization_role
       permissions: permissions
+      platform_permissions: platform_permissions
+      is_platform_admin: is_platform_admin
     user_details:
       url: /user/api/user/get_user_details/
       response_mapping:
@@ -116,23 +124,140 @@ auth:
         email: email
         team: team
         role: role
+        organization_role: organization_role
         permissions: permissions
-        groups: groups
-      role_groups:
-        admin: Organization Admin
-        user:
+        platform_permissions: platform_permissions
+        is_platform_admin: is_platform_admin
 ```
 
 Important behavior:
 
 - `token_url` and `refresh_url` accept relative or absolute URLs
 - `user_details.url` is fetched with the bearer access token immediately after login and refresh
-- stored JWT sessions are re-authorized on app boot only after `user_details.url` succeeds
+- `/api/v1/command_center/users/<user_id>/shell-access/` is then fetched and its
+  `effective_permissions` become the shell source of truth
+- stored JWT sessions are rehydrated against shell-access on app boot
 - request field names are configurable so you can send `username` instead of `email` if needed
 - response field paths support dotted lookups such as `data.access`
 - RBAC fields can be read from either the token payload, the token response payload, or the user-details payload
-- built-in shell access classes are derived from backend RBAC group mappings; with the default config, membership in `Organization Admin` maps to `admin`
-- if `permissions` is missing, the frontend falls back to the built-in `admin` / `user` permission matrix
+- organization-admin and platform-admin access are now backend-owned values
+- the frontend config maps the user-details identity fields and the platform-admin fields
+- the frontend no longer treats `config/command-center.yaml` as the source of truth for organization policy
+- auth groups can still be displayed for reference, but they do not unlock org-admin shell access
+- the shell now resolves org-admin access from `effective_permissions` returned by the dedicated
+  shell-access endpoint
+
+## Command Center shell-access contract
+
+Identity and Command Center shell visibility are now separate contracts.
+
+- `/user/api/user/get_user_details/` provides identity/profile data for the signed-in user
+- `/api/v1/command_center/access-policies/` owns reusable shell policy definitions
+- `/api/v1/command_center/users/<user_id>/shell-access/` owns per-user shell policy assignments
+  plus direct permission grants and denies
+
+Configured endpoints live in `config/command-center.yaml` under `command_center_access`.
+
+Policy endpoints:
+
+- `GET /api/v1/command_center/access-policies/`
+- `POST /api/v1/command_center/access-policies/`
+- `GET /api/v1/command_center/access-policies/<id>/`
+- `PATCH /api/v1/command_center/access-policies/<id>/`
+- `DELETE /api/v1/command_center/access-policies/<id>/`
+
+Policy response shape:
+
+```json
+{
+  "id": 7,
+  "slugified_name": "research-analyst",
+  "label": "Research Analyst",
+  "description": "Workspaces and Main Sequence Markets access without admin tools.",
+  "permissions": [
+    "workspaces:view",
+    "main_sequence_markets:view",
+    "widget.catalog:view"
+  ],
+  "is_system": false,
+  "is_editable": true
+}
+```
+
+Important behavior:
+
+- the frontend uses `slugified_name` as the stable policy key
+- policy detail routes still use the integer `id`
+- the org-admin-facing UI hides backend-enforced admin-class policies such as `admin` and
+  `platform-admin`
+- the built-in `light-user`, `dev-user`, and `org-admin-user` policies are expected to be created
+  by the backend and are treated as read-only in the frontend
+
+Shell-access endpoints:
+
+- `GET /api/v1/command_center/users/<user_id>/shell-access/`
+- `PATCH /api/v1/command_center/users/<user_id>/shell-access/`
+- `POST /api/v1/command_center/users/<user_id>/shell-access/preview/`
+
+Shell-access response shape:
+
+```json
+{
+  "user_id": 42,
+  "policy_ids": ["research-analyst"],
+  "grant_permissions": ["orders:read"],
+  "deny_permissions": [],
+  "derived": {
+    "is_org_admin": true,
+    "groups": [
+      {
+        "id": 3,
+        "name": "Organization Admin",
+        "normalized_name": "org_admin"
+      }
+    ]
+  },
+  "effective_permissions": [
+    "workspaces:view",
+    "main_sequence_markets:view",
+    "widget.catalog:view",
+    "orders:read",
+    "org_admin:view"
+  ]
+}
+```
+
+Write shapes:
+
+```json
+{
+  "slugified_name": "research-analyst",
+  "label": "Research Analyst",
+  "description": "Workspaces and Main Sequence Markets access without admin tools.",
+  "permissions": [
+    "workspaces:view",
+    "main_sequence_markets:view",
+    "widget.catalog:view"
+  ]
+}
+```
+
+```json
+{
+  "policy_ids": ["research-analyst", "ops-reviewer"],
+  "grant_permissions": ["orders:read"],
+  "deny_permissions": ["orders:submit"]
+}
+```
+
+Important behavior:
+
+- login and refresh now resolve shell access from the dedicated shell-access endpoint
+- User Inspector writes only to the dedicated shell-access endpoint
+- it does not patch `/user/api/user/<id>/`
+- apps, surfaces, widgets, and utility actions remain derived from `effective_permissions`
+- hidden or system policy ids returned by the backend are preserved in the write payload even when
+  they are not viewable in the organization-admin UI
 
 ## Preferences endpoint contract
 

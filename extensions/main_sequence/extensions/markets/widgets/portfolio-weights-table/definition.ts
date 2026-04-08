@@ -14,7 +14,7 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
   category: "Main Sequence Markets",
   kind: "table",
   source: "main_sequence_markets",
-  requiredPermissions: ["marketdata:read"],
+  requiredPermissions: ["main_sequence_markets:view"],
   tags: ["portfolio", "weights", "positions", "tanstack"],
   exampleProps: {
     portfolioId: 1,

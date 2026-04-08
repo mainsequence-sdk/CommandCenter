@@ -1,4 +1,4 @@
-import { ROLE_PERMISSIONS } from "@/auth/permissions";
+import { getPermissionsForRole } from "@/auth/permissions";
 import type { AppRole, AppUser, OrganizationTeam, Permission } from "@/auth/types";
 import { commandCenterConfig } from "@/config/command-center";
 
@@ -16,6 +16,9 @@ type MockAuthUserRecord = {
   last_name?: string;
   team: string;
   role: AppRole;
+  organization_role?: string;
+  platform_permissions?: Permission[];
+  is_platform_admin?: boolean;
   permissions: Permission[];
   groups?: string[];
   date_joined?: string;
@@ -86,6 +89,9 @@ function buildMockClaims(user: MockAuthUserRecord, expiresAtSeconds: number) {
     [claimMapping.team]: user.team,
     [claimMapping.role]: user.role,
     [claimMapping.permissions]: user.permissions,
+    [claimMapping.organizationRole]: user.organization_role ?? "",
+    [claimMapping.platformPermissions]: user.platform_permissions ?? [],
+    [claimMapping.isPlatformAdmin]: user.is_platform_admin ?? false,
     [claimMapping.dateJoined]: user.date_joined ?? "2026-03-26T08:00:00Z",
     [claimMapping.isActive]: user.is_active ?? true,
     [claimMapping.lastLogin]: user.last_login ?? new Date().toISOString(),
@@ -138,6 +144,9 @@ function buildUserDetails(user: MockAuthUserRecord) {
     last_name: user.last_name ?? "",
     team: user.team,
     role: user.role,
+    organization_role: user.organization_role ?? "",
+    platform_permissions: user.platform_permissions ?? [],
+    is_platform_admin: user.is_platform_admin ?? false,
     permissions: user.permissions,
     groups: user.groups ?? [],
     date_joined: user.date_joined ?? "2026-03-26T08:00:00Z",
@@ -208,6 +217,19 @@ function normalizeMockAuthPathname(url: string) {
   return normalizedPathname || "/";
 }
 
+function buildConfigPath(
+  template: string,
+  params: Record<string, string | number>,
+) {
+  return template.replace(/\{([^}]+)\}/g, (match, key) => {
+    if (!(key in params)) {
+      return match;
+    }
+
+    return encodeURIComponent(String(params[key]));
+  });
+}
+
 export function handleMockJwtPost(
   url: string,
   payload: Record<string, unknown>,
@@ -270,23 +292,40 @@ export function handleMockJwtAuthorizedGet(
   accessToken: string,
 ): Record<string, unknown> | undefined {
   const pathname = normalizeMockAuthPathname(url);
+  const user = resolveMockUserFromAccessToken(accessToken);
   const detailsPathname = new URL(
     commandCenterConfig.auth.jwt.userDetails.url,
     window.location.origin,
   ).pathname;
-  const groupsPathname = new URL(
-    commandCenterConfig.auth.jwt.userDetails.groupsUrl,
-    window.location.origin,
-  ).pathname;
+  const shellAccessPathname = user
+    ? new URL(
+        buildConfigPath(commandCenterConfig.commandCenterAccess.users.shellAccessUrl, {
+          user_id: user.id,
+        }),
+        window.location.origin,
+      ).pathname
+    : "";
 
-  if (![detailsPathname, groupsPathname].includes(pathname)) {
+  if (![detailsPathname, shellAccessPathname].includes(pathname)) {
     return undefined;
   }
 
-  const user = resolveMockUserFromAccessToken(accessToken);
-
   if (!user) {
     throw new Error(getMockUnauthorizedMessage());
+  }
+
+  if (pathname === shellAccessPathname) {
+    return {
+      user_id: user.id,
+      policy_ids: [],
+      grant_permissions: [],
+      deny_permissions: [],
+      derived: {
+        is_org_admin: user.permissions.includes("org_admin:view"),
+        groups: [],
+      },
+      effective_permissions: user.permissions,
+    };
   }
 
   return buildUserDetails(user);
@@ -394,10 +433,13 @@ export function buildMockSessionUser(identifier: string): AppUser | null {
     last_name: user.last_name,
     team: user.team,
     role: user.role,
+    organizationRole: user.organization_role,
+    platformPermissions: user.platform_permissions ?? [],
+    isPlatformAdmin: user.is_platform_admin ?? false,
     permissions:
       user.permissions.length > 0
         ? user.permissions
-        : ROLE_PERMISSIONS[user.role === "admin" ? "admin" : "user"],
+        : getPermissionsForRole(user.role),
     groups: user.groups ?? [],
     dateJoined: user.date_joined,
     isActive: user.is_active,

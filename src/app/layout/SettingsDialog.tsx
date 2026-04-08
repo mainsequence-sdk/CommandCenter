@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { CircleUserRound, FileCode2, Info, Settings2, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { fetchCurrentAuthGroups, requestPasswordChangeEmail } from "@/auth/api";
+import { requestPasswordChangeEmail } from "@/auth/api";
 import { useToast } from "@/components/ui/toaster";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getRoleLabel } from "@/auth/permissions";
+import { getAccessProfileLabel } from "@/auth/permissions";
 import type { CommandCenterConfig } from "@/config/command-center";
 import { commandCenterConfigSource } from "@/config/command-center";
 import { env } from "@/config/env";
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/themes/ThemeProvider";
 
 interface SettingsDialogProps {
-  mode: "admin" | "user";
+  mode: "platform" | "user";
   onClose: () => void;
   open: boolean;
   user?: AppUser;
@@ -202,16 +202,23 @@ function buildConfigurationGroups({
   authTokenUrl,
   authRefreshUrl,
   authUserDetailsUrl,
-  authGroupsUrl,
 }: {
   config: CommandCenterConfig;
   authTokenUrl: string;
   authRefreshUrl: string;
   authUserDetailsUrl: string;
-  authGroupsUrl: string;
 }): SettingsConfigGroupSpec[] {
-  const { accessRbac, app, auth, branding, mainSequence, notifications, preferences, workspaces } =
-    config;
+  const {
+    accessRbac,
+    app,
+    auth,
+    branding,
+    commandCenterAccess,
+    mainSequence,
+    notifications,
+    preferences,
+    workspaces,
+  } = config;
 
   return [
     {
@@ -280,7 +287,6 @@ function buildConfigurationGroups({
         { label: "Token endpoint", value: authTokenUrl, monospace: true },
         { label: "Refresh endpoint", value: authRefreshUrl, monospace: true },
         { label: "User details endpoint", value: authUserDetailsUrl, monospace: true },
-        { label: "Groups endpoint", value: authGroupsUrl, monospace: true },
       ],
     },
     {
@@ -323,8 +329,23 @@ function buildConfigurationGroups({
         { label: "Team claim", value: auth.jwt.claimMapping.team, monospace: true },
         { label: "Role claim", value: auth.jwt.claimMapping.role, monospace: true },
         {
+          label: "Organization role claim",
+          value: auth.jwt.claimMapping.organizationRole,
+          monospace: true,
+        },
+        {
           label: "Permissions claim",
           value: auth.jwt.claimMapping.permissions,
+          monospace: true,
+        },
+        {
+          label: "Platform permissions claim",
+          value: auth.jwt.claimMapping.platformPermissions,
+          monospace: true,
+        },
+        {
+          label: "Platform admin flag claim",
+          value: auth.jwt.claimMapping.isPlatformAdmin,
           monospace: true,
         },
         {
@@ -348,10 +369,9 @@ function buildConfigurationGroups({
     },
     {
       title: "User Details Mapping",
-      description: "Field mapping for the user-details endpoint plus RBAC role-group resolution.",
+      description: "Field mapping for the user-details endpoint and the backend-owned admin access contract.",
       fields: [
         { label: "User details URL", value: auth.jwt.userDetails.url, monospace: true },
-        { label: "Groups URL", value: auth.jwt.userDetails.groupsUrl, monospace: true },
         {
           label: "User ID response field",
           value: auth.jwt.userDetails.responseMapping.userId,
@@ -378,13 +398,23 @@ function buildConfigurationGroups({
           monospace: true,
         },
         {
+          label: "Organization role response field",
+          value: auth.jwt.userDetails.responseMapping.organizationRole,
+          monospace: true,
+        },
+        {
           label: "Permissions response field",
           value: auth.jwt.userDetails.responseMapping.permissions,
           monospace: true,
         },
         {
-          label: "Groups response field",
-          value: auth.jwt.userDetails.responseMapping.groups,
+          label: "Platform permissions response field",
+          value: auth.jwt.userDetails.responseMapping.platformPermissions,
+          monospace: true,
+        },
+        {
+          label: "Platform admin flag response field",
+          value: auth.jwt.userDetails.responseMapping.isPlatformAdmin,
           monospace: true,
         },
         {
@@ -412,24 +442,40 @@ function buildConfigurationGroups({
           value: auth.jwt.userDetails.responseMapping.organizationTeams,
           monospace: true,
         },
-        {
-          label: "Admin role group",
-          value: auth.jwt.userDetails.roleGroups.admin || "Not configured",
-          monospace: true,
-        },
-        {
-          label: "User role group",
-          value: auth.jwt.userDetails.roleGroups.user || "Not configured",
-          monospace: true,
-        },
       ],
     },
     {
       title: "Access RBAC",
-      description: "RBAC endpoints used by the admin tools to browse users and groups.",
+      description: "RBAC endpoints used by the admin tools to browse users.",
       fields: [
         { label: "Users list URL", value: accessRbac.users.listUrl, monospace: true },
-        { label: "Groups list URL", value: accessRbac.groups.listUrl, monospace: true },
+      ],
+    },
+    {
+      title: "Command Center Access",
+      description:
+        "Dedicated endpoints for reusable shell policies and per-user shell-access assignments.",
+      fields: [
+        {
+          label: "Access policies list URL",
+          value: commandCenterAccess.accessPolicies.listUrl,
+          monospace: true,
+        },
+        {
+          label: "Access policies detail URL",
+          value: commandCenterAccess.accessPolicies.detailUrl,
+          monospace: true,
+        },
+        {
+          label: "User shell access URL",
+          value: commandCenterAccess.users.shellAccessUrl,
+          monospace: true,
+        },
+        {
+          label: "User shell access preview URL",
+          value: commandCenterAccess.users.shellAccessPreviewUrl,
+          monospace: true,
+        },
       ],
     },
     {
@@ -522,9 +568,6 @@ export function SettingsDialog({
   const { app, auth } = config;
   const { availableThemes, resetOverrides, setThemeById, themeId } = useTheme();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
-  const [currentGroups, setCurrentGroups] = useState<string[] | null>(null);
-  const [currentGroupsError, setCurrentGroupsError] = useState<string | null>(null);
-  const [currentGroupsLoading, setCurrentGroupsLoading] = useState(false);
   const [showRawConfiguration, setShowRawConfiguration] = useState(false);
   const requestPasswordChangeMutation = useMutation({
     mutationFn: requestPasswordChangeEmail,
@@ -545,16 +588,12 @@ export function SettingsDialog({
   });
 
   const title =
-    mode === "admin" ? t("settingsDialog.adminTitle") : t("settingsDialog.userTitle");
+    mode === "platform" ? t("settingsDialog.adminTitle") : t("settingsDialog.userTitle");
   const description =
-    mode === "admin"
+    mode === "platform"
       ? t("settingsDialog.adminDescription")
       : t("settingsDialog.userDescription");
-  const roleLabel = user?.role
-    ? getRoleLabel(user.role)
-    : mode === "admin"
-      ? "Administrator"
-      : "User";
+  const roleLabel = getAccessProfileLabel(user) || (mode === "platform" ? "Platform Admin" : "User");
   const activeLanguage = isSupportedLanguage(i18n.resolvedLanguage ?? i18n.language)
     ? (i18n.resolvedLanguage ?? i18n.language)
     : defaultLanguage;
@@ -577,18 +616,12 @@ export function SettingsDialog({
   const authTokenUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.tokenUrl);
   const authRefreshUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.refreshUrl);
   const authUserDetailsUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.userDetails.url);
-  const authGroupsUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.userDetails.groupsUrl);
-  const authAdminGroupValue =
-    auth.jwt.userDetails.roleGroups.admin || t("common.unavailable");
-  const authUserGroupValue =
-    auth.jwt.userDetails.roleGroups.user || t("settingsDialog.authUserFallback");
   const configurationSource = commandCenterConfigSource;
   const configurationGroups = buildConfigurationGroups({
     config,
     authTokenUrl,
     authRefreshUrl,
     authUserDetailsUrl,
-    authGroupsUrl,
   });
   const navItems: Array<{
     id: SettingsSectionId;
@@ -597,7 +630,7 @@ export function SettingsDialog({
   }> = [
     { id: "general" as const, label: t("settingsDialog.generalNav"), icon: Settings2 },
     { id: "account" as const, label: t("settingsDialog.accountTitle"), icon: CircleUserRound },
-    ...(mode === "admin"
+    ...(mode === "platform"
       ? [
           {
             id: "auth" as const,
@@ -617,29 +650,9 @@ export function SettingsDialog({
   useEffect(() => {
     if (open) {
       setActiveSection("general");
-      setCurrentGroups(null);
-      setCurrentGroupsError(null);
-      setCurrentGroupsLoading(false);
       setShowRawConfiguration(false);
     }
   }, [open, mode]);
-
-  async function handleLoadCurrentGroups() {
-    setCurrentGroupsLoading(true);
-    setCurrentGroupsError(null);
-
-    try {
-      const groups = await fetchCurrentAuthGroups();
-      setCurrentGroups(groups);
-    } catch (error) {
-      setCurrentGroupsError(
-        error instanceof Error ? error.message : t("settingsDialog.authCurrentGroupsError"),
-      );
-      setCurrentGroups(null);
-    } finally {
-      setCurrentGroupsLoading(false);
-    }
-  }
 
   return (
     <Dialog
@@ -752,7 +765,7 @@ export function SettingsDialog({
               />
               <SettingsRow
                 label={t("settingsDialog.role")}
-                value={<Badge variant={mode === "admin" ? "primary" : "neutral"}>{roleLabel}</Badge>}
+                value={<Badge variant={mode === "platform" ? "primary" : "neutral"}>{roleLabel}</Badge>}
               />
               <SettingsRow
                 label={t("settingsDialog.groups")}
@@ -782,7 +795,7 @@ export function SettingsDialog({
             </SettingsSection>
           ) : null}
 
-          {mode === "admin" && activeSection === "auth" ? (
+          {mode === "platform" && activeSection === "auth" ? (
             <SettingsSection
               title={t("settingsDialog.authTitle")}
               description={t("settingsDialog.authDescription")}
@@ -792,16 +805,7 @@ export function SettingsDialog({
                 description={t("settingsDialog.authRoleGroupMappingHelp")}
                 value={
                   <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    auth.jwt.user_details.role_groups
-                  </span>
-                }
-              />
-              <SettingsRow
-                label={t("settingsDialog.authAdminGroup")}
-                description={t("settingsDialog.authAdminGroupHelp")}
-                value={
-                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    {authAdminGroupValue}
+                    auth.jwt.claim_mapping.* + auth.jwt.user_details.response_mapping.*
                   </span>
                 }
               />
@@ -810,7 +814,25 @@ export function SettingsDialog({
                 description={t("settingsDialog.authUserGroupHelp")}
                 value={
                   <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    {authUserGroupValue}
+                    {"/api/v1/command_center/users/{user_id}/shell-access/ -> effective_permissions"}
+                  </span>
+                }
+              />
+              <SettingsRow
+                label="Platform permissions field"
+                description="Backend-owned platform permission mapping used for Admin Settings access."
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    {auth.jwt.claimMapping.platformPermissions}
+                  </span>
+                }
+              />
+              <SettingsRow
+                label="Platform admin flag field"
+                description="Optional backend flag that can elevate a session to platform-admin access."
+                value={
+                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+                    {auth.jwt.userDetails.responseMapping.isPlatformAdmin}
                   </span>
                 }
               />
@@ -846,58 +868,10 @@ export function SettingsDialog({
                   </span>
                 }
               />
-              <SettingsRow
-                label={t("settingsDialog.authGroupsUrl")}
-                description={t("settingsDialog.authGroupsUrlHelp")}
-                value={
-                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    {authGroupsUrl}
-                  </span>
-                }
-              />
-              <SettingsRow
-                label={t("settingsDialog.authCurrentGroups")}
-                description={t("settingsDialog.authCurrentGroupsHelp")}
-                value={
-                  <div className="flex max-w-[420px] flex-col items-end gap-2 text-right">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={currentGroupsLoading}
-                      onClick={() => {
-                        void handleLoadCurrentGroups();
-                      }}
-                    >
-                      {currentGroupsLoading
-                        ? t("settingsDialog.authLoadingCurrentGroups")
-                        : t("settingsDialog.authShowCurrentGroups")}
-                    </Button>
-                    {currentGroupsError ? (
-                      <div className="text-xs text-danger">{currentGroupsError}</div>
-                    ) : null}
-                    {currentGroups ? (
-                      currentGroups.length > 0 ? (
-                        <div className="flex flex-wrap justify-end gap-2">
-                          {currentGroups.map((group) => (
-                            <Badge key={group} variant="primary">
-                              {group}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">
-                          {t("settingsDialog.authNoCurrentGroups")}
-                        </div>
-                      )
-                    ) : null}
-                  </div>
-                }
-              />
             </SettingsSection>
           ) : null}
 
-          {mode === "admin" && activeSection === "configuration" ? (
+          {mode === "platform" && activeSection === "configuration" ? (
             <SettingsSection
               title={t("settingsDialog.configurationTitle")}
               description={t("settingsDialog.configurationDescription")}
@@ -984,7 +958,7 @@ export function SettingsDialog({
                   </Button>
                 }
               />
-              {mode === "admin" ? (
+              {mode === "platform" ? (
                 <>
                   {env.useMockData ? (
                     <SettingsRow

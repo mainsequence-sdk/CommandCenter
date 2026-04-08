@@ -34,7 +34,7 @@ export function LoginPage() {
 
   const [identifier, setIdentifier] = useState(
     isBypassAuth
-      ? "admin@mainsequence.local"
+      ? "org_admin@mainsequence.local"
       : isMockAuth
         ? mockAuthHint?.identifier ?? ""
         : "",
@@ -42,7 +42,7 @@ export function LoginPage() {
   const [password, setPassword] = useState(
     isBypassAuth ? "demo" : isMockAuth ? mockAuthHint?.password ?? "" : "",
   );
-  const [role, setRole] = useState<BuiltinAppRole>("admin");
+  const [role, setRole] = useState<BuiltinAppRole>("org_admin");
 
   const redirectTarget =
     (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ??

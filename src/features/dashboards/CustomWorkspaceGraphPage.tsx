@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   applyEdgeChanges,
@@ -72,6 +73,41 @@ const GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS = 1800;
 const GRAPH_NODE_TYPES = {
   workspaceWidget: WorkspaceGraphNode,
 };
+
+function resolveVisibleWorkspaceGraph(
+  graph: DashboardWidgetDependencyGraph,
+) {
+  const incidentEdgeCountByNodeId = new Map<string, number>(
+    graph.nodes.map((node) => [node.id, 0]),
+  );
+
+  for (const edge of graph.edges) {
+    incidentEdgeCountByNodeId.set(
+      edge.from,
+      (incidentEdgeCountByNodeId.get(edge.from) ?? 0) + 1,
+    );
+    incidentEdgeCountByNodeId.set(
+      edge.to,
+      (incidentEdgeCountByNodeId.get(edge.to) ?? 0) + 1,
+    );
+  }
+
+  const nodes = graph.nodes.filter((node) => {
+    const incidentEdgeCount = incidentEdgeCountByNodeId.get(node.id) ?? 0;
+
+    return incidentEdgeCount > 0 || node.inputs.length > 0 || node.outputs.length > 0;
+  });
+  const visibleNodeIds = new Set(nodes.map((node) => node.id));
+  const edges = graph.edges.filter(
+    (edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to),
+  );
+
+  return {
+    nodes,
+    edges,
+    hiddenNodeCount: Math.max(0, graph.nodes.length - nodes.length),
+  };
+}
 
 function resolveInputPortStatus(
   resolvedInput: ResolvedWidgetInputs | undefined,
@@ -168,11 +204,13 @@ function layoutGraphNodes(graph: DashboardWidgetDependencyGraph) {
 
 function WorkspaceGraphCanvas({
   onBindingsChange,
+  onOpenWidgetSettings,
 }: {
   onBindingsChange: (
     instanceId: string,
     bindings: DashboardWidgetInstance["bindings"],
   ) => void;
+  onOpenWidgetSettings: (instanceId: string) => void;
 }) {
   const dependencyModel = useDashboardWidgetDependencies();
   const widgetExecution = useDashboardWidgetExecution();
@@ -188,19 +226,30 @@ function WorkspaceGraphCanvas({
     () => createDashboardWidgetEntryIndex(dependencyModel?.entries ?? []),
     [dependencyModel],
   );
-  const layoutedPositions = useMemo(
-    () => (dependencyModel ? layoutGraphNodes(dependencyModel.graph) : new Map<string, XYPosition>()),
+  const visibleGraph = useMemo(
+    () =>
+      dependencyModel
+        ? resolveVisibleWorkspaceGraph(dependencyModel.graph)
+        : {
+            nodes: [],
+            edges: [],
+            hiddenNodeCount: 0,
+          },
     [dependencyModel],
+  );
+  const layoutedPositions = useMemo(
+    () => layoutGraphNodes(visibleGraph),
+    [visibleGraph],
   );
   const executionStateByNodeId = useMemo(
     () =>
       Object.fromEntries(
-        (dependencyModel?.graph.nodes ?? []).map((node) => [
+        visibleGraph.nodes.map((node) => [
           node.id,
           widgetExecution?.getExecutionState(node.id),
         ] as const),
       ),
-    [dependencyModel, widgetExecution],
+    [visibleGraph.nodes, widgetExecution],
   );
 
   useEffect(() => {
@@ -240,10 +289,10 @@ function WorkspaceGraphCanvas({
       return;
     }
 
-    if (!dependencyModel.graph.nodes.some((node) => node.id === dependencyFocusNodeId)) {
+    if (!visibleGraph.nodes.some((node) => node.id === dependencyFocusNodeId)) {
       setDependencyFocusNodeId(null);
     }
-  }, [dependencyFocusNodeId, dependencyModel]);
+  }, [dependencyFocusNodeId, dependencyModel, visibleGraph.nodes]);
 
   useEffect(() => {
     if (!dependencyModel) {
@@ -253,7 +302,7 @@ function WorkspaceGraphCanvas({
 
     setVisibleOutputIdsByNodeId((current) => {
       const validOutputIdsByNodeId = new Map(
-        dependencyModel.graph.nodes.map((node) => [
+        visibleGraph.nodes.map((node) => [
           node.id,
           new Set(node.outputs.map((output) => output.id)),
         ] as const),
@@ -280,7 +329,7 @@ function WorkspaceGraphCanvas({
 
       return changed ? nextState : current;
     });
-  }, [dependencyModel]);
+  }, [dependencyModel, visibleGraph.nodes]);
 
   const dependencyHighlight = useMemo(() => {
     const highlightedNodeIds = new Set<string>();
@@ -297,9 +346,9 @@ function WorkspaceGraphCanvas({
       };
     }
 
-    const incomingEdgesByNodeId = new Map<string, typeof dependencyModel.graph.edges>();
+    const incomingEdgesByNodeId = new Map<string, typeof visibleGraph.edges>();
 
-    for (const edge of dependencyModel.graph.edges) {
+    for (const edge of visibleGraph.edges) {
       const currentEdges = incomingEdgesByNodeId.get(edge.to) ?? [];
       currentEdges.push(edge);
       incomingEdgesByNodeId.set(edge.to, currentEdges);
@@ -343,20 +392,20 @@ function WorkspaceGraphCanvas({
       highlightedInputIdsByNodeId,
       highlightedOutputIdsByNodeId,
     };
-  }, [dependencyFocusNodeId, dependencyModel]);
+  }, [dependencyFocusNodeId, dependencyModel, visibleGraph.edges]);
 
   const derivedNodes = useMemo<WorkspaceGraphFlowNode[]>(() => {
     if (!dependencyModel) {
       return [];
     }
 
-    return dependencyModel.graph.nodes.map((node) => {
+    return visibleGraph.nodes.map((node) => {
       const widgetDefinition = dependencyModel.getWidgetDefinition(node.widgetId);
       const resolvedIo = dependencyModel.resolveIo(node.id);
       const resolvedInputs = dependencyModel.resolveInputs(node.id);
       const outputsByPort = new Map<string, number>();
 
-      for (const edge of dependencyModel.graph.edges) {
+      for (const edge of visibleGraph.edges) {
         if (edge.from !== node.id || edge.status !== "valid") {
           continue;
         }
@@ -455,6 +504,9 @@ function WorkspaceGraphCanvas({
               };
             });
           },
+          onOpenSettings: () => {
+            onOpenWidgetSettings(node.id);
+          },
         } satisfies WorkspaceGraphNodeData,
       } satisfies WorkspaceGraphFlowNode;
     });
@@ -465,6 +517,9 @@ function WorkspaceGraphCanvas({
     dependencyModel,
     executionStateByNodeId,
     layoutedPositions,
+    onOpenWidgetSettings,
+    visibleGraph.edges,
+    visibleGraph.nodes,
     visibleOutputIdsByNodeId,
   ]);
 
@@ -473,9 +528,9 @@ function WorkspaceGraphCanvas({
       return [];
     }
 
-    const nodeById = new Map(dependencyModel.graph.nodes.map((node) => [node.id, node] as const));
+    const nodeById = new Map(visibleGraph.nodes.map((node) => [node.id, node] as const));
 
-    return dependencyModel.graph.edges.flatMap((edge) => {
+    return visibleGraph.edges.flatMap((edge) => {
       const sourceNode = nodeById.get(edge.from);
       const targetNode = nodeById.get(edge.to);
 
@@ -550,7 +605,14 @@ function WorkspaceGraphCanvas({
         } satisfies Edge,
       ];
     });
-  }, [animationNowMs, dependencyHighlight.highlightedEdgeIds, dependencyModel, executionStateByNodeId]);
+  }, [
+    animationNowMs,
+    dependencyHighlight.highlightedEdgeIds,
+    dependencyModel,
+    executionStateByNodeId,
+    visibleGraph.edges,
+    visibleGraph.nodes,
+  ]);
 
   useEffect(() => {
     setNodes((currentNodes) => {
@@ -669,6 +731,19 @@ function WorkspaceGraphCanvas({
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
+      {visibleGraph.hiddenNodeCount > 0 ? (
+        <div className="pointer-events-none absolute top-3 right-3 z-20 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/82 px-3 py-2 text-xs text-muted-foreground shadow-[var(--shadow-panel)] backdrop-blur-md">
+          {visibleGraph.hiddenNodeCount} non-graph widget
+          {visibleGraph.hiddenNodeCount === 1 ? "" : "s"} hidden
+        </div>
+      ) : null}
+      {visibleGraph.nodes.length === 0 ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
+          <div className="max-w-md rounded-[calc(var(--radius)-4px)] border border-dashed border-border/70 bg-background/28 px-5 py-4 text-center text-sm text-muted-foreground">
+            No connected or graph-relevant widgets to display.
+          </div>
+        </div>
+      ) : null}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -706,6 +781,7 @@ export function CustomWorkspaceGraphPage({
 }: {
   withRuntimeProviders?: boolean;
 } = {}) {
+  const navigate = useNavigate();
   const {
     user,
     permissions,
@@ -751,6 +827,7 @@ export function CustomWorkspaceGraphPage({
           {
             id: instance.id,
             title: instance.title,
+            layout: instance.layout,
             props: instance.props,
             presentation: instance.presentation,
             runtimeState: instance.runtimeState,
@@ -839,6 +916,9 @@ export function CustomWorkspaceGraphPage({
           permissions={permissions}
           userId={user.id}
           topOffsetClassName="top-12"
+          onOpenSavedWidgets={() => {
+            navigate("/app/workspace-studio/widgets");
+          }}
           onOpenChange={setLibraryOpen}
           onAddWidget={(widget) => {
             updateSelectedWorkspace((dashboard) => appendCatalogWidget(dashboard, widget));
@@ -851,6 +931,9 @@ export function CustomWorkspaceGraphPage({
               updateSelectedWorkspace((dashboard) =>
                 updateDashboardWidgetBindings(dashboard, instanceId, bindings),
               );
+            }}
+            onOpenWidgetSettings={(instanceId) => {
+              openWidgetSettings(instanceId);
             }}
           />
         </div>

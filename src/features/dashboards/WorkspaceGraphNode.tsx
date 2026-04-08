@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
@@ -58,6 +59,7 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   dependencyRoot?: boolean;
   onRevealOutput?: (outputId: string) => void;
   onHideOutput?: (outputId: string) => void;
+  onOpenSettings?: () => void;
 }
 
 export type WorkspaceGraphFlowNode = Node<WorkspaceGraphNodeData, "workspaceWidget">;
@@ -189,6 +191,24 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
             : "border-border/75",
       )}
     >
+      {data.dependencyRoot && data.onOpenSettings ? (
+        <div className="pointer-events-none absolute -top-10 right-2 z-20">
+          <Button
+            variant="outline"
+            size="sm"
+            className="pointer-events-auto nodrag nopan h-8 rounded-full border-primary/35 bg-background/96 px-3 text-[11px] font-medium shadow-[var(--shadow-panel)] backdrop-blur-md hover:border-primary/55 hover:bg-background"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              data.onOpenSettings?.();
+            }}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Open settings
+          </Button>
+        </div>
+      ) : null}
+
       {!expanded ? (
         <>
           {data.inputs.map((input, index) => (

@@ -10,7 +10,7 @@ export const marketKpisWidget: WidgetDefinition<{ symbol?: string }> = {
   kind: "custom",
   source: "demo",
   defaultSize: { w: 4, h: 4 },
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["main_sequence_markets:view"],
   tags: ["summary", "cards", "demo"],
   exampleProps: { symbol: "AAPL" },
   component: MarketKpisWidget,

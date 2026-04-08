@@ -1,31 +1,21 @@
 import { useMemo } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { useAuthStore } from "@/auth/auth-store";
-import { ROLE_LABELS, ROLE_PERMISSIONS } from "@/auth/permissions";
 import { getPermissionDefinitions } from "@/auth/permission-catalog";
-import { commandCenterConfig } from "@/config/command-center";
 import {
   RbacPolicyStudio,
   type RbacPolicyStudioPermissionOption,
-  type RbacPolicyStudioPolicy,
 } from "@/components/ui/rbac-policy-studio";
 
-import { listAccessRbacGroups } from "./api";
-import { AccessRbacSurfaceLayout, accessRbacRoles } from "./shared";
-
-const accessClassDescriptions: Record<(typeof accessRbacRoles)[number], string> = {
-  user: "General non-admin shell baseline used for normal users across the platform.",
-  admin: "Platform operator shell class with access to administrative views and controls.",
-};
-
-function splitConfiguredGroups(value: string) {
-  return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
+import {
+  createAccessPolicy,
+  deleteAccessPolicy,
+  listAccessPolicies,
+  updateAccessPolicy,
+  type AccessPolicy,
+} from "./api";
+import { AccessRbacSurfaceLayout } from "./shared";
 
 function toPermissionOptions(): RbacPolicyStudioPermissionOption[] {
   return getPermissionDefinitions().map((permission) => ({
@@ -37,41 +27,62 @@ function toPermissionOptions(): RbacPolicyStudioPermissionOption[] {
 }
 
 export function AccessRbacPoliciesPage() {
-  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? "shared");
-  const groupsQuery = useQuery({
-    queryKey: ["access-rbac", "groups"],
-    queryFn: () => listAccessRbacGroups(),
-    staleTime: 300_000,
-  });
+  const queryClient = useQueryClient();
   const permissionOptions = useMemo(() => toPermissionOptions(), []);
-  const initialPolicies = useMemo<RbacPolicyStudioPolicy[]>(
-    () =>
-      accessRbacRoles.map((role) => ({
-        id: role,
-        label: ROLE_LABELS[role],
-        description: accessClassDescriptions[role],
-        backendGroups: splitConfiguredGroups(
-          commandCenterConfig.auth.jwt.userDetails.roleGroups[role],
-        ),
-        permissions: [...ROLE_PERMISSIONS[role]],
-        locked: true,
-      })),
-    [],
-  );
+  const policiesQuery = useQuery({
+    queryKey: ["access-rbac", "policies"],
+    queryFn: () => listAccessPolicies(),
+    staleTime: 60_000,
+  });
+  const createPolicyMutation = useMutation({
+    mutationFn: createAccessPolicy,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["access-rbac", "policies"],
+      });
+    },
+  });
+  const updatePolicyMutation = useMutation({
+    mutationFn: ({
+      input,
+      policyId,
+    }: {
+      policyId: number;
+      input: Parameters<typeof updateAccessPolicy>[1];
+    }) => updateAccessPolicy(policyId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["access-rbac", "policies"],
+      });
+    },
+  });
+  const deletePolicyMutation = useMutation({
+    mutationFn: (policy: AccessPolicy) => deleteAccessPolicy(policy.id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["access-rbac", "policies"],
+      });
+    },
+  });
 
   return (
     <AccessRbacSurfaceLayout
       title="Policy studio"
-      description="Define shell policies as permission bundles. App-level permissions appear here only when an app explicitly registers its shell access contract."
+      description="Manage reusable Command Center permission bundles. `light-user`, `dev-user`, and `org-admin-user` remain fixed built-ins, while hidden admin-class policies stay backend-enforced and do not appear here."
     >
       <RbacPolicyStudio
-        storageKey={`access-rbac.policy-studio.${sessionUserId}`}
-        initialPolicies={initialPolicies}
+        policies={policiesQuery.data ?? []}
         permissionOptions={permissionOptions}
-        availableGroups={groupsQuery.data ?? []}
-        groupsLoading={groupsQuery.isLoading}
-        groupsError={groupsQuery.error instanceof Error ? groupsQuery.error.message : null}
-        lockedGroupPolicyIds={["admin"]}
+        isLoading={policiesQuery.isLoading}
+        error={policiesQuery.error instanceof Error ? policiesQuery.error.message : null}
+        onCreatePolicy={(input) => createPolicyMutation.mutateAsync(input)}
+        onUpdatePolicy={(policyId, input) =>
+          updatePolicyMutation.mutateAsync({
+            policyId,
+            input,
+          })
+        }
+        onDeletePolicy={(policy) => deletePolicyMutation.mutateAsync(policy)}
       />
     </AccessRbacSurfaceLayout>
   );

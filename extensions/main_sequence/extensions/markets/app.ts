@@ -35,7 +35,15 @@ export const mainSequenceMarketsApp: AppDefinition = {
   description: "Market-facing Main Sequence surfaces that can evolve independently from Workbench.",
   source: "main_sequence_markets",
   icon: LineChart,
-  requiredPermissions: ["marketdata:read"],
+  requiredPermissions: ["main_sequence_markets:view"],
+  permissionDefinitions: [
+    {
+      id: "main_sequence_markets:view",
+      label: "Main Sequence Markets / view",
+      description: "Open the Main Sequence Markets application and its market-facing surfaces.",
+      category: "Main Sequence Markets",
+    },
+  ],
   defaultSurfaceId: "assets",
   surfaces: [
     {
@@ -45,7 +53,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       description: "Manage asset translation tables and the translation rules embedded inside each table.",
       navigationSection: settingsSection,
       kind: "page",
-      requiredPermissions: ["marketdata:read"],
+      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceAssetTranslationTablesPage,
     },
     {
@@ -55,7 +63,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       description: "Create, inspect, and delete asset categories with nested migrated asset lists.",
       navigationSection: assetsSection,
       kind: "page",
-      requiredPermissions: ["marketdata:read"],
+      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceAssetCategoriesPage,
     },
     {
@@ -65,7 +73,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       description: "Browse market assets and apply API-backed filters.",
       navigationSection: assetsSection,
       kind: "page",
-      requiredPermissions: ["marketdata:read"],
+      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceAssetsPage,
     },
     {
@@ -75,7 +83,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       description: "Browse virtual funds and the portfolio and account linked to each one.",
       navigationSection: portfoliosSection,
       kind: "page",
-      requiredPermissions: ["marketdata:read"],
+      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceFundsPage,
     },
     {
@@ -85,7 +93,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       description: "Browse portfolio groups and open direct detail pages backed by the standard DRF endpoints.",
       navigationSection: portfoliosSection,
       kind: "page",
-      requiredPermissions: ["marketdata:read"],
+      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequencePortfolioGroupsPage,
     },
     {
@@ -95,7 +103,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       description: "Browse target portfolios and remove selected rows through the backend bulk-delete action.",
       navigationSection: portfoliosSection,
       kind: "page",
-      requiredPermissions: ["marketdata:read"],
+      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceTargetPortfoliosPage,
     },
     {
@@ -105,7 +113,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       description: "Placeholder surface for upcoming instrument registry and detail workflows.",
       navigationSection: settingsSection,
       kind: "page",
-      requiredPermissions: ["marketdata:read"],
+      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceInstrumentsPage,
     },
     {
@@ -115,7 +123,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
       description: "Browse execution venues and manage their basic metadata.",
       navigationSection: settingsSection,
       kind: "page",
-      requiredPermissions: ["marketdata:read"],
+      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceExecutionVenuesPage,
     },
   ],

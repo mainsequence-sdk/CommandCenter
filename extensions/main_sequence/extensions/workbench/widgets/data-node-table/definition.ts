@@ -18,7 +18,7 @@ export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisuali
   category: "Main Sequence Data Nodes",
   kind: "table",
   source: "main_sequence_workbench",
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["main_sequence_foundry:view"],
   tags: ["main-sequence", "data-node", "grid", "ag-grid", "formatter", "table"],
   exampleProps: dataNodeTableVisualizerDefaultProps,
   mockProps: dataNodeTableVisualizerDefaultProps,

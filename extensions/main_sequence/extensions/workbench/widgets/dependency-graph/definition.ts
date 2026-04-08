@@ -14,7 +14,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
   category: "Main Sequence Infrastructure",
   kind: "chart",
   source: "main_sequence_workbench",
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["main_sequence_foundry:view"],
   tags: ["main-sequence", "simple-table", "dependency", "graph", "workbench"],
   exampleProps: {
     sourceKind: "data_node",

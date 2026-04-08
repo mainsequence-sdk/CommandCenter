@@ -52,31 +52,12 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
   description: "CRUD console for Main Sequence backend resources.",
   source: "main_sequence_workbench",
   icon: Command,
-  requiredPermissions: ["main_sequence:view"],
+  requiredPermissions: ["main_sequence_foundry:view"],
   permissionDefinitions: [
     {
-      id: "main_sequence:view",
-      label: "Main Sequence Foundry / open",
-      description: "Open the Main Sequence Foundry application in the shell.",
-      category: "Main Sequence Foundry",
-    },
-    {
-      id: "main_sequence.workspace:view",
-      label: "Foundry workspace / view",
-      description:
-        "Open workspace surfaces such as Projects, Streamlit, Constants, and Secrets.",
-      category: "Main Sequence Foundry",
-    },
-    {
-      id: "main_sequence.operations:view",
-      label: "Foundry operations / view",
-      description: "Open operational surfaces such as Jobs.",
-      category: "Main Sequence Foundry",
-    },
-    {
-      id: "main_sequence.data:view",
-      label: "Foundry data / view",
-      description: "Open data-facing surfaces such as Buckets and DataNodes.",
+      id: "main_sequence_foundry:view",
+      label: "Main Sequence Foundry / view",
+      description: "Open the Main Sequence Foundry application and its backend resource surfaces.",
       category: "Main Sequence Foundry",
     },
   ],
@@ -104,7 +85,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Create, list, and delete Main Sequence projects.",
       navigationSection: workspaceSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.workspace:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceProjectsPage,
     },
     {
@@ -114,7 +95,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Browse and manage jobs across all Main Sequence projects.",
       navigationSection: operationsSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.operations:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceJobsPage,
     },
     {
@@ -124,7 +105,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Browse public Streamlit releases from the resource gallery.",
       navigationSection: resourcesSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.workspace:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceStreamlitPage,
     },
     {
@@ -134,7 +115,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Browse read-only deployment services backed by the pods TimeScaleDB service endpoints.",
       navigationSection: deploymentServicesSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.operations:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceTimeScaleDbServicesPage,
     },
     {
@@ -144,7 +125,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Browse cluster records and open the cluster detail flow by UUID.",
       navigationSection: operationsSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.operations:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceClustersPage,
     },
     {
@@ -154,7 +135,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Browse and manage bucket objects.",
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.data:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceBucketsPage,
     },
     {
@@ -164,7 +145,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Search and manage Main Sequence constants.",
       navigationSection: workspaceSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.workspace:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceConstantsPage,
     },
     {
@@ -174,7 +155,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Search and create Main Sequence secrets.",
       navigationSection: workspaceSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.workspace:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceSecretsPage,
     },
     {
@@ -184,7 +165,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Search and manage project data source records.",
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.data:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceProjectDataSourcesPage,
     },
     {
@@ -194,7 +175,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Search and manage physical data source records.",
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.data:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequencePhysicalDataSourcesPage,
     },
     {
@@ -204,7 +185,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "List DynamicTableMetaDatas from ts_manager.",
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.data:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceDataNodesPage,
     },
     {
@@ -214,7 +195,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       description: "Browse and bulk delete ts_manager simple_table records.",
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence.data:view"],
+      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceSimpleTablesPage,
     },
   ],

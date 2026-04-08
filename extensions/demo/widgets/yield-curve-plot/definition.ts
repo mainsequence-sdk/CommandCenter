@@ -14,7 +14,7 @@ export const yieldCurvePlotWidget: WidgetDefinition<YieldCurvePlotWidgetProps> =
   kind: "chart",
   source: "demo",
   defaultSize: { w: 9, h: 7 },
-  requiredPermissions: ["marketdata:read"],
+  requiredPermissions: ["main_sequence_markets:view"],
   tags: ["rates", "yield-curve", "demo", "lightweight-charts", "mock"],
   exampleProps: {
     market: "ust",

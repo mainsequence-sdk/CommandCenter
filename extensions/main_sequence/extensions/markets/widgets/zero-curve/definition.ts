@@ -16,7 +16,7 @@ export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWid
   category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",
-  requiredPermissions: ["marketdata:read"],
+  requiredPermissions: ["main_sequence_markets:view"],
   tags: ["main-sequence", "markets", "zero-curve", "rates", "echarts", "data-node"],
   exampleProps: {
     sourceMode: "filter_widget",

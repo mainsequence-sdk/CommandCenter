@@ -1,6 +1,6 @@
 import { type ReactNode, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Search, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -18,6 +18,7 @@ import {
   isSurfaceFavorited,
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
+import { getPermissionDefinitions } from "@/auth/permission-catalog";
 import {
   ALL_PERMISSIONS,
   ROLE_LABELS,
@@ -28,6 +29,7 @@ import {
 import type { AppUser } from "@/auth/types";
 import { builtinAppRoles } from "@/auth/types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -36,11 +38,20 @@ import type {
   RbacAssignableUser,
   RbacAssignmentScope,
 } from "@/components/ui/rbac-assignment-matrix";
+import { useToast } from "@/components/ui/toaster";
 import { listTeams } from "@/features/teams/api";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 
-import { listAccessRbacUsers } from "./api";
+import {
+  getUserShellAccess,
+  isAssignableAccessPolicy,
+  listAccessPolicies,
+  listAccessRbacUsers,
+  previewUserShellAccess,
+  updateUserShellAccess,
+  type UserShellAccess,
+} from "./api";
 
 export const accessRbacRoles = builtinAppRoles;
 
@@ -58,7 +69,7 @@ export const accessRbacUtilityActions: Array<{
   },
   {
     label: "Access & RBAC",
-    requiredPermissions: ["rbac:view"],
+    requiredPermissions: ["org_admin:view"],
   },
 ];
 
@@ -182,7 +193,7 @@ export function AccessRbacPageHeader({
 }) {
   return (
     <PageHeader
-      eyebrow="Admin"
+      eyebrow="Organization Admin"
       title={title}
       description={description}
     />
@@ -292,17 +303,28 @@ export function UserAccessInspectorPanel({
 }: {
   sessionUser?: AppUser | null;
 }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [searchValue, setSearchValue] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(sessionUser ?? null);
+  const [draft, setDraft] = useState<UserShellAccessDraft | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [previewAccess, setPreviewAccess] = useState<UserShellAccess | null>(null);
   const deferredSearchValue = useDeferredValue(searchValue);
+  const inspectedUser = selectedUser ?? sessionUser ?? null;
   const usersQuery = useQuery({
     queryKey: ["access-rbac", "users", deferredSearchValue],
     queryFn: () =>
       listAccessRbacUsers({
         search: deferredSearchValue.trim() || undefined,
       }),
+    staleTime: 60_000,
+  });
+  const policiesQuery = useQuery({
+    queryKey: ["access-rbac", "policies", "assignable"],
+    queryFn: () => listAccessPolicies(),
     staleTime: 60_000,
   });
 
@@ -331,10 +353,172 @@ export function UserAccessInspectorPanel({
     };
   }, []);
 
-  const inspectedUser = selectedUser ?? sessionUser ?? null;
-  const inspectedPermissions = inspectedUser?.permissions ?? [];
-  const accessFootprint = getAccessFootprint(inspectedPermissions);
+  useEffect(() => {
+    setDraft(null);
+    setPreviewAccess(null);
+    setIsDirty(false);
+  }, [inspectedUser?.id]);
+  const shellAccessQuery = useQuery({
+    queryKey: ["access-rbac", "users", inspectedUser?.id ?? null, "shell-access"],
+    queryFn: () => getUserShellAccess(inspectedUser!.id),
+    enabled: Boolean(inspectedUser?.id),
+    staleTime: 30_000,
+  });
+  const previewMutation = useMutation({
+    mutationFn: (payload: UserShellAccessDraft) =>
+      previewUserShellAccess(inspectedUser!.id, payload),
+    onSuccess: (result) => {
+      setPreviewAccess(result);
+      toast({
+        variant: "success",
+        title: "Preview updated",
+        description: "Effective shell access has been recomputed without saving.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Preview failed",
+        description: error instanceof Error ? error.message : "Unable to preview shell access.",
+      });
+    },
+  });
+  const saveMutation = useMutation({
+    mutationFn: (payload: UserShellAccessDraft) =>
+      updateUserShellAccess(inspectedUser!.id, payload),
+    onSuccess: (result) => {
+      queryClient.setQueryData(
+        ["access-rbac", "users", inspectedUser?.id ?? null, "shell-access"],
+        result,
+      );
+      setDraft(toUserShellAccessDraft(result));
+      setPreviewAccess(result);
+      setIsDirty(false);
+      toast({
+        variant: "success",
+        title: "Shell access updated",
+        description: inspectedUser?.email ?? inspectedUser?.name ?? "User",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Update failed",
+        description: error instanceof Error ? error.message : "Unable to update shell access.",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (!shellAccessQuery.data) {
+      return;
+    }
+
+    setDraft(toUserShellAccessDraft(shellAccessQuery.data));
+    setPreviewAccess(null);
+    setIsDirty(false);
+  }, [shellAccessQuery.data]);
+
+  const assignablePolicies = useMemo(
+    () => (policiesQuery.data ?? []).filter((policy) => isAssignableAccessPolicy(policy)),
+    [policiesQuery.data],
+  );
+  const permissionGroups = useMemo(() => {
+    const groups = new Map<string, Array<{ id: string; label: string; description: string }>>();
+
+    getPermissionDefinitions().forEach((permission) => {
+      const category = permission.category?.trim() || "General";
+      const items = groups.get(category) ?? [];
+      items.push({
+        id: permission.id,
+        label: permission.label,
+        description: permission.description,
+      });
+      groups.set(category, items);
+    });
+
+    return Array.from(groups.entries()).map(([label, items]) => ({
+      label,
+      items,
+    }));
+  }, []);
   const resultUsers = usersQuery.data ?? [];
+  const resolvedShellAccess = previewAccess ?? shellAccessQuery.data ?? null;
+  const inspectedPermissions =
+    resolvedShellAccess?.effectivePermissions ?? inspectedUser?.permissions ?? [];
+  const accessFootprint = getAccessFootprint(inspectedPermissions);
+  const hiddenPolicyIds =
+    draft?.policyIds.filter(
+      (policyId) =>
+        !assignablePolicies.some((policy) => policy.slugifiedName === policyId),
+    ) ?? [];
+
+  function updateDraft(nextDraft: UserShellAccessDraft) {
+    setDraft(normalizeUserShellAccessDraft(nextDraft));
+    setPreviewAccess(null);
+    setIsDirty(true);
+  }
+
+  function handleTogglePolicy(policySlug: string) {
+    if (!draft) {
+      return;
+    }
+
+    const enabled = draft.policyIds.includes(policySlug);
+
+    updateDraft({
+      ...draft,
+      policyIds: enabled
+        ? draft.policyIds.filter((entry) => entry !== policySlug)
+        : [...draft.policyIds, policySlug],
+    });
+  }
+
+  function handleTogglePermission(
+    kind: "denyPermissions" | "grantPermissions",
+    permissionId: string,
+  ) {
+    if (!draft) {
+      return;
+    }
+
+    const selected = draft[kind].includes(permissionId);
+    const oppositeKind = kind === "grantPermissions" ? "denyPermissions" : "grantPermissions";
+
+    updateDraft({
+      ...draft,
+      [kind]: selected
+        ? draft[kind].filter((entry) => entry !== permissionId)
+        : [...draft[kind], permissionId],
+      [oppositeKind]: draft[oppositeKind].filter((entry) => entry !== permissionId),
+    });
+  }
+
+  function handleResetDraft() {
+    if (!shellAccessQuery.data) {
+      return;
+    }
+
+    setDraft(toUserShellAccessDraft(shellAccessQuery.data));
+    setPreviewAccess(null);
+    setIsDirty(false);
+  }
+
+  async function handlePreview() {
+    if (!draft || !inspectedUser?.id) {
+      return;
+    }
+
+    await previewMutation.mutateAsync(draft);
+  }
+
+  async function handleSave() {
+    if (!draft || !inspectedUser?.id) {
+      return;
+    }
+
+    await saveMutation.mutateAsync(draft);
+  }
 
   return (
     <div className="space-y-4">
@@ -413,23 +597,225 @@ export function UserAccessInspectorPanel({
                 </div>
               </div>
             ) : null}
+
+            {resolvedShellAccess ? (
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={resolvedShellAccess.derived.isOrgAdmin ? "success" : "neutral"}>
+                    {resolvedShellAccess.derived.isOrgAdmin ? "ORG_ADMIN" : "Standard user"}
+                  </Badge>
+                  {previewAccess ? <Badge variant="warning">Preview</Badge> : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {resolvedShellAccess.derived.groups.length ? (
+                    resolvedShellAccess.derived.groups.map((group) => (
+                      <Badge key={group.id} variant="secondary">
+                        {group.name} · {group.normalizedName}
+                      </Badge>
+                    ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      No derived groups were returned in the shell-access response.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card variant="nested">
+          <CardHeader className="gap-4 p-4 pb-0 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <CardTitle>Shell access assignment</CardTitle>
+              <CardDescription>
+                Manage Command Center policy assignments and direct permission overrides for the
+                selected user. This writes only to the dedicated shell-access endpoint.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!draft || !isDirty || previewMutation.isPending || saveMutation.isPending}
+                onClick={handleResetDraft}
+              >
+                Reset
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!draft || previewMutation.isPending || saveMutation.isPending}
+                onClick={() => {
+                  void handlePreview();
+                }}
+              >
+                {previewMutation.isPending ? "Previewing..." : "Preview"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!draft || !isDirty || saveMutation.isPending}
+                onClick={() => {
+                  void handleSave();
+                }}
+              >
+                {saveMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6 p-4 pt-4">
+            {shellAccessQuery.isLoading ? (
+              <div className="flex items-center gap-2 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/35 px-3 py-3 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading shell access...
+              </div>
+            ) : shellAccessQuery.error instanceof Error ? (
+              <div className="rounded-[calc(var(--radius)-8px)] border border-danger/30 bg-danger/5 px-3 py-3 text-sm text-danger">
+                {shellAccessQuery.error.message}
+              </div>
+            ) : draft ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <MetricTile
+                    label="Policies"
+                    value={draft.policyIds.length}
+                    detail="Total preserved policy ids"
+                  />
+                  <MetricTile
+                    label="Direct grants"
+                    value={draft.grantPermissions.length}
+                    detail="Explicit permission additions"
+                  />
+                  <MetricTile
+                    label="Direct denies"
+                    value={draft.denyPermissions.length}
+                    detail="Explicit permission removals"
+                  />
+                  <MetricTile
+                    label="Effective permissions"
+                    value={resolvedShellAccess?.effectivePermissions.length ?? 0}
+                    detail="Resolved after policy and auth derivation"
+                  />
+                </div>
+
+                {hiddenPolicyIds.length ? (
+                  <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/35 px-3 py-3 text-sm text-muted-foreground">
+                    {hiddenPolicyIds.length} hidden or system policy assignments are preserved in the
+                    payload but cannot be viewed or changed here.
+                  </div>
+                ) : null}
+
+                <Card variant="nested">
+                  <CardHeader className="p-4 pb-0">
+                    <CardTitle>Assignable policies</CardTitle>
+                    <CardDescription>
+                      Only custom Command Center policies are assignable here. Built-in and hidden
+                      admin-class policies stay read-only.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-3 p-4 pt-4 md:grid-cols-2">
+                    {policiesQuery.isLoading ? (
+                      <div className="flex items-center gap-2 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/35 px-3 py-3 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading policies...
+                      </div>
+                    ) : policiesQuery.error instanceof Error ? (
+                      <div className="rounded-[calc(var(--radius)-8px)] border border-danger/30 bg-danger/5 px-3 py-3 text-sm text-danger">
+                        {policiesQuery.error.message}
+                      </div>
+                    ) : assignablePolicies.length ? (
+                      assignablePolicies.map((policy) => {
+                        const enabled = draft.policyIds.includes(policy.slugifiedName);
+
+                        return (
+                          <label
+                            key={policy.id}
+                            className={cn(
+                              "flex items-start gap-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/35 px-3 py-3",
+                              enabled && "border-primary/40 bg-primary/8",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-4 w-4 rounded border-border text-primary"
+                              checked={enabled}
+                              onChange={() => {
+                                handleTogglePolicy(policy.slugifiedName);
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-foreground">
+                                {policy.label}
+                              </div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {policy.description || policy.slugifiedName}
+                              </div>
+                              <div className="mt-2 font-mono text-[11px] text-muted-foreground">
+                                {policy.slugifiedName}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/35 px-3 py-3 text-sm text-muted-foreground">
+                        No assignable policies were returned.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <PermissionOverrideCard
+                    title="Direct grants"
+                    description="Grant permissions directly to this user, independent of policy assignment."
+                    permissionGroups={permissionGroups}
+                    selectedPermissions={draft.grantPermissions}
+                    onToggle={(permissionId) => {
+                      handleTogglePermission("grantPermissions", permissionId);
+                    }}
+                  />
+                  <PermissionOverrideCard
+                    title="Direct denies"
+                    description="Remove permissions directly from this user, even if a policy would otherwise grant them."
+                    permissionGroups={permissionGroups}
+                    selectedPermissions={draft.denyPermissions}
+                    onToggle={(permissionId) => {
+                      handleTogglePermission("denyPermissions", permissionId);
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Select a user to inspect and edit shell access.
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card variant="nested">
           <CardHeader className="p-4 pb-0">
-            <CardTitle>Granted permissions</CardTitle>
+            <CardTitle>Effective permissions</CardTitle>
+            <CardDescription>
+              These are the resolved shell permissions returned by the shell-access response.
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-4 pt-4">
             <div className="flex flex-wrap gap-2">
-              {inspectedUser?.permissions.length ? (
-                inspectedUser.permissions.map((permission) => (
+              {resolvedShellAccess?.effectivePermissions.length ? (
+                resolvedShellAccess.effectivePermissions.map((permission) => (
                   <Badge key={permission} variant="primary">
                     {permission}
                   </Badge>
                 ))
               ) : (
-                <div className="text-sm text-muted-foreground">No explicit permissions.</div>
+                <div className="text-sm text-muted-foreground">
+                  No effective permissions returned.
+                </div>
               )}
             </div>
           </CardContent>
@@ -439,8 +825,8 @@ export function UserAccessInspectorPanel({
           <CardHeader className="p-4 pb-0">
             <CardTitle>Access coverage</CardTitle>
             <CardDescription>
-              This is the same shell coverage model used by the Coverage surface, resolved for the
-              selected user.
+              This is the same shell coverage model used by the Coverage surface, resolved from
+              the current effective permissions.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 p-4 pt-4">
@@ -474,6 +860,32 @@ export function UserAccessInspectorPanel({
   );
 }
 
+interface UserShellAccessDraft {
+  policyIds: string[];
+  grantPermissions: string[];
+  denyPermissions: string[];
+}
+
+function normalizeUserShellAccessDraft(draft: UserShellAccessDraft): UserShellAccessDraft {
+  return {
+    policyIds: Array.from(new Set(draft.policyIds.map((entry) => entry.trim()).filter(Boolean))),
+    grantPermissions: Array.from(
+      new Set(draft.grantPermissions.map((entry) => entry.trim()).filter(Boolean)),
+    ),
+    denyPermissions: Array.from(
+      new Set(draft.denyPermissions.map((entry) => entry.trim()).filter(Boolean)),
+    ),
+  };
+}
+
+function toUserShellAccessDraft(access: UserShellAccess): UserShellAccessDraft {
+  return normalizeUserShellAccessDraft({
+    policyIds: access.policyIds,
+    grantPermissions: access.grantPermissions,
+    denyPermissions: access.denyPermissions,
+  });
+}
+
 export function getAccessFootprint(permissions: string[]) {
   const accessibleApps = getAccessibleApps(permissions);
   const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
@@ -498,9 +910,9 @@ export function RoleMatrixCard() {
       <CardHeader>
         <CardTitle>Access class matrix</CardTitle>
         <CardDescription>
-          The shell currently keeps only two built-in access classes: Admin and User. The matrix
-          below shows the fallback permission bundles used when the backend does not send explicit
-          permissions.
+          The shell currently keeps three built-in access classes: User, Organization Admin, and
+          Platform Admin. The matrix below shows the fallback permission bundles used when the
+          backend does not send explicit permissions.
         </CardDescription>
       </CardHeader>
       <CardContent className="overflow-x-auto">
@@ -641,6 +1053,78 @@ function formatUserOptionLabel(user: Pick<AppUser, "name" | "email">) {
   }
 
   return user.email || user.name || "User";
+}
+
+function PermissionOverrideCard({
+  title,
+  description,
+  permissionGroups,
+  selectedPermissions,
+  onToggle,
+}: {
+  title: string;
+  description: string;
+  permissionGroups: Array<{
+    label: string;
+    items: Array<{
+      id: string;
+      label: string;
+      description: string;
+    }>;
+  }>;
+  selectedPermissions: string[];
+  onToggle: (permissionId: string) => void;
+}) {
+  return (
+    <Card variant="nested">
+      <CardHeader className="p-4 pb-0">
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 p-4 pt-4">
+        {permissionGroups.map((group) => (
+          <div key={group.label} className="space-y-2">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              {group.label}
+            </div>
+            <div className="space-y-2">
+              {group.items.map((option) => {
+                const enabled = selectedPermissions.includes(option.id);
+
+                return (
+                  <label
+                    key={option.id}
+                    className={cn(
+                      "flex items-start gap-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/35 px-3 py-3",
+                      enabled && "border-primary/40 bg-primary/8",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-border text-primary"
+                      checked={enabled}
+                      onChange={() => {
+                        onToggle(option.id);
+                      }}
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-foreground">{option.label}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {option.description || option.id}
+                      </div>
+                      <div className="mt-2 font-mono text-[11px] text-muted-foreground">
+                        {option.id}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
 }
 
 function ResourceAccessCard({

@@ -201,6 +201,22 @@ if (restoredJwtSession) {
       status: "authenticated",
       error: null,
     });
+
+    void (async () => {
+      try {
+        const bundle = await resolveStoredJwtSession(restoredJwtSession);
+        persistJwtSession(bundle);
+        scheduleRefresh(bundle.tokens);
+        useAuthStore.setState({
+          session: bundle.session,
+          refreshToken: bundle.tokens.refreshToken,
+          status: "authenticated",
+          error: null,
+        });
+      } catch {
+        // Keep the restored session if background shell-access rehydration fails.
+      }
+    })();
   } else {
     void (async () => {
       try {

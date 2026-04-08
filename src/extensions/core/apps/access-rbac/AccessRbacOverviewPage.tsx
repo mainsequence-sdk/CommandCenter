@@ -1,8 +1,3 @@
-import { useState } from "react";
-
-import { fetchCurrentAuthGroups } from "@/auth/api";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import {
@@ -10,31 +5,10 @@ import {
 } from "./shared";
 
 export function AccessRbacOverviewPage() {
-  const [currentGroups, setCurrentGroups] = useState<string[] | null>(null);
-  const [currentGroupsError, setCurrentGroupsError] = useState<string | null>(null);
-  const [currentGroupsLoading, setCurrentGroupsLoading] = useState(false);
-
-  async function handleLoadCurrentGroups() {
-    setCurrentGroupsLoading(true);
-    setCurrentGroupsError(null);
-
-    try {
-      const groups = await fetchCurrentAuthGroups();
-      setCurrentGroups(groups);
-    } catch (error) {
-      setCurrentGroupsError(
-        error instanceof Error ? error.message : "Unable to load current groups.",
-      );
-      setCurrentGroups(null);
-    } finally {
-      setCurrentGroupsLoading(false);
-    }
-  }
-
   return (
     <AccessRbacSurfaceLayout
       title="Access & RBAC"
-      description="This overview separates what Command Center enforces in the shell from what Main Sequence enforces on governed backend resources."
+      description="This overview separates what Command Center enforces in the shell from what Main Sequence enforces on governed backend resources for organization-admin workflows."
     >
       <div className="space-y-6">
         <Card>
@@ -57,14 +31,12 @@ export function AccessRbacOverviewPage() {
             </Card>
             <Card variant="nested">
               <CardContent className="p-4">
-                <div className="text-sm font-medium text-foreground">Platform access class</div>
+                <div className="text-sm font-medium text-foreground">Organization access class</div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Right now Command Center only distinguishes Admin and User. That platform access
-                  class is configured in <code>config/command-center.yaml</code> by mapping
-                  backend RBAC groups into the shell application groups under{" "}
-                  <code>auth.jwt.user_details.role_groups</code>. You can inspect that mapping in
-                  Admin Settings under Auth. Admin unlocks administration surfaces. User is the
-                  general non-admin shell class.
+                  Auth identifies the user. Command Center then resolves shell access from the
+                  dedicated shell-access endpoint and uses the returned
+                  <code> effective_permissions</code> as the source of truth for organization-admin
+                  surfaces.
                 </div>
               </CardContent>
             </Card>
@@ -72,25 +44,17 @@ export function AccessRbacOverviewPage() {
               <CardContent className="p-4">
                 <div className="text-sm font-medium text-foreground">Resolution flow</div>
                 <pre className="mt-3 overflow-x-auto rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/55 p-4 text-xs leading-6 text-foreground">
-{`backend RBAC groups
+{`backend user details / JWT claims
         |
-        +-- matches configured Admin group? ------ yes ---> Admin shell class
-        |                                             |
-        |                                             v
-        |                                      admin surfaces unlock
+        +-- identity bootstrap ----------------------> signed-in user profile
         |
-        +-- no ---> groups are assigned to policies
-                         |
-                         +-- one policy match -------> apply that policy
-                         |
-                         +-- multiple matches -------> highest precedence wins
-                         |                              + permission grants merge
-                         |
-                         +-- no policy match ---------> fallback User baseline
-                                                        |
-                                                        v
-                                           shell gates decide what is visible,
-                                           searchable, and reachable`}
+        +-- /command_center/access-policies/ --------> reusable shell policy definitions
+        |
+        +-- /command_center/users/<id>/shell-access/ -> user policy assignments plus direct grants/denies
+        |                                              resolve into effective permissions
+        |
+        +-- effective_permissions --------------------> shell gates decide what is visible,
+                                                       searchable, and reachable`}
                 </pre>
               </CardContent>
             </Card>
@@ -98,44 +62,18 @@ export function AccessRbacOverviewPage() {
               <CardContent className="p-4">
                 <div className="text-sm font-medium text-foreground">Permission gates</div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Permissions are the real enforcement layer. In the current shell, those
-                  permission gates are resolved from backend RBAC groups and auth claims during
-                  session build. Apps, pages, tools, widgets, and utilities each declare their
-                  required permissions, and the shell uses those checks to decide what is visible,
+                  Permissions are the real shell enforcement layer. Reusable shell policies and
+                  per-user overrides come from the dedicated Command Center policy and shell-access
+                  endpoints. Apps, pages, tools, widgets, and utilities each declare their required
+                  permissions, and the shell uses those checks to decide what is visible,
                   searchable, and reachable.
                 </div>
                 <div className="mt-4 flex flex-col gap-3">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={currentGroupsLoading}
-                      onClick={() => {
-                        void handleLoadCurrentGroups();
-                      }}
-                    >
-                      {currentGroupsLoading ? "Loading groups..." : "Show current groups"}
-                    </Button>
-                    {currentGroupsError ? (
-                      <span className="text-xs text-danger">{currentGroupsError}</span>
-                    ) : null}
+                  <div className="text-xs text-muted-foreground">
+                    Auth groups can still exist on backend identity payloads, but they are not part
+                    of the Command Center config contract and they no longer unlock
+                    organization-admin navigation in the shell.
                   </div>
-                  {currentGroups ? (
-                    currentGroups.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {currentGroups.map((group) => (
-                          <Badge key={group} variant="primary">
-                            {group}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground">
-                        No groups were returned for this session.
-                      </div>
-                    )
-                  ) : null}
                 </div>
               </CardContent>
             </Card>

@@ -16,7 +16,7 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
   category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",
-  requiredPermissions: ["marketdata:read"],
+  requiredPermissions: ["main_sequence_markets:view"],
   tags: ["main-sequence", "markets", "yield-curve", "rates", "lightweight-charts", "data-node"],
   exampleProps: {
     sourceMode: "filter_widget",

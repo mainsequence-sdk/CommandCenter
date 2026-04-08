@@ -565,10 +565,10 @@ export function LoginPageV2() {
   const [phase, setPhase] = useState(0);
 
   const [identifier, setIdentifier] = useState(
-    isBypassAuth ? "admin@mainsequence.local" : "",
+    isBypassAuth ? "org_admin@mainsequence.local" : "",
   );
   const [password, setPassword] = useState(isBypassAuth ? "demo" : "");
-  const [role, setRole] = useState<BuiltinAppRole>("admin");
+  const [role, setRole] = useState<BuiltinAppRole>("org_admin");
 
   const redirectTarget =
     (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/app";

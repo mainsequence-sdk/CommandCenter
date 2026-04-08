@@ -13,7 +13,7 @@ Its implementation now lives under:
 - `src/extensions/core/apps/access-rbac/`
 
 It lives in the admin menu, not in the primary left rail, and it is permission-gated with
-`rbac:view`.
+`org_admin:view`.
 
 The app manages its own surface menu inside the page itself, so its navigation does not leak into
 the global topbar.
@@ -29,16 +29,18 @@ A standalone admin app gives you:
 - favorites support for admin views
 - searchability through the same app-and-surface model as the rest of the platform
 - a clean separation between policy, assignments, operational review, and user inspection
+- a clean separation between organization-admin workflows and the platform-only `Admin Settings`
+  modal
 
 ## Surface model
 
 The shipped `Access & RBAC` app is organized into six surfaces:
 
 - `Overview`: governance model only
-- `Policies`: shell policy studio with local save plus fetched RBAC-group assignment
+- `Policies`: backend-backed Command Center shell policy studio
 - `Main Sequence access`: reference page for Main Sequence object-level user and team assignments
 - `Coverage`: effective shell access across apps, surfaces, widgets, and utilities
-- `User access inspector`: lookup and inspect one user at a time
+- `User access inspector`: lookup one user, edit shell-access assignments, and inspect the resulting effective coverage
 - `Teams`: organization team registry, membership management, and sharing
 
 Those surfaces are grouped into three sections:
@@ -80,7 +82,7 @@ const accessRbacApp: AppDefinition = {
   icon: KeyRound,
   navigationPlacement: "admin-menu",
   topNavigationStyle: "hidden",
-  requiredPermissions: ["rbac:view"],
+  requiredPermissions: ["org_admin:view"],
   defaultSurfaceId: "overview",
   surfaces: [
     {
@@ -99,7 +101,7 @@ const accessRbacApp: AppDefinition = {
     },
     {
       id: "user-inspector",
-      title: "User access inspector",
+      title: "Organization user inspector",
       kind: "page",
       navigationSection: inspectionSection,
       component: AccessRbacInspectorPage,
@@ -149,10 +151,27 @@ The policies surface now follows the same pattern with `RbacPolicyStudio`.
 
 That component provides:
 
-- local browser persistence for draft shell policies
-- fetched RBAC group assignment from `access_rbac.groups.list_url`
-- fixed configured Admin group mapping
+- CRUD against `/api/v1/command_center/access-policies/`
+- `slugified_name` as the visible policy key while detail routes still use integer ids
+- fixed built-in `light-user`, `dev-user`, and `org-admin-user` policies that stay read-only in the org-admin UI
+- hidden backend-enforced admin-class policies such as `admin` and `platform-admin`
 - editable shell permission bundles
 
-The app owns the current Command Center policy model. The reusable studio owns the editing
-interaction and persistence behavior.
+The shell app access model is now explicit:
+
+- `workspaces:view` unlocks the Workspaces shell app
+- `main_sequence_markets:view` unlocks Main Sequence Markets
+- `main_sequence_foundry:view` unlocks Main Sequence Foundry
+
+The User Inspector complements that by managing `/api/v1/command_center/users/<user_id>/shell-access/`
+for one user at a time.
+
+That inspector:
+
+- assigns visible custom policies to the user
+- applies direct grants and direct denies
+- previews the resolved `effective_permissions` before saving
+- computes app, surface, widget, and utility visibility from the backend response
+
+The app owns the current Command Center policy model and shell-access contract. The reusable
+studio/inspector UI owns the editing interaction.

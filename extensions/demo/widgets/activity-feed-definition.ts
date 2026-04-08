@@ -10,7 +10,7 @@ export const activityFeedWidget: WidgetDefinition<{ limit?: number }> = {
   kind: "feed",
   source: "demo",
   defaultSize: { w: 4, h: 5 },
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["main_sequence_markets:view"],
   tags: ["ops", "alerts", "demo"],
   exampleProps: { limit: 6 },
   component: ActivityFeedWidget,

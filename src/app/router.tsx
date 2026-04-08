@@ -82,7 +82,7 @@ export const router = createBrowserRouter([
       {
         path: "access",
         element: (
-          <PermissionRoute anyOf={["rbac:view"]}>
+          <PermissionRoute anyOf={["org_admin:view"]}>
             <Navigate to="/app/access-rbac/overview" replace />
           </PermissionRoute>
         ),
@@ -90,7 +90,7 @@ export const router = createBrowserRouter([
       {
         path: "admin-panel",
         element: (
-          <PermissionRoute anyOf={["rbac:view"]}>
+          <PermissionRoute anyOf={["org_admin:view"]}>
             <Navigate to="/app/admin/organization-users" replace />
           </PermissionRoute>
         ),
@@ -98,7 +98,7 @@ export const router = createBrowserRouter([
       {
         path: "admin-panel/:surfaceId",
         element: (
-          <PermissionRoute anyOf={["rbac:view"]}>
+          <PermissionRoute anyOf={["org_admin:view"]}>
             <Navigate to="/app/admin/organization-users" replace />
           </PermissionRoute>
         ),
@@ -106,7 +106,7 @@ export const router = createBrowserRouter([
       {
         path: "teams",
         element: (
-          <PermissionRoute anyOf={["rbac:view"]}>
+          <PermissionRoute anyOf={["org_admin:view"]}>
             <Navigate to="/app/access-rbac/teams" replace />
           </PermissionRoute>
         ),
@@ -114,7 +114,7 @@ export const router = createBrowserRouter([
       {
         path: "access-rbac/teams/:teamId",
         element: (
-          <PermissionRoute anyOf={["rbac:view"]}>
+          <PermissionRoute anyOf={["org_admin:view"]}>
             <AccessRbacTeamDetailPage />
           </PermissionRoute>
         ),
@@ -146,7 +146,7 @@ export const router = createBrowserRouter([
       {
         path: "main_sequence_markets/asset-categories/:categoryId",
         element: (
-          <PermissionRoute anyOf={["marketdata:read"]}>
+          <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequenceAssetCategoryDetailPage />
           </PermissionRoute>
         ),
@@ -154,7 +154,7 @@ export const router = createBrowserRouter([
       {
         path: "main_sequence_markets/asset-translation-tables/:tableId",
         element: (
-          <PermissionRoute anyOf={["marketdata:read"]}>
+          <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequenceAssetTranslationTableDetailPage />
           </PermissionRoute>
         ),
@@ -162,7 +162,7 @@ export const router = createBrowserRouter([
       {
         path: "main_sequence_markets/execution-venues/:venueId",
         element: (
-          <PermissionRoute anyOf={["marketdata:read"]}>
+          <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequenceExecutionVenueDetailPage />
           </PermissionRoute>
         ),
@@ -170,7 +170,7 @@ export const router = createBrowserRouter([
       {
         path: "main_sequence_markets/portfolio-groups/:groupId",
         element: (
-          <PermissionRoute anyOf={["marketdata:read"]}>
+          <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequencePortfolioGroupDetailPage />
           </PermissionRoute>
         ),
@@ -200,7 +200,7 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: (
-          <PermissionRoute anyOf={["main_sequence.operations:view"]}>
+          <PermissionRoute anyOf={["main_sequence_foundry:view"]}>
             <MainSequenceClusterDetailPage />
           </PermissionRoute>
         ),

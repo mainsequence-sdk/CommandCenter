@@ -2,7 +2,7 @@ import type { ThemePreset } from "@/themes/types";
 
 export const pandaTruenoTheme: ThemePreset = {
   id: "panda-trueno",
-  label: "Panda Trueno",
+  label: "Panda",
   description:
     "AE86-inspired light theme with pearl white panels, black trim, electric blue stripe energy, and amber lamp accents.",
   source: "core",

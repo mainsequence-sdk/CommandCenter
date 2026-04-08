@@ -15,7 +15,7 @@ export const mainSequenceDataNodeStatisticWidget = defineWidget<MainSequenceData
   category: "Main Sequence Data Nodes",
   kind: "custom",
   source: "main_sequence_workbench",
-  requiredPermissions: ["dashboard:view"],
+  requiredPermissions: ["main_sequence_foundry:view"],
   tags: ["main-sequence", "data-node", "statistic", "kpi"],
   exampleProps: {
     sourceMode: "filter_widget",

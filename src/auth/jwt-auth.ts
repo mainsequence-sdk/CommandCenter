@@ -1,5 +1,4 @@
 import {
-  builtinAppRoles,
   type AppUser,
   type LoginInput,
   type OrganizationTeam,
@@ -11,7 +10,14 @@ import {
   handleMockJwtAuthorizedGet,
   handleMockJwtPost,
 } from "@/auth/mock-jwt-auth";
-import { getPermissionsForRole, normalizeBuiltinRole } from "@/auth/permissions";
+import {
+  ORGANIZATION_ADMIN_PERMISSION,
+  PLATFORM_ADMIN_PERMISSION,
+  buildEffectivePermissions,
+  getPermissionsForRole,
+  normalizeBuiltinRole,
+  normalizeOrganizationRole,
+} from "@/auth/permissions";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 
@@ -153,39 +159,6 @@ function normalizeStringList(value: unknown) {
   return [] as string[];
 }
 
-function normalizeConfiguredGroupList(value: unknown) {
-  if (Array.isArray(value)) {
-    return value
-      .filter((entry): entry is string => typeof entry === "string")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    if (!trimmed) {
-      return [] as string[];
-    }
-
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        return normalizeConfiguredGroupList(parsed);
-      } catch {
-        return [trimmed];
-      }
-    }
-
-    return trimmed
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-  }
-
-  return [] as string[];
-}
-
 function normalizeGroupNames(value: unknown) {
   if (Array.isArray(value)) {
     return value.flatMap<string>((entry) => {
@@ -195,8 +168,8 @@ function normalizeGroupNames(value: unknown) {
       }
 
       if (isRecord(entry)) {
-        const name = readString(entry.name);
-        return name ? [name] : [];
+        const normalizedName = readString(entry.normalized_name);
+        return normalizedName ? [normalizedName] : [];
       }
 
       return [];
@@ -223,11 +196,24 @@ function normalizeGroupNames(value: unknown) {
   }
 
   if (isRecord(value)) {
-    const name = readString(value.name);
-    return name ? [name] : [];
+    const normalizedName = readString(value.normalized_name);
+    return normalizedName ? [normalizedName] : [];
   }
 
   return [] as string[];
+}
+
+function buildConfigPath(
+  template: string,
+  params: Record<string, string | number>,
+) {
+  return template.replace(/\{([^}]+)\}/g, (match, key) => {
+    if (!(key in params)) {
+      return match;
+    }
+
+    return encodeURIComponent(String(params[key]));
+  });
 }
 
 function normalizePermissions(value: unknown) {
@@ -493,23 +479,6 @@ function deriveName(email: string, role: string) {
   return role || "User";
 }
 
-function resolveRoleFromGroups(groups: string[], fallbackRole: string) {
-  const normalizedGroups = new Set(groups.map((group) => group.toLowerCase()));
-  const roleGroups = commandCenterConfig.auth.jwt.userDetails.roleGroups;
-
-  for (const role of ["admin", "user"] as const) {
-    const configuredGroups = normalizeConfiguredGroupList(roleGroups[role]);
-
-    if (
-      configuredGroups.some((group) => normalizedGroups.has(group.toLowerCase()))
-    ) {
-      return role;
-    }
-  }
-
-  return fallbackRole;
-}
-
 async function fetchUserDetails(tokens: StoredJwtTokens) {
   const detailsPath = commandCenterConfig.auth.jwt.userDetails.url.trim();
 
@@ -525,6 +494,91 @@ async function fetchUserDetails(tokens: StoredJwtTokens) {
   );
 }
 
+function normalizeShellAccessPermissions(payload: Record<string, unknown>) {
+  return normalizePermissions(
+    payload.effective_permissions ?? payload.effectivePermissions,
+  );
+}
+
+function resolveSessionRole({
+  permissions,
+  platformPermissions = [],
+  isPlatformAdmin = false,
+}: {
+  permissions: Permission[];
+  platformPermissions?: Permission[];
+  isPlatformAdmin?: boolean;
+}) {
+  if (
+    isPlatformAdmin ||
+    permissions.includes(PLATFORM_ADMIN_PERMISSION) ||
+    platformPermissions.includes(PLATFORM_ADMIN_PERMISSION)
+  ) {
+    return "platform_admin" as const;
+  }
+
+  if (permissions.includes(ORGANIZATION_ADMIN_PERMISSION)) {
+    return "org_admin" as const;
+  }
+
+  return "user" as const;
+}
+
+async function fetchUserShellAccess(
+  tokens: StoredJwtTokens,
+  userId: string,
+) {
+  const shellAccessTemplate = commandCenterConfig.commandCenterAccess.users.shellAccessUrl.trim();
+
+  if (!shellAccessTemplate || !userId) {
+    return null;
+  }
+
+  const shellAccessPath = buildConfigPath(shellAccessTemplate, {
+    user_id: userId,
+  });
+
+  const payload = await fetchJsonAuthorized<Record<string, unknown>>(
+    resolveEndpointUrl(shellAccessPath),
+    tokens.accessToken,
+    tokens.tokenType,
+    "Shell access request",
+  );
+
+  return normalizeShellAccessPermissions(payload);
+}
+
+async function hydrateUserShellAccess(
+  tokens: StoredJwtTokens,
+  user: AppUser,
+) {
+  if (!user.id) {
+    throw new Error("User details did not provide an id required for shell-access resolution.");
+  }
+
+  const shellPermissions = await fetchUserShellAccess(tokens, user.id);
+
+  if (!shellPermissions) {
+    return user;
+  }
+
+  const permissions = buildEffectivePermissions({
+    permissions: shellPermissions,
+    platformPermissions: user.platformPermissions,
+    isPlatformAdmin: user.isPlatformAdmin,
+  });
+
+  return {
+    ...user,
+    role: resolveSessionRole({
+      permissions,
+      platformPermissions: user.platformPermissions,
+      isPlatformAdmin: user.isPlatformAdmin,
+    }),
+    permissions,
+  } satisfies AppUser;
+}
+
 function buildUserProfile(
   tokens: StoredJwtTokens,
   tokenResponse?: Record<string, unknown>,
@@ -536,18 +590,45 @@ function buildUserProfile(
   const tokenSources = [tokenResponse, claims].filter(isRecord);
   const allSources = [userDetails, ...tokenSources].filter(isRecord);
   const groups = normalizeGroupNames(
-    userDetails ? resolveMappedValue(userDetailsMapping.groups, [userDetails]) : undefined,
+    userDetails ? readPathValue(userDetails, "groups") : undefined,
   );
   const fallbackRole = readString(
     resolveMappedValue(userDetailsMapping.role, allSources) ??
       resolveMappedValue(claimMapping.role, tokenSources),
     "user",
   );
-  const role = normalizeBuiltinRole(resolveRoleFromGroups(groups, fallbackRole)) ?? "user";
-  const permissions = normalizePermissions(
+  const organizationRole =
+    normalizeOrganizationRole(
+      readString(
+        (userDetails && resolveMappedValue(userDetailsMapping.organizationRole, [userDetails])) ??
+          resolveMappedValue(claimMapping.organizationRole, tokenSources),
+      ),
+    ) ?? undefined;
+  const platformPermissions = normalizePermissions(
+    (userDetails && resolveMappedValue(userDetailsMapping.platformPermissions, [userDetails])) ??
+      resolveMappedValue(claimMapping.platformPermissions, tokenSources),
+  );
+  const platformAdminFlag = readBoolean(
+    (userDetails && resolveMappedValue(userDetailsMapping.isPlatformAdmin, [userDetails])) ??
+      resolveMappedValue(claimMapping.isPlatformAdmin, tokenSources),
+  );
+  const normalizedFallbackRole = normalizeBuiltinRole(fallbackRole) ?? "user";
+  const isPlatformAdmin =
+    platformAdminFlag ??
+    (platformPermissions.includes("platform_admin:access") ||
+      normalizedFallbackRole === "platform_admin");
+  const role = isPlatformAdmin ? "platform_admin" : "user";
+  const rawPermissions = normalizePermissions(
     (userDetails && resolveMappedValue(userDetailsMapping.permissions, [userDetails])) ??
       resolveMappedValue(claimMapping.permissions, tokenSources),
   );
+  const permissions = buildEffectivePermissions({
+    permissions: rawPermissions,
+    role,
+    organizationRole,
+    platformPermissions,
+    isPlatformAdmin,
+  });
   const dateJoined = readString(
     (userDetails && resolveMappedValue(userDetailsMapping.dateJoined, [userDetails])) ??
       resolveMappedValue(claimMapping.dateJoined, tokenSources),
@@ -613,11 +694,12 @@ function buildUserProfile(
       resolveMappedValue(claimMapping.team, tokenSources),
     "Unknown",
   );
-  const id = readStringish(
-    (userDetails && resolveMappedValue(userDetailsMapping.userId, [userDetails])) ??
-      resolveMappedValue(claimMapping.userId, tokenSources),
-    email || role || "user",
-  );
+  const id = userDetails
+    ? readStringish(
+        resolveMappedValue(userDetailsMapping.userId, [userDetails]) ??
+          readPathValue(userDetails, "id"),
+      )
+    : readStringish(resolveMappedValue(claimMapping.userId, tokenSources));
 
   return {
     id,
@@ -628,10 +710,10 @@ function buildUserProfile(
     plan: plan || undefined,
     team,
     role,
-    permissions:
-      permissions.length || !builtinAppRoles.includes(role as (typeof builtinAppRoles)[number])
-        ? permissions
-        : getPermissionsForRole(role),
+    organizationRole,
+    platformPermissions,
+    isPlatformAdmin,
+    permissions: permissions.length ? permissions : getPermissionsForRole(role),
     groups,
     dateJoined: dateJoined || undefined,
     isActive,
@@ -652,12 +734,16 @@ async function buildSessionBundle(
   const userDetails = options?.includeUserDetails ? await fetchUserDetails(tokens) : null;
   const claims = decodeJwtClaims(tokens.accessToken);
   const expiresAt = tokens.expiresAt ?? readNumber(claims.exp);
+  const resolvedUser =
+    userDetails
+      ? buildUserProfile(tokens, tokenResponse, userDetails)
+      : options?.user ?? buildUserProfile(tokens, tokenResponse, userDetails);
   const session: Session = {
     token: tokens.accessToken,
     tokenType: tokens.tokenType,
     expiresAt:
       expiresAt && expiresAt > 10_000_000_000 ? expiresAt : expiresAt ? expiresAt * 1000 : undefined,
-    user: options?.user ?? buildUserProfile(tokens, tokenResponse, userDetails),
+    user: await hydrateUserShellAccess(tokens, resolvedUser),
   };
 
   return {
@@ -679,7 +765,24 @@ function parseStoredSession(value: unknown): Session | null {
     return null;
   }
 
-  const permissions = normalizePermissions(value.user.permissions);
+  const role = normalizeBuiltinRole(readString(value.user.role, "user")) ?? "user";
+  const organizationRole =
+    normalizeOrganizationRole(
+      readString(value.user.organizationRole ?? value.user.organization_role),
+    ) ?? undefined;
+  const platformPermissions = normalizePermissions(
+    value.user.platformPermissions ?? value.user.platform_permissions,
+  );
+  const isPlatformAdmin =
+    readBoolean(value.user.isPlatformAdmin ?? value.user.is_platform_admin) ??
+    (platformPermissions.includes("platform_admin:access") || role === "platform_admin");
+  const permissions = buildEffectivePermissions({
+    permissions: normalizePermissions(value.user.permissions),
+    role,
+    organizationRole,
+    platformPermissions,
+    isPlatformAdmin,
+  });
 
   if (!permissions.length && !readString(value.token)) {
     return null;
@@ -696,7 +799,10 @@ function parseStoredSession(value: unknown): Session | null {
       avatarUrl: readString(value.user.avatarUrl) || undefined,
       plan: readString(value.user.plan) || undefined,
       team: readString(value.user.team, "Unknown"),
-      role: normalizeBuiltinRole(readString(value.user.role, "user")) ?? "user",
+      role,
+      organizationRole,
+      platformPermissions,
+      isPlatformAdmin,
       permissions,
       groups: normalizeGroupNames(value.user.groups),
       dateJoined: readString(value.user.dateJoined) || undefined,
@@ -796,15 +902,10 @@ export async function resolveStoredJwtSession(
     return refreshJwtSession(restored.tokens.refreshToken, restored.session.user);
   }
 
-  return {
-    session: {
-      ...restored.session,
-      token: restored.tokens.accessToken,
-      tokenType: restored.tokens.tokenType,
-      expiresAt: restored.tokens.expiresAt,
-    },
-    tokens: restored.tokens,
-  };
+  return buildSessionBundle(restored.tokens, undefined, {
+    includeUserDetails: true,
+    user: restored.session.user,
+  });
 }
 
 export async function loginWithJwt(input: LoginInput): Promise<JwtSessionBundle> {
@@ -838,5 +939,8 @@ export async function refreshJwtSession(
   );
   const tokens = buildStoredTokens(responseData, refreshToken);
 
-  return buildSessionBundle(tokens, responseData, currentUser ? { user: currentUser } : undefined);
+  return buildSessionBundle(tokens, responseData, {
+    includeUserDetails: true,
+    user: currentUser,
+  });
 }

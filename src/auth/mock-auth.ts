@@ -13,9 +13,17 @@ export async function loginWithRole({
 }: LoginInput): Promise<Session> {
   await sleep(250);
 
-  const selectedRole: BuiltinAppRole = role ?? "admin";
+  const selectedRole: BuiltinAppRole = role ?? "org_admin";
   const normalizedEmail = identifier || `${selectedRole}@mainsequence.local`;
   const name = `${ROLE_LABELS[selectedRole]} User`;
+  const isPlatformAdmin = selectedRole === "platform_admin";
+  const organizationRole = selectedRole === "user" ? "USER" : "ORG_ADMIN";
+  const groups =
+    selectedRole === "platform_admin"
+      ? ["Platform Admin", "Organization Admin"]
+      : selectedRole === "org_admin"
+        ? ["Organization Admin"]
+        : ["User"];
 
   return {
     token: `dev-bypass-token-${selectedRole}`,
@@ -24,20 +32,23 @@ export async function loginWithRole({
       id: `user-${selectedRole}`,
       name,
       email: normalizedEmail,
-      team: selectedRole === "admin" ? "Platform" : "Workspace",
+      team: selectedRole === "user" ? "Workspace" : "Platform",
       role: selectedRole,
       permissions: ROLE_PERMISSIONS[selectedRole],
-      groups: [ROLE_LABELS[selectedRole]],
+      organizationRole,
+      platformPermissions: isPlatformAdmin ? ["platform_admin:access"] : [],
+      isPlatformAdmin,
+      groups,
       dateJoined: "2026-03-18T10:20:30Z",
       isActive: true,
       lastLogin: "2026-03-18T10:20:30Z",
-      mfaEnabled: selectedRole === "admin",
+      mfaEnabled: selectedRole !== "user",
       organizationTeams: [
         {
-          id: selectedRole === "admin" ? 1 : 4,
-          name: selectedRole === "admin" ? "Platform" : "Workspace",
+          id: selectedRole === "user" ? 4 : 1,
+          name: selectedRole === "user" ? "Workspace" : "Platform",
           description:
-            selectedRole === "admin"
+            selectedRole !== "user"
               ? "Platform administration team"
               : "General non-admin workspace users",
           is_active: true,

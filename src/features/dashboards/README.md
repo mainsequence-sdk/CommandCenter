@@ -136,13 +136,20 @@ These flows are all part of one app surface, with instance state selected throug
 - In canvas edit mode, the workspace canvas exposes a thin in-canvas widget rail on the left side:
   one plain icon per mounted widget instance, with direct access to that widget's settings, a
   small runtime-status dot, and hover summaries. Widgets can opt into richer rail hover content
-  through shared widget-definition metadata.
+  through shared widget-definition metadata. The rail order should reflect live canvas structure,
+  sorted by widget layout position (`y`, then `x`, then stable title/id fallback), not by widget
+  creation time. The canvas editor also now treats the rail as viewport chrome: a bottom rail
+  scroller mirrors the canvas scroll position and can drive the main canvas scroll, so rail
+  visibility and workspace viewport stay in sync.
 - Workspace widget presentation now also supports `placementMode`. `canvas` keeps the instance
   visible in the grid, while `sidebar` keeps it mounted only in the edit-mode rail. This is
   intended for composable source widgets such as `Data Node` instances that should keep publishing
   runtime state without consuming canvas area.
 - The workspace toolbar keeps `Components` and workspace-settings affordances hidden until edit mode
   is active, so normal viewing does not expose authoring controls.
+- The confusing standalone toolbar `+` shortcut to saved widgets has been removed from the canvas.
+  Saved widgets are now reached through an explicit action inside the `Components` drawer instead
+  of looking like a generic add/import button in the top bar.
 - Sidebar-only widgets can still expose selected schema fields on the canvas through the shared companion-field system. The widget remains the single owner of props/runtime, while the canvas cards are only projections of that sidebar-owned instance.
 - Sidebar-only widgets must not reserve grid cells in the main canvas layout. They stay mounted for runtime publication, but only visible companion cards are allowed to create actual canvas DOM or consume placement space.
 - In the studio canvas, exposed companion fields now render as first-class `react-grid-layout`
@@ -158,6 +165,9 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget settings in Workspaces no longer open in a modal. They now use the dedicated
   `view=widget-settings` route state with a shared full-width settings panel and an explicit
   `Return to dashboard` action.
+- In the workspace graph, clicking a node still focuses its dependency path, and the selected node
+  now exposes one small inline `Open settings` action so users can jump straight into that
+  widget's settings without leaving graph context first.
 - The widget settings header now scopes its saved/unsaved badge and save-button enabled state to the
   selected workspace only. It must not reflect unrelated unsaved changes elsewhere in the workspace
   collection.
@@ -243,6 +253,10 @@ These flows are all part of one app surface, with instance state selected throug
   Clicking a graph node should also highlight that node's upstream dependency chain, including the
   contributing nodes, the incoming connectors, and the specific input/output ports that participate
   in the highlighted path. Clicking the graph background clears that dependency focus.
+  The main graph should stay focused on dependency-relevant widgets: connected nodes remain
+  visible, and disconnected widgets are only kept in the main graph if they expose real graph IO.
+  Decorative/non-graph widgets such as unconnected Markdown notes should be hidden from the main
+  dependency canvas instead of stretching the layout vertically.
   The graph view should also reflect shared dashboard execution: the left rail uses the same
   execution-state source as the canvas, and graph nodes/edges animate during refresh so users can
   see calculation flow through the dependency graph. Request debugging is now a shared workspace
@@ -289,6 +303,9 @@ These flows are all part of one app surface, with instance state selected throug
   `Add saved widget` so reusable widgets can round-trip between the live workspace and the saved
   widget library without leaving the canvas flow.
 - The canvas `Components` browser is optimized for large catalogs: dense rows, category/kind/source filters, favorites, recent widgets, and grouped category browse when search is empty.
+- The rail viewport scroller uses a neutral segmented guide and keeps only the active position
+  marker in the theme primary color, so the current viewport stands out without washing the whole
+  control in accent color.
 - If a workspace still references a widget id that is no longer registered, the canvas explains that the widget is legacy/unavailable and lets the user delete that stale instance directly.
 - Workspace deletion from settings uses the shared destructive confirmation dialog. In backend mode, the UI removes the workspace only after the backend confirms the delete.
 - The workspace index now also exposes a direct `Copy` action. It clones the selected workspace
