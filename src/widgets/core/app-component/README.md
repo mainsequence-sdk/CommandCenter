@@ -122,6 +122,9 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - Transport failures during schema discovery or request execution now surface explicit context:
   target URL, auth mode, whether a session JWT was attached, and whether dev mode used the local
   loopback proxy or a direct browser fetch.
+- If `/openapi.json` returns a non-OpenAPI payload, schema discovery now also shows a trimmed
+  sample of the actual response body, plus status and content type when available, so the user can
+  see whether the target returned HTML, a login page, a proxy error, or some other unexpected body.
 - The OpenAPI explorer and raw request tester are now reusable outside the widget settings flow.
   The Main Sequence workbench uses the same AppComponent discovery/request surfaces to expose a
   developer-focused `Test API` tab for FastAPI resource releases.

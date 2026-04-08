@@ -45,6 +45,7 @@ const openApiDocumentCache = new Map<string, CachedEntry<OpenApiDocument>>();
 const inFlightOpenApiRequests = new Map<string, Promise<OpenApiDocument>>();
 const safeResponseCache = new Map<string, CachedEntry<AppComponentTransportResponse>>();
 const inFlightSafeResponses = new Map<string, Promise<AppComponentTransportResponse>>();
+const APP_COMPONENT_OPENAPI_ERROR_SAMPLE_MAX_CHARS = 1600;
 
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
@@ -52,6 +53,55 @@ function isLoopbackHostname(hostname: string) {
 
 function cloneSerializable<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function truncateTextSample(value: string, maxChars = APP_COMPONENT_OPENAPI_ERROR_SAMPLE_MAX_CHARS) {
+  if (value.length <= maxChars) {
+    return value;
+  }
+
+  return `${value.slice(0, maxChars)}\n...`;
+}
+
+function buildOpenApiErrorSample(payload: unknown) {
+  if (payload == null) {
+    return undefined;
+  }
+
+  if (typeof payload === "string") {
+    const trimmed = payload.trim();
+    return trimmed ? truncateTextSample(trimmed) : undefined;
+  }
+
+  try {
+    return truncateTextSample(JSON.stringify(payload, null, 2));
+  } catch {
+    return truncateTextSample(String(payload));
+  }
+}
+
+export class AppComponentOpenApiDiscoveryError extends Error {
+  responseContentType?: string;
+  responseSample?: string;
+  responseStatus?: number;
+  responseUrl?: string;
+
+  constructor(
+    message: string,
+    options?: {
+      responseContentType?: string;
+      responseSample?: string;
+      responseStatus?: number;
+      responseUrl?: string;
+    },
+  ) {
+    super(message);
+    this.name = "AppComponentOpenApiDiscoveryError";
+    this.responseContentType = options?.responseContentType;
+    this.responseSample = options?.responseSample;
+    this.responseStatus = options?.responseStatus;
+    this.responseUrl = options?.responseUrl;
+  }
 }
 
 function isSafeCacheableMethod(method: string) {
@@ -491,9 +541,11 @@ export async function fetchAppComponentOpenApiDocument({
           traceMeta,
         });
     const payload = await readResponseBody(response);
+    const responseSample = buildOpenApiErrorSample(payload);
+    const responseContentType = response.headers.get("content-type") ?? undefined;
 
     if (!response.ok) {
-      throw new Error(
+      throw new AppComponentOpenApiDiscoveryError(
         typeof payload === "string"
           ? payload
           : response.status === 401
@@ -501,11 +553,25 @@ export async function fetchAppComponentOpenApiDocument({
               ? "OpenAPI request was rejected by the selected Main Sequence FastAPI release."
               : "OpenAPI request was rejected. Refresh the session or verify the target API."
             : `OpenAPI request failed with ${response.status}.`,
+        {
+          responseContentType,
+          responseSample,
+          responseStatus: response.status,
+          responseUrl: openApiUrl,
+        },
       );
     }
 
     if (!payload || typeof payload !== "object" || !("paths" in payload)) {
-      throw new Error("The target /openapi.json response did not look like an OpenAPI document.");
+      throw new AppComponentOpenApiDiscoveryError(
+        "The target /openapi.json response did not look like an OpenAPI document.",
+        {
+          responseContentType,
+          responseSample,
+          responseStatus: response.status,
+          responseUrl: openApiUrl,
+        },
+      );
     }
 
     const document = payload as OpenApiDocument;

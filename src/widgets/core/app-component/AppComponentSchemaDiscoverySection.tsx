@@ -16,6 +16,7 @@ import {
   type OpenApiDocument,
   type ResolvedAppComponentOperation,
 } from "./appComponentModel";
+import { AppComponentOpenApiDiscoveryError } from "./appComponentApi";
 
 function buildResponseModelWarningMessage(
   responseModelStatus: {
@@ -88,6 +89,9 @@ export function AppComponentSchemaDiscoverySection({
   selectedMethod,
   selectedPath,
 }: AppComponentSchemaDiscoverySectionProps) {
+  const openApiDiscoveryError =
+    openApiError instanceof AppComponentOpenApiDiscoveryError ? openApiError : null;
+
   return (
     <section className="space-y-4 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -119,10 +123,32 @@ export function AppComponentSchemaDiscoverySection({
           Enter a valid OpenAPI URL, Swagger docs URL, or service root, or select a Main Sequence resource release to load the schema.
         </div>
       ) : openApiError ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/35 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {openApiError instanceof Error
-            ? openApiError.message
-            : "Unable to load the target OpenAPI document."}
+        <div className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-danger/35 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <div>
+            {openApiError instanceof Error
+              ? openApiError.message
+              : "Unable to load the target OpenAPI document."}
+          </div>
+          {openApiDiscoveryError?.responseSample ? (
+            <div className="space-y-2 rounded-[calc(var(--radius)-8px)] border border-danger/30 bg-black/20 p-3 text-danger/95">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.14em]">
+                <span>Response sample</span>
+                {openApiDiscoveryError.responseStatus ? (
+                  <span className="text-danger/80">
+                    Status {openApiDiscoveryError.responseStatus}
+                  </span>
+                ) : null}
+                {openApiDiscoveryError.responseContentType ? (
+                  <span className="text-danger/80">
+                    {openApiDiscoveryError.responseContentType}
+                  </span>
+                ) : null}
+              </div>
+              <pre className="max-h-64 overflow-auto rounded-[calc(var(--radius)-10px)] border border-danger/25 bg-black/25 p-3 text-xs leading-5 whitespace-pre-wrap break-words text-danger/95">
+                {openApiDiscoveryError.responseSample}
+              </pre>
+            </div>
+          ) : null}
         </div>
       ) : openApiDocument ? (
         <div className="space-y-4">
