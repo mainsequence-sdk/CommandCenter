@@ -14,6 +14,12 @@ This extension owns the built-in registry entries that ship with Command Center 
 - the live core widget catalog, currently `markdown-note`, `app-component`, and the collapsible `workspace-row`
 - bundled theme presets that belong to the shell
 
+## Bundled themes
+
+- Core owns the built-in shell presets such as `Main Sequence`, `Main Sequence Space`, `Cyberpunk`,
+  and `Neon Mint`.
+- Theme registration belongs in `index.ts`; preset definitions belong under `src/themes/presets/`.
+
 ## Dependencies
 
 - Core widget source still lives under `src/widgets/core/`.

@@ -3,8 +3,8 @@ import type { ThemePreset } from "@/themes/types";
 export const neonMintTheme: ThemePreset = {
   id: "neon-mint",
   label: "Neon Mint",
-  description: "High-contrast extension theme for execution and orderflow work.",
-  source: "flow-lab",
+  description: "High-contrast dark shell with mint and cyan accents.",
+  source: "core",
   mode: "dark",
   tightness: "relaxed",
   surfaceHierarchy: "soft",

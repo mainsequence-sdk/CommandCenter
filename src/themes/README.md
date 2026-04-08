@@ -5,6 +5,7 @@ This module owns the active shell theme runtime and applies the resolved design 
 ## Main entry points
 
 - `ThemeProvider.tsx`: theme context, active preset state, token override state, and DOM token application.
+- `presets/`: first-class theme preset objects registered through the app registry.
 
 ## Responsibilities
 
@@ -22,4 +23,6 @@ This module owns the active shell theme runtime and applies the resolved design 
 ## Maintenance notes
 
 - Keep theme preset ids stable once shipped; persisted user preferences depend on those ids.
+- When a theme needs more than token swaps, keep the preset object in `presets/` and place any
+  theme-specific shell chrome rules in `src/styles/globals.css` behind `html[data-theme="..."]`.
 - If theme persistence expands beyond the preset id, extend the shared preferences contract instead of introducing a second backend persistence path.

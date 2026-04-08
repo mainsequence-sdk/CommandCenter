@@ -25,6 +25,7 @@ import { grandpaTheme } from "@/themes/presets/grandpa";
 import { graphiteTheme } from "@/themes/presets/graphite";
 import { mainSequenceTheme } from "@/themes/presets/main-sequence";
 import { mainSequenceSpaceTheme } from "@/themes/presets/main-sequence-space";
+import { neonMintTheme } from "@/themes/presets/neon-mint";
 import { pandaTruenoTheme } from "@/themes/presets/panda-trueno";
 import { quartzLightTheme } from "@/themes/presets/quartz-light";
 import { sakuraTheme } from "@/themes/presets/sakura";
@@ -279,6 +280,7 @@ const coreExtension: AppExtension = {
     mainSequenceSpaceTheme,
     mainSequenceTheme,
     cyberpunkTheme,
+    neonMintTheme,
     draculaTheme,
     grandpaTheme,
     graphiteTheme,
