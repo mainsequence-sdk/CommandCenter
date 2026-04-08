@@ -773,6 +773,25 @@ export function AppComponentWidgetSettings({
 
         <label className="space-y-2">
           <span className="text-sm font-medium text-topbar-foreground">
+            Request button label
+          </span>
+          <Input
+            value={normalizedProps.requestButtonLabel ?? ""}
+            disabled={!editable || normalizedProps.hideRequestButton === true}
+            placeholder="Submit"
+            onChange={(event) => {
+              onDraftPropsChange(buildNextDraftProps({
+                requestButtonLabel: event.target.value,
+              }, { preserveSelection: true }));
+            }}
+          />
+          <p className="text-sm text-muted-foreground">
+            Changes only the canvas request button text. Leave blank to use the default label.
+          </p>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-topbar-foreground">
             Card form columns
           </span>
           <Select

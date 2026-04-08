@@ -100,6 +100,8 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - AppComponent also exposes a saved `hideRequestButton` setting. It defaults to disabled, and when
   enabled the canvas card hides manual submit so the widget runs only through graph execution,
   upstream dependency execution, or dashboard refresh.
+- AppComponent also exposes a saved `requestButtonLabel` setting. It is presentation-only, defaults
+  to `Submit` when blank, and changes only the mounted card button text.
 - AppComponent now also persists a per-operation `requestInputMap` overlay. It is additive to the
   generated OpenAPI request form and lets users hide selected request fields from the canvas card,
   rename their labels, and prefill values without changing stable field keys or the compiled
@@ -168,6 +170,9 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - `hideRequestButton` is also a persisted widget prop. If backend widget-props validation exists,
   it must continue to allow this boolean field, and runtime submit handlers must treat it as a real
   behavior change rather than a cosmetic-only flag.
+- `requestButtonLabel` is also a persisted widget prop. It must remain presentation-only metadata:
+  changing it should affect the mounted card button text only and must not change request
+  execution, graph behavior, or settings-side test execution.
 - `requestInputMap` is also a persisted widget prop. Keep it scoped by `operationKey`, and treat it
   as a UI/execution overlay only. Do not mutate `bindingSpec.requestForm`, request port ids, or
   binding field keys when applying label, visibility, or prefill customizations.

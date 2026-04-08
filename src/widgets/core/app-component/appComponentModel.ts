@@ -78,6 +78,7 @@ export interface AppComponentWidgetProps extends Record<string, unknown> {
   showHeader?: boolean;
   showResponse?: boolean;
   hideRequestButton?: boolean;
+  requestButtonLabel?: string;
   refreshOnDashboardRefresh?: boolean;
 }
 
@@ -2385,6 +2386,10 @@ export function normalizeAppComponentProps(
     showHeader: props.showHeader !== false,
     showResponse: props.showResponse === true,
     hideRequestButton: props.hideRequestButton === true,
+    requestButtonLabel:
+      typeof props.requestButtonLabel === "string" && props.requestButtonLabel.trim()
+        ? props.requestButtonLabel.trim()
+        : undefined,
     refreshOnDashboardRefresh: props.refreshOnDashboardRefresh !== false,
   };
 }
@@ -2563,7 +2568,9 @@ export function normalizeAppComponentRequestInputMapFieldConfig(
   const normalized = {
     visibleOnCard: typeof value.visibleOnCard === "boolean" ? value.visibleOnCard : undefined,
     label:
-      typeof value.label === "string" && value.label.trim() ? value.label.trim() : undefined,
+      typeof value.label === "string" && value.label.trim().length > 0
+        ? value.label
+        : undefined,
     prefillValue: typeof value.prefillValue === "string" ? value.prefillValue : undefined,
   } satisfies AppComponentRequestInputMapFieldConfig;
 

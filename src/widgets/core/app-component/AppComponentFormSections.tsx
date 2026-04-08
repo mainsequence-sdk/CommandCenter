@@ -207,12 +207,15 @@ function AsyncSelectSearchFieldEditor({
   onChange: (nextValue: string) => void;
   onValuePatch?: (patch: Record<string, string>) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const enhancement =
     field.uiEnhancement?.widget === "select2" &&
     field.uiEnhancement.role === "async-select-search"
     ? field.uiEnhancement
     : undefined;
   const [debouncedValue, setDebouncedValue] = useState(value);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>();
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -343,6 +346,61 @@ function AsyncSelectSearchFieldEditor({
     return null;
   }
 
+  const showMenu =
+    menuOpen &&
+    value.trim().length > 0 &&
+    ((lookupRequest?.errors?.length ?? 0) > 0 ||
+      lookupQuery.isFetching ||
+      lookupQuery.error instanceof Error ||
+      Boolean(lookupQuery.data?.options.length) ||
+      lookupQuery.data?.hasMore);
+
+  useLayoutEffect(() => {
+    if (!showMenu || !inputRef.current || typeof window === "undefined") {
+      return;
+    }
+
+    function updateMenuPosition() {
+      const inputBounds = inputRef.current?.getBoundingClientRect();
+
+      if (!inputBounds) {
+        return;
+      }
+
+      const viewportPadding = 12;
+      const maxWidth = Math.max(240, window.innerWidth - viewportPadding * 2);
+      const width = Math.min(inputBounds.width, maxWidth);
+      const left = Math.min(
+        inputBounds.left,
+        Math.max(viewportPadding, window.innerWidth - width - viewportPadding),
+      );
+      const top = Math.min(
+        inputBounds.bottom + 4,
+        Math.max(viewportPadding, window.innerHeight - viewportPadding),
+      );
+      const availableHeight = Math.max(
+        120,
+        window.innerHeight - top - viewportPadding,
+      );
+
+      setMenuStyle({
+        left,
+        top,
+        width,
+        maxHeight: Math.min(320, availableHeight),
+      });
+    }
+
+    updateMenuPosition();
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+    };
+  }, [showMenu, lookupQuery.data?.options.length, lookupQuery.data?.hasMore, lookupQuery.error, lookupQuery.isFetching]);
+
   function applySearchPatch(nextSearch: string) {
     const enhancementConfig = activeEnhancement;
 
@@ -369,67 +427,90 @@ function AsyncSelectSearchFieldEditor({
   return (
     <div className="space-y-2">
       <Input
+        ref={inputRef}
         value={value}
         readOnly={disabled}
         title={title}
         placeholder="Search and choose an option"
         className={widgetTightFormInputClass}
+        onFocus={() => {
+          if (!disabled && value.trim().length > 0) {
+            setMenuOpen(true);
+          }
+        }}
+        onBlur={() => {
+          window.setTimeout(() => {
+            setMenuOpen(false);
+          }, 120);
+        }}
         onChange={(event) => {
+          setMenuOpen(true);
           applySearchPatch(event.target.value);
         }}
       />
 
-      {lookupRequest && lookupRequest.errors.length > 0 && value.trim().length > 0 ? (
-        <div className="rounded-[calc(var(--radius)-7px)] border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-          {lookupRequest.errors.join(" ")}
-        </div>
-      ) : null}
-
-      {lookupQuery.isFetching ? (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Searching…
-        </div>
-      ) : null}
-
-      {lookupQuery.error instanceof Error ? (
-        <div className="rounded-[calc(var(--radius)-7px)] border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-          {lookupQuery.error.message}
-        </div>
-      ) : null}
-
-      {lookupQuery.data?.options.length ? (
-        <div className="max-h-56 overflow-auto rounded-[calc(var(--radius)-7px)] border border-border/65 bg-background/35">
-          {lookupQuery.data.options.map((option) => (
-            <button
-              key={`${option.value}:${option.label}`}
-              type="button"
-              className="flex w-full items-center justify-between gap-3 border-b border-border/50 px-3 py-2 text-left text-sm text-foreground last:border-b-0 hover:bg-muted/40"
-              onMouseDown={(event) => {
-                event.preventDefault();
-              }}
-              onClick={() => {
-                applySearchPatch(option.label);
-              }}
+      {showMenu && menuStyle && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed z-[140] overflow-hidden rounded-[calc(var(--radius)-7px)] border border-border/75 bg-popover shadow-[var(--shadow-panel)]"
+              style={menuStyle}
             >
-              <span className="min-w-0 truncate">{option.label}</span>
-              {option.value !== option.label ? (
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                  {option.value}
-                </span>
+              {lookupRequest && lookupRequest.errors.length > 0 && value.trim().length > 0 ? (
+                <div className="border-b border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning last:border-b-0">
+                  {lookupRequest.errors.join(" ")}
+                </div>
               ) : null}
-            </button>
-          ))}
-        </div>
-      ) : value.trim().length > 0 && !lookupQuery.isFetching && !lookupQuery.error ? (
-        <div className="text-xs text-muted-foreground">No matching options.</div>
-      ) : null}
 
-      {lookupQuery.data?.hasMore ? (
-        <div className="text-xs text-muted-foreground">
-          More results are available. Refine the search text to narrow the list.
-        </div>
-      ) : null}
+              {lookupQuery.isFetching ? (
+                <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Searching…
+                </div>
+              ) : null}
+
+              {lookupQuery.error instanceof Error ? (
+                <div className="bg-danger/10 px-3 py-2 text-xs text-danger">
+                  {lookupQuery.error.message}
+                </div>
+              ) : null}
+
+              {lookupQuery.data?.options.length ? (
+                <div className="overflow-auto" style={{ maxHeight: menuStyle.maxHeight }}>
+                  {lookupQuery.data.options.map((option) => (
+                    <button
+                      key={`${option.value}:${option.label}`}
+                      type="button"
+                      className="flex w-full items-center justify-between gap-3 border-t border-border/50 px-3 py-2 text-left text-sm text-foreground first:border-t-0 hover:bg-muted/40"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                      }}
+                      onClick={() => {
+                        applySearchPatch(option.label);
+                        setMenuOpen(false);
+                      }}
+                    >
+                      <span className="min-w-0 truncate">{option.label}</span>
+                      {option.value !== option.label ? (
+                        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                          {option.value}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              ) : value.trim().length > 0 && !lookupQuery.isFetching && !lookupQuery.error ? (
+                <div className="px-3 py-2 text-xs text-muted-foreground">No matching options.</div>
+              ) : null}
+
+              {lookupQuery.data?.hasMore ? (
+                <div className="border-t border-border/50 px-3 py-2 text-xs text-muted-foreground">
+                  More results are available. Refine the search text to narrow the list.
+                </div>
+              ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

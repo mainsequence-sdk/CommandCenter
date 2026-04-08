@@ -30,6 +30,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
     showHeader: true,
     showResponse: false,
     hideRequestButton: false,
+    requestButtonLabel: "Submit",
     refreshOnDashboardRefresh: true,
   },
   mockProps: {
@@ -42,6 +43,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
     showHeader: true,
     showResponse: false,
     hideRequestButton: false,
+    requestButtonLabel: "Submit",
     refreshOnDashboardRefresh: true,
   },
   settingsComponent: AppComponentWidgetSettings,

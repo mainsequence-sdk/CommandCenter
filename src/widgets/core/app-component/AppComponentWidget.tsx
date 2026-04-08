@@ -70,6 +70,7 @@ export function AppComponentWidget({
   onRuntimeStateChange,
 }: Props) {
   const normalizedProps = useMemo(() => normalizeAppComponentProps(props), [props]);
+  const requestButtonLabel = normalizedProps.requestButtonLabel ?? "Submit";
   const widgetExecution = useDashboardWidgetExecution();
   const executionState = useWidgetExecutionState(instanceId);
   const resolvedInputs = useResolvedWidgetInputs(instanceId);
@@ -379,7 +380,7 @@ export function AppComponentWidget({
               ) : (
                 <Send className="h-4 w-4" />
               )}
-              Submit
+              {requestButtonLabel}
             </Button>
           ) : null}
         </div>
