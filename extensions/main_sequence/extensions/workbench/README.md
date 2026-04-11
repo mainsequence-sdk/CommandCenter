@@ -20,6 +20,8 @@ This nested extension owns the administrative and operational Main Sequence Foun
 
 - Keep Foundry-only pages, routes, and widgets here.
 - Move code into `../../common/` only when it is meant to be reused by another Main Sequence extension.
+- Foundry surfaces in `app.ts` now also carry assistant-facing summaries and action lists through
+  `assistantContext`; keep those descriptions aligned with the actual page capabilities.
 - `index.ts` currently registers `main-sequence-dependency-graph`,
   `main-sequence-project-infra-graph`, `main-sequence-data-node-visualizer`,
   `main-sequence-data-node`, `main-sequence-data-node-statistic`, and

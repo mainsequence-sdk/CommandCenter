@@ -36,6 +36,10 @@ VITE_INCLUDE_WORKSPACES=true
 ## Current schema
 
 ```yaml
+assistant_ui:
+  endpoint: 192.168.1.253:8787/api/chat
+  protocol: ui-message-stream
+
 app:
   name: Main Sequence Command Center
   short_name: Main Sequence
@@ -137,6 +141,8 @@ notifications:
 
 ## Fields
 
+- `assistant_ui.endpoint`: host/port or full URL used by the frontend as the canonical assistant endpoint. In live chat mode (`VITE_USE_MOCK_DATA=false`), the detachable assistant rail/page sends assistant-ui standard `POST` requests to this endpoint and expects the assistant-ui streamed response protocol back. Defaults to `192.168.1.253:8787/api/chat` when omitted.
+- `assistant_ui.protocol`: assistant-ui transport protocol expected from the backend. Supported values are `ui-message-stream` and `data-stream`. Defaults to `ui-message-stream`.
 - `app.name`: full product name used by the app
 - `app.short_name`: shorter product name for compact UI copy
 - `app.notifications_refresh_interval_ms`: notification polling interval in milliseconds. Defaults to `300000` (5 minutes) when the key is omitted.
@@ -191,6 +197,9 @@ Additional optional user attributes supported by both claim mapping and user-det
 The application:
 
 - loads `config/command-center.yaml`
+- exposes the configured `assistant_ui.*` values through the parsed runtime config
+- uses `assistant_ui.endpoint` as the live assistant stream endpoint when `VITE_USE_MOCK_DATA=false`
+- uses `assistant_ui.protocol` to choose the assistant-ui stream decoder in live mode
 - resolves logo filenames against `config/branding/`
 - swaps between light and dark logos based on the active theme
 - uses the configured mark asset in the compact sidebar/login mark

@@ -2,9 +2,9 @@ import { useEffect } from "react";
 
 import { useLocation } from "react-router-dom";
 
-import { useChatFeature } from "@/features/chat/ChatProvider";
-import { ChatOverlay } from "@/features/chat/ChatOverlay";
-import { CHAT_PAGE_PATH } from "@/features/chat/chat-ui-store";
+import { ChatOverlay } from "./ChatOverlay";
+import { useChatFeature } from "./ChatProvider";
+import { CHAT_PAGE_PATH } from "./chat-ui-store";
 
 function isEditableTarget(target: EventTarget | null) {
   const element = target as HTMLElement | null;

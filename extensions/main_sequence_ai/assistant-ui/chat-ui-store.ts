@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export const CHAT_PAGE_PATH = "/app/chat";
+export const CHAT_PAGE_PATH = "/app/main_sequence_ai/chat";
 
 interface ChatUiState {
   overlayOpen: boolean;

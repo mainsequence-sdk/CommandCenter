@@ -14,9 +14,9 @@ import {
 import { useAuthStore } from "@/auth/auth-store";
 import { env } from "@/config/env";
 import { terminalSocket } from "@/data/terminal-socket";
-import { ChatMount, ChatProvider } from "@/features/chat";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
+import { ChatMount, ChatProvider } from "../../../extensions/main_sequence_ai/assistant-ui";
 
 function isWorkspaceCanvasRoute(pathname: string, search: string) {
   const routeSegments = pathname.split("/").filter(Boolean);

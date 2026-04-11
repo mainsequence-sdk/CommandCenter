@@ -222,6 +222,18 @@ function buildConfigurationGroups({
 
   return [
     {
+      title: "Assistant UI",
+      description: "Runtime endpoint and protocol used by the detachable assistant shell.",
+      fields: [
+        {
+          label: "Assistant endpoint",
+          value: config.assistantUi.endpoint,
+          monospace: true,
+        },
+        { label: "Assistant protocol", value: config.assistantUi.protocol, monospace: true },
+      ],
+    },
+    {
       title: "App",
       description: "Shell identity and global refresh timings loaded from the bundled config.",
       fields: [

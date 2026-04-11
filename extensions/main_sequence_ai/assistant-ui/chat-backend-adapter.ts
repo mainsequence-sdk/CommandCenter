@@ -1,4 +1,4 @@
-import type { ChatViewContext } from "@/features/chat/chat-context";
+import type { ChatViewContext } from "./chat-context";
 
 export type ChatRunStatus = "idle" | "queued" | "thinking" | "responding" | "complete" | "error";
 
@@ -10,11 +10,18 @@ export type ChatBackendEvent =
 
 export interface ChatBackendRequest {
   context: ChatViewContext;
+  history: readonly ChatBackendHistoryMessage[];
   input: string;
 }
 
 export interface ChatBackendAdapter {
   streamResponse: (request: ChatBackendRequest) => AsyncIterable<ChatBackendEvent>;
+}
+
+export interface ChatBackendHistoryMessage {
+  id?: string;
+  role: "assistant" | "user";
+  text: string;
 }
 
 function splitTextIntoChunks(value: string, size = 28) {
@@ -49,7 +56,7 @@ export const mockChatBackendAdapter: ChatBackendAdapter = {
     };
     yield {
       type: "thinking",
-      summary: `Visible route: ${request.context.currentPath}`,
+      summary: request.context.surfaceSummary,
     };
     await sleep(260);
 
@@ -64,10 +71,14 @@ export const mockChatBackendAdapter: ChatBackendAdapter = {
       "",
       `Input: ${request.input}`,
       `Current route: ${request.context.currentPath}`,
-      `App: ${request.context.appId ?? "none"}`,
-      `Surface: ${request.context.surfaceId ?? "none"}`,
+      `App: ${request.context.appTitle ?? request.context.appId ?? "none"}`,
+      `Surface: ${request.context.surfaceTitle ?? request.context.surfaceId ?? "none"}`,
+      `Summary: ${request.context.surfaceSummary}`,
+      request.context.surfaceActions.length
+        ? `Available actions: ${request.context.surfaceActions.join(", ")}`
+        : "Available actions: none",
       "",
-      "Replace `mockChatBackendAdapter` in `src/features/chat/chat-backend-adapter.ts` when you wire the real agent event stream.",
+      "Replace `mockChatBackendAdapter` in `extensions/main_sequence_ai/assistant-ui/chat-backend-adapter.ts` when you wire the real agent event stream.",
     ].join("\n");
 
     for (const chunk of splitTextIntoChunks(response)) {

@@ -2,6 +2,8 @@ import rawCommandCenterConfig from "../../config/command-center.yaml?raw";
 
 export const commandCenterConfigSource = rawCommandCenterConfig.trim();
 
+export type AssistantUiProtocol = "ui-message-stream" | "data-stream";
+
 export interface CommandCenterAuthConfig {
   identifierLabel: string;
   identifierPlaceholder: string;
@@ -57,6 +59,10 @@ export interface CommandCenterAuthConfig {
 }
 
 export interface CommandCenterConfig {
+  assistantUi: {
+    endpoint: string;
+    protocol: AssistantUiProtocol;
+  };
   app: {
     name: string;
     shortName: string;
@@ -141,6 +147,11 @@ interface SimpleYamlNode {
 }
 
 interface DefaultCommandCenterConfig {
+  platform_agent_endpoint: string;
+  assistant_ui: {
+    endpoint: string;
+    protocol: AssistantUiProtocol;
+  };
   app: {
     name: string;
     short_name: string;
@@ -278,6 +289,11 @@ const brandingAssets = import.meta.glob("../../config/branding/*", {
 }) as Record<string, string>;
 
 const defaultRawConfig: DefaultCommandCenterConfig = {
+  platform_agent_endpoint: "192.168.1.253:8787/api/chat",
+  assistant_ui: {
+    endpoint: "192.168.1.253:8787/api/chat",
+    protocol: "ui-message-stream",
+  },
   app: {
     name: "Main Sequence",
     short_name: "Main Sequence",
@@ -494,6 +510,13 @@ function readNumber(value: unknown, fallback: number) {
   return fallback;
 }
 
+function readAssistantUiProtocol(
+  value: unknown,
+  fallback: AssistantUiProtocol,
+): AssistantUiProtocol {
+  return value === "data-stream" || value === "ui-message-stream" ? value : fallback;
+}
+
 function resolveBrandingAsset(fileName: string) {
   const normalizedFileName = fileName.replace(/^\.?\//, "");
   const match = Object.entries(brandingAssets).find(([path]) =>
@@ -510,6 +533,7 @@ function getNestedObject(source: Record<string, unknown>, key: string): Record<s
 
 const parsedConfig = parseSimpleYaml(rawCommandCenterConfig) as Record<string, unknown>;
 const parsedApp = getNestedObject(parsedConfig, "app");
+const parsedAssistantUi = getNestedObject(parsedConfig, "assistant_ui");
 const parsedAppCache = getNestedObject(parsedApp, "cache");
 const parsedBranding = getNestedObject(parsedConfig, "branding");
 const parsedPreferences = getNestedObject(parsedConfig, "preferences");
@@ -548,6 +572,16 @@ const logoMarkFile = readString(
   defaultRawConfig.branding.logo_mark,
 );
 export const commandCenterConfig: CommandCenterConfig = {
+  assistantUi: {
+    endpoint: readString(
+      parsedAssistantUi.endpoint ?? parsedConfig.platform_agent_endpoint,
+      defaultRawConfig.assistant_ui.endpoint,
+    ),
+    protocol: readAssistantUiProtocol(
+      parsedAssistantUi.protocol,
+      defaultRawConfig.assistant_ui.protocol,
+    ),
+  },
   app: {
     name: readString(parsedApp.name, defaultRawConfig.app.name),
     shortName: readString(parsedApp.short_name, defaultRawConfig.app.short_name),

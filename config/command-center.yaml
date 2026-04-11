@@ -1,5 +1,9 @@
 # Main Sequence Command Center configuration
 
+assistant_ui:
+  endpoint: 192.168.1.253:8787/api/chat
+  protocol: ui-message-stream
+
 app:
   name: Main Sequence
   short_name: Main Sequence

@@ -149,6 +149,7 @@ export function AppSurfaceSelector({
               const isActive = surface.id === value;
               const favoriteId = getSurfaceFavoriteId(appId, surface.id);
               const isFavorite = isSurfaceFavorited(favoriteSurfaceIds, appId, surface.id);
+              const SurfaceIcon = surface.icon;
 
               return (
                 <div
@@ -171,6 +172,11 @@ export function AppSurfaceSelector({
                     <span className="flex h-4 w-4 shrink-0 items-center justify-center text-primary">
                       {isActive ? <Check className="h-4 w-4" /> : null}
                     </span>
+                    {SurfaceIcon ? (
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-primary/90">
+                        <SurfaceIcon className="h-4 w-4" />
+                      </span>
+                    ) : null}
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">
                       {getSurfaceLabel(surface)}
                     </span>
@@ -208,8 +214,15 @@ export function AppSurfaceSelector({
           setOpen((current) => !current);
         }}
       >
-        <span className="truncate text-left">
-          {selectedSurface ? getSurfaceLabel(selectedSurface) : "Select surface"}
+        <span className="flex min-w-0 items-center gap-2 truncate text-left">
+          {selectedSurface?.icon ? (
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-primary/90">
+              <selectedSurface.icon className="h-4 w-4" />
+            </span>
+          ) : null}
+          <span className="truncate">
+            {selectedSurface ? getSurfaceLabel(selectedSurface) : "Select surface"}
+          </span>
         </span>
         <ChevronDown
           className={cn(

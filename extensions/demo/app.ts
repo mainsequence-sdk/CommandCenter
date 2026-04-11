@@ -1,6 +1,6 @@
 import { LayoutDashboard } from "lucide-react";
 
-import type { AppDefinition } from "@/apps/types";
+import { defineSurfaceAssistantContext, type AppDefinition } from "@/apps/types";
 import type { DashboardDefinition } from "@/dashboards/types";
 import { DemoOverviewPage } from "./features/DemoOverviewPage";
 import { HealthcareOperationsPage } from "./features/HealthcareOperationsPage";
@@ -94,6 +94,14 @@ export const demoApp: AppDefinition = {
       title: "Overview",
       navLabel: "Overview",
       description: "Landing page for the demo application, workspaces, and Main Sequence widget story.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the Demo overview page. This page introduces the demo application and its mock workflows.",
+        availableActions: [
+          "Review the demo overview",
+          "Navigate to demo surfaces",
+        ],
+      }),
       kind: "page",
       navigationSection: financialMarketsSection,
       requiredPermissions: ["workspaces:view"],
@@ -104,6 +112,14 @@ export const demoApp: AppDefinition = {
       title: "Markets Monitor",
       navLabel: "Markets Monitor",
       description: "Financial-markets monitoring surface powered by mock widgets and reusable layouts.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the Demo Markets Monitor dashboard. This page shows a mock financial-markets monitoring layout.",
+        availableActions: [
+          "Inspect demo widgets",
+          "Review mock market signals",
+        ],
+      }),
       kind: "dashboard",
       navigationSection: financialMarketsSection,
       requiredPermissions: ["main_sequence_markets:view"],
@@ -114,6 +130,14 @@ export const demoApp: AppDefinition = {
       title: "Control Tower",
       navLabel: "Control Tower",
       description: "Mock supply-chain operating view for lane risk, facilities, and supplier exposure.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the Demo Control Tower page. This page shows a mock supply-chain operating view.",
+        availableActions: [
+          "Review mock supply-chain signals",
+          "Inspect the control-tower layout",
+        ],
+      }),
       kind: "page",
       navigationSection: supplyChainSection,
       requiredPermissions: ["workspaces:view"],
@@ -124,6 +148,14 @@ export const demoApp: AppDefinition = {
       title: "Hospital Command",
       navLabel: "Hospital Command",
       description: "Mock healthcare operations view for patient flow, staffing, and unit pressure.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the Demo Hospital Command page. This page shows a mock healthcare operations view.",
+        availableActions: [
+          "Review mock healthcare operations signals",
+          "Inspect the hospital command layout",
+        ],
+      }),
       kind: "page",
       navigationSection: healthcareSection,
       requiredPermissions: ["workspaces:view"],

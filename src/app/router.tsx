@@ -4,7 +4,6 @@ import { PermissionRoute } from "@/app/guards/PermissionRoute";
 import { ProtectedRoute } from "@/app/guards/ProtectedRoute";
 import { AppShell } from "@/app/layout/AppShell";
 import { env } from "@/config/env";
-import { ChatPage } from "@/features/chat";
 import { AppPage } from "@/features/apps/AppPage";
 import { AppRedirect } from "@/features/apps/AppRedirect";
 import { LegacyDashboardRedirect } from "@/features/apps/LegacyDashboardRedirect";
@@ -25,6 +24,7 @@ import { MainSequenceAssetTranslationTableDetailPage } from "../../extensions/ma
 import { MainSequenceExecutionVenueDetailPage } from "../../extensions/main_sequence/extensions/markets/features/execution-venues/MainSequenceExecutionVenueDetailPage";
 import { MainSequencePortfolioGroupDetailPage } from "../../extensions/main_sequence/extensions/markets/features/portfolio-groups/MainSequencePortfolioGroupDetailPage";
 import { MainSequenceClusterDetailPage } from "../../extensions/main_sequence/extensions/workbench/features/clusters/MainSequenceClusterDetailPage";
+import { CHAT_PAGE_PATH } from "../../extensions/main_sequence_ai/assistant-ui/chat-ui-store";
 
 export const router = createBrowserRouter([
   {
@@ -177,7 +177,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "chat",
-        element: env.includeAui ? <ChatPage /> : <Navigate to="/app" replace />,
+        element: env.includeAui ? <Navigate to={CHAT_PAGE_PATH} replace /> : <Navigate to="/app" replace />,
       },
       {
         path: ":appId",

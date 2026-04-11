@@ -153,7 +153,7 @@ Use `.env.example` as the starting point for data mode:
 cp .env.example .env
 ```
 
-`VITE_USE_MOCK_DATA=true` keeps the shell on local mock adapters and leaves the built-in `Demo` app registered. Set `VITE_USE_MOCK_DATA=false` to route the app through the live REST and WebSocket adapters configured by `VITE_API_BASE_URL` and `VITE_WS_URL`, and to remove the `Demo` app from navigation and app redirects.
+`VITE_USE_MOCK_DATA=true` keeps the shell on local mock adapters and leaves the built-in `Demo` app registered. Set `VITE_USE_MOCK_DATA=false` to route the app through the live REST adapters configured by `VITE_API_BASE_URL`, the terminal/market websocket adapters configured by `VITE_WS_URL`, and the assistant-ui standard chat stream endpoint configured by `assistant_ui.endpoint`, and to remove the `Demo` app from navigation and app redirects.
 
 `VITE_BYPASS_AUTH=true` bypasses backend authentication for local development and re-enables the built-in role picker.
 

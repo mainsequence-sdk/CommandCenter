@@ -40,6 +40,8 @@ This nested extension is the separate application shell for market-facing Main S
 
 - Keep this extension independent from Workbench. Shared code must move into `../../common/`.
 - Add a local `README.md` whenever you introduce a new feature folder here.
+- Markets surfaces in `app.ts` now also own assistant-facing summaries and action lists through
+  `assistantContext`; update them when the visible workflow or supported actions change.
 - Treat the current Markets widget dependency on the Workbench DataNode-source helpers as
   temporary. If another Markets widget needs that same binding model, extract it into
   `../../common/`.

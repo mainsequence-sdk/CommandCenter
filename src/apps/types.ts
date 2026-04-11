@@ -14,6 +14,41 @@ export interface AppPermissionDefinition {
   category?: string;
 }
 
+export type AppSurfaceAssistantContextValue = string | number | boolean | null | undefined;
+
+export type AppSurfaceAssistantContextDetails = Record<
+  string,
+  AppSurfaceAssistantContextValue
+>;
+
+export interface AppSurfaceAssistantContextResolved {
+  summary: string;
+  availableActions: string[];
+  details: AppSurfaceAssistantContextDetails;
+}
+
+export interface AppSurfaceAssistantContextInput {
+  appId: string;
+  surfaceId: string;
+  currentPath: string;
+  pathname: string;
+  searchParams: URLSearchParams;
+  permissionCount: number;
+  role?: string;
+  userEmail?: string;
+  userId?: string;
+  userName?: string;
+}
+
+export interface AppSurfaceAssistantContext {
+  summary: string;
+  availableActions?: string[];
+  details?: AppSurfaceAssistantContextDetails;
+  resolve?: (
+    input: AppSurfaceAssistantContextInput,
+  ) => Partial<AppSurfaceAssistantContextResolved>;
+}
+
 export interface AppSurfaceNavigationSection {
   id: string;
   label: string;
@@ -26,10 +61,12 @@ interface AppSurfaceBase {
   title: string;
   description: string;
   navLabel?: string;
+  icon?: AppIcon;
   navigationSection?: AppSurfaceNavigationSection;
   requiredPermissions?: string[];
   hidden?: boolean;
   fullBleed?: boolean;
+  assistantContext?: AppSurfaceAssistantContext;
 }
 
 export interface DashboardSurfaceDefinition extends AppSurfaceBase {
@@ -82,3 +119,9 @@ export type AppSurfaceEntry = AppSurfaceDefinition & {
   appIcon: AppIcon;
   appRequiredPermissions?: string[];
 };
+
+export function defineSurfaceAssistantContext(
+  assistantContext: AppSurfaceAssistantContext,
+) {
+  return { assistantContext } as const;
+}

@@ -13,10 +13,10 @@ import { LogoMark } from "@/components/brand/LogoMark";
 import { Avatar } from "@/components/ui/avatar";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
 import { env } from "@/config/env";
-import { useOptionalChatFeature } from "@/features/chat/ChatProvider";
-import { CHAT_PAGE_PATH } from "@/features/chat/chat-ui-store";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
+import { useOptionalChatFeature } from "../../../extensions/main_sequence_ai/assistant-ui/ChatProvider";
+import { CHAT_PAGE_PATH } from "../../../extensions/main_sequence_ai/assistant-ui/chat-ui-store";
 import { SettingsDialog } from "./SettingsDialog";
 import { UserMenu } from "./UserMenu";
 
@@ -121,7 +121,7 @@ function AssistantSidebarTrigger({
             ? "text-sidebar-foreground/72 hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground"
             : "border-border/70 bg-muted/45 text-sidebar-foreground/72 hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground",
       )}
-      title={`Open AI chat (${shortcutLabel})`}
+      title={`Open Astro (${shortcutLabel})`}
       onClick={onClick}
     >
       <span
@@ -136,10 +136,10 @@ function AssistantSidebarTrigger({
       {!collapsed ? (
         <span className="min-w-0">
           <span className="block truncate text-sm font-medium text-topbar-foreground">
-            Assistant
+            Astro
           </span>
           <span className="block truncate text-xs text-muted-foreground">
-            Open chat
+            Open assistant
           </span>
         </span>
       ) : null}
@@ -147,7 +147,7 @@ function AssistantSidebarTrigger({
   );
 
   if (collapsed) {
-    return <HoverTooltip label="Open AI chat">{trigger}</HoverTooltip>;
+    return <HoverTooltip label="Open Astro">{trigger}</HoverTooltip>;
   }
 
   return trigger;

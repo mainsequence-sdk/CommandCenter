@@ -52,6 +52,7 @@ export function AppNavigationPanel({
                 const isActive = activeSurfaceId === surface.id;
                 const favoriteId = getSurfaceFavoriteId(app.id, surface.id);
                 const isFavorite = isSurfaceFavorited(favoriteSurfaceIds, app.id, surface.id);
+                const SurfaceIcon = surface.icon;
 
                 return (
                   <div
@@ -69,7 +70,12 @@ export function AppNavigationPanel({
                       }}
                       className="min-w-0 flex-1 px-2 py-1.5 text-left"
                     >
-                      <div className="flex min-h-8 items-center">
+                      <div className="flex min-h-8 items-center gap-2.5">
+                        {SurfaceIcon ? (
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center text-primary/90">
+                            <SurfaceIcon className="h-4 w-4" />
+                          </span>
+                        ) : null}
                         <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                           {surface.navLabel ?? surface.title}
                         </span>

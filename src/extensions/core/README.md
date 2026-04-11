@@ -34,6 +34,9 @@ This extension owns the built-in registry entries that ship with Command Center 
 ## Maintenance Notes
 
 - Keep core focused on shell-level building blocks and default sample surfaces.
+- Core-owned app surfaces now also own assistant-facing summaries and action lists through
+  `assistantContext` in `index.ts`; keep that metadata aligned with the real UX when surface
+  behavior changes.
 - Workspaces feature implementation lives in `src/features/dashboards/`; keep that folder's
   `README.md` and `docs/workspaces.md` updated when the workspace model or UX changes.
 - The `Workspaces` app is feature-flagged at runtime through `VITE_INCLUDE_WORKSPACES`; keep registry behavior and docs aligned if that flag changes scope.
