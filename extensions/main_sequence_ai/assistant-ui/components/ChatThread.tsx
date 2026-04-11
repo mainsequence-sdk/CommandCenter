@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import {
   ChainOfThoughtPrimitive,
@@ -11,7 +11,7 @@ import {
   type ReasoningMessagePartProps,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { ArrowUp, ChevronDown, Loader2, Sparkles, Trash2, Wrench } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -25,18 +25,6 @@ interface ChatThreadProps {
   compact?: boolean;
   surface?: "overlay" | "page";
 }
-
-interface ScrollRailState {
-  isScrollable: boolean;
-  thumbHeight: number;
-  thumbTop: number;
-}
-
-const INITIAL_SCROLL_RAIL_STATE: ScrollRailState = {
-  isScrollable: false,
-  thumbHeight: 0,
-  thumbTop: 0,
-};
 
 function tryParseJson(value: string) {
   try {
@@ -136,6 +124,19 @@ function TextPart() {
   );
 }
 
+function getUserMessagePreview(text: string) {
+  const paragraphs = text
+    .split(/\n\s*\n+/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  if (paragraphs.length <= 2) {
+    return text;
+  }
+
+  return paragraphs.slice(-2).join("\n\n");
+}
+
 function AssistantMarkdownTextPart() {
   const { text } = useMessagePartText();
 
@@ -225,10 +226,37 @@ function ToolFallbackPart({ argsText, isError, result, toolName }: ToolCallMessa
 }
 
 function ChainOfThoughtBlock() {
+  const aui = useAui();
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    aui.chainOfThought().setCollapsed(false);
+  }, [aui]);
+
+  useEffect(() => {
+    if (collapsed || typeof window === "undefined") {
+      return;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      rootRef.current?.scrollIntoView({ block: "nearest" });
+      if (contentRef.current) {
+        contentRef.current.scrollTop = 0;
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [collapsed]);
 
   return (
-    <ChainOfThoughtPrimitive.Root className="mb-3 overflow-hidden rounded-[18px] border border-primary/15 bg-primary/5">
+    <ChainOfThoughtPrimitive.Root
+      ref={rootRef}
+      className="mb-3 overflow-hidden rounded-[18px] border border-primary/15 bg-primary/5"
+    >
       <ChainOfThoughtPrimitive.AccordionTrigger
         aria-expanded={!collapsed}
         className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-primary/6 hover:text-foreground"
@@ -237,15 +265,20 @@ function ChainOfThoughtBlock() {
         <ChevronDown className={cn("h-4 w-4 transition-transform", !collapsed && "rotate-180")} />
       </ChainOfThoughtPrimitive.AccordionTrigger>
       {!collapsed ? (
-        <ChainOfThoughtPrimitive.Parts
-          components={{
-            Layout: ({ children }) => <div className="space-y-2 px-3 pb-3">{children}</div>,
-            Reasoning: ReasoningPart,
-            tools: {
-              Fallback: ToolFallbackPart,
-            },
-          }}
-        />
+        <div
+          ref={contentRef}
+          className="max-h-[min(55vh,34rem)] overflow-y-auto overscroll-contain pr-1"
+        >
+          <ChainOfThoughtPrimitive.Parts
+            components={{
+              Layout: ({ children }) => <div className="space-y-2 px-3 pb-3">{children}</div>,
+              Reasoning: ReasoningPart,
+              tools: {
+                Fallback: ToolFallbackPart,
+              },
+            }}
+          />
+        </div>
       ) : null}
     </ChainOfThoughtPrimitive.Root>
   );
@@ -256,6 +289,26 @@ function UserMessage() {
     <MessagePrimitive.Root className="flex justify-end">
       <div className="max-w-[88%] rounded-[22px] bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm">
         <MessagePrimitive.Parts components={{ Text: TextPart }} />
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+
+function PageUserTextPart() {
+  const { text } = useMessagePartText();
+
+  return (
+    <div className="whitespace-pre-wrap break-words text-sm leading-6 text-current">
+      {getUserMessagePreview(text)}
+    </div>
+  );
+}
+
+function PageUserMessage() {
+  return (
+    <MessagePrimitive.Root className="flex justify-end">
+      <div className="max-w-[88%] rounded-[22px] bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm">
+        <MessagePrimitive.Parts components={{ Text: PageUserTextPart }} />
       </div>
     </MessagePrimitive.Root>
   );
@@ -443,34 +496,6 @@ function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }
   );
 }
 
-function PageScrollRail({
-  isScrollable,
-  thumbHeight,
-  thumbTop,
-}: ScrollRailState) {
-  if (!isScrollable) {
-    return null;
-  }
-
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-y-4 right-2 hidden w-8 items-center justify-center lg:flex"
-    >
-      <div className="relative h-full w-4">
-        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 rounded-full bg-border/45" />
-        <div
-          className="absolute left-1/2 w-2 -translate-x-1/2 rounded-full bg-foreground/70 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-          style={{
-            height: `${thumbHeight}px`,
-            top: `${thumbTop}px`,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
 function Composer({
   compact = false,
   surface = "overlay",
@@ -481,28 +506,29 @@ function Composer({
   const isPage = surface === "page";
   const placeholder = env.useMockData
     ? "Ask about the visible view, action bridges, or backend event wiring..."
-    : "Ask about the visible view, what it means, or what you can do here...";
+    : "What should we investigate?";
 
   const composerBody = (
     <ComposerPrimitive.Root
       className={cn(
         isPage
-          ? "mx-auto w-full max-w-4xl rounded-[30px] border border-border/70 bg-card/78 px-4 py-3 shadow-[0_12px_36px_rgba(0,0,0,0.18)] backdrop-blur"
-          : "mt-4 rounded-[24px] border border-border/70 bg-card/80 px-3 py-3 shadow-sm backdrop-blur",
+          ? "mx-auto w-full max-w-5xl rounded-[30px] border border-border/70 bg-card/78 px-4 py-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.18)] backdrop-blur"
+          : "mt-4 rounded-[24px] border border-border/70 bg-card/80 px-3 py-2.5 shadow-sm backdrop-blur",
       )}
     >
-      <div className="flex items-end gap-3">
+      <div className="flex items-center gap-3">
         <ComposerPrimitive.Input
           autoFocus
-          rows={1}
+          minRows={1}
+          maxRows={10}
           placeholder={placeholder}
           className={cn(
-            "w-full min-h-6 resize-y overflow-y-auto bg-transparent text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground",
+            "w-full resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground",
           )}
         />
         <ComposerPrimitive.Send
           aria-label="Send message"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
         >
           <ArrowUp className="h-4 w-4" />
         </ComposerPrimitive.Send>
@@ -513,139 +539,86 @@ function Composer({
   return composerBody;
 }
 
+function PageComposerFooter() {
+  return (
+    <div className="mt-3 text-center text-xs text-muted-foreground">
+      Main Sequence AI can make mistakes. Verify important outputs before acting.
+    </div>
+  );
+}
+
 export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadProps) {
   const isPage = surface === "page";
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const [scrollRailState, setScrollRailState] = useState<ScrollRailState>(
-    INITIAL_SCROLL_RAIL_STATE,
-  );
-
-  const updateScrollRail = useCallback(() => {
-    const viewport = viewportRef.current;
-
-    if (!viewport) {
-      return;
-    }
-
-    const { clientHeight, scrollHeight, scrollTop } = viewport;
-
-    if (scrollHeight <= clientHeight + 1) {
-      setScrollRailState((current) =>
-        current.isScrollable ? INITIAL_SCROLL_RAIL_STATE : current,
-      );
-      return;
-    }
-
-    const trackInset = 16;
-    const trackHeight = Math.max(clientHeight - trackInset * 2, 1);
-    const thumbHeight = Math.max(Math.round((clientHeight / scrollHeight) * trackHeight), 36);
-    const maxThumbTop = Math.max(trackHeight - thumbHeight, 0);
-    const maxScrollTop = Math.max(scrollHeight - clientHeight, 1);
-    const thumbTop =
-      trackInset + Math.round((scrollTop / maxScrollTop) * maxThumbTop);
-
-    setScrollRailState((current) => {
-      if (
-        current.isScrollable &&
-        current.thumbHeight === thumbHeight &&
-        current.thumbTop === thumbTop
-      ) {
-        return current;
-      }
-
-      return {
-        isScrollable: true,
-        thumbHeight,
-        thumbTop,
-      };
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isPage) {
-      setScrollRailState(INITIAL_SCROLL_RAIL_STATE);
-      return;
-    }
-
-    const viewport = viewportRef.current;
-
-    if (!viewport) {
-      return;
-    }
-
-    let animationFrame = 0;
-    const scheduleUpdate = () => {
-      window.cancelAnimationFrame(animationFrame);
-      animationFrame = window.requestAnimationFrame(updateScrollRail);
-    };
-
-    scheduleUpdate();
-    viewport.addEventListener("scroll", scheduleUpdate, { passive: true });
-
-    const mutationObserver = new MutationObserver(scheduleUpdate);
-    mutationObserver.observe(viewport, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
-
-    const resizeObserver = new ResizeObserver(scheduleUpdate);
-    resizeObserver.observe(viewport);
-
-    window.addEventListener("resize", scheduleUpdate);
-
-    return () => {
-      viewport.removeEventListener("scroll", scheduleUpdate);
-      mutationObserver.disconnect();
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", scheduleUpdate);
-      window.cancelAnimationFrame(animationFrame);
-    };
-  }, [isPage, updateScrollRail]);
+  const UserMessageComponent = isPage ? PageUserMessage : UserMessage;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       {!isPage ? <StatusBanner compact={compact} surface={surface} /> : null}
 
-      <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="relative min-h-0 flex-1">
-          <ThreadPrimitive.Viewport
-            ref={viewportRef}
-            className={cn(
-              "min-h-0 flex-1 overflow-y-auto overscroll-contain",
-              isPage
-                ? "mx-auto w-full max-w-5xl px-4 py-5"
-                : "pr-1",
-            )}
-            style={isPage ? { scrollbarGutter: "stable" } : undefined}
-          >
-            <div
-              className={cn(
-                "flex min-h-full flex-col",
-                isPage ? "justify-end gap-6" : "gap-4",
-              )}
-            >
-              <ThreadPrimitive.Empty>
+      <ThreadPrimitive.Root className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+        {isPage && !hasMessages ? (
+          <div className="relative flex h-full min-h-0 flex-1 px-4 pb-8 pt-4">
+            <div className="mx-auto flex w-full max-w-5xl justify-center pt-16">
+              <div className="w-full max-w-3xl">
                 <EmptyState compact={compact} surface={surface} />
-              </ThreadPrimitive.Empty>
-              <ThreadPrimitive.Messages
-                components={{
-                  AssistantMessage,
-                  UserMessage,
-                }}
-              />
-              <SessionNotice surface={surface} />
+              </div>
             </div>
-            {isPage ? (
-              <ThreadPrimitive.ViewportFooter className="sticky bottom-0 z-10 bg-background/72 px-4 py-4 backdrop-blur-sm">
+            <div className="pointer-events-none absolute inset-x-4 top-1/2 -translate-y-1/2">
+              <div className="pointer-events-auto mx-auto w-full max-w-3xl">
                 <Composer compact={compact} surface={surface} />
-              </ThreadPrimitive.ViewportFooter>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="relative flex h-full min-h-0 flex-1 flex-col">
+            <ThreadPrimitive.Viewport
+              ref={viewportRef}
+              turnAnchor={isPage ? "top" : "bottom"}
+              className={cn(
+                "flex h-full min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain",
+                isPage
+                  ? "mx-auto w-full max-w-5xl px-4 pb-44 pt-5"
+                  : "pb-24 pr-1",
+              )}
+              style={isPage ? { scrollbarGutter: "stable" } : undefined}
+            >
+              <div
+                className={cn(
+                  "flex min-h-full flex-col",
+                  isPage ? "gap-6" : "gap-4",
+                )}
+              >
+                {!isPage ? (
+                  <ThreadPrimitive.Empty>
+                    <EmptyState compact={compact} surface={surface} />
+                  </ThreadPrimitive.Empty>
+                ) : null}
+                <ThreadPrimitive.Messages
+                  components={{
+                    AssistantMessage,
+                    UserMessage: UserMessageComponent,
+                  }}
+                />
+                <SessionNotice surface={surface} />
+              </div>
+            </ThreadPrimitive.Viewport>
+            {isPage ? (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/96 to-transparent px-4 pb-4 pt-10">
+                <div className="pointer-events-auto mx-auto w-full max-w-5xl">
+                  <Composer compact={compact} surface={surface} />
+                  <PageComposerFooter />
+                </div>
+              </div>
             ) : null}
-          </ThreadPrimitive.Viewport>
-          {isPage ? <PageScrollRail {...scrollRailState} /> : null}
-        </div>
-
-        {!isPage ? <Composer compact={compact} surface={surface} /> : null}
+            {!isPage ? (
+              <div className="absolute inset-x-0 bottom-4 z-10">
+                <Composer compact={compact} surface={surface} />
+              </div>
+            ) : null}
+          </div>
+        )}
       </ThreadPrimitive.Root>
     </div>
   );

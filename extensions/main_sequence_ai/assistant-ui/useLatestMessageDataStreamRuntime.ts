@@ -10,6 +10,8 @@ import {
 } from "assistant-stream";
 import { asAsyncIterableStream } from "assistant-stream/utils";
 
+import { env } from "@/config/env";
+
 type HeadersValue = Record<string, string> | Headers;
 
 export type LatestMessageDataStreamProtocol = "ui-message-stream" | "data-stream";
@@ -296,27 +298,33 @@ class LatestMessageDataStreamRuntimeAdapter implements ChatModelAdapter {
 
     await this.options.onRequestStart?.();
 
+    const requestBody = {
+      system: context.system,
+      messages: toLatestLanguageModelMessages(messages, {
+        unstable_includeId: this.options.sendExtraMessageFields,
+      }) as DataStreamRuntimeRequestOptions["messages"],
+      tools: toToolsJSONSchema(
+        context.tools ?? {},
+      ) as unknown as DataStreamRuntimeRequestOptions["tools"],
+      ...(unstable_assistantMessageId ? { unstable_assistantMessageId } : {}),
+      ...(unstable_threadId ? { threadId: unstable_threadId } : {}),
+      ...(unstable_parentId !== undefined ? { parentId: unstable_parentId } : {}),
+      runConfig,
+      state: unstable_getMessage().metadata.unstable_state || undefined,
+      ...context.callSettings,
+      ...context.config,
+      ...(bodyValue ?? {}),
+    } satisfies DataStreamRuntimeRequestOptions;
+
+    if (env.debugChat) {
+      console.debug("[main_sequence_ai] assistant request body", requestBody);
+    }
+
     const result = await fetch(this.options.api, {
       method: "POST",
       headers,
       credentials: this.options.credentials ?? "same-origin",
-      body: JSON.stringify({
-        system: context.system,
-        messages: toLatestLanguageModelMessages(messages, {
-          unstable_includeId: this.options.sendExtraMessageFields,
-        }) as DataStreamRuntimeRequestOptions["messages"],
-        tools: toToolsJSONSchema(
-          context.tools ?? {},
-        ) as unknown as DataStreamRuntimeRequestOptions["tools"],
-        ...(unstable_assistantMessageId ? { unstable_assistantMessageId } : {}),
-        ...(unstable_threadId ? { threadId: unstable_threadId } : {}),
-        ...(unstable_parentId !== undefined ? { parentId: unstable_parentId } : {}),
-        runConfig,
-        state: unstable_getMessage().metadata.unstable_state || undefined,
-        ...context.callSettings,
-        ...context.config,
-        ...(bodyValue ?? {}),
-      } satisfies DataStreamRuntimeRequestOptions),
+      body: JSON.stringify(requestBody),
       signal: abortSignal,
     });
 

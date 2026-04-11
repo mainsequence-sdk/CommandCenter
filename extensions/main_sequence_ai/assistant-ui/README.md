@@ -20,6 +20,16 @@ It currently powers two presentation modes that share one runtime:
 - a full-page chat route at `/app/main_sequence_ai/chat`
 - a full-height frosted side rail that can sit on top of any surface rendered by `AppShell`
 
+The full-page thread renderer intentionally behaves differently from the overlay:
+
+- once the first user turn exists, the page transcript uses assistant-ui's top turn anchoring so
+  the newest user prompt is brought to the top of the visible chat area and the assistant answer
+  gets the remaining height
+- the active page composer/footer is rendered as an absolute bottom shell outside the transcript
+  viewport, and the page transcript keeps extra bottom padding so content stays clear of it
+- long page user bubbles are trimmed to the final two paragraphs so oversized prompts do not
+  consume the reply viewport
+
 The app surface itself lives separately under `extensions/main_sequence_ai/surfaces/chat/`.
 The shared page explorer UI now lives separately under `extensions/main_sequence_ai/features/chat/`.
 
@@ -68,6 +78,8 @@ Responsibilities:
 - translate backend events into runtime state
 - expose request lifecycle feedback so the thread can show "sent / waiting / failed" before any
   assistant text appears
+- respect `VITE_DEBUG_CHAT=true` and print the fully merged live assistant request body to the
+  browser console before the request is sent
 
 ### Agent Sessions
 
