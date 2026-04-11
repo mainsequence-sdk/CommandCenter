@@ -338,8 +338,10 @@ function resolveSessionAgentRequestName(session: { agent: { requestName: string 
   return session?.agent?.requestName || DEFAULT_AGENT_NAME;
 }
 
-function resolveSessionAgentLabel(session: { agent: { name: string } | null } | null) {
-  return session?.agent?.name || DEFAULT_AGENT_LABEL;
+function resolveSessionAgentLabel(
+  session: { agent: { agentUniqueId: string; name: string } | null } | null,
+) {
+  return session?.agent?.agentUniqueId || session?.agent?.name || DEFAULT_AGENT_NAME;
 }
 
 function resolveSessionDisplayId(

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
   ChainOfThoughtPrimitive,
@@ -7,6 +7,7 @@ import {
   MessagePartPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useThreadViewport,
   useMessagePartText,
   type ReasoningMessagePartProps,
   type ToolCallMessagePartProps,
@@ -227,9 +228,16 @@ function ToolFallbackPart({ argsText, isError, result, toolName }: ToolCallMessa
 
 function ChainOfThoughtBlock() {
   const aui = useAui();
+  const { runStatus } = useChatFeature();
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
+  const isLastAssistantMessage = useAuiState(
+    (s) => s.message.index === s.thread.messages.length - 1,
+  );
   const rootRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const isActiveThinking =
+    isLastAssistantMessage &&
+    (runStatus === "queued" || runStatus === "thinking" || runStatus === "responding");
 
   useEffect(() => {
     aui.chainOfThought().setCollapsed(false);
@@ -259,9 +267,12 @@ function ChainOfThoughtBlock() {
     >
       <ChainOfThoughtPrimitive.AccordionTrigger
         aria-expanded={!collapsed}
-        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-primary/6 hover:text-foreground"
+        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/6 hover:text-foreground"
       >
-        <span>Thinking</span>
+        <span className="flex items-center gap-2">
+          <Sparkles className={cn("h-3.5 w-3.5", isActiveThinking && "animate-pulse text-primary")} />
+          <span className={cn(isActiveThinking && "animate-pulse text-foreground")}>Thinking ...</span>
+        </span>
         <ChevronDown className={cn("h-4 w-4 transition-transform", !collapsed && "rotate-180")} />
       </ChainOfThoughtPrimitive.AccordionTrigger>
       {!collapsed ? (
@@ -332,16 +343,19 @@ function AssistantMessage() {
     isLastAssistantMessage &&
     !hasRenderableContent &&
     (runStatus === "queued" || runStatus === "thinking" || runStatus === "responding");
+  const isActiveAssistant =
+    isLastAssistantMessage &&
+    (runStatus === "queued" || runStatus === "thinking" || runStatus === "responding");
 
   return (
     <MessagePrimitive.Root className="flex items-start gap-3">
       <div
         className={cn(
           "mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card/85 text-primary shadow-sm",
-          isPendingAssistant && "border-primary/30",
+          isActiveAssistant && "border-primary/30",
         )}
       >
-        <Sparkles className={cn("h-4 w-4", isPendingAssistant && "animate-pulse")} />
+        <Sparkles className={cn("h-4 w-4", isActiveAssistant && "animate-pulse")} />
       </div>
       <div className="min-w-0 max-w-[min(100%,58rem)] flex-1 py-1 text-foreground">
         <MessagePrimitive.Parts
@@ -547,10 +561,55 @@ function PageComposerFooter() {
   );
 }
 
+function PageFooterInsetSpacer({
+  targetRef,
+}: {
+  targetRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const registerInset = useThreadViewport((s) => s.registerContentInset);
+  const [height, setHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const target = targetRef.current;
+    if (!target || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const handle = registerInset();
+
+    const update = () => {
+      const marginTop = parseFloat(getComputedStyle(target).marginTop) || 0;
+      const nextHeight = target.offsetHeight + marginTop;
+      setHeight(nextHeight);
+      handle.setHeight(nextHeight);
+    };
+
+    update();
+
+    const observer = new ResizeObserver(() => {
+      update();
+    });
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+      handle.unregister();
+    };
+  }, [registerInset, targetRef]);
+
+  if (height <= 0) {
+    return null;
+  }
+
+  return <div aria-hidden className="shrink-0" style={{ height }} />;
+}
+
 export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadProps) {
   const isPage = surface === "page";
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const pageFooterRef = useRef<HTMLDivElement | null>(null);
   const UserMessageComponent = isPage ? PageUserMessage : UserMessage;
 
   return (
@@ -579,7 +638,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
               className={cn(
                 "flex h-full min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain",
                 isPage
-                  ? "mx-auto w-full max-w-5xl px-4 pb-44 pt-5"
+                  ? "mx-auto w-full max-w-5xl px-4 pt-5"
                   : "pb-24 pr-1",
               )}
               style={isPage ? { scrollbarGutter: "stable" } : undefined}
@@ -602,10 +661,14 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   }}
                 />
                 <SessionNotice surface={surface} />
+                {isPage ? <PageFooterInsetSpacer targetRef={pageFooterRef} /> : null}
               </div>
             </ThreadPrimitive.Viewport>
             {isPage ? (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/96 to-transparent px-4 pb-4 pt-10">
+              <div
+                ref={pageFooterRef}
+                className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/96 to-transparent px-4 pb-4 pt-10"
+              >
                 <div className="pointer-events-auto mx-auto w-full max-w-5xl">
                   <Composer compact={compact} surface={surface} />
                   <PageComposerFooter />

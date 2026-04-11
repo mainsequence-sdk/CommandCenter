@@ -317,7 +317,7 @@ class LatestMessageDataStreamRuntimeAdapter implements ChatModelAdapter {
     } satisfies DataStreamRuntimeRequestOptions;
 
     if (env.debugChat) {
-      console.debug("[main_sequence_ai] assistant request body", requestBody);
+      console.log("[main_sequence_ai] assistant request body", requestBody);
     }
 
     const result = await fetch(this.options.api, {
