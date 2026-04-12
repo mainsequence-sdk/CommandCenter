@@ -37,6 +37,7 @@ export type AgentSessionSummary = Omit<AgentSessionRecord, "messages">;
 export interface AgentSessionApiRecord {
   id: number;
   agent_session: number;
+  agent_name?: string;
   parent_step: number | null;
   sequence: number;
   step_type: string;
@@ -171,7 +172,7 @@ export function toAgentSessionRecordFromApi(
     agent: {
       id: existing?.agent?.id ?? null,
       name: record.actor_name?.trim() || existing?.agent?.name || "Astro Orchestrator",
-      requestName: existing?.agent?.requestName || DEFAULT_AGENT_NAME,
+      requestName: record.agent_name?.trim() || existing?.agent?.requestName || DEFAULT_AGENT_NAME,
       agentUniqueId: existing?.agent?.agentUniqueId || "astro-orchestrator",
       description: existing?.agent?.description || "",
       status: record.status || existing?.agent?.status || "",

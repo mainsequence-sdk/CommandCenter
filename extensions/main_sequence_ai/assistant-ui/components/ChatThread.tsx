@@ -12,14 +12,13 @@ import {
   type ReasoningMessagePartProps,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { useAui, useAuiState } from "@assistant-ui/store";
-import { ArrowUp, ChevronDown, Loader2, Sparkles, Trash2, Wrench } from "lucide-react";
+import { useAuiState } from "@assistant-ui/store";
+import { ArrowUp, ChevronDown, Sparkles, Wrench } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { env } from "@/config/env";
 import { cn } from "@/lib/utils";
-import type { ChatRunStatus } from "../chat-backend-adapter";
 import { useChatFeature } from "../ChatProvider";
 
 interface ChatThreadProps {
@@ -88,37 +87,6 @@ function getToolResultDetails(value: unknown) {
   return Object.keys(rest).length > 0 ? rest : null;
 }
 
-function getRunStatusLabel(status: ChatRunStatus) {
-  switch (status) {
-    case "queued":
-      return "Queued";
-    case "thinking":
-      return "Thinking";
-    case "responding":
-      return "Responding";
-    case "complete":
-      return "Complete";
-    case "error":
-      return "Error";
-    default:
-      return "Idle";
-  }
-}
-
-function getRunStatusVariant(status: ChatRunStatus) {
-  switch (status) {
-    case "thinking":
-    case "responding":
-      return "primary" as const;
-    case "complete":
-      return "success" as const;
-    case "error":
-      return "danger" as const;
-    default:
-      return "neutral" as const;
-  }
-}
-
 function TextPart() {
   return (
     <MessagePartPrimitive.Text className="whitespace-pre-wrap break-words text-sm leading-6 text-current" />
@@ -155,6 +123,48 @@ function ReasoningPart(_props: ReasoningMessagePartProps) {
       <MessagePartPrimitive.Text className="whitespace-pre-wrap break-words text-sm leading-6 text-current" />
     </div>
   );
+}
+
+function trimThinkingPreview(value: string, maxLength = 84) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+}
+
+function getThinkingPreview(
+  parts: ReadonlyArray<
+    | { type: "reasoning"; text?: string }
+    | { type: "tool-call"; toolName?: string; status?: { type?: string } }
+  >,
+) {
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const part = parts[index];
+
+    if (part.type === "reasoning") {
+      const preview = trimThinkingPreview(part.text ?? "");
+      if (preview) {
+        return preview;
+      }
+    }
+
+    if (part.type === "tool-call" && typeof part.toolName === "string" && part.toolName.trim()) {
+      const toolLabel =
+        part.status?.type === "running"
+          ? `Running ${part.toolName}`
+          : `Used ${part.toolName}`;
+      return trimThinkingPreview(toolLabel);
+    }
+  }
+
+  return "Working through intermediate steps";
 }
 
 function ToolFallbackPart({ argsText, isError, result, toolName }: ToolCallMessagePartProps) {
@@ -227,9 +237,9 @@ function ToolFallbackPart({ argsText, isError, result, toolName }: ToolCallMessa
 }
 
 function ChainOfThoughtBlock() {
-  const aui = useAui();
   const { runStatus } = useChatFeature();
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
+  const parts = useAuiState((s) => s.chainOfThought.parts);
   const isLastAssistantMessage = useAuiState(
     (s) => s.message.index === s.thread.messages.length - 1,
   );
@@ -238,10 +248,7 @@ function ChainOfThoughtBlock() {
   const isActiveThinking =
     isLastAssistantMessage &&
     (runStatus === "queued" || runStatus === "thinking" || runStatus === "responding");
-
-  useEffect(() => {
-    aui.chainOfThought().setCollapsed(false);
-  }, [aui]);
+  const thinkingPreview = getThinkingPreview(parts);
 
   useEffect(() => {
     if (collapsed || typeof window === "undefined") {
@@ -269,10 +276,16 @@ function ChainOfThoughtBlock() {
         aria-expanded={!collapsed}
         className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/6 hover:text-foreground"
       >
-        <span className="flex items-center gap-2">
-          <Sparkles className={cn("h-3.5 w-3.5", isActiveThinking && "animate-pulse text-primary")} />
-          <span className={cn(isActiveThinking && "animate-pulse text-foreground")}>Thinking ...</span>
-        </span>
+        <div className="min-w-0">
+          <div className={cn("text-sm", isActiveThinking && "animate-pulse text-foreground")}>
+            Thinking ...
+          </div>
+          {collapsed ? (
+            <div className="truncate text-xs font-normal text-muted-foreground">
+              {thinkingPreview}
+            </div>
+          ) : null}
+        </div>
         <ChevronDown className={cn("h-4 w-4 transition-transform", !collapsed && "rotate-180")} />
       </ChainOfThoughtPrimitive.AccordionTrigger>
       {!collapsed ? (
@@ -325,8 +338,9 @@ function PageUserMessage() {
   );
 }
 
-function AssistantMessage() {
+function AssistantMessage({ surface = "overlay" }: { surface?: "overlay" | "page" }) {
   const { runStatus } = useChatFeature();
+  const showThinkingDetails = surface === "page";
   const isLastAssistantMessage = useAuiState(
     (s) => s.message.index === s.thread.messages.length - 1,
   );
@@ -359,7 +373,11 @@ function AssistantMessage() {
       </div>
       <div className="min-w-0 max-w-[min(100%,58rem)] flex-1 py-1 text-foreground">
         <MessagePrimitive.Parts
-          components={{ ChainOfThought: ChainOfThoughtBlock, Text: AssistantMarkdownTextPart }}
+          components={
+            showThinkingDetails
+              ? { ChainOfThought: ChainOfThoughtBlock, Text: AssistantMarkdownTextPart }
+              : { Text: AssistantMarkdownTextPart }
+          }
         />
         <MessagePrimitive.Error>
           <div className="mt-3 rounded-[calc(var(--radius)-8px)] border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -439,53 +457,6 @@ function EmptyState({
   );
 }
 
-function StatusBanner({
-  compact = false,
-  surface = "overlay",
-}: {
-  compact?: boolean;
-  surface?: "overlay" | "page";
-}) {
-  const isPage = surface === "page";
-  const { clearThread, runStatus, runStatusDetail, thinkingSummary } = useChatFeature();
-  const busy = runStatus === "thinking" || runStatus === "responding" || runStatus === "queued";
-
-  return (
-    <div
-      className={cn(
-        isPage
-          ? "flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border/60 px-4 py-3"
-          : "mb-3 flex flex-wrap items-start justify-between gap-3 rounded-[22px] border border-border/70 bg-card/72 px-4 py-3 backdrop-blur",
-        !isPage && compact && "px-3 py-2.5",
-      )}
-    >
-      <div className="min-w-0 space-y-1">
-        <div className="flex items-center gap-2">
-          <Badge variant={getRunStatusVariant(runStatus)}>{getRunStatusLabel(runStatus)}</Badge>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
-        </div>
-        {runStatusDetail ? (
-          <div className="text-xs leading-5 text-muted-foreground">{runStatusDetail}</div>
-        ) : null}
-        {thinkingSummary ? (
-          <div className="rounded-[calc(var(--radius)-8px)] border border-primary/20 bg-primary/8 px-3 py-2 text-xs leading-5 text-foreground">
-            {thinkingSummary}
-          </div>
-        ) : null}
-      </div>
-
-      <button
-        type="button"
-        className="inline-flex h-9 items-center justify-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/55 px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-        onClick={clearThread}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-        Clear
-      </button>
-    </div>
-  );
-}
-
 function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }) {
   const { sessionNotice } = useChatFeature();
 
@@ -561,7 +532,7 @@ function PageComposerFooter() {
   );
 }
 
-function PageFooterInsetSpacer({
+function FooterInsetSpacer({
   targetRef,
 }: {
   targetRef: React.RefObject<HTMLDivElement | null>;
@@ -610,12 +581,11 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const pageFooterRef = useRef<HTMLDivElement | null>(null);
+  const overlayFooterRef = useRef<HTMLDivElement | null>(null);
   const UserMessageComponent = isPage ? PageUserMessage : UserMessage;
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      {!isPage ? <StatusBanner compact={compact} surface={surface} /> : null}
-
       <ThreadPrimitive.Root className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
         {isPage && !hasMessages ? (
           <div className="relative flex h-full min-h-0 flex-1 px-4 pb-8 pt-4">
@@ -634,12 +604,12 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
           <div className="relative flex h-full min-h-0 flex-1 flex-col">
             <ThreadPrimitive.Viewport
               ref={viewportRef}
-              turnAnchor={isPage ? "top" : "bottom"}
+              turnAnchor="top"
               className={cn(
                 "flex h-full min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain",
                 isPage
                   ? "mx-auto w-full max-w-5xl px-4 pt-5"
-                  : "pb-24 pr-1",
+                  : "pr-1",
               )}
               style={isPage ? { scrollbarGutter: "stable" } : undefined}
             >
@@ -656,12 +626,12 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                 ) : null}
                 <ThreadPrimitive.Messages
                   components={{
-                    AssistantMessage,
+                    AssistantMessage: () => <AssistantMessage surface={surface} />,
                     UserMessage: UserMessageComponent,
                   }}
                 />
                 <SessionNotice surface={surface} />
-                {isPage ? <PageFooterInsetSpacer targetRef={pageFooterRef} /> : null}
+                <FooterInsetSpacer targetRef={isPage ? pageFooterRef : overlayFooterRef} />
               </div>
             </ThreadPrimitive.Viewport>
             {isPage ? (
@@ -676,8 +646,13 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
               </div>
             ) : null}
             {!isPage ? (
-              <div className="absolute inset-x-0 bottom-4 z-10">
-                <Composer compact={compact} surface={surface} />
+              <div
+                ref={overlayFooterRef}
+                className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/96 to-transparent px-0 pb-4 pt-10"
+              >
+                <div className="pointer-events-auto">
+                  <Composer compact={compact} surface={surface} />
+                </div>
               </div>
             ) : null}
           </div>

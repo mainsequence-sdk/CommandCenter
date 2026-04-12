@@ -2,11 +2,17 @@ import { env } from "@/config/env";
 
 import type { AgentSessionApiRecord } from "./agent-sessions";
 
-const DEFAULT_AGENT_NAME = "astro-orchestrator";
-
-function buildLatestAgentSessionsUrl(createdByUser: string | number | null | undefined) {
+function buildLatestAgentSessionsUrl({
+  createdByUser,
+  agentId,
+}: {
+  createdByUser: string | number | null | undefined;
+  agentId?: number | string | null;
+}) {
   const url = new URL("/orm/api/agents/v1/sessions/", env.apiBaseUrl);
-  url.searchParams.set("agent_name", DEFAULT_AGENT_NAME);
+  if (agentId !== null && agentId !== undefined && `${agentId}`.trim()) {
+    url.searchParams.set("agent_id", String(agentId));
+  }
   if (createdByUser !== null && createdByUser !== undefined && `${createdByUser}`.trim()) {
     url.searchParams.set("created_by_user", String(createdByUser));
   }
@@ -15,12 +21,18 @@ function buildLatestAgentSessionsUrl(createdByUser: string | number | null | und
   return url.toString();
 }
 
+function buildDeleteAgentSessionUrl(sessionId: string | number) {
+  return new URL(`/orm/api/agents/v1/sessions/${sessionId}/`, env.apiBaseUrl).toString();
+}
+
 export async function fetchLatestAgentSessions({
+  agentId,
   createdByUser,
   signal,
   token,
   tokenType = "Bearer",
 }: {
+  agentId?: string | number | null;
   createdByUser?: string | number | null;
   signal?: AbortSignal;
   token?: string | null;
@@ -34,7 +46,7 @@ export async function fetchLatestAgentSessions({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildLatestAgentSessionsUrl(createdByUser), {
+  const response = await fetch(buildLatestAgentSessionsUrl({ createdByUser, agentId }), {
     method: "GET",
     headers,
     signal,
@@ -61,4 +73,37 @@ export async function fetchLatestAgentSessions({
   }
 
   return [];
+}
+
+export async function deleteAgentSessionRequest({
+  sessionId,
+  signal,
+  token,
+  tokenType = "Bearer",
+}: {
+  sessionId: string | number;
+  signal?: AbortSignal;
+  token?: string | null;
+  tokenType?: string;
+}) {
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
+  const response = await fetch(buildDeleteAgentSessionUrl(sessionId), {
+    method: "DELETE",
+    headers,
+    signal,
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as
+      | { error?: string; message?: string }
+      | null;
+    throw new Error(
+      payload?.message || payload?.error || `Session delete failed with status ${response.status}.`,
+    );
+  }
 }

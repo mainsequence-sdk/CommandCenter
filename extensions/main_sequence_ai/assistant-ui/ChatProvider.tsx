@@ -36,46 +36,78 @@ import {
   toAgentSessionRecordFromApi,
   updateAgentSessionSnapshot,
   writeAgentSessions,
+  type AgentSessionRecord,
   type AgentSessionSummary,
   type StreamCreatedAgentSession,
   type StreamSwitchedAgentSession,
 } from "./agent-sessions";
-import { fetchLatestAgentSessions } from "./agent-sessions-api";
+import {
+  deleteAgentSessionRequest,
+  fetchLatestAgentSessions,
+} from "./agent-sessions-api";
 import {
   type ChatRunStatus,
   mockChatBackendAdapter,
   type ChatBackendHistoryMessage,
 } from "./chat-backend-adapter";
-import { chatActionDefinitions, type ChatActionDefinition } from "./chat-actions";
 import { useChatViewContext, type ChatViewContext } from "./chat-context";
 import { CHAT_PAGE_PATH, useChatUiStore } from "./chat-ui-store";
+import { fetchSessionHistory } from "./session-history-api";
+import { fetchSessionTools } from "./session-tools-api";
+import type { SessionToolDefinition, SessionToolsSnapshot } from "./session-tools";
 import {
   useLatestMessageDataStreamRuntime,
   type LatestMessageDataStreamProtocol,
 } from "./useLatestMessageDataStreamRuntime";
 
+export interface ActiveSessionSummary {
+  requestName: string;
+  displayName: string | null;
+  agentUniqueId: string | null;
+  sessionDisplayId: string | null;
+  sessionId: string | null;
+  agentId: string | null;
+  updatedAt: string | null;
+  preview: string | null;
+  projectId: string | null;
+  cwd: string | null;
+  threadId: string | null;
+  runtimeSessionId: string | null;
+  sessionKey: string | null;
+  availableTools: SessionToolDefinition[];
+  isLoadingTools: boolean;
+  toolsError: string | null;
+}
+
 interface ChatFeatureContextValue {
   activeAgentLabel: string;
   activeAgentName: string;
   activeAgentRequestName: string;
+  activeSessionSummary: ActiveSessionSummary | null;
   activeSessionDisplayId: string | null;
+  activeSessionPreview: string | null;
+  activeSessionUpdatedAt: string | null;
   agentId: string | null;
   agentSessions: AgentSessionSummary[];
-  actionDefinitions: ChatActionDefinition[];
   clearThread: () => void;
   closeOverlay: () => void;
   context: ChatViewContext;
   createAgentSession: () => void;
   currentSessionId: string | null;
+  deleteAgentSession: (sessionId: string) => Promise<void>;
   expandToPage: () => void;
   hasVisibleAssistantOutput: boolean;
   isOverlayOpen: boolean;
   isLoadingLatestSessions: boolean;
+  isLoadingSessionTools: boolean;
   latestSessionsError: string | null;
   minimizeToOverlay: () => void;
   runStatus: ChatRunStatus;
   runStatusDetail: string | null;
   selectAgentSession: (sessionId: string) => void;
+  sessionTools: SessionToolsSnapshot | null;
+  sessionToolsBySessionId: Record<string, SessionToolsSnapshot>;
+  sessionToolsError: string | null;
   sessionNotice: string | null;
   startAgentSession: (agent: AgentSearchResult) => void;
   thinkingSummary: string | null;
@@ -318,20 +350,10 @@ function sortAgentSessions<T extends { updatedAt: string }>(sessions: readonly T
   return [...sessions].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
-function mergeAgentSessionsById<T extends { id: string }>(sessions: readonly T[]) {
-  const merged = new Map<string, T>();
-
-  for (const session of sessions) {
-    if (!merged.has(session.id)) {
-      merged.set(session.id, session);
-    }
-  }
-
-  return [...merged.values()];
-}
-
-function resolveSessionAgentName(session: { agent: { name: string } | null } | null) {
-  return session?.agent?.name || DEFAULT_AGENT_LABEL;
+function resolveSessionAgentName(
+  session: { agent: { requestName: string; name: string } | null } | null,
+) {
+  return session?.agent?.requestName || session?.agent?.name || DEFAULT_AGENT_NAME;
 }
 
 function resolveSessionAgentRequestName(session: { agent: { requestName: string } | null } | null) {
@@ -356,6 +378,24 @@ function resolveSessionDisplayId(
   }
 
   return /^\d+$/.test(session.id) ? session.id : null;
+}
+
+function resolveSessionApiLookupId(
+  session: { id: string; runtimeSessionId: string | null } | null,
+) {
+  if (!session) {
+    return null;
+  }
+
+  if (/^\d+$/.test(session.id)) {
+    return session.id;
+  }
+
+  if (typeof session.runtimeSessionId === "string" && session.runtimeSessionId.trim()) {
+    return session.runtimeSessionId.trim();
+  }
+
+  return null;
 }
 
 export function ChatProvider({ children }: { children: ReactNode }) {
@@ -386,13 +426,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [hasVisibleAssistantOutput, setHasVisibleAssistantOutput] = useState(false);
   const [isLoadingLatestSessions, setIsLoadingLatestSessions] = useState(false);
   const [latestSessionsError, setLatestSessionsError] = useState<string | null>(null);
+  const [latestSessionsAgentFilterId, setLatestSessionsAgentFilterId] = useState<number | null>(null);
+  const [sessionToolsBySessionId, setSessionToolsBySessionId] = useState<
+    Record<string, SessionToolsSnapshot>
+  >({});
+  const [isLoadingSessionTools, setIsLoadingSessionTools] = useState(false);
+  const [sessionToolsError, setSessionToolsError] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const shouldSignalNewChatRef = useRef(true);
   const pendingNewChatRequestRef = useRef(false);
   const expectedNewSessionRef = useRef(false);
   const runtimeRef = useRef<AssistantRuntime | null>(null);
+  const selectedSessionRef = useRef<AgentSessionRecord | null>(null);
+  const activeSessionRef = useRef<AgentSessionRecord | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
   const loadedSessionIdRef = useRef<string | null>(null);
+  const sessionHistoryRequestRef = useRef<AbortController | null>(null);
+  const sessionToolsRequestRef = useRef<AbortController | null>(null);
   const assistantUiEndpoint = useMemo(
     () => normalizePlatformAgentApi(commandCenterConfig.assistantUi.endpoint),
     [],
@@ -404,26 +454,86 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         .map(summarizeAgentSession),
     [agentSessions],
   );
-  const currentSession = useMemo(
+  const selectedSession = useMemo(
     () => agentSessions.find((session) => session.id === currentSessionId) ?? null,
     [agentSessions, currentSessionId],
   );
+  const activeSession = useMemo(
+    () => {
+      if (!selectedSession) {
+        return null;
+      }
+
+      return resolveSessionApiLookupId(selectedSession) ? selectedSession : null;
+    },
+    [selectedSession],
+  );
   const activeAgentName = useMemo(
-    () => resolveSessionAgentName(currentSession),
-    [currentSession],
+    () => resolveSessionAgentName(selectedSession),
+    [selectedSession],
   );
   const activeAgentRequestName = useMemo(
-    () => resolveSessionAgentRequestName(currentSession),
-    [currentSession],
+    () => resolveSessionAgentRequestName(selectedSession),
+    [selectedSession],
   );
   const activeAgentLabel = useMemo(
-    () => resolveSessionAgentLabel(currentSession),
-    [currentSession],
+    () => resolveSessionAgentLabel(selectedSession),
+    [selectedSession],
   );
   const activeSessionDisplayId = useMemo(
-    () => resolveSessionDisplayId(currentSession),
-    [currentSession],
+    () => resolveSessionDisplayId(activeSession),
+    [activeSession],
   );
+  const activeSessionPreview = useMemo(
+    () => activeSession?.preview ?? null,
+    [activeSession],
+  );
+  const activeSessionUpdatedAt = useMemo(
+    () => activeSession?.updatedAt ?? null,
+    [activeSession],
+  );
+  const currentSessionTools = useMemo(() => {
+    const sessionLookupId = resolveSessionApiLookupId(activeSession);
+
+    if (!sessionLookupId) {
+      return null;
+    }
+
+    return sessionToolsBySessionId[sessionLookupId] ?? null;
+  }, [activeSession, sessionToolsBySessionId]);
+  const activeSessionSummary = useMemo<ActiveSessionSummary | null>(() => {
+    if (!activeSession) {
+      return null;
+    }
+
+    const derivedAgentId =
+      agentId ??
+      (activeSession.agent?.id !== null && activeSession.agent?.id !== undefined
+        ? String(activeSession.agent.id)
+        : currentSessionTools?.session.agentId !== null &&
+            currentSessionTools?.session.agentId !== undefined
+          ? String(currentSessionTools.session.agentId)
+          : null);
+
+    return {
+      requestName: activeSession.agent?.requestName || DEFAULT_AGENT_NAME,
+      displayName: activeSession.agent?.name || null,
+      agentUniqueId: activeSession.agent?.agentUniqueId || null,
+      sessionDisplayId: resolveSessionDisplayId(activeSession),
+      sessionId: activeSession.id,
+      agentId: derivedAgentId,
+      updatedAt: activeSession.updatedAt ?? null,
+      preview: activeSession.preview ?? null,
+      projectId: activeSession.projectId ?? currentSessionTools?.session.projectId ?? null,
+      cwd: activeSession.cwd ?? null,
+      threadId: activeSession.threadId ?? null,
+      runtimeSessionId: activeSession.runtimeSessionId ?? null,
+      sessionKey: activeSession.sessionKey ?? null,
+      availableTools: currentSessionTools?.availableTools ?? [],
+      isLoadingTools: isLoadingSessionTools,
+      toolsError: sessionToolsError,
+    };
+  }, [activeSession, agentId, currentSessionTools, isLoadingSessionTools, sessionToolsError]);
 
   useEffect(() => {
     if (location.pathname === CHAT_PAGE_PATH) {
@@ -461,13 +571,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         setLatestSessionsError(null);
 
         const remoteRecords = await fetchLatestAgentSessions({
+          agentId: latestSessionsAgentFilterId,
           createdByUser: sessionUserId,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
         });
 
-        if (controller.signal.aborted || remoteRecords.length === 0) {
+        if (controller.signal.aborted) {
           return;
         }
 
@@ -476,20 +587,29 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           const remoteSessions = remoteRecords.map((record) =>
             toAgentSessionRecordFromApi(record, currentById.get(String(record.agent_session || record.id))),
           );
-          const mergedSessions = sortAgentSessions(
-            mergeAgentSessionsById([...remoteSessions, ...currentSessions]),
-          );
-
           const currentSession = currentSessions.find(
             (session) => session.id === currentSessionIdRef.current,
           );
-          const currentIsSyntheticEmpty = !currentSession || currentSession.isPlaceholder;
+          const keepLocalDraft =
+            currentSession &&
+            (!currentSession.runtimeSessionId || currentSession.isPlaceholder);
 
-          if (currentIsSyntheticEmpty && mergedSessions[0]) {
-            setCurrentSessionId(mergedSessions[0].id);
+          const nextSessions = sortAgentSessions(
+            keepLocalDraft
+              ? [
+                  currentSession,
+                  ...remoteSessions.filter((session) => session.id !== currentSession.id),
+                ]
+              : remoteSessions,
+          );
+
+          if (!currentSession || currentSession.isPlaceholder) {
+            setCurrentSessionId(nextSessions[0]?.id ?? null);
+          } else if (!nextSessions.some((session) => session.id === currentSession.id)) {
+            setCurrentSessionId(nextSessions[0]?.id ?? null);
           }
 
-          return mergedSessions;
+          return nextSessions;
         });
         setLatestSessionsError(null);
       } catch (error) {
@@ -512,15 +632,99 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return () => {
       controller.abort();
     };
-  }, [sessionToken, sessionTokenType, sessionUserId]);
+  }, [latestSessionsAgentFilterId, sessionToken, sessionTokenType, sessionUserId]);
 
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
 
   useEffect(() => {
+    selectedSessionRef.current = selectedSession;
+  }, [selectedSession]);
+
+  useEffect(() => {
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
+
+  useEffect(() => {
+    if (!env.debugChat) {
+      return;
+    }
+
+    console.log("[main_sequence_ai] active session", activeSession);
+  }, [activeSession]);
+
+  useEffect(() => {
     writeAgentSessions(sessionUserId, agentSessions);
   }, [agentSessions, sessionUserId]);
+
+  useEffect(() => {
+    sessionToolsRequestRef.current?.abort();
+
+    if (env.useMockData) {
+      setIsLoadingSessionTools(false);
+      setSessionToolsError(null);
+      return;
+    }
+
+    const runtimeSessionId =
+      resolveSessionApiLookupId(activeSession);
+
+    if (!runtimeSessionId) {
+      setIsLoadingSessionTools(false);
+      setSessionToolsError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    sessionToolsRequestRef.current = controller;
+    setIsLoadingSessionTools(true);
+    setSessionToolsError(null);
+
+    void (async () => {
+      try {
+        const snapshot = await fetchSessionTools({
+          assistantEndpoint: assistantUiEndpoint,
+          sessionId: runtimeSessionId,
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setSessionToolsBySessionId((current) => ({
+          ...current,
+          [runtimeSessionId]: snapshot,
+        }));
+        setSessionToolsError(null);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setSessionToolsError(
+          error instanceof Error ? error.message : "Session tools request failed.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingSessionTools(false);
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    assistantUiEndpoint,
+    activeSession?.id,
+    activeSession?.runtimeSessionId,
+    sessionToken,
+    sessionTokenType,
+  ]);
 
   const updateAssistantText = useCallback((assistantId: string, chunk: string) => {
     setMessages((currentMessages) =>
@@ -701,9 +905,75 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     });
   }, [persistSessionMessages]);
 
+  const deleteAgentSession = useCallback(
+    async (sessionId: string) => {
+      const session = agentSessions.find((entry) => entry.id === sessionId);
+      if (!session) {
+        return;
+      }
+
+      const backendSessionId = resolveSessionApiLookupId(session);
+
+      try {
+        if (backendSessionId) {
+          await deleteAgentSessionRequest({
+            sessionId: backendSessionId,
+            token: sessionToken,
+            tokenType: sessionTokenType,
+          });
+        }
+
+        setLatestSessionsError(null);
+
+        if (currentSessionIdRef.current === sessionId) {
+          sessionHistoryRequestRef.current?.abort();
+          sessionToolsRequestRef.current?.abort();
+          loadedSessionIdRef.current = null;
+        }
+
+        setAgentSessions((currentSessions) => {
+          const remainingSessions = sortAgentSessions(
+            currentSessions.filter((candidate) => candidate.id !== sessionId),
+          );
+
+          if (remainingSessions.length === 0) {
+            const fallbackSession = createEmptyAgentSession(
+              session.agent ?? createDefaultAgentSessionAgent(),
+              { placeholder: true },
+            );
+            setCurrentSessionId(fallbackSession.id);
+            return [fallbackSession];
+          }
+
+          if (currentSessionIdRef.current === sessionId) {
+            setCurrentSessionId(remainingSessions[0]?.id ?? null);
+          }
+
+          return remainingSessions;
+        });
+
+        setSessionToolsBySessionId((current) => {
+          const next = { ...current };
+
+          if (backendSessionId) {
+            delete next[backendSessionId];
+          }
+
+          return next;
+        });
+      } catch (error) {
+        setLatestSessionsError(
+          error instanceof Error ? error.message : "Delete session failed.",
+        );
+      }
+    },
+    [agentSessions, sessionToken, sessionTokenType],
+  );
+
   const startAgentSession = useCallback(
     (agent: AgentSearchResult) => {
       persistSessionMessages();
+      setLatestSessionsAgentFilterId(agent.id);
 
       setAgentSessions((currentSessions) => {
         const current = currentSessions.find((session) => session.id === currentSessionIdRef.current);
@@ -738,13 +1008,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      sessionHistoryRequestRef.current?.abort();
+
       const session = agentSessions.find((entry) => entry.id === sessionId);
       if (!session) {
         return;
       }
 
-      runtimeRef.current?.thread.reset(session.messages);
-      shouldSignalNewChatRef.current = !session.runtimeSessionId;
+      const lookupSessionId = resolveSessionApiLookupId(session);
+      const fallbackMessages = session.messages;
+      runtimeRef.current?.thread.reset(fallbackMessages);
+      shouldSignalNewChatRef.current = !lookupSessionId;
       pendingNewChatRequestRef.current = false;
       expectedNewSessionRef.current = false;
       setAgentId(null);
@@ -752,11 +1026,116 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       loadedSessionIdRef.current = sessionId;
 
       if (env.useMockData) {
-        setMessages(session.messages);
+        setMessages(fallbackMessages);
         setIsRunning(false);
+        return;
       }
+
+      if (!lookupSessionId) {
+        setIsRunning(false);
+        return;
+      }
+
+      const controller = new AbortController();
+      sessionHistoryRequestRef.current = controller;
+
+      void (async () => {
+        try {
+          const snapshot = await fetchSessionHistory({
+            assistantEndpoint: assistantUiEndpoint,
+            sessionId: lookupSessionId,
+            signal: controller.signal,
+            token: sessionToken,
+            tokenType: sessionTokenType,
+          });
+
+          if (controller.signal.aborted || currentSessionIdRef.current !== sessionId) {
+            return;
+          }
+
+          runtimeRef.current?.thread.reset(snapshot.messages);
+          setAgentId(
+            snapshot.session.agentId !== null && snapshot.session.agentId !== undefined
+              ? String(snapshot.session.agentId)
+              : null,
+          );
+          setSessionNotice(null);
+          setHasVisibleAssistantOutput(
+            snapshot.messages.some((message) => message.role === "assistant"),
+          );
+          setThinkingSummary(null);
+
+          if (snapshot.session.status === "running") {
+            setIsRunning(true);
+            setRunStatus("responding");
+            setRunStatusDetail("Restored live session.");
+          } else if (snapshot.session.status === "error") {
+            setIsRunning(false);
+            setRunStatus("error");
+            setRunStatusDetail(snapshot.session.error || "The previous run failed.");
+          } else {
+            setIsRunning(false);
+            setRunStatus("complete");
+            setRunStatusDetail("Run completed.");
+          }
+
+          setAgentSessions((currentSessions) =>
+            sortAgentSessions(
+              currentSessions.map((candidate) => {
+                if (candidate.id !== sessionId) {
+                  return candidate;
+                }
+
+                const nextAgent =
+                  candidate.agent ?? createDefaultAgentSessionAgent();
+                const updatedSessionBase = {
+                  ...candidate,
+                  runtimeSessionId:
+                    snapshot.session.sessionId || candidate.runtimeSessionId,
+                  threadId: snapshot.session.threadId || candidate.threadId,
+                  updatedAt: snapshot.session.updatedAt || candidate.updatedAt,
+                  isPlaceholder: false,
+                  agent: {
+                    ...nextAgent,
+                    id: snapshot.session.agentId ?? nextAgent.id,
+                    requestName:
+                      snapshot.session.agentName || nextAgent.requestName,
+                    name:
+                      nextAgent.name || snapshot.session.agentName || DEFAULT_AGENT_LABEL,
+                  },
+                };
+
+                return updateAgentSessionSnapshot({
+                  session: updatedSessionBase,
+                  messages: snapshot.messages,
+                  updatedAt: snapshot.session.updatedAt || updatedSessionBase.updatedAt,
+                });
+              }),
+            ),
+          );
+        } catch (error) {
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          setIsRunning(false);
+          setRunStatus("error");
+          setRunStatusDetail(
+            error instanceof Error ? error.message : "Session history request failed.",
+          );
+          setSessionNotice(
+            "Failed to rehydrate the selected session. Showing the locally cached transcript.",
+          );
+        }
+      })();
     },
-    [agentSessions, clearThread],
+    [
+      agentSessions,
+      assistantUiEndpoint,
+      clearThread,
+      sessionToken,
+      sessionTokenType,
+    ],
   );
 
   const onNew = useCallback(
@@ -856,25 +1235,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       return headers;
     },
     body: async () => {
-      const isNewChatRequest =
-        shouldSignalNewChatRef.current || !currentSession?.runtimeSessionId;
+      const selectedSession = selectedSessionRef.current;
+      const activeSession = activeSessionRef.current;
+      const selectedSessionId = resolveSessionApiLookupId(activeSession);
+      const isNewChatRequest = !activeSession || !selectedSessionId;
 
       pendingNewChatRequestRef.current = isNewChatRequest;
       expectedNewSessionRef.current = isNewChatRequest;
 
       return {
         ...(isNewChatRequest ? { newChat: true } : {}),
-        agentName: activeAgentRequestName,
+        agentName: resolveSessionAgentRequestName(selectedSession),
         ...(sessionUserId ? { userId: sessionUserId } : {}),
         ...(!isNewChatRequest
-          ? currentSession?.threadId
-            ? { threadId: currentSession.threadId }
-            : currentSessionId
-              ? { threadId: currentSessionId }
+          ? activeSession?.threadId
+            ? { threadId: activeSession.threadId }
+            : currentSessionIdRef.current
+              ? { threadId: currentSessionIdRef.current }
               : {}
           : {}),
-        ...(!isNewChatRequest && currentSession?.runtimeSessionId
-          ? { runtime_session_id: currentSession.runtimeSessionId }
+        ...(!isNewChatRequest && selectedSessionId
+          ? {
+              sessionId: selectedSessionId,
+              runtime_session_id: selectedSessionId,
+            }
           : {}),
         sessionMetadata: {
           source: "frontend",
@@ -902,10 +1286,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         expectedNewSessionRef.current = false;
         const chunkAgentId =
           streamSession.agentId !== null ? String(streamSession.agentId) : extractAgentId(data);
+        const activeSession = activeSessionRef.current;
         const currentChatAgentId =
           agentId ??
-          (currentSession?.agent?.id !== null && currentSession?.agent?.id !== undefined
-            ? String(currentSession.agent.id)
+          (activeSession?.agent?.id !== null && activeSession?.agent?.id !== undefined
+            ? String(activeSession.agent.id)
             : null);
         const belongsToCurrentAgent =
           !currentChatAgentId || !chunkAgentId || chunkAgentId === currentChatAgentId;
@@ -1010,6 +1395,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [runtime]);
 
   useEffect(() => {
+    return () => {
+      sessionHistoryRequestRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
     loadCurrentSession(currentSessionId);
   }, [currentSessionId, loadCurrentSession]);
 
@@ -1107,24 +1498,31 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeAgentLabel,
       activeAgentName,
       activeAgentRequestName,
+      activeSessionSummary,
       activeSessionDisplayId,
+      activeSessionPreview,
+      activeSessionUpdatedAt,
       agentId,
       agentSessions: sortedAgentSessions,
-      actionDefinitions: chatActionDefinitions,
       clearThread: clearRuntimeThread,
       closeOverlay,
       context: chatContext,
       createAgentSession,
       currentSessionId,
+      deleteAgentSession,
       expandToPage,
       hasVisibleAssistantOutput,
       isOverlayOpen,
       isLoadingLatestSessions,
+      isLoadingSessionTools,
       latestSessionsError,
       minimizeToOverlay,
       runStatus,
       runStatusDetail,
       selectAgentSession,
+      sessionTools: currentSessionTools,
+      sessionToolsBySessionId,
+      sessionToolsError,
       sessionNotice,
       startAgentSession,
       thinkingSummary,
@@ -1134,22 +1532,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeAgentLabel,
       activeAgentName,
       activeAgentRequestName,
+      activeSessionSummary,
       activeSessionDisplayId,
+      activeSessionPreview,
+      activeSessionUpdatedAt,
       agentId,
       currentSessionId,
       chatContext,
       clearRuntimeThread,
       closeOverlay,
       createAgentSession,
+      deleteAgentSession,
       expandToPage,
       hasVisibleAssistantOutput,
       isOverlayOpen,
       isLoadingLatestSessions,
+      isLoadingSessionTools,
       latestSessionsError,
       minimizeToOverlay,
       runStatus,
       runStatusDetail,
+      currentSessionTools,
       selectAgentSession,
+      sessionToolsBySessionId,
+      sessionToolsError,
       sessionNotice,
       sortedAgentSessions,
       startAgentSession,

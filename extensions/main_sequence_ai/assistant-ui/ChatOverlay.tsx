@@ -1,15 +1,10 @@
-import { useState } from "react";
+import { Expand, Sparkles, X } from "lucide-react";
 
-import { ChevronDown, ChevronUp, Expand, Eye, Sparkles, X } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import { ChatThread } from "./components/ChatThread";
 import { useChatFeature } from "./ChatProvider";
 
 export function ChatOverlay() {
-  const { closeOverlay, context, expandToPage } = useChatFeature();
-  const [contextOpen, setContextOpen] = useState(false);
-  const contextPayload = JSON.stringify(context, null, 2);
+  const { closeOverlay, expandToPage } = useChatFeature();
 
   return (
     <section className="fixed inset-y-0 right-0 z-[110] flex w-[min(540px,calc(100vw-10px))] flex-col overflow-hidden border-l border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_84%,transparent)_0%,color-mix(in_srgb,var(--card)_90%,transparent)_28%,color-mix(in_srgb,var(--background)_86%,transparent)_100%)] text-card-foreground shadow-[-26px_0_80px_rgba(0,0,0,0.28)] backdrop-blur-3xl">
@@ -27,34 +22,6 @@ export function ChatOverlay() {
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
               <Sparkles className="h-5 w-5" />
             </div>
-          </div>
-          <div className="mt-4 space-y-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-full border-border/70 bg-background/40 px-3.5 text-[11px] uppercase tracking-[0.16em] text-foreground hover:bg-muted/60"
-              aria-expanded={contextOpen}
-              onClick={() => {
-                setContextOpen((current) => !current);
-              }}
-            >
-              <Eye className="h-3.5 w-3.5" />
-              Context
-              {contextOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </Button>
-
-            {contextOpen ? (
-              <div className="space-y-3 rounded-[22px] border border-border/70 bg-background/35 px-4 py-3">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                    Context Payload
-                  </div>
-                  <pre className="mt-2 overflow-x-auto rounded-[calc(var(--radius)-10px)] border border-border/70 bg-background/85 px-3 py-3 text-[11px] leading-5 text-foreground">
-                    <code>{contextPayload}</code>
-                  </pre>
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-2">

@@ -1,0 +1,63 @@
+.ms-repo-diff-view {
+  --diff-background-color: transparent;
+  --diff-text-color: var(--foreground);
+  --diff-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  --diff-selection-background-color: color-mix(in srgb, var(--primary) 18%, transparent);
+  --diff-selection-text-color: var(--foreground);
+  --diff-gutter-insert-background-color: color-mix(in srgb, var(--success) 14%, transparent);
+  --diff-gutter-insert-text-color: var(--foreground);
+  --diff-gutter-delete-background-color: color-mix(in srgb, var(--danger) 16%, transparent);
+  --diff-gutter-delete-text-color: var(--foreground);
+  --diff-gutter-selected-background-color: color-mix(in srgb, var(--primary) 16%, transparent);
+  --diff-gutter-selected-text-color: var(--foreground);
+  --diff-code-insert-background-color: color-mix(in srgb, var(--success) 10%, transparent);
+  --diff-code-insert-text-color: var(--foreground);
+  --diff-code-delete-background-color: color-mix(in srgb, var(--danger) 12%, transparent);
+  --diff-code-delete-text-color: var(--foreground);
+  --diff-code-insert-edit-background-color: color-mix(in srgb, var(--success) 22%, transparent);
+  --diff-code-insert-edit-text-color: var(--foreground);
+  --diff-code-delete-edit-background-color: color-mix(in srgb, var(--danger) 24%, transparent);
+  --diff-code-delete-edit-text-color: var(--foreground);
+  --diff-code-selected-background-color: color-mix(in srgb, var(--primary) 16%, transparent);
+  --diff-code-selected-text-color: var(--foreground);
+  --diff-omit-gutter-line-color: var(--primary);
+}
+
+.ms-repo-diff-view .diff {
+  font-size: 0.75rem;
+}
+
+.ms-repo-diff-view .diff td {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 36%, transparent);
+}
+
+.ms-repo-diff-view .diff tr:last-child td {
+  border-bottom: none;
+}
+
+.ms-repo-diff-view .diff-line {
+  line-height: 1.65;
+}
+
+.ms-repo-diff-view .diff-gutter-col {
+  width: 4.75rem;
+}
+
+.ms-repo-diff-view .diff-gutter {
+  min-width: 4.75rem;
+  padding: 0 0.75rem 0 0.5rem;
+  color: var(--muted-foreground);
+}
+
+.ms-repo-diff-view .diff-code {
+  padding: 0 1rem 0 0.75rem;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.ms-repo-diff-view .diff-code,
+.ms-repo-diff-view .diff-gutter {
+  vertical-align: top;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { Bot, Loader2, Search, Sparkles } from "lucide-react";
+import { Bot, Loader2, Search, Sparkles, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/auth/auth-store";
@@ -52,6 +52,7 @@ export function AgentSessionExplorer({
     activeAgentName,
     agentSessions,
     currentSessionId,
+    deleteAgentSession,
     isLoadingLatestSessions,
     latestSessionsError,
     runStatus,
@@ -265,41 +266,61 @@ export function AgentSessionExplorer({
                   const active = session.id === currentSessionId;
 
                   return (
-                    <button
+                    <div
                       key={session.id}
-                      type="button"
-                      disabled={busy}
                       className={cn(
-                        "w-full rounded-[16px] border px-3 py-3 text-left transition-colors",
+                        "rounded-[16px] border px-3 py-3 transition-colors",
                         active
                           ? "border-primary/35 bg-primary/10"
                           : "border-transparent bg-transparent hover:bg-background/45",
-                        busy && !active && "cursor-not-allowed opacity-60",
                       )}
-                      onClick={() => {
-                        selectAgentSession(session.id);
-                        openChatSurface();
-                      }}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium text-foreground">
-                            {session.agent?.name || "Unassigned agent"}
+                      <div className="flex items-start gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          className={cn(
+                            "min-w-0 flex-1 text-left",
+                            busy && !active && "cursor-not-allowed opacity-60",
+                          )}
+                          onClick={() => {
+                            selectAgentSession(session.id);
+                            openChatSurface();
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-medium text-foreground">
+                                {session.agent?.requestName || session.agent?.name || "Unassigned agent"}
+                              </div>
+                              <div className="mt-1 truncate text-xs text-muted-foreground">
+                                <span className="font-mono">Session ID: {session.id}</span>
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-[11px] text-muted-foreground">
+                              {formatSessionTimestamp(session.updatedAt)}
+                            </div>
                           </div>
-                          <div className="mt-1 truncate text-xs text-muted-foreground">
-                            <span className="font-mono">Session ID: {session.id}</span>
-                          </div>
-                        </div>
-                        <div className="shrink-0 text-[11px] text-muted-foreground">
-                          {formatSessionTimestamp(session.updatedAt)}
-                        </div>
+                          {session.preview ? (
+                            <div className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                              {session.preview}
+                            </div>
+                          ) : null}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background/70 hover:text-danger"
+                          title="Delete session"
+                          aria-label={`Delete session ${session.id}`}
+                          onClick={async (event) => {
+                            event.stopPropagation();
+                            await deleteAgentSession(session.id);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                      {session.preview ? (
-                        <div className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                          {session.preview}
-                        </div>
-                      ) : null}
-                    </button>
+                    </div>
                   );
                 })
               ) : (

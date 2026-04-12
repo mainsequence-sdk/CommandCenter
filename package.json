@@ -35,6 +35,7 @@
     "lightweight-charts": "^5.1.0",
     "lucide-react": "^0.500.0",
     "react": "^19.0.0",
+    "react-diff-view": "^3.3.3",
     "react-dom": "^19.0.0",
     "react-grid-layout": "^2.2.3",
     "react-i18next": "^16.5.8",

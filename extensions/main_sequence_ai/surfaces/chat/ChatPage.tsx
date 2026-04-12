@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   ArrowLeft,
   Eye,
+  Info,
   Loader2,
   Minimize2,
   PanelLeftClose,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { AgentSessionRail } from "../../assistant-ui/components/AgentSessionRail";
 import { ChatThread } from "../../assistant-ui/components/ChatThread";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
+import { SessionDetailRail } from "../../features/chat/SessionDetailRail";
 
 function getRunStatusLabel(status: "idle" | "queued" | "thinking" | "responding" | "complete" | "error") {
   switch (status) {
@@ -56,10 +58,6 @@ function getRunStatusClasses(status: "idle" | "queued" | "thinking" | "respondin
 export function ChatPage() {
   const navigate = useNavigate();
   const {
-    activeAgentLabel,
-    activeAgentName,
-    activeSessionDisplayId,
-    agentId,
     context,
     createAgentSession,
     minimizeToOverlay,
@@ -67,6 +65,7 @@ export function ChatPage() {
   } = useChatFeature();
   const [contextOpen, setContextOpen] = useState(false);
   const [explorerOpen, setExplorerOpen] = useState(false);
+  const [sessionDetailOpen, setSessionDetailOpen] = useState(true);
   const contextPayload = JSON.stringify(context, null, 2);
   const busy = runStatus === "queued" || runStatus === "thinking" || runStatus === "responding";
 
@@ -74,9 +73,13 @@ export function ChatPage() {
     <div
       className={cn(
         "grid h-[calc(100dvh-56px)] min-h-0 gap-0",
-        explorerOpen
-          ? "grid-cols-[64px_320px_minmax(0,1fr)]"
-          : "grid-cols-[64px_minmax(0,1fr)]",
+        explorerOpen && sessionDetailOpen
+          ? "grid-cols-[64px_320px_minmax(0,1fr)_320px]"
+          : explorerOpen
+            ? "grid-cols-[64px_320px_minmax(0,1fr)]"
+            : sessionDetailOpen
+              ? "grid-cols-[64px_minmax(0,1fr)_320px]"
+              : "grid-cols-[64px_minmax(0,1fr)]",
       )}
     >
       <aside className="flex h-full min-h-0 flex-col items-center justify-between border-r border-border/60 px-2 py-4">
@@ -103,6 +106,22 @@ export function ChatPage() {
             onClick={createAgentSession}
           >
             <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-10 w-10 rounded-[calc(var(--radius)-6px)] text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+              sessionDetailOpen && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+            )}
+            aria-expanded={sessionDetailOpen}
+            aria-label={sessionDetailOpen ? "Hide session details" : "Show session details"}
+            title={sessionDetailOpen ? "Hide session details" : "Show session details"}
+            onClick={() => {
+              setSessionDetailOpen((current) => !current);
+            }}
+          >
+            <Info className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -165,26 +184,7 @@ export function ChatPage() {
       ) : null}
 
       <section className="relative flex h-full min-h-0 flex-col overflow-hidden px-4">
-        <div className="shrink-0 px-4 pt-4">
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-foreground">
-              Conversation with: <span className="font-mono text-primary">{activeAgentName}</span>
-            </div>
-            <div className="mt-1 truncate text-xs text-muted-foreground">{activeAgentLabel}</div>
-            {activeSessionDisplayId ? (
-              <div className="mt-2 truncate text-sm font-medium text-foreground">
-                <span className="font-mono">Session ID: {activeSessionDisplayId}</span>
-              </div>
-            ) : null}
-            {agentId ? (
-              <CardTitle className="mt-2 truncate text-base">
-                <span className="font-mono">Agent ID: {agentId}</span>
-              </CardTitle>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="relative flex h-full min-h-0 flex-1 overflow-hidden pt-2">
+        <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
           <ChatThread surface="page" />
         </div>
 
@@ -221,6 +221,12 @@ export function ChatPage() {
           </div>
         ) : null}
       </section>
+
+      {sessionDetailOpen ? (
+        <div className="h-full min-h-0 overflow-hidden border-l border-border/60">
+          <SessionDetailRail />
+        </div>
+      ) : null}
     </div>
   );
 }

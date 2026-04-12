@@ -20,15 +20,18 @@ It currently powers two presentation modes that share one runtime:
 - a full-page chat route at `/app/main_sequence_ai/chat`
 - a full-height frosted side rail that can sit on top of any surface rendered by `AppShell`
 
-The full-page thread renderer intentionally behaves differently from the overlay:
+The page and overlay transcript shells now share the same top-turn anchoring behavior so the newest
+user turn is brought to the top of the visible chat area and the assistant answer gets the
+remaining height. The two shells still differ intentionally:
 
-- once the first user turn exists, the page transcript uses assistant-ui's top turn anchoring so
-  the newest user prompt is brought to the top of the visible chat area and the assistant answer
-  gets the remaining height
-- the active page composer/footer is rendered as an absolute bottom shell outside the transcript
-  viewport, and the page transcript keeps extra bottom padding so content stays clear of it
-- long page user bubbles are trimmed to the final two paragraphs so oversized prompts do not
-  consume the reply viewport
+- both shells render the composer/footer as an absolute bottom shell outside the transcript
+  viewport, and the transcript keeps a measured footer inset so content stays clear of it
+- the full page keeps long user bubbles trimmed to the final two paragraphs so oversized prompts do
+  not consume the reply viewport
+- the overlay keeps a reduced chrome surface: no context disclosure, no run-status strip, and no
+  in-message thinking/tool detail blocks. The user can expand into the full page for those details
+- thinking blocks on the full page start collapsed by default, with a trimmed one-line preview of
+  the latest reasoning/tool activity in the collapsed header
 
 The app surface itself lives separately under `extensions/main_sequence_ai/surfaces/chat/`.
 The shared page explorer UI now lives separately under `extensions/main_sequence_ai/features/chat/`.
@@ -73,6 +76,9 @@ Responsibilities:
 
 - own message/thread state for the chat runtime
 - own the selected AgentSession and its cached local transcript
+- treat `activeSession` as a real backend-attached session only; local drafts/placeholders are
+  selected sessions, but not active backend sessions
+- expose a normalized active session summary for page shell UI
 - expose overlay/page navigation helpers
 - bridge app context into chat requests
 - translate backend events into runtime state
@@ -80,6 +86,8 @@ Responsibilities:
   assistant text appears
 - respect `VITE_DEBUG_CHAT=true` and print the fully merged live assistant request body to the
   browser console before the request is sent
+- respect `VITE_DEBUG_CHAT=true` and print the current active session to the browser console
+  whenever the selected session changes
 
 ### Agent Sessions
 
@@ -87,13 +95,24 @@ The page chat now treats conversations as `AgentSessions`, not generic chat-hist
 
 This boundary owns a feature-local session layer that:
 
-- bootstraps the visible session list from `/orm/api/agents/v1/sessions/` for the
-  `astro-orchestrator` agent, filtered to `created_by_user=<signed-in user id>`, newest first,
-  limited to 20
+- bootstraps the visible session list from `/orm/api/agents/v1/sessions/`, filtered to
+  `created_by_user=<signed-in user id>`, newest first, limited to 20
 - persists local session snapshots in browser localStorage, scoped by signed-in user id
 - keeps the selected session shared between the page and overlay runtime
+- exposes the selected session summary to the page shell so static session metadata can live in a
+  dedicated rail instead of above the transcript
 - restores cached messages when the user switches sessions through the shared page explorer
+- rehydrates the selected session from `/api/chat/history?sessionId=<AgentSession.id>` when the
+  user selects a backend session, then replaces the local cached transcript with the backend
+  history payload
 - lets page surfaces search agents and start a new session attached to the selected agent
+- applies `agent_id=<selected agent id>` to the latest-sessions query after the user picks an
+  agent from the session search bar
+- uses backend `agent_name` from session API records to populate the session request-name when
+  sessions are hydrated from the filtered latest-session query
+- replaces the visible latest-session list on every backend refresh instead of appending stale
+  sessions from previous queries, while still preserving the active unsynced local draft session
+- refreshes backend session tools every time the effective backend session changes
 
 This is still intentionally hybrid for now. The visible explorer list comes from the backend latest
 sessions endpoint, but cached frontend transcripts and newly-started local sessions are still kept
@@ -127,15 +146,38 @@ Normal app surfaces should define this metadata on the surface itself through
 `AppSurfaceDefinition.assistantContext`. Only explicit detail routes outside the generic app-surface
 router should need chat-local route resolvers.
 
-### Action Bridge
+### Session Tools
 
-`chat-actions.ts` is the placeholder catalog for actions the assistant may eventually trigger.
+The backend exposes per-session tool availability through:
 
-The important rule is:
+- `/api/chat/session-tools?sessionId=<AgentSession.id>`
 
-- chat-triggered mutations must call the same stores, query invalidations, and domain actions already used by the rest of the UI
+`ChatProvider.tsx` owns that lifecycle. It is global chat state, not renderer-local state.
 
-Do not add a second mutation path that only chat uses.
+Rules:
+
+- tools refresh every time the effective backend session changes
+- session changes include:
+  - manual selection in the left explorer
+  - streamed `new_session`
+  - streamed `session_switch`
+  - initial load of a selected session that already has a backend `runtimeSessionId`
+- placeholder or local-only sessions without a backend `AgentSession.id` do not fetch tools
+- in-flight tool requests are aborted when the selected session changes
+- the backend `available_tools` payload is the source of truth for per-session tool capability
+
+The current tool case table starts with:
+
+- `repo_diff`
+
+Unknown tool keys are still normalized and kept as `kind: "unknown"` so backend capability flags do
+not disappear just because the UI does not render them yet.
+
+The first concrete tool renderer now lives in the page feature layer:
+
+- `repo_diff` fetches the backend-provided tool `url`
+- `diff.files` drives the changed-file selector in the session detail rail
+- `diff.patch` renders as a unified git diff via `react-diff-view`
 
 ## How It Is Mounted
 
@@ -201,6 +243,8 @@ If you do those steps, the main project should return to its pre-chat shape beca
   used before the first session assignment arrives.
 - The live request also includes root `userId`, `agentName`, and
   `sessionMetadata.workflow_key`.
+- For any selected existing session, the live request now includes both `sessionId` and
+  `runtime_session_id`, using the selected backend session id.
 - `agentName` is taken from the session's stable request name, not from the streamed runtime
   `agent_unique_id`.
 - The first live request after a fresh/reset conversation includes `newChat: true`.
@@ -237,6 +281,11 @@ If you do those steps, the main project should return to its pre-chat shape beca
   - local session metadata also stores `session_switch.project_id` and `session_switch.cwd`
   - the switched session becomes the selected session in the left explorer immediately
   - later requests continue with the switched `runtime_session_id`
+- whenever the selected session has a backend `runtimeSessionId`, the provider fetches
+  `/api/chat/session-tools?sessionId=<runtime_session_id>` from the assistant backend origin
+- the normalized tool payload is stored in a provider-owned map keyed by backend session id
+- the first explicit tool case is `repo_diff`, which uses the backend-provided `url` directly
+  instead of rebuilding tool URLs in the UI
 - The feature-local runtime now raises a request-start callback before `fetch()` and inspects
   streamed `ui-message-stream` chunk types so the UI can distinguish:
   - request sent but no response yet
