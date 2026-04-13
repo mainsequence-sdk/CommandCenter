@@ -86,6 +86,7 @@ export function UpstreamInspectorWidgetSettings({
             <UpstreamInspectorWidget
               widget={{
                 id: "main-sequence-ai-upstream-inspector-preview",
+                widgetVersion: "1.0.0",
                 title: "Upstream Inspector Preview",
                 description: "Preview renderer",
                 category: "Main Sequence AI",

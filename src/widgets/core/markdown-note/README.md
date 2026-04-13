@@ -18,6 +18,8 @@ This widget renders Markdown-authored narrative content inside dashboards and wo
 
 ## Maintenance Notes
 
+- `definition.ts` now publishes `widgetVersion` plus an explicit `registryContract`. Keep the
+  agent-facing description aligned with the actual authored Markdown settings surface.
 - Keep the widget on the shared `MarkdownContent` renderer instead of introducing a second Markdown
   stack.
 - Keep props JSON-serializable so existing dashboard persistence flows continue to work without extra

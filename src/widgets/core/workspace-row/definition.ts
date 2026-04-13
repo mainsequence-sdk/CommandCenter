@@ -6,6 +6,7 @@ import { WorkspaceRowWidgetSettings } from "./WorkspaceRowWidgetSettings";
 
 export const workspaceRowWidget = defineWidget<WorkspaceRowWidgetProps>({
   id: WORKSPACE_ROW_WIDGET_ID,
+  widgetVersion: "1.0.0",
   title: "Row",
   description:
     "Workspace row header that can collapse or expand the following sibling widgets.",
@@ -22,5 +23,42 @@ export const workspaceRowWidget = defineWidget<WorkspaceRowWidgetProps>({
     color: undefined,
   },
   settingsComponent: WorkspaceRowWidgetSettings,
+  registryContract: {
+    configuration: {
+      mode: "custom-settings",
+      summary: "Defines a structural row header used to group and collapse workspace siblings.",
+      fields: [
+        {
+          id: "color",
+          label: "Row color",
+          type: "color",
+          source: "custom-settings",
+        },
+      ],
+      requiredSetupSteps: ["Place the row above the widgets it should visually group."],
+    },
+    io: {
+      mode: "none",
+      summary: "This widget is structural only and does not participate in typed IO.",
+    },
+    agentHints: {
+      buildPurpose:
+        "Use this widget to create labeled row groupings and collapse sections in a workspace layout.",
+      whenToUse: [
+        "Use when related widgets should be visually grouped under a collapsible row heading.",
+      ],
+      whenNotToUse: [
+        "Do not use when the widget needs to render data or participate in execution.",
+      ],
+      authoringSteps: [
+        "Insert the row above the widgets it should own.",
+        "Set a title and optional accent color.",
+      ],
+      blockingRequirements: [],
+      commonPitfalls: [
+        "The row is a layout control, not a data container or execution node.",
+      ],
+    },
+  },
   component: WorkspaceRowWidget,
 });

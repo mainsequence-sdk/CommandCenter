@@ -11,6 +11,7 @@ import { curvePlotSettingsSchema } from "./schema";
 
 export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWidgetProps>({
   id: "main-sequence-curve-plot",
+  widgetVersion: "1.0.0",
   title: "Curve Plot",
   description: "DataNode-backed tenor curve chart rendered from mapped maturity and yield fields.",
   category: "Main Sequence Markets",
@@ -60,5 +61,48 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
   schema: curvePlotSettingsSchema,
   controller: mainSequenceCurvePlotWidgetController,
   workspaceRuntimeMode: "consumer",
+  registryContract: {
+    configuration: {
+      mode: "static-schema",
+      summary:
+        "Maps a bound Data Node dataset into a tenor curve chart using maturity and yield fields.",
+      requiredSetupSteps: [
+        "Bind the widget to an upstream Data Node dataset.",
+        "Select maturity and value fields.",
+      ],
+    },
+    runtime: {
+      refreshPolicy: "not-applicable",
+      executionTriggers: [],
+      executionSummary:
+        "Consumes a bound Data Node dataset and renders a curve chart without owning execution.",
+    },
+    io: {
+      mode: "consumer",
+      summary: "Consumes one Main Sequence dataset bundle and maps it into a tenor curve chart.",
+    },
+    capabilities: {
+      acceptedContracts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
+      supportedMaturityUnits: ["auto", "months", "years"],
+    },
+    agentHints: {
+      buildPurpose:
+        "Use this widget to render a yield-curve style chart from a bound Data Node dataset.",
+      whenToUse: [
+        "Use when the dataset has one maturity axis field and one numeric value field.",
+      ],
+      whenNotToUse: [
+        "Do not use when the desired chart is time-based instead of curve-based.",
+      ],
+      authoringSteps: [
+        "Bind the widget to a Data Node dataset.",
+        "Choose the maturity and value fields.",
+      ],
+      blockingRequirements: ["A compatible upstream Data Node binding is required."],
+      commonPitfalls: [
+        "The maturity field must contain values that can be interpreted as curve tenors.",
+      ],
+    },
+  },
   component: CurvePlotWidget,
 });

@@ -28,3 +28,5 @@ This extension owns the mock application boundary for Command Center.
 - This extension is explicitly marked `mockOnly` in its `AppExtension` definition. The registry
   removes mock-only extensions entirely when `VITE_USE_MOCK_DATA=false`, so none of this folder's
   apps, widgets, or themes should appear in live mode.
+- The old `activity-feed` and `market-kpis` demo widgets are intentionally gone. Do not re-add
+  placeholder widgets here unless they represent a realistic product-quality capability.

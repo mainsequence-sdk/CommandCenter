@@ -36,3 +36,9 @@ mounted in the dashboard/workspace.
 - Runtime fetch ownership should stay with upstream execution owners such as `main-sequence-data-node`.
   This widget may derive local chart series from the published rows, but it must not introduce its
   own canonical backend data fetch path on workspace surfaces.
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep that registry contract aligned with the real consumer behavior here: accepted maturity/value
+  dataset shape, optional curve grouping, and Lightweight Charts rendering semantics.
+- Bump `widgetVersion` when the mapped-field contract, chart behavior, or agent-facing authoring
+  guidance changes materially.

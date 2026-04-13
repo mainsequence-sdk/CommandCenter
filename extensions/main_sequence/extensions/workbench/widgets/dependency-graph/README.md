@@ -33,3 +33,9 @@ This widget folder owns the reusable update dependency graph renderer used by da
   `Data Node` widget instead of searching `local_time_serie` rows directly.
 - The same widget now selects between the LocalTimeSerie dependency endpoint and the SimpleTableUpdate dependency endpoint entirely from widget props, so dashboards do not need separate dependency-graph widget types for Data Nodes vs Simple Tables.
 - The reusable widget definition is shared everywhere, but `sourceKind`, the selected update id, `direction`, and the optional instance title belong to each widget instance.
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep that registry contract aligned with the real execution-owner behavior here: supported source
+  kinds, direction modes, linked-update resolution, and runtime payload ownership.
+- Bump `widgetVersion` when source selection, execution behavior, or agent-facing authoring
+  guidance changes materially.

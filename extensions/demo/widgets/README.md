@@ -12,3 +12,5 @@ This folder owns the widget modules that belong only to the Demo extension.
 - Keep widget ids stable when moving implementation details so saved dashboard layouts continue to
   resolve.
 - Do not move live-capable chart widgets here; this folder is only for mock-only widget modules.
+- Legacy `activity-feed` and `market-kpis` widgets were removed from the platform because they were
+  not considered usable product-quality widgets.

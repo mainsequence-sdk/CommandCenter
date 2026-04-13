@@ -29,6 +29,11 @@ This folder contains widget definitions and widget-owned presentation components
   extension.
 - Shared low-level UI primitives belong in `../../common/components/`.
 - Add a local `README.md` for each widget folder with entry points and usage notes.
+- Every registered widget definition in this folder now publishes `widgetVersion` plus an explicit
+  backend-facing `registryContract` so the widget registry can describe consumer vs execution-owner
+  behavior, configuration surface, and agent authoring guidance consistently.
+- Widget authors must bump `widgetVersion` when a Markets widget's configuration semantics,
+  accepted upstream contract, or runtime behavior changes materially.
 - The current `curve-plot/` widget temporarily reuses the Workbench DataNode-source helpers as a
   maintenance shortcut. If another Markets widget needs the same source contract, move that shared
   layer into `../../common/` instead of duplicating or extending the cross-extension dependency.

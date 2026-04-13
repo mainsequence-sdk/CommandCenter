@@ -65,3 +65,9 @@ their own transport format on top of the Data Node pipeline.
 - Keep this widget consumer-only. Reusable dataset transforms still belong in `Data Node`.
 - If future consumers need the same upstream shape, extend the shared published dataset contract in
   `../data-node-shared/` instead of adding widget-local runtime formats.
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep that registry contract aligned with the real authoring surface here: supported reductions,
+  grouping rules, formatting controls, and the optional source-label display toggle.
+- Bump `widgetVersion` when the reduction model, accepted upstream contract, or agent-facing
+  authoring steps change materially.

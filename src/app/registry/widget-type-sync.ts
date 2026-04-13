@@ -1,22 +1,32 @@
 import { appRegistry } from "@/app/registry";
 import { useAuthStore } from "@/auth/auth-store";
-import { useToastStore } from "@/components/ui/toaster";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import type {
+  WidgetContractId,
   WidgetDefinition,
+  WidgetExecutionReason,
   WidgetInputEffect,
   WidgetInstancePresentation,
   WidgetIoDefinition,
+  WidgetRegistryAgentHints,
+  WidgetRegistryConfigurationContract,
+  WidgetRegistryConfigurationFieldDescriptor,
+  WidgetRegistryConfigurationMode,
+  WidgetRegistryExample,
+  WidgetRegistryIoContract,
+  WidgetRegistryIoMode,
+  WidgetRegistryRefreshPolicy,
+  WidgetRegistryRuntimeContract,
   WidgetSettingsSchema,
   WidgetValueDescriptor,
+  WidgetWorkspaceRuntimeMode,
 } from "@/widgets/types";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
-const widgetRegistrySyncSessionStorageKeyPrefix = "ms.command-center.widget-registry-sync";
 
 // Bump when the JSON manifest contract changes in a backend-visible way.
-export const WIDGET_REGISTRY_VERSION = "2026-04-02";
+export const WIDGET_REGISTRY_VERSION = "2026-04-13";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -40,6 +50,17 @@ export interface WidgetTypeSyncPayload {
   registryVersion: string;
   checksum: string;
   widgets: SyncedWidgetTypePayload[];
+}
+
+export interface WidgetTypeSyncValidationIssue {
+  widgetId: string;
+  section: string;
+  message: string;
+}
+
+export interface WidgetTypeSyncDraft {
+  payload: WidgetTypeSyncPayload;
+  validationIssues: WidgetTypeSyncValidationIssue[];
 }
 
 export interface WidgetTypeSyncResponse {
@@ -66,7 +87,6 @@ class WidgetTypeSyncError extends Error {
 }
 
 const inFlightSyncs = new Map<string, Promise<WidgetTypeSyncResponse>>();
-const reportedSyncErrors = new Set<string>();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -84,38 +104,6 @@ function buildEndpointUrl(path: string) {
   }
 
   return url.toString();
-}
-
-function canUseSessionStorage() {
-  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
-}
-
-function buildWidgetRegistrySyncSessionKey(userId: string) {
-  return `${widgetRegistrySyncSessionStorageKeyPrefix}:${userId}`;
-}
-
-function readSessionSyncMarker(userId: string) {
-  if (!canUseSessionStorage()) {
-    return null;
-  }
-
-  try {
-    return window.sessionStorage.getItem(buildWidgetRegistrySyncSessionKey(userId));
-  } catch {
-    return null;
-  }
-}
-
-function writeSessionSyncMarker(userId: string, marker: string) {
-  if (!canUseSessionStorage()) {
-    return;
-  }
-
-  try {
-    window.sessionStorage.setItem(buildWidgetRegistrySyncSessionKey(userId), marker);
-  } catch {
-    // Ignore sessionStorage write failures and keep the network result authoritative.
-  }
 }
 
 function toJsonValue(value: unknown): JsonValue {
@@ -187,39 +175,254 @@ function projectInputEffects(effects: WidgetInputEffect[] | undefined): JsonValu
   );
 }
 
-function projectWidgetSchema(schema: WidgetSettingsSchema | undefined): JsonValue {
-  if (!schema) {
-    return {};
+function compactStringList(values: Array<string | null | undefined> | undefined) {
+  if (!values?.length) {
+    return [];
   }
 
+  return values
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+}
+
+function uniqueContractIds(values: Array<WidgetContractId | undefined>) {
+  return [...new Set(values.filter((value): value is WidgetContractId => Boolean(value?.trim())))];
+}
+
+function projectSchemaFieldDescriptors(
+  schema: WidgetSettingsSchema | undefined,
+): WidgetRegistryConfigurationFieldDescriptor[] {
+  if (!schema?.fields.length) {
+    return [];
+  }
+
+  return schema.fields.map((field) => ({
+    id: field.id,
+    label: field.label,
+    type: "custom",
+    description: field.description,
+    sectionId: field.sectionId,
+    source: "schema",
+  }));
+}
+
+function deriveConfigurationMode(widget: WidgetDefinition): WidgetRegistryConfigurationMode {
+  if (widget.registryContract?.configuration?.mode) {
+    return widget.registryContract.configuration.mode;
+  }
+
+  if (widget.schema && widget.settingsComponent) {
+    return "hybrid";
+  }
+
+  if (widget.schema) {
+    return "static-schema";
+  }
+
+  if (widget.settingsComponent) {
+    return "custom-settings";
+  }
+
+  return "none";
+}
+
+function deriveWorkspaceRuntimeMode(widget: WidgetDefinition): WidgetWorkspaceRuntimeMode {
+  if (widget.workspaceRuntimeMode) {
+    return widget.workspaceRuntimeMode;
+  }
+
+  if (widget.execution) {
+    return "execution-owner";
+  }
+
+  return "local-ui";
+}
+
+function deriveIoMode(
+  widget: WidgetDefinition,
+  explicitMode: WidgetRegistryIoMode | undefined,
+): WidgetRegistryIoMode {
+  if (explicitMode) {
+    return explicitMode;
+  }
+
+  const hasDynamicIo = typeof widget.resolveIo === "function";
+  const hasStaticIo = Boolean(widget.io?.inputs?.length || widget.io?.outputs?.length);
+  const runtimeMode = deriveWorkspaceRuntimeMode(widget);
+
+  if (runtimeMode === "consumer") {
+    return "consumer";
+  }
+
+  if (hasDynamicIo) {
+    return "dynamic";
+  }
+
+  if (hasStaticIo) {
+    return "static";
+  }
+
+  return "none";
+}
+
+function deriveDefaultExecutionTriggers(widget: WidgetDefinition): WidgetExecutionReason[] {
+  const runtimeMode = deriveWorkspaceRuntimeMode(widget);
+
+  if (runtimeMode === "execution-owner") {
+    return ["dashboard-refresh", "manual-recalculate"];
+  }
+
+  return [];
+}
+
+function deriveDefaultRefreshPolicy(widget: WidgetDefinition): WidgetRegistryRefreshPolicy {
+  return widget.execution ? "allow-refresh" : "not-applicable";
+}
+
+function resolveConfigurationContract(
+  widget: WidgetDefinition,
+): WidgetRegistryConfigurationContract {
+  const explicit = widget.registryContract?.configuration;
+  const mode = deriveConfigurationMode(widget);
+  const schemaSections = widget.schema?.sections ?? [];
+  const schemaFields = projectSchemaFieldDescriptors(widget.schema);
+
+  return {
+    mode,
+    summary:
+      explicit?.summary ??
+      (mode === "none"
+        ? "This widget does not expose user-editable configuration."
+        : mode === "custom-settings"
+          ? "This widget is configured through a custom settings surface instead of only static schema fields."
+          : mode === "hybrid"
+            ? "This widget combines shared schema-driven controls with custom settings workflows."
+            : "This widget is configured through shared schema-driven settings fields."),
+    sections: explicit?.sections ?? schemaSections,
+    fields: explicit?.fields ?? schemaFields,
+    dynamicConfigSummary: explicit?.dynamicConfigSummary,
+    configurationNotes: compactStringList(explicit?.configurationNotes),
+    requiredSetupSteps: compactStringList(explicit?.requiredSetupSteps),
+  };
+}
+
+function resolveRuntimeContract(widget: WidgetDefinition): WidgetRegistryRuntimeContract {
+  const explicit = widget.registryContract?.runtime;
+  const workspaceRuntimeMode = deriveWorkspaceRuntimeMode(widget);
+  const supportsExecution = Boolean(widget.execution);
+
+  return {
+    workspaceRuntimeMode,
+    supportsExecution,
+    refreshPolicy: explicit?.refreshPolicy ?? deriveDefaultRefreshPolicy(widget),
+    executionTriggers:
+      explicit?.executionTriggers ?? deriveDefaultExecutionTriggers(widget),
+    executionSummary:
+      explicit?.executionSummary ??
+      (supportsExecution
+        ? "This widget can execute work and publish runtime outputs."
+        : workspaceRuntimeMode === "consumer"
+          ? "This widget renders upstream published outputs and does not execute work itself."
+          : "This widget is local UI and does not participate in shared execution."),
+    notes: compactStringList(explicit?.notes),
+  };
+}
+
+function resolveIoContract(widget: WidgetDefinition): WidgetRegistryIoContract {
+  const explicit = widget.registryContract?.io;
+  const mode = deriveIoMode(widget, explicit?.mode);
+  const inputs = widget.io?.inputs ?? [];
+  const outputs = widget.io?.outputs ?? [];
+
+  return {
+    mode,
+    summary:
+      explicit?.summary ??
+      (mode === "none"
+        ? "This widget does not participate in typed widget IO."
+        : mode === "consumer"
+          ? "This widget consumes upstream typed outputs and does not publish a new canonical runtime contract."
+          : mode === "dynamic"
+            ? "This widget exposes instance-derived ports whose exact shape depends on saved configuration."
+            : "This widget exposes stable typed input and output ports."),
+    dynamicIoSummary:
+      explicit?.dynamicIoSummary ??
+      (mode === "dynamic"
+        ? "Concrete ports depend on saved widget configuration and are resolved per instance."
+        : undefined),
+    inputContracts:
+      explicit?.inputContracts ??
+      uniqueContractIds(inputs.flatMap((input) => input.accepts)),
+    outputContracts:
+      explicit?.outputContracts ??
+      uniqueContractIds(outputs.map((output) => output.contract)),
+    ioNotes: compactStringList(explicit?.ioNotes),
+  };
+}
+
+function resolveAgentHints(widget: WidgetDefinition): WidgetRegistryAgentHints {
+  return widget.registryContract?.agentHints ?? {
+    buildPurpose: widget.description,
+    whenToUse: [`Use when you need ${widget.title.toLowerCase()} behavior.`],
+    whenNotToUse: ["Do not use when a more specific widget type already matches the use case."],
+    authoringSteps: ["Add the widget to a workspace and configure its saved props in settings."],
+    blockingRequirements: [],
+    commonPitfalls: [],
+  };
+}
+
+function resolveExamples(widget: WidgetDefinition): WidgetRegistryExample[] {
+  const explicitExamples = widget.registryContract?.examples;
+
+  if (explicitExamples?.length) {
+    return explicitExamples;
+  }
+
+  if (widget.exampleProps) {
+    return [{
+      label: "Default example",
+      summary: "Example props shipped with the widget definition.",
+      props: widget.exampleProps,
+    }];
+  }
+
+  return [];
+}
+
+function resolveWidgetSchemaPayload(widget: WidgetDefinition): JsonValue {
+  const configuration = resolveConfigurationContract(widget);
+  const runtime = resolveRuntimeContract(widget);
+  const agentHints = resolveAgentHints(widget);
+  const examples = resolveExamples(widget);
+
   return toJsonValue({
-    sections: schema.sections.map((section) => ({
-      id: section.id,
-      title: section.title,
-      description: section.description,
-    })),
-    fields: schema.fields.map((field) => ({
-      id: field.id,
-      label: field.label,
-      description: field.description,
-      sectionId: field.sectionId,
-      settingsColumnSpan: field.settingsColumnSpan,
-      category: field.category,
-      tags: field.tags ?? [],
-      pop: field.pop,
-    })),
+    contractVersion: 1,
+    widgetVersion: widget.widgetVersion,
+    configuration,
+    runtime,
+    capabilities: widget.registryContract?.capabilities ?? {},
+    agentHints,
+    examples,
   });
 }
 
-function projectWidgetIo(io: WidgetIoDefinition | undefined, hasDynamicIo: boolean): JsonValue {
-  if (!io && !hasDynamicIo) {
-    return {};
-  }
+function projectWidgetIo(
+  io: WidgetIoDefinition | undefined,
+  hasDynamicIo: boolean,
+  contract: WidgetRegistryIoContract,
+): JsonValue {
+  const inputs = io?.inputs ?? [];
+  const outputs = io?.outputs ?? [];
 
   return toJsonValue({
+    mode: contract.mode,
+    summary: contract.summary,
     dynamic: hasDynamicIo || undefined,
-    inputs:
-      io?.inputs?.map((input) => ({
+    dynamicIoSummary: contract.dynamicIoSummary,
+    inputContracts: contract.inputContracts ?? [],
+    outputContracts: contract.outputContracts ?? [],
+    ioNotes: contract.ioNotes ?? [],
+    inputs: inputs.map((input) => ({
         id: input.id,
         label: input.label,
         description: input.description,
@@ -227,15 +430,14 @@ function projectWidgetIo(io: WidgetIoDefinition | undefined, hasDynamicIo: boole
         required: input.required,
         cardinality: input.cardinality,
         effects: projectInputEffects(input.effects),
-      })) ?? [],
-    outputs:
-      io?.outputs?.map((output) => ({
+      })),
+    outputs: outputs.map((output) => ({
         id: output.id,
         label: output.label,
         description: output.description,
         contract: output.contract,
         valueDescriptor: projectValueDescriptor(output.valueDescriptor),
-      })) ?? [],
+      })),
   });
 }
 
@@ -245,7 +447,97 @@ function projectDefaultPresentation(
   return defaultPresentation ? toJsonValue(defaultPresentation) : {};
 }
 
+function validateWidgetType(widget: WidgetDefinition): WidgetTypeSyncValidationIssue[] {
+  const issues: WidgetTypeSyncValidationIssue[] = [];
+  const configuration = resolveConfigurationContract(widget);
+  const runtime = resolveRuntimeContract(widget);
+  const io = resolveIoContract(widget);
+  const agentHints = resolveAgentHints(widget);
+
+  if (!widget.widgetVersion.trim()) {
+    issues.push({
+      widgetId: widget.id,
+      section: "identity",
+      message: "widgetVersion is required.",
+    });
+  }
+
+  if (!configuration.summary.trim()) {
+    issues.push({
+      widgetId: widget.id,
+      section: "configuration",
+      message: "Configuration summary is required.",
+    });
+  }
+
+  if (!runtime.executionSummary.trim()) {
+    issues.push({
+      widgetId: widget.id,
+      section: "runtime",
+      message: "Execution summary is required.",
+    });
+  }
+
+  if (!io.summary.trim()) {
+    issues.push({
+      widgetId: widget.id,
+      section: "io",
+      message: "IO summary is required.",
+    });
+  }
+
+  if (io.mode === "dynamic" && !io.dynamicIoSummary?.trim()) {
+    issues.push({
+      widgetId: widget.id,
+      section: "io",
+      message: "Dynamic IO widgets must explain how their ports are derived.",
+    });
+  }
+
+  if (!agentHints.buildPurpose.trim()) {
+    issues.push({
+      widgetId: widget.id,
+      section: "agentHints",
+      message: "buildPurpose is required.",
+    });
+  }
+
+  if ((agentHints.whenToUse?.length ?? 0) === 0) {
+    issues.push({
+      widgetId: widget.id,
+      section: "agentHints",
+      message: "At least one whenToUse hint is required.",
+    });
+  }
+
+  if ((agentHints.whenNotToUse?.length ?? 0) === 0) {
+    issues.push({
+      widgetId: widget.id,
+      section: "agentHints",
+      message: "At least one whenNotToUse hint is required.",
+    });
+  }
+
+  if ((agentHints.authoringSteps?.length ?? 0) === 0) {
+    issues.push({
+      widgetId: widget.id,
+      section: "agentHints",
+      message: "At least one authoring step is required.",
+    });
+  }
+
+  return issues;
+}
+
+function formatValidationIssues(issues: WidgetTypeSyncValidationIssue[]) {
+  return issues
+    .map((issue) => `${issue.widgetId} (${issue.section}): ${issue.message}`)
+    .join(" | ");
+}
+
 function projectWidgetType(widget: WidgetDefinition): SyncedWidgetTypePayload {
+  const ioContract = resolveIoContract(widget);
+
   return {
     widgetId: widget.id,
     title: widget.title,
@@ -255,14 +547,21 @@ function projectWidgetType(widget: WidgetDefinition): SyncedWidgetTypePayload {
     source: widget.source,
     tags: widget.tags ?? [],
     requiredPermissions: widget.requiredPermissions ?? [],
-    schema: projectWidgetSchema(widget.schema),
-    io: projectWidgetIo(widget.io, typeof widget.resolveIo === "function"),
+    schema: resolveWidgetSchemaPayload(widget),
+    io: projectWidgetIo(widget.io, typeof widget.resolveIo === "function", ioContract),
     defaultPresentation: projectDefaultPresentation(widget.defaultPresentation),
     isActive: true,
   };
 }
 
-export async function buildWidgetTypeSyncPayload(): Promise<WidgetTypeSyncPayload> {
+export async function buildWidgetTypeSyncDraft(): Promise<WidgetTypeSyncDraft> {
+  const validationIssues = [...appRegistry.widgets]
+    .flatMap((widget) => validateWidgetType(widget))
+    .sort((left, right) =>
+      left.widgetId === right.widgetId
+        ? left.section.localeCompare(right.section)
+        : left.widgetId.localeCompare(right.widgetId),
+    );
   const widgets = [...appRegistry.widgets]
     .map((widget) => projectWidgetType(widget))
     .sort((left, right) => left.widgetId.localeCompare(right.widgetId));
@@ -276,9 +575,24 @@ export async function buildWidgetTypeSyncPayload(): Promise<WidgetTypeSyncPayloa
   )}`;
 
   return {
-    ...registryBody,
-    checksum,
+    payload: {
+      ...registryBody,
+      checksum,
+    },
+    validationIssues,
   };
+}
+
+export async function buildWidgetTypeSyncPayload(): Promise<WidgetTypeSyncPayload> {
+  const draft = await buildWidgetTypeSyncDraft();
+
+  if (draft.validationIssues.length > 0) {
+    throw new Error(
+      `Widget registry manifest is invalid. ${formatValidationIssues(draft.validationIssues)}`,
+    );
+  }
+
+  return draft.payload;
 }
 
 async function readResponsePayload(response: Response) {
@@ -418,21 +732,9 @@ async function requestWidgetTypeSync(
   return (responsePayload ?? { status: "noop" }) as WidgetTypeSyncResponse;
 }
 
-function reportWidgetRegistrySyncError(message: string) {
-  if (!message || reportedSyncErrors.has(message)) {
-    return;
-  }
-
-  reportedSyncErrors.add(message);
-  useToastStore.getState().push({
-    title: "Widget registry sync failed",
-    description: message,
-    variant: "error",
-    duration: 8000,
-  });
-}
-
-export async function syncWidgetTypesOnceForSession() {
+export async function syncWidgetTypes(
+  payload?: WidgetTypeSyncPayload,
+) {
   if (env.useMockData) {
     return { status: "noop" } satisfies WidgetTypeSyncResponse;
   }
@@ -440,17 +742,11 @@ export async function syncWidgetTypesOnceForSession() {
   const session = useAuthStore.getState().session;
 
   if (!session?.token || !session.user.id) {
-    return { status: "noop" } satisfies WidgetTypeSyncResponse;
+    throw new Error("You need to be signed in before the widget registry can sync.");
   }
 
-  const payload = await buildWidgetTypeSyncPayload();
-  const syncMarker = `${payload.registryVersion}:${payload.checksum}`;
-  const cachedMarker = readSessionSyncMarker(session.user.id);
-
-  if (cachedMarker === syncMarker) {
-    return { status: "noop" } satisfies WidgetTypeSyncResponse;
-  }
-
+  const effectivePayload = payload ?? await buildWidgetTypeSyncPayload();
+  const syncMarker = `${effectivePayload.registryVersion}:${effectivePayload.checksum}`;
   const inFlightKey = `${session.user.id}:${syncMarker}`;
   const existingPromise = inFlightSyncs.get(inFlightKey);
 
@@ -458,17 +754,7 @@ export async function syncWidgetTypesOnceForSession() {
     return existingPromise;
   }
 
-  const nextPromise = requestWidgetTypeSync(payload)
-    .then((response) => {
-      writeSessionSyncMarker(session.user.id, syncMarker);
-      return response;
-    })
-    .catch((error) => {
-      reportWidgetRegistrySyncError(
-        error instanceof Error && error.message ? error.message : "Unable to sync widget types.",
-      );
-      throw error;
-    })
+  const nextPromise = requestWidgetTypeSync(effectivePayload)
     .finally(() => {
       inFlightSyncs.delete(inFlightKey);
     });

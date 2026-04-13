@@ -241,6 +241,44 @@ Write shapes:
 }
 ```
 
+## Widget type registry sync contract
+
+Backend widget-type publication is now an explicit admin action. It is no longer tied to normal
+sign-in or app bootstrap.
+
+The frontend publishes one versioned widget manifest to the configured `widget_types.sync_url`
+endpoint. That manifest contains:
+
+- a global `registryVersion`
+- a global manifest `checksum`
+- one row per widget type
+
+Each synced widget row now includes:
+
+- catalog identity such as `widgetId`, `title`, `description`, `kind`, `category`, and `source`
+- a per-widget `widgetVersion`
+- a structured configuration contract
+- a structured runtime contract
+- a structured IO contract
+- capability metadata
+- agent-facing authoring hints
+- type-level examples
+
+Important backend expectations:
+
+- treat the synced row as widget-type metadata, not widget-instance state
+- do not expect instance-specific binding choices, compiled forms, or runtime state in this manifest
+- preserve `widgetVersion` so backend tooling can detect per-widget behavioral changes without
+  diffing the entire manifest
+- use `registryVersion` for manifest-schema compatibility and `checksum` for idempotent sync/no-op
+  handling
+- validate and store the richer `schema_payload` and `io` payloads as structured JSON, not as
+  opaque strings
+
+The frontend now validates the manifest before publish and blocks admin publication when required
+contract sections are missing. Backend validation should still remain strict, because the registry
+is now intended to power agentic tooling as well as human catalog browsing.
+
 ```json
 {
   "policy_ids": ["research-analyst", "ops-reviewer"],

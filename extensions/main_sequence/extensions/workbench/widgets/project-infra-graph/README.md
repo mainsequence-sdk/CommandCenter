@@ -27,3 +27,9 @@ This widget module owns the project-scoped infrastructure graph used by the Main
 - Nodes without `summary_url` no longer render the raw backend `properties` fallback. The inspector shows only the selected-node header plus the explicit `No summary available` state.
 - The graph now uses a centered radial layout with a lightweight local force/repulsion pass. The root project node stays in the middle, related nodes orbit around it by backend group and depth, and group coloring comes from a frontend theme palette instead of backend-provided node colors.
 - In the workspace component browser this widget should appear under the `Main Sequence Infrastructure` category, not `Main Sequence Workbench`.
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep that registry contract aligned with the real authoring surface here: project selection,
+  compact widget rendering, drill-down behavior, and the inspector/link-driven backend model.
+- Bump `widgetVersion` when the configuration model, supported graph semantics, or agent-facing
+  authoring guidance changes materially.

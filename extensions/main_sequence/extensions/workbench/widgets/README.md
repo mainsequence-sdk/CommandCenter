@@ -37,5 +37,11 @@ widget family in the live widget catalog.
 - `dependency-graph/`, `project-infra-graph/`, `data-node-visualizer/`, `data-node-filter/`,
   `data-node-statistic/`, and `data-node-table/` are currently registered in the app-wide widget
   catalog from `extensions/main_sequence/extensions/workbench/index.ts`.
+- Every registered widget definition in this folder now publishes `widgetVersion` plus an explicit
+  backend-facing `registryContract` so platform-admin registry sync can describe configuration,
+  runtime behavior, IO semantics, capabilities, and agent authoring guidance without scraping the
+  React settings UI.
+- Widget authors must bump `widgetVersion` when a widget's authoring semantics, runtime behavior,
+  supported modes, or machine-readable contract changes materially.
 - Keep reusable widget logic close to the widget folder, and reuse `extensions/main_sequence/common/` building blocks when the rendering contract stays clean.
 - Add a `README.md` for each widget subfolder.

@@ -5,6 +5,7 @@ import { OrderBookWidget } from "./OrderBookWidget";
 
 export const orderBookWidget: WidgetDefinition<{ symbol?: string }> = {
   id: "order-book",
+  widgetVersion: "1.0.0",
   title: "Order Book",
   description: "Level II style side-by-side bid/ask widget shipped by an extension.",
   category: "Execution",
@@ -14,11 +15,31 @@ export const orderBookWidget: WidgetDefinition<{ symbol?: string }> = {
   requiredPermissions: ["orders:read"],
   tags: ["execution", "extension"],
   exampleProps: { symbol: "TSLA" },
+  registryContract: {
+    configuration: {
+      mode: "custom-settings",
+      summary: "Configures a simple symbol-driven extension order book widget.",
+      fields: [{ id: "symbol", label: "Symbol", type: "string", source: "custom-settings" }],
+    },
+    io: {
+      mode: "none",
+      summary: "This extension widget does not expose a standardized typed IO contract.",
+    },
+    agentHints: {
+      buildPurpose: "Use this widget to show a side-by-side bid and ask order book for one symbol.",
+      whenToUse: ["Use when an extension surface needs a compact order book view."],
+      whenNotToUse: ["Do not use when the workflow needs typed bindings or shared execution."],
+      authoringSteps: ["Set the target symbol."],
+      blockingRequirements: [],
+      commonPitfalls: ["This widget is an extension demo surface, not part of the typed workspace runtime model."],
+    },
+  },
   component: OrderBookWidget,
 };
 
 export const orderBookDepthWidget: WidgetDefinition<{ symbol?: string }> = {
   id: "order-book-depth",
+  widgetVersion: "1.0.0",
   title: "Order Book Depth",
   description:
     "Depth-oriented Level II widget that overlays numeric size with filled bid/ask distribution bars.",
@@ -29,5 +50,24 @@ export const orderBookDepthWidget: WidgetDefinition<{ symbol?: string }> = {
   requiredPermissions: ["orders:read"],
   tags: ["execution", "extension", "depth"],
   exampleProps: { symbol: "TSLA" },
+  registryContract: {
+    configuration: {
+      mode: "custom-settings",
+      summary: "Configures a symbol-driven order book depth widget.",
+      fields: [{ id: "symbol", label: "Symbol", type: "string", source: "custom-settings" }],
+    },
+    io: {
+      mode: "none",
+      summary: "This extension widget does not expose a standardized typed IO contract.",
+    },
+    agentHints: {
+      buildPurpose: "Use this widget to show depth-oriented order book distribution for one symbol.",
+      whenToUse: ["Use when an extension surface needs a compact depth visualization."],
+      whenNotToUse: ["Do not use when the workflow needs typed bindings or shared execution."],
+      authoringSteps: ["Set the target symbol."],
+      blockingRequirements: [],
+      commonPitfalls: ["This widget is an extension demo surface, not part of the typed workspace runtime model."],
+    },
+  },
   component: OrderBookDepthWidget,
 };

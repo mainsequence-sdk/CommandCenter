@@ -60,3 +60,10 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 - If backend widget-prop validation is strict, this widget's persisted `agentSessionId`,
   `historyRefreshMode`, `historyRefreshIntervalSeconds`, and `promptOnRefresh` props must be
   allowed by the widget-type sync contract as well.
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep that registry contract aligned with the real execution-owner behavior here: bound session
+  requirement, refresh modes, prompt-on-refresh semantics, published latest-assistant output, and
+  the distinction between durable props and component-local transcript state.
+- Bump `widgetVersion` when refresh semantics, inputs/outputs, runtime behavior, or agent-facing
+  authoring guidance changes materially.

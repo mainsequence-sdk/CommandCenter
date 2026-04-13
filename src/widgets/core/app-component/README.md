@@ -138,6 +138,9 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 
 ## Maintenance Notes
 
+- `definition.ts` now carries both `widgetVersion` and an explicit `registryContract`. Keep that
+  contract aligned with the actual AppComponent authoring model whenever target modes, auth modes,
+  compiled binding requirements, or dynamic IO semantics change.
 - Keep transport auth aligned with the existing shell JWT flow. If the app-wide auth header behavior changes, update `appComponentApi.ts` in the same change.
 - Keep the transport split explicit:
   manual mode is generic AppComponent transport,

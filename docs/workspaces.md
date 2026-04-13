@@ -92,7 +92,7 @@ through RBAC and show an explanatory backend-only message instead.
 For the recommended production backend model for shared workspaces, see:
 
 - `docs/workspace-backend-model.md`
-- `docs/adr-shared-workspace-state.md`
+- `docs/adr/adr-shared-workspace-state.md`
 
 ## Workspace Model
 

@@ -131,3 +131,13 @@ This widget turns Main Sequence data-node table data into configurable charts, w
 - Date range defaults to the dashboard date until the widget is switched to a fixed range.
 - When normalization is enabled without an explicit anchor date, the chart rebases each series to the first visible date in the active range.
 - Supported providers are currently `TradingView` (Lightweight Charts) and `ECharts`.
+
+## Registry Contract
+
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep the registry contract aligned with the real chart-authoring surface here: provider choice,
+  axis/group mapping, normalization, group filtering, and the fact that this widget is a runtime
+  `consumer` of the published Data Node dataset.
+- Bump `widgetVersion` when chart configuration semantics, accepted upstream dataset expectations,
+  or agent-facing authoring steps change materially.

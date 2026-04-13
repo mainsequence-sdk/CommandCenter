@@ -268,6 +268,91 @@ export type WidgetWorkspaceRuntimeMode =
   | "execution-owner"
   | "consumer"
   | "local-ui";
+export type WidgetRegistryConfigurationMode =
+  | "none"
+  | "static-schema"
+  | "custom-settings"
+  | "hybrid";
+export type WidgetRegistryIoMode =
+  | "none"
+  | "static"
+  | "dynamic"
+  | "consumer";
+export type WidgetRegistryRefreshPolicy =
+  | WidgetExecutionRefreshPolicy
+  | "not-applicable";
+export type WidgetRegistryConfigurationFieldSource =
+  | "schema"
+  | "custom-settings"
+  | "runtime-derived";
+
+export interface WidgetRegistryConfigurationFieldDescriptor {
+  id: string;
+  label: string;
+  type: string;
+  description?: string;
+  sectionId?: string;
+  required?: boolean;
+  source?: WidgetRegistryConfigurationFieldSource;
+}
+
+export interface WidgetRegistryConfigurationContract {
+  mode: WidgetRegistryConfigurationMode;
+  summary: string;
+  sections?: WidgetFieldSection[];
+  fields?: WidgetRegistryConfigurationFieldDescriptor[];
+  dynamicConfigSummary?: string;
+  configurationNotes?: string[];
+  requiredSetupSteps?: string[];
+}
+
+export interface WidgetRegistryRuntimeContract {
+  workspaceRuntimeMode: WidgetWorkspaceRuntimeMode;
+  supportsExecution: boolean;
+  refreshPolicy: WidgetRegistryRefreshPolicy;
+  executionTriggers: WidgetExecutionReason[];
+  executionSummary: string;
+  notes?: string[];
+}
+
+export interface WidgetRegistryIoContract {
+  mode: WidgetRegistryIoMode;
+  summary: string;
+  dynamicIoSummary?: string;
+  inputContracts?: WidgetContractId[];
+  outputContracts?: WidgetContractId[];
+  ioNotes?: string[];
+}
+
+export interface WidgetRegistryAgentHints {
+  buildPurpose: string;
+  whenToUse: string[];
+  whenNotToUse: string[];
+  authoringSteps: string[];
+  blockingRequirements?: string[];
+  commonPitfalls?: string[];
+}
+
+export interface WidgetRegistryExample {
+  label: string;
+  summary: string;
+  props?: Record<string, unknown>;
+  notes?: string[];
+}
+
+export interface WidgetRegistryContractInput {
+  configuration?: Partial<WidgetRegistryConfigurationContract>;
+  runtime?: Partial<
+    Omit<
+      WidgetRegistryRuntimeContract,
+      "workspaceRuntimeMode" | "supportsExecution"
+    >
+  >;
+  io?: Partial<WidgetRegistryIoContract>;
+  capabilities?: Record<string, unknown>;
+  agentHints: WidgetRegistryAgentHints;
+  examples?: WidgetRegistryExample[];
+}
 
 export interface WidgetExecutionDefinition<
   TProps extends Record<string, unknown> = Record<string, unknown>,
@@ -364,6 +449,7 @@ export interface WidgetSettingsSchema<
 
 export interface WidgetDefinition<TProps extends Record<string, unknown> = Record<string, unknown>> {
   id: string;
+  widgetVersion: string;
   title: string;
   description: string;
   category: string;
@@ -393,6 +479,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   resolveIo?: (args: WidgetIoResolverArgs<TProps>) => WidgetIoDefinition<TProps> | undefined;
   execution?: WidgetExecutionDefinition<TProps>;
   workspaceRuntimeMode?: WidgetWorkspaceRuntimeMode;
+  registryContract?: WidgetRegistryContractInput;
   workspaceIcon?: ComponentType<{ className?: string }>;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;

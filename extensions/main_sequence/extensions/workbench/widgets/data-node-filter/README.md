@@ -116,3 +116,12 @@ charts and tables.
   of immediately collapsing everything to row-only inference. When transforms create or reshape
   fields, the published schema marks those fields as `derived` and carries the lineage forward to
   downstream consumers.
+
+## Registry Contract
+
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep the registry contract aligned with the real authoring surface here: source modes, transform
+  modes, execution-owner behavior, published dataset contract, and manual-table workflow.
+- Bump `widgetVersion` when this widget's configuration model, published output contract, runtime
+  execution behavior, or agent-facing authoring steps change materially.

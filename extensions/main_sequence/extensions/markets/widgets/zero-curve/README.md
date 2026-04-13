@@ -49,3 +49,9 @@ Node payloads on a numeric days axis using ECharts.
 - Runtime fetch ownership should stay with upstream execution owners such as `main-sequence-data-node`.
   This widget may decompress and transform published rows locally, but it must not create its own
   canonical backend data fetch path on workspace surfaces.
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep that registry contract aligned with the real consumer behavior here: compressed curve input
+  expectations, local decompression rules, selection filters, and ECharts rendering semantics.
+- Bump `widgetVersion` when the accepted curve payload contract, rendering semantics, or
+  agent-facing authoring guidance changes materially.

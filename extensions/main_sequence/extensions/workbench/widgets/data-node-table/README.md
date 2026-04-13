@@ -219,6 +219,15 @@ Heatmap palettes now support:
 - explicit palettes like `Jet`, `Turbo`, `Viridis`, `Plasma`, `Inferno`, `Magma`,
   `Blue-White-Red`, and `Red-Yellow-Green`
 
+## Registry Contract
+
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep the registry contract aligned with the real consumer contract here: accepted tabular-frame
+  input, source-schema inspection flow, and the table-formatting controls that stay widget-local.
+- Bump `widgetVersion` when the accepted upstream contract, local configuration model, or
+  agent-facing authoring guidance changes materially.
+
 The settings UI and resolved renderer both follow that effective format instead of hardcoding
 source-schema assumptions.
 

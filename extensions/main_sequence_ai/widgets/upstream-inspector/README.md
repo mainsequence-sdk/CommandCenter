@@ -23,3 +23,9 @@ This folder owns the `main-sequence-ai-upstream-inspector` widget.
 - Keep the input contract list aligned with the values you want to inspect from agent-monitor
   workflows. If you widen accepted contracts later, make sure the renderer still formats them
   clearly.
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep that registry contract aligned with the real consumer behavior here: accepted upstream input
+  contracts, fallback-content behavior, and Markdown vs raw-text rendering semantics.
+- Bump `widgetVersion` when accepted inputs, rendering behavior, or agent-facing authoring guidance
+  changes materially.

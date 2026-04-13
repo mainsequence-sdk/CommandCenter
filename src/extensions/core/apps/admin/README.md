@@ -34,7 +34,8 @@ Maintenance notes:
 - Keep the app extension-owned so admin navigation, favorites, and search stay consistent with
   `Access & RBAC`
 - This app is for organization-scoped administration only. Platform-only controls belong in the
-  separate `Admin Settings` modal, not in this app.
+  separate `Admin Settings` modal, not in this app. That now includes explicit widget-registry
+  publication.
 - Legacy `/app/admin-panel` links should continue redirecting into this app
 - Keep organization user bulk actions aligned with `/user/api/user/` backend endpoints and
   their confirmation semantics

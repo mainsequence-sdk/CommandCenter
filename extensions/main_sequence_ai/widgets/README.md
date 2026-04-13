@@ -13,3 +13,8 @@ This folder owns widget modules shipped by the Main Sequence AI extension.
 - Keep widget ids stable so saved workspaces continue to resolve existing instances.
 - Shared transport should stay in `../runtime/`; widget folders should focus on presentation and
   widget-specific state only.
+- Every registered widget definition in this folder now publishes `widgetVersion` plus an explicit
+  backend-facing `registryContract` so admin registry sync can describe configuration, runtime
+  behavior, IO semantics, and agent authoring guidance consistently.
+- Widget authors must bump `widgetVersion` when widget behavior, configuration semantics, or
+  machine-readable authoring guidance changes materially.

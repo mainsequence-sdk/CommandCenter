@@ -20,6 +20,8 @@ Shared shell navigation and chrome for the Command Center application.
 - The topbar now separates the `Organization Admin` menu from `Admin Settings`.
 - `Organization Admin` is organization-scoped navigation. `Admin Settings` is a separate
   platform-admin-only modal and must not be exposed through the org-admin menu.
+- Platform-owned controls such as widget-registry publication belong in `Admin Settings`, not in
+  the organization-admin surface tree.
 
 ## Maintenance Notes
 

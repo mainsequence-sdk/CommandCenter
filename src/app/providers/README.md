@@ -4,13 +4,11 @@ This directory owns top-level React provider wiring for the shell.
 
 ## Entry Points
 
-- `AppProviders.tsx`: mounts query, config, theme, preferences, toast, and authenticated-session bootstrap providers around the router.
-- `WidgetRegistrySyncBootstrap.tsx`: authenticated-session side effect that triggers widget-type sync from the live runtime registry.
+- `AppProviders.tsx`: mounts query, config, theme, preferences, and toast providers around the router.
 
 ## Notable Behavior
 
-- Widget-type sync runs from the provider layer on purpose so it follows authenticated session state instead of being coupled to any one page.
-- The bootstrap is fire-and-forget; sync deduplication and failure reporting live in the registry sync module.
+- Provider wiring must not trigger backend widget-catalog writes during normal sign-in. Widget registry publication is now an explicit platform-admin action exposed through `SettingsDialog.tsx`.
 
 ## Maintenance Notes
 

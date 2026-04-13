@@ -18,6 +18,8 @@ This widget is a workspace layout primitive modeled after collapsible dashboard 
 
 ## Maintenance Notes
 
+- `definition.ts` now publishes `widgetVersion` plus an explicit `registryContract`. If row
+  behavior or authoring semantics change, update that contract in the same change.
 - Row structure is owned by the dashboard model, not by generic widget props.
 - Collapsed child widgets are stored in `DashboardWidgetInstance.row.children`.
 - Rows stay full width and fixed height through the dashboard layout helpers and the RGL adapter.

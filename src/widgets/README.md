@@ -22,6 +22,8 @@ This directory contains the Command Center widget platform, including the shared
 - Widgets can now also declare `execution` separately from `io`. `resolveIo(...)` stays the pure
   dataflow surface, while `execution` is the opt-in runtime contract for widgets that actively run
   work and publish outputs through runtime-state patches.
+- Widget definitions now also carry `widgetVersion` plus an explicit `registryContract` used for
+  backend widget-type publication and agent-facing authoring metadata.
 - Output ports can optionally describe their structured value shape through `valueDescriptor`, and
   canonical bindings can attach lightweight transform metadata such as array-item selection and
   nested path extraction without changing the underlying port-to-port graph model.
@@ -32,10 +34,15 @@ This directory contains the Command Center widget platform, including the shared
   cards, and other workspace surfaces should resolve icons through that shared definition-level
   field plus the shared workspace icon resolver. Legacy `railIcon` remains only as a backward-
   compatible fallback while older widgets migrate.
-- Live backend mode now also projects widget definitions into a JSON-safe type manifest and syncs
-  that catalog on authenticated session startup. Runtime-only function properties such as React
-  components, controller hooks, `resolveIo`, and output resolvers are not sent verbatim; the sync
-  keeps only serializable metadata for schema, IO, permissions, tags, and default presentation.
+- Live backend mode projects widget definitions into a JSON-safe type manifest for explicit admin
+  publication. Runtime-only function properties such as React components, controller hooks,
+  `resolveIo`, and output resolvers are not sent verbatim; the sync keeps only the explicit
+  serializable widget type contract.
+- `registryContract` is the backend-facing explanation layer for widget behavior. Use it to publish
+  configuration summary, runtime ownership, IO semantics, capabilities, agent hints, and examples.
+- Simple widgets may still rely on safe fallback derivation from `schema`, `io`, `execution`, and
+  `workspaceRuntimeMode`, but dynamic or non-trivial widgets should define an explicit
+  `registryContract`.
 - The workspace studio does not use per-widget `defaultSize` as the insertion size for fresh
   custom-workspace widgets. New non-row widgets start from one shared workspace baseline so the
   builder stays predictable across widget families.
@@ -77,6 +84,8 @@ This directory contains the Command Center widget platform, including the shared
 ## Maintenance notes
 
 - Prefer wiring new widget-level configuration through the shared settings modal before adding page-specific controls.
+- Bump `widgetVersion` whenever widget authoring semantics change materially, including changes to
+  configuration model, accepted inputs, published outputs, runtime ownership, or capability modes.
 - Use `runtimeState` only for ephemeral view state that should round-trip with a workspace; keep durable configuration in widget `props`.
 - If a widget needs a richer configuration experience, provide `settingsComponent` on its `WidgetDefinition` instead of forking the modal shell.
 - Be explicit about whether a surface is rendering a preconfigured widget instance or a user-configurable widget instance.

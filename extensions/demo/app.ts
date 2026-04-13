@@ -30,26 +30,17 @@ const healthcareSection = {
 const financialMarketsMonitorDashboard: DashboardDefinition = {
   id: "financial-markets-monitor",
   title: "Financial Markets Monitor",
-  description: "Market monitoring workspace with KPIs, charts, portfolio state, and live-looking feeds.",
+  description: "Market monitoring workspace with charts, portfolio state, and desk notes.",
   category: "Demo",
   source: "demo",
   requiredPermissions: ["main_sequence_markets:view"],
   widgets: [
     {
-      id: "overview-kpis",
-      widgetId: "market-kpis",
-      title: "Desk KPIs",
-      props: { symbol: "NVDA" },
-      layout: { cols: 4, rows: 4 },
-      position: { x: 0 },
-    },
-    {
       id: "overview-price",
       widgetId: "price-chart",
       title: "NVDA Tape",
       props: { symbol: "NVDA" },
-      layout: { cols: 8, rows: 4 },
-      position: { x: 4 },
+      layout: { cols: 12, rows: 4 },
     },
     {
       id: "overview-positions",
@@ -60,14 +51,6 @@ const financialMarketsMonitorDashboard: DashboardDefinition = {
       position: { x: 0 },
     },
     {
-      id: "overview-activity",
-      widgetId: "activity-feed",
-      title: "Operator Activity",
-      props: { limit: 6 },
-      layout: { cols: 4, rows: 6 },
-      position: { x: 8 },
-    },
-    {
       id: "overview-notes",
       widgetId: "markdown-note",
       title: "Desk Notes",
@@ -75,7 +58,8 @@ const financialMarketsMonitorDashboard: DashboardDefinition = {
         content:
           "## Desk Notes\n\n- Watch the opening rates move.\n- Confirm the first liquidity window.\n- Track any large spread dislocations.",
       },
-      layout: { cols: 12, rows: 5 },
+      layout: { cols: 4, rows: 6 },
+      position: { x: 8 },
     },
   ],
 };
@@ -111,7 +95,7 @@ export const demoApp: AppDefinition = {
       id: "markets-monitor",
       title: "Markets Monitor",
       navLabel: "Markets Monitor",
-      description: "Financial-markets monitoring surface powered by mock widgets and reusable layouts.",
+      description: "Financial-markets monitoring surface powered by reusable layouts and a reduced mock widget set.",
       ...defineSurfaceAssistantContext({
         summary:
           "User is on the Demo Markets Monitor dashboard. This page shows a mock financial-markets monitoring layout.",

@@ -186,6 +186,7 @@ export function MarkdownNoteWidgetSettings({
             <MarkdownNoteWidget
               widget={{
                 id: "markdown-note-preview",
+                widgetVersion: "1.0.0",
                 title: "Markdown Preview",
                 description: "Preview renderer",
                 category: "Content",

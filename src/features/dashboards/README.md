@@ -62,9 +62,9 @@ These flows are all part of one app surface, with instance state selected throug
 - Persistence is browser-local and user-scoped through `localStorage` by default.
 - If `workspaces.list_url` and `workspaces.detail_url` are configured in `config/command-center.yaml`, the studio switches to backend persistence instead of browser-local storage.
 - Saved widget instances and groups require the four `saved_widgets.*` endpoints in `config/command-center.yaml`.
-- When the user authenticates against a live backend, the app also syncs the frontend widget catalog
-  to `widget_types.sync_url` once per browser session so backend workspace validation knows the
-  available `widgetId` values before the first workspace save.
+- Backend widget-type publication is no longer tied to normal user sign-in. A platform admin must
+  explicitly publish the current frontend widget catalog to `widget_types.sync_url` from the
+  platform `Admin Settings` modal before backend workspace validation can rely on new widget ids.
 - `VITE_USE_MOCK_DATA=true` now boots the workspaces feature from the checked-in
   `mock_data/workspaces/demo_workspace.json` seed, even when backend workspace URLs are configured.
   This keeps the mock workspace demo deterministic on reload instead of reusing whatever was last in
@@ -326,7 +326,7 @@ These flows are all part of one app surface, with instance state selected throug
   model into a new workspace instance and routes through the normal create flow. In backend mode,
   the list row is summary-only, so `Copy` first hydrates the source workspace detail on demand and
   then creates a brand-new backend workspace row rather than overwriting the source workspace.
-- For a shared production backend, keep shared workspace content separate from per-user view state. See `docs/workspace-backend-model.md` and `docs/adr-shared-workspace-state.md`.
+- For a shared production backend, keep shared workspace content separate from per-user view state. See `docs/workspace-backend-model.md` and `docs/adr/adr-shared-workspace-state.md`.
 
 ## Important Dependencies
 

@@ -15,6 +15,7 @@ import {
 
 export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
   id: "main-sequence-ai-agent-terminal",
+  widgetVersion: "1.0.0",
   title: "Agent Terminal",
   description:
     "Attach a widget to one existing Main Sequence AI AgentSession and continue the conversation through a terminal-style shell.",
@@ -66,5 +67,50 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
   showRawPropsEditor: false,
   workspaceIcon: Bot,
   execution: agentTerminalExecutionDefinition,
+  workspaceRuntimeMode: "execution-owner",
+  registryContract: {
+    configuration: {
+      mode: "custom-settings",
+      summary:
+        "Connects one widget instance to an existing AgentSession and optional refresh prompt behavior.",
+      requiredSetupSteps: [
+        "Set the target agent session id.",
+        "Optionally configure a prompt that runs on refresh.",
+      ],
+    },
+    runtime: {
+      refreshPolicy: "allow-refresh",
+      executionTriggers: ["dashboard-refresh", "manual-submit"],
+      executionSummary:
+        "Owns terminal-style execution against one existing AgentSession and publishes the latest assistant markdown output.",
+    },
+    io: {
+      mode: "static",
+      summary:
+        "Accepts an optional refresh prompt input and publishes the latest assistant markdown response.",
+    },
+    capabilities: {
+      acceptedContracts: [CORE_VALUE_STRING_CONTRACT],
+      publishedContracts: [CORE_VALUE_STRING_CONTRACT],
+    },
+    agentHints: {
+      buildPurpose:
+        "Use this widget to continue an existing Main Sequence AI agent conversation inside a workspace.",
+      whenToUse: [
+        "Use when a workspace needs an interactive terminal attached to one existing agent session.",
+      ],
+      whenNotToUse: [
+        "Do not use when the goal is only to inspect one bound value or call one HTTP endpoint.",
+      ],
+      authoringSteps: [
+        "Set the agent session id.",
+        "Optionally bind or save a refresh prompt.",
+      ],
+      blockingRequirements: ["A valid agent session id is required."],
+      commonPitfalls: [
+        "This widget expects an existing session rather than creating a new agent workflow from scratch.",
+      ],
+    },
+  },
   component: AgentTerminalWidget,
 });

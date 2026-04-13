@@ -8,6 +8,7 @@ import { YieldCurvePlotWidgetSettings } from "./YieldCurvePlotWidgetSettings";
 
 export const yieldCurvePlotWidget: WidgetDefinition<YieldCurvePlotWidgetProps> = {
   id: "yield-curve-plot",
+  widgetVersion: "1.0.0",
   title: "Yield Curve Plot",
   description: "Mock multi-curve rates plot for Demo dashboards rendered with Lightweight Charts.",
   category: "Market",
@@ -22,5 +23,24 @@ export const yieldCurvePlotWidget: WidgetDefinition<YieldCurvePlotWidgetProps> =
     comparisonMode: "historical",
   },
   settingsComponent: YieldCurvePlotWidgetSettings,
+  registryContract: {
+    configuration: {
+      mode: "custom-settings",
+      summary: "Configures a demo multi-curve rates plot for one market and comparison mode.",
+      requiredSetupSteps: ["Select the market, scenario, and comparison mode."],
+    },
+    io: {
+      mode: "none",
+      summary: "This demo widget does not participate in the standardized typed IO model.",
+    },
+    agentHints: {
+      buildPurpose: "Use this widget only for demo yield-curve visualizations backed by mock data.",
+      whenToUse: ["Use in demo dashboards where mock curve scenarios are acceptable."],
+      whenNotToUse: ["Do not use for production typed workspace authoring."],
+      authoringSteps: ["Set the market and comparison mode."],
+      blockingRequirements: [],
+      commonPitfalls: ["This is demo-only and not part of the Main Sequence Data Node runtime pipeline."],
+    },
+  },
   component: YieldCurvePlotWidget,
 };

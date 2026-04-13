@@ -1,9 +1,14 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
-import { useMutation } from "@tanstack/react-query";
-import { CircleUserRound, FileCode2, Info, Settings2, ShieldCheck } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Boxes, CircleUserRound, FileCode2, Info, Loader2, Settings2, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import {
+  buildWidgetTypeSyncDraft,
+  syncWidgetTypes,
+  type WidgetTypeSyncResponse,
+} from "@/app/registry/widget-type-sync";
 import { requestPasswordChangeEmail } from "@/auth/api";
 import { useToast } from "@/components/ui/toaster";
 import { Avatar } from "@/components/ui/avatar";
@@ -30,7 +35,30 @@ interface SettingsDialogProps {
   user?: AppUser;
 }
 
-type SettingsSectionId = "general" | "account" | "auth" | "configuration" | "about";
+type SettingsSectionId =
+  | "general"
+  | "account"
+  | "auth"
+  | "configuration"
+  | "registry"
+  | "about";
+
+function formatWidgetTypeSyncTimestamp(value?: string) {
+  if (!value) {
+    return "Not available";
+  }
+
+  const parsed = Date.parse(value);
+
+  if (Number.isNaN(parsed)) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsed);
+}
 
 function resolveSettingsUrl(baseUrl: string, path: string) {
   if (!path) {
@@ -127,6 +155,270 @@ function SettingsCodeBlock({
     <pre className="max-h-[420px] overflow-auto rounded-[calc(var(--radius)-6px)] border border-white/8 bg-black/20 p-4 text-left font-mono text-xs leading-6 text-topbar-foreground">
       <code>{value}</code>
     </pre>
+  );
+}
+
+function WidgetRegistrySettingsSection({
+  syncUrl,
+}: {
+  syncUrl: string;
+}) {
+  const { toast } = useToast();
+  const draftQuery = useQuery({
+    queryKey: ["widget-registry", "sync-payload"],
+    queryFn: buildWidgetTypeSyncDraft,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const [lastResult, setLastResult] = useState<WidgetTypeSyncResponse | null>(null);
+  const widgetCategories = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    for (const widget of draftQuery.data?.payload.widgets ?? []) {
+      counts.set(widget.category, (counts.get(widget.category) ?? 0) + 1);
+    }
+
+    return [...counts.entries()].sort((left, right) => left[0].localeCompare(right[0]));
+  }, [draftQuery.data?.payload.widgets]);
+  const widgetIdsPreview = useMemo(
+    () => (draftQuery.data?.payload.widgets ?? []).map((widget) => widget.widgetId).slice(0, 16),
+    [draftQuery.data?.payload.widgets],
+  );
+  const widgetContractPreview = useMemo(
+    () =>
+      (draftQuery.data?.payload.widgets ?? []).slice(0, 8).map((widget) => ({
+        widgetId: widget.widgetId,
+        widgetVersion:
+          typeof widget.schema === "object" && widget.schema && "widgetVersion" in widget.schema
+            ? (widget.schema as Record<string, unknown>).widgetVersion
+            : undefined,
+        runtime:
+          typeof widget.schema === "object" && widget.schema && "runtime" in widget.schema
+            ? (widget.schema as Record<string, unknown>).runtime
+            : undefined,
+        configuration:
+          typeof widget.schema === "object" && widget.schema && "configuration" in widget.schema
+            ? (widget.schema as Record<string, unknown>).configuration
+            : undefined,
+        io:
+          typeof widget.io === "object" && widget.io
+            ? widget.io
+            : undefined,
+      })),
+    [draftQuery.data?.payload.widgets],
+  );
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const nextDraft = await buildWidgetTypeSyncDraft();
+      return {
+        draft: nextDraft,
+        result: await syncWidgetTypes(nextDraft.payload),
+      };
+    },
+    onSuccess: ({ draft, result }) => {
+      setLastResult(result);
+      void draftQuery.refetch();
+      toast({
+        variant: "success",
+        title: "Widget registry published",
+        description:
+          result.status === "synced"
+            ? `Created ${result.created ?? 0}, updated ${result.updated ?? 0}, deactivated ${result.deactivated ?? 0}.`
+            : "Backend registry already matched the current widget manifest.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Widget registry publish failed",
+        description: error instanceof Error ? error.message : "Unable to publish widget registry.",
+      });
+    },
+  });
+
+  return (
+    <SettingsSection
+      title="Widget registry"
+      description="Publish the live frontend widget catalog to the backend widget-type registry explicitly from this platform-admin surface."
+    >
+      <SettingsRow
+        label="Sync endpoint"
+        description="Backend endpoint that receives the versioned widget manifest."
+        value={
+          <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+            {syncUrl || "Not configured"}
+          </span>
+        }
+      />
+      <SettingsRow
+        label="Manifest"
+        description="Versioned local widget catalog preview generated from the current frontend registry."
+        value={
+          draftQuery.isLoading ? (
+            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Building manifest
+            </span>
+          ) : draftQuery.isError ? (
+            <span className="text-sm text-danger">
+              {draftQuery.error instanceof Error
+                ? draftQuery.error.message
+                : "Unable to build widget manifest."}
+            </span>
+          ) : (
+            <div className="space-y-2 text-right">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Badge variant="neutral">
+                  {(draftQuery.data?.payload.widgets.length ?? 0).toLocaleString()} widgets
+                </Badge>
+                <Badge variant="neutral">
+                  {widgetCategories.length.toLocaleString()} categories
+                </Badge>
+                <Badge
+                  variant={
+                    (draftQuery.data?.validationIssues.length ?? 0) > 0 ? "warning" : "neutral"
+                  }
+                >
+                  {(draftQuery.data?.validationIssues.length ?? 0).toLocaleString()} issues
+                </Badge>
+              </div>
+              <div className="font-mono text-[11px] text-muted-foreground">
+                {draftQuery.data?.payload.registryVersion ?? "—"}
+              </div>
+            </div>
+          )
+        }
+      />
+      <SettingsRow
+        label="Checksum"
+        description="Backend no-op protection for identical widget manifests."
+        value={
+          <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+            {draftQuery.data?.payload.checksum ?? "Unavailable"}
+          </span>
+        }
+      />
+      <SettingsRow
+        label="Publish"
+        description="This action writes the current widget catalog to the backend. It no longer runs during normal sign-in."
+        value={
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  syncMutation.mutate();
+                }}
+                disabled={
+                  !syncUrl.trim() ||
+                  draftQuery.isLoading ||
+                  draftQuery.isError ||
+                  (draftQuery.data?.validationIssues.length ?? 0) > 0 ||
+                  draftQuery.isFetching ||
+                  syncMutation.isPending
+                }
+              >
+                {syncMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Publishing
+                  </>
+                ) : (
+                  "Publish widget registry"
+                )}
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {lastResult
+                ? `Last result: ${lastResult.status} at ${formatWidgetTypeSyncTimestamp(lastResult.lastSyncedAt)}`
+                : "No publish has been run from this session yet."}
+            </div>
+          </div>
+        }
+      />
+
+      <div className="space-y-4 py-4">
+        {(draftQuery.data?.validationIssues.length ?? 0) > 0 ? (
+          <div className="rounded-[calc(var(--radius)-4px)] border border-warning/40 bg-warning/10 p-4">
+            <div className="text-sm font-medium text-topbar-foreground">Manifest validation issues</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              These widgets are missing required registry-contract metadata. Publication stays disabled until they are fixed.
+            </div>
+            <div className="mt-3">
+              <SettingsCodeBlock
+                value={(draftQuery.data?.validationIssues ?? [])
+                  .map((issue) => `${issue.widgetId} [${issue.section}] ${issue.message}`)
+                  .join("\n")}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
+          <div className="text-sm font-medium text-topbar-foreground">Registry categories</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {widgetCategories.length > 0 ? (
+              widgetCategories.map(([category, count]) => (
+                <Badge key={category} variant="neutral">
+                  {category}: {count}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-sm text-muted-foreground">No widget categories available.</span>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
+          <div className="text-sm font-medium text-topbar-foreground">Widget id preview</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            First 16 widget ids from the current local registry manifest.
+          </div>
+          <div className="mt-3">
+            <SettingsCodeBlock value={widgetIdsPreview.join("\n") || "No widgets available."} />
+          </div>
+        </div>
+
+        <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
+          <div className="text-sm font-medium text-topbar-foreground">Contract preview</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            First 8 widgets with their internal version, runtime contract, configuration contract, and IO contract.
+          </div>
+          <div className="mt-3">
+            <SettingsCodeBlock
+              value={
+                widgetContractPreview.length > 0
+                  ? JSON.stringify(widgetContractPreview, null, 2)
+                  : "No widgets available."
+              }
+            />
+          </div>
+        </div>
+
+        {lastResult ? (
+          <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
+            <div className="text-sm font-medium text-topbar-foreground">Last publish result</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant={lastResult.status === "synced" ? "primary" : "neutral"}>
+                {lastResult.status}
+              </Badge>
+              {typeof lastResult.created === "number" ? (
+                <Badge variant="neutral">Created: {lastResult.created}</Badge>
+              ) : null}
+              {typeof lastResult.updated === "number" ? (
+                <Badge variant="neutral">Updated: {lastResult.updated}</Badge>
+              ) : null}
+              {typeof lastResult.deactivated === "number" ? (
+                <Badge variant="neutral">Deactivated: {lastResult.deactivated}</Badge>
+              ) : null}
+              {typeof lastResult.total === "number" ? (
+                <Badge variant="neutral">Total: {lastResult.total}</Badge>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </SettingsSection>
   );
 }
 
@@ -643,7 +935,7 @@ export function SettingsDialog({
     { id: "general" as const, label: t("settingsDialog.generalNav"), icon: Settings2 },
     { id: "account" as const, label: t("settingsDialog.accountTitle"), icon: CircleUserRound },
     ...(mode === "platform"
-      ? [
+        ? [
           {
             id: "auth" as const,
             label: t("settingsDialog.authNav"),
@@ -653,6 +945,11 @@ export function SettingsDialog({
             id: "configuration" as const,
             label: t("settingsDialog.configurationNav"),
             icon: FileCode2,
+          },
+          {
+            id: "registry" as const,
+            label: "Widget Registry",
+            icon: Boxes,
           },
         ]
       : []),
@@ -938,6 +1235,10 @@ export function SettingsDialog({
                 </div>
               ) : null}
             </SettingsSection>
+          ) : null}
+
+          {mode === "platform" && activeSection === "registry" ? (
+            <WidgetRegistrySettingsSection syncUrl={config.widgetTypes.syncUrl} />
           ) : null}
 
           {activeSection === "about" ? (

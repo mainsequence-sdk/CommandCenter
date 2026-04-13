@@ -20,6 +20,7 @@ export const UPSTREAM_INSPECTOR_WIDGET_ID = "main-sequence-ai-upstream-inspector
 
 export const upstreamInspectorWidget = defineWidget<UpstreamInspectorWidgetProps>({
   id: UPSTREAM_INSPECTOR_WIDGET_ID,
+  widgetVersion: "1.0.0",
   title: "Upstream Inspector",
   description:
     "Bind an upstream widget output and inspect the resolved value as Markdown or raw text.",
@@ -57,5 +58,54 @@ export const upstreamInspectorWidget = defineWidget<UpstreamInspectorWidgetProps
   settingsComponent: UpstreamInspectorWidgetSettings,
   showRawPropsEditor: false,
   workspaceIcon: Waypoints,
+  workspaceRuntimeMode: "consumer",
+  registryContract: {
+    configuration: {
+      mode: "custom-settings",
+      summary: "Configures how one bound upstream value should be displayed for inspection.",
+      requiredSetupSteps: [
+        "Bind one upstream value or provide fallback content.",
+        "Choose the display mode.",
+      ],
+    },
+    runtime: {
+      refreshPolicy: "not-applicable",
+      executionTriggers: [],
+      executionSummary:
+        "Consumes one upstream binding value and renders it for inspection without owning execution.",
+    },
+    io: {
+      mode: "consumer",
+      summary: "Consumes one upstream primitive or JSON value and renders it as markdown or raw text.",
+    },
+    capabilities: {
+      acceptedContracts: [
+        CORE_VALUE_STRING_CONTRACT,
+        CORE_VALUE_JSON_CONTRACT,
+        CORE_VALUE_NUMBER_CONTRACT,
+        CORE_VALUE_INTEGER_CONTRACT,
+        CORE_VALUE_BOOLEAN_CONTRACT,
+      ],
+      supportedDisplayModes: ["markdown", "text"],
+    },
+    agentHints: {
+      buildPurpose:
+        "Use this widget to inspect one bound upstream widget output during authoring or debugging.",
+      whenToUse: [
+        "Use when a workspace needs to show one upstream binding value directly.",
+      ],
+      whenNotToUse: [
+        "Do not use when the goal is to create a production data visualization instead of an inspection surface.",
+      ],
+      authoringSteps: [
+        "Bind one upstream output.",
+        "Choose how the value should be rendered.",
+      ],
+      blockingRequirements: [],
+      commonPitfalls: [
+        "Without a binding, the widget only shows fallback content from props.",
+      ],
+    },
+  },
   component: UpstreamInspectorWidget,
 });

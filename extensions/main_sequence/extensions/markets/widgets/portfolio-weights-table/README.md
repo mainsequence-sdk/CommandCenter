@@ -22,3 +22,9 @@ This folder contains the reusable `Portfolio Weights` widget and the shared tabl
 - When `Position Type` is `weight_notional_exposure`, the widget formats `Position Value` as a percentage.
 - In `positions` mode, the widget also shows a compact summary strip above the table for total longs, total shorts, and total net exposure.
 - The widget is now prepared for the single-runtime-owner contract, but it is still not registered in the live Markets widget catalog. The reusable module remains on disk for future registration and page reuse.
+- `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
+  `registryContract`.
+- Keep that registry contract aligned with the real execution-owner behavior here: supported
+  variants, required portfolio selection, and shared weights-payload ownership.
+- Bump `widgetVersion` when the configuration surface, runtime behavior, or agent-facing authoring
+  guidance changes materially.
