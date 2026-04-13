@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { AreaSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
+import * as echarts from "echarts";
+import type { EChartsOption } from "echarts";
 
 import { withAlpha } from "@/lib/color";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,26 @@ import { useTheme } from "@/themes/ThemeProvider";
 export interface TimeseriesAreaChartPoint {
   time: number;
   value: number;
+}
+
+const axisTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const tooltipTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+function formatAxisTimeLabel(value: number) {
+  return axisTimeFormatter.format(new Date(value));
+}
+
+function formatTooltipTimeLabel(value: number) {
+  return tooltipTimeFormatter.format(new Date(value));
 }
 
 export function TimeseriesAreaChart({
@@ -30,87 +51,160 @@ export function TimeseriesAreaChart({
   const normalizedData = useMemo(
     () =>
       data
-        .filter(
-          (point) =>
-            Number.isFinite(point.time) &&
-            Number.isFinite(point.value),
-        )
-        .map((point) => ({
-          time: Math.floor(point.time / 1000) as UTCTimestamp,
-          value: point.value,
-        })),
+        .filter((point) => Number.isFinite(point.time) && Number.isFinite(point.value))
+        .map((point) => [point.time, point.value] as [number, number]),
     [data],
   );
+
+  const chartOption = useMemo<EChartsOption | null>(() => {
+    if (normalizedData.length === 0) {
+      return null;
+    }
+
+    const lineColor = color ?? resolvedTokens.primary;
+
+    return {
+      animation: false,
+      backgroundColor: "transparent",
+      textStyle: {
+        color: resolvedTokens.foreground,
+      },
+      grid: {
+        top: 12,
+        left: 8,
+        right: 8,
+        bottom: 10,
+        containLabel: true,
+      },
+      tooltip: {
+        trigger: "axis",
+        confine: true,
+        backgroundColor: resolvedTokens.card,
+        borderColor: withAlpha(resolvedTokens.border, 0.72),
+        textStyle: {
+          color: resolvedTokens.foreground,
+        },
+        formatter: (params) => {
+          const firstParam = Array.isArray(params) ? params[0] : params;
+
+          if (!firstParam || Array.isArray(firstParam.value)) {
+            const valueTuple = Array.isArray(firstParam?.value)
+              ? (firstParam.value as [number, number])
+              : null;
+            if (!valueTuple) {
+              return "";
+            }
+
+            const [timeValue, pointValue] = valueTuple;
+            const formattedValue =
+              typeof pointValue === "number" && Number.isFinite(pointValue)
+                ? (valueFormatter?.(pointValue) ?? pointValue.toFixed(2))
+                : "No data";
+
+            return `${formatTooltipTimeLabel(timeValue)}<br/>${formattedValue}`;
+          }
+
+          return "";
+        },
+        axisPointer: {
+          type: "line",
+          lineStyle: {
+            color: withAlpha(lineColor, 0.28),
+            width: 1,
+          },
+        },
+      },
+      xAxis: {
+        type: "time",
+        axisLine: {
+          lineStyle: {
+            color: withAlpha(resolvedTokens.border, 0.78),
+          },
+        },
+        axisLabel: {
+          color: resolvedTokens["muted-foreground"],
+          hideOverlap: true,
+          formatter: (value: number) => formatAxisTimeLabel(value),
+        },
+        splitLine: {
+          show: false,
+        },
+        axisTick: {
+          show: false,
+        },
+      },
+      yAxis: {
+        type: "value",
+        scale: true,
+        axisLine: {
+          show: false,
+        },
+        axisTick: {
+          show: false,
+        },
+        axisLabel: {
+          color: resolvedTokens["muted-foreground"],
+          formatter: (value: number) =>
+            typeof value === "number" && Number.isFinite(value)
+              ? (valueFormatter?.(value) ?? value.toFixed(2))
+              : "",
+        },
+        splitLine: {
+          lineStyle: {
+            color: withAlpha(resolvedTokens["chart-grid"], 0.16),
+          },
+        },
+      },
+      series: [
+        {
+          type: "line",
+          data: normalizedData,
+          showSymbol: normalizedData.length === 1,
+          symbol: "circle",
+          symbolSize: normalizedData.length === 1 ? 7 : 4,
+          smooth: false,
+          lineStyle: {
+            color: lineColor,
+            width: 2,
+          },
+          itemStyle: {
+            color: lineColor,
+          },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: withAlpha(lineColor, 0.24) },
+              { offset: 1, color: withAlpha(lineColor, 0.03) },
+            ]),
+          },
+        },
+      ],
+    };
+  }, [color, normalizedData, resolvedTokens, valueFormatter]);
 
   useEffect(() => {
     const container = containerRef.current;
 
-    if (!container || normalizedData.length === 0) {
+    if (!container || !chartOption) {
       return;
     }
 
-    const lineColor = color ?? resolvedTokens.primary;
-    const chart = createChart(container, {
-      layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: resolvedTokens["muted-foreground"],
-      },
-      grid: {
-        vertLines: { color: withAlpha(resolvedTokens["chart-grid"], 0.12) },
-        horzLines: { color: withAlpha(resolvedTokens["chart-grid"], 0.12) },
-      },
-      rightPriceScale: {
-        borderColor: resolvedTokens.border,
-      },
-      timeScale: {
-        borderColor: resolvedTokens.border,
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      crosshair: {
-        vertLine: {
-          color: withAlpha(lineColor, 0.22),
-          width: 1,
-        },
-        horzLine: {
-          color: withAlpha(lineColor, 0.22),
-          width: 1,
-        },
-      },
-      width: container.clientWidth,
-      height: container.clientHeight,
-      localization: valueFormatter
-        ? {
-            priceFormatter: valueFormatter,
-          }
-        : undefined,
+    const chart = echarts.init(container, undefined, {
+      renderer: "svg",
     });
 
-    const series = chart.addSeries(AreaSeries, {
-      lineColor,
-      topColor: withAlpha(lineColor, 0.22),
-      bottomColor: withAlpha(lineColor, 0.02),
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
-
-    series.setData(normalizedData);
-    chart.timeScale().fitContent();
+    chart.setOption(chartOption);
 
     const resizeObserver = new ResizeObserver(() => {
-      chart.applyOptions({
-        width: container.clientWidth,
-        height: container.clientHeight,
-      });
+      chart.resize();
     });
 
     resizeObserver.observe(container);
 
     return () => {
       resizeObserver.disconnect();
-      chart.remove();
+      chart.dispose();
     };
-  }, [color, normalizedData, resolvedTokens, valueFormatter]);
+  }, [chartOption]);
 
   if (normalizedData.length === 0) {
     return (
