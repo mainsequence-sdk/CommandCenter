@@ -8,18 +8,31 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant;
 }
 
+const CardDepthContext = React.createContext(0);
+const maxNestedCardDepth = 2;
+
 export const Card = React.forwardRef<
   HTMLDivElement,
   CardProps
 >(({ className, style, variant = "default", ...props }, ref) => {
+  const parentDepth = React.useContext(CardDepthContext);
+  const currentDepth = parentDepth + 1;
+  const effectiveVariant =
+    variant === "ghost"
+      ? "ghost"
+      : currentDepth > maxNestedCardDepth
+        ? "ghost"
+        : currentDepth > 1
+          ? "nested"
+          : variant;
   const variantClassName =
-    variant === "nested"
+    effectiveVariant === "nested"
       ? "rounded-[var(--radius)] border text-card-foreground"
-      : variant === "ghost"
+      : effectiveVariant === "ghost"
         ? "rounded-[var(--radius)] border border-transparent bg-transparent text-card-foreground shadow-none"
         : "rounded-[var(--radius)] border border-border/80 bg-card/85 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur";
   const variantStyle =
-    variant === "nested"
+    effectiveVariant === "nested"
       ? {
           borderColor: "var(--card-nested-border-color)",
           background: "var(--card-nested-background)",
@@ -28,13 +41,16 @@ export const Card = React.forwardRef<
       : undefined;
 
   return (
-    <div
-      ref={ref}
-      data-card-variant={variant}
-      className={cn(variantClassName, className)}
-      style={{ ...variantStyle, ...style }}
-      {...props}
-    />
+    <CardDepthContext.Provider value={parentDepth + 1}>
+      <div
+        ref={ref}
+        data-card-depth={currentDepth}
+        data-card-variant={effectiveVariant}
+        className={cn(variantClassName, className)}
+        style={{ ...variantStyle, ...style }}
+        {...props}
+      />
+    </CardDepthContext.Provider>
   );
 });
 
