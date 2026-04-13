@@ -33,6 +33,10 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   prompt into the bound session instead of only reloading transcript history.
 - `Prompt on refresh` is also exposed as a bindable string input, so other widgets can drive the
   refresh prompt without mutating raw widget props directly.
+- The widget now also publishes `Latest assistant markdown` as a bindable string output sourced
+  from runtime state, so one agent terminal can feed another terminal's `Prompt on refresh`.
+- When the terminal completes a new response and the latest assistant markdown changed, the widget
+  triggers a downstream execution flow so bound consumers receive `upstream-update` immediately.
 - The live terminal prompt stays visible whenever the widget is mounted, even while the selected
   session is still hydrating, so terminal input never disappears from the shell.
 - The widget hides the third-party terminal mock chrome and renders as a clean nested terminal
@@ -45,6 +49,7 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   input is focused automatically after the widget lands on the canvas.
 - Transcript buffers and stream state stay component-local. Durable props are limited to the
   selected `agentSessionId`, the history-refresh configuration, and the optional refresh prompt.
+  The published latest-assistant output lives in widget runtime state, not durable props.
 
 ## Maintenance Notes
 

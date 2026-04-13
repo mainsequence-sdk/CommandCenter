@@ -5,9 +5,15 @@
 This directory owns the `Agents Monitor` surface for the `Main Sequence AI` app.
 
 The surface reuses the core workspace studio canvas instead of introducing a second agent-specific
-canvas implementation. It filters that studio down to agent-monitor workspaces and the single
-`Agent Terminal` widget, plus a direct launcher flow that inserts session-bound terminals without
-going through the generic widget settings path first.
+canvas implementation. It filters that studio down to agent-monitor workspaces and the scoped
+agent-monitor widgets: `Agent Terminal` plus `Upstream Inspector`. It also exposes a direct
+launcher flow that inserts session-bound terminals without going through the generic widget
+settings path first. The shared studio bindings inspector is also available here through each
+widget action menu, so agent-monitor terminals can be wired through upstream bindings without
+leaving the monitor surface. Open monitor workspaces also auto-enter edit mode on first load so
+the authoring chrome is immediately available. The global saved-widget library link is
+intentionally hidden here until saved-widget browsing can be constrained by the same agent-studio
+widget allowlist.
 
 ## Entry Points
 

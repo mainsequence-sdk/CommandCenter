@@ -286,6 +286,29 @@ function resolveWorkspaceUserStateListPath(workspaceId: string) {
   return `${url.pathname}${url.search}`;
 }
 
+function resolveWorkspaceLabelMutationPath(
+  workspaceId: string,
+  action: "add" | "remove",
+) {
+  const detailPath = resolveWorkspaceDetailPath(workspaceId);
+  const normalizedDetailPath = detailPath.endsWith("/") ? detailPath : `${detailPath}/`;
+  return `${normalizedDetailPath}${action}-label/`;
+}
+
+function normalizeWorkspaceLabels(labels: string[] | undefined) {
+  if (!Array.isArray(labels)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      labels
+        .map((label) => label.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 12);
+}
+
 function parseRequestJsonBody(body: RequestInit["body"]) {
   if (!body || typeof body !== "string") {
     return null;
@@ -450,6 +473,66 @@ function handleMockWorkspaceRequest(path: string, init?: RequestInit) {
     }
 
     return cloneJson(currentWorkspace);
+  }
+
+  if (method === "POST" && pathname === normalizeMockWorkspacePath(resolveWorkspaceLabelMutationPath(workspaceId, "add"))) {
+    if (!currentWorkspace) {
+      throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
+    }
+
+    const body = parseRequestJsonBody(init?.body);
+    const nextLabel =
+      isRecord(body) && typeof body.label === "string" ? body.label.trim() : "";
+
+    if (!nextLabel) {
+      throw new WorkspaceBackendRequestError(400, { detail: "Label is required." }, "Label is required.");
+    }
+
+    const updatedWorkspace = sanitizeDashboardDefinition({
+      ...currentWorkspace,
+      labels: normalizeWorkspaceLabels([...(currentWorkspace.labels ?? []), nextLabel]),
+    });
+    const nextDashboards = mockWorkspaceCollection.dashboards.map((dashboard) =>
+      dashboard.id === workspaceId ? updatedWorkspace : dashboard,
+    );
+    updateMockWorkspaceCollection(
+      currentUserId,
+      nextDashboards,
+      mockWorkspaceCollection.selectedDashboardId === workspaceId
+        ? workspaceId
+        : mockWorkspaceCollection.selectedDashboardId,
+    );
+    return cloneJson(updatedWorkspace);
+  }
+
+  if (method === "POST" && pathname === normalizeMockWorkspacePath(resolveWorkspaceLabelMutationPath(workspaceId, "remove"))) {
+    if (!currentWorkspace) {
+      throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
+    }
+
+    const body = parseRequestJsonBody(init?.body);
+    const nextLabel =
+      isRecord(body) && typeof body.label === "string" ? body.label.trim() : "";
+
+    if (!nextLabel) {
+      throw new WorkspaceBackendRequestError(400, { detail: "Label is required." }, "Label is required.");
+    }
+
+    const updatedWorkspace = sanitizeDashboardDefinition({
+      ...currentWorkspace,
+      labels: (currentWorkspace.labels ?? []).filter((label) => label !== nextLabel),
+    });
+    const nextDashboards = mockWorkspaceCollection.dashboards.map((dashboard) =>
+      dashboard.id === workspaceId ? updatedWorkspace : dashboard,
+    );
+    updateMockWorkspaceCollection(
+      currentUserId,
+      nextDashboards,
+      mockWorkspaceCollection.selectedDashboardId === workspaceId
+        ? workspaceId
+        : mockWorkspaceCollection.selectedDashboardId,
+    );
+    return cloneJson(updatedWorkspace);
   }
 
   if (method === "PUT") {
@@ -668,12 +751,13 @@ function serializeWorkspaceMutationPayload(
   const normalizedDashboard = stripWorkspaceUserStateFromDashboard(
     sanitizeDashboardDefinition(dashboard),
   );
+  const { labels: _labels, ...labelStrippedDashboard } = normalizedDashboard;
 
   if (options?.includeId ?? false) {
-    return JSON.stringify(normalizedDashboard);
+    return JSON.stringify(labelStrippedDashboard);
   }
 
-  const { id: _id, ...payload } = normalizedDashboard;
+  const { id: _id, ...payload } = labelStrippedDashboard;
   return JSON.stringify(payload);
 }
 
@@ -885,7 +969,24 @@ export async function createWorkspaceInBackend(dashboard: DashboardDefinition) {
     body: serializeWorkspaceMutationPayload(dashboard),
   });
 
-  return resolveMutationDashboardPayload(payload, dashboard);
+  const resolvedWorkspace = resolveMutationDashboardPayload(payload, dashboard);
+  const normalizedLabels = normalizeWorkspaceLabels(dashboard.labels);
+
+  if (normalizedLabels.length === 0) {
+    return resolvedWorkspace;
+  }
+
+  for (const label of normalizedLabels) {
+    await requestWorkspaceBackend(resolveWorkspaceLabelMutationPath(resolvedWorkspace.id, "add"), {
+      method: "POST",
+      body: JSON.stringify({ label }),
+    });
+  }
+
+  return sanitizeDashboardDefinition({
+    ...resolvedWorkspace,
+    labels: normalizedLabels,
+  });
 }
 
 export async function saveWorkspaceInBackend(dashboard: DashboardDefinition) {
@@ -927,4 +1028,30 @@ export async function saveWorkspaceInBackend(dashboard: DashboardDefinition) {
   });
 
   return resolveMutationDashboardPayload(payload, dashboard);
+}
+
+export async function addWorkspaceLabelInBackend(workspaceId: string, label: string) {
+  const nextLabel = label.trim();
+
+  if (!nextLabel) {
+    throw new Error("Label is required.");
+  }
+
+  await requestWorkspaceBackend(resolveWorkspaceLabelMutationPath(workspaceId, "add"), {
+    method: "POST",
+    body: JSON.stringify({ label: nextLabel }),
+  });
+}
+
+export async function removeWorkspaceLabelInBackend(workspaceId: string, label: string) {
+  const nextLabel = label.trim();
+
+  if (!nextLabel) {
+    throw new Error("Label is required.");
+  }
+
+  await requestWorkspaceBackend(resolveWorkspaceLabelMutationPath(workspaceId, "remove"), {
+    method: "POST",
+    body: JSON.stringify({ label: nextLabel }),
+  });
 }

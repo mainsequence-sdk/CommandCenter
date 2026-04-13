@@ -8,6 +8,8 @@ import { agentTerminalExecutionDefinition } from "./agentTerminalExecution";
 import { AgentTerminalWidgetSettings } from "./AgentTerminalWidgetSettings";
 import {
   AGENT_TERMINAL_REFRESH_PROMPT_INPUT_ID,
+  AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_OUTPUT_ID,
+  resolveAgentTerminalLatestAssistantMarkdown,
   type AgentTerminalWidgetProps,
 } from "./agentTerminalModel";
 
@@ -43,6 +45,21 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
         target: { kind: "prop", path: "promptOnRefresh" },
         description: "Bound text overrides the saved refresh prompt.",
       }],
+    }],
+    outputs: [{
+      id: AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_OUTPUT_ID,
+      label: "Latest assistant markdown",
+      contract: CORE_VALUE_STRING_CONTRACT,
+      description:
+        "Latest assistant response from this AgentSession terminal, exposed as markdown text for downstream widgets.",
+      valueDescriptor: {
+        kind: "primitive",
+        contract: CORE_VALUE_STRING_CONTRACT,
+        primitive: "string",
+        description:
+          "Latest assistant response rendered by this terminal widget.",
+      },
+      resolveValue: ({ runtimeState }) => resolveAgentTerminalLatestAssistantMarkdown(runtimeState),
     }],
   },
   settingsComponent: AgentTerminalWidgetSettings,

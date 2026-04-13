@@ -7,6 +7,7 @@ import {
   appendAgentTerminalWidget,
   upsertAgentTerminalWidgetForSession,
 } from "./widgets/agent-terminal/agentTerminalWorkspace";
+import { UPSTREAM_INSPECTOR_WIDGET_ID } from "./widgets/upstream-inspector/definition";
 
 const MAIN_SEQUENCE_AI_WORKSPACE_LABEL = "main-sequence-ai";
 const AGENT_MONITOR_WORKSPACE_LABEL = "agent-monitor";
@@ -119,9 +120,14 @@ export function createAgentMonitorWorkspaceDefinition({
 }
 
 export const agentMonitorWorkspaceStudioConfig: WorkspaceStudioSurfaceConfig = {
-  allowedWidgetIds: [AGENT_TERMINAL_WIDGET_ID],
+  allowedWidgetIds: [
+    AGENT_TERMINAL_WIDGET_ID,
+    UPSTREAM_INSPECTOR_WIDGET_ID,
+  ],
   catalogTitle: "Agent Widgets",
-  catalogDescription: "Build monitor workspaces with the Agent Session Terminal widget only.",
+  catalogDescription:
+    "Build monitor workspaces with the Agent Session Terminal and Upstream Inspector widgets.",
+  savedWidgetsPath: undefined,
   workspaceFilter: isAgentMonitorWorkspace,
   workspaceListPath: AGENTS_MONITOR_SURFACE_PATH,
 };

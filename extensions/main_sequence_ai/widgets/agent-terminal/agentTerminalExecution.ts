@@ -18,7 +18,7 @@ export const agentTerminalExecutionDefinition = {
   execute: async (context) => ({
     status: "success",
     runtimeStatePatch:
-      context.reason === "dashboard-refresh"
+      context.reason === "dashboard-refresh" || context.reason === "upstream-update"
         ? {
             [AGENT_TERMINAL_HISTORY_REFRESH_RUNTIME_KEY]: Date.now(),
           }

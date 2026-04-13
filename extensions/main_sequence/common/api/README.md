@@ -5,7 +5,7 @@
 ## Responsibilities
 
 - Define typed request and response models for Main Sequence endpoints.
-- Normalize the shared `SummaryResponse` contract used by Main Sequence and Markets summary endpoints, including `entity`, `badges`, `inline_fields`, `highlight_fields`, `stats`, optional `extensions`, and `summary_warning`.
+- Normalize the shared `SummaryResponse` contract used by Main Sequence and Markets summary endpoints, including `entity`, `badges`, `inline_fields`, `highlight_fields`, `stats`, optional `labels`, optional `labelable`, optional `extensions`, and `summary_warning`.
 - Encapsulate authenticated fetch behavior, error normalization, pagination helpers, and endpoint-specific request functions.
 - Route `VITE_USE_MOCK_DATA=true` requests through the local JSON-backed mock layer under `/mock_data/mainsequence` for the shared Main Sequence API roots:
   `/orm/api/pods/`, `/orm/api/ts_manager/`, and `/orm/api/assets/`.
@@ -24,6 +24,7 @@
   That lets headless execution and mounted runtime consumers share the same `dynamic_table/{id}/`
   GET instead of issuing parallel metadata requests for the same data node.
 - Summary consumers should read endpoint-specific add-ons from `summary.extensions` instead of legacy keys such as `summary`, `extra`, `extras`, or top-level `readme`.
+- Summary label mutations also live here. The API layer maps supported summary entity types such as `workspace`, `project`, `data_node`, and `simple_table` to their add/remove label endpoints so the shared summary card does not need to hardcode backend paths.
 - Link-driven graph surfaces may also fetch backend-provided `summary_url` and `graph_url` values through shared helpers here instead of teaching feature components to build those endpoints by hand.
 - Shared quick-search helpers also live here for picker-style settings UIs. Main Sequence widgets
   should resolve selectable backend objects such as projects or data nodes through these helpers

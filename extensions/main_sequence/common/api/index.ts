@@ -2159,6 +2159,8 @@ export interface SummaryResponse<
   badges: SummaryBadge[];
   inline_fields: SummaryField[];
   highlight_fields: SummaryField[];
+  labels?: string[];
+  labelable?: boolean;
   stats: SummaryStat[];
   extensions?: TExtensions;
   summary_warning?: string | null;
@@ -5501,6 +5503,87 @@ export function submitSummaryEdit(
   return requestJson<unknown>(requestTarget.endpoint, requestTarget.path, {
     method: edit.submit.method,
     body: JSON.stringify(payload),
+  });
+}
+
+function buildSummaryEntityLabelMutationPath(summary: Pick<SummaryResponse, "entity">) {
+  const entityId = Number(summary.entity.id);
+
+  if (!Number.isFinite(entityId) || entityId <= 0) {
+    throw new Error("Summary entity id is invalid for label mutation.");
+  }
+
+  switch (summary.entity.type) {
+    case "workspace": {
+      const template = commandCenterConfig.workspaces.detailUrl.trim();
+      const encodedId = encodeURIComponent(String(entityId));
+      const detailPath = template.includes("{id}")
+        ? template.replace(/\{id\}/g, encodedId)
+        : template.includes(":id")
+          ? template.replace(/:id/g, encodedId)
+          : template.endsWith("/")
+            ? `${template}${encodedId}/`
+            : `${template}/${encodedId}/`;
+
+      return {
+        endpoint: detailPath,
+        path: "",
+      };
+    }
+    case "project":
+      return {
+        endpoint: commandCenterConfig.mainSequence.endpoint,
+        path: `projects/${entityId}/`,
+      };
+    case "data_node":
+    case "DynamicTableMetaData":
+      return {
+        endpoint: dynamicTableMetadataEndpoint,
+        path: `${entityId}/`,
+      };
+    case "simple_table":
+    case "SimpleTable":
+      return {
+        endpoint: simpleTableEndpoint,
+        path: `${entityId}/`,
+      };
+    default:
+      throw new Error(`Labels are not supported for summary entity type "${summary.entity.type}".`);
+  }
+}
+
+export function canMutateSummaryLabels(
+  summary: Pick<SummaryResponse, "entity">,
+) {
+  try {
+    buildSummaryEntityLabelMutationPath(summary);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function addSummaryLabel(
+  summary: Pick<SummaryResponse, "entity">,
+  label: string,
+) {
+  const requestTarget = buildSummaryEntityLabelMutationPath(summary);
+
+  return requestJson<unknown>(requestTarget.endpoint, `${requestTarget.path}add-label/`, {
+    method: "POST",
+    body: JSON.stringify({ label }),
+  });
+}
+
+export function removeSummaryLabel(
+  summary: Pick<SummaryResponse, "entity">,
+  label: string,
+) {
+  const requestTarget = buildSummaryEntityLabelMutationPath(summary);
+
+  return requestJson<unknown>(requestTarget.endpoint, `${requestTarget.path}remove-label/`, {
+    method: "POST",
+    body: JSON.stringify({ label }),
   });
 }
 

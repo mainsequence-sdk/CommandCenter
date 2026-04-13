@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { ArrowRight, LayoutTemplate, Settings2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -41,16 +41,19 @@ function AgentsMonitorPageContent() {
     user,
     workspaceListItems,
     selectedDashboard,
+    selectedWorkspaceEditing,
     dirty,
     isHydrating,
     isSaving,
     error,
     persistenceMode,
     createWorkspaceFromDefinition,
+    setSelectedWorkspaceEditing,
     workspaceSelectionPending,
     requestedWorkspaceId,
     requestedWorkspaceMissing,
   } = useCustomWorkspaceStudio();
+  const autoEnabledEditWorkspaceIdsRef = useRef<Set<string>>(new Set());
   const backendMode = persistenceMode === "backend";
   const monitorWorkspaces = useMemo(
     () =>
@@ -63,6 +66,27 @@ function AgentsMonitorPageContent() {
   const selectedWorkspaceSupported = selectedDashboard
     ? isAgentMonitorWorkspace(selectedDashboard)
     : false;
+
+  useEffect(() => {
+    if (!selectedDashboard || !selectedWorkspaceSupported) {
+      return;
+    }
+
+    if (
+      selectedWorkspaceEditing ||
+      autoEnabledEditWorkspaceIdsRef.current.has(selectedDashboard.id)
+    ) {
+      return;
+    }
+
+    autoEnabledEditWorkspaceIdsRef.current.add(selectedDashboard.id);
+    setSelectedWorkspaceEditing(true);
+  }, [
+    selectedDashboard,
+    selectedWorkspaceEditing,
+    selectedWorkspaceSupported,
+    setSelectedWorkspaceEditing,
+  ]);
 
   if (!user) {
     return (

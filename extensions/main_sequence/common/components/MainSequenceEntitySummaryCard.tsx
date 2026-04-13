@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import {
   AlertTriangle,
@@ -16,19 +16,32 @@ import {
   HardDrive,
   Info,
   Link as LinkIcon,
+  Loader2,
   Package,
   PencilLine,
+  Plus,
   PlaySquare,
   Server,
   TimerReset,
+  Tags,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 
-import type { SummaryField, SummaryResponse, SummaryStat } from "../api";
+import {
+  addSummaryLabel,
+  canMutateSummaryLabels,
+  formatMainSequenceError,
+  removeSummaryLabel,
+  type SummaryField,
+  type SummaryResponse,
+  type SummaryStat,
+} from "../api";
 import { MainSequenceEntitySummaryEditorDialog } from "./MainSequenceEntitySummaryEditorDialog";
 
 function truncateMiddle(value: string, maxLength = 56) {
@@ -248,10 +261,123 @@ export function MainSequenceEntitySummaryCard({
   onSummaryUpdated?: () => Promise<void> | void;
   summary: SummaryResponse;
 }) {
+  const { toast } = useToast();
   const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
+  const [labelInput, setLabelInput] = useState("");
+  const [localLabels, setLocalLabels] = useState<string[]>(summary.labels ?? []);
+  const [labelInputOpen, setLabelInputOpen] = useState(false);
+  const [activeLabelMutation, setActiveLabelMutation] = useState<{
+    action: "add" | "remove";
+    label: string;
+  } | null>(null);
   const editableItems = [...summary.inline_fields, ...summary.highlight_fields, ...summary.stats];
   const editingItem =
     editableItems.find((item) => isEditableItem(item) && item.key === editingItemKey) ?? null;
+  const isLabelable = summary.labelable === true && canMutateSummaryLabels(summary);
+  const displayedLabels = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          localLabels
+            .map((label) => label.trim())
+            .filter(Boolean),
+        ),
+      ),
+    [localLabels],
+  );
+
+  useEffect(() => {
+    setLocalLabels(summary.labels ?? []);
+  }, [summary.entity.id, summary.entity.type, summary.labels]);
+
+  useEffect(() => {
+    setLabelInput("");
+    setLabelInputOpen(false);
+  }, [summary.entity.id, summary.entity.type]);
+
+  async function refreshSummaryAfterLabelMutation(nextLabels: string[]) {
+    setLocalLabels(nextLabels);
+
+    if (onSummaryUpdated) {
+      await onSummaryUpdated();
+    }
+  }
+
+  async function handleAddLabel(rawLabel: string) {
+    const nextLabel = rawLabel.trim();
+
+    if (!nextLabel) {
+      setLabelInput("");
+      return;
+    }
+
+    if (displayedLabels.includes(nextLabel)) {
+      setLabelInput("");
+      return;
+    }
+
+    setActiveLabelMutation({ action: "add", label: nextLabel });
+
+    try {
+      await addSummaryLabel(summary, nextLabel);
+      await refreshSummaryAfterLabelMutation([...displayedLabels, nextLabel]);
+      setLabelInput("");
+      setLabelInputOpen(false);
+      toast({
+        title: "Label added",
+        description: `${nextLabel} was added to ${summary.entity.title}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Label update failed",
+        description: formatMainSequenceError(error),
+      });
+    } finally {
+      setActiveLabelMutation(null);
+    }
+  }
+
+  async function handleRemoveLabel(labelToRemove: string) {
+    setActiveLabelMutation({ action: "remove", label: labelToRemove });
+
+    try {
+      await removeSummaryLabel(summary, labelToRemove);
+      await refreshSummaryAfterLabelMutation(
+        displayedLabels.filter((label) => label !== labelToRemove),
+      );
+      toast({
+        title: "Label removed",
+        description: `${labelToRemove} was removed from ${summary.entity.title}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Label update failed",
+        description: formatMainSequenceError(error),
+      });
+    } finally {
+      setActiveLabelMutation(null);
+    }
+  }
+
+  function handleLabelInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setLabelInput("");
+      setLabelInputOpen(false);
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      void handleAddLabel(labelInput);
+      return;
+    }
+
+    if (event.key === "Backspace" && !labelInput && displayedLabels.length > 0) {
+      event.preventDefault();
+      void handleRemoveLabel(displayedLabels[displayedLabels.length - 1]!);
+    }
+  }
 
   return (
     <>
@@ -316,6 +442,91 @@ export function MainSequenceEntitySummaryCard({
                   </Badge>
                 ))}
               </div>
+              {isLabelable || displayedLabels.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                    <Tags className="h-3.5 w-3.5" />
+                    <span>Labels</span>
+                  </div>
+
+                  {displayedLabels.map((label) => {
+                    const isRemoving =
+                      activeLabelMutation?.action === "remove" &&
+                      activeLabelMutation.label === label;
+
+                    return (
+                      <Badge
+                        key={label}
+                        variant="neutral"
+                        className="border border-border/70 bg-card/80 px-2.5 py-1 text-[11px] text-foreground"
+                      >
+                        <span>{label}</span>
+                        {isLabelable ? (
+                          <button
+                            type="button"
+                            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label={`Remove ${label} label`}
+                            title={`Remove ${label} label`}
+                            disabled={Boolean(activeLabelMutation)}
+                            onClick={() => {
+                              void handleRemoveLabel(label);
+                            }}
+                          >
+                            {isRemoving ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <X className="h-3 w-3" />
+                            )}
+                          </button>
+                        ) : null}
+                      </Badge>
+                    );
+                  })}
+
+                  {isLabelable && labelInputOpen ? (
+                    <div className="inline-flex h-8 min-w-[180px] max-w-[260px] items-center rounded-full border border-border/70 bg-background/24 px-3">
+                      <input
+                        autoFocus
+                        value={labelInput}
+                        onChange={(event) => {
+                          setLabelInput(event.target.value);
+                        }}
+                        onKeyDown={handleLabelInputKeyDown}
+                        onBlur={() => {
+                          if (!labelInput.trim() && !activeLabelMutation) {
+                            setLabelInputOpen(false);
+                          }
+                        }}
+                        placeholder="Type a label"
+                        disabled={Boolean(activeLabelMutation)}
+                        className="h-full w-full border-0 bg-transparent px-0 text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    </div>
+                  ) : null}
+
+                  {isLabelable ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border/70 bg-background/24 text-muted-foreground transition-colors hover:border-primary/35 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label="Add label"
+                      title="Add label"
+                      disabled={Boolean(activeLabelMutation)}
+                      onClick={() => {
+                        setLabelInputOpen((current) => !current);
+                        if (labelInputOpen) {
+                          setLabelInput("");
+                        }
+                      }}
+                    >
+                      {activeLabelMutation?.action === "add" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
 

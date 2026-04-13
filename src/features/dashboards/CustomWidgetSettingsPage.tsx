@@ -83,6 +83,7 @@ export function CustomWidgetSettingsPage({
     isSaving,
     persistenceMode,
     requestedWidgetId,
+    requestedWidgetSettingsTab,
     selectedDashboard,
     selectedWorkspaceDirty,
     resolvedDashboard,
@@ -121,15 +122,18 @@ export function CustomWidgetSettingsPage({
     widget?.io?.inputs?.length ||
     widget?.resolveIo,
   );
-  const [activeTab, setActiveTab] = useState<"settings" | "bindings">("settings");
+  const requestedTab = hasBindingTab && requestedWidgetSettingsTab === "bindings"
+    ? "bindings"
+    : "settings";
+  const [activeTab, setActiveTab] = useState<"settings" | "bindings">(requestedTab);
   const [draftState, setDraftState] = useState(() =>
     instance && widget ? buildWidgetSettingsDraftState(instance, widget) : null,
   );
   const repairedAppComponentIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    setActiveTab("settings");
-  }, [instance?.id]);
+    setActiveTab(requestedTab);
+  }, [instance?.id, requestedTab]);
 
   useEffect(() => {
     if (!instance || !widget) {

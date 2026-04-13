@@ -5,6 +5,8 @@ This folder owns widget modules shipped by the Main Sequence AI extension.
 ## Widgets
 
 - `agent-terminal/`: terminal-style AgentSession widget that reuses the chat session endpoints.
+- `upstream-inspector/`: lightweight sink/debug widget for inspecting bound upstream values inside
+  agent-monitor workspaces.
 
 ## Maintenance Notes
 

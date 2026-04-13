@@ -58,6 +58,7 @@ These flows are all part of one app surface, with instance state selected throug
 - Opening the workspace graph adds `?workspace=<id>&view=graph`.
 - Opening workspace settings adds `?workspace=<id>&view=settings`.
 - Opening widget-instance settings adds `?workspace=<id>&view=widget-settings&widget=<instanceId>`.
+- Opening the direct bindings inspector adds `?workspace=<id>&view=widget-settings&widget=<instanceId>&tab=bindings`.
 - Persistence is browser-local and user-scoped through `localStorage` by default.
 - If `workspaces.list_url` and `workspaces.detail_url` are configured in `config/command-center.yaml`, the studio switches to backend persistence instead of browser-local storage.
 - Saved widget instances and groups require the four `saved_widgets.*` endpoints in `config/command-center.yaml`.
@@ -110,6 +111,9 @@ These flows are all part of one app surface, with instance state selected throug
 - In canvas edit mode, widget instances expose shared chrome actions through one compact overflow
   menu instead of separate header buttons. Duplicated widgets receive a fresh instance id, keep
   their props/presentation, and drop runtime state so they republish from their own mounted lifecycle.
+- The same overflow menu now also exposes a direct `Bindings` entry for widgets that declare
+  inputs, including normal non-edit viewing, so canvas users can jump straight into the upstream
+  source explorer without first opening the generic settings tab.
 - In canvas edit mode, widget cards keep the same header height as view mode; drag uses the existing header band and edit actions fade in without adding extra layout chrome.
 - Non-row widgets in `custom` can now resize all the way down to a single grid column and a single
   grid row. Row widgets keep their fixed full-width, fixed-height behavior.

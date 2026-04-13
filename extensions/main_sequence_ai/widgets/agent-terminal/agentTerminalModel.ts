@@ -11,6 +11,9 @@ export const DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS = 30;
 export const MIN_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS = 5;
 export const MAX_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS = 3_600;
 export const AGENT_TERMINAL_REFRESH_PROMPT_INPUT_ID = "prompt-on-refresh";
+export const AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_OUTPUT_ID = "latest-assistant-markdown";
+export const AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_RUNTIME_KEY = "latestAssistantMarkdown";
+export const AGENT_TERMINAL_LATEST_ASSISTANT_UPDATED_AT_RUNTIME_KEY = "latestAssistantUpdatedAt";
 
 export type AgentTerminalWidgetProps = Record<string, unknown> & {
   agentSessionId?: string;
@@ -148,6 +151,37 @@ export function resolveAgentTerminalRefreshPrompt(
   }
 
   return normalizeOptionalMarkdownString(props.promptOnRefresh) ?? null;
+}
+
+export function resolveAgentTerminalLatestAssistantMarkdown(
+  runtimeState?: Record<string, unknown>,
+) {
+  if (!runtimeState || typeof runtimeState !== "object") {
+    return undefined;
+  }
+
+  const value = runtimeState[AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_RUNTIME_KEY];
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+export function extractLatestAssistantMarkdown(
+  messages: readonly ThreadMessageLike[],
+) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+
+    if (message?.role !== "assistant") {
+      continue;
+    }
+
+    const text = flattenThreadMessageText(message);
+
+    if (text) {
+      return text;
+    }
+  }
+
+  return null;
 }
 
 export function buildAgentTerminalPrompt(sessionId: string) {

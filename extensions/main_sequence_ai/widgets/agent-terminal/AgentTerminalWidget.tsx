@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Terminal, { ColorMode, TerminalInput, TerminalOutput } from "react-terminal-ui";
 
 import { useAuthStore } from "@/auth/auth-store";
+import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -22,7 +23,10 @@ import "./AgentTerminalWidget.css";
 import { AGENT_TERMINAL_HISTORY_REFRESH_RUNTIME_KEY } from "./agentTerminalExecution";
 import {
   DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS,
+  AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_RUNTIME_KEY,
+  AGENT_TERMINAL_LATEST_ASSISTANT_UPDATED_AT_RUNTIME_KEY,
   buildAgentTerminalErrorLines,
+  extractLatestAssistantMarkdown,
   buildAgentTerminalLoadingLines,
   buildAgentTerminalPlaceholderLines,
   buildAgentTerminalPrompt,
@@ -30,6 +34,7 @@ import {
   createAgentTerminalInputLine,
   createAgentTerminalOutputLine,
   normalizeAgentTerminalWidgetProps,
+  resolveAgentTerminalLatestAssistantMarkdown,
   resolveAgentTerminalRefreshPrompt,
   type AgentTerminalLine,
   type AgentTerminalLineTone,
@@ -133,6 +138,7 @@ function buildWidgetContext({
 export function AgentTerminalWidget({
   instanceId,
   instanceTitle,
+  onRuntimeStateChange,
   props,
   resolvedInputs,
   runtimeState,
@@ -144,6 +150,7 @@ export function AgentTerminalWidget({
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const widgetExecution = useDashboardWidgetExecution();
   const assistantEndpoint = useMemo(() => resolveMainSequenceAiAssistantEndpoint(), []);
   const assistantProtocol = useMemo(() => resolveMainSequenceAiAssistantProtocol(), []);
   const [lines, setLines] = useState<AgentTerminalLine[]>(() => buildAgentTerminalPlaceholderLines());
@@ -156,9 +163,11 @@ export function AgentTerminalWidget({
   const hasObservedHistoryRefreshNonceRef = useRef(false);
   const observedHistoryRefreshSessionIdRef = useRef<string | null>(null);
   const lastHistoryRefreshNonceRef = useRef<number | null>(null);
+  const runtimeStateRef = useRef<Record<string, unknown> | undefined>(runtimeState);
   const sessionStateRef = useRef<AgentTerminalSessionState | null>(null);
   const reasoningNoticeRef = useRef(false);
   const receivedTextRef = useRef(false);
+  const streamedAssistantTextRef = useRef("");
   const autoFocusNonce =
     runtimeState &&
     typeof runtimeState === "object" &&
@@ -191,6 +200,73 @@ export function AgentTerminalWidget({
       sessionId: sessionState?.sessionId ?? sessionId,
     });
   }, [instanceTitle, sessionId, sessionState?.agentName, sessionState?.sessionId]);
+
+  const commitRuntimeState = useCallback(
+    (patch: Record<string, unknown> | undefined) => {
+      const base =
+        runtimeStateRef.current &&
+        typeof runtimeStateRef.current === "object" &&
+        !Array.isArray(runtimeStateRef.current)
+          ? runtimeStateRef.current
+          : {};
+
+      if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+        return Object.keys(base).length > 0 ? { ...base } : undefined;
+      }
+
+      const nextState = {
+        ...base,
+        ...patch,
+      };
+
+      for (const [key, value] of Object.entries(nextState)) {
+        if (value === undefined) {
+          delete nextState[key];
+        }
+      }
+
+      const resolvedState = Object.keys(nextState).length > 0 ? nextState : undefined;
+      runtimeStateRef.current = resolvedState;
+      onRuntimeStateChange?.(resolvedState);
+      return resolvedState;
+    },
+    [onRuntimeStateChange],
+  );
+
+  const publishLatestAssistantMarkdown = useCallback(
+    async ({
+      markdown,
+      triggerDownstream = false,
+    }: {
+      markdown: string | null | undefined;
+      triggerDownstream?: boolean;
+    }) => {
+      const nextMarkdown = typeof markdown === "string" && markdown.trim() ? markdown : undefined;
+      const previousMarkdown = resolveAgentTerminalLatestAssistantMarkdown(runtimeStateRef.current);
+
+      if (previousMarkdown === nextMarkdown) {
+        return;
+      }
+
+      const nextRuntimeState = commitRuntimeState({
+        [AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_RUNTIME_KEY]: nextMarkdown,
+        [AGENT_TERMINAL_LATEST_ASSISTANT_UPDATED_AT_RUNTIME_KEY]:
+          nextMarkdown ? new Date().toISOString() : undefined,
+      });
+
+      if (!triggerDownstream || !instanceId || !widgetExecution) {
+        return;
+      }
+
+      await widgetExecution.executeWidgetFlow(instanceId, {
+        reason: "manual-recalculate",
+        targetOverrides: {
+          runtimeState: nextRuntimeState,
+        },
+      });
+    },
+    [commitRuntimeState, instanceId, widgetExecution],
+  );
 
   const focusPromptInput = useCallback((attempts = 6, initialDelayMs = 0) => {
     if (typeof window === "undefined") {
@@ -339,7 +415,18 @@ export function AgentTerminalWidget({
   }, []);
 
   const hydrateSession = useCallback(
-    async (targetSessionId: string, { showLoading }: { showLoading: boolean }) => {
+    async (
+      targetSessionId: string,
+      {
+        fallbackLatestAssistantMarkdown,
+        publishLatestAssistantOutput = false,
+        showLoading,
+      }: {
+        showLoading: boolean;
+        publishLatestAssistantOutput?: boolean;
+        fallbackLatestAssistantMarkdown?: string | null;
+      },
+    ) => {
       loadControllerRef.current?.abort();
       const controller = new AbortController();
       loadControllerRef.current = controller;
@@ -410,6 +497,10 @@ export function AgentTerminalWidget({
             sessionError: history.session.status === "error" ? history.session.error : null,
           }),
         );
+        await publishLatestAssistantMarkdown({
+          markdown: extractLatestAssistantMarkdown(history.messages),
+          triggerDownstream: publishLatestAssistantOutput,
+        });
         focusPromptInput(8, 40);
       } catch (error) {
         if (controller.signal.aborted) {
@@ -422,11 +513,29 @@ export function AgentTerminalWidget({
         setSessionState(null);
         sessionStateRef.current = null;
         setLines(buildAgentTerminalErrorLines(detail));
+
+        if (publishLatestAssistantOutput && fallbackLatestAssistantMarkdown?.trim()) {
+          await publishLatestAssistantMarkdown({
+            markdown: fallbackLatestAssistantMarkdown,
+            triggerDownstream: true,
+          });
+        }
+
         focusPromptInput(6, 40);
       }
     },
-    [assistantEndpoint, focusPromptInput, sessionToken, sessionTokenType],
+    [
+      assistantEndpoint,
+      focusPromptInput,
+      publishLatestAssistantMarkdown,
+      sessionToken,
+      sessionTokenType,
+    ],
   );
+
+  useEffect(() => {
+    runtimeStateRef.current = runtimeState;
+  }, [runtimeState]);
 
   useEffect(() => {
     const input = containerRef.current?.querySelector<HTMLInputElement>(".terminal-hidden-input");
@@ -460,6 +569,9 @@ export function AgentTerminalWidget({
       setSessionState(null);
       sessionStateRef.current = null;
       setLines(buildAgentTerminalPlaceholderLines());
+      void publishLatestAssistantMarkdown({
+        markdown: null,
+      });
       focusPromptInput(6, 20);
       return;
     }
@@ -471,7 +583,7 @@ export function AgentTerminalWidget({
       streamControllerRef.current?.abort();
       loadControllerRef.current?.abort();
     };
-  }, [hydrateSession, sessionId]);
+  }, [hydrateSession, publishLatestAssistantMarkdown, sessionId]);
 
   const sendTerminalInput = useCallback(
     async ({
@@ -525,6 +637,7 @@ export function AgentTerminalWidget({
       }
 
       pendingHistoryRefreshRef.current = false;
+      streamedAssistantTextRef.current = "";
       appendLine(
         createAgentTerminalInputLine({
           prompt,
@@ -565,6 +678,7 @@ export function AgentTerminalWidget({
               }
 
               receivedTextRef.current = true;
+              streamedAssistantTextRef.current = `${streamedAssistantTextRef.current}${delta}`;
               appendOutputDelta(delta);
               return;
             }
@@ -642,7 +756,11 @@ export function AgentTerminalWidget({
         });
 
         if (!controller.signal.aborted) {
-          void hydrateSession(sessionId, { showLoading: false });
+          void hydrateSession(sessionId, {
+            showLoading: false,
+            publishLatestAssistantOutput: true,
+            fallbackLatestAssistantMarkdown: streamedAssistantTextRef.current,
+          });
         }
       } catch (error) {
         if (controller.signal.aborted) {
@@ -665,6 +783,7 @@ export function AgentTerminalWidget({
         activeOutputLineIdRef.current = null;
         reasoningNoticeRef.current = false;
         receivedTextRef.current = false;
+        streamedAssistantTextRef.current = "";
         setIsStreaming(false);
       }
     },

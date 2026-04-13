@@ -360,6 +360,8 @@ function useDismissibleMenu(
 function WidgetActionMenu({
   editable,
   floating = false,
+  hasBindingsAction = false,
+  onOpenBindings,
   onDuplicate,
   onOpenSettings,
   onRemove,
@@ -369,6 +371,8 @@ function WidgetActionMenu({
 }: {
   editable: boolean;
   floating?: boolean;
+  hasBindingsAction?: boolean;
+  onOpenBindings?: () => void;
   onDuplicate: () => void;
   onOpenSettings: () => void;
   onRemove: () => void;
@@ -491,6 +495,21 @@ function WidgetActionMenu({
                   <BookOpenText className="h-4 w-4 text-muted-foreground" />
                   <span className="flex-1">Open guide</span>
                 </a>
+
+                {hasBindingsAction && onOpenBindings ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={itemClassName}
+                    onClick={() => {
+                      setOpen(false);
+                      onOpenBindings();
+                    }}
+                  >
+                    <Waypoints className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1">Bindings</span>
+                  </button>
+                ) : null}
 
                 {editable ? (
                   <>
@@ -916,6 +935,7 @@ function WorkspaceRowCanvasCard({
   collapsed,
   editable,
   onDuplicate,
+  onOpenBindings,
   onOpenSettings,
   onRemove,
   onSaveWidget,
@@ -928,6 +948,7 @@ function WorkspaceRowCanvasCard({
   collapsed: boolean;
   editable: boolean;
   onDuplicate: () => void;
+  onOpenBindings?: () => void;
   onOpenSettings: () => void;
   onRemove: () => void;
   onSaveWidget: () => void;
@@ -956,6 +977,8 @@ function WorkspaceRowCanvasCard({
             editable
             widgetId={WORKSPACE_ROW_WIDGET_ID}
             widgetTitle={title}
+            hasBindingsAction={Boolean(onOpenBindings)}
+            onOpenBindings={onOpenBindings}
             onOpenSettings={onOpenSettings}
             onDuplicate={onDuplicate}
             onSaveWidget={onSaveWidget}
@@ -986,6 +1009,7 @@ function BuilderWidgetCard({
   onPresentationChange,
   onRuntimeStateChange,
   onSelect,
+  onOpenBindings,
   onOpenSettings,
   renderCanvasFields = true,
   rowChildCount = 0,
@@ -1016,6 +1040,7 @@ function BuilderWidgetCard({
     runtimeState: Record<string, unknown> | undefined,
   ) => void;
   onSelect: (instanceId: string) => void;
+  onOpenBindings: (instanceId: string) => void;
   onOpenSettings: (instanceId: string) => void;
   renderCanvasFields?: boolean;
   rowChildCount?: number;
@@ -1046,11 +1071,25 @@ function BuilderWidgetCard({
           visible: true,
         }
       : widgetProps;
-  const editControlsVisibilityClass = !editable
-    ? "pointer-events-none opacity-0"
-    : selected
+  const resolvedWidgetIo = widget.resolveIo?.({
+    widgetId: widget.id,
+    instanceId,
+    props: widgetRenderProps,
+    runtimeState: widgetRuntimeState,
+  }) ?? widget.io;
+  const hasBindingsAction = Boolean(
+    resolvedWidgetIo?.inputs?.length ||
+    widget.io?.inputs?.length ||
+    widget.resolveIo,
+  );
+  const showPassiveBindingsAction = !editable && hasBindingsAction;
+  const editControlsVisibilityClass = editable
+    ? selected
       ? "opacity-100"
-      : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100";
+      : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+    : showPassiveBindingsAction
+      ? "opacity-100"
+      : "pointer-events-none opacity-0";
 
   if (rowWidget) {
     return (
@@ -1076,6 +1115,13 @@ function BuilderWidgetCard({
           onOpenSettings={() => {
             onOpenSettings(instanceId);
           }}
+          onOpenBindings={
+            hasBindingsAction
+              ? () => {
+                  onOpenBindings(instanceId);
+                }
+              : undefined
+          }
           onDuplicate={() => {
             onDuplicate(instanceId);
           }}
@@ -1170,6 +1216,10 @@ function BuilderWidgetCard({
                 editable={editable}
                 widgetId={widget.id}
                 widgetTitle={title}
+                hasBindingsAction={hasBindingsAction}
+                onOpenBindings={() => {
+                  onOpenBindings(instanceId);
+                }}
                 onOpenSettings={() => {
                   onOpenSettings(instanceId);
                 }}
@@ -1204,6 +1254,10 @@ function BuilderWidgetCard({
             floating
             widgetId={widget.id}
             widgetTitle={title}
+            hasBindingsAction={hasBindingsAction}
+            onOpenBindings={() => {
+              onOpenBindings(instanceId);
+            }}
             onOpenSettings={() => {
               onOpenSettings(instanceId);
             }}
@@ -2392,6 +2446,10 @@ export function CustomDashboardStudioPage({
           onOpenSettings={(instanceId) => {
             setSelectedInstanceId(instanceId);
             openWidgetSettings(instanceId);
+          }}
+          onOpenBindings={(instanceId) => {
+            setSelectedInstanceId(instanceId);
+            openWidgetSettings(instanceId, "bindings");
           }}
           rowCollapsed={isWorkspaceRowCollapsed(instance)}
           rowChildCount={rowChildCountById.get(instance.id) ?? 0}

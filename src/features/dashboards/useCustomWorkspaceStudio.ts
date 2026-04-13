@@ -19,6 +19,9 @@ export function useCustomWorkspaceStudio() {
   const requestedWorkspaceId = searchParams.get("workspace");
   const requestedViewParam = searchParams.get("view");
   const requestedWidgetId = searchParams.get("widget");
+  const requestedWidgetTabParam = searchParams.get("tab");
+  const requestedWidgetSettingsTab =
+    requestedWidgetTabParam === "bindings" ? "bindings" : "settings";
   const persistenceMode = getWorkspacePersistenceMode();
   const selectedWorkspaceView =
     requestedViewParam === "settings" ||
@@ -75,7 +78,11 @@ export function useCustomWorkspaceStudio() {
   );
   const workspaceListItems = persistedWorkspaceListItems;
   useEffect(() => {
-    if (selectedWorkspaceView === "widget-settings" ? Boolean(requestedWidgetId) : !requestedWidgetId) {
+    if (
+      selectedWorkspaceView === "widget-settings"
+        ? Boolean(requestedWidgetId)
+        : !requestedWidgetId && !requestedWidgetTabParam
+    ) {
       return;
     }
 
@@ -86,8 +93,15 @@ export function useCustomWorkspaceStudio() {
     }
 
     nextParams.delete("widget");
+    nextParams.delete("tab");
     setSearchParams(nextParams, { replace: true });
-  }, [requestedWidgetId, searchParams, selectedWorkspaceView, setSearchParams]);
+  }, [
+    requestedWidgetId,
+    requestedWidgetTabParam,
+    searchParams,
+    selectedWorkspaceView,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
     setStoredSelectedWorkspaceId(requestedWorkspaceId);
@@ -177,6 +191,7 @@ export function useCustomWorkspaceStudio() {
       nextParams.delete("workspace");
       nextParams.delete("view");
       nextParams.delete("widget");
+      nextParams.delete("tab");
     }
 
     setSearchParams(nextParams);
@@ -186,6 +201,7 @@ export function useCustomWorkspaceStudio() {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("view");
     nextParams.delete("widget");
+    nextParams.delete("tab");
     setSearchParams(nextParams);
   }
 
@@ -193,6 +209,7 @@ export function useCustomWorkspaceStudio() {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("view", "settings");
     nextParams.delete("widget");
+    nextParams.delete("tab");
     setSearchParams(nextParams);
   }
 
@@ -200,13 +217,24 @@ export function useCustomWorkspaceStudio() {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("view", "graph");
     nextParams.delete("widget");
+    nextParams.delete("tab");
     setSearchParams(nextParams);
   }
 
-  function openWidgetSettings(widgetId: string) {
+  function openWidgetSettings(
+    widgetId: string,
+    tab: "settings" | "bindings" = "settings",
+  ) {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("view", "widget-settings");
     nextParams.set("widget", widgetId);
+
+    if (tab === "bindings") {
+      nextParams.set("tab", "bindings");
+    } else {
+      nextParams.delete("tab");
+    }
+
     setSearchParams(nextParams);
   }
 
@@ -256,6 +284,7 @@ export function useCustomWorkspaceStudio() {
     nextParams.set("workspace", createdDashboard.id);
     nextParams.delete("view");
     nextParams.delete("widget");
+    nextParams.delete("tab");
     setSearchParams(nextParams);
 
     return createdDashboard;
@@ -331,6 +360,7 @@ export function useCustomWorkspaceStudio() {
     requestedWorkspaceMissing,
     requestedWorkspaceId,
     requestedWidgetId,
+    requestedWidgetSettingsTab,
     selectedWorkspaceView,
     setSelectedWorkspaceId,
     openDashboardView,

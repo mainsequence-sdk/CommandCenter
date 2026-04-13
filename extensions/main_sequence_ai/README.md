@@ -11,9 +11,10 @@ It currently exposes one app with four surfaces:
 - `Agents`
 - `Agents Monitor`
 
-It also ships one workspace widget:
+It also ships two workspace widgets:
 
 - `Agent Terminal`
+- `Upstream Inspector`
 
 The same feature also mounts the right-side shell chat rail used across the shell. On wide layouts
 it now docks into the shell grid and pushes page content left; on narrower layouts it falls back to
@@ -67,8 +68,9 @@ chrome, not just a page-local feature.
   shell with a thin left icon rail that opens the same AgentSession explorer/search used by the
   chat page. The canvas area on that page stays empty on purpose.
 - The agents monitor surface lives at `/app/main_sequence_ai/monitor` and reuses the full
-  workspace studio canvas, filtered down to agent-monitor workspaces and the `Agent Terminal`
-  widget only.
+  workspace studio canvas, filtered down to agent-monitor workspaces and the scoped agent-monitor
+  widget set. It intentionally hides the global saved-widget library link because that library is
+  not yet filtered by the same allowlist.
 - `Agents Monitor` also exposes a direct agent/session launcher that can create a new monitor
   workspace or insert an Agent Terminal widget into the current monitor without going through the
   generic component browser first.
