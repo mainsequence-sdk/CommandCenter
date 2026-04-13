@@ -4,16 +4,20 @@
 
 This extension owns the Main Sequence AI application and the assistant-ui integration used by the shell chat experience.
 
-It currently exposes one app with one surface:
+It currently exposes one app with four surfaces:
 
 - `Main Sequence AI`
 - `Chat`
-
-It also includes one agent workspace surface:
-
 - `Agents`
+- `Agents Monitor`
 
-The same feature also mounts the right-side overlay chat rail used across the shell.
+It also ships one workspace widget:
+
+- `Agent Terminal`
+
+The same feature also mounts the right-side shell chat rail used across the shell. On wide layouts
+it now docks into the shell grid and pushes page content left; on narrower layouts it falls back to
+an overlay rail.
 
 ## Entry Points
 
@@ -24,15 +28,24 @@ The same feature also mounts the right-side overlay chat rail used across the sh
 - `agent-search.ts`
   Shared backend quick-search contract for agent lookup. This is reused by the `Agents` surface and
   the page chat's AgentSession explorer.
+- `runtime/`
+  Shared assistant endpoint and AgentSession transport helpers used by both `assistant-ui`, the
+  extension-owned widget layer, and workspace launchers.
 - `assistant-ui/`
-  Explicit assistant-ui integration boundary: runtime, overlay shell, adapters, context bridge, and shared chat state.
+  Explicit assistant-ui integration boundary: runtime, shell chat rail, adapters, context bridge,
+  and shared chat state.
 - `features/chat/`
-  Shared page-level AgentSession explorer UI used by both the `Chat` and `Agents` surfaces.
+  Shared AgentSession explorer and picker UI used by chat surfaces, widget settings, and the
+  monitor launcher flow.
+- `widgets/`
+  Extension-owned workspace widgets, including the session-bound terminal widget.
 - `surfaces/chat/`
   Thin page-surface layer for the `Chat` app surface.
 - `surfaces/agents/`
-  Canvas-style page shell that now mounts the shared AgentSession explorer instead of a
-  surface-specific search widget.
+  Session picker surface with a left explorer and an intentionally empty canvas area.
+- `surfaces/monitor/`
+  Agent-monitor workspace surface that reuses the shared workspace studio canvas with a filtered
+  widget catalog.
 
 ## Integration Boundary
 
@@ -42,7 +55,8 @@ This extension owns the assistant-ui runtime, but the shell still mounts it from
 - `src/app/layout/Sidebar.tsx`
 - `src/app/router.tsx`
 
-Those files intentionally depend on this extension because the overlay chat is global shell chrome, not just a page-local feature.
+Those files intentionally depend on this extension because the shell chat rail is global shell
+chrome, not just a page-local feature.
 
 ## Behavior Notes
 
@@ -50,9 +64,18 @@ Those files intentionally depend on this extension because the overlay chat is g
 - The full-page chat now includes a hideable left explorer for local `AgentSessions`. Those
   sessions are browser-persisted per signed-in user until a backend session catalog exists.
 - The agents surface lives at `/app/main_sequence_ai/agents` and uses a full-bleed workspace-style
-  canvas shell with the same AgentSession explorer/search pinned on the left, matching the chat
-  page layout more closely.
-- Agent and session selection from the agents surface promotes shared chat-session state and then
-  routes into `/app/main_sequence_ai/chat`.
+  shell with a thin left icon rail that opens the same AgentSession explorer/search used by the
+  chat page. The canvas area on that page stays empty on purpose.
+- The agents monitor surface lives at `/app/main_sequence_ai/monitor` and reuses the full
+  workspace studio canvas, filtered down to agent-monitor workspaces and the `Agent Terminal`
+  widget only.
+- `Agents Monitor` also exposes a direct agent/session launcher that can create a new monitor
+  workspace or insert an Agent Terminal widget into the current monitor without going through the
+  generic component browser first.
+- The `main-sequence-ai-agent-terminal` widget binds to one existing AgentSession id and renders
+  the same backend session stream as terminal output inside workspaces.
+- Agent/session selection from the agents surface updates shared session state locally; the actual
+  reusable workspace canvas lives on the `Agents Monitor` surface.
 - The legacy `/app/chat` route is kept only as a redirect target for compatibility.
-- When `VITE_INCLUDE_AUI=false`, the extension does not register the app and the shell does not mount the overlay runtime.
+- When `VITE_INCLUDE_AUI=false`, the extension does not register the app and the shell does not
+  mount the assistant runtime or shell chat rail.

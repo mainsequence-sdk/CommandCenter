@@ -16,6 +16,7 @@ These flows are all part of one app surface, with instance state selected throug
 ## Entry Points
 
 - `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance.
+- `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio.
 - `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize, controls, and save flow.
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
@@ -36,13 +37,22 @@ These flows are all part of one app surface, with instance state selected throug
 - `workspace-persistence.ts`: runtime switch that picks backend persistence when configured and local browser storage otherwise.
 - `workspace-favorites.ts`: helper functions for workspace-instance favorites and canonical workspace paths.
 - `widget-catalog-preferences.ts`: per-user local storage for workspace canvas component-browser favorites and recent widgets.
+- `workspace-studio-surface-config.tsx`: optional route/config layer for reusing the workspace studio from non-core surfaces while filtering widget catalogs, route targets, and surface-specific toolbar actions.
 
 ## Current Model
 
 - The app is registered in `src/extensions/core/index.ts` as two full-bleed page surfaces:
   `workspaces` and `widgets`.
+- The shared workspace studio is no longer hard-wired to the core `workspace-studio` app only.
+  Other surfaces can now reuse the same canvas/runtime through `WorkspaceStudioCanvasHost` plus
+  `workspace-studio-surface-config.tsx` instead of forking a second canvas implementation.
 - The workspace list lives at `/app/workspace-studio/workspaces`.
 - The saved-widget library lives at `/app/workspace-studio/widgets`.
+- Surface-specific studio reusers may override those route targets and filter visible widget
+  definitions while still using the same underlying workspace document model.
+- Surface-specific studio reusers may also inject toolbar actions through
+  `workspace-studio-surface-config.tsx` so extension-owned flows can add workspace-specific launch
+  affordances without forking the shared canvas page.
 - The app is only included when `VITE_INCLUDE_WORKSPACES=true`. When the flag is `false`, the runtime registry removes `workspace-studio` from navigation and route resolution.
 - Opening a workspace instance adds `?workspace=<id>`.
 - Opening the workspace graph adds `?workspace=<id>&view=graph`.

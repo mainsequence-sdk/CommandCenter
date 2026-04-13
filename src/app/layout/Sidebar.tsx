@@ -187,7 +187,7 @@ export function Sidebar() {
   const accessibleApps = getAccessiblePrimaryApps(permissions);
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const activeAppId = pathSegments[1];
-  const assistantActive = Boolean(chatFeature?.isOverlayOpen) || location.pathname === CHAT_PAGE_PATH;
+  const assistantActive = Boolean(chatFeature?.isRailOpen) || location.pathname === CHAT_PAGE_PATH;
   const userMenuActions = [
     {
       icon: Users2,

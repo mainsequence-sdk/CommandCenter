@@ -4,14 +4,13 @@
 
 This directory owns the `Agents` surface for the `Main Sequence AI` app.
 
-The page is now a canvas-style shell that mirrors the workspace canvas layout while staying
-separate from the extension-local `assistant-ui/` runtime boundary.
+The page is now a session-picker surface with an intentionally empty canvas area.
 
 ## Entry Points
 
 - `AgentsPage.tsx`
-  Full-bleed agents surface with workspace-canvas background styling, a pinned left-side shared
-  `AgentSessionExplorer`, and an open canvas area on the right.
+  Full-bleed agents surface with a thin left icon rail that opens the shared
+  `AgentSessionExplorer`. The remaining canvas stays empty on purpose.
 - `extensions/main_sequence_ai/features/chat/AgentSessionExplorer.tsx`
   Shared agent quick-search and latest-session explorer reused from the chat surface.
 
@@ -29,5 +28,6 @@ separate from the extension-local `assistant-ui/` runtime boundary.
   workflow has its own owned runtime boundary.
 - Reuse workspace-canvas visual language here, but keep the session explorer itself shared with the
   chat surface so agent search and latest-session behavior do not drift.
-- Agent/session selection on this surface routes into the chat surface after updating the shared
-  session state, so the canvas acts as a launcher rather than a second chat runtime.
+- The agents page owns only the thin launcher rail and the shared session explorer. Do not add
+  cards, launch actions, or other helper content into the canvas area.
+- The actual workspace canvas lives on the sibling `Agents Monitor` surface.

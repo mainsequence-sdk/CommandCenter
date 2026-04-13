@@ -16,7 +16,12 @@ import { env } from "@/config/env";
 import { terminalSocket } from "@/data/terminal-socket";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
-import { ChatMount, ChatProvider } from "../../../extensions/main_sequence_ai/assistant-ui";
+import { ChatMount, ChatOverlay, ChatProvider } from "../../../extensions/main_sequence_ai/assistant-ui";
+import {
+  CHAT_PAGE_PATH,
+  CHAT_RAIL_WIDTH,
+  useChatUiStore,
+} from "../../../extensions/main_sequence_ai/assistant-ui/chat-ui-store";
 
 function isWorkspaceCanvasRoute(pathname: string, search: string) {
   const routeSegments = pathname.split("/").filter(Boolean);
@@ -48,6 +53,8 @@ export function AppShell() {
   const setKioskMode = useShellStore((state) => state.setKioskMode);
   const favoriteSurfaceIds = useShellStore((state) => state.favoriteSurfaceIds);
   const toggleSurfaceFavorite = useShellStore((state) => state.toggleSurfaceFavorite);
+  const chatRailOpen = useChatUiStore((state) => state.railOpen);
+  const chatRailMode = useChatUiStore((state) => state.railMode);
   const accessibleApps = getAccessibleApps(permissions);
   const panelApp =
     appPanelAppId && accessibleApps.some((candidate) => candidate.id === appPanelAppId)
@@ -67,6 +74,11 @@ export function AppShell() {
   const showAppPanel = !kioskMode && Boolean(panelApp && panelAppSurfaceGroups.length > 0);
   const sidebarWidth = kioskMode ? 0 : sidebarCollapsed ? 52 : 248;
   const routePathKey = location.pathname;
+  const showDockedChatRail =
+    env.includeAui &&
+    location.pathname !== CHAT_PAGE_PATH &&
+    chatRailOpen &&
+    chatRailMode === "docked";
 
   useEffect(() => {
     if (!env.includeWebsockets) {
@@ -164,7 +176,13 @@ export function AppShell() {
       <div
         className="grid h-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out"
         style={{
-          gridTemplateColumns: kioskMode ? "minmax(0, 1fr)" : `${sidebarWidth}px minmax(0, 1fr)`,
+          gridTemplateColumns: kioskMode
+            ? showDockedChatRail
+              ? `minmax(0, 1fr) ${CHAT_RAIL_WIDTH}px`
+              : "minmax(0, 1fr)"
+            : showDockedChatRail
+              ? `${sidebarWidth}px minmax(0, 1fr) ${CHAT_RAIL_WIDTH}px`
+              : `${sidebarWidth}px minmax(0, 1fr)`,
         }}
       >
         {!kioskMode ? <Sidebar /> : null}
@@ -190,6 +208,7 @@ export function AppShell() {
             </div>
           </main>
         </div>
+        {showDockedChatRail ? <ChatOverlay mode="docked" /> : null}
       </div>
 
       {showAppPanel && panelApp ? (

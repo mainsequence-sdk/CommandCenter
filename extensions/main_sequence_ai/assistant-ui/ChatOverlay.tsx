@@ -3,11 +3,18 @@ import { Expand, Sparkles, X } from "lucide-react";
 import { ChatThread } from "./components/ChatThread";
 import { useChatFeature } from "./ChatProvider";
 
-export function ChatOverlay() {
-  const { closeOverlay, expandToPage } = useChatFeature();
+export function ChatOverlay({ mode = "overlay" }: { mode?: "overlay" | "docked" }) {
+  const { closeRail, expandToPage } = useChatFeature();
+  const isDocked = mode === "docked";
 
   return (
-    <section className="fixed inset-y-0 right-0 z-[110] flex w-[min(540px,calc(100vw-10px))] flex-col overflow-hidden border-l border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_84%,transparent)_0%,color-mix(in_srgb,var(--card)_90%,transparent)_28%,color-mix(in_srgb,var(--background)_86%,transparent)_100%)] text-card-foreground shadow-[-26px_0_80px_rgba(0,0,0,0.28)] backdrop-blur-3xl">
+    <section
+      className={
+        isDocked
+          ? "relative flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_84%,transparent)_0%,color-mix(in_srgb,var(--card)_90%,transparent)_28%,color-mix(in_srgb,var(--background)_86%,transparent)_100%)] text-card-foreground backdrop-blur-3xl"
+          : "fixed inset-y-0 right-0 z-[110] flex w-[min(540px,calc(100vw-10px))] flex-col overflow-hidden border-l border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_84%,transparent)_0%,color-mix(in_srgb,var(--card)_90%,transparent)_28%,color-mix(in_srgb,var(--background)_86%,transparent)_100%)] text-card-foreground shadow-[-26px_0_80px_rgba(0,0,0,0.28)] backdrop-blur-3xl"
+      }
+    >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.02)_24%,transparent_100%)]" />
         <div className="absolute inset-y-0 left-0 w-8 bg-[linear-gradient(90deg,color-mix(in_srgb,var(--primary)_18%,transparent)_0%,transparent_100%)]" />
@@ -36,8 +43,8 @@ export function ChatOverlay() {
           <button
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/55 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-            aria-label="Close chat overlay"
-            onClick={closeOverlay}
+            aria-label="Close chat rail"
+            onClick={closeRail}
           >
             <X className="h-4 w-4" />
           </button>

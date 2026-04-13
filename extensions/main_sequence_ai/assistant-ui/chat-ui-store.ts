@@ -1,33 +1,50 @@
 import { create } from "zustand";
 
 export const CHAT_PAGE_PATH = "/app/main_sequence_ai/chat";
+export const CHAT_RAIL_WIDTH = 540;
+export const CHAT_DOCKED_MIN_WIDTH = 1400;
+
+export type ChatRailMode = "overlay" | "docked";
+
+export function resolvePreferredChatRailMode(viewportWidth = window.innerWidth): ChatRailMode {
+  return viewportWidth >= CHAT_DOCKED_MIN_WIDTH ? "docked" : "overlay";
+}
 
 interface ChatUiState {
-  overlayOpen: boolean;
+  railMode: ChatRailMode;
+  railOpen: boolean;
   pageOriginPath: string;
-  closeOverlay: () => void;
-  openOverlay: () => void;
-  setOverlayOpen: (value: boolean) => void;
+  closeRail: () => void;
+  openRail: (mode: ChatRailMode) => void;
   setPageOriginPath: (value: string) => void;
-  toggleOverlay: () => void;
+  setRailMode: (value: ChatRailMode) => void;
+  setRailOpen: (value: boolean) => void;
+  toggleRail: (mode?: ChatRailMode) => void;
 }
 
 export const useChatUiStore = create<ChatUiState>((set) => ({
-  overlayOpen: false,
+  railMode: "docked",
+  railOpen: false,
   pageOriginPath: "/app",
-  closeOverlay() {
-    set({ overlayOpen: false });
+  closeRail() {
+    set({ railOpen: false });
   },
-  openOverlay() {
-    set({ overlayOpen: true });
-  },
-  setOverlayOpen(value) {
-    set({ overlayOpen: value });
+  openRail(mode) {
+    set({ railMode: mode, railOpen: true });
   },
   setPageOriginPath(value) {
     set({ pageOriginPath: value });
   },
-  toggleOverlay() {
-    set((state) => ({ overlayOpen: !state.overlayOpen }));
+  setRailMode(value) {
+    set({ railMode: value });
+  },
+  setRailOpen(value) {
+    set({ railOpen: value });
+  },
+  toggleRail(mode) {
+    set((state) => ({
+      railMode: mode ?? state.railMode,
+      railOpen: mode ? true : !state.railOpen,
+    }));
   },
 }));

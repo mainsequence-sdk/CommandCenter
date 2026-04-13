@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, LayoutTemplate, RotateCcw, Save, Shield, Trash2, X } from "lucide-react";
 
 import { MainSequencePermissionsTab } from "../../../extensions/main_sequence/common/components/MainSequencePermissionsTab";
-import { getAppPath } from "@/apps/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +20,10 @@ import {
   stringifyWorkspaceSnapshot,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
+import {
+  filterWorkspaceStudioEntries,
+  useWorkspaceStudioSurfaceConfig,
+} from "./workspace-studio-surface-config";
 
 type WorkspaceSettingsTabId = "configuration" | "permissions";
 
@@ -76,6 +79,7 @@ function parsePositiveInteger(
 
 export function CustomWorkspaceSettingsPage() {
   const navigate = useNavigate();
+  const { workspaceFilter, workspaceListPath } = useWorkspaceStudioSurfaceConfig();
   const [activeTab, setActiveTab] = useState<WorkspaceSettingsTabId>("configuration");
   const [labelInput, setLabelInput] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -99,6 +103,7 @@ export function CustomWorkspaceSettingsPage() {
     deleteSelectedWorkspace,
     resetWorkspaceDraft,
     saveWorkspaceDraft,
+    openDashboardView,
   } = useCustomWorkspaceStudio();
   const backendMode = persistenceMode === "backend";
 
@@ -122,6 +127,10 @@ export function CustomWorkspaceSettingsPage() {
     const listUrl = commandCenterConfig.workspaces.listUrl.trim();
     return listUrl || null;
   }, []);
+  const visibleWorkspaceListItems = useMemo(
+    () => filterWorkspaceStudioEntries(workspaceListItems, workspaceFilter),
+    [workspaceFilter, workspaceListItems],
+  );
 
   if (!user) {
     return (
@@ -316,7 +325,7 @@ export function CustomWorkspaceSettingsPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  navigate(`${getAppPath("workspace-studio", "workspaces")}?workspace=${encodeURIComponent(workspace.id)}`);
+                  openDashboardView();
                 }}
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -329,7 +338,7 @@ export function CustomWorkspaceSettingsPage() {
                   setSelectedWorkspaceId(event.target.value);
                 }}
               >
-                {workspaceListItems.map((dashboard) => (
+                {visibleWorkspaceListItems.map((dashboard) => (
                   <option key={dashboard.id} value={dashboard.id}>
                     {dashboard.title}
                   </option>
@@ -733,7 +742,7 @@ export function CustomWorkspaceSettingsPage() {
         }}
         onSuccess={() => {
           setDeleteDialogOpen(false);
-          navigate(getAppPath("workspace-studio", "workspaces"));
+          navigate(workspaceListPath);
         }}
       />
 

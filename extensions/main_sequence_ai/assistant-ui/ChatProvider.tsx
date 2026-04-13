@@ -22,6 +22,8 @@ import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import type { AgentSearchResult } from "../agent-search";
+import { buildAgentSessionRequestBodyFragment } from "../runtime/agent-session-request";
+import { resolveMainSequenceAiAssistantEndpoint } from "../runtime/assistant-endpoint";
 import {
   attachAgentToSession,
   buildAgentSessionTitle,
@@ -51,7 +53,12 @@ import {
   type ChatBackendHistoryMessage,
 } from "./chat-backend-adapter";
 import { useChatViewContext, type ChatViewContext } from "./chat-context";
-import { CHAT_PAGE_PATH, useChatUiStore } from "./chat-ui-store";
+import {
+  CHAT_PAGE_PATH,
+  resolvePreferredChatRailMode,
+  useChatUiStore,
+  type ChatRailMode,
+} from "./chat-ui-store";
 import { fetchSessionHistory } from "./session-history-api";
 import { fetchSessionTools } from "./session-tools-api";
 import type { SessionToolDefinition, SessionToolsSnapshot } from "./session-tools";
@@ -90,18 +97,19 @@ interface ChatFeatureContextValue {
   agentId: string | null;
   agentSessions: AgentSessionSummary[];
   clearThread: () => void;
-  closeOverlay: () => void;
+  closeRail: () => void;
   context: ChatViewContext;
   createAgentSession: () => void;
   currentSessionId: string | null;
   deleteAgentSession: (sessionId: string) => Promise<void>;
   expandToPage: () => void;
   hasVisibleAssistantOutput: boolean;
-  isOverlayOpen: boolean;
+  isRailOpen: boolean;
   isLoadingLatestSessions: boolean;
   isLoadingSessionTools: boolean;
   latestSessionsError: string | null;
-  minimizeToOverlay: () => void;
+  minimizeToRail: () => void;
+  railMode: ChatRailMode;
   runStatus: ChatRunStatus;
   runStatusDetail: string | null;
   selectAgentSession: (sessionId: string) => void;
@@ -327,25 +335,6 @@ function serializeThreadHistory(
   return history;
 }
 
-function normalizePlatformAgentApi(endpoint: string) {
-  const trimmed = endpoint.trim();
-
-  if (!trimmed) {
-    throw new Error("assistant_ui.endpoint is blank.");
-  }
-
-  if (
-    trimmed.startsWith("http://") ||
-    trimmed.startsWith("https://") ||
-    trimmed.startsWith("/")
-  ) {
-    return trimmed;
-  }
-
-  const protocol = window.location.protocol === "https:" ? "https://" : "http://";
-  return `${protocol}${trimmed}`;
-}
-
 function sortAgentSessions<T extends { updatedAt: string }>(sessions: readonly T[]) {
   return [...sessions].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
@@ -398,6 +387,16 @@ function resolveSessionApiLookupId(
   return null;
 }
 
+function findLatestDockAssistantSession(sessions: readonly AgentSessionRecord[]) {
+  return sortAgentSessions(sessions).find((session) => {
+    if (session.isPlaceholder || !resolveSessionApiLookupId(session)) {
+      return false;
+    }
+
+    return resolveSessionAgentRequestName(session) === DEFAULT_AGENT_NAME;
+  });
+}
+
 export function ChatProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -405,9 +404,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
-  const isOverlayOpen = useChatUiStore((state) => state.overlayOpen);
-  const openOverlay = useChatUiStore((state) => state.openOverlay);
-  const closeOverlay = useChatUiStore((state) => state.closeOverlay);
+  const isRailOpen = useChatUiStore((state) => state.railOpen);
+  const railMode = useChatUiStore((state) => state.railMode);
+  const openRail = useChatUiStore((state) => state.openRail);
+  const closeRail = useChatUiStore((state) => state.closeRail);
   const pageOriginPath = useChatUiStore((state) => state.pageOriginPath);
   const setPageOriginPath = useChatUiStore((state) => state.setPageOriginPath);
   const initialSessionRef = useRef(
@@ -444,9 +444,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const sessionHistoryRequestRef = useRef<AbortController | null>(null);
   const sessionToolsRequestRef = useRef<AbortController | null>(null);
   const assistantUiEndpoint = useMemo(
-    () => normalizePlatformAgentApi(commandCenterConfig.assistantUi.endpoint),
+    () => resolveMainSequenceAiAssistantEndpoint(),
     [],
   );
+  const openPreferredRail = useCallback(() => {
+    openRail(resolvePreferredChatRailMode());
+  }, [openRail]);
+  const scheduleOpenPreferredRail = useCallback(() => {
+    if (typeof window === "undefined") {
+      openPreferredRail();
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      openPreferredRail();
+    });
+  }, [openPreferredRail]);
   const sortedAgentSessions = useMemo(
     () =>
       sortAgentSessions(agentSessions)
@@ -537,17 +550,50 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (location.pathname === CHAT_PAGE_PATH) {
-      closeOverlay();
+      closeRail();
       return;
     }
 
     setPageOriginPath(`${location.pathname}${location.search}${location.hash}`);
   }, [
-    closeOverlay,
+    closeRail,
     location.hash,
     location.pathname,
     location.search,
     setPageOriginPath,
+  ]);
+
+  useEffect(() => {
+    if (!isRailOpen || railMode !== "docked" || location.pathname === CHAT_PAGE_PATH) {
+      return;
+    }
+
+    const current = selectedSession;
+    const hasRealBackendSession = Boolean(resolveSessionApiLookupId(current));
+    const isDefaultDraft =
+      !current ||
+      (!hasRealBackendSession &&
+        resolveSessionAgentRequestName(current) === DEFAULT_AGENT_NAME &&
+        current.messages.length === 0);
+
+    if (!isDefaultDraft) {
+      return;
+    }
+
+    const latestAssistantSession = findLatestDockAssistantSession(agentSessions);
+
+    if (!latestAssistantSession || latestAssistantSession.id === currentSessionId) {
+      return;
+    }
+
+    setCurrentSessionId(latestAssistantSession.id);
+  }, [
+    agentSessions,
+    currentSessionId,
+    isRailOpen,
+    location.pathname,
+    railMode,
+    selectedSession,
   ]);
 
   useEffect(() => {
@@ -1244,27 +1290,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       expectedNewSessionRef.current = isNewChatRequest;
 
       return {
-        ...(isNewChatRequest ? { newChat: true } : {}),
-        agentName: resolveSessionAgentRequestName(selectedSession),
-        ...(sessionUserId ? { userId: sessionUserId } : {}),
-        ...(!isNewChatRequest
-          ? activeSession?.threadId
-            ? { threadId: activeSession.threadId }
-            : currentSessionIdRef.current
-              ? { threadId: currentSessionIdRef.current }
-              : {}
-          : {}),
-        ...(!isNewChatRequest && selectedSessionId
-          ? {
-              sessionId: selectedSessionId,
-              runtime_session_id: selectedSessionId,
-            }
-          : {}),
-        sessionMetadata: {
-          source: "frontend",
-          workflow_key: activeAgentRequestName,
-        },
-        context: chatContext,
+        ...buildAgentSessionRequestBodyFragment({
+          agentName: resolveSessionAgentRequestName(selectedSession),
+          context: chatContext,
+          newChat: isNewChatRequest,
+          sessionId: !isNewChatRequest ? selectedSessionId : null,
+          threadId:
+            !isNewChatRequest ? activeSession?.threadId ?? currentSessionIdRef.current : null,
+          userId: sessionUserId,
+          workflowKey: activeAgentRequestName,
+        }),
       };
     },
     onRequestStart: async () => {
@@ -1459,10 +1494,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setPageOriginPath(`${location.pathname}${location.search}${location.hash}`);
     }
 
-    closeOverlay();
+    closeRail();
     navigate(CHAT_PAGE_PATH);
   }, [
-    closeOverlay,
+    closeRail,
     location.hash,
     location.pathname,
     location.search,
@@ -1470,28 +1505,38 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setPageOriginPath,
   ]);
 
-  const minimizeToOverlay = useCallback(() => {
-    openOverlay();
-
+  const minimizeToRail = useCallback(() => {
     if (location.pathname === CHAT_PAGE_PATH) {
       navigate(pageOriginPath || "/app");
+      scheduleOpenPreferredRail();
+      return;
     }
-  }, [location.pathname, navigate, openOverlay, pageOriginPath]);
+
+    openPreferredRail();
+  }, [location.pathname, navigate, openPreferredRail, pageOriginPath, scheduleOpenPreferredRail]);
 
   const toggleChat = useCallback(() => {
     if (location.pathname === CHAT_PAGE_PATH) {
-      closeOverlay();
       navigate(pageOriginPath || "/app");
+      scheduleOpenPreferredRail();
       return;
     }
 
-    if (isOverlayOpen) {
-      closeOverlay();
+    if (isRailOpen) {
+      closeRail();
       return;
     }
 
-    openOverlay();
-  }, [closeOverlay, isOverlayOpen, location.pathname, navigate, openOverlay, pageOriginPath]);
+    openPreferredRail();
+  }, [
+    closeRail,
+    isRailOpen,
+    location.pathname,
+    navigate,
+    openPreferredRail,
+    pageOriginPath,
+    scheduleOpenPreferredRail,
+  ]);
 
   const value = useMemo<ChatFeatureContextValue>(
     () => ({
@@ -1505,18 +1550,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       agentId,
       agentSessions: sortedAgentSessions,
       clearThread: clearRuntimeThread,
-      closeOverlay,
+      closeRail,
       context: chatContext,
       createAgentSession,
       currentSessionId,
       deleteAgentSession,
       expandToPage,
       hasVisibleAssistantOutput,
-      isOverlayOpen,
+      isRailOpen,
       isLoadingLatestSessions,
       isLoadingSessionTools,
       latestSessionsError,
-      minimizeToOverlay,
+      minimizeToRail,
+      railMode,
       runStatus,
       runStatusDetail,
       selectAgentSession,
@@ -1540,16 +1586,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       currentSessionId,
       chatContext,
       clearRuntimeThread,
-      closeOverlay,
+      closeRail,
       createAgentSession,
       deleteAgentSession,
       expandToPage,
       hasVisibleAssistantOutput,
-      isOverlayOpen,
+      isRailOpen,
       isLoadingLatestSessions,
       isLoadingSessionTools,
       latestSessionsError,
-      minimizeToOverlay,
+      minimizeToRail,
+      railMode,
       runStatus,
       runStatusDetail,
       currentSessionTools,

@@ -19,7 +19,7 @@ The page itself is intentionally thin. It renders the full-page assistant surfac
 ## Dependencies
 
 - `extensions/main_sequence_ai/assistant-ui/`
-  Owns the assistant-ui runtime, AgentSession persistence, chat thread primitives, overlay shell,
+  Owns the assistant-ui runtime, AgentSession persistence, chat thread primitives, shell chat rail,
   and shared chat state.
 - `extensions/main_sequence_ai/features/chat/`
   Owns the shared AgentSession explorer presentation used in this page layout.
@@ -30,7 +30,7 @@ The page itself is intentionally thin. It renders the full-page assistant surfac
 - Keep assistant-ui runtime and adapter concerns under `assistant-ui/`.
 - The page shell now uses a slim left icon rail for chat actions instead of a top toolbar.
 - The AgentSession explorer remains page-level shell chrome rendered from
-  `features/chat/AgentSessionExplorer.tsx`. It should stay outside the global overlay shell and
+  `features/chat/AgentSessionExplorer.tsx`. It should stay outside the global shell chat rail and
   outside assistant-ui runtime wiring.
 - Static selected-session metadata should not be rendered above the transcript. That information
   now belongs in the dedicated session-detail rail.

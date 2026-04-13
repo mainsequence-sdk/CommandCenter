@@ -7,7 +7,7 @@ This directory is the explicit `assistant-ui` integration boundary for the `Main
 It owns:
 
 - the assistant-ui runtime
-- the overlay rail mount
+- the shell chat rail mount
 - the chat thread renderer
 - the page chat scroll-position rail
 - the local AgentSession state
@@ -18,7 +18,8 @@ It owns:
 It currently powers two presentation modes that share one runtime:
 
 - a full-page chat route at `/app/main_sequence_ai/chat`
-- a full-height frosted side rail that can sit on top of any surface rendered by `AppShell`
+- a full-height frosted shell rail that can either dock into `AppShell` and push content left or
+  fall back to a fixed overlay on narrower layouts
 
 The page and overlay transcript shells now share the same top-turn anchoring behavior so the newest
 user turn is brought to the top of the visible chat area and the assistant answer gets the
@@ -35,6 +36,9 @@ remaining height. The two shells still differ intentionally:
 
 The app surface itself lives separately under `extensions/main_sequence_ai/surfaces/chat/`.
 The shared page explorer UI now lives separately under `extensions/main_sequence_ai/features/chat/`.
+Shared session history/tools transport now lives under `extensions/main_sequence_ai/runtime/` so
+widgets can reuse the same backend contract without taking a dependency on assistant-ui runtime
+state. The backend AgentSession catalog transport now also lives there for the same reason.
 
 ## Integration Boundary
 
@@ -99,6 +103,8 @@ This boundary owns a feature-local session layer that:
   `created_by_user=<signed-in user id>`, newest first, limited to 20
 - persists local session snapshots in browser localStorage, scoped by signed-in user id
 - keeps the selected session shared between the page and overlay runtime
+- when the docked shell rail opens on a default empty `astro-orchestrator` draft, it prefers the
+  latest real `astro-orchestrator` backend session instead of staying on that fresh local draft
 - exposes the selected session summary to the page shell so static session metadata can live in a
   dedicated rail instead of above the transcript
 - restores cached messages when the user switches sessions through the shared page explorer
@@ -183,13 +189,14 @@ The first concrete tool renderer now lives in the page feature layer:
 
 ### Shell Mount
 
-`AppShell.tsx` wraps the shell in `ChatProvider` and renders `ChatMount`.
+`AppShell.tsx` wraps the shell in `ChatProvider`, renders `ChatMount`, and owns the docked
+right-rail shell column.
 
 `ChatMount` is responsible for:
 
-- overlay-only shell mounting
+- overlay-only shell mounting when the chat rail is in overlay mode
 - keyboard shortcut handling
-- rendering the overlay when open
+- rendering the overlay rail when open
 
 The persistent visible trigger now lives in the sidebar chrome above the user menu/avatar instead of a floating bubble.
 

@@ -23,8 +23,9 @@ function isEditableTarget(target: EventTarget | null) {
 
 export function ChatMount() {
   const location = useLocation();
-  const { isOverlayOpen, toggleChat } = useChatFeature();
-  const showOverlay = location.pathname !== CHAT_PAGE_PATH && isOverlayOpen;
+  const { isRailOpen, railMode, toggleChat } = useChatFeature();
+  const showOverlay =
+    location.pathname !== CHAT_PAGE_PATH && isRailOpen && railMode === "overlay";
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -46,7 +47,7 @@ export function ChatMount() {
 
   return (
     <>
-      {showOverlay ? <ChatOverlay /> : null}
+      {showOverlay ? <ChatOverlay mode="overlay" /> : null}
     </>
   );
 }

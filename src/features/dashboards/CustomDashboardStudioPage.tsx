@@ -138,6 +138,7 @@ import {
   appendSavedWidgetInstanceToDashboard,
 } from "./saved-widgets";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
+import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 import {
   loadWidgetCatalogPreferences,
   pushRecentWidgetId,
@@ -1308,19 +1309,31 @@ export function CustomDashboardStudioPage({
   const [autoGridReorderState, setAutoGridReorderState] = useState<AutoGridReorderState | null>(
     null,
   );
+  const {
+    allowedWidgetIds,
+    catalogDescription,
+    catalogTitle,
+    savedWidgetsPath,
+    toolbarActions,
+  } = useWorkspaceStudioSurfaceConfig();
   const widgetSettingsOpen =
     selectedWorkspaceView === "widget-settings" && Boolean(requestedWidgetId);
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
   const dashboardMenuHidden = useShellStore((state) => state.workspaceCanvasMenuHidden);
   const setDashboardMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
   const catalogPreferencesUserId = user?.id ?? null;
+  const allowedWidgetIdSet = useMemo(
+    () => (allowedWidgetIds ? new Set(allowedWidgetIds) : null),
+    [allowedWidgetIds],
+  );
 
   const allowedWidgets = useMemo(
     () =>
       appRegistry.widgets.filter((widget) =>
-        hasAllPermissions(permissions, widget.requiredPermissions ?? []),
+        hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
+        (!allowedWidgetIdSet || allowedWidgetIdSet.has(widget.id)),
       ),
-    [permissions],
+    [allowedWidgetIdSet, permissions],
   );
   const widgetMap = useMemo(
     () => new Map(allowedWidgets.map((widget) => [widget.id, widget])),
@@ -2753,6 +2766,7 @@ export function CustomDashboardStudioPage({
                         <Bug className="h-3.5 w-3.5" />
                       </WorkspaceToolbarButton>
                     ) : null}
+                    {toolbarActions}
                     {editMode ? (
                       <WorkspaceToolbarButton
                         title="Workspace graph"
@@ -3115,9 +3129,9 @@ export function CustomDashboardStudioPage({
             <div className="border-b border-border/70 px-4 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-foreground">Components</div>
+                  <div className="text-sm font-semibold text-foreground">{catalogTitle}</div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Search, filter, favorite, or drag directly onto the canvas.
+                    {catalogDescription}
                   </div>
                 </div>
                 <button
@@ -3229,27 +3243,29 @@ export function CustomDashboardStudioPage({
                 ) : null}
               </div>
 
-              <div className="mt-3 rounded-[18px] border border-border/70 bg-background/32 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-foreground">Saved widgets</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Open the saved widgets library page to browse and manage reusable widget instances and groups.
+              {savedWidgetsPath ? (
+                <div className="mt-3 rounded-[18px] border border-border/70 bg-background/32 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-foreground">Saved widgets</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Open the saved widgets library page to browse and manage reusable widget instances and groups.
+                      </div>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={() => {
+                        navigate(savedWidgetsPath);
+                      }}
+                    >
+                      <BookOpenText className="h-3.5 w-3.5" />
+                      Open
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={() => {
-                      navigate("/app/workspace-studio/widgets");
-                    }}
-                  >
-                    <BookOpenText className="h-3.5 w-3.5" />
-                    Open
-                  </Button>
                 </div>
-              </div>
+              ) : null}
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto p-4">

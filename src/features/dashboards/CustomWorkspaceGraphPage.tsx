@@ -66,6 +66,7 @@ import {
   WorkspaceWidgetRail,
 } from "./WorkspaceChrome";
 import { WorkspaceRequestDebugPanel } from "./WorkspaceRequestDebugPanel";
+import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 
 const GRAPH_NODE_HORIZONTAL_GAP = 420;
 const GRAPH_NODE_VERTICAL_GAP = 220;
@@ -782,6 +783,7 @@ export function CustomWorkspaceGraphPage({
   withRuntimeProviders?: boolean;
 } = {}) {
   const navigate = useNavigate();
+  const { savedWidgetsPath } = useWorkspaceStudioSurfaceConfig();
   const {
     user,
     permissions,
@@ -916,9 +918,13 @@ export function CustomWorkspaceGraphPage({
           permissions={permissions}
           userId={user.id}
           topOffsetClassName="top-12"
-          onOpenSavedWidgets={() => {
-            navigate("/app/workspace-studio/widgets");
-          }}
+          onOpenSavedWidgets={
+            savedWidgetsPath
+              ? () => {
+                  navigate(savedWidgetsPath);
+                }
+              : undefined
+          }
           onOpenChange={setLibraryOpen}
           onAddWidget={(widget) => {
             updateSelectedWorkspace((dashboard) => appendCatalogWidget(dashboard, widget));

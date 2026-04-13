@@ -1,6 +1,7 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 
 import type { AgentSearchResult } from "../agent-search";
+import type { AgentSessionApiRecord } from "../runtime/agent-sessions-api";
 
 export const DEFAULT_AGENT_NAME = "astro-orchestrator";
 export const DEFAULT_AGENT_LABEL = "Astro Orchestrator";
@@ -33,31 +34,6 @@ export interface AgentSessionRecord {
 }
 
 export type AgentSessionSummary = Omit<AgentSessionRecord, "messages">;
-
-export interface AgentSessionApiRecord {
-  id: number;
-  agent_session: number;
-  agent_name?: string;
-  parent_step: number | null;
-  sequence: number;
-  step_type: string;
-  actor_type: string;
-  actor_name: string;
-  title: string;
-  summary: string;
-  status: string;
-  started_at: string;
-  ended_at: string | null;
-  llm_provider: string;
-  llm_model: string;
-  engine_name: string;
-  runtime_config_override: Record<string, unknown>;
-  input_payload: Record<string, unknown>;
-  output_payload: Record<string, unknown>;
-  error_detail: string;
-  external_step_id: string;
-  metadata: Record<string, unknown>;
-}
 
 export interface StreamCreatedAgentSession {
   agentId: number | null;

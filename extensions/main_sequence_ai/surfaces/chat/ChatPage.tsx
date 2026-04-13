@@ -60,7 +60,7 @@ export function ChatPage() {
   const {
     context,
     createAgentSession,
-    minimizeToOverlay,
+    minimizeToRail,
     runStatus,
   } = useChatFeature();
   const [contextOpen, setContextOpen] = useState(false);
@@ -168,9 +168,9 @@ export function ChatPage() {
             variant="ghost"
             size="icon"
             className="h-10 w-10 rounded-[calc(var(--radius)-6px)] text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-            aria-label="Minimize to overlay"
-            title="Minimize to overlay"
-            onClick={minimizeToOverlay}
+            aria-label="Minimize to rail"
+            title="Minimize to rail"
+            onClick={minimizeToRail}
           >
             <Minimize2 className="h-4 w-4" />
           </Button>

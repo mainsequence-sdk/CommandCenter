@@ -12,6 +12,9 @@ explorer without moving presentational shell chrome into the runtime boundary.
 - `AgentSessionExplorer.tsx`
   Shared explorer for agent quick-search and latest session selection. Used by both the `Chat`
   page rail and the `Agents` surface canvas.
+- `AgentSessionCatalogPicker.tsx`
+  Reusable agent-first, session-second picker used by the Agent Terminal widget settings and the
+  Agents Monitor workspace launcher.
 - `SessionDetailRail.tsx`
   Shared right-side session metadata rail for the selected `AgentSession` on the chat page. The
   verbose session metadata is intentionally collapsed behind an in-rail disclosure so tool
@@ -27,13 +30,15 @@ explorer without moving presentational shell chrome into the runtime boundary.
   session-start/select actions.
 - `extensions/main_sequence_ai/agent-search.ts`
   Supplies the shared quick-search transport helpers and result-label formatting.
+- `extensions/main_sequence_ai/runtime/agent-sessions-api.ts`
+  Supplies the shared backend session-list transport used outside the assistant-ui runtime.
 
 ## Maintenance Notes
 
 - Keep reusable page UI here rather than under `assistant-ui/components/` when it should be shared
   by multiple app surfaces.
-- This directory may depend on assistant-ui-owned state, but it should not take over assistant-ui
-  runtime wiring, transport decoding, or overlay concerns.
+- This directory may depend on assistant-ui-owned state, but transport shared by widgets or
+  workspace launchers should stay in `runtime/`, not in assistant-ui.
 - If the explorer behavior changes for both chat and agents, update this module first so the two
   surfaces do not drift apart.
 - Session metadata presentation for the chat page lives here, not in the transcript pane.

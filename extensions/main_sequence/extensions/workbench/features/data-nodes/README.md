@@ -5,7 +5,7 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 ## Files
 
 - `MainSequenceDataNodesPage.tsx`: registry page for data nodes. It also owns the top-level detail tabs for summary, description, data snapshot, policies, permissions, and local-update navigation.
-- `MainSequenceDataNodeSnapshotTab.tsx`: thin detail-tab wrapper that mounts the reusable Data Node Table widget against the selected data node in direct mode.
+- `MainSequenceDataNodeSnapshotTab.tsx`: detail-tab wrapper that loads the latest remote snapshot for the selected data node and renders a searchable preview table.
 - `MainSequenceDataNodeLocalTimeSeriesTab.tsx`: local time series listing and interactions for a selected data node.
 - `MainSequenceDataNodeLocalUpdateDetail.tsx`: local update detail surface with tabs for details, graphs, history, and logs.
 - `MainSequenceDataNodePoliciesTab.tsx`: policy-oriented controls and displays for a data node.
@@ -14,7 +14,7 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 ## Notes
 
 - Keep reusable graph and inspector subcomponents here if they are specific to data nodes. Shared dependency-graph rendering now lives under `../../widgets/dependency-graph/`.
-- The data-snapshot tab deliberately reuses the shared widget implementation from `../../widgets/data-node-table/` instead of duplicating table rendering logic in the feature.
+- The data-snapshot tab intentionally uses a lightweight preview table anchored to the latest available observation, because the registry detail surface does not have a canonical upstream `Data Node` widget runtime to bind against.
 - Data-node permissions use the shared `MainSequencePermissionsTab`, but they target the absolute `ts_manager/dynamic_table` object root instead of the default pods-scoped permission paths used by projects, constants, and secrets.
 - If a piece becomes useful outside this feature, move it to `../../components` and update this README.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateId` and `msLocalUpdateTab` drive the nested local-update detail view.

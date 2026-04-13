@@ -16,6 +16,7 @@ import {
   pushRecentWidgetId,
   saveWidgetCatalogPreferences,
 } from "./widget-catalog-preferences";
+import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 
 type CatalogScope = "browse" | "favorites" | "recent";
 
@@ -240,6 +241,7 @@ export function WorkspaceComponentBrowser({
   onOpenChange: (open: boolean) => void;
   onWidgetPointerStart?: (widget: WidgetDefinition, event: ReactPointerEvent<HTMLDivElement>) => void;
 }) {
+  const { allowedWidgetIds } = useWorkspaceStudioSurfaceConfig();
   const [catalogQuery, setCatalogQuery] = useState("");
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("all");
   const [catalogKindFilter, setCatalogKindFilter] = useState<WidgetDefinition["kind"] | "all">("all");
@@ -247,13 +249,18 @@ export function WorkspaceComponentBrowser({
   const [catalogScope, setCatalogScope] = useState<CatalogScope>("browse");
   const [favoriteWidgetIds, setFavoriteWidgetIds] = useState<string[]>([]);
   const [recentWidgetIds, setRecentWidgetIds] = useState<string[]>([]);
+  const allowedWidgetIdSet = useMemo(
+    () => (allowedWidgetIds ? new Set(allowedWidgetIds) : null),
+    [allowedWidgetIds],
+  );
 
   const allowedWidgets = useMemo(
     () =>
       appRegistry.widgets.filter((widget) =>
-        hasAllPermissions(permissions, widget.requiredPermissions ?? []),
+        hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
+        (!allowedWidgetIdSet || allowedWidgetIdSet.has(widget.id)),
       ),
-    [permissions],
+    [allowedWidgetIdSet, permissions],
   );
   const widgetMap = useMemo(
     () => new Map(allowedWidgets.map((widget) => [widget.id, widget])),
