@@ -5437,6 +5437,13 @@ export function fetchJob(jobId: number) {
   return requestJson<JobRecord>(commandCenterConfig.mainSequence.endpoint, `job/${jobId}/`);
 }
 
+export function runJob(jobId: number) {
+  return requestJson<unknown>(commandCenterConfig.mainSequence.endpoint, `job/${jobId}/run_job/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export async function fetchSummaryEditOptions(edit: SummaryEditConfig) {
   if (!edit.choices) {
     return [];

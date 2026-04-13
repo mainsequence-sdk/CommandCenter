@@ -22,6 +22,7 @@ This feature owns the Main Sequence project registry and project detail experien
 - Project-only tabs and dialogs should remain here even when they are large.
 - The active project detail tabs are `Code`, `Infra Graph`, `Jobs`, `Images`, `Resource Releases`, `Data Nodes Updates`, `Settings`, and `Permissions`.
 - Shared registry controls should stay in `../../components`.
+- The selected-job detail view in the `Jobs` tab exposes a direct `Run Job` action that posts to `job/{id}/run_job/` and refreshes the run list after success.
 - The settings tab reuses the shared project form-options query and writes through the project detail `PATCH` endpoint.
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.
 - The infra graph tab is backed by the dedicated `widgets/project-infra-graph/` module. That module also powers the reusable workspace widget definition, so project-tab changes should keep the compact widget variant working too. It follows the backend link contract directly: click inspects via `summary_url`, and `Explore graph` drills down via `graph_url`. The graph presentation is intentionally project-centric, with the project node centered and the rest of the infrastructure arranged radially instead of in column lanes.

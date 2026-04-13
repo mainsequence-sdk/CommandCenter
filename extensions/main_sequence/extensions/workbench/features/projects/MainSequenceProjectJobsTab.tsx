@@ -23,6 +23,7 @@ import {
   formatMainSequenceError,
   listProjectJobs,
   mainSequenceRegistryPageSize,
+  runJob,
   type JobRecord,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
@@ -182,6 +183,31 @@ export function MainSequenceProjectJobsTab({
       });
     },
   });
+  const runJobMutation = useMutation({
+    mutationFn: async (jobId: number) => runJob(jobId),
+    onSuccess: async (_, jobId) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "projects", "jobs", "detail", projectId, jobId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "projects", "jobs", projectId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "jobs", "runs", jobId],
+      });
+
+      toast({
+        title: "Job started",
+        description: `Triggered ${selectedJob?.name ?? `Job ${jobId}`}.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Job start failed",
+        description: formatMainSequenceError(error),
+      });
+    },
+  });
 
   const selectedJob = jobDetailQuery.data ?? selectedJobFromList;
   const jobSummary = selectedJob
@@ -207,10 +233,22 @@ export function MainSequenceProjectJobsTab({
             <span>/</span>
             <span className="text-foreground">{jobTitle}</span>
           </div>
-          <Button variant="outline" size="sm" onClick={onCloseJobDetail}>
-            <ArrowLeft className="h-4 w-4" />
-            Back to jobs
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                void runJobMutation.mutateAsync(selectedJobId);
+              }}
+              disabled={runJobMutation.isPending}
+            >
+              {runJobMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Run Job
+            </Button>
+            <Button variant="outline" size="sm" onClick={onCloseJobDetail}>
+              <ArrowLeft className="h-4 w-4" />
+              Back to jobs
+            </Button>
+          </div>
         </div>
 
         {jobDetailQuery.isLoading && !jobSummary ? (
