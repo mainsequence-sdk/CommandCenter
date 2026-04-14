@@ -29,6 +29,8 @@ import {
   AppComponentRequestTestSection,
   type AppComponentRequestTestState,
 } from "./AppComponentRequestTestSection";
+import { AppComponentMockJsonEditor } from "./AppComponentMockJsonEditor";
+import { AppComponentResponseNotification } from "./AppComponentResponseNotification";
 import { AppComponentMainSequenceResourceReleasePicker } from "./AppComponentMainSequenceResourceReleasePicker";
 import { AppComponentSchemaDiscoverySection } from "./AppComponentSchemaDiscoverySection";
 import { AppComponentServiceHeadersEditor } from "./AppComponentServiceHeadersEditor";
@@ -39,6 +41,7 @@ import {
 } from "./AppComponentFormSections";
 import {
   buildAppComponentBindingSpec,
+  buildDefaultAppComponentMockJsonDefinition,
   buildAppComponentGeneratedForm,
   formatAppComponentFieldLocation,
   isAppComponentMainSequenceResourceReleaseMode,
@@ -52,6 +55,7 @@ import {
   resolveAppComponentFieldBindingStates,
   resolveAppComponentBoundInputOverlay,
   resolveAppComponentInitialDraftValues,
+  resolveAppComponentResponseNotification,
   type AppComponentWidgetProps,
 } from "./appComponentModel";
 import { useAppComponentSchemaExplorer } from "./useAppComponentSchemaExplorer";
@@ -102,6 +106,7 @@ export function AppComponentWidgetSettings({
     operationResponseStatusByKey,
     responseModelStatus,
     responseModelPreview,
+    responseUiDescriptor,
     contentTypes,
     generatedForm,
     mappedRequestForms,
@@ -247,11 +252,30 @@ export function AppComponentWidgetSettings({
   const [testState, setTestState] = useState<AppComponentRequestTestState>({
     status: "idle",
   });
+  const responsePreview = useMemo(() => {
+    if (
+      typeof testState.lastResponseStatus !== "number" ||
+      testState.lastResponseStatus < 200 ||
+      testState.lastResponseStatus >= 300
+    ) {
+      return undefined;
+    }
+
+    const notification = resolveAppComponentResponseNotification(
+      testState.lastResponseBody,
+      responseUiDescriptor,
+    );
+
+    return notification
+      ? <AppComponentResponseNotification notification={notification} />
+      : undefined;
+  }, [responseUiDescriptor, testState.lastResponseBody, testState.lastResponseStatus]);
   const [showMainSequenceReleasePicker, setShowMainSequenceReleasePicker] = useState(false);
   const selectedMainSequenceRelease = normalizedProps.mainSequenceResourceRelease;
   const usingMainSequenceRelease = isAppComponentMainSequenceResourceReleaseMode(
     normalizedProps,
   );
+  const usingMockJson = normalizedProps.apiTargetMode === "mock-json";
 
   function buildNextDraftProps(
     overrides: Partial<AppComponentWidgetProps>,
@@ -488,6 +512,42 @@ export function AppComponentWidgetSettings({
     setShowMainSequenceReleasePicker(false);
   }
 
+  function handleTargetModeChange(nextMode: AppComponentWidgetProps["apiTargetMode"]) {
+    if (nextMode === "mock-json") {
+      const nextMockJson = normalizedProps.mockJson ?? buildDefaultAppComponentMockJsonDefinition({
+        method: normalizedProps.method,
+        path: normalizedProps.path,
+      });
+
+      onDraftPropsChange(
+        buildNextDraftProps({
+          apiTargetMode: "mock-json",
+          mainSequenceResourceRelease: undefined,
+          mockJson: nextMockJson,
+          showResponse: true,
+          method: nextMockJson.operation.method,
+          path: nextMockJson.operation.path,
+          requestBodyContentType:
+            nextMockJson.request?.bodyContentType ?? normalizedProps.requestBodyContentType,
+        }),
+      );
+      setShowMainSequenceReleasePicker(false);
+      return;
+    }
+
+    if (nextMode === "main-sequence-resource-release") {
+      onDraftPropsChange(
+        buildNextDraftProps({
+          apiTargetMode: "main-sequence-resource-release",
+        }),
+      );
+      setShowMainSequenceReleasePicker(true);
+      return;
+    }
+
+    handleUseManualUrl();
+  }
+
   async function handleTestSubmit() {
     setTestState({
       status: "submitting",
@@ -549,8 +609,8 @@ export function AppComponentWidgetSettings({
 
       <div className="text-sm text-muted-foreground">
         Paste the OpenAPI URL, Swagger docs URL, or service root, or switch this widget to a Main
-        Sequence FastAPI resource release, then bind the widget to one route and render the request
-        form directly inside the workspace.
+        Sequence FastAPI resource release, or define an inline Mock JSON API, then bind the widget
+        to one route and render the request form directly inside the workspace.
       </div>
 
       <section className="space-y-4 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
@@ -561,11 +621,50 @@ export function AppComponentWidgetSettings({
             endpoint. If you paste <code>/docs</code> or a service root, the widget resolves the
             sibling discovery endpoints from it. You can also switch this widget to a Main Sequence
             FastAPI resource release, which uses the exchange-launch token flow instead of the
-            generic session-JWT transport.
+            generic session-JWT transport, or define an inline mock API that never leaves the
+            browser.
           </p>
         </div>
 
-        {usingMainSequenceRelease && selectedMainSequenceRelease ? (
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-topbar-foreground">Target mode</span>
+          <Select
+            value={normalizedProps.apiTargetMode ?? "manual"}
+            disabled={!editable}
+            onChange={(event) => {
+              handleTargetModeChange(event.target.value as AppComponentWidgetProps["apiTargetMode"]);
+            }}
+          >
+            <option value="manual">Manual URL</option>
+            <option value="main-sequence-resource-release">Main Sequence release</option>
+            <option value="mock-json">Mock JSON</option>
+          </Select>
+        </label>
+
+        {usingMockJson ? (
+          <AppComponentMockJsonEditor
+            editable={editable}
+            targetMode={normalizedProps.apiTargetMode ?? "mock-json"}
+            value={normalizedProps.mockJson}
+            onChange={(nextMockJson) => {
+              onDraftPropsChange(
+                buildNextDraftProps({
+                  apiTargetMode: "mock-json",
+                  mainSequenceResourceRelease: undefined,
+                  mockJson: nextMockJson,
+                  showResponse: true,
+                  method: nextMockJson.operation.method,
+                  path: nextMockJson.operation.path,
+                  requestBodyContentType:
+                    nextMockJson.request?.bodyContentType ??
+                    normalizedProps.requestBodyContentType,
+                }),
+              );
+            }}
+          />
+        ) : null}
+
+        {!usingMockJson && usingMainSequenceRelease && selectedMainSequenceRelease ? (
           <div className="space-y-3 rounded-[calc(var(--radius)-7px)] border border-primary/25 bg-primary/8 p-4">
             <div className="space-y-1">
               <div className="text-sm font-medium text-topbar-foreground">
@@ -609,7 +708,7 @@ export function AppComponentWidgetSettings({
               </Button>
             </div>
           </div>
-        ) : (
+        ) : !usingMockJson ? (
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
@@ -625,9 +724,9 @@ export function AppComponentWidgetSettings({
                 : "Select Main Sequence API"}
             </Button>
           </div>
-        )}
+        ) : null}
 
-        {showMainSequenceReleasePicker ? (
+        {!usingMockJson && showMainSequenceReleasePicker ? (
           <AppComponentMainSequenceResourceReleasePicker
             editable={editable}
             enabled={showMainSequenceReleasePicker}
@@ -637,7 +736,8 @@ export function AppComponentWidgetSettings({
           />
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_220px]">
+        {!usingMockJson ? (
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_220px]">
           <label className="space-y-2">
             <span className="text-sm font-medium text-topbar-foreground">OpenAPI or service URL</span>
             <Input
@@ -693,17 +793,20 @@ export function AppComponentWidgetSettings({
               </Select>
             </label>
           )}
-        </div>
+          </div>
+        ) : null}
 
-        <AppComponentServiceHeadersEditor
-          editable={editable}
-          headers={normalizedProps.serviceHeaders}
-          onChange={(serviceHeaders) => {
-            onDraftPropsChange(buildNextDraftProps({
-              serviceHeaders,
-            }, { preserveSelection: true }));
-          }}
-        />
+        {!usingMockJson ? (
+          <AppComponentServiceHeadersEditor
+            editable={editable}
+            headers={normalizedProps.serviceHeaders}
+            onChange={(serviceHeaders) => {
+              onDraftPropsChange(buildNextDraftProps({
+                serviceHeaders,
+              }, { preserveSelection: true }));
+            }}
+          />
+        ) : null}
 
         <label className="flex items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-3 py-3">
           <input
@@ -731,8 +834,8 @@ export function AppComponentWidgetSettings({
           <input
             type="checkbox"
             className="mt-0.5 h-4 w-4 rounded border-border"
-            checked={normalizedProps.showResponse === true}
-            disabled={!editable}
+            checked={usingMockJson ? true : normalizedProps.showResponse === true}
+            disabled={!editable || usingMockJson}
             onChange={(event) => {
               onDraftPropsChange(buildNextDraftProps({
                 showResponse: event.target.checked,
@@ -744,7 +847,9 @@ export function AppComponentWidgetSettings({
               Show response on card
             </span>
             <span className="block text-sm text-muted-foreground">
-              When enabled, the canvas card renders the latest response using the same generated field layout as the request inputs, but read-only.
+              {usingMockJson
+                ? "Mock JSON always renders its latest response on the canvas card so response UI previews and downstream bindings stay visible."
+                : "When enabled, the canvas card renders the latest response using any supported response UI metadata first, then falls back to the read-only generated field layout."}
             </span>
           </span>
         </label>
@@ -818,7 +923,8 @@ export function AppComponentWidgetSettings({
           </p>
         </label>
 
-        <div className="flex flex-wrap items-center gap-2">
+        {!usingMockJson ? (
+          <div className="flex flex-wrap items-center gap-2">
           <a href={docsUrl ?? "#"} target="_blank" rel="noreferrer" className={linkClassName(!docsUrl)}>
             <ArrowUpRight className="h-3.5 w-3.5" />
             Swagger UI
@@ -838,7 +944,8 @@ export function AppComponentWidgetSettings({
               Requests attach the current session JWT
             </span>
           ) : null}
-        </div>
+          </div>
+        ) : null}
       </section>
 
       <AppComponentSchemaDiscoverySection
@@ -1088,6 +1195,7 @@ export function AppComponentWidgetSettings({
                     }));
                   }}
                   requestProps={normalizedProps}
+                  responsePreview={responsePreview}
                   showPublishedOutputs
                   state={testState}
                   submitDisabled={

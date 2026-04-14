@@ -28,6 +28,9 @@ This feature owns the Main Sequence project registry and project detail experien
 - The infra graph tab is backed by the dedicated `widgets/project-infra-graph/` module. That module also powers the reusable workspace widget definition, so project-tab changes should keep the compact widget variant working too. It follows the backend link contract directly: click inspects via `summary_url`, and `Explore graph` drills down via `graph_url`. The graph presentation is intentionally project-centric, with the project node centered and the rest of the infrastructure arranged radially instead of in column lanes.
 - The resource releases tab supports project resource release creation flows for dashboard, agent, and fastapi release kinds.
 - FastAPI resource release details now expose a `Test API` tab. It reuses the shared AppComponent schema explorer and request-form runner, but keeps the output intentionally raw and developer-oriented.
+- When the selected FastAPI response advertises AppComponent response-notification metadata, that
+  `Test API` tab now also shows the same notification preview above the raw response body. The raw
+  payload still stays visible for transport debugging.
 - The `Test API` tab is gated strictly from `resource_type` in the resource release summary payload, not from badge labels or other presentation-only fields.
 - Schema-load and request failures in that tab now report the target URL, auth mode, JWT-attachment state, and whether the browser used the local loopback proxy or a direct cross-origin fetch.
 - The `Test API` tab now runs through the same Main Sequence resource-release transport as the

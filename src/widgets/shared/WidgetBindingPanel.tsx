@@ -11,6 +11,7 @@ import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
 import type {
   WidgetDefinition,
+  WidgetInputPortDefinition,
   WidgetInstanceBindings,
   WidgetPortBinding,
 } from "@/widgets/types";
@@ -19,20 +20,111 @@ import {
   type WidgetSourceExplorerWidgetOption,
 } from "@/widgets/shared/WidgetSourceExplorer";
 
-function updateBindingDraft(
-  current: WidgetInstanceBindings | undefined,
-  inputId: string,
-  nextBinding: WidgetPortBinding | undefined,
-): WidgetInstanceBindings | undefined {
-  const next = { ...(current ?? {}) };
+interface BindingDraftRow {
+  binding?: WidgetPortBinding;
+  selectedSourceWidgetId: string;
+}
 
-  if (!nextBinding) {
-    delete next[inputId];
-    return Object.keys(next).length > 0 ? next : undefined;
+function createEmptyBindingDraftRow(): BindingDraftRow {
+  return {
+    selectedSourceWidgetId: "",
+  };
+}
+
+function toBindingArray(value: WidgetPortBinding | WidgetPortBinding[] | undefined) {
+  if (!value) {
+    return [];
   }
 
-  next[inputId] = nextBinding;
+  return Array.isArray(value) ? value : [value];
+}
+
+function buildInitialBindingDraftRows(
+  bindings: WidgetInstanceBindings | undefined,
+): Record<string, BindingDraftRow[]> {
+  return Object.fromEntries(
+    Object.entries(bindings ?? {}).map(([inputId, bindingValue]) => [
+      inputId,
+      toBindingArray(bindingValue).map((binding) => ({
+        binding,
+        selectedSourceWidgetId: binding.sourceWidgetId,
+      })),
+    ]),
+  );
+}
+
+function updateBindingDraftRows(
+  current: Record<string, BindingDraftRow[]>,
+  inputId: string,
+  rowIndex: number,
+  updater: (row: BindingDraftRow) => BindingDraftRow,
+): Record<string, BindingDraftRow[]> {
+  const next = { ...current };
+  const rows = [...(next[inputId] ?? [])];
+
+  while (rows.length <= rowIndex) {
+    rows.push(createEmptyBindingDraftRow());
+  }
+
+  rows[rowIndex] = updater(rows[rowIndex] ?? createEmptyBindingDraftRow());
+  next[inputId] = rows;
   return next;
+}
+
+function removeBindingDraftRow(
+  current: Record<string, BindingDraftRow[]>,
+  inputId: string,
+  rowIndex: number,
+): Record<string, BindingDraftRow[]> {
+  const next = { ...current };
+  const rows = [...(next[inputId] ?? [])];
+
+  rows.splice(rowIndex, 1);
+
+  if (rows.length === 0) {
+    delete next[inputId];
+    return next;
+  }
+
+  next[inputId] = rows;
+  return next;
+}
+
+function appendBindingDraftRow(
+  current: Record<string, BindingDraftRow[]>,
+  inputId: string,
+): Record<string, BindingDraftRow[]> {
+  return {
+    ...current,
+    [inputId]: [...(current[inputId] ?? []), createEmptyBindingDraftRow()],
+  };
+}
+
+function buildBindingsFromDraftRows(
+  draftRowsByInputId: Record<string, BindingDraftRow[]>,
+  inputs: WidgetInputPortDefinition<Record<string, unknown>>[],
+): WidgetInstanceBindings | undefined {
+  const bindingEntries = inputs.flatMap((input) => {
+    const validBindings = (draftRowsByInputId[input.id] ?? [])
+      .flatMap((row) => (row.binding ? [row.binding] : []));
+
+    if (validBindings.length === 0) {
+      return [];
+    }
+
+    return [[
+      input.id,
+      input.cardinality === "many" ? validBindings : validBindings[0],
+    ] as const];
+  });
+
+  if (bindingEntries.length === 0) {
+    return undefined;
+  }
+
+  return normalizeWidgetInstanceBindings(
+    Object.fromEntries(bindingEntries) as WidgetInstanceBindings,
+  );
 }
 
 export function WidgetBindingPanel({
@@ -53,30 +145,17 @@ export function WidgetBindingPanel({
     () => normalizeWidgetInstanceBindings(instance.bindings),
     [instance.bindings],
   );
-  const initialSourceWidgetIds = useMemo(
-    () =>
-      Object.fromEntries(
-        Object.entries(initialBindings ?? {}).flatMap(([inputId, bindingValue]) => {
-          const firstBinding = Array.isArray(bindingValue) ? bindingValue[0] : bindingValue;
-
-          if (!firstBinding?.sourceWidgetId) {
-            return [];
-          }
-
-          return [[inputId, firstBinding.sourceWidgetId] as const];
-        }),
-      ) as Record<string, string>,
+  const initialBindingDraftRows = useMemo(
+    () => buildInitialBindingDraftRows(initialBindings),
     [initialBindings],
   );
-  const [draftBindings, setDraftBindings] = useState<WidgetInstanceBindings | undefined>(initialBindings);
-  const [draftSourceWidgetIds, setDraftSourceWidgetIds] =
-    useState<Record<string, string>>(initialSourceWidgetIds);
+  const [draftBindingRowsByInputId, setDraftBindingRowsByInputId] =
+    useState<Record<string, BindingDraftRow[]>>(initialBindingDraftRows);
   const [pendingExecutionBindingsJson, setPendingExecutionBindingsJson] = useState<string | null>(null);
 
   useEffect(() => {
-    setDraftBindings(initialBindings);
-    setDraftSourceWidgetIds(initialSourceWidgetIds);
-  }, [initialBindings, initialSourceWidgetIds, instance.id]);
+    setDraftBindingRowsByInputId(initialBindingDraftRows);
+  }, [initialBindingDraftRows, instance.id]);
 
   useEffect(() => {
     const currentBindingsJson = JSON.stringify(initialBindings ?? null);
@@ -94,6 +173,10 @@ export function WidgetBindingPanel({
   }, [initialBindings, instance.id, pendingExecutionBindingsJson, widgetExecution]);
 
   const inputs = resolvedIo?.inputs ?? widget.io?.inputs ?? [];
+  const draftBindings = useMemo(
+    () => buildBindingsFromDraftRows(draftBindingRowsByInputId, inputs),
+    [draftBindingRowsByInputId, inputs],
+  );
 
   const sourceWidgetsByInputId = useMemo(() => {
     if (!dependencies) {
@@ -161,12 +244,10 @@ export function WidgetBindingPanel({
         ) : null}
 
         {inputs.map((input) => {
-          const currentBindingValue = draftBindings?.[input.id];
-          const currentBinding = Array.isArray(currentBindingValue)
-            ? currentBindingValue[0]
-            : currentBindingValue;
+          const storedRows = draftBindingRowsByInputId[input.id] ?? [];
+          const rowsToRender =
+            storedRows.length > 0 ? storedRows : [createEmptyBindingDraftRow()];
           const sourceWidgetOptions = sourceWidgetsByInputId.get(input.id) ?? [];
-          const selectedSourceWidgetId = draftSourceWidgetIds[input.id] ?? currentBinding?.sourceWidgetId ?? "";
 
           return (
             <section
@@ -178,32 +259,84 @@ export function WidgetBindingPanel({
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-sm font-medium text-topbar-foreground">{input.label}</div>
                     {input.required ? <Badge variant="warning">Required</Badge> : null}
+                    {input.cardinality === "many" ? <Badge variant="secondary">Multiple</Badge> : null}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Accepts {input.accepts.join(", ")}
                   </p>
                 </div>
+                {input.cardinality === "many" ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!editable}
+                    onClick={() => {
+                      setDraftBindingRowsByInputId((current) =>
+                        appendBindingDraftRow(current, input.id),
+                      );
+                    }}
+                  >
+                    Add source
+                  </Button>
+                ) : null}
               </div>
 
-              <WidgetSourceExplorer
-                editable={editable}
-                inputLabel={input.label}
-                acceptedContracts={input.accepts}
-                selectedSourceWidgetId={selectedSourceWidgetId}
-                sourceWidgets={sourceWidgetOptions}
-                value={currentBinding}
-                onSelectedSourceWidgetIdChange={(nextSourceWidgetId) => {
-                  setDraftSourceWidgetIds((current) => ({
-                    ...current,
-                    [input.id]: nextSourceWidgetId,
-                  }));
-                }}
-                onBindingChange={(nextBinding) => {
-                  setDraftBindings((current) =>
-                    updateBindingDraft(current, input.id, nextBinding),
-                  );
-                }}
-              />
+              <div className="space-y-4">
+                {rowsToRender.map((row, rowIndex) => (
+                  <div
+                    key={`${input.id}:${rowIndex}:${row.binding?.sourceWidgetId ?? row.selectedSourceWidgetId ?? "draft"}:${row.binding?.sourceOutputId ?? "unbound"}`}
+                    className="space-y-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3"
+                  >
+                    {input.cardinality === "many" ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                          Source {rowIndex + 1}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={!editable || storedRows.length === 0}
+                          onClick={() => {
+                            setDraftBindingRowsByInputId((current) =>
+                              removeBindingDraftRow(current, input.id, rowIndex),
+                            );
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ) : null}
+
+                    <WidgetSourceExplorer
+                      editable={editable}
+                      inputLabel={input.label}
+                      acceptedContracts={input.accepts}
+                      selectedSourceWidgetId={row.selectedSourceWidgetId}
+                      sourceWidgets={sourceWidgetOptions}
+                      value={row.binding}
+                      onSelectedSourceWidgetIdChange={(nextSourceWidgetId) => {
+                        setDraftBindingRowsByInputId((current) =>
+                          updateBindingDraftRows(current, input.id, rowIndex, (currentRow) => ({
+                            ...currentRow,
+                            selectedSourceWidgetId: nextSourceWidgetId,
+                            binding: undefined,
+                          })),
+                        );
+                      }}
+                      onBindingChange={(nextBinding) => {
+                        setDraftBindingRowsByInputId((current) =>
+                          updateBindingDraftRows(current, input.id, rowIndex, (currentRow) => ({
+                            ...currentRow,
+                            selectedSourceWidgetId:
+                              nextBinding?.sourceWidgetId ?? currentRow.selectedSourceWidgetId,
+                            binding: nextBinding,
+                          })),
+                        );
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
 
               {input.effects?.length ? (
                 <div className="space-y-2">
@@ -243,8 +376,7 @@ export function WidgetBindingPanel({
             <Button
               variant="outline"
               onClick={() => {
-                setDraftBindings(undefined);
-                setDraftSourceWidgetIds({});
+                setDraftBindingRowsByInputId(initialBindingDraftRows);
               }}
               disabled={!editable || !dirty}
             >

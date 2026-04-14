@@ -23,7 +23,9 @@ an overlay rail.
 ## Entry Points
 
 - `index.ts`
-  Registers the extension and conditionally exposes the app when `VITE_INCLUDE_AUI` is enabled.
+  Registers the extension. The app surfaces stay behind `VITE_INCLUDE_AUI`, but the workspace
+  widgets are always registered so general workspace studio can place `Agent Terminal` and
+  `Upstream Inspector` even when the full AI shell is hidden.
 - `app.ts`
   Defines the `Main Sequence AI` app and its `Chat` surface.
 - `agent-search.ts`
@@ -76,8 +78,13 @@ chrome, not just a page-local feature.
   generic component browser first.
 - The `main-sequence-ai-agent-terminal` widget binds to one existing AgentSession id and renders
   the same backend session stream as terminal output inside workspaces.
+- `Agent Terminal` now keeps its refresh prompt as a saved widget setting and consumes several
+  upstream widget contexts through the shared `core.widget-agent-context@v1` binding contract.
+- `Agents Monitor` now includes a curated set of snapshot-capable context widgets so those
+  upstream bindings can be authored directly on the monitor canvas.
 - Agent/session selection from the agents surface updates shared session state locally; the actual
   reusable workspace canvas lives on the `Agents Monitor` surface.
 - The legacy `/app/chat` route is kept only as a redirect target for compatibility.
 - When `VITE_INCLUDE_AUI=false`, the extension does not register the app and the shell does not
-  mount the assistant runtime or shell chat rail.
+  mount the assistant runtime or shell chat rail. The extension-owned workspace widgets still
+  register so they remain available in the normal workspace catalog.

@@ -2,7 +2,10 @@
   "results": [
     {
       "id": 101,
-      "type": "job_run",
+      "source": "organization",
+      "created_by_user": 12,
+      "source_organization": 7,
+      "type": "IM",
       "created_at": "2026-03-26T09:42:00Z",
       "title": "Revenue refresh finished",
       "description": "Job run 842 completed successfully for the Revenue Dashboard pipeline.",
@@ -13,13 +16,16 @@
       },
       "is_global": false,
       "target_user": 1,
-      "target_distribution_list": null,
+      "target_team": null,
       "include_email": true,
       "is_read": false
     },
     {
       "id": 102,
-      "type": "resource_release",
+      "source": "system",
+      "created_by_user": null,
+      "source_organization": null,
+      "type": "IN",
       "created_at": "2026-03-26T08:15:00Z",
       "title": "Streamlit release published",
       "description": "Macro Dashboard is available in the gallery and ready to launch.",
@@ -29,13 +35,16 @@
       },
       "is_global": false,
       "target_user": 1,
-      "target_distribution_list": null,
+      "target_team": null,
       "include_email": false,
       "is_read": false
     },
     {
       "id": 103,
-      "type": "cluster",
+      "source": "organization",
+      "created_by_user": 45,
+      "source_organization": 7,
+      "type": "UR",
       "created_at": "2026-03-25T17:30:00Z",
       "title": "Cluster capacity warning cleared",
       "description": "GPU queue pressure on research-prod returned to normal operating range.",
@@ -45,7 +54,7 @@
       },
       "is_global": true,
       "target_user": null,
-      "target_distribution_list": null,
+      "target_team": null,
       "include_email": false,
       "is_read": true
     }

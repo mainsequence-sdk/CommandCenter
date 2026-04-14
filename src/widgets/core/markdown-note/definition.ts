@@ -23,7 +23,7 @@ const exampleContent = `# Daily Brief
 
 export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
   id: "markdown-note",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: "Markdown",
   description: "Render Markdown notes, runbooks, and narrative context inside a dashboard widget.",
   category: "Core",
@@ -103,5 +103,18 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
     ],
   },
   workspaceIcon: FileText,
+  buildAgentSnapshot: ({ domTextContent, props }) => ({
+    displayKind: "note",
+    state: props.content?.trim() ? "ready" : "empty",
+    summary: props.content?.trim()
+      ? "Markdown note content is available."
+      : "Markdown note is empty.",
+    data: {
+      content: props.content ?? "",
+      contentWidth: props.contentWidth ?? "prose",
+      openLinksInNewTab: props.openLinksInNewTab !== false,
+      renderedText: domTextContent?.trim() || "",
+    },
+  }),
   component: MarkdownNoteWidget,
 });

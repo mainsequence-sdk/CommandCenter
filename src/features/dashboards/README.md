@@ -38,6 +38,7 @@ These flows are all part of one app surface, with instance state selected throug
 - `workspace-favorites.ts`: helper functions for workspace-instance favorites and canonical workspace paths.
 - `widget-catalog-preferences.ts`: per-user local storage for workspace canvas component-browser favorites and recent widgets.
 - `workspace-studio-surface-config.tsx`: optional route/config layer for reusing the workspace studio from non-core surfaces while filtering widget catalogs, route targets, and surface-specific toolbar actions.
+- `snapshot/`: client-side live workspace snapshot archive pipeline used by `?snapshot=true`.
 
 ## Current Model
 
@@ -105,6 +106,41 @@ These flows are all part of one app surface, with instance state selected throug
 - Favorites can target both app surfaces and individual workspace instances.
 - Workspace labels are edited in settings as enter-to-add pills instead of a comma-separated text field.
 - Workspace settings also expose versioned JSON export/import for full workspace snapshots.
+- That JSON workspace snapshot/export flow is document-oriented and intentionally separate from the
+  live agent snapshot archive described in
+  `docs/adr/adr-live-workspace-agent-snapshot-archive.md`. Do not merge the import/export serializer
+  with future screenshot/data/graph capture flows.
+- The live agent archive now runs through a dedicated snapshot runtime mode on the workspace route:
+  `?workspace=<id>&snapshot=true`.
+- Snapshot mode forces the selected workspace into normal dashboard view, keeps the existing JSON
+  export path separate, and mounts `snapshot/WorkspaceSnapshotCapture.tsx` inside the shared
+  runtime providers so the archive is assembled from the real mounted client state.
+- The normal workspace edit toolbar now also exposes `Create snapshot`, which runs the same client-
+  side archive pipeline in-place and downloads the generated zip directly from the current mounted
+  workspace.
+- Snapshot mode currently supports `snapshotProfile=full-data` by default and
+  `snapshotProfile=evidence` as a lighter alternative.
+- The client-side snapshot contract reuses the existing `command-center.jwt-auth` browser storage
+  session shape and returns the generated zip directly from the page runtime through
+  `window.__COMMAND_CENTER_SNAPSHOT__` plus the `command-center:snapshot-ready` event instead of
+  uploading archives to the backend by default.
+- The current archive contents include:
+  - `manifest.json`
+  - `workspace-definition.json` from `createWorkspaceSnapshot(...)`
+  - `workspace-live-state.json` with live controls, dependency graph, and per-widget records
+  - `controls.json`
+  - dashboard screenshots
+  - widget dependency graph JSON and PNG
+  - `widgets/<instanceId>/snapshot.json` for every widget, including generic fallback snapshots for
+    widget families without a custom builder
+  - per-widget screenshots when DOM capture succeeds
+  - optional per-widget `data.json`, `data.csv`, `chart-data.json`, or `response.json` files when
+    the widget snapshot exposes rows, series, or response payloads
+  - a hidden-widget report sheet
+- Snapshot profiles control widget data volume, not the outer archive shape:
+  - `full-data` allows widget snapshots to include deeper data payloads
+  - `evidence` keeps the same file structure but allows widgets to truncate large datasets before
+    archive artifacts are written
 - Widget runtime state can persist in the workspace model when a widget reports it through the shared widget contract.
 - Widget instances can now also persist canonical `bindings` separately from props. Binding changes
   clear widget `runtimeState` by default because the upstream data shape has changed.
@@ -182,6 +218,15 @@ These flows are all part of one app surface, with instance state selected throug
 - In the workspace graph, clicking a node still focuses its dependency path, and the selected node
   now exposes one small inline `Open settings` action so users can jump straight into that
   widget's settings without leaving graph context first.
+- Snapshot-capable widgets now auto-show their synthetic `Agent context` output in the workspace
+  graph even before any edge exists. That keeps `Agent Terminal` bindings discoverable without
+  forcing users to manually reveal the hidden context port first.
+- The graph node `Add output` chooser now opens as a floating panel outside the node card instead
+  of a cramped inline form. The chooser keeps its own scrollable output list so browsing hidden
+  outputs does not fight the main graph pan/zoom surface.
+- Workspace graph node expansion is now page-owned and height-aware. Expanding one card remeasures
+  that node and repacks its column so cards below it move down instead of overlapping the expanded
+  content.
 - The widget settings header now scopes its saved/unsaved badge and save-button enabled state to the
   selected workspace only. It must not reflect unrelated unsaved changes elsewhere in the workspace
   collection.
@@ -202,7 +247,8 @@ These flows are all part of one app surface, with instance state selected throug
   and each input now exposes explicit source-widget and source-output selectors instead of a single
   flattened choice. Bindings remain port-to-port in the graph model, but settings can now attach a
   lightweight nested-field extraction transform to the selected source output before compatibility
-  is evaluated for that edge.
+  is evaluated for that edge. Inputs with `cardinality: "many"` now also support several bound
+  source rows in the shared settings UI instead of only one hidden array entry in persisted JSON.
 - The dedicated widget settings route now keeps only the shared dashboard provider stack alive.
   It must not hidden-mount the full workspace widget tree again. Runtime-dependent settings should
   resolve through the dependency and execution providers, and executable source widgets such as

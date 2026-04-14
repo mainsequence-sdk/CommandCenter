@@ -39,17 +39,25 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - `appComponentExecution.ts`: pure executable-widget adapter for `AppComponent`. It resolves bound
   inputs, builds the request, submits it, and returns a runtime-state patch for the shared
   dashboard graph runner.
+- `appComponentMockJson.ts`: synthetic OpenAPI builder and lightweight schema inference for the
+  inline `mock-json` target mode.
 - `AppComponentWidget.tsx`: runtime widget body that prefers a live OpenAPI-backed generated form
   when the configured endpoint is reachable, then falls back to the saved compiled request form or
   the legacy binding-spec synthesis path.
 - `AppComponentWidgetSettings.tsx`: settings experience for API discovery, operation selection, response-model inspection, widget-specific input mapping, and live request testing.
+- `AppComponentMockJsonEditor.tsx`: inline mock-API editor used by AppComponent settings when the
+  target mode is `mock-json`.
 - `AppComponentFormSections.tsx`: shared generated-input renderer reused by both the canvas widget and the settings-side test harness.
+- `AppComponentResponseNotification.tsx`: shared notification banner renderer for response-side
+  `notification / banner-v1` metadata.
 - `useAppComponentSchemaExplorer.ts`: shared OpenAPI discovery hook used by widget settings and other AppComponent-powered API testing surfaces.
 - `AppComponentSchemaDiscoverySection.tsx`: reusable schema/operation explorer used by AppComponent settings and non-widget developer tooling.
-- `AppComponentRequestTestSection.tsx`: reusable dev-focused request runner surface that renders generated request inputs plus raw request/response diagnostics.
+- `AppComponentRequestTestSection.tsx`: reusable dev-focused request runner surface that renders generated request inputs plus raw request/response diagnostics, with an optional structured response preview slot.
 - `AppComponentMainSequenceResourceReleasePicker.tsx`: optional Main Sequence FastAPI release
   picker used by AppComponent settings to switch a widget instance from manual URL mode into the
   exchange-launch transport.
+- `definition.ts`: registry metadata also advertises the supported request-side and response-side
+  OpenAPI UI contracts so backend-synced widget registration stays aligned with runtime behavior.
 
 ## Phase 1 Scope
 
@@ -59,10 +67,12 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - The widget also supports a static `serviceHeaders` overlay. Those headers apply to both schema
   discovery and request execution, while OpenAPI-declared header parameters still render as normal
   generated request inputs.
-- AppComponent now has two target modes:
+- AppComponent now has three target modes:
   `manual` uses the configured API URL plus the selected auth mode, while
   `main-sequence-resource-release` uses a selected Main Sequence FastAPI resource release and the
-  exchange-launch token flow.
+  exchange-launch token flow, and
+  `mock-json` compiles one synthetic inline OpenAPI document and returns the configured mock
+  response without making a network request.
 - Complex or unsupported body schemas fall back to a raw request-body editor instead of blocking the user completely.
 - Response inspection and request testing happen in widget settings; the mounted widget itself stays input-focused.
 - The mounted widget's compact request/response card renderer now obeys a saved `compactCardLayout`
@@ -95,8 +105,8 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - AppComponent now exposes a saved `refreshOnDashboardRefresh` setting. It defaults to enabled, so
   dashboard refresh will re-run the configured request unless the instance explicitly disables it.
 - AppComponent also exposes a saved `showResponse` setting. It defaults to disabled, and when
-  enabled the canvas card reuses the generated-form renderer to show the latest response body in a
-  read-only layout.
+  enabled the canvas card renders the latest response using any supported response UI metadata
+  first, then falls back to the read-only generated-form layout.
 - AppComponent also exposes a saved `hideRequestButton` setting. It defaults to disabled, and when
   enabled the canvas card hides manual submit so the widget runs only through graph execution,
   upstream dependency execution, or dashboard refresh.
@@ -114,6 +124,13 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   primary success response advertises `x-ui-role: editable-form` and `x-ui-widget: definition-v1`,
   a successful response is normalized into a generic server-driven form session instead of being
   rendered as raw response JSON fields.
+- AppComponent now also supports response-side notification banners. When the selected operation's
+  primary success response advertises `x-ui-role: notification` and `x-ui-widget: banner-v1`, and
+  the response body matches `{ title?, message, tone, details? }`, runtime surfaces render a
+  friendly notification preview instead of the default read-only response form. On the canvas card,
+  notification mode suppresses the generic response heading and status chip so the banner is the
+  only user-facing output. This is presentation-only: published outputs and response ports remain
+  unchanged.
 - OpenAPI discovery is cached globally in-memory for five minutes, and safe request responses
   (`GET` / `HEAD`) are cached in-memory for thirty seconds during shared refresh-style execution
   (`dashboard-refresh` / `manual-recalculate`) so identical AppComponent sources do not fan out into
@@ -132,6 +149,10 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   `/orm/api/pods/resource-release/<id>/exchange-launch/`, expects a FastAPI token launch payload,
   then sends the real OpenAPI and operation requests with the returned launch token plus
   `X-FastAPI-ID`. The normal session JWT is not sent to the public FastAPI in this mode.
+- In mock-json mode, AppComponent never makes a network request. It still uses the normal request
+  builder, generated-form compiler, binding-spec compiler, published outputs path, and response UI
+  contract system, but both schema discovery and execution resolve from the saved inline mock
+  definition.
 - Launch tokens are kept in memory only. They are refreshed before expiry and retried once on
   `401`, which keeps FastAPI resource-release widgets usable across the current 120-second backend
   token lifetime without persisting those launch tokens in widget props.
@@ -145,8 +166,10 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - Keep the transport split explicit:
   manual mode is generic AppComponent transport,
   while Main Sequence resource-release mode is the exchange-launch transport owned by
-  `mainSequenceReleaseTransport.ts`. Do not bolt resource-release token logic onto the generic
-  manual auth path.
+  `mainSequenceReleaseTransport.ts`, and
+  mock-json mode is the synthetic inline target owned by `appComponentMockJson.ts`.
+  Do not bolt resource-release token logic onto the generic manual auth path, and do not create a
+  second fake-data widget when the shared AppComponent mock target already exists.
 - Keep the widget generic. Product-specific API presets should be modeled as preconfigured widget instances or future helper modules, not hardcoded into the core widget itself.
 - Keep compact-card layout control local to the mounted widget path. Settings-side schema
   discovery and test forms intentionally keep their separate layout rules.
@@ -168,11 +191,15 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - Runtime may now re-resolve OpenAPI metadata to upgrade stale saved forms and apply widget-specific
   render metadata. Keep that behavior narrow: prefer live OpenAPI only to enrich generated-form
   metadata and fall back cleanly when the endpoint is unavailable.
+- `AppComponent` now also publishes the platform-generated `agent-context` output because it
+  implements `buildAgentSnapshot(...)`. Keep that snapshot compact and stable enough for agent
+  reasoning workflows such as `Agent Terminal` automated refresh.
 - `refreshOnDashboardRefresh` is a persisted widget prop. If backend widget-props validation exists,
   it must continue to allow this boolean field.
-- `showResponse` is also a persisted widget prop. Runtime surfaces should keep using the existing
-  generated-form renderer for response display instead of introducing a second response-only UI
-  system.
+- `showResponse` is also a persisted widget prop. Runtime surfaces should keep response rendering
+  inside the shared response UI contract system: supported response UI metadata may replace the
+  default read-only generated-form viewer, but unsupported or invalid metadata must still fall back
+  cleanly to that default viewer.
 - `hideRequestButton` is also a persisted widget prop. If backend widget-props validation exists,
   it must continue to allow this boolean field, and runtime submit handlers must treat it as a real
   behavior change rather than a cosmetic-only flag.
@@ -186,7 +213,17 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   the selected service, not as a replacement for OpenAPI-declared header parameters. Static service
   headers should apply to both `/openapi.json` discovery and the final operation request. In Main
   Sequence resource-release mode, the transport-owned `Authorization` and `X-FastAPI-ID` headers
-  must still win over any user-configured header entries.
+  must still win over any user-configured header entries. In mock-json mode, service headers are
+  ignored because no network request is sent.
+- `mockJson` is also a persisted widget prop. It owns the inline operation definition, request
+  schema, response fixture, and response UI metadata for the `mock-json` target mode. Keep it
+  canonical and serializable; mock-mode execution and schema discovery should both derive from that
+  one saved definition instead of inventing separate preview-only state. Mock JSON always renders
+  its latest response on the canvas card; it does not honor `showResponse: false` because response
+  preview is the whole point of that target mode.
+- The default mock-json example now includes both a normal request body field and an operation-level
+  `select2 / async-select-search` enhancement so new mock widgets demonstrate request-side custom
+  UI behavior immediately.
 - Form-render resolution is widget-first:
   if the selected OpenAPI operation does not expose `x-ui-widget`, AppComponent always falls back
   to the standard generated renderer. If the selected operation exposes `x-ui-widget`, AppComponent
@@ -198,6 +235,14 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - That widget-first policy now exists on both sides:
   request-side metadata can replace generated request inputs, and response-side metadata can replace
   the generic response viewer with a stateful editable form session.
+- The first supported response-side notification contract is
+  `x-ui-role: notification` with `x-ui-widget: banner-v1`.
+- The supported first-pass notification payload is:
+  `title?: string`, `message: string`, `tone: "success" | "primary" | "info" | "warning" | "error"`,
+  and `details?: string`.
+- Notification mode is presentation-only. Unlike editable-form mode, it must not suppress normal
+  response ports or published outputs. If the payload does not match the expected shape,
+  AppComponent falls back to the normal response renderer.
 - The first supported widget-specific contract is `x-ui-widget: select2` with
   `x-ui-role: async-select-search` on the selected OpenAPI operation. This currently targets
   query-parameter search helpers on that operation.

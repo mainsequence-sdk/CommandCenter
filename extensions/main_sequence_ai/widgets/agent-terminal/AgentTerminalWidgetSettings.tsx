@@ -10,9 +10,10 @@ import { getAgentSessionRecordSessionId } from "../../runtime/agent-sessions-api
 import { AgentSessionCatalogPicker } from "../../features/chat/AgentSessionCatalogPicker";
 import {
   DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS,
-  resolveAgentTerminalRefreshPrompt,
   buildAgentTerminalPrompt,
   normalizeAgentTerminalWidgetProps,
+  resolveAgentTerminalRefreshPrompt,
+  resolveAgentTerminalUpstreamContexts,
   type AgentTerminalWidgetProps,
 } from "./agentTerminalModel";
 import { buildAgentTerminalSessionWidgetTitle } from "./agentTerminalWorkspace";
@@ -34,10 +35,8 @@ export function AgentTerminalWidgetSettings({
     normalizedProps.historyRefreshIntervalSeconds ??
     DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS;
   const promptOnRefresh = normalizedProps.promptOnRefresh ?? "";
-  const effectivePromptOnRefresh = resolveAgentTerminalRefreshPrompt(
-    normalizedProps,
-    resolvedInputs,
-  );
+  const effectivePromptOnRefresh = resolveAgentTerminalRefreshPrompt(normalizedProps);
+  const upstreamContextCount = resolveAgentTerminalUpstreamContexts(resolvedInputs).length;
 
   return (
     <div className="space-y-5">
@@ -167,7 +166,8 @@ export function AgentTerminalWidgetSettings({
           <div className="text-sm font-medium text-topbar-foreground">Prompt on refresh</div>
           <p className="mt-1 text-sm text-muted-foreground">
             When set, every refresh sends this Markdown prompt to the session instead of only
-            reloading history. This value can also be driven from the widget bindings tab.
+            reloading history. Bound upstream widget context from the Bindings tab is appended to
+            this saved prompt during automated refresh.
           </p>
         </div>
 
@@ -216,6 +216,12 @@ export function AgentTerminalWidgetSettings({
             {effectivePromptOnRefresh ? (
               <div className="text-muted-foreground">
                 [refresh-prompt] Refresh sends the configured Markdown prompt into the session.
+              </div>
+            ) : null}
+            {upstreamContextCount > 0 ? (
+              <div className="text-muted-foreground">
+                [context] {upstreamContextCount} bound widget context
+                {upstreamContextCount === 1 ? "" : "s"} will be appended on automated refresh.
               </div>
             ) : null}
             <div>

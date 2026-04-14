@@ -7,6 +7,8 @@ This module owns the shared shell notifications client and normalization layer.
 - Collect notification source definitions from registered apps.
 - Fetch, normalize, and merge visible notifications into one shell feed.
 - Provide detail, mark-read, dismiss, and batch mutation helpers for the topbar notifications menu.
+- Expose the newer notification read model, including `source = organization | system`, so the
+  topbar menu can split the merged feed into source tabs without changing the backend fetch path.
 
 ## Main entry points
 
@@ -18,6 +20,10 @@ This module owns the shared shell notifications client and normalization layer.
 
 - Apps contribute notification sources through the shared `notificationSources` app contract.
 - The shell queries those sources through `fetchVisibleNotifications()` and merges them into one sorted feed.
+- The topbar notification menu now groups that merged feed into local `Organization` and `System`
+  tabs using the backend read-model `source` field.
+- The topbar bell indicator now uses unread severity precedence across the merged feed:
+  `Urgent` first, then `Important`, then `Info`.
 - In mock mode, notification requests are resolved from `/mock_data/command_center/notifications.json`.
 - In mock mode, configured notification requests must stay inside the mock handler. If a request cannot be resolved there, the client raises a notifications error instead of silently falling through to the live backend.
 

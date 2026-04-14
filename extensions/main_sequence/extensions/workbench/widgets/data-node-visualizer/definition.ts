@@ -1,18 +1,40 @@
 import { BarChart3 } from "lucide-react";
 
-import { defineWidget } from "@/widgets/types";
+import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
 
+import {
+  MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT,
+  normalizeMainSequenceDataSourceBundle,
+} from "../../widget-contracts/mainSequenceDataSourceBundle";
+import { resolveDataNodeFieldOptionsFromDataset } from "../data-node-shared/dataNodeShared";
+import { DATA_NODE_SOURCE_INPUT_ID } from "../data-node-shared/widgetBindings";
 import { MainSequenceDataNodeVisualizerWidget } from "./MainSequenceDataNodeVisualizerWidget";
 import { dataNodeVisualizerWidgetController } from "./controller";
 import { MainSequenceDataNodeVisualizerWidgetSettings } from "./MainSequenceDataNodeVisualizerWidgetSettings";
-import type { MainSequenceDataNodeVisualizerWidgetProps } from "./dataNodeVisualizerModel";
+import {
+  buildDataNodeVisualizerChartSeries,
+  buildDataNodeVisualizerSeries,
+  resolveDataNodeVisualizerConfig,
+  type MainSequenceDataNodeVisualizerWidgetProps,
+} from "./dataNodeVisualizerModel";
 import { dataNodeVisualizerSettingsSchema } from "./schema";
-import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../widget-contracts/mainSequenceDataSourceBundle";
-import { DATA_NODE_SOURCE_INPUT_ID } from "../data-node-shared/widgetBindings";
+
+function resolveSourceDataset(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+) {
+  const resolvedEntry = resolvedInputs?.[DATA_NODE_SOURCE_INPUT_ID];
+  const candidate = Array.isArray(resolvedEntry)
+    ? resolvedEntry.find((entry) => entry.status === "valid")
+    : resolvedEntry;
+
+  return candidate?.status === "valid"
+    ? normalizeMainSequenceDataSourceBundle(candidate.value)
+    : null;
+}
 
 export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNodeVisualizerWidgetProps>({
   id: "main-sequence-data-node-visualizer",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: "Data Node Graph",
   description: "Turns Main Sequence data-node tables into charts, with a settings-only table preview.",
   category: "Main Sequence Data Nodes",
@@ -78,6 +100,64 @@ export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNode
   },
   workspaceIcon: BarChart3,
   workspaceRuntimeMode: "consumer",
+  buildAgentSnapshot: ({ props, resolvedInputs, snapshotProfile }) => {
+    const sourceDataset = resolveSourceDataset(resolvedInputs);
+    const fieldOptions = resolveDataNodeFieldOptionsFromDataset({
+      columns: sourceDataset?.columns,
+      rows: sourceDataset?.rows,
+      fields: sourceDataset?.fields,
+    });
+    const config = resolveDataNodeVisualizerConfig(props, null, fieldOptions);
+    const rawSeries = buildDataNodeVisualizerSeries(sourceDataset?.rows ?? [], config, 12);
+    const chartSeries = buildDataNodeVisualizerChartSeries(
+      rawSeries.series,
+      config.timeAxisMode === "date" ? "date" : "datetime",
+    );
+
+    return {
+      displayKind: "chart",
+      state: sourceDataset
+        ? sourceDataset.status === "error"
+          ? "error"
+          : sourceDataset.status === "loading"
+            ? "loading"
+            : chartSeries.series.length > 0
+              ? "ready"
+              : "empty"
+        : "idle",
+      summary: sourceDataset
+        ? `${chartSeries.series.length.toLocaleString()} series rendered from ${sourceDataset.rows.length.toLocaleString()} rows.`
+        : "Data Node Graph is waiting for a bound dataset.",
+      data: {
+        sourceStatus: sourceDataset?.status ?? "idle",
+        provider: config.provider,
+        chartType: config.chartType,
+        xField: config.xField,
+        yField: config.yField,
+        groupField: config.groupField,
+        groupSelectionMode: config.groupSelectionMode,
+        selectedGroupValues: config.selectedGroupValues ?? [],
+        seriesAxisMode: config.seriesAxisMode,
+        timeAxisMode: config.timeAxisMode,
+        rowCount: sourceDataset?.rows.length ?? 0,
+        seriesCount: chartSeries.series.length,
+        droppedGroups: rawSeries.droppedGroups,
+        filteredGroups: rawSeries.filteredGroups,
+        totalGroups: rawSeries.totalGroups,
+        series: chartSeries.series.map((series) => ({
+          id: series.id,
+          label: series.label,
+          color: series.color,
+          lineStyle: series.lineStyle,
+          pointCount: series.pointCount,
+          points:
+            snapshotProfile === "full-data"
+              ? series.points
+              : series.points.slice(0, 200),
+        })),
+      },
+    };
+  },
   schema: dataNodeVisualizerSettingsSchema,
   controller: dataNodeVisualizerWidgetController,
   registryContract: {

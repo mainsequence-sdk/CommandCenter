@@ -1,19 +1,36 @@
 import { Table } from "lucide-react";
 
-import { defineWidget } from "@/widgets/types";
+import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
 
-import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../widget-contracts/mainSequenceDataSourceBundle";
+import {
+  MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT,
+  normalizeMainSequenceDataSourceBundle,
+} from "../../widget-contracts/mainSequenceDataSourceBundle";
 import { DATA_NODE_SOURCE_INPUT_ID } from "../data-node-shared/widgetBindings";
 import { DataNodeTableWidget } from "./DataNodeTableWidget";
 import { DataNodeTableWidgetSettings } from "./DataNodeTableWidgetSettings";
 import {
+  type DataNodeTableVisualizerCellValue,
   dataNodeTableVisualizerDefaultProps,
+  resolveDataNodeTableVisualizerColumns,
+  resolveDataNodeTableVisualizerPropsWithFrame,
   type DataNodeTableVisualizerProps,
 } from "./dataNodeTableModel";
 
+function resolveSourceDataset(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+) {
+  const resolvedEntry = resolvedInputs?.[DATA_NODE_SOURCE_INPUT_ID];
+  const candidate = Array.isArray(resolvedEntry) ? resolvedEntry.find((entry) => entry.status === "valid") : resolvedEntry;
+
+  return candidate?.status === "valid"
+    ? normalizeMainSequenceDataSourceBundle(candidate.value)
+    : null;
+}
+
 export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisualizerProps>({
   id: "data-node-table-visualizer",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: "Data Node Table",
   description: "Main Sequence table formatter for live data-node rows with instance-owned field config.",
   category: "Main Sequence Data Nodes",
@@ -49,6 +66,82 @@ export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisuali
   },
   workspaceRuntimeMode: "consumer",
   workspaceIcon: Table,
+  buildAgentSnapshot: ({ props, resolvedInputs, snapshotProfile }) => {
+    const sourceDataset = resolveSourceDataset(resolvedInputs);
+    const resolvedProps = resolveDataNodeTableVisualizerPropsWithFrame(props, sourceDataset
+      ? {
+          columns: sourceDataset.columns,
+          rows: sourceDataset.rows.map((row) =>
+            sourceDataset.columns.map<DataNodeTableVisualizerCellValue>((columnKey) => {
+              const value = row[columnKey];
+
+              if (
+                typeof value === "number" ||
+                typeof value === "string" ||
+                typeof value === "boolean" ||
+                value === null ||
+                value === undefined
+              ) {
+                return value ?? null;
+              }
+
+              return JSON.stringify(value);
+            }),
+          ),
+          schemaFallback:
+            sourceDataset.fields?.map((field) => ({
+              key: field.key,
+              label: field.label ?? field.key,
+              description: field.description ?? undefined,
+              format: "text",
+            })) ?? [],
+          supportsUniqueIdentifierList: Boolean(sourceDataset.source?.context?.uniqueIdentifierList),
+          dataNodeLabel: sourceDataset.source?.label,
+        }
+      : null);
+    const resolvedColumns = resolveDataNodeTableVisualizerColumns(resolvedProps).filter(
+      (column) => column.visible,
+    );
+
+    return {
+      displayKind: "table",
+      state: sourceDataset
+        ? sourceDataset.status === "error"
+          ? "error"
+          : sourceDataset.status === "loading"
+            ? "loading"
+            : sourceDataset.rows.length > 0
+              ? "ready"
+              : "empty"
+        : "idle",
+      summary: sourceDataset
+        ? `${sourceDataset.rows.length.toLocaleString()} rows across ${resolvedColumns.length.toLocaleString()} visible columns.`
+        : "Data Node Table is waiting for a bound dataset.",
+      data: {
+        sourceStatus: sourceDataset?.status ?? "idle",
+        rowCount: sourceDataset?.rows.length ?? 0,
+        visibleColumns: resolvedColumns.map((column) => ({
+          key: column.key,
+          label: column.label,
+          format: column.format,
+        })),
+        rows: (
+          snapshotProfile === "full-data"
+            ? (sourceDataset?.rows ?? [])
+            : (sourceDataset?.rows ?? []).slice(0, 25)
+        ).map((row) =>
+          Object.fromEntries(
+            resolvedColumns.map((column) => [column.key, row[column.key] ?? null]),
+          ),
+        ),
+        pagination: resolvedProps.pagination,
+        pageSize: resolvedProps.pageSize,
+        density: resolvedProps.density,
+        showSearch: resolvedProps.showSearch,
+        zebraRows: resolvedProps.zebraRows,
+      },
+    };
+  },
   registryContract: {
     configuration: {
       mode: "custom-settings",

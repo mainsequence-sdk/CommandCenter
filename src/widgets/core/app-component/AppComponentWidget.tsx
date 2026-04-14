@@ -23,6 +23,7 @@ import {
   AppComponentEditableFormSections,
   AppComponentFormSections,
 } from "./AppComponentFormSections";
+import { AppComponentResponseNotification } from "./AppComponentResponseNotification";
 import {
   buildAppComponentGeneratedForm,
   hasAppComponentDiscoveryTarget,
@@ -34,8 +35,10 @@ import {
   resolveAppComponentInitialDraftValues,
   resolveAppComponentMappedRequestForms,
   resolveAppComponentOperation,
+  resolveAppComponentResponseNotification,
   resolveAppComponentResponseDisplayForm,
   resolveAppComponentResponseDisplayValues,
+  resolveAppComponentResponseUiDescriptor,
   resolveAppComponentRuntimeGeneratedForm,
   updateAppComponentEditableFormSessionValue,
   type AppComponentWidgetProps,
@@ -151,6 +154,16 @@ export function AppComponentWidget({
     () => resolveAppComponentBoundInputOverlay(submissionForm, draftValues, resolvedInputs),
     [draftValues, resolvedInputs, submissionForm],
   );
+  const responseUiDescriptor = useMemo(
+    () =>
+      runtimeOpenApiQuery.data
+        ? resolveAppComponentResponseUiDescriptor(
+            runtimeOpenApiQuery.data,
+            runtimeResolvedOperation,
+          )
+        : undefined,
+    [runtimeOpenApiQuery.data, runtimeResolvedOperation],
+  );
   const responseForm = useMemo(
     () =>
       normalizedProps.showResponse
@@ -170,9 +183,31 @@ export function AppComponentWidget({
       ),
     [localRuntimeState.lastResponseBody, normalizedProps, responseForm],
   );
+  const responseNotification = useMemo(
+    () =>
+      normalizedProps.showResponse
+      && typeof localRuntimeState.lastResponseStatus === "number"
+      && localRuntimeState.lastResponseStatus >= 200
+      && localRuntimeState.lastResponseStatus < 300
+        ? resolveAppComponentResponseNotification(
+            localRuntimeState.lastResponseBody,
+            responseUiDescriptor,
+          )
+        : undefined,
+    [
+      localRuntimeState.lastResponseBody,
+      localRuntimeState.lastResponseStatus,
+      normalizedProps.showResponse,
+      responseUiDescriptor,
+    ],
+  );
   const editableFormSession = localRuntimeState.editableFormSession;
   const effectiveDraftValues = boundInputOverlay.values;
   const boundFieldKeys = boundInputOverlay.boundFieldKeys;
+  const hasResponseContent =
+    editableFormSession !== undefined
+    || responseNotification !== undefined
+    || (responseForm !== undefined && localRuntimeState.lastResponseBody !== undefined);
   const isExecuting = executionState?.status === "running";
 
   useEffect(() => {
@@ -264,7 +299,7 @@ export function AppComponentWidget({
     return (
       <AppComponentPlaceholder
         title="No API URL configured"
-        description="Open widget settings and enter the OpenAPI URL, Swagger docs URL, or service root, or select a Main Sequence FastAPI resource release before trying to build a request form."
+        description="Open widget settings and enter the OpenAPI URL, Swagger docs URL, or service root, select a Main Sequence FastAPI resource release, or switch this widget to Mock JSON before trying to build a request form."
       />
     );
   }
@@ -292,9 +327,7 @@ export function AppComponentWidget({
       <form className="flex h-full min-h-0 flex-col gap-3" onSubmit={handleSubmit}>
         <div className="min-h-0 flex-1 overflow-auto pr-1">
           {cardForm.parameterFields.length === 0 && cardForm.bodyMode === "none" ? (
-            <p className="text-xs text-muted-foreground">
-              No request inputs are exposed on this card. Configure them in widget settings or drive this widget through upstream bindings and refresh execution.
-            </p>
+            null
           ) : (
             <AppComponentFormSections
               boundFieldKeys={boundFieldKeys}
@@ -327,43 +360,63 @@ export function AppComponentWidget({
             />
           )}
 
-          {normalizedProps.showResponse ? (
-            <section className="mt-4 space-y-2 border-t border-border/60 pt-3">
-              <div className="space-y-1">
-                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                  Response
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  {localRuntimeState.lastResponseStatus ? (
-                    <span className="rounded-[calc(var(--radius)-7px)] border border-border/70 bg-background/45 px-2 py-1 font-medium text-foreground">
-                      {localRuntimeState.lastResponseStatus}
-                    </span>
-                  ) : null}
-                  <span>
-                    {localRuntimeState.lastResponseBody === undefined
-                      ? "No response yet."
-                      : "Latest response body from this widget instance."}
-                  </span>
-                </div>
-              </div>
-
-              {editableFormSession ? (
-                <AppComponentEditableFormSections
-                  disabled={isExecuting || localRuntimeState.status === "submitting"}
-                  session={editableFormSession}
-                  onValueChange={updateEditableFormValue}
-                />
+          {normalizedProps.showResponse && hasResponseContent ? (
+            <section
+              className={
+                responseNotification
+                  ? "mt-4"
+                  : "mt-4 space-y-2 border-t border-border/60 pt-3"
+              }
+            >
+              {responseNotification ? (
+                <AppComponentResponseNotification notification={responseNotification} />
+              ) : editableFormSession ? (
+                <>
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Response
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {localRuntimeState.lastResponseStatus ? (
+                        <span className="rounded-[calc(var(--radius)-7px)] border border-border/70 bg-background/45 px-2 py-1 font-medium text-foreground">
+                          {localRuntimeState.lastResponseStatus}
+                        </span>
+                      ) : null}
+                      <span>Latest response body from this widget instance.</span>
+                    </div>
+                  </div>
+                  <AppComponentEditableFormSections
+                    disabled={isExecuting || localRuntimeState.status === "submitting"}
+                    session={editableFormSession}
+                    onValueChange={updateEditableFormValue}
+                  />
+                </>
               ) : responseForm && localRuntimeState.lastResponseBody !== undefined ? (
-                <AppComponentFormSections
-                  compactColumnCount={compactColumnCount}
-                  disabled
-                  form={responseForm}
-                  mode="compact"
-                  values={responseValues}
-                  onValueChange={() => {
-                    return;
-                  }}
-                />
+                <>
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Response
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {localRuntimeState.lastResponseStatus ? (
+                        <span className="rounded-[calc(var(--radius)-7px)] border border-border/70 bg-background/45 px-2 py-1 font-medium text-foreground">
+                          {localRuntimeState.lastResponseStatus}
+                        </span>
+                      ) : null}
+                      <span>Latest response body from this widget instance.</span>
+                    </div>
+                  </div>
+                  <AppComponentFormSections
+                    compactColumnCount={compactColumnCount}
+                    disabled
+                    form={responseForm}
+                    mode="compact"
+                    values={responseValues}
+                    onValueChange={() => {
+                      return;
+                    }}
+                  />
+                </>
               ) : null}
             </section>
           ) : null}

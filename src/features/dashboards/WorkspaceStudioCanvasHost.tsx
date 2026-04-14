@@ -10,12 +10,16 @@ import {
 import { CustomDashboardStudioPage } from "./CustomDashboardStudioPage";
 import { CustomWorkspaceGraphPage } from "./CustomWorkspaceGraphPage";
 import { CustomWorkspaceSettingsPage } from "./CustomWorkspaceSettingsPage";
+import { WorkspaceSnapshotCapture } from "./snapshot/WorkspaceSnapshotCapture";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 
 export function WorkspaceStudioCanvasHost() {
   const {
+    permissions,
     selectedDashboard,
     resolvedDashboard,
+    snapshotMode,
+    snapshotProfile,
     selectedWorkspaceView,
     updateSelectedWorkspaceUserState,
   } = useCustomWorkspaceStudio();
@@ -53,6 +57,14 @@ export function WorkspaceStudioCanvasHost() {
           }}
         >
           <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+            {snapshotMode ? (
+              <WorkspaceSnapshotCapture
+                dashboard={selectedDashboard}
+                resolvedDashboard={resolvedDashboard}
+                permissions={permissions}
+                profile={snapshotProfile}
+              />
+            ) : null}
             {selectedWorkspaceView === "graph" ? (
               <CustomWorkspaceGraphPage withRuntimeProviders={false} />
             ) : (

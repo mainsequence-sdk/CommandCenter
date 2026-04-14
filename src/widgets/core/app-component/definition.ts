@@ -7,14 +7,17 @@ import { appComponentExecutionDefinition } from "./appComponentExecution";
 import { AppComponentRailSummary } from "./AppComponentRailSummary";
 import { AppComponentWidget } from "./AppComponentWidget";
 import { AppComponentWidgetSettings } from "./AppComponentWidgetSettings";
-import type { AppComponentWidgetProps } from "./appComponentModel";
+import {
+  normalizeAppComponentRuntimeState,
+  type AppComponentWidgetProps,
+} from "./appComponentModel";
 
 export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   id: "app-component",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: "AppComponent",
   description:
-    "OpenAPI-driven request form widget that discovers one route and can run either against a manual service URL or a Main Sequence FastAPI resource release.",
+    "OpenAPI-driven request form widget that discovers one route and can run against a manual service URL, a Main Sequence FastAPI resource release, or an inline Mock JSON target.",
   category: "Core",
   kind: "custom",
   source: "core",
@@ -35,14 +38,110 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
     refreshOnDashboardRefresh: true,
   },
   mockProps: {
-    apiTargetMode: "manual",
-    apiBaseUrl: "",
-    authMode: "session-jwt",
+    apiTargetMode: "mock-json",
     method: "post",
-    path: "/price/swap",
+    path: "/mock",
     requestBodyContentType: "application/json",
+    mockJson: {
+      version: 1,
+      operation: {
+        method: "post",
+        path: "/mock",
+        summary: "Inline mock notification",
+        ui: {
+          role: "async-select-search",
+          widget: "select2",
+          selectionType: "single",
+          searchParam: "country_search",
+          searchParamAliases: ["country_query"],
+          itemsPath: "items",
+          itemValueField: "code",
+          itemLabelField: "label",
+        },
+      },
+      request: {
+        parameters: [
+          {
+            name: "country_search",
+            in: "query",
+            description: "Search countries for the custom select input.",
+            required: false,
+            schema: {
+              type: "string",
+            },
+          },
+          {
+            name: "country_query",
+            in: "query",
+            description: "Alias for the country search term.",
+            required: false,
+            schema: {
+              type: "string",
+            },
+          },
+          {
+            name: "page",
+            in: "query",
+            description: "Mock lookup pagination page.",
+            required: false,
+            schema: {
+              type: "integer",
+            },
+          },
+          {
+            name: "limit",
+            in: "query",
+            description: "Mock lookup pagination size.",
+            required: false,
+            schema: {
+              type: "integer",
+            },
+          },
+        ],
+        bodyContentType: "application/json",
+        bodySchema: {
+          type: "object",
+          properties: {
+            note: {
+              type: "string",
+              title: "Note",
+              description: "Optional note sent with the mock request.",
+            },
+          },
+        },
+      },
+      response: {
+        status: 200,
+        contentType: "application/json",
+        body: {
+          title: "Action completed",
+          message: "This is a mock AppComponent notification response.",
+          tone: "success",
+          details:
+            "Use this inline target to prototype response rendering and downstream widget bindings before a real API exists.",
+          items: [
+            {
+              code: "AT",
+              label: "Austria",
+            },
+            {
+              code: "DE",
+              label: "Germany",
+            },
+            {
+              code: "CH",
+              label: "Switzerland",
+            },
+          ],
+        },
+        ui: {
+          role: "notification",
+          widget: "banner-v1",
+        },
+      },
+    },
     showHeader: true,
-    showResponse: false,
+    showResponse: true,
     hideRequestButton: false,
     requestButtonLabel: "Submit",
     refreshOnDashboardRefresh: true,
@@ -51,6 +150,42 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   showRawPropsEditor: false,
   workspaceIcon: Braces,
   railSummaryComponent: AppComponentRailSummary,
+  buildAgentSnapshot: ({ props, runtimeState }) => {
+    const normalizedRuntimeState = normalizeAppComponentRuntimeState(runtimeState);
+
+    return {
+      displayKind: "form",
+      state:
+        normalizedRuntimeState.status === "submitting"
+          ? "loading"
+          : normalizedRuntimeState.status === "error"
+            ? "error"
+            : normalizedRuntimeState.lastResponseStatus || normalizedRuntimeState.editableFormSession
+              ? "ready"
+              : "idle",
+      summary:
+        normalizedRuntimeState.status === "error"
+          ? normalizedRuntimeState.error || "AppComponent request failed."
+          : normalizedRuntimeState.lastResponseStatus
+            ? `AppComponent last responded with ${normalizedRuntimeState.lastResponseStatus}.`
+            : "AppComponent is configured and waiting for execution.",
+      data: {
+        apiTargetMode: props.apiTargetMode ?? "manual",
+        method: props.method ?? "get",
+        path: props.path ?? "",
+        authMode: props.authMode ?? "session-jwt",
+        operationKey: normalizedRuntimeState.operationKey,
+        lastExecutedAtMs: normalizedRuntimeState.lastExecutedAtMs,
+        lastRequestUrl: normalizedRuntimeState.lastRequestUrl,
+        lastResponseStatus: normalizedRuntimeState.lastResponseStatus,
+        lastResponseStatusText: normalizedRuntimeState.lastResponseStatusText,
+        error: normalizedRuntimeState.error,
+        draftValues: normalizedRuntimeState.draftValues,
+        lastResponseBody: normalizedRuntimeState.lastResponseBody,
+        editableFormSession: normalizedRuntimeState.editableFormSession,
+      },
+    };
+  },
   resolveIo: ({ props, runtimeState }) => resolveAppComponentWidgetIo(props, runtimeState),
   execution: appComponentExecutionDefinition,
   workspaceRuntimeMode: "execution-owner",
@@ -58,7 +193,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Builds one request widget from a selected OpenAPI operation, then stores the compiled binding spec in widget props.",
+        "Builds one request widget from a selected OpenAPI operation, then stores the compiled binding spec and any supported request/response UI metadata behavior in widget props.",
       fields: [
         {
           id: "apiTargetMode",
@@ -66,7 +201,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
           type: "enum",
           required: true,
           source: "custom-settings",
-          description: "Choose manual base URL or a Main Sequence FastAPI resource release.",
+          description: "Choose a manual base URL, a Main Sequence FastAPI resource release, or an inline Mock JSON target.",
         },
         {
           id: "apiBaseUrl",
@@ -81,6 +216,13 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
           type: "resource-release-ref",
           source: "custom-settings",
           description: "Selected Main Sequence FastAPI resource release for exchange-launch transport.",
+        },
+        {
+          id: "mockJson",
+          label: "Mock JSON definition",
+          type: "object",
+          source: "custom-settings",
+          description: "Inline synthetic API definition used when the target mode is Mock JSON.",
         },
         {
           id: "authMode",
@@ -106,14 +248,16 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
         },
       ],
       dynamicConfigSummary:
-        "The exact request fields and response ports are compiled from the selected OpenAPI operation and saved into bindingSpec.requestForm and bindingSpec port specs.",
+        "The exact request fields, response ports, and supported request/response UI metadata are compiled from the selected OpenAPI operation and saved into bindingSpec request/response contracts.",
       requiredSetupSteps: [
-        "Choose a target mode and valid API target.",
+        "Choose a target mode and valid API target or mock definition.",
         "Load OpenAPI discovery and select one operation.",
         "Save the compiled binding spec before using the widget on runtime surfaces.",
       ],
       configurationNotes: [
-        "Runtime no longer performs OpenAPI discovery. The saved binding spec is the canonical contract.",
+        "Runtime still prefers live or synthetic OpenAPI metadata when it is available, but the saved binding spec remains the canonical contract for dynamic IO.",
+        "Operation-level request UI metadata can replace standard generated inputs with supported widget-specific controls.",
+        "Primary response-schema UI metadata can replace the generic response viewer with supported response-side UI such as notification banners or editable forms.",
       ],
     },
     runtime: {
@@ -128,19 +272,28 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
     io: {
       mode: "dynamic",
       summary:
-        "Inputs and outputs are generated from the compiled binding spec for the selected OpenAPI operation.",
+        "Inputs and outputs are generated from the compiled binding spec for the selected OpenAPI operation, with rendering optionally enriched by supported OpenAPI UI metadata.",
       dynamicIoSummary:
-        "Concrete request input ports and response output ports depend on the saved bindingSpec for the authored operation.",
+        "Concrete request input ports and response output ports depend on the saved bindingSpec for the authored operation, while request-side operation UI metadata and response-side schema UI metadata can alter how those contracts render.",
       ioNotes: [
         "Type-level registry metadata explains the dynamic contract, but exact ports remain instance-specific.",
+        "Request-side UI metadata lives on the selected operation and can swap supported generated request controls.",
+        "Response-side UI metadata lives on the primary response schema and can swap supported response renderers without changing the published outputs.",
       ],
     },
     capabilities: {
-      supportedTargetModes: ["manual", "main-sequence-resource-release"],
+      supportedTargetModes: ["manual", "main-sequence-resource-release", "mock-json"],
       supportedAuthModes: ["session-jwt", "none"],
       requestInputLocations: ["path", "query", "header", "body"],
       requestFormSource: "openapi-binding-spec",
       responsePublication: ["status", "headers", "body", "publishedOutputs"],
+      supportedRequestUiMetadata: [
+        "operation:x-ui-widget=select2 with x-ui-role=async-select-search",
+      ],
+      supportedResponseUiMetadata: [
+        "response:x-ui-role=notification with x-ui-widget=banner-v1",
+        "response:x-ui-role=editable-form with x-ui-widget=definition-v1",
+      ],
     },
     agentHints: {
       buildPurpose:
@@ -154,7 +307,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
         "Do not use when the service has no stable OpenAPI discovery path or release target.",
       ],
       authoringSteps: [
-        "Select target mode and valid service target.",
+        "Select target mode and valid service target or mock definition.",
         "Discover OpenAPI and choose one operation.",
         "Review generated request inputs and save the compiled binding spec.",
       ],
@@ -163,6 +316,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
       ],
       commonPitfalls: [
         "Changing the target or operation without recompiling the binding spec leaves the runtime contract stale.",
+        "Request-side and response-side UI metadata only apply when the selected OpenAPI operation or primary response schema advertises a supported UI contract.",
       ],
     },
     examples: [
@@ -172,6 +326,14 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
         props: {
           apiTargetMode: "manual",
           authMode: "session-jwt",
+          refreshOnDashboardRefresh: true,
+        },
+      },
+      {
+        label: "Inline mock request",
+        summary: "Compiles one synthetic endpoint locally and publishes its configured response.",
+        props: {
+          apiTargetMode: "mock-json",
           refreshOnDashboardRefresh: true,
         },
       },

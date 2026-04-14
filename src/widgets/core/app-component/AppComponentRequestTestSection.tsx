@@ -81,6 +81,7 @@ export interface AppComponentRequestTestSectionProps {
   onValueChange: (fieldKey: string, nextValue: string) => void;
   onValuePatch?: (patch: Record<string, string>) => void;
   requestProps: AppComponentWidgetProps;
+  responsePreview?: ReactNode;
   showPublishedOutputs?: boolean;
   state: AppComponentRequestTestState;
   submitDisabled?: boolean;
@@ -101,6 +102,7 @@ export function AppComponentRequestTestSection({
   onValueChange,
   onValuePatch,
   requestProps,
+  responsePreview,
   showPublishedOutputs = true,
   state,
   submitDisabled = false,
@@ -193,8 +195,17 @@ export function AppComponentRequestTestSection({
 
         {beforeResponse}
 
+        {responsePreview ? (
+          <div className={widgetTightFormInsetSectionClass}>
+            <div className={widgetTightFormLabelClass}>Response Preview</div>
+            {responsePreview}
+          </div>
+        ) : null}
+
         <div className={widgetTightFormInsetSectionClass}>
-          <div className={widgetTightFormLabelClass}>Response Body</div>
+          <div className={widgetTightFormLabelClass}>
+            {responsePreview ? "Raw Response Body" : "Response Body"}
+          </div>
           <pre className="max-h-[320px] overflow-auto rounded-[calc(var(--radius)-7px)] bg-background/45 p-3 font-mono text-[11px] leading-5 text-foreground">
             {renderResponseBody(state.lastResponseBody)}
           </pre>

@@ -169,7 +169,9 @@ export interface WidgetOutputResolverArgs<
 > {
   widgetId: string;
   instanceId?: string;
+  instanceTitle?: string;
   props: TProps;
+  presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
   resolvedInputs?: ResolvedWidgetInputs;
 }
@@ -231,6 +233,52 @@ export interface WidgetExecutionDashboardState {
   rangeStartMs: number;
   rangeEndMs: number;
   refreshIntervalMs: number | null;
+}
+
+export type WidgetAgentSnapshotDisplayKind =
+  | "table"
+  | "chart"
+  | "form"
+  | "note"
+  | "filter"
+  | "graph"
+  | "custom";
+
+export type WidgetAgentSnapshotState =
+  | "ready"
+  | "loading"
+  | "empty"
+  | "error"
+  | "idle";
+
+export interface WidgetAgentSnapshot {
+  displayKind: WidgetAgentSnapshotDisplayKind;
+  state: WidgetAgentSnapshotState;
+  summary: string;
+  data?: Record<string, unknown>;
+}
+
+export interface WidgetAgentContextValue {
+  contractVersion: "v1";
+  widgetId: string;
+  instanceId: string;
+  title: string;
+  snapshot: WidgetAgentSnapshot;
+}
+
+export interface WidgetAgentSnapshotContext<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> {
+  widgetId: string;
+  instanceId: string;
+  title: string;
+  snapshotProfile: "evidence" | "full-data";
+  props: TProps;
+  presentation?: WidgetInstancePresentation;
+  runtimeState?: Record<string, unknown>;
+  resolvedInputs?: ResolvedWidgetInputs;
+  dashboardState?: WidgetExecutionDashboardState;
+  domTextContent?: string;
 }
 
 export interface WidgetExecutionTargetOverrides<
@@ -469,8 +517,8 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   mockRuntimeState?: Record<string, unknown>;
   defaultPresentation?: WidgetInstancePresentation;
   bodyMode?: "default" | "none";
-  schema?: WidgetSettingsSchema<TProps, unknown>;
-  controller?: WidgetController<TProps, unknown>;
+  schema?: WidgetSettingsSchema<TProps, any>;
+  controller?: WidgetController<TProps, any>;
   headerComponent?: ComponentType<WidgetHeaderComponentProps<TProps>>;
   headerActions?: ComponentType<WidgetHeaderActionsProps<TProps>>;
   settingsComponent?: ComponentType<WidgetSettingsComponentProps<TProps>>;
@@ -483,6 +531,9 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   workspaceIcon?: ComponentType<{ className?: string }>;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
+  buildAgentSnapshot?: (
+    context: WidgetAgentSnapshotContext<TProps>,
+  ) => WidgetAgentSnapshot | Promise<WidgetAgentSnapshot>;
   component: ComponentType<WidgetComponentProps<TProps>>;
 }
 

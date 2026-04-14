@@ -5,6 +5,7 @@ import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { AppComponentRequestTestSection, type AppComponentRequestTestState } from "@/widgets/core/app-component/AppComponentRequestTestSection";
+import { AppComponentResponseNotification } from "@/widgets/core/app-component/AppComponentResponseNotification";
 import { AppComponentSchemaDiscoverySection } from "@/widgets/core/app-component/AppComponentSchemaDiscoverySection";
 import { AppComponentServiceHeadersEditor } from "@/widgets/core/app-component/AppComponentServiceHeadersEditor";
 import { submitAppComponentRequest } from "@/widgets/core/app-component/appComponentApi";
@@ -14,6 +15,7 @@ import {
   normalizeAppComponentProps,
   resolveAppComponentInitialDraftValues,
   resolveAppComponentOperation,
+  resolveAppComponentResponseNotification,
   type AppComponentWidgetProps,
 } from "@/widgets/core/app-component/appComponentModel";
 import { useAppComponentSchemaExplorer } from "@/widgets/core/app-component/useAppComponentSchemaExplorer";
@@ -134,6 +136,7 @@ export function MainSequenceResourceReleaseApiTestTab({
     operationResponseStatusByKey,
     responseModelStatus,
     responseModelPreview,
+    responseUiDescriptor,
     contentTypes,
     generatedForm,
     mappedRequestForms,
@@ -164,6 +167,24 @@ export function MainSequenceResourceReleaseApiTestTab({
   const [testState, setTestState] = useState<AppComponentRequestTestState>({
     status: "idle",
   });
+  const responsePreview = useMemo(() => {
+    if (
+      typeof testState.lastResponseStatus !== "number" ||
+      testState.lastResponseStatus < 200 ||
+      testState.lastResponseStatus >= 300
+    ) {
+      return undefined;
+    }
+
+    const notification = resolveAppComponentResponseNotification(
+      testState.lastResponseBody,
+      responseUiDescriptor,
+    );
+
+    return notification
+      ? <AppComponentResponseNotification notification={notification} />
+      : undefined;
+  }, [responseUiDescriptor, testState.lastResponseBody, testState.lastResponseStatus]);
 
   useEffect(() => {
     setTesterProps(
@@ -248,8 +269,8 @@ export function MainSequenceResourceReleaseApiTestTab({
         <div className="text-sm font-medium text-foreground">Test API</div>
         <p className="text-sm text-muted-foreground">
           This is the AppComponent request console reused outside the widget canvas. Pick an
-          operation, fill the generated request inputs, and inspect the raw response for this
-          FastAPI release.
+          operation, fill the generated request inputs, and inspect the response plus raw payload
+          for this FastAPI release.
         </p>
       </div>
 
@@ -372,7 +393,7 @@ export function MainSequenceResourceReleaseApiTestTab({
 
       {resolvedOperation ? (
         <AppComponentRequestTestSection
-          description="Developer-focused request runner for the selected release endpoint. Responses stay raw here; the goal is to inspect transport behavior, not to render a widget response view."
+          description="Developer-focused request runner for the selected release endpoint. It still keeps the raw payload visible for transport debugging, but now also shows any response notification preview advertised by the API."
           disabled={testState.status === "submitting"}
           effectiveDraftValues={testDraftValues}
           form={mappedSubmissionForm}
@@ -390,6 +411,7 @@ export function MainSequenceResourceReleaseApiTestTab({
             }));
           }}
           requestProps={normalizedTesterProps}
+          responsePreview={responsePreview}
           showPublishedOutputs={false}
           state={testState}
           submitDisabled={testState.status === "submitting"}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -44,6 +44,7 @@ import {
 } from "@/dashboards/widget-dependencies";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import type { ResolvedWidgetInputs } from "@/widgets/types";
+import { WIDGET_AGENT_CONTEXT_OUTPUT_ID } from "@/widgets/shared/agent-context";
 
 import {
   appendCatalogWidget,
@@ -69,8 +70,10 @@ import { WorkspaceRequestDebugPanel } from "./WorkspaceRequestDebugPanel";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 
 const GRAPH_NODE_HORIZONTAL_GAP = 420;
-const GRAPH_NODE_VERTICAL_GAP = 220;
+const GRAPH_NODE_VERTICAL_GAP = 28;
 const GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS = 1800;
+const GRAPH_NODE_COLLAPSED_HEIGHT_PX = 118;
+const GRAPH_NODE_EXPANDED_ESTIMATED_HEIGHT_PX = 360;
 const GRAPH_NODE_TYPES = {
   workspaceWidget: WorkspaceGraphNode,
 };
@@ -128,11 +131,19 @@ function resolveInputPortStatus(
   return "unbound" as const;
 }
 
-function layoutGraphNodes(graph: DashboardWidgetDependencyGraph) {
+function layoutGraphNodes(
+  graph: DashboardWidgetDependencyGraph,
+  options?: {
+    expandedNodeIds?: ReadonlySet<string>;
+    measuredHeightByNodeId?: Readonly<Record<string, number>>;
+  },
+) {
   const nodeIds = graph.nodes.map((node) => node.id);
   const nodeIdSet = new Set(nodeIds);
   const outgoing = new Map(nodeIds.map((nodeId) => [nodeId, new Set<string>()]));
   const indegree = new Map(nodeIds.map((nodeId) => [nodeId, 0]));
+  const expandedNodeIds = options?.expandedNodeIds ?? new Set<string>();
+  const measuredHeightByNodeId = options?.measuredHeightByNodeId ?? {};
 
   for (const edge of graph.edges) {
     if (!nodeIdSet.has(edge.from) || !nodeIdSet.has(edge.to) || edge.from === edge.to) {
@@ -180,6 +191,8 @@ function layoutGraphNodes(graph: DashboardWidgetDependencyGraph) {
   for (const [columnIndex, columnNodes] of Array.from(columns.entries()).sort(
     ([left], [right]) => left - right,
   )) {
+    let nextY = 0;
+
     columnNodes
       .sort((left, right) => {
         if ((left.placementMode === "sidebar") !== (right.placementMode === "sidebar")) {
@@ -192,11 +205,18 @@ function layoutGraphNodes(graph: DashboardWidgetDependencyGraph) {
 
         return left.title.localeCompare(right.title);
       })
-      .forEach((node, rowIndex) => {
+      .forEach((node) => {
         positions.set(node.id, {
           x: columnIndex * GRAPH_NODE_HORIZONTAL_GAP,
-          y: rowIndex * GRAPH_NODE_VERTICAL_GAP,
+          y: nextY,
         });
+
+        const measuredHeight = measuredHeightByNodeId[node.id];
+        const estimatedHeight = expandedNodeIds.has(node.id)
+          ? GRAPH_NODE_EXPANDED_ESTIMATED_HEIGHT_PX
+          : GRAPH_NODE_COLLAPSED_HEIGHT_PX;
+
+        nextY += (measuredHeight ?? estimatedHeight) + GRAPH_NODE_VERTICAL_GAP;
       });
   }
 
@@ -221,7 +241,12 @@ function WorkspaceGraphCanvas({
   const [visibleOutputIdsByNodeId, setVisibleOutputIdsByNodeId] = useState<Record<string, string[]>>(
     {},
   );
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Record<string, true>>({});
+  const [measuredNodeHeightsById, setMeasuredNodeHeightsById] = useState<Record<string, number>>(
+    {},
+  );
   const [animationNowMs, setAnimationNowMs] = useState(() => Date.now());
+  const lastAppliedLayoutSignatureRef = useRef<string | null>(null);
 
   const instanceIndex = useMemo(
     () => createDashboardWidgetEntryIndex(dependencyModel?.entries ?? []),
@@ -239,8 +264,19 @@ function WorkspaceGraphCanvas({
     [dependencyModel],
   );
   const layoutedPositions = useMemo(
-    () => layoutGraphNodes(visibleGraph),
-    [visibleGraph],
+    () =>
+      layoutGraphNodes(visibleGraph, {
+        expandedNodeIds: new Set(Object.keys(expandedNodeIds)),
+        measuredHeightByNodeId: measuredNodeHeightsById,
+      }),
+    [expandedNodeIds, measuredNodeHeightsById, visibleGraph],
+  );
+  const layoutSignature = useMemo(
+    () =>
+      JSON.stringify(
+        Array.from(layoutedPositions.entries()).sort(([left], [right]) => left.localeCompare(right)),
+      ),
+    [layoutedPositions],
   );
   const executionStateByNodeId = useMemo(
     () =>
@@ -331,6 +367,30 @@ function WorkspaceGraphCanvas({
       return changed ? nextState : current;
     });
   }, [dependencyModel, visibleGraph.nodes]);
+
+  useEffect(() => {
+    const visibleNodeIdSet = new Set(visibleGraph.nodes.map((node) => node.id));
+
+    setExpandedNodeIds((current) => {
+      const nextEntries = Object.entries(current).filter(([nodeId]) => visibleNodeIdSet.has(nodeId));
+
+      if (nextEntries.length === Object.keys(current).length) {
+        return current;
+      }
+
+      return Object.fromEntries(nextEntries);
+    });
+
+    setMeasuredNodeHeightsById((current) => {
+      const nextEntries = Object.entries(current).filter(([nodeId]) => visibleNodeIdSet.has(nodeId));
+
+      if (nextEntries.length === Object.keys(current).length) {
+        return current;
+      }
+
+      return Object.fromEntries(nextEntries);
+    });
+  }, [visibleGraph.nodes]);
 
   const dependencyHighlight = useMemo(() => {
     const highlightedNodeIds = new Set<string>();
@@ -438,13 +498,22 @@ function WorkspaceGraphCanvas({
       }));
       const locallyVisibleOutputIds = new Set(visibleOutputIdsByNodeId[node.id] ?? []);
       const visibleOutputs = outputs.filter(
-        (output) => output.connectionCount > 0 || locallyVisibleOutputIds.has(output.id),
+        (output) =>
+          output.connectionCount > 0 ||
+          locallyVisibleOutputIds.has(output.id) ||
+          output.id === WIDGET_AGENT_CONTEXT_OUTPUT_ID,
       ).map((output) => ({
         ...output,
-        removable: output.connectionCount === 0 && locallyVisibleOutputIds.has(output.id),
+        removable:
+          output.connectionCount === 0 &&
+          locallyVisibleOutputIds.has(output.id) &&
+          output.id !== WIDGET_AGENT_CONTEXT_OUTPUT_ID,
       }));
       const availableOutputs = outputs.filter(
-        (output) => output.connectionCount === 0 && !locallyVisibleOutputIds.has(output.id),
+        (output) =>
+          output.connectionCount === 0 &&
+          !locallyVisibleOutputIds.has(output.id) &&
+          output.id !== WIDGET_AGENT_CONTEXT_OUTPUT_ID,
       );
       const executionState = executionStateByNodeId[node.id];
 
@@ -461,6 +530,7 @@ function WorkspaceGraphCanvas({
           placementMode: node.placementMode,
           hiddenInCollapsedRow: node.hiddenInCollapsedRow,
           parentRowId: node.parentRowId,
+          expanded: Boolean(expandedNodeIds[node.id]),
           inputs,
           outputs: visibleOutputs,
           availableOutputs,
@@ -508,6 +578,32 @@ function WorkspaceGraphCanvas({
           onOpenSettings: () => {
             onOpenWidgetSettings(node.id);
           },
+          onToggleExpanded: () => {
+            setExpandedNodeIds((current) => {
+              if (current[node.id]) {
+                const nextState = { ...current };
+                delete nextState[node.id];
+                return nextState;
+              }
+
+              return {
+                ...current,
+                [node.id]: true,
+              };
+            });
+          },
+          onHeightChange: (height) => {
+            const nextHeight = Math.max(0, Math.ceil(height));
+
+            setMeasuredNodeHeightsById((current) =>
+              current[node.id] === nextHeight
+                ? current
+                : {
+                    ...current,
+                    [node.id]: nextHeight,
+                  },
+            );
+          },
         } satisfies WorkspaceGraphNodeData,
       } satisfies WorkspaceGraphFlowNode;
     });
@@ -517,6 +613,7 @@ function WorkspaceGraphCanvas({
     dependencyHighlight,
     dependencyModel,
     executionStateByNodeId,
+    expandedNodeIds,
     layoutedPositions,
     onOpenWidgetSettings,
     visibleGraph.edges,
@@ -618,13 +715,16 @@ function WorkspaceGraphCanvas({
   useEffect(() => {
     setNodes((currentNodes) => {
       const currentPositions = new Map(currentNodes.map((node) => [node.id, node.position] as const));
+      const shouldApplyLayout = lastAppliedLayoutSignatureRef.current !== layoutSignature;
+
+      lastAppliedLayoutSignatureRef.current = layoutSignature;
 
       return derivedNodes.map((node) => ({
         ...node,
-        position: currentPositions.get(node.id) ?? node.position,
+        position: shouldApplyLayout ? node.position : currentPositions.get(node.id) ?? node.position,
       }));
     });
-  }, [derivedNodes]);
+  }, [derivedNodes, layoutSignature]);
 
   useEffect(() => {
     setEdges((currentEdges) => {

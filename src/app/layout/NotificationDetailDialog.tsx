@@ -18,6 +18,17 @@ interface NotificationDetailDialogProps {
   open: boolean;
 }
 
+function getNotificationSourceLabel(source: string) {
+  switch (source) {
+    case "organization":
+      return "Organization";
+    case "system":
+      return "System";
+    default:
+      return source;
+  }
+}
+
 function getNotificationTypeLabel(type: string) {
   switch (type) {
     case "UR":
@@ -98,7 +109,9 @@ export function NotificationDetailDialog({
       open={open}
       onClose={onClose}
       title={notification?.title ?? "Notification"}
-      description={notification ? `${notification.app_title} · ${notification.source_title}` : undefined}
+      description={
+        notification ? `${notification.app_title} · ${getNotificationSourceLabel(notification.source)}` : undefined
+      }
       className="max-w-[min(1080px,calc(100vw-24px))]"
     >
       {notification ? (
@@ -107,7 +120,7 @@ export function NotificationDetailDialog({
             <div className="rounded-[calc(var(--radius)-2px)] border border-white/8 bg-white/[0.03] p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="neutral">{notification.app_title}</Badge>
-                <Badge variant="secondary">{notification.source_title}</Badge>
+                <Badge variant="secondary">{getNotificationSourceLabel(notification.source)}</Badge>
                 <Badge variant={getNotificationTypeVariant(notification.type)}>
                   {getNotificationTypeLabel(notification.type)}
                 </Badge>

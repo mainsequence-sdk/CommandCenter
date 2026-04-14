@@ -22,6 +22,7 @@ import {
   resolveAppComponentOperation,
   resolveAppComponentResponseModelPreview,
   resolveAppComponentResponseModelStatus,
+  resolveAppComponentResponseUiDescriptor,
   tryResolveAppComponentBaseUrl,
   type AppComponentWidgetProps,
 } from "./appComponentModel";
@@ -136,6 +137,13 @@ export function useAppComponentSchemaExplorer({
         : [],
     [openApiQuery.data, resolvedOperation],
   );
+  const responseUiDescriptor = useMemo(
+    () =>
+      openApiQuery.data
+        ? resolveAppComponentResponseUiDescriptor(openApiQuery.data, resolvedOperation)
+        : undefined,
+    [openApiQuery.data, resolvedOperation],
+  );
   const contentTypes = useMemo(
     () =>
       openApiQuery.data
@@ -191,6 +199,7 @@ export function useAppComponentSchemaExplorer({
     operationResponseStatusByKey,
     responseModelStatus,
     responseModelPreview,
+    responseUiDescriptor,
     contentTypes,
     generatedForm,
     mappedRequestForms,

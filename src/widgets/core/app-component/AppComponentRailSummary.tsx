@@ -4,6 +4,7 @@ import type { WidgetRailSummaryComponentProps } from "@/widgets/types";
 import {
   buildAppComponentOperationKey,
   isAppComponentMainSequenceResourceReleaseMode,
+  isAppComponentMockJsonMode,
   normalizeAppComponentProps,
   resolveAppComponentDisplayBaseUrl,
   type AppComponentWidgetProps,
@@ -55,6 +56,10 @@ function splitEndpointLabel(endpointLabel: string) {
 }
 
 function resolveServiceLabel(props: AppComponentWidgetProps) {
+  if (isAppComponentMockJsonMode(props)) {
+    return "Inline mock";
+  }
+
   const raw = resolveAppComponentDisplayBaseUrl(props)?.trim() ?? "";
 
   if (
@@ -129,6 +134,8 @@ export function AppComponentRailSummary({
           <span className="font-medium text-foreground">
             {isAppComponentMainSequenceResourceReleaseMode(normalizedProps)
               ? "Release token"
+              : isAppComponentMockJsonMode(normalizedProps)
+                ? "None"
               : normalizedProps.authMode === "none"
                 ? "None"
                 : "Session JWT"}

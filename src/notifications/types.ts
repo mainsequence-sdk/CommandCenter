@@ -1,5 +1,10 @@
+export type NotificationSourceKind = "organization" | "system";
+
 export interface VisibleNotificationContract {
   id: string | number;
+  source: NotificationSourceKind | string;
+  created_by_user?: string | number | null;
+  source_organization?: string | number | null;
   type: string;
   created_at: string;
   title: string;
@@ -7,7 +12,8 @@ export interface VisibleNotificationContract {
   meta_data: Record<string, unknown> | null;
   is_global: boolean;
   target_user: string | number | null;
-  target_distribution_list: string | number | null;
+  target_team: string | number | null;
+  target_distribution_list?: string | number | null;
   include_email: boolean;
   is_read: boolean;
 }

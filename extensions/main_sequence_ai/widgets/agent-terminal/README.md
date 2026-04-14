@@ -31,14 +31,20 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   silently reload the session transcript after the initial load.
 - The widget can also store a Markdown `promptOnRefresh`. When present, each refresh sends that
   prompt into the bound session instead of only reloading transcript history.
-- `Prompt on refresh` is also exposed as a bindable string input, so other widgets can drive the
-  refresh prompt without mutating raw widget props directly.
+- `Prompt on refresh` is now settings-only. It is no longer a bindable widget input.
+- The widget now exposes one bindable `Upstream widget context` input with
+  `cardinality: "many"`. Each bound value must use the shared
+  `core.widget-agent-context@v1` contract derived from another widget's `buildAgentSnapshot(...)`.
+- During automated refresh, the terminal composes `saved prompt + bound widget context` into one
+  request body before sending it to the selected AgentSession.
+- Manual terminal typing stays direct. Bound widget context is not prepended to live user-entered
+  terminal input.
 - The widget now also publishes `Latest assistant markdown` as a bindable string output sourced
-  from runtime state, so one agent terminal can feed another terminal's `Prompt on refresh`.
+  from runtime state. That output remains independent from the new upstream widget-context input.
 - When the terminal completes a new response and the latest assistant markdown changed, the widget
   triggers a downstream execution flow so bound consumers receive `upstream-update` immediately.
-- The live terminal prompt stays visible whenever the widget is mounted, even while the selected
-  session is still hydrating, so terminal input never disappears from the shell.
+- The live terminal prompt still stays pinned to the bottom of the terminal's own internal
+  viewport, but it must not scroll the outer workspace viewport just to keep the prompt visible.
 - The widget hides the third-party terminal mock chrome and renders as a clean nested terminal
   surface inside the workspace widget frame.
 - The widget uses the robot glyph in workspace chrome and launchers because it represents an agent
@@ -46,7 +52,8 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 - New Agent Terminal instances spawned through the AI workspace helpers open wider and at double
   the previous height so the terminal has more usable space by default.
 - Newly inserted Agent Terminal instances also stamp an autofocus runtime hint so the hidden prompt
-  input is focused automatically after the widget lands on the canvas.
+  input is focused automatically after the widget lands on the canvas. Normal transcript refreshes
+  must not keep stealing page-level focus after that initial autofocus.
 - Transcript buffers and stream state stay component-local. Durable props are limited to the
   selected `agentSessionId`, the history-refresh configuration, and the optional refresh prompt.
   The published latest-assistant output lives in widget runtime state, not durable props.
@@ -57,13 +64,18 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   helpers decoupled so a future full terminal integration can replace only the presentation layer.
 - Workspace insertion should prefer `AgentTerminalWorkspaceLauncher.tsx` and
   `agentTerminalWorkspace.ts` rather than duplicating widget-upsert logic inside page surfaces.
+- The terminal now depends on the platform-generated `agent-context` binding output derived from
+  `buildAgentSnapshot(...)`. If that platform contract changes, update this widget in the same
+  change. See
+  [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../../../docs/adr/adr-widget-agent-context-bindings.md).
 - If backend widget-prop validation is strict, this widget's persisted `agentSessionId`,
   `historyRefreshMode`, `historyRefreshIntervalSeconds`, and `promptOnRefresh` props must be
   allowed by the widget-type sync contract as well.
 - `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
   `registryContract`.
 - Keep that registry contract aligned with the real execution-owner behavior here: bound session
-  requirement, refresh modes, prompt-on-refresh semantics, published latest-assistant output, and
-  the distinction between durable props and component-local transcript state.
+  requirement, refresh modes, saved prompt semantics, multi-binding widget-context inputs,
+  published latest-assistant output, and the distinction between durable props and component-local
+  transcript state.
 - Bump `widgetVersion` when refresh semantics, inputs/outputs, runtime behavior, or agent-facing
   authoring guidance changes materially.

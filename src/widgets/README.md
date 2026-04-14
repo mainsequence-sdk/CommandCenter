@@ -24,6 +24,15 @@ This directory contains the Command Center widget platform, including the shared
   work and publish outputs through runtime-state patches.
 - Widget definitions now also carry `widgetVersion` plus an explicit `registryContract` used for
   backend widget-type publication and agent-facing authoring metadata.
+- Widget definitions can now also expose `buildAgentSnapshot(...)`, a client-side live snapshot
+  hook used by workspace archive capture. This is intentionally separate from the backend-facing
+  widget registry contract: registry metadata explains how to build a widget, while
+  `buildAgentSnapshot(...)` explains what a mounted widget is currently showing.
+- Widgets that implement `buildAgentSnapshot(...)` now also publish one synthetic `agent-context`
+  output with contract `core.widget-agent-context@v1`. That output is derived from the compact
+  `evidence` snapshot profile so agent-facing consumers such as `Agent Terminal` can reason over
+  what widgets currently show without maintaining a second serializer. See
+  [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../docs/adr/adr-widget-agent-context-bindings.md).
 - Output ports can optionally describe their structured value shape through `valueDescriptor`, and
   canonical bindings can attach lightweight transform metadata such as array-item selection and
   nested path extraction without changing the underlying port-to-port graph model.
@@ -63,6 +72,9 @@ This directory contains the Command Center widget platform, including the shared
 - Workspace widget settings now also expose a dedicated `Bindings` tab for widgets that declare
   inputs, including inputs resolved dynamically from saved widget instance configuration. Do not
   stuff inter-widget graph edges into raw props editors.
+- Inputs marked with `cardinality: "many"` are now first-class in the shared bindings UI. Settings
+  can add, remove, and preserve several upstream sources for one input without falling back to raw
+  JSON editing.
 - The binding UI keeps graph edges port-to-port, but a selected binding can now optionally project a
   selected array item or nested field from a structured output before compatibility is evaluated
   against the target input. Ordered `transformSteps` are the canonical model, while legacy
@@ -77,6 +89,12 @@ This directory contains the Command Center widget platform, including the shared
 - Static dashboard surfaces currently keep widget settings changes only for the current page session.
 - The custom workspace studio writes widget settings into the workspace draft, and those changes persist once the user saves the workspace.
 - Stateful widgets can report runtime state back through `WidgetComponentProps.onRuntimeStateChange` so Workspaces JSON snapshots can round-trip view state such as zoom, pan, or selected node context.
+- Widgets that participate in the live workspace archive should keep `buildAgentSnapshot(...)`
+  deterministic and serialization-friendly. Prefer structured summaries, small evidence payloads,
+  and opt-in larger exports through the archive profile instead of depending on DOM scraping alone.
+- `buildAgentSnapshot(...)` now also feeds the synthetic `agent-context` binding output. Keep
+  snapshots stable enough that they can be consumed both by archive capture and by bound agent
+  widgets.
 - Widgets can also provide optional header actions through the shared shell when a control belongs in the widget chrome instead of inside the widget body.
 - Widget shells expose shared markers through `shared/chrome.ts`, so theme-specific CSS can style widget chrome separately from generic cards when needed.
 - Shared widget shells no longer add default body padding. If a widget needs internal spacing, the widget component itself must add it explicitly.

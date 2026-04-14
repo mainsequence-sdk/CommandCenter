@@ -1,5 +1,6 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 import type {
+  WidgetAgentContextValue,
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
 } from "@/widgets/types";
@@ -10,7 +11,7 @@ export const DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_MODE = "workspace";
 export const DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS = 30;
 export const MIN_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS = 5;
 export const MAX_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS = 3_600;
-export const AGENT_TERMINAL_REFRESH_PROMPT_INPUT_ID = "prompt-on-refresh";
+export const AGENT_TERMINAL_UPSTREAM_CONTEXT_INPUT_ID = "upstream-context";
 export const AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_OUTPUT_ID = "latest-assistant-markdown";
 export const AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_RUNTIME_KEY = "latestAssistantMarkdown";
 export const AGENT_TERMINAL_LATEST_ASSISTANT_UPDATED_AT_RUNTIME_KEY = "latestAssistantUpdatedAt";
@@ -47,16 +48,42 @@ function normalizeOptionalMarkdownString(value: unknown) {
   return value.trim() ? value : undefined;
 }
 
-function resolveFirstValidResolvedInput(
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function resolveValidResolvedInputs(
   value: ResolvedWidgetInput | ResolvedWidgetInput[] | undefined,
 ) {
-  const candidate = Array.isArray(value) ? value[0] : value;
-
-  if (!candidate || candidate.status !== "valid") {
-    return undefined;
+  if (!value) {
+    return [];
   }
 
-  return candidate;
+  const entries = Array.isArray(value) ? value : [value];
+
+  return entries.filter((entry): entry is ResolvedWidgetInput => entry.status === "valid");
+}
+
+function isWidgetAgentContextValue(value: unknown): value is WidgetAgentContextValue {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const snapshot = value.snapshot;
+
+  if (!isRecord(snapshot)) {
+    return false;
+  }
+
+  return (
+    value.contractVersion === "v1" &&
+    typeof value.widgetId === "string" &&
+    typeof value.instanceId === "string" &&
+    typeof value.title === "string" &&
+    typeof snapshot.displayKind === "string" &&
+    typeof snapshot.state === "string" &&
+    typeof snapshot.summary === "string"
+  );
 }
 
 export function normalizeAgentTerminalHistoryRefreshMode(
@@ -140,17 +167,72 @@ export function normalizeAgentTerminalWidgetProps(
 
 export function resolveAgentTerminalRefreshPrompt(
   props: AgentTerminalWidgetProps,
+) {
+  return normalizeOptionalMarkdownString(props.promptOnRefresh) ?? null;
+}
+
+export function resolveAgentTerminalUpstreamContexts(
   resolvedInputs?: ResolvedWidgetInputs,
 ) {
-  const boundInput = resolveFirstValidResolvedInput(
-    resolvedInputs?.[AGENT_TERMINAL_REFRESH_PROMPT_INPUT_ID],
-  );
+  return resolveValidResolvedInputs(resolvedInputs?.[AGENT_TERMINAL_UPSTREAM_CONTEXT_INPUT_ID])
+    .flatMap((entry) => (isWidgetAgentContextValue(entry.value) ? [entry.value] : []));
+}
 
-  if (typeof boundInput?.value === "string" && boundInput.value.trim()) {
-    return boundInput.value;
+function formatAgentTerminalContextData(data: Record<string, unknown> | undefined) {
+  if (!data || Object.keys(data).length === 0) {
+    return null;
   }
 
-  return normalizeOptionalMarkdownString(props.promptOnRefresh) ?? null;
+  return `\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``;
+}
+
+function formatAgentTerminalContextSection(
+  context: WidgetAgentContextValue,
+  index: number,
+) {
+  const lines = [
+    `## Widget ${index + 1}: ${context.title}`,
+    `Widget id: ${context.widgetId}`,
+    `Instance id: ${context.instanceId}`,
+    `Display kind: ${context.snapshot.displayKind}`,
+    `State: ${context.snapshot.state}`,
+    `Summary: ${context.snapshot.summary}`,
+  ];
+  const serializedData = formatAgentTerminalContextData(context.snapshot.data);
+
+  if (serializedData) {
+    lines.push("Data:", serializedData);
+  }
+
+  return lines.join("\n");
+}
+
+export function buildAgentTerminalRefreshRequest({
+  prompt,
+  upstreamContexts,
+}: {
+  prompt: string | null;
+  upstreamContexts: WidgetAgentContextValue[];
+}) {
+  const normalizedPrompt = normalizeOptionalMarkdownString(prompt);
+
+  if (!normalizedPrompt) {
+    return null;
+  }
+
+  if (upstreamContexts.length === 0) {
+    return normalizedPrompt;
+  }
+
+  return [
+    normalizedPrompt,
+    "",
+    "Use the live widget context below as evidence for your answer.",
+    "",
+    ...upstreamContexts.map((context, index) =>
+      formatAgentTerminalContextSection(context, index),
+    ),
+  ].join("\n");
 }
 
 export function resolveAgentTerminalLatestAssistantMarkdown(

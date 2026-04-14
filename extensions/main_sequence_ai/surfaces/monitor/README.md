@@ -6,7 +6,9 @@ This directory owns the `Agents Monitor` surface for the `Main Sequence AI` app.
 
 The surface reuses the core workspace studio canvas instead of introducing a second agent-specific
 canvas implementation. It filters that studio down to agent-monitor workspaces and the scoped
-agent-monitor widgets: `Agent Terminal` plus `Upstream Inspector`. It also exposes a direct
+agent-monitor widgets: `Agent Terminal`, `Upstream Inspector`, and the snapshot-capable context
+widgets that can feed `Agent Terminal` through the shared `agent-context` contract such as Data
+Node, Data Node Table, Data Node Graph, AppComponent, and Markdown. It also exposes a direct
 launcher flow that inserts session-bound terminals without going through the generic widget
 settings path first. The shared studio bindings inspector is also available here through each
 widget action menu, so agent-monitor terminals can be wired through upstream bindings without
@@ -41,3 +43,6 @@ widget allowlist.
   instead of forking the canvas implementation.
 - Prefer the direct launcher flow here over asking users to add a blank widget and then configure
   `agentSessionId` manually.
+- The surface now intentionally includes a small set of snapshot-capable context widgets because
+  `Agent Terminal` refresh can consume several upstream `agent-context` bindings. Keep that list
+  curated; do not turn Agents Monitor into the unfiltered global widget catalog.

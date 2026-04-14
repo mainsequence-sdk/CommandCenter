@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, Check, CheckCheck, Loader2, X } from "lucide-react";
@@ -10,16 +10,14 @@ import { Button } from "@/components/ui/button";
 import { commandCenterConfig } from "@/config/command-center";
 import { cn } from "@/lib/utils";
 import {
-  dismissAllNotifications,
   dismissNotification,
   fetchNotificationDetail,
   fetchVisibleNotifications,
   formatNotificationsError,
-  markAllNotificationsRead,
   markNotificationRead,
 } from "@/notifications/api";
 import { formatNotificationTimeLabel } from "@/notifications/registry";
-import type { VisibleAppNotification } from "@/notifications/types";
+import type { NotificationSourceKind, VisibleAppNotification } from "@/notifications/types";
 import { NotificationDetailDialog } from "./NotificationDetailDialog";
 
 interface NotificationsMenuProps {
@@ -30,6 +28,17 @@ const notificationsQueryKey = [
   "notifications",
   "visible",
 ] as const;
+
+function getNotificationSourceLabel(source: string) {
+  switch (source) {
+    case "organization":
+      return "Organization";
+    case "system":
+      return "System";
+    default:
+      return source;
+  }
+}
 
 function stripNotificationDescription(value: string) {
   if (!value.trim()) {
@@ -76,11 +85,41 @@ function getNotificationTypeClassName(type: string) {
   }
 }
 
+function getNotificationIndicatorClassName(type: string) {
+  switch (type) {
+    case "UR":
+      return "bg-danger shadow-[0_0_12px_color-mix(in_srgb,var(--danger)_55%,transparent)]";
+    case "IM":
+      return "bg-warning shadow-[0_0_12px_color-mix(in_srgb,var(--warning)_55%,transparent)]";
+    default:
+      return "bg-primary shadow-[0_0_12px_color-mix(in_srgb,var(--primary)_55%,transparent)]";
+  }
+}
+
+function resolveUnreadIndicatorType(notifications: VisibleAppNotification[]) {
+  const unreadNotifications = notifications.filter((notification) => !notification.is_read);
+
+  if (unreadNotifications.some((notification) => notification.type === "UR")) {
+    return "UR";
+  }
+
+  if (unreadNotifications.some((notification) => notification.type === "IM")) {
+    return "IM";
+  }
+
+  if (unreadNotifications.length > 0) {
+    return "IN";
+  }
+
+  return null;
+}
+
 export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const sessionToken = useAuthStore((state) => state.session?.token);
   const [open, setOpen] = useState(false);
+  const [activeSourceTab, setActiveSourceTab] = useState<NotificationSourceKind>("organization");
   const [activeNotification, setActiveNotification] = useState<VisibleAppNotification | null>(null);
   const [portalStyle, setPortalStyle] = useState<CSSProperties>();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -96,6 +135,18 @@ export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) 
 
   const items = notificationsQuery.data ?? [];
   const unreadCount = items.filter((item) => !item.is_read).length;
+  const unreadIndicatorType = useMemo(() => resolveUnreadIndicatorType(items), [items]);
+  const organizationCount = items.filter((item) => item.source === "organization").length;
+  const systemCount = items.filter((item) => item.source === "system").length;
+  const filteredItems = useMemo(
+    () => items.filter((item) => item.source === activeSourceTab),
+    [activeSourceTab, items],
+  );
+  const filteredUnreadItems = useMemo(
+    () => filteredItems.filter((item) => !item.is_read),
+    [filteredItems],
+  );
+  const filteredUnreadCount = filteredUnreadItems.length;
   const selectedNotification = activeNotification
     ? items.find((item) => item.notification_key === activeNotification.notification_key) ??
       activeNotification
@@ -147,39 +198,37 @@ export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) 
   });
 
   const markAllReadMutation = useMutation({
-    mutationFn: markAllNotificationsRead,
-    onSuccess: ({ sourceKeys }) => {
+    mutationFn: async (notifications: VisibleAppNotification[]) =>
+      Promise.all(notifications.map((notification) => markNotificationRead(notification))),
+    onSuccess: (updatedNotifications) => {
+      const updatedByKey = new Map(
+        updatedNotifications.map((notification) => [notification.notification_key, notification] as const),
+      );
+
       queryClient.setQueryData<VisibleAppNotification[]>(notificationsQueryKey, (current) =>
         (current ?? []).map((item) =>
-          sourceKeys.includes(item.source_key)
-            ? {
-                ...item,
-                is_read: true,
-              }
-            : item,
+          updatedByKey.get(item.notification_key) ?? item,
         ),
       );
 
       setActiveNotification((current) =>
-        current && sourceKeys.includes(current.source_key)
-          ? {
-              ...current,
-              is_read: true,
-            }
-          : current,
+        current ? updatedByKey.get(current.notification_key) ?? current : current,
       );
     },
   });
 
   const dismissAllMutation = useMutation({
-    mutationFn: dismissAllNotifications,
-    onSuccess: ({ sourceKeys }) => {
+    mutationFn: async (notifications: VisibleAppNotification[]) =>
+      Promise.all(notifications.map((notification) => dismissNotification(notification))),
+    onSuccess: (notificationKeys) => {
+      const dismissedKeys = new Set(notificationKeys);
+
       queryClient.setQueryData<VisibleAppNotification[]>(notificationsQueryKey, (current) =>
-        (current ?? []).filter((item) => !sourceKeys.includes(item.source_key)),
+        (current ?? []).filter((item) => !dismissedKeys.has(item.notification_key)),
       );
 
       setActiveNotification((current) =>
-        current && sourceKeys.includes(current.source_key) ? null : current,
+        current && dismissedKeys.has(current.notification_key) ? null : current,
       );
     },
   });
@@ -291,7 +340,7 @@ export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) 
               {t("topbar.notificationsTitle")}
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              {t("topbar.notificationsUnread", { count: unreadCount })}
+              {t("topbar.notificationsUnread", { count: filteredUnreadCount })}
             </div>
           </div>
           {notificationsQuery.isFetching ? (
@@ -299,15 +348,41 @@ export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) 
           ) : null}
         </div>
 
-        {items.length > 0 ? (
+        <div className="mt-3 flex gap-2">
+          {([
+            { id: "organization", label: "Organization", count: organizationCount },
+            { id: "system", label: "System", count: systemCount },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                activeSourceTab === tab.id
+                  ? "border-primary/40 bg-primary/10 text-topbar-foreground"
+                  : "border-border/70 bg-card/70 text-muted-foreground hover:border-primary/25 hover:text-topbar-foreground",
+              )}
+              onClick={() => {
+                setActiveSourceTab(tab.id);
+              }}
+            >
+              <span>{tab.label}</span>
+              <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[10px]">
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {filteredItems.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={unreadCount === 0 || markAllReadMutation.isPending}
+              disabled={filteredUnreadItems.length === 0 || markAllReadMutation.isPending}
               onClick={() => {
-                void markAllReadMutation.mutateAsync();
+                void markAllReadMutation.mutateAsync(filteredUnreadItems);
               }}
             >
               {markAllReadMutation.isPending ? (
@@ -321,9 +396,9 @@ export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) 
               type="button"
               variant="ghost"
               size="sm"
-              disabled={dismissAllMutation.isPending}
+              disabled={filteredItems.length === 0 || dismissAllMutation.isPending}
               onClick={() => {
-                void dismissAllMutation.mutateAsync();
+                void dismissAllMutation.mutateAsync(filteredItems);
               }}
             >
               {dismissAllMutation.isPending ? (
@@ -344,26 +419,26 @@ export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) 
           </div>
         ) : null}
 
-        {notificationsQuery.isLoading && items.length === 0 ? (
+        {notificationsQuery.isLoading && filteredItems.length === 0 ? (
           <div className="flex items-center gap-2 rounded-[calc(var(--radius)-6px)] px-3 py-4 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading notifications
           </div>
         ) : null}
 
-        {notificationsQuery.isError && items.length === 0 ? (
+        {notificationsQuery.isError && filteredItems.length === 0 ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-3 py-4 text-sm text-danger">
             {formatNotificationsError(notificationsQuery.error)}
           </div>
         ) : null}
 
-        {!notificationsQuery.isLoading && !notificationsQuery.isError && items.length === 0 ? (
+        {!notificationsQuery.isLoading && !notificationsQuery.isError && filteredItems.length === 0 ? (
           <div className="rounded-[calc(var(--radius)-6px)] px-3 py-4 text-sm text-muted-foreground">
-            {t("topbar.notificationsEmpty")}
+            No {activeSourceTab} notifications right now.
           </div>
         ) : null}
 
-        {items.map((item) => {
+        {filteredItems.map((item) => {
           const description = truncateNotificationDescription(
             stripNotificationDescription(item.description),
           );
@@ -404,8 +479,7 @@ export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) 
                 <span
                   className={cn(
                     "mt-1 h-2 w-2 shrink-0 rounded-full bg-muted-foreground/30",
-                    !item.is_read &&
-                      "bg-primary shadow-[0_0_12px_color-mix(in_srgb,var(--primary)_55%,transparent)]",
+                    !item.is_read && getNotificationIndicatorClassName(item.type),
                   )}
                 />
                 <div className="min-w-0 flex-1">
@@ -417,7 +491,7 @@ export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) 
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="rounded-full border border-border/70 bg-card/80 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                      {item.app_title}
+                      {getNotificationSourceLabel(item.source)}
                     </span>
                     <span
                       className={cn(
@@ -510,8 +584,13 @@ export function NotificationsMenu({ triggerClassName }: NotificationsMenuProps) 
             <span className="absolute right-1 top-1 inline-flex h-3 w-3 items-center justify-center rounded-full bg-card">
               <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />
             </span>
-          ) : unreadCount ? (
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
+          ) : unreadIndicatorType ? (
+            <span
+              className={cn(
+                "absolute right-1.5 top-1.5 h-2 w-2 rounded-full",
+                getNotificationIndicatorClassName(unreadIndicatorType),
+              )}
+            />
           ) : null}
         </button>
 

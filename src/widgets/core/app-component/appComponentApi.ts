@@ -12,6 +12,7 @@ import {
   buildAppComponentConfiguredHeadersKey,
   buildAppComponentOpenApiUrl,
   isAppComponentMainSequenceResourceReleaseMode,
+  isAppComponentMockJsonMode,
   normalizeAppComponentAuthMode,
   resolveAppComponentDisplayBaseUrl,
   resolveAppComponentRequestBaseUrl,
@@ -20,6 +21,7 @@ import {
   type AppComponentWidgetProps,
   type OpenApiDocument,
 } from "./appComponentModel";
+import { buildAppComponentMockJsonOpenApiDocument } from "./appComponentMockJson";
 import {
   buildMainSequenceReleaseTransportIdentityKey,
   sendMainSequenceReleaseRequest,
@@ -127,9 +129,13 @@ function pruneExpiredEntry<T>(cache: Map<string, CachedEntry<T>>, key: string) {
 function buildAppComponentTransportIdentityKey(
   props: Pick<
     AppComponentWidgetProps,
-    "apiTargetMode" | "authMode" | "mainSequenceResourceRelease"
+    "apiTargetMode" | "authMode" | "mainSequenceResourceRelease" | "mockJson"
   >,
 ) {
+  if (isAppComponentMockJsonMode(props)) {
+    return `mock-json:${JSON.stringify(props.mockJson ?? null)}`;
+  }
+
   if (isAppComponentMainSequenceResourceReleaseMode(props)) {
     return buildMainSequenceReleaseTransportIdentityKey(props);
   }
@@ -286,11 +292,13 @@ function buildMockResponse(
     status = 200,
     statusText = "OK",
     url,
+    contentType = "application/json",
   }: {
     ok?: boolean;
     status?: number;
     statusText?: string;
     url: string;
+    contentType?: string;
   },
 ): AppComponentTransportResponse {
   return {
@@ -299,7 +307,7 @@ function buildMockResponse(
     statusText,
     url,
     headers: {
-      "content-type": "application/json",
+      "content-type": contentType,
       "x-app-component-mock": "true",
     },
     body,
@@ -394,6 +402,9 @@ export function buildAppComponentOpenApiQueryKey(
     buildAppComponentTransportIdentityKey(normalizedProps),
     resolveAppComponentDisplayBaseUrl(normalizedProps) ?? "invalid",
     buildAppComponentConfiguredHeadersKey(normalizedProps.serviceHeaders),
+    normalizedProps.method ?? "",
+    normalizedProps.path ?? "",
+    JSON.stringify(normalizedProps.mockJson ?? null),
   ] as const;
 }
 
@@ -475,6 +486,10 @@ export async function fetchAppComponentOpenApiDocument({
     authMode: normalizeAppComponentAuthMode(props.authMode),
   } satisfies AppComponentWidgetProps;
   const requestBaseUrl = resolveAppComponentRequestBaseUrl(normalizedProps);
+
+  if (isAppComponentMockJsonMode(normalizedProps)) {
+    return buildAppComponentMockJsonOpenApiDocument(normalizedProps);
+  }
 
   if (env.useMockData || isWidgetPreviewMode()) {
     return appComponentMockOpenApiDocument satisfies OpenApiDocument;
@@ -615,6 +630,19 @@ export async function submitAppComponentRequest({
   const normalizedMethod = method.trim().toUpperCase();
   const shouldUseSafeResponseCache =
     cache?.enabled === true && isSafeCacheableMethod(normalizedMethod);
+
+  if (isAppComponentMockJsonMode(normalizedTransportProps)) {
+    const responseStatus = normalizedTransportProps.mockJson?.response.status ?? 200;
+
+    return buildMockResponse(normalizedTransportProps.mockJson?.response.body, {
+      ok: responseStatus >= 200 && responseStatus < 300,
+      status: responseStatus,
+      statusText: responseStatus >= 200 && responseStatus < 300 ? "OK" : "Error",
+      url,
+      contentType:
+        normalizedTransportProps.mockJson?.response.contentType ?? "application/json",
+    });
+  }
 
   if (env.useMockData || isWidgetPreviewMode()) {
     return submitMockRequest({

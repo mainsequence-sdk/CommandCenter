@@ -26,6 +26,7 @@ import {
   BookOpenText,
   Bug,
   Boxes,
+  Camera,
   Clock3,
   ChevronDown,
   ChevronRight,
@@ -86,8 +87,10 @@ import {
   WORKSPACE_ROW_WIDGET_ID,
 } from "@/dashboards/structural-widgets";
 import type {
+  DashboardDefinition,
   DashboardLayoutKind,
   DashboardWidgetPlacement,
+  ResolvedDashboardDefinition,
   ResolvedDashboardWidgetLayout,
 } from "@/dashboards/types";
 import { cn, titleCase } from "@/lib/utils";
@@ -137,6 +140,12 @@ import {
   appendSavedWidgetGroupToDashboard,
   appendSavedWidgetInstanceToDashboard,
 } from "./saved-widgets";
+import {
+  downloadWorkspaceSnapshotArchive,
+  useWorkspaceSnapshotCaptureController,
+  WorkspaceSnapshotStatusCard,
+} from "./snapshot/WorkspaceSnapshotCapture";
+import type { WorkspaceSnapshotCaptureProfile } from "./snapshot/types";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 import {
@@ -1095,6 +1104,9 @@ function BuilderWidgetCard({
     return (
       <div
         style={style}
+        data-workspace-widget-instance-id={instanceId}
+        data-workspace-widget-id={widget.id}
+        data-workspace-widget-visibility="visible"
         className="group relative isolate h-full overflow-visible"
         onPointerDownCapture={() => {
           if (editable) {
@@ -1139,6 +1151,9 @@ function BuilderWidgetCard({
   return (
     <div
       style={style}
+      data-workspace-widget-instance-id={instanceId}
+      data-workspace-widget-id={widget.id}
+      data-workspace-widget-visibility="visible"
       className="group relative isolate h-full overflow-visible"
       onPointerDownCapture={() => {
         if (editable) {
@@ -1305,6 +1320,54 @@ function BuilderWidgetCard({
   );
 }
 
+function WorkspaceSnapshotToolbarControl({
+  dashboard,
+  permissions,
+  profile,
+  resolvedDashboard,
+}: {
+  dashboard: DashboardDefinition;
+  resolvedDashboard: ResolvedDashboardDefinition;
+  permissions: string[];
+  profile: WorkspaceSnapshotCaptureProfile;
+}) {
+  const { snapshotState, startCapture } = useWorkspaceSnapshotCaptureController({
+    dashboard,
+    resolvedDashboard,
+    permissions,
+    profile,
+  });
+
+  return (
+    <>
+      <WorkspaceToolbarButton
+        active={snapshotState.status === "ready"}
+        title="Create snapshot"
+        onClick={() => {
+          if (snapshotState.status === "running") {
+            return;
+          }
+
+          void startCapture().then((state) => {
+            if (state.status === "ready" && state.archiveUrl && state.archiveName) {
+              downloadWorkspaceSnapshotArchive(state.archiveUrl, state.archiveName);
+            }
+          });
+        }}
+        disabled={snapshotState.status === "running"}
+      >
+        <Camera className="h-3.5 w-3.5" />
+      </WorkspaceToolbarButton>
+      {snapshotState.status !== "idle" ? (
+        <WorkspaceSnapshotStatusCard
+          snapshotState={snapshotState}
+          profile={profile}
+        />
+      ) : null}
+    </>
+  );
+}
+
 export function CustomDashboardStudioPage({
   withRuntimeProviders = true,
 }: {
@@ -1323,6 +1386,8 @@ export function CustomDashboardStudioPage({
     selectedWorkspaceEditing,
     persistenceMode,
     requestedWidgetId,
+    snapshotMode,
+    snapshotProfile,
     selectedWorkspaceView,
     workspaceSelectionPending,
     openWidgetSettings,
@@ -2724,7 +2789,13 @@ export function CustomDashboardStudioPage({
             }>;
 
             return (
-              <div key={instance.id} className="h-px w-px overflow-hidden">
+              <div
+                key={instance.id}
+                className="h-px w-px overflow-hidden"
+                data-workspace-widget-instance-id={instance.id}
+                data-workspace-widget-id={widget.id}
+                data-workspace-widget-visibility="hidden"
+              >
                 <WidgetErrorBoundary
                   widgetId={widget.id}
                   widgetTitle={instance.title ?? widget.title}
@@ -2750,6 +2821,7 @@ export function CustomDashboardStudioPage({
 
         <div
           ref={canvasScrollContainerRef}
+          data-workspace-snapshot-scroll-container=""
           className={cn(
             "absolute inset-0 overflow-auto pr-4 pb-4 transition-[padding] duration-200",
             editMode ? "pl-12" : "pl-4",
@@ -2759,6 +2831,7 @@ export function CustomDashboardStudioPage({
         >
           {!dashboardMenuHidden ? (
             <div
+              data-workspace-snapshot-sticky-header=""
               className={cn(
                 "sticky top-0 z-40 mb-3 border-b px-0 py-2 backdrop-blur-xl",
                 editMode
@@ -2814,6 +2887,14 @@ export function CustomDashboardStudioPage({
                       </WorkspaceToolbarButton>
                     ) : null}
                     {editMode ? (
+                      <WorkspaceSnapshotToolbarControl
+                        dashboard={selectedDashboard}
+                        resolvedDashboard={resolvedDashboard}
+                        permissions={permissions}
+                        profile={snapshotProfile}
+                      />
+                    ) : null}
+                    {editMode ? (
                       <WorkspaceToolbarButton
                         active={requestDebugOpen}
                         title="Debug Request"
@@ -2825,7 +2906,7 @@ export function CustomDashboardStudioPage({
                       </WorkspaceToolbarButton>
                     ) : null}
                     {toolbarActions}
-                    {editMode ? (
+                    {editMode && !snapshotMode ? (
                       <WorkspaceToolbarButton
                         title="Workspace graph"
                         onClick={() => {
@@ -2835,7 +2916,7 @@ export function CustomDashboardStudioPage({
                         <Waypoints className="h-3.5 w-3.5" />
                       </WorkspaceToolbarButton>
                     ) : null}
-                    {editMode ? (
+                    {editMode && !snapshotMode ? (
                       <WorkspaceToolbarButton
                         title="Workspace settings"
                         onClick={() => {
@@ -2861,6 +2942,7 @@ export function CustomDashboardStudioPage({
 
           <div
             ref={gridRef}
+            data-workspace-snapshot-canvas-root=""
             className="relative min-h-full"
             style={{
               minHeight:

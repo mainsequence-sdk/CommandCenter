@@ -10,7 +10,7 @@ const mainSequenceAiExtension: AppExtension = {
   title: "Main Sequence AI",
   description: "Main Sequence AI application surfaces and assistant-ui shell integration.",
   apps: env.includeAui ? [mainSequenceAiApp] : [],
-  widgets: env.includeAui ? [agentTerminalWidget, upstreamInspectorWidget] : [],
+  widgets: [agentTerminalWidget, upstreamInspectorWidget],
 };
 
 export default mainSequenceAiExtension;

@@ -60,8 +60,10 @@ export function normalizeWidgetPresentation(
   };
 }
 
-export function resolveDefaultWidgetPresentation(
-  widget: Pick<WidgetDefinition, "schema" | "defaultPresentation">,
+export function resolveDefaultWidgetPresentation<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+>(
+  widget: Pick<WidgetDefinition<TProps>, "schema" | "defaultPresentation">,
 ): WidgetInstancePresentation {
   const basePresentation = normalizeWidgetPresentation(widget.defaultPresentation);
   const fields = widget.schema?.fields ?? [];
@@ -97,8 +99,10 @@ export function resolveDefaultWidgetPresentation(
   return normalizeWidgetPresentation(nextPresentation);
 }
 
-export function resolveWidgetInstancePresentation(
-  widget: Pick<WidgetDefinition, "schema" | "defaultPresentation">,
+export function resolveWidgetInstancePresentation<
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+>(
+  widget: Pick<WidgetDefinition<TProps>, "schema" | "defaultPresentation">,
   value?: WidgetInstancePresentation | null,
 ): WidgetInstancePresentation {
   const defaults = resolveDefaultWidgetPresentation(widget);

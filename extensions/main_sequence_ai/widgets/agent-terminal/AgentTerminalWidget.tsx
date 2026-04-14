@@ -25,6 +25,7 @@ import {
   DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS,
   AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_RUNTIME_KEY,
   AGENT_TERMINAL_LATEST_ASSISTANT_UPDATED_AT_RUNTIME_KEY,
+  buildAgentTerminalRefreshRequest,
   buildAgentTerminalErrorLines,
   extractLatestAssistantMarkdown,
   buildAgentTerminalLoadingLines,
@@ -36,6 +37,7 @@ import {
   normalizeAgentTerminalWidgetProps,
   resolveAgentTerminalLatestAssistantMarkdown,
   resolveAgentTerminalRefreshPrompt,
+  resolveAgentTerminalUpstreamContexts,
   type AgentTerminalLine,
   type AgentTerminalLineTone,
   type AgentTerminalSessionState,
@@ -187,8 +189,20 @@ export function AgentTerminalWidget({
     normalizedProps.historyRefreshIntervalSeconds ??
     DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS;
   const promptOnRefresh = useMemo(
-    () => resolveAgentTerminalRefreshPrompt(normalizedProps, resolvedInputs),
-    [normalizedProps, resolvedInputs],
+    () => resolveAgentTerminalRefreshPrompt(normalizedProps),
+    [normalizedProps],
+  );
+  const upstreamContexts = useMemo(
+    () => resolveAgentTerminalUpstreamContexts(resolvedInputs),
+    [resolvedInputs],
+  );
+  const automatedRefreshInput = useMemo(
+    () =>
+      buildAgentTerminalRefreshRequest({
+        prompt: promptOnRefresh,
+        upstreamContexts,
+      }),
+    [promptOnRefresh, upstreamContexts],
   );
   const terminalTitle = useMemo(() => {
     if (instanceTitle?.trim()) {
@@ -286,19 +300,10 @@ export function AgentTerminalWidget({
 
         const terminalViewport =
           containerRef.current?.querySelector<HTMLDivElement>(".react-terminal");
-        const activePrompt =
-          containerRef.current?.querySelector<HTMLDivElement>(".react-terminal-active-input");
         const input = containerRef.current?.querySelector<HTMLInputElement>(".terminal-hidden-input");
 
         if (terminalViewport) {
           terminalViewport.scrollTop = terminalViewport.scrollHeight;
-        }
-
-        if (activePrompt) {
-          activePrompt.scrollIntoView({
-            block: "end",
-            inline: "nearest",
-          });
         }
 
         if (!input) {
@@ -312,15 +317,12 @@ export function AgentTerminalWidget({
           return;
         }
 
-        input.focus();
+        input.focus({ preventScroll: true });
 
         const cursorPosition = input.value.length;
         input.setSelectionRange(cursorPosition, cursorPosition);
 
-        if (
-          (document.activeElement !== input || activePrompt == null) &&
-          attempt + 1 < attempts
-        ) {
+        if (document.activeElement !== input && attempt + 1 < attempts) {
           attemptFocus(attempt + 1);
         }
       }, delay);
@@ -347,29 +349,9 @@ export function AgentTerminalWidget({
     const run = () => {
       const terminalViewport =
         containerRef.current?.querySelector<HTMLDivElement>(".react-terminal");
-      const activePrompt =
-        containerRef.current?.querySelector<HTMLDivElement>(".react-terminal-active-input");
-      const input = containerRef.current?.querySelector<HTMLInputElement>(".terminal-hidden-input");
 
       if (terminalViewport) {
         terminalViewport.scrollTop = terminalViewport.scrollHeight;
-      }
-
-      if (activePrompt) {
-        activePrompt.scrollIntoView({
-          block: "end",
-          inline: "nearest",
-        });
-      }
-
-      if (input) {
-        if (input.disabled) {
-          return;
-        }
-
-        input.focus({ preventScroll: true });
-        const cursorPosition = input.value.length;
-        input.setSelectionRange(cursorPosition, cursorPosition);
       }
     };
 
@@ -815,10 +797,10 @@ export function AgentTerminalWidget({
         return;
       }
 
-      if (promptOnRefresh) {
+      if (automatedRefreshInput) {
         pendingHistoryRefreshRef.current = true;
         void sendTerminalInput({
-          rawInput: promptOnRefresh,
+          rawInput: automatedRefreshInput,
           automated: true,
         });
         return;
@@ -827,10 +809,16 @@ export function AgentTerminalWidget({
       pendingHistoryRefreshRef.current = false;
       void hydrateSession(targetSessionId, { showLoading: false });
     },
-    [hydrateSession, isStreaming, promptOnRefresh, sendTerminalInput],
+    [automatedRefreshInput, hydrateSession, isStreaming, sendTerminalInput],
   );
 
-  useEffect(() => focusPromptInput(8, 80), [autoFocusNonce, focusPromptInput, sessionId]);
+  useEffect(() => {
+    if (autoFocusNonce == null) {
+      return;
+    }
+
+    return focusPromptInput(8, 80);
+  }, [autoFocusNonce, focusPromptInput]);
   useEffect(() => {
     if (!sessionId) {
       observedHistoryRefreshSessionIdRef.current = null;
@@ -889,7 +877,7 @@ export function AgentTerminalWidget({
     requestRefreshAction(sessionId);
   }, [
     isStreaming,
-    promptOnRefresh,
+    automatedRefreshInput,
     requestRefreshAction,
     sessionId,
     sessionState?.sessionId,

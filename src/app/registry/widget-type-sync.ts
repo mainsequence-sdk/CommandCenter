@@ -22,11 +22,12 @@ import type {
   WidgetValueDescriptor,
   WidgetWorkspaceRuntimeMode,
 } from "@/widgets/types";
+import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 
 // Bump when the JSON manifest contract changes in a backend-visible way.
-export const WIDGET_REGISTRY_VERSION = "2026-04-13";
+export const WIDGET_REGISTRY_VERSION = "2026-04-14";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -247,7 +248,8 @@ function deriveIoMode(
   }
 
   const hasDynamicIo = typeof widget.resolveIo === "function";
-  const hasStaticIo = Boolean(widget.io?.inputs?.length || widget.io?.outputs?.length);
+  const effectiveIo = appendWidgetAgentContextOutput(widget, widget.io);
+  const hasStaticIo = Boolean(effectiveIo?.inputs?.length || effectiveIo?.outputs?.length);
   const runtimeMode = deriveWorkspaceRuntimeMode(widget);
 
   if (runtimeMode === "consumer") {
@@ -330,14 +332,28 @@ function resolveRuntimeContract(widget: WidgetDefinition): WidgetRegistryRuntime
 
 function resolveIoContract(widget: WidgetDefinition): WidgetRegistryIoContract {
   const explicit = widget.registryContract?.io;
-  const mode = deriveIoMode(widget, explicit?.mode);
-  const inputs = widget.io?.inputs ?? [];
-  const outputs = widget.io?.outputs ?? [];
+  const effectiveIo = appendWidgetAgentContextOutput(widget, widget.io);
+  const inputs = effectiveIo?.inputs ?? [];
+  const outputs = effectiveIo?.outputs ?? [];
+  const hasEffectiveIo = Boolean(inputs.length || outputs.length);
+  const explicitMode =
+    explicit?.mode === "none" && hasEffectiveIo ? undefined : explicit?.mode;
+  const mode = deriveIoMode(widget, explicitMode);
+  const explicitSummary =
+    explicit?.mode === "none" && hasEffectiveIo ? undefined : explicit?.summary;
+  const explicitDynamicIoSummary =
+    explicit?.mode === "none" && hasEffectiveIo ? undefined : explicit?.dynamicIoSummary;
+  const explicitInputContracts =
+    explicit?.mode === "none" && hasEffectiveIo ? undefined : explicit?.inputContracts;
+  const explicitOutputContracts =
+    explicit?.mode === "none" && hasEffectiveIo ? undefined : explicit?.outputContracts;
+  const explicitIoNotes =
+    explicit?.mode === "none" && hasEffectiveIo ? undefined : explicit?.ioNotes;
 
   return {
     mode,
     summary:
-      explicit?.summary ??
+      explicitSummary ??
       (mode === "none"
         ? "This widget does not participate in typed widget IO."
         : mode === "consumer"
@@ -346,17 +362,17 @@ function resolveIoContract(widget: WidgetDefinition): WidgetRegistryIoContract {
             ? "This widget exposes instance-derived ports whose exact shape depends on saved configuration."
             : "This widget exposes stable typed input and output ports."),
     dynamicIoSummary:
-      explicit?.dynamicIoSummary ??
+      explicitDynamicIoSummary ??
       (mode === "dynamic"
         ? "Concrete ports depend on saved widget configuration and are resolved per instance."
         : undefined),
     inputContracts:
-      explicit?.inputContracts ??
+      explicitInputContracts ??
       uniqueContractIds(inputs.flatMap((input) => input.accepts)),
     outputContracts:
-      explicit?.outputContracts ??
+      explicitOutputContracts ??
       uniqueContractIds(outputs.map((output) => output.contract)),
-    ioNotes: compactStringList(explicit?.ioNotes),
+    ioNotes: compactStringList(explicitIoNotes),
   };
 }
 
@@ -537,6 +553,7 @@ function formatValidationIssues(issues: WidgetTypeSyncValidationIssue[]) {
 
 function projectWidgetType(widget: WidgetDefinition): SyncedWidgetTypePayload {
   const ioContract = resolveIoContract(widget);
+  const effectiveIo = appendWidgetAgentContextOutput(widget, widget.io);
 
   return {
     widgetId: widget.id,
@@ -548,7 +565,7 @@ function projectWidgetType(widget: WidgetDefinition): SyncedWidgetTypePayload {
     tags: widget.tags ?? [],
     requiredPermissions: widget.requiredPermissions ?? [],
     schema: resolveWidgetSchemaPayload(widget),
-    io: projectWidgetIo(widget.io, typeof widget.resolveIo === "function", ioContract),
+    io: projectWidgetIo(effectiveIo, typeof widget.resolveIo === "function", ioContract),
     defaultPresentation: projectDefaultPresentation(widget.defaultPresentation),
     isActive: true,
   };

@@ -41,6 +41,13 @@ widget family in the live widget catalog.
   backend-facing `registryContract` so platform-admin registry sync can describe configuration,
   runtime behavior, IO semantics, capabilities, and agent authoring guidance without scraping the
   React settings UI.
+- Main Sequence widgets that appear in workspaces may also implement the shared
+  `buildAgentSnapshot(...)` hook so the workspace live snapshot archive can include structured
+  Data Node and infrastructure-widget state without reverse-engineering those widgets from
+  screenshots alone.
+- Main Sequence widgets that implement `buildAgentSnapshot(...)` now also publish one synthetic
+  `agent-context` output with contract `core.widget-agent-context@v1`. Agent-facing consumers such
+  as `Agent Terminal` can bind to that output to reason over what the widget currently shows.
 - Widget authors must bump `widgetVersion` when a widget's authoring semantics, runtime behavior,
   supported modes, or machine-readable contract changes materially.
 - Keep reusable widget logic close to the widget folder, and reuse `extensions/main_sequence/common/` building blocks when the rendering contract stays clean.

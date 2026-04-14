@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toaster";
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import type { DashboardDefinition } from "@/dashboards/types";
 import { createBlankDashboard } from "./custom-dashboard-storage";
+import type { WorkspaceSnapshotCaptureProfile } from "./snapshot/types";
 import { useCustomWorkspaceStudioStore } from "./custom-workspace-studio-store";
 import { getWorkspacePersistenceMode } from "./workspace-persistence";
 import type { WorkspaceListItemSummary } from "./workspace-list-summary";
@@ -20,13 +21,20 @@ export function useCustomWorkspaceStudio() {
   const requestedViewParam = searchParams.get("view");
   const requestedWidgetId = searchParams.get("widget");
   const requestedWidgetTabParam = searchParams.get("tab");
+  const snapshotMode = searchParams.get("snapshot") === "true";
+  const snapshotProfile: WorkspaceSnapshotCaptureProfile =
+    searchParams.get("snapshotProfile") === "evidence"
+      ? "evidence"
+      : "full-data";
   const requestedWidgetSettingsTab =
     requestedWidgetTabParam === "bindings" ? "bindings" : "settings";
   const persistenceMode = getWorkspacePersistenceMode();
   const selectedWorkspaceView =
-    requestedViewParam === "settings" ||
-    requestedViewParam === "widget-settings" ||
-    requestedViewParam === "graph"
+    snapshotMode
+      ? "dashboard"
+      : requestedViewParam === "settings" ||
+          requestedViewParam === "widget-settings" ||
+          requestedViewParam === "graph"
       ? requestedViewParam
       : "dashboard";
 
@@ -146,9 +154,9 @@ export function useCustomWorkspaceStudio() {
   const selectedWorkspaceEditing = useMemo(
     () =>
       requestedWorkspaceId
-        ? (workspaceEditorModeById[requestedWorkspaceId] ?? false)
+        ? (snapshotMode ? false : (workspaceEditorModeById[requestedWorkspaceId] ?? false))
         : false,
-    [requestedWorkspaceId, workspaceEditorModeById],
+    [requestedWorkspaceId, snapshotMode, workspaceEditorModeById],
   );
   const workspaceSelectionPending = useMemo(
     () =>
@@ -362,6 +370,8 @@ export function useCustomWorkspaceStudio() {
     requestedWidgetId,
     requestedWidgetSettingsTab,
     selectedWorkspaceView,
+    snapshotMode,
+    snapshotProfile,
     setSelectedWorkspaceId,
     openDashboardView,
     openWorkspaceGraph,

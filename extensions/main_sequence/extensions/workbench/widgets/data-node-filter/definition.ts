@@ -8,6 +8,7 @@ import { MainSequenceDataNodeFilterWidget } from "./MainSequenceDataNodeFilterWi
 import { MainSequenceDataNodeFilterWidgetSettings } from "./MainSequenceDataNodeFilterWidgetSettings";
 import { DataNodeRailSummary } from "./DataNodeRailSummary";
 import {
+  normalizeDataNodeFilterProps,
   resolveDataNodePublishedOutput,
   type MainSequenceDataNodeFilterWidgetProps,
 } from "./dataNodeFilterModel";
@@ -20,7 +21,7 @@ import {
 
 export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNodeFilterWidgetProps>({
   id: "main-sequence-data-node",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: "Data Node",
   description: "Stores a reusable Main Sequence dataset node, with a settings-only table preview.",
   category: "Main Sequence Data Nodes",
@@ -44,6 +45,66 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
   },
   workspaceIcon: Database,
   railSummaryComponent: DataNodeRailSummary,
+  buildAgentSnapshot: ({
+    dashboardState,
+    props,
+    resolvedInputs,
+    runtimeState,
+    snapshotProfile,
+  }) => {
+    const normalizedProps = normalizeDataNodeFilterProps(props);
+    const dataset = resolveDataNodePublishedOutput({
+      props,
+      runtimeState,
+      resolvedInputs,
+    });
+
+    return {
+      displayKind: "filter",
+      state:
+        dataset.status === "error"
+          ? "error"
+          : dataset.status === "loading"
+            ? "loading"
+            : dataset.status === "ready"
+              ? dataset.rows.length > 0
+                ? "ready"
+                : "empty"
+              : "idle",
+      summary:
+        dataset.status === "error"
+          ? dataset.error || "Data Node dataset failed."
+          : dataset.status === "loading"
+            ? "Data Node dataset is loading."
+            : dataset.status === "ready"
+              ? `${dataset.rows.length.toLocaleString()} rows published across ${dataset.columns.length.toLocaleString()} columns.`
+              : "Data Node is idle.",
+      data: {
+        sourceMode: normalizedProps.sourceMode ?? "direct",
+        dataNodeId: normalizedProps.dataNodeId,
+        dataNodeLabel: dataset.source?.label,
+        status: dataset.status,
+        error: dataset.error,
+        columns: dataset.columns,
+        fields: dataset.fields,
+        rowCount: dataset.rows.length,
+        rows:
+          snapshotProfile === "full-data"
+            ? dataset.rows
+            : dataset.rows.slice(0, 25),
+        rangeStartMs: dataset.rangeStartMs,
+        rangeEndMs: dataset.rangeEndMs,
+        uniqueIdentifierList: normalizedProps.uniqueIdentifierList ?? [],
+        dashboardRange: dashboardState
+          ? {
+              timeRangeKey: dashboardState.timeRangeKey,
+              rangeStartMs: dashboardState.rangeStartMs,
+              rangeEndMs: dashboardState.rangeEndMs,
+            }
+          : undefined,
+      },
+    };
+  },
   io: {
     inputs: [
       {

@@ -19,6 +19,7 @@ import {
   inferWidgetValueDescriptor,
   normalizeWidgetBindingTransformSteps,
 } from "@/dashboards/widget-binding-transforms";
+import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
 
 export interface FlattenedDashboardWidgetEntry {
   instance: DashboardWidgetInstance;
@@ -298,13 +299,14 @@ function resolveWidgetIoForInstance(
     return undefined;
   }
 
-  return (
+  return appendWidgetAgentContextOutput(
+    definition,
     definition.resolveIo?.({
       widgetId: instance.widgetId,
       instanceId: instance.id,
       props: (instance.props ?? {}) as Record<string, unknown>,
       runtimeState: instance.runtimeState,
-    }) ?? definition.io
+    }) ?? definition.io,
   );
 }
 
@@ -455,7 +457,9 @@ function resolveSingleOutput(
   const value = output.resolveValue?.({
     widgetId: instance.widgetId,
     instanceId: instance.id,
+    instanceTitle: instance.title,
     props: (instance.props ?? {}) as Record<string, unknown>,
+    presentation: instance.presentation,
     runtimeState: instance.runtimeState,
     resolvedInputs,
   });

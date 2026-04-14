@@ -28,7 +28,8 @@ export type AppComponentHttpMethod =
 export type AppComponentAuthMode = "session-jwt" | "none";
 export type AppComponentApiTargetMode =
   | "manual"
-  | "main-sequence-resource-release";
+  | "main-sequence-resource-release"
+  | "mock-json";
 export type AppComponentCompactCardLayout =
   | "one-column"
   | "two-columns"
@@ -63,9 +64,54 @@ export interface AppComponentMainSequenceResourceReleaseRef {
   subdomain?: string;
 }
 
+export interface AppComponentMockJsonResponseUiDefinition {
+  role?: "notification" | "editable-form";
+  widget?: "banner-v1" | "definition-v1";
+}
+
+export interface AppComponentMockJsonOperationUiDefinition {
+  role?: "async-select-search";
+  widget?: "select2";
+  selectionType?: "single";
+  searchParam?: string;
+  searchParamAliases?: string[];
+  itemsPath?: string;
+  itemValueField?: string;
+  itemLabelField?: string;
+  paginationPath?: string;
+  paginationMoreField?: string;
+}
+
+export interface AppComponentMockJsonDefinition {
+  version: 1;
+  operation: {
+    method?: AppComponentHttpMethod;
+    path?: string;
+    summary?: string;
+    description?: string;
+    ui?: AppComponentMockJsonOperationUiDefinition;
+  };
+  request?: {
+    parameters?: OpenApiParameter[];
+    bodySchema?: OpenApiSchema;
+    bodyRequired?: boolean;
+    bodyDescription?: string;
+    bodyContentType?: string;
+  };
+  response: {
+    status?: number;
+    description?: string;
+    contentType?: string;
+    body?: unknown;
+    schema?: OpenApiSchema;
+    ui?: AppComponentMockJsonResponseUiDefinition;
+  };
+}
+
 export interface AppComponentWidgetProps extends Record<string, unknown> {
   apiTargetMode?: AppComponentApiTargetMode;
   mainSequenceResourceRelease?: AppComponentMainSequenceResourceReleaseRef;
+  mockJson?: AppComponentMockJsonDefinition;
   apiBaseUrl?: string;
   serviceHeaders?: AppComponentServiceHeader[];
   authMode?: AppComponentAuthMode;
@@ -149,6 +195,29 @@ export interface AppComponentEditableFormSession {
 export interface AppComponentResponseUiEditableFormDescriptor {
   role: "editable-form";
   widget: "definition-v1";
+}
+
+export interface AppComponentResponseUiNotificationDescriptor {
+  role: "notification";
+  widget: "banner-v1";
+}
+
+export type AppComponentResponseUiDescriptor =
+  | AppComponentResponseUiEditableFormDescriptor
+  | AppComponentResponseUiNotificationDescriptor;
+
+export type AppComponentResponseNotificationTone =
+  | "success"
+  | "primary"
+  | "info"
+  | "warning"
+  | "error";
+
+export interface AppComponentResponseNotification {
+  title?: string;
+  message: string;
+  tone: AppComponentResponseNotificationTone;
+  details?: string;
 }
 
 export interface AppComponentBindingInputPortSpec {
@@ -1758,10 +1827,10 @@ function pickPrimaryAppComponentResponseEntry(
   return preferred2xx ?? entries[0] ?? null;
 }
 
-export function resolveAppComponentResponseUiEditableFormDescriptor(
+export function resolveAppComponentResponseUiDescriptor(
   document: OpenApiDocument,
   resolvedOperation: ResolvedAppComponentOperation | null,
-): AppComponentResponseUiEditableFormDescriptor | undefined {
+): AppComponentResponseUiDescriptor | undefined {
   if (!resolvedOperation) {
     return undefined;
   }
@@ -1769,23 +1838,87 @@ export function resolveAppComponentResponseUiEditableFormDescriptor(
   const primaryResponseEntry = pickPrimaryAppComponentResponseEntry(document, resolvedOperation);
   const uiRole = readOpenApiExtensionStringFromSources(
     "x-ui-role",
-    resolvedOperation.operation,
     primaryResponseEntry?.schema,
+    resolvedOperation.operation,
   );
   const uiWidget = readOpenApiExtensionStringFromSources(
     "x-ui-widget",
-    resolvedOperation.operation,
     primaryResponseEntry?.schema,
+    resolvedOperation.operation,
   );
 
-  if (uiRole !== "editable-form" || uiWidget !== "definition-v1") {
+  if (uiRole === "editable-form" && uiWidget === "definition-v1") {
+    return {
+      role: "editable-form",
+      widget: "definition-v1",
+    };
+  }
+
+  if (uiRole === "notification" && uiWidget === "banner-v1") {
+    return {
+      role: "notification",
+      widget: "banner-v1",
+    };
+  }
+
+  return undefined;
+}
+
+export function resolveAppComponentResponseUiEditableFormDescriptor(
+  document: OpenApiDocument,
+  resolvedOperation: ResolvedAppComponentOperation | null,
+): AppComponentResponseUiEditableFormDescriptor | undefined {
+  const descriptor = resolveAppComponentResponseUiDescriptor(document, resolvedOperation);
+
+  return descriptor?.role === "editable-form" ? descriptor : undefined;
+}
+
+function isAppComponentResponseNotificationTone(
+  value: unknown,
+): value is AppComponentResponseNotificationTone {
+  return value === "success"
+    || value === "primary"
+    || value === "info"
+    || value === "warning"
+    || value === "error";
+}
+
+export function normalizeAppComponentResponseNotification(
+  value: unknown,
+): AppComponentResponseNotification | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const message = typeof value.message === "string" ? value.message.trim() : "";
+  const tone = value.tone;
+  const title = typeof value.title === "string" ? value.title.trim() : "";
+  const details = typeof value.details === "string" ? value.details.trim() : "";
+
+  if (!message || !isAppComponentResponseNotificationTone(tone)) {
     return undefined;
   }
 
   return {
-    role: "editable-form",
-    widget: "definition-v1",
+    title: title || undefined,
+    message,
+    tone,
+    details: details || undefined,
   };
+}
+
+export function resolveAppComponentResponseNotification(
+  responseBody: unknown,
+  responseUiDescriptor?: AppComponentResponseUiDescriptor,
+): AppComponentResponseNotification | undefined {
+  if (
+    responseUiDescriptor?.role !== "notification" ||
+    responseUiDescriptor.widget !== "banner-v1"
+  ) {
+    return undefined;
+  }
+
+  return normalizeAppComponentResponseNotification(responseBody);
 }
 
 function buildAppComponentResponsePortId(path: string[]) {
@@ -2210,6 +2343,108 @@ export const appComponentMockOpenApiDocument = {
   },
 } satisfies OpenApiDocument;
 
+export const defaultAppComponentMockJsonDefinition: AppComponentMockJsonDefinition = {
+  version: 1,
+  operation: {
+    method: "post",
+    path: "/mock",
+    summary: "Inline mock notification",
+    description:
+      "Synthetic AppComponent endpoint used to prototype response rendering and bindings without a deployed API.",
+    ui: {
+      role: "async-select-search",
+      widget: "select2",
+      selectionType: "single",
+      searchParam: "country_search",
+      searchParamAliases: ["country_query"],
+      itemsPath: "items",
+      itemValueField: "code",
+      itemLabelField: "label",
+    },
+  },
+  request: {
+    parameters: [
+      {
+        name: "country_search",
+        in: "query",
+        description: "Search countries for the custom select input.",
+        required: false,
+        schema: {
+          type: "string",
+        },
+      },
+      {
+        name: "country_query",
+        in: "query",
+        description: "Alias for the country search term.",
+        required: false,
+        schema: {
+          type: "string",
+        },
+      },
+      {
+        name: "page",
+        in: "query",
+        description: "Mock lookup pagination page.",
+        required: false,
+        schema: {
+          type: "integer",
+        },
+      },
+      {
+        name: "limit",
+        in: "query",
+        description: "Mock lookup pagination size.",
+        required: false,
+        schema: {
+          type: "integer",
+        },
+      },
+    ],
+    bodyContentType: "application/json",
+    bodyRequired: false,
+    bodySchema: {
+      type: "object",
+      properties: {
+        note: {
+          type: "string",
+          title: "Note",
+          description: "Optional note sent with the mock request.",
+        },
+      },
+    },
+  },
+  response: {
+    status: 200,
+    contentType: "application/json",
+    body: {
+      title: "Action completed",
+      message: "This is a mock AppComponent notification response.",
+      tone: "success",
+      details:
+        "Use this inline target to prototype response rendering and downstream widget bindings before a real API exists.",
+      items: [
+        {
+          code: "AT",
+          label: "Austria",
+        },
+        {
+          code: "DE",
+          label: "Germany",
+        },
+        {
+          code: "CH",
+          label: "Switzerland",
+        },
+      ],
+    },
+    ui: {
+      role: "notification",
+      widget: "banner-v1",
+    },
+  },
+};
+
 export function normalizeAppComponentAuthMode(
   value: unknown,
 ): AppComponentAuthMode {
@@ -2219,8 +2454,8 @@ export function normalizeAppComponentAuthMode(
 export function normalizeAppComponentApiTargetMode(
   value: unknown,
 ): AppComponentApiTargetMode {
-  return value === "main-sequence-resource-release"
-    ? "main-sequence-resource-release"
+  return value === "main-sequence-resource-release" || value === "mock-json"
+    ? value
     : "manual";
 }
 
@@ -2266,6 +2501,248 @@ export function normalizeAppComponentMainSequenceResourceRelease(
     publicUrl: readOptionalString(value.publicUrl),
     exchangeLaunchUrl: readOptionalString(value.exchangeLaunchUrl),
     subdomain: readOptionalString(value.subdomain),
+  };
+}
+
+function normalizeMockJsonValue(value: unknown) {
+  try {
+    return value === undefined ? undefined : cloneJson(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeAppComponentMockJsonSchema(
+  value: unknown,
+): OpenApiSchema | undefined {
+  return isPlainRecord(value) ? normalizeMockJsonValue(value) as OpenApiSchema : undefined;
+}
+
+function normalizeAppComponentMockJsonParameter(
+  value: unknown,
+): OpenApiParameter | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const name = typeof value.name === "string" ? value.name.trim() : "";
+  const location =
+    value.in === "path" || value.in === "query" || value.in === "header"
+      ? value.in
+      : undefined;
+
+  if (!name || !location) {
+    return undefined;
+  }
+
+  return {
+    name,
+    in: location,
+    description:
+      typeof value.description === "string" && value.description.trim()
+        ? value.description.trim()
+        : undefined,
+    required: location === "path" ? true : value.required === true,
+    schema: normalizeAppComponentMockJsonSchema(value.schema),
+    example: normalizeMockJsonValue(value.example),
+  };
+}
+
+function normalizeAppComponentMockJsonResponseUi(
+  value: unknown,
+): AppComponentMockJsonResponseUiDefinition | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const role =
+    value.role === "notification" || value.role === "editable-form"
+      ? value.role
+      : undefined;
+  const widget =
+    value.widget === "banner-v1" || value.widget === "definition-v1"
+      ? value.widget
+      : undefined;
+
+  if (role === "notification" || widget === "banner-v1") {
+    return {
+      role: "notification",
+      widget: "banner-v1",
+    };
+  }
+
+  if (role === "editable-form" || widget === "definition-v1") {
+    return {
+      role: "editable-form",
+      widget: "definition-v1",
+    };
+  }
+
+  return undefined;
+}
+
+function normalizeAppComponentMockJsonOperationUi(
+  value: unknown,
+): AppComponentMockJsonOperationUiDefinition | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const role = value.role === "async-select-search" ? value.role : undefined;
+  const widget = value.widget === "select2" ? value.widget : undefined;
+
+  if (role !== "async-select-search" || widget !== "select2") {
+    return undefined;
+  }
+
+  return {
+    role,
+    widget,
+    selectionType: value.selectionType === "single" ? "single" : undefined,
+    searchParam:
+      typeof value.searchParam === "string" && value.searchParam.trim()
+        ? value.searchParam.trim()
+        : undefined,
+    searchParamAliases: Array.isArray(value.searchParamAliases)
+      ? value.searchParamAliases.flatMap((entry) =>
+          typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+        )
+      : undefined,
+    itemsPath:
+      typeof value.itemsPath === "string" && value.itemsPath.trim()
+        ? value.itemsPath.trim()
+        : undefined,
+    itemValueField:
+      typeof value.itemValueField === "string" && value.itemValueField.trim()
+        ? value.itemValueField.trim()
+        : undefined,
+    itemLabelField:
+      typeof value.itemLabelField === "string" && value.itemLabelField.trim()
+        ? value.itemLabelField.trim()
+        : undefined,
+    paginationPath:
+      typeof value.paginationPath === "string" && value.paginationPath.trim()
+        ? value.paginationPath.trim()
+        : undefined,
+    paginationMoreField:
+      typeof value.paginationMoreField === "string" && value.paginationMoreField.trim()
+        ? value.paginationMoreField.trim()
+        : undefined,
+  };
+}
+
+export function buildDefaultAppComponentMockJsonDefinition(options?: {
+  method?: AppComponentHttpMethod;
+  path?: string;
+}): AppComponentMockJsonDefinition {
+  const method = options?.method ?? defaultAppComponentMockJsonDefinition.operation.method;
+  const path = options?.path ?? defaultAppComponentMockJsonDefinition.operation.path;
+
+  return {
+    ...cloneJson(defaultAppComponentMockJsonDefinition),
+    operation: {
+      ...cloneJson(defaultAppComponentMockJsonDefinition.operation),
+      method,
+      path,
+    },
+  };
+}
+
+export function normalizeAppComponentMockJsonDefinition(
+  value: unknown,
+  options?: {
+    fallbackMethod?: AppComponentHttpMethod;
+    fallbackPath?: string;
+  },
+): AppComponentMockJsonDefinition | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  if ("version" in value && value.version !== 1) {
+    return undefined;
+  }
+
+  const rawOperation = isPlainRecord(value.operation) ? value.operation : {};
+  const method =
+    normalizeAppComponentMethod(rawOperation.method) ?? options?.fallbackMethod;
+  const path =
+    typeof rawOperation.path === "string" && rawOperation.path.trim()
+      ? rawOperation.path.trim()
+      : options?.fallbackPath;
+  const summary =
+    typeof rawOperation.summary === "string" && rawOperation.summary.trim()
+      ? rawOperation.summary.trim()
+      : undefined;
+  const description =
+    typeof rawOperation.description === "string" && rawOperation.description.trim()
+      ? rawOperation.description.trim()
+      : undefined;
+  const operationUi = normalizeAppComponentMockJsonOperationUi(rawOperation.ui);
+
+  const rawRequest = isPlainRecord(value.request) ? value.request : undefined;
+  const parameters = Array.isArray(rawRequest?.parameters)
+    ? rawRequest.parameters.flatMap((entry) => {
+        const normalized = normalizeAppComponentMockJsonParameter(entry);
+        return normalized ? [normalized] : [];
+      })
+    : undefined;
+  const bodySchema = normalizeAppComponentMockJsonSchema(rawRequest?.bodySchema);
+  const bodyContentType =
+    typeof rawRequest?.bodyContentType === "string" && rawRequest.bodyContentType.trim()
+      ? rawRequest.bodyContentType.trim()
+      : undefined;
+  const request =
+    parameters?.length ||
+    bodySchema ||
+    rawRequest?.bodyRequired === true ||
+    bodyContentType ||
+    (typeof rawRequest?.bodyDescription === "string" && rawRequest.bodyDescription.trim())
+      ? {
+          parameters: parameters?.length ? parameters : undefined,
+          bodySchema,
+          bodyRequired: rawRequest?.bodyRequired === true,
+          bodyDescription:
+            typeof rawRequest?.bodyDescription === "string" && rawRequest.bodyDescription.trim()
+              ? rawRequest.bodyDescription.trim()
+              : undefined,
+          bodyContentType,
+        }
+      : undefined;
+
+  const rawResponse = isPlainRecord(value.response) ? value.response : {};
+  const rawStatus =
+    typeof rawResponse.status === "number" ? rawResponse.status : Number(rawResponse.status);
+  const responseStatus =
+    Number.isFinite(rawStatus) && rawStatus >= 100 && rawStatus <= 599
+      ? Math.trunc(rawStatus)
+      : undefined;
+  const response = {
+    status: responseStatus,
+    description:
+      typeof rawResponse.description === "string" && rawResponse.description.trim()
+        ? rawResponse.description.trim()
+        : undefined,
+    contentType:
+      typeof rawResponse.contentType === "string" && rawResponse.contentType.trim()
+        ? rawResponse.contentType.trim()
+        : undefined,
+    body: normalizeMockJsonValue(rawResponse.body),
+    schema: normalizeAppComponentMockJsonSchema(rawResponse.schema),
+    ui: normalizeAppComponentMockJsonResponseUi(rawResponse.ui),
+  } satisfies AppComponentMockJsonDefinition["response"];
+
+  return {
+    version: 1,
+    operation: {
+      method,
+      path,
+      summary,
+      description,
+      ui: operationUi,
+    },
+    request,
+    response,
   };
 }
 
@@ -2361,30 +2838,63 @@ function normalizeWidgetValueDescriptor(
 export function normalizeAppComponentProps(
   props: AppComponentWidgetProps,
 ): AppComponentWidgetProps {
+  const normalizedTargetMode = normalizeAppComponentApiTargetMode(props.apiTargetMode);
+  const normalizedTopLevelMethod = normalizeAppComponentMethod(props.method);
+  const normalizedMockJson = normalizeAppComponentMockJsonDefinition(props.mockJson, {
+    fallbackMethod: normalizedTopLevelMethod,
+    fallbackPath:
+      typeof props.path === "string" && props.path.trim() ? props.path.trim() : undefined,
+  });
+  const resolvedMethod = normalizedTopLevelMethod ?? normalizedMockJson?.operation.method;
+  const resolvedPath =
+    (typeof props.path === "string" && props.path.trim() ? props.path.trim() : undefined) ??
+    normalizedMockJson?.operation.path;
+  const resolvedRequestBodyContentType =
+    typeof props.requestBodyContentType === "string" && props.requestBodyContentType.trim()
+      ? props.requestBodyContentType.trim()
+      : normalizedMockJson?.request?.bodyContentType;
+
   return {
     ...props,
-    apiTargetMode: normalizeAppComponentApiTargetMode(props.apiTargetMode),
+    apiTargetMode: normalizedTargetMode,
     mainSequenceResourceRelease: normalizeAppComponentMainSequenceResourceRelease(
       props.mainSequenceResourceRelease,
     ),
+    mockJson:
+      normalizedMockJson
+        ? {
+            ...normalizedMockJson,
+            operation: {
+              ...normalizedMockJson.operation,
+              method: resolvedMethod,
+              path: resolvedPath,
+            },
+            request: normalizedMockJson.request
+              ? {
+                  ...normalizedMockJson.request,
+                  bodyContentType:
+                    normalizedMockJson.request.bodyContentType ?? resolvedRequestBodyContentType,
+                }
+              : normalizedMockJson.request,
+          }
+        : undefined,
     apiBaseUrl:
       typeof props.apiBaseUrl === "string" && props.apiBaseUrl.trim()
         ? props.apiBaseUrl.trim()
         : undefined,
     serviceHeaders: normalizeAppComponentServiceHeaders(props.serviceHeaders),
     authMode: normalizeAppComponentAuthMode(props.authMode),
-    method: normalizeAppComponentMethod(props.method),
-    path:
-      typeof props.path === "string" && props.path.trim() ? props.path.trim() : undefined,
-    requestBodyContentType:
-      typeof props.requestBodyContentType === "string" && props.requestBodyContentType.trim()
-        ? props.requestBodyContentType.trim()
-        : undefined,
+    method: resolvedMethod,
+    path: resolvedPath,
+    requestBodyContentType: resolvedRequestBodyContentType,
     bindingSpec: normalizeAppComponentBindingSpec(props.bindingSpec),
     requestInputMap: normalizeAppComponentRequestInputMap(props.requestInputMap),
     compactCardLayout: normalizeAppComponentCompactCardLayout(props.compactCardLayout),
     showHeader: props.showHeader !== false,
-    showResponse: props.showResponse === true,
+    showResponse:
+      normalizedTargetMode === "mock-json"
+        ? true
+        : props.showResponse === true,
     hideRequestButton: props.hideRequestButton === true,
     requestButtonLabel:
       typeof props.requestButtonLabel === "string" && props.requestButtonLabel.trim()
@@ -2484,9 +2994,17 @@ export function isAppComponentMainSequenceResourceReleaseMode(
   );
 }
 
+export function isAppComponentMockJsonMode(
+  props: Pick<AppComponentWidgetProps, "apiTargetMode">,
+) {
+  return normalizeAppComponentApiTargetMode(props.apiTargetMode) === "mock-json";
+}
+
 function buildAppComponentSyntheticReleaseBaseUrl(releaseId: number) {
   return `https://resource-release-${releaseId}.invalid`;
 }
+
+export const APP_COMPONENT_MOCK_JSON_BASE_URL = "https://mock-json.invalid";
 
 export function resolveAppComponentDisplayBaseUrl(
   props: Pick<
@@ -2494,6 +3012,10 @@ export function resolveAppComponentDisplayBaseUrl(
     "apiBaseUrl" | "apiTargetMode" | "mainSequenceResourceRelease"
   >,
 ) {
+  if (isAppComponentMockJsonMode(props)) {
+    return undefined;
+  }
+
   if (isAppComponentMainSequenceResourceReleaseMode(props)) {
     return props.mainSequenceResourceRelease?.publicUrl ?? props.apiBaseUrl ?? undefined;
   }
@@ -2507,6 +3029,10 @@ export function resolveAppComponentRequestBaseUrl(
     "apiBaseUrl" | "apiTargetMode" | "mainSequenceResourceRelease"
   >,
 ) {
+  if (isAppComponentMockJsonMode(props)) {
+    return APP_COMPONENT_MOCK_JSON_BASE_URL;
+  }
+
   const displayBaseUrl = resolveAppComponentDisplayBaseUrl(props);
   const resolvedDisplayBaseUrl = tryResolveAppComponentBaseUrl(displayBaseUrl);
 
@@ -2529,6 +3055,10 @@ export function hasAppComponentDiscoveryTarget(
     "apiBaseUrl" | "apiTargetMode" | "mainSequenceResourceRelease"
   >,
 ) {
+  if (isAppComponentMockJsonMode(props)) {
+    return true;
+  }
+
   if (isAppComponentMainSequenceResourceReleaseMode(props)) {
     return true;
   }
@@ -3717,12 +4247,12 @@ export function buildAppComponentBindingSpec(
   ];
   const responsePorts: AppComponentBindingOutputPortSpec[] = [];
   const primaryResponseEntry = pickPrimaryAppComponentResponseEntry(document, resolvedOperation);
-  const responseUiEditableForm = resolveAppComponentResponseUiEditableFormDescriptor(
+  const responseUiDescriptor = resolveAppComponentResponseUiDescriptor(
     document,
     resolvedOperation,
   );
 
-  if (primaryResponseEntry && !responseUiEditableForm) {
+  if (primaryResponseEntry && responseUiDescriptor?.role !== "editable-form") {
     collectResponsePortsFromSchema(document, primaryResponseEntry.schema, {
       path: [],
       statusCode: primaryResponseEntry.statusCode,

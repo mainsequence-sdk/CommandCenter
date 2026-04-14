@@ -2,6 +2,11 @@ import { getAppPath } from "@/apps/utils";
 import { createBlankDashboard } from "@/features/dashboards/custom-dashboard-storage";
 import type { WorkspaceListItemSummary } from "@/features/dashboards/workspace-list-summary";
 import type { WorkspaceStudioSurfaceConfig } from "@/features/dashboards/workspace-studio-surface-config";
+import { appComponentWidget } from "@/widgets/core/app-component/definition";
+import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
+import { mainSequenceDataNodeFilterWidget } from "../main_sequence/extensions/workbench/widgets/data-node-filter/definition";
+import { mainSequenceDataNodeTableWidget } from "../main_sequence/extensions/workbench/widgets/data-node-table/definition";
+import { mainSequenceDataNodeGraphWidget } from "../main_sequence/extensions/workbench/widgets/data-node-visualizer/definition";
 import {
   AGENT_TERMINAL_WIDGET_ID,
   appendAgentTerminalWidget,
@@ -123,10 +128,15 @@ export const agentMonitorWorkspaceStudioConfig: WorkspaceStudioSurfaceConfig = {
   allowedWidgetIds: [
     AGENT_TERMINAL_WIDGET_ID,
     UPSTREAM_INSPECTOR_WIDGET_ID,
+    markdownNoteWidget.id,
+    appComponentWidget.id,
+    mainSequenceDataNodeFilterWidget.id,
+    mainSequenceDataNodeTableWidget.id,
+    mainSequenceDataNodeGraphWidget.id,
   ],
   catalogTitle: "Agent Widgets",
   catalogDescription:
-    "Build monitor workspaces with the Agent Session Terminal and Upstream Inspector widgets.",
+    "Build monitor workspaces with Agent Terminal plus snapshot-capable context widgets such as Data Nodes, Data Node Table, Data Node Graph, AppComponent, and Markdown.",
   savedWidgetsPath: undefined,
   workspaceFilter: isAgentMonitorWorkspace,
   workspaceListPath: AGENTS_MONITOR_SURFACE_PATH,
