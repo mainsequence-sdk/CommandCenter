@@ -24,13 +24,20 @@ This directory contains the ECharts-backed widget modules used by the live widge
 - JSON mode never revives functions from strings. Trusted snippets are injected locally through a
   small allowlisted registry, and unsafe JavaScript mode is only available when the effective
   organization capability mode is `unsafe-custom-js`.
-- JSON mode supports semantic theme color references so uploaded JSON can stay theme-aware. Two
-  supported forms are string tokens such as `"$theme.primary"` and object tokens such as
-  `{ "$themeToken": "warning", "alpha": 0.18 }`.
-- JSON mode also supports theme data-viz palette references. Supported forms include
+- Capability and risk messaging for unsafe JavaScript mode belongs in settings and configuration
+  surfaces. The runtime chart surface should stay focused on rendering results and hard failures,
+  not persistent capability warnings.
+- JSON mode and JavaScript-builder mode both support semantic theme color references when the
+  option stays a plain returned object/array tree. Two supported forms are string tokens such as
+  `"$theme.primary"` and object tokens such as `{ "$themeToken": "warning", "alpha": 0.18 }`.
+- JSON mode and JavaScript-builder mode also support theme data-viz palette references inside plain
+  returned option objects. Supported forms include
   `"$palette.categorical.0"`, `{ "$palette": "categorical", "index": 2 }`, and scale references
   such as `{ "$paletteScale": "sequential.primary", "index": 4, "steps": 7 }` or
   `{ "$paletteScale": "diverging.default", "index": 2, "steps": 5 }`.
+- Non-plain runtime helper objects such as already-instantiated `echarts.graphic.*` values are left
+  untouched. If JavaScript mode constructs those objects directly, pass final colors into them
+  instead of theme-token placeholders.
 - The default starter chart is a JSON-safe animated bar chart inspired by the Apache ECharts
   `bar-animation-delay` example, but adapted to avoid function callbacks and to showcase the
   theme-driven categorical, sequential, and diverging palette helpers.

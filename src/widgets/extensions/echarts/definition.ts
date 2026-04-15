@@ -14,7 +14,7 @@ import { EChartsSpecWidgetSettings } from "./EChartsSpecWidgetSettings";
 
 export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
   id: "echarts-spec",
-  widgetVersion: "1.1.0",
+  widgetVersion: "1.2.0",
   title: "ECharts Spec",
   description: "Render an ECharts option payload with optional organization-scoped capability controls.",
   category: "Visualization",
@@ -84,8 +84,8 @@ export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
         "Optionally bind one core.value.json@v1 payload from an upstream widget to drive the ECharts widget props.",
       ],
       configurationNotes: [
-        "In JSON mode the widget can consume semantic theme tokens inside uploaded JSON, for example \"$theme.primary\" or { \"$themeToken\": \"warning\", \"alpha\": 0.2 }.",
-        "JSON mode also supports theme palette references, for example \"$palette.categorical.0\" or { \"$paletteScale\": \"sequential.primary\", \"index\": 4, \"steps\": 7 }.",
+        "Both JSON mode and JavaScript builder mode can consume semantic theme tokens inside plain returned option objects, for example \"$theme.primary\" or { \"$themeToken\": \"warning\", \"alpha\": 0.2 }.",
+        "Both JSON mode and JavaScript builder mode also support theme palette references inside plain returned option objects, for example \"$palette.categorical.0\" or { \"$paletteScale\": \"sequential.primary\", \"index\": 4, \"steps\": 7 }.",
         "Bound props JSON may provide the ECharts option either as optionJson or directly as a structured option object under option.",
       ],
     },
@@ -142,6 +142,7 @@ export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
         "JSON mode does not parse functions from payload strings.",
         "Bound props JSON overrides matching local widget props when both are present.",
         "Unsafe JavaScript mode may be blocked by organization configuration and will then fall back to JSON mode.",
+        "Theme and palette tokens in JavaScript mode are only resolved inside plain returned option objects; already-instantiated ECharts helper objects must still use final colors.",
       ],
     },
     examples: [

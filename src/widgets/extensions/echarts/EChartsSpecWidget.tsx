@@ -349,6 +349,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+
+  return prototype === Object.prototype || prototype === null;
+}
+
 function isThemeTokenKey(value: unknown): value is ThemeTokenKey {
   return typeof value === "string" && themeTokenKeySet.has(value);
 }
@@ -866,7 +876,7 @@ function resolveThemeAwareOptionNode(
     return value.map((entry) => resolveThemeAwareOptionNode(entry, resolvedTokens, resolvedDataViz));
   }
 
-  if (!isRecord(value)) {
+  if (!isPlainRecord(value)) {
     return value;
   }
 
@@ -978,6 +988,20 @@ function buildUnsafeJavaScriptOption(source: string) {
   return option as EChartsOption;
 }
 
+function buildThemeAwareUnsafeJavaScriptOption(
+  source: string,
+  resolvedTokens: ThemeTokens,
+  resolvedDataViz: ResolvedThemeDataVizPalette,
+) {
+  const option = buildUnsafeJavaScriptOption(source);
+
+  return resolveThemeAwareOptionNode(
+    option,
+    resolvedTokens,
+    resolvedDataViz,
+  ) as EChartsOption;
+}
+
 function resolveEffectiveSourceMode(
   props: EChartsSpecWidgetProps,
   configuration: ResolvedEChartsOrganizationConfiguration,
@@ -1002,10 +1026,12 @@ function useCompiledOption(
 
     try {
       const option = sourceMode === "javascript"
-        ? buildUnsafeJavaScriptOption(
+        ? buildThemeAwareUnsafeJavaScriptOption(
             typeof props.optionBuilderSource === "string"
               ? props.optionBuilderSource.trim()
               : "",
+            resolvedTokens,
+            resolvedDataViz,
           )
         : buildJsonOption(
             normalizeJsonOptionSource(props),
@@ -1099,13 +1125,6 @@ export function EChartsSpecWidget({ widget, props, resolvedInputs }: Props) {
           The widget requested unsafe JavaScript mode, but the effective organization capability is{" "}
           <strong>{organizationConfiguration.capabilityMode}</strong>. The renderer fell back to
           JSON mode.
-        </div>
-      ) : null}
-
-      {organizationConfiguration.capabilityMode === "unsafe-custom-js" && compiled.sourceMode === "javascript" ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-          Unsafe custom JavaScript mode is active for this widget. The option builder executes
-          arbitrary local code from widget props.
         </div>
       ) : null}
 
