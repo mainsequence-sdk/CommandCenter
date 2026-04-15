@@ -1,4 +1,4 @@
-import type { ThemePreset, ThemeTokens } from "@/themes/types";
+import type { ThemeDataVizPaletteSpec, ThemePreset, ThemeTokens } from "@/themes/types";
 
 function toIdentifier(value: string) {
   const clean = value.replace(/[^a-zA-Z0-9]+/g, " ");
@@ -19,6 +19,7 @@ function toIdentifier(value: string) {
 
 export function buildThemeSnippet({
   dataViz,
+  exportDataViz,
   id,
   label,
   description,
@@ -27,12 +28,12 @@ export function buildThemeSnippet({
   tightness,
   surfaceHierarchy,
   tokens,
-}: ThemePreset) {
+}: ThemePreset & { exportDataViz?: ThemeDataVizPaletteSpec }) {
   const tokenLines = Object.entries(tokens)
     .map(([key, value]) => `    ${JSON.stringify(key)}: ${JSON.stringify(value)},`)
     .join("\n");
-  const dataVizBlock = dataViz
-    ? `,\n  dataViz: ${JSON.stringify(dataViz, null, 2)
+  const dataVizBlock = (exportDataViz ?? dataViz)
+    ? `,\n  dataViz: ${JSON.stringify(exportDataViz ?? dataViz, null, 2)
       .split("\n")
       .map((line, index) => (index === 0 ? line : `  ${line}`))
       .join("\n")}`

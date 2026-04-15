@@ -16,6 +16,8 @@ This module owns the active shell theme runtime and applies the resolved design 
 - Resolve a theme-level data-viz palette contract for chart widgets.
 - Expose the runtime API used by theme menus, settings, and themed widgets.
 - Persist the selected preset locally when backend preferences are not configured.
+- Feed Theme Studio with the resolved categorical, sequential, and diverging palette families so
+  operators can inspect and export the actual palette contract used by palette-driven charts.
 
 ## Persistence behavior
 
@@ -31,4 +33,7 @@ This module owns the active shell theme runtime and applies the resolved design 
 - Prefer defining chart palette behavior at the theme layer instead of hardcoding widget-local
   color ramps. Categorical palettes should be explicit or theme-derived defaults, while sequential
   and diverging ramps should be generated through `chart-palettes.ts`.
+- Theme Studio now exports the resolved palette families into generated preset snippets so copied
+  themes carry an explicit default data-viz palette contract instead of relying only on implicit
+  runtime fallback.
 - If theme persistence expands beyond the preset id, extend the shared preferences contract instead of introducing a second backend persistence path.

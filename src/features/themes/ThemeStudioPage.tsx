@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { buildThemeSnippet } from "@/themes/build-theme-snippet";
 import { useTheme } from "@/themes/ThemeProvider";
 import {
+  type ResolvedThemeDataVizPalette,
   themeSurfaceHierarchyMetadata,
   themeSurfaceHierarchyOptions,
   themeTokenMetadata,
@@ -42,11 +43,79 @@ const themeStudioPreviewRows = [
   },
 ] as const;
 
+function PaletteSwatchRow({
+  colors,
+}: {
+  colors: string[];
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {colors.map((color, index) => (
+        <div
+          key={`${color}-${index}`}
+          className="flex items-center gap-2 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/40 px-2 py-1"
+        >
+          <span
+            className="h-5 w-5 rounded-full border border-border/70"
+            style={{ backgroundColor: color }}
+          />
+          <code className="text-[11px] text-muted-foreground">{color}</code>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ThemePalettePreview({
+  palette,
+}: {
+  palette: ResolvedThemeDataVizPalette;
+}) {
+  return (
+    <div className="space-y-5">
+      <section className="space-y-2">
+        <div className="text-sm font-medium text-topbar-foreground">Categorical</div>
+        <p className="text-sm text-muted-foreground">
+          Default rotating palette for multi-series charts and graph nodes.
+        </p>
+        <PaletteSwatchRow colors={palette.categorical} />
+      </section>
+
+      <section className="space-y-3">
+        <div className="text-sm font-medium text-topbar-foreground">Sequential</div>
+        <div className="grid gap-3">
+          {Object.entries(palette.sequential).map(([key, scale]) => (
+            <div key={key} className="space-y-2">
+              <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{key}</div>
+              <PaletteSwatchRow
+                colors={[scale.start, ...(scale.mid ? [scale.mid] : []), scale.end]}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="text-sm font-medium text-topbar-foreground">Diverging</div>
+        <div className="grid gap-3">
+          {Object.entries(palette.diverging).map(([key, scale]) => (
+            <div key={key} className="space-y-2">
+              <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{key}</div>
+              <PaletteSwatchRow colors={[scale.negative, scale.neutral, scale.positive]} />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function ThemeStudioPage() {
   const {
     activeTheme,
     availableThemes,
     setThemeById,
+    resolvedDataViz,
     resolvedTokens,
     tightness,
     setTightness,
@@ -61,6 +130,7 @@ export function ThemeStudioPage() {
     () =>
       buildThemeSnippet({
         ...activeTheme,
+        exportDataViz: resolvedDataViz,
         tightness,
         surfaceHierarchy,
         tokens: resolvedTokens,
@@ -411,8 +481,26 @@ export function ThemeStudioPage() {
 
             <Card>
               <CardHeader>
+                <CardTitle>Data-viz palettes</CardTitle>
+                <CardDescription>
+                  Every active theme resolves categorical, sequential, and diverging palette families
+                  for palette-driven charts, even when the preset does not define explicit
+                  overrides.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ThemePalettePreview palette={resolvedDataViz} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>Generated preset</CardTitle>
-                <CardDescription>Paste this into a new theme file and register it through an extension.</CardDescription>
+                <CardDescription>
+                  Paste this into a new theme file and register it through an extension. The export
+                  includes the resolved data-viz palette contract so palette-driven charts stay
+                  stable across theme changes.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Textarea value={generatedPreset} readOnly className="font-mono text-xs leading-6" />
