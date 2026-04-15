@@ -23,7 +23,7 @@ const exampleContent = `# Daily Brief
 
 export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
   id: "markdown-note",
-  widgetVersion: "1.1.0",
+  widgetVersion: "1.2.0",
   title: "Markdown",
   description: "Render Markdown notes, runbooks, and narrative context inside a dashboard widget.",
   category: "Core",
@@ -34,11 +34,13 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
   exampleProps: {
     content: exampleContent,
     contentWidth: "prose",
+    contentVerticalAlign: "top",
     openLinksInNewTab: true,
   },
   mockProps: {
     content: exampleContent,
     contentWidth: "prose",
+    contentVerticalAlign: "top",
     openLinksInNewTab: true,
   },
   settingsComponent: MarkdownNoteWidgetSettings,
@@ -57,6 +59,12 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
         {
           id: "contentWidth",
           label: "Content width",
+          type: "enum",
+          source: "custom-settings",
+        },
+        {
+          id: "contentVerticalAlign",
+          label: "Vertical alignment",
           type: "enum",
           source: "custom-settings",
         },
@@ -84,7 +92,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
       ],
       authoringSteps: [
         "Add the widget and write the Markdown body.",
-        "Adjust width and link behavior if needed.",
+        "Adjust width, vertical alignment, and link behavior if needed.",
       ],
       blockingRequirements: [],
       commonPitfalls: [
@@ -97,6 +105,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
         summary: "Displays structured operational instructions with headings, lists, and tables.",
         props: {
           contentWidth: "prose",
+          contentVerticalAlign: "center",
           openLinksInNewTab: true,
         },
       },
@@ -112,6 +121,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
     data: {
       content: props.content ?? "",
       contentWidth: props.contentWidth ?? "prose",
+      contentVerticalAlign: props.contentVerticalAlign ?? "top",
       openLinksInNewTab: props.openLinksInNewTab !== false,
       renderedText: domTextContent?.trim() || "",
     },

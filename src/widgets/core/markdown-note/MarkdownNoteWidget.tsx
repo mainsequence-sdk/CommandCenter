@@ -5,10 +5,12 @@ import { cn } from "@/lib/utils";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 export type MarkdownNoteWidth = "compact" | "prose" | "full";
+export type MarkdownNoteVerticalAlign = "top" | "center" | "bottom";
 
 export interface MarkdownNoteWidgetProps extends Record<string, unknown> {
   content?: string;
   contentWidth?: MarkdownNoteWidth;
+  contentVerticalAlign?: MarkdownNoteVerticalAlign;
   emptyState?: string;
   openLinksInNewTab?: boolean;
   showHeader?: boolean;
@@ -25,6 +27,16 @@ export function normalizeMarkdownNoteWidth(value: MarkdownNoteWidgetProps["conte
   return "prose";
 }
 
+export function normalizeMarkdownNoteVerticalAlign(
+  value: MarkdownNoteWidgetProps["contentVerticalAlign"],
+): MarkdownNoteVerticalAlign {
+  if (value === "center" || value === "bottom") {
+    return value;
+  }
+
+  return "top";
+}
+
 function resolveMarkdownWidthClass(width: MarkdownNoteWidth) {
   switch (width) {
     case "compact":
@@ -37,12 +49,25 @@ function resolveMarkdownWidthClass(width: MarkdownNoteWidth) {
   }
 }
 
+function resolveMarkdownVerticalAlignClass(align: MarkdownNoteVerticalAlign) {
+  switch (align) {
+    case "center":
+      return "justify-center";
+    case "bottom":
+      return "justify-end";
+    case "top":
+    default:
+      return "justify-start";
+  }
+}
+
 type Props = WidgetComponentProps<MarkdownNoteWidgetProps>;
 
 export function MarkdownNoteWidget({ props }: Props) {
   const content = props.content?.trim() ?? "";
   const emptyState = props.emptyState?.trim() || defaultEmptyState;
   const contentWidth = normalizeMarkdownNoteWidth(props.contentWidth);
+  const contentVerticalAlign = normalizeMarkdownNoteVerticalAlign(props.contentVerticalAlign);
   const openLinksInNewTab = props.openLinksInNewTab !== false;
 
   if (!content) {
@@ -62,12 +87,21 @@ export function MarkdownNoteWidget({ props }: Props) {
   }
 
   return (
-    <div className="h-full min-h-0 overflow-auto p-4 md:p-5">
-      <div className={cn("mx-auto min-w-0", resolveMarkdownWidthClass(contentWidth))}>
-        <MarkdownContent
-          content={content}
-          openLinksInNewTab={openLinksInNewTab}
-        />
+    <div className="h-full min-h-0 overflow-auto">
+      <div className="flex min-h-full flex-col p-4 md:p-5">
+        <div
+          className={cn(
+            "flex min-h-full flex-1 flex-col",
+            resolveMarkdownVerticalAlignClass(contentVerticalAlign),
+          )}
+        >
+          <div className={cn("mx-auto min-w-0 w-full", resolveMarkdownWidthClass(contentWidth))}>
+            <MarkdownContent
+              content={content}
+              openLinksInNewTab={openLinksInNewTab}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

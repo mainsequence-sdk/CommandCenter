@@ -10,6 +10,7 @@ import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
   MarkdownNoteWidget,
+  normalizeMarkdownNoteVerticalAlign,
   normalizeMarkdownNoteWidth,
   type MarkdownNoteWidgetProps,
 } from "./MarkdownNoteWidget";
@@ -31,12 +32,14 @@ export function MarkdownNoteWidgetSettings({
   onDraftPropsChange,
 }: WidgetSettingsComponentProps<MarkdownNoteWidgetProps>) {
   const contentWidth = normalizeMarkdownNoteWidth(draftProps.contentWidth);
+  const contentVerticalAlign = normalizeMarkdownNoteVerticalAlign(draftProps.contentVerticalAlign);
   const openLinksInNewTab = draftProps.openLinksInNewTab !== false;
   const previewProps: MarkdownNoteWidgetProps = {
     ...draftProps,
     content: draftProps.content?.trim() || starterMarkdown,
     emptyState: draftProps.emptyState?.trim() || undefined,
     contentWidth,
+    contentVerticalAlign,
     openLinksInNewTab,
   };
 
@@ -109,6 +112,26 @@ export function MarkdownNoteWidgetSettings({
             <option value="compact">Compact</option>
             <option value="prose">Prose</option>
             <option value="full">Full width</option>
+          </Select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-topbar-foreground">Vertical alignment</span>
+          <Select
+            value={contentVerticalAlign}
+            disabled={!editable}
+            onChange={(event) => {
+              onDraftPropsChange({
+                ...draftProps,
+                contentVerticalAlign: normalizeMarkdownNoteVerticalAlign(
+                  event.target.value as MarkdownNoteWidgetProps["contentVerticalAlign"],
+                ),
+              });
+            }}
+          >
+            <option value="top">Top</option>
+            <option value="center">Center</option>
+            <option value="bottom">Bottom</option>
           </Select>
         </label>
 
