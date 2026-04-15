@@ -40,6 +40,9 @@ an overlay rail.
 - `features/chat/`
   Shared AgentSession explorer and picker UI used by chat surfaces, widget settings, and the
   monitor launcher flow.
+- `features/settings/`
+  Extension-contributed shell settings sections, including global provider sign-in/sign-off,
+  provider attempt workflows, and the full known model catalog.
 - `widgets/`
   Extension-owned workspace widgets, including the session-bound terminal widget.
 - `surfaces/chat/`
@@ -64,6 +67,8 @@ chrome, not just a page-local feature.
 ## Behavior Notes
 
 - The full-page chat surface lives at `/app/main_sequence_ai/chat`.
+- The app now contributes a `Model Providers` user-settings section into the shared shell settings
+  dialog through the registry-backed `shellMenuContributions` contract.
 - The full-page chat now includes a hideable left explorer for local `AgentSessions`. Those
   sessions are browser-persisted per signed-in user until a backend session catalog exists.
 - The agents surface lives at `/app/main_sequence_ai/agents` and uses a full-bleed workspace-style

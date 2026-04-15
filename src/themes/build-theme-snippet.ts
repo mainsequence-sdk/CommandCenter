@@ -18,6 +18,7 @@ function toIdentifier(value: string) {
 }
 
 export function buildThemeSnippet({
+  dataViz,
   id,
   label,
   description,
@@ -30,6 +31,12 @@ export function buildThemeSnippet({
   const tokenLines = Object.entries(tokens)
     .map(([key, value]) => `    ${JSON.stringify(key)}: ${JSON.stringify(value)},`)
     .join("\n");
+  const dataVizBlock = dataViz
+    ? `,\n  dataViz: ${JSON.stringify(dataViz, null, 2)
+      .split("\n")
+      .map((line, index) => (index === 0 ? line : `  ${line}`))
+      .join("\n")}`
+    : "";
 
   return `import type { ThemePreset } from "@/themes/types";\n\nexport const ${toIdentifier(
     id,
@@ -39,7 +46,7 @@ export function buildThemeSnippet({
     description,
   )},\n  source: ${JSON.stringify(source)},\n  mode: ${JSON.stringify(
     mode,
-  )},\n  tightness: ${JSON.stringify(tightness)},\n  surfaceHierarchy: ${JSON.stringify(surfaceHierarchy)},\n  tokens: {\n${tokenLines}\n  },\n};`;
+  )},\n  tightness: ${JSON.stringify(tightness)},\n  surfaceHierarchy: ${JSON.stringify(surfaceHierarchy)},\n  tokens: {\n${tokenLines}\n  }${dataVizBlock},\n};`;
 }
 
 export function buildCustomPreset(

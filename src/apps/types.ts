@@ -1,11 +1,13 @@
 import type { ComponentType } from "react";
 
+import type { AppUser } from "@/auth/types";
 import type { DashboardDefinition } from "@/dashboards/types";
 import type { AppNotificationSourceDefinition } from "@/notifications/types";
 
 export type AppIcon = ComponentType<{ className?: string }>;
 export type AppNavigationPlacement = "primary" | "admin-menu";
 export type AppTopNavigationStyle = "selector" | "hidden";
+export type AppShellMenuAudience = "user" | "admin";
 
 export interface AppPermissionDefinition {
   id: string;
@@ -96,6 +98,30 @@ export interface AppSurfaceNavigationGroup {
   surfaces: AppSurfaceDefinition[];
 }
 
+export interface AppShellMenuContributionGroup {
+  id: string;
+  label: string;
+  description?: string;
+  order?: number;
+}
+
+export interface AppShellMenuRenderProps {
+  audience: AppShellMenuAudience;
+  user?: AppUser;
+}
+
+export interface AppShellMenuContribution {
+  id: string;
+  audience: AppShellMenuAudience;
+  label: string;
+  description?: string;
+  icon?: AppIcon;
+  order?: number;
+  requiredPermissions?: string[];
+  group?: AppShellMenuContributionGroup;
+  component: ComponentType<AppShellMenuRenderProps>;
+}
+
 export interface AppDefinition {
   id: string;
   title: string;
@@ -108,6 +134,7 @@ export interface AppDefinition {
   permissionDefinitions?: AppPermissionDefinition[];
   defaultSurfaceId: string;
   surfaces: AppSurfaceDefinition[];
+  shellMenuContributions?: AppShellMenuContribution[];
   notificationSources?: AppNotificationSourceDefinition[];
 }
 

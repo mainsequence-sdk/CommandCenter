@@ -1,9 +1,14 @@
 import type { SessionHistorySnapshot } from "../assistant-ui/session-history";
 import { normalizeSessionHistorySnapshot } from "../assistant-ui/session-history";
-import { buildMainSequenceAiAssistantHeaders } from "./assistant-endpoint";
+import {
+  buildMainSequenceAiAssistantHeaders,
+  buildMainSequenceAiAssistantUrl,
+} from "./assistant-endpoint";
 
 function buildSessionHistoryUrl(sessionId: string, assistantEndpoint: string) {
-  const url = new URL("/api/chat/history", assistantEndpoint);
+  const url = new URL(
+    buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/chat/history"),
+  );
   url.searchParams.set("sessionId", sessionId);
   return url.toString();
 }

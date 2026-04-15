@@ -49,6 +49,12 @@ export function useCustomWorkspaceStudio() {
   );
   const persistedWorkspaceListItems = useCustomWorkspaceStudioStore((state) => state.workspaceListItems);
   const dirtyWorkspaceIds = useCustomWorkspaceStudioStore((state) => state.dirtyWorkspaceIds);
+  const workspaceDraftRevisionById = useCustomWorkspaceStudioStore(
+    (state) => state.workspaceDraftRevisionById,
+  );
+  const workspaceUserStateRevisionById = useCustomWorkspaceStudioStore(
+    (state) => state.workspaceUserStateRevisionById,
+  );
   const error = useCustomWorkspaceStudioStore((state) => state.error);
   const missingWorkspaceIds = useCustomWorkspaceStudioStore((state) => state.missingWorkspaceIds);
   const workspaceEditorModeById = useCustomWorkspaceStudioStore(
@@ -144,12 +150,33 @@ export function useCustomWorkspaceStudio() {
   );
 
   const dirty = useMemo(
-    () => Object.keys(dirtyWorkspaceIds).length > 0,
-    [dirtyWorkspaceIds],
+    () => {
+      const workspaceIds = new Set([
+        ...Object.keys(dirtyWorkspaceIds),
+        ...Object.keys(workspaceDraftRevisionById),
+        ...Object.keys(workspaceUserStateRevisionById),
+      ]);
+
+      return Array.from(workspaceIds).some((workspaceId) => {
+        const hasDraftChanges =
+          (dirtyWorkspaceIds[workspaceId] ?? false) || (workspaceDraftRevisionById[workspaceId] ?? 0) > 0;
+        const hasUserStateChanges = (workspaceUserStateRevisionById[workspaceId] ?? 0) > 0;
+
+        return hasDraftChanges || hasUserStateChanges;
+      });
+    },
+    [dirtyWorkspaceIds, workspaceDraftRevisionById, workspaceUserStateRevisionById],
   );
   const selectedWorkspaceDirty = useMemo(
-    () => (requestedWorkspaceId ? (dirtyWorkspaceIds[requestedWorkspaceId] ?? false) : false),
-    [dirtyWorkspaceIds, requestedWorkspaceId],
+    () =>
+      requestedWorkspaceId
+        ? Boolean(
+            (dirtyWorkspaceIds[requestedWorkspaceId] ?? false) ||
+              (workspaceDraftRevisionById[requestedWorkspaceId] ?? 0) > 0 ||
+              (workspaceUserStateRevisionById[requestedWorkspaceId] ?? 0) > 0,
+          )
+        : false,
+    [dirtyWorkspaceIds, requestedWorkspaceId, workspaceDraftRevisionById, workspaceUserStateRevisionById],
   );
   const selectedWorkspaceEditing = useMemo(
     () =>

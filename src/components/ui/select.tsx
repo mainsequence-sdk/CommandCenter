@@ -4,7 +4,12 @@ import { Check, ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {}
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  actionLabel?: string;
+  actionOnSelect?: () => void;
+  fitContent?: boolean;
+  listboxPlacement?: "bottom" | "top";
+}
 
 interface SelectOption {
   disabled?: boolean;
@@ -63,6 +68,10 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       className,
       defaultValue,
       disabled = false,
+      actionLabel,
+      actionOnSelect,
+      fitContent = false,
+      listboxPlacement = "bottom",
       multiple,
       name,
       onChange,
@@ -171,7 +180,8 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           aria-expanded={open}
           aria-haspopup="listbox"
           className={cn(
-            "flex h-10 w-full items-center justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-left text-sm text-foreground shadow-sm outline-none transition-colors hover:border-primary/35 hover:bg-muted/25 focus:border-primary/70 focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-10 items-center justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-left text-sm text-foreground shadow-sm outline-none transition-colors hover:border-primary/35 hover:bg-muted/25 focus:border-primary/70 focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50",
+            fitContent ? "w-auto min-w-full" : "w-full",
             open && "border-primary/60 bg-muted/35",
             className,
           )}
@@ -181,7 +191,12 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             }
           }}
         >
-          <span className={cn("truncate", selectedOption ? "text-foreground" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              fitContent ? "whitespace-nowrap" : "truncate",
+              selectedOption ? "text-foreground" : "text-muted-foreground",
+            )}
+          >
             {selectedOption?.label ?? options[0]?.label ?? "Select an option"}
           </span>
           <ChevronDown
@@ -195,8 +210,29 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         {open ? (
           <div
             role="listbox"
-            className="absolute top-[calc(100%+0.5rem)] left-0 right-0 z-40 overflow-hidden rounded-[calc(var(--radius)+2px)] border border-border/80 bg-card/96 p-1.5 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur"
+            className={cn(
+              "absolute left-0 z-40 overflow-hidden rounded-[calc(var(--radius)+2px)] border border-border/80 bg-card/96 p-1.5 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur",
+              fitContent ? "w-max min-w-full" : "right-0",
+              listboxPlacement === "top"
+                ? "bottom-[calc(100%+0.5rem)]"
+                : "top-[calc(100%+0.5rem)]",
+            )}
           >
+            {actionLabel && actionOnSelect ? (
+              <>
+                <button
+                  type="button"
+                  className="mb-1 flex w-full items-center rounded-[calc(var(--radius)-6px)] px-3 py-2 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                  onClick={() => {
+                    actionOnSelect();
+                    setOpen(false);
+                  }}
+                >
+                  {actionLabel}
+                </button>
+                <div className="mb-1 border-t border-border/70" />
+              </>
+            ) : null}
             <div className="max-h-72 overflow-y-auto">
               {options.map((option) => {
                 const selected = option.value === currentValue;
@@ -221,7 +257,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                     <span className="flex h-4 w-4 shrink-0 items-center justify-center text-primary">
                       {selected ? <Check className="h-4 w-4" /> : null}
                     </span>
-                    <span className="truncate">{option.label}</span>
+                    <span className={cn(fitContent ? "whitespace-nowrap" : "truncate")}>
+                      {option.label}
+                    </span>
                   </button>
                 );
               })}

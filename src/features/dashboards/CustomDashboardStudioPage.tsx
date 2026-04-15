@@ -95,6 +95,7 @@ import type {
 } from "@/dashboards/types";
 import { cn, titleCase } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
+import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
 import {
   resolveWidgetHeaderVisibility,
   resolveWidgetMinimalChrome,
@@ -1435,6 +1436,7 @@ export function CustomDashboardStudioPage({
     savedWidgetsPath,
     toolbarActions,
   } = useWorkspaceStudioSurfaceConfig();
+  const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
   const widgetSettingsOpen =
     selectedWorkspaceView === "widget-settings" && Boolean(requestedWidgetId);
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
@@ -1450,9 +1452,13 @@ export function CustomDashboardStudioPage({
     () =>
       appRegistry.widgets.filter((widget) =>
         hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
-        (!allowedWidgetIdSet || allowedWidgetIdSet.has(widget.id)),
+        (!allowedWidgetIdSet || allowedWidgetIdSet.has(widget.id)) &&
+        (
+          !registeredWidgetTypes.endpointConfigured ||
+          registeredWidgetTypes.activeWidgetIdSet.has(widget.id)
+        ),
       ),
-    [allowedWidgetIdSet, permissions],
+    [allowedWidgetIdSet, permissions, registeredWidgetTypes.activeWidgetIdSet, registeredWidgetTypes.endpointConfigured],
   );
   const widgetMap = useMemo(
     () => new Map(allowedWidgets.map((widget) => [widget.id, widget])),

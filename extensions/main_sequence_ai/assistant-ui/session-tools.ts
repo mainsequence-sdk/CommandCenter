@@ -65,7 +65,7 @@ function normalizeSessionToolsSession(value: unknown): SessionToolsApiSession {
 }
 
 function normalizeToolUrl(url: string, assistantEndpoint: string) {
-  return new URL(url, assistantEndpoint).toString();
+  return buildMainSequenceAiAssistantUrl(assistantEndpoint, url);
 }
 
 function normalizeSessionToolDefinition(
@@ -137,3 +137,4 @@ export function normalizeSessionToolsSnapshot(payload: unknown, assistantEndpoin
     availableToolsByKey,
   } satisfies SessionToolsSnapshot;
 }
+import { buildMainSequenceAiAssistantUrl } from "../runtime/assistant-endpoint";

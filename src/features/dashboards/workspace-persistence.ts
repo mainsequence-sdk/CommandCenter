@@ -15,6 +15,7 @@ import {
   readBundledMockWorkspaceCollection,
   readLegacyMockWorkspaceCollection,
   saveWorkspaceInBackend,
+  saveWorkspaceUserStateInBackend,
 } from "./workspace-api";
 import { summarizeDashboardForWorkspaceList, type WorkspaceListItemSummary } from "./workspace-list-summary";
 import {
@@ -168,4 +169,15 @@ export async function savePersistedWorkspace(
   }
 
   return saveWorkspaceInBackend(workspace);
+}
+
+export async function savePersistedWorkspaceUserState(
+  workspaceId: string,
+  userState: WorkspaceUserStateSnapshot,
+) {
+  if (!isWorkspaceBackendEnabled()) {
+    return userState;
+  }
+
+  return saveWorkspaceUserStateInBackend(workspaceId, userState);
 }

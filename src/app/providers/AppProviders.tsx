@@ -7,16 +7,19 @@ import { CommandCenterConfigProvider } from "@/config/CommandCenterConfigProvide
 import { queryClient } from "@/data/query-client";
 import { CommandCenterPreferencesProvider } from "@/preferences/CommandCenterPreferencesProvider";
 import { ThemeProvider } from "@/themes/ThemeProvider";
+import { WidgetOrganizationConfigurationProvider } from "@/widgets/WidgetOrganizationConfigurationProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <CommandCenterConfigProvider>
         <ThemeProvider>
-          <CommandCenterPreferencesProvider>
-            {children}
-            <Toaster />
-          </CommandCenterPreferencesProvider>
+          <WidgetOrganizationConfigurationProvider>
+            <CommandCenterPreferencesProvider>
+              {children}
+              <Toaster />
+            </CommandCenterPreferencesProvider>
+          </WidgetOrganizationConfigurationProvider>
         </ThemeProvider>
       </CommandCenterConfigProvider>
     </QueryClientProvider>

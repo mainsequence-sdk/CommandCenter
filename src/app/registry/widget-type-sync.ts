@@ -27,7 +27,7 @@ import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
 const devAuthProxyPrefix = "/__command_center_auth__";
 
 // Bump when the JSON manifest contract changes in a backend-visible way.
-export const WIDGET_REGISTRY_VERSION = "2026-04-14";
+export const WIDGET_REGISTRY_VERSION = "2026-04-15";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -44,6 +44,9 @@ export interface SyncedWidgetTypePayload {
   schema: JsonValue;
   io: JsonValue;
   defaultPresentation: JsonValue;
+  organizationConfigurationSchema: JsonValue;
+  defaultOrganizationConfiguration: JsonValue;
+  organizationConfigurationVersion: number | null;
   isActive: boolean;
 }
 
@@ -463,6 +466,22 @@ function projectDefaultPresentation(
   return defaultPresentation ? toJsonValue(defaultPresentation) : {};
 }
 
+function projectOrganizationConfigurationSchema(
+  widget: WidgetDefinition,
+): JsonValue {
+  return widget.organizationConfiguration?.schema
+    ? toJsonValue(widget.organizationConfiguration.schema)
+    : null;
+}
+
+function projectDefaultOrganizationConfiguration(
+  widget: WidgetDefinition,
+): JsonValue {
+  return widget.organizationConfiguration?.defaultConfig
+    ? toJsonValue(widget.organizationConfiguration.defaultConfig)
+    : null;
+}
+
 function validateWidgetType(widget: WidgetDefinition): WidgetTypeSyncValidationIssue[] {
   const issues: WidgetTypeSyncValidationIssue[] = [];
   const configuration = resolveConfigurationContract(widget);
@@ -542,6 +561,35 @@ function validateWidgetType(widget: WidgetDefinition): WidgetTypeSyncValidationI
     });
   }
 
+  if (widget.organizationConfiguration) {
+    if (!Number.isInteger(widget.organizationConfiguration.version) || widget.organizationConfiguration.version < 1) {
+      issues.push({
+        widgetId: widget.id,
+        section: "organizationConfiguration",
+        message: "organizationConfiguration.version must be an integer greater than 0.",
+      });
+    }
+
+    if (!isRecord(widget.organizationConfiguration.schema)) {
+      issues.push({
+        widgetId: widget.id,
+        section: "organizationConfiguration",
+        message: "organizationConfiguration.schema must be a JSON object.",
+      });
+    }
+
+    if (
+      widget.organizationConfiguration.defaultConfig !== undefined &&
+      !isRecord(widget.organizationConfiguration.defaultConfig)
+    ) {
+      issues.push({
+        widgetId: widget.id,
+        section: "organizationConfiguration",
+        message: "organizationConfiguration.defaultConfig must be a JSON object when provided.",
+      });
+    }
+  }
+
   return issues;
 }
 
@@ -567,6 +615,9 @@ function projectWidgetType(widget: WidgetDefinition): SyncedWidgetTypePayload {
     schema: resolveWidgetSchemaPayload(widget),
     io: projectWidgetIo(effectiveIo, typeof widget.resolveIo === "function", ioContract),
     defaultPresentation: projectDefaultPresentation(widget.defaultPresentation),
+    organizationConfigurationSchema: projectOrganizationConfigurationSchema(widget),
+    defaultOrganizationConfiguration: projectDefaultOrganizationConfiguration(widget),
+    organizationConfigurationVersion: widget.organizationConfiguration?.version ?? null,
     isActive: true,
   };
 }

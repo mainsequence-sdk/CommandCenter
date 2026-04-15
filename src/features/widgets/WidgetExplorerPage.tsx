@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { getWidgetById } from "@/app/registry";
@@ -16,6 +16,7 @@ import {
 } from "@/dashboards/DashboardControls";
 import type { DashboardControlsConfig } from "@/dashboards/types";
 import { cn } from "@/lib/utils";
+import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
 import { WidgetFrame } from "@/widgets/shared/widget-frame";
 import type { WidgetDefinition, WidgetHeaderActionsProps } from "@/widgets/types";
 
@@ -82,6 +83,7 @@ export function WidgetExplorerPage() {
   const { widgetId = "" } = useParams();
   const widget = widgetId ? getWidgetById(widgetId) : undefined;
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
+  const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
   const queryClient = useState(
     () =>
       new QueryClient({
@@ -113,6 +115,9 @@ export function WidgetExplorerPage() {
   const allowed = widget
     ? hasAllPermissions(permissions, widget.requiredPermissions ?? [])
     : false;
+  const backendRegistered =
+    !registeredWidgetTypes.endpointConfigured ||
+    (widget ? registeredWidgetTypes.activeWidgetIdSet.has(widget.id) : false);
 
   useEffect(() => {
     return () => {
@@ -124,13 +129,32 @@ export function WidgetExplorerPage() {
     setRuntimeState(widget ? resolveWidgetMockRuntimeState(widget) : {});
   }, [widget]);
 
-  if (!widget) {
+  if (widget && registeredWidgetTypes.endpointConfigured && registeredWidgetTypes.isLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Widget Explorer"
+          title="Loading widget registry"
+          description="Waiting for the backend registered widget catalog before resolving this widget."
+        />
+
+        <Card>
+          <CardContent className="flex items-center gap-3 pt-5 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            Loading backend-registered widget types.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!widget || !backendRegistered) {
     return (
       <div className="space-y-6">
         <PageHeader
           eyebrow="Widget Explorer"
           title="Widget not found"
-          description="The requested widget id is not registered in this build."
+          description="The requested widget id is not available in the current registered widget catalog."
           actions={
             <Link
               to="/app/widgets"
@@ -145,7 +169,7 @@ export function WidgetExplorerPage() {
         <Card>
           <CardContent className="pt-5 text-sm text-muted-foreground">
             Widget id <span className="font-mono text-foreground">{widgetId}</span> is not available
-            in the current registry.
+            in the current registered widget catalog.
           </CardContent>
         </Card>
       </div>

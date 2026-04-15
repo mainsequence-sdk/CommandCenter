@@ -1,6 +1,16 @@
+export interface AgentSessionModelRequestBody {
+  model: string;
+  provider?: string | null;
+  runConfig?: {
+    reasoning_effort?: string | null;
+  } | null;
+  source: string;
+}
+
 interface AgentSessionRequestBodyFragmentOptions {
   agentName: string;
   context?: unknown;
+  model?: AgentSessionModelRequestBody | null;
   newChat?: boolean;
   sessionId?: string | number | null;
   threadId?: string | null;
@@ -24,6 +34,7 @@ function normalizeNonEmptyString(value: string | number | null | undefined) {
 export function buildAgentSessionRequestBodyFragment({
   agentName,
   context,
+  model,
   newChat = false,
   sessionId,
   threadId,
@@ -40,10 +51,38 @@ export function buildAgentSessionRequestBodyFragment({
   const normalizedThreadId = normalizeNonEmptyString(threadId);
   const normalizedUserId = normalizeNonEmptyString(userId);
   const normalizedWorkflowKey = normalizeNonEmptyString(workflowKey) ?? normalizedAgentName;
+  const normalizedModelSource =
+    model === null ? null : normalizeNonEmptyString(model?.source);
+  const normalizedModelValue =
+    model === null ? null : normalizeNonEmptyString(model?.model);
+  const normalizedModelProvider =
+    model === null ? null : normalizeNonEmptyString(model?.provider);
+  const normalizedReasoningEffort =
+    model === null
+      ? null
+      : normalizeNonEmptyString(model?.runConfig?.reasoning_effort);
 
   return {
     ...(newChat ? { newChat: true } : {}),
     agentName: normalizedAgentName,
+    ...(model === null
+      ? { model: null }
+      : normalizedModelSource && normalizedModelValue
+        ? {
+            model: {
+              source: normalizedModelSource,
+              model: normalizedModelValue,
+              ...(normalizedModelProvider ? { provider: normalizedModelProvider } : {}),
+              ...(normalizedReasoningEffort
+                ? {
+                    runConfig: {
+                      reasoning_effort: normalizedReasoningEffort,
+                    },
+                  }
+                : {}),
+            },
+          }
+        : {}),
     ...(normalizedUserId ? { userId: normalizedUserId } : {}),
     ...(normalizedThreadId ? { threadId: normalizedThreadId } : {}),
     ...(normalizedSessionId

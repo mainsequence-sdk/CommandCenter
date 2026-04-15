@@ -14,6 +14,7 @@ import {
   type AgentSessionStreamChunk,
 } from "../../runtime/agent-session-stream";
 import {
+  resolveMainSequenceAiAssistantChatEndpoint,
   resolveMainSequenceAiAssistantEndpoint,
   resolveMainSequenceAiAssistantProtocol,
 } from "../../runtime/assistant-endpoint";
@@ -154,6 +155,7 @@ export function AgentTerminalWidget({
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
   const widgetExecution = useDashboardWidgetExecution();
   const assistantEndpoint = useMemo(() => resolveMainSequenceAiAssistantEndpoint(), []);
+  const assistantChatEndpoint = useMemo(() => resolveMainSequenceAiAssistantChatEndpoint(), []);
   const assistantProtocol = useMemo(() => resolveMainSequenceAiAssistantProtocol(), []);
   const [lines, setLines] = useState<AgentTerminalLine[]>(() => buildAgentTerminalPlaceholderLines());
   const [sessionState, setSessionState] = useState<AgentTerminalSessionState | null>(null);
@@ -636,7 +638,7 @@ export function AgentTerminalWidget({
 
       try {
         await streamAgentSessionResponse({
-          assistantEndpoint,
+          assistantEndpoint: assistantChatEndpoint,
           body: buildAgentSessionLiveRequestBody({
             agentName: activeSession.agentName,
             context: buildWidgetContext({

@@ -3,6 +3,8 @@ import { hasAllPermissions } from "@/auth/permissions";
 import type {
   AppDefinition,
   AppNavigationPlacement,
+  AppShellMenuAudience,
+  AppShellMenuContribution,
   AppSurfaceDefinition,
   AppSurfaceEntry,
   AppSurfaceNavigationGroup,
@@ -71,6 +73,58 @@ export function getAccessiblePrimaryApps(permissions: string[]) {
 
 export function getAccessibleAdminMenuApps(permissions: string[]) {
   return getAccessibleAppsByPlacement(permissions, "admin-menu");
+}
+
+export function canAccessShellMenuContribution(
+  app: AppDefinition,
+  contribution: AppShellMenuContribution,
+  permissions: string[],
+) {
+  return (
+    canAccessApp(app, permissions) &&
+    hasAllPermissions(permissions, contribution.requiredPermissions ?? [])
+  );
+}
+
+export function getAccessibleShellMenuEntries(
+  permissions: string[],
+  audience: AppShellMenuAudience,
+) {
+  return appRegistry.shellMenuEntries
+    .filter((entry) => {
+      if (entry.audience !== audience) {
+        return false;
+      }
+
+      const app = getAppById(entry.appId);
+
+      if (!app) {
+        return false;
+      }
+
+      return canAccessShellMenuContribution(app, entry, permissions);
+    })
+    .sort((left, right) => {
+      const leftGroupOrder = left.group?.order ?? Number.POSITIVE_INFINITY;
+      const rightGroupOrder = right.group?.order ?? Number.POSITIVE_INFINITY;
+
+      if (leftGroupOrder !== rightGroupOrder) {
+        return leftGroupOrder - rightGroupOrder;
+      }
+
+      const leftOrder = left.order ?? Number.POSITIVE_INFINITY;
+      const rightOrder = right.order ?? Number.POSITIVE_INFINITY;
+
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+
+      if (left.appTitle !== right.appTitle) {
+        return left.appTitle.localeCompare(right.appTitle);
+      }
+
+      return left.label.localeCompare(right.label);
+    });
 }
 
 export function getAccessibleSurfaceEntries(permissions: string[]) {

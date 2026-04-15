@@ -1,7 +1,6 @@
 # Main Sequence Command Center configuration
 
 assistant_ui:
-  endpoint: 192.168.1.253:8787/api/chat
   protocol: ui-message-stream
 
 app:
@@ -37,7 +36,11 @@ saved_widgets:
   groups_detail_url: /api/v1/command_center/saved-widget-groups/{id}/
 
 widget_types:
+  list_url: /api/v1/command_center/widget-types/
+  detail_url: /api/v1/command_center/widget-types/{id}/
   sync_url: /api/v1/command_center/widget-types/sync/
+  organization_configurations_list_url: /api/v1/command_center/org-widget-type-configurations/
+  organization_configurations_detail_url: /api/v1/command_center/org-widget-type-configurations/{id}/
 
 auth:
   identifier_label: Email

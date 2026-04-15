@@ -16,10 +16,22 @@ Each theme preset contains:
 - `tightness`
 - `surfaceHierarchy`
 - `tokens`
+- `dataViz` (optional overrides over the default chart palette model)
 
 `tokens` handle color and radius. `tightness` handles density decisions that should stay consistent
 across the product without turning every component into a local spacing snowflake. `surfaceHierarchy`
 handles how strongly nested panels separate from their parent surface.
+
+`dataViz` is the chart-specific palette layer. It is separate from shell chrome tokens and is used
+by widgets that need:
+
+- categorical series palettes
+- sequential ramps generated at runtime
+- diverging ramps generated at runtime
+
+If a theme preset omits `dataViz`, the runtime derives a default chart palette from the theme
+tokens. Presets can still override any part of that contract when they need a more intentional
+visual system.
 
 ## Theme properties beyond tokens
 
@@ -85,6 +97,38 @@ The current token system includes:
 
 The full token key list is defined in `src/themes/types.ts`.
 
+## Data-viz palettes
+
+The chart palette model lives beside the shell token model rather than inside it.
+
+Each resolved theme palette contains:
+
+- `categorical`: a reusable list of series colors
+- `sequential.primary`
+- `sequential.success`
+- `sequential.warning`
+- `sequential.neutral`
+- `diverging.default`
+- `diverging.positive-negative`
+
+`categorical` is intended for discrete series identity.
+
+`sequential` and `diverging` are not stored as precomputed fixed-size arrays in the theme preset.
+They are resolved through helper functions in `src/themes/chart-palettes.ts`, so widgets can ask
+for the exact number of steps they need.
+
+Example usage from widget code:
+
+```ts
+const palette = resolveThemeDataVizPalette(activeTheme, resolvedTokens);
+const seriesColors = getThemeCategoricalPalette(palette, 6);
+const heatmapScale = getThemeSequentialScale(palette, "primary", 9);
+const pnlScale = getThemeDivergingScale(palette, "positive-negative", 7);
+```
+
+This keeps the chart palette API consistent across ECharts, Lightweight Charts, and future chart
+surfaces without overloading shell tokens like `primary` or `warning`.
+
 ## Runtime behavior
 
 `ThemeProvider` is responsible for:
@@ -138,6 +182,9 @@ export const graphiteTheme: ThemePreset = {
     accent: "#10B981",
     radius: "16px",
   },
+  dataViz: {
+    categorical: ["$theme.accent", "$theme.success", "$theme.warning", "$theme.danger"],
+  },
 };
 ```
 
@@ -152,6 +199,7 @@ of inventing new local size switches.
 Current references:
 
 - theme types: `src/themes/types.ts`
+- data-viz palette helpers: `src/themes/chart-palettes.ts`
 - density metrics: `src/themes/tightness.ts`
 - surface metrics: `src/themes/surface-hierarchy.ts`
 - runtime application: `src/themes/ThemeProvider.tsx`
@@ -191,6 +239,7 @@ stay framed, soften, or go flat.
 ## Recommendations
 
 - Prefer semantic tokens over widget-local hardcoded colors.
+- Prefer theme-level chart palettes over widget-local ad hoc chart ramps.
 - Use `tightness` for cross-cutting density rules instead of ad hoc `compact` props.
 - Use `surfaceHierarchy` for nested-panel chrome instead of one-off `border-none` classes.
 - Keep theme presets portable and code-reviewable.

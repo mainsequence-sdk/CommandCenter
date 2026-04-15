@@ -1,4 +1,4 @@
-import type { AppExtension, AppRegistry } from "@/app/registry/types";
+import type { AppExtension, AppRegistry, AppShellMenuEntry } from "@/app/registry/types";
 import type { AppSurfaceEntry } from "@/apps/types";
 import { env } from "@/config/env";
 
@@ -56,6 +56,19 @@ const surfaces = apps.flatMap<AppSurfaceEntry>((app) =>
     appRequiredPermissions: app.requiredPermissions,
   })),
 );
+const shellMenuEntries = apps.flatMap<AppShellMenuEntry>((app) =>
+  (app.shellMenuContributions ?? []).map((contribution) => ({
+    ...contribution,
+    id: `${app.id}::${contribution.id}`,
+    contributionId: contribution.id,
+    appId: app.id,
+    appTitle: app.title,
+    appDescription: app.description,
+    appSource: app.source,
+    appIcon: app.icon,
+    appRequiredPermissions: app.requiredPermissions,
+  })),
+);
 const dashboards = surfaces
   .filter((surface) => surface.kind === "dashboard")
   .map((surface) => surface.dashboard);
@@ -65,6 +78,7 @@ export const appRegistry: AppRegistry = {
   widgets,
   apps,
   surfaces,
+  shellMenuEntries,
   dashboards,
   themes: uniqueById(extensions.flatMap((extension) => extension.themes ?? [])),
 };

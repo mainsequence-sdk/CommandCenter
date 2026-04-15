@@ -388,6 +388,12 @@ export interface WidgetRegistryExample {
   notes?: string[];
 }
 
+export interface WidgetOrganizationConfigurationContract {
+  version: number;
+  schema: Record<string, unknown>;
+  defaultConfig?: Record<string, unknown>;
+}
+
 export interface WidgetRegistryContractInput {
   configuration?: Partial<WidgetRegistryConfigurationContract>;
   runtime?: Partial<
@@ -528,6 +534,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   execution?: WidgetExecutionDefinition<TProps>;
   workspaceRuntimeMode?: WidgetWorkspaceRuntimeMode;
   registryContract?: WidgetRegistryContractInput;
+  organizationConfiguration?: WidgetOrganizationConfigurationContract;
   workspaceIcon?: ComponentType<{ className?: string }>;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;

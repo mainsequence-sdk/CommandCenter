@@ -11,9 +11,11 @@ import { appRegistry } from "@/app/registry";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import { readCachedCurrentCommandCenterPreferences } from "@/preferences/api";
+import { resolveThemeDataVizPalette } from "@/themes/chart-palettes";
 import { getThemeSurfaceHierarchyMetrics } from "@/themes/surface-hierarchy";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
 import {
+  type ResolvedThemeDataVizPalette,
   themeTokenKeys,
   type ThemePreset,
   type ThemeSurfaceHierarchy,
@@ -27,6 +29,7 @@ interface ThemeContextValue {
   activeTheme: ThemePreset;
   themeId: string;
   resolvedTokens: ThemeTokens;
+  resolvedDataViz: ResolvedThemeDataVizPalette;
   tightness: ThemeTightness;
   surfaceHierarchy: ThemeSurfaceHierarchy;
   overrides: Partial<ThemeTokens>;
@@ -213,6 +216,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }) as ThemeTokens,
     [activeTheme, overrides],
   );
+  const resolvedDataViz = useMemo(
+    () => resolveThemeDataVizPalette(activeTheme, resolvedTokens),
+    [activeTheme, resolvedTokens],
+  );
 
   useEffect(() => {
     applyThemeDocumentState({
@@ -241,6 +248,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       activeTheme,
       themeId: activeTheme.id,
       resolvedTokens,
+      resolvedDataViz,
       tightness,
       surfaceHierarchy,
       overrides,
@@ -285,7 +293,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setSurfaceHierarchyOverride(null);
       },
     }),
-    [activeTheme, availableThemes, overrides, resolvedTokens, surfaceHierarchy, tightness],
+    [activeTheme, availableThemes, overrides, resolvedDataViz, resolvedTokens, surfaceHierarchy, tightness],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -303,4 +311,8 @@ export function useTheme() {
 
 export function useOptionalTheme() {
   return useContext(ThemeContext);
+}
+
+export function useThemeDataViz() {
+  return useTheme().resolvedDataViz;
 }

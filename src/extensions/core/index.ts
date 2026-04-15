@@ -17,6 +17,7 @@ import { AdminBillingDetailsPage } from "@/extensions/core/apps/admin/AdminBilli
 import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/AdminGithubOrganizationsPage";
 import { AdminInvoicesPage } from "@/extensions/core/apps/admin/AdminInvoicesPage";
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
+import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
 import { SavedWidgetsPage } from "@/features/dashboards/SavedWidgetsPage";
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
 import { cyberpunkTheme } from "@/themes/presets/cyberpunk";
@@ -235,6 +236,31 @@ const adminApp: AppDefinition = {
         order: 40,
       },
       component: AdminActivePlansPage,
+    },
+    {
+      id: "widget-configurations",
+      title: "Widget Configurations",
+      navLabel: "Widgets",
+      description: "Review backend-registered widget types that support organization-scoped configuration.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Widget Configurations. This page lists backend-registered widget types that can be configured per organization.",
+        availableActions: [
+          "Review configurable widget types",
+          "Inspect which widgets already have organization override rows",
+          "Confirm whether a configurable widget is present in the current frontend build",
+        ],
+      }),
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["org_admin:view"],
+      navigationSection: {
+        id: "widgets",
+        label: "Widgets",
+        description: "Organization-scoped widget availability and configuration capability.",
+        order: 42,
+      },
+      component: AdminWidgetConfigurationsPage,
     },
     {
       id: "github-organizations",

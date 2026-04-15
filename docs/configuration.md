@@ -28,6 +28,8 @@ VITE_BYPASS_AUTH=true
 Optional UI feature flags are also controlled through env:
 
 ```text
+VITE_ASSISTANT_UI_ENDPOINT=/__assistant__
+VITE_ASSISTANT_UI_PROXY_TARGET=http://192.168.1.253:8787
 VITE_INCLUDE_WEBSOCKETS=true
 VITE_INCLUDE_AUI=true
 VITE_INCLUDE_WORKSPACES=true
@@ -37,7 +39,6 @@ VITE_INCLUDE_WORKSPACES=true
 
 ```yaml
 assistant_ui:
-  endpoint: 192.168.1.253:8787/api/chat
   protocol: ui-message-stream
 
 app:
@@ -66,7 +67,11 @@ workspaces:
   detail_url:
 
 widget_types:
+  list_url: /api/v1/command_center/widget-types/
+  detail_url: /api/v1/command_center/widget-types/{id}/
   sync_url: /api/v1/command_center/widget-types/sync/
+  organization_configurations_list_url: /api/v1/command_center/org-widget-type-configurations/
+  organization_configurations_detail_url: /api/v1/command_center/org-widget-type-configurations/{id}/
 
 auth:
   identifier_label: Email
@@ -141,7 +146,8 @@ notifications:
 
 ## Fields
 
-- `assistant_ui.endpoint`: host/port or full URL used by the frontend as the canonical assistant endpoint. In live chat mode (`VITE_USE_MOCK_DATA=false`), the detachable assistant rail/page sends assistant-ui standard `POST` requests to this endpoint and expects the assistant-ui streamed response protocol back. Defaults to `192.168.1.253:8787/api/chat` when omitted.
+- `assistant_ui.endpoint`: optional YAML fallback for the assistant server root. In live chat mode (`VITE_USE_MOCK_DATA=false`), the detachable assistant rail/page resolves the server root from `VITE_ASSISTANT_UI_ENDPOINT` first, then this YAML field if the env var is unset. Live chat posts to `/api/chat` under that root, and related helpers call `/api/chat/history`, `/api/chat/session-tools`, and `/api/chat/get_available_models` under the same root.
+- `VITE_ASSISTANT_UI_PROXY_TARGET`: optional Vite-only dev proxy target for the assistant backend. Use this with `VITE_ASSISTANT_UI_ENDPOINT=/__assistant__` when the browser cannot reach the assistant LAN host directly.
 - `assistant_ui.protocol`: assistant-ui transport protocol expected from the backend. Supported values are `ui-message-stream` and `data-stream`. Defaults to `ui-message-stream`.
 - `app.name`: full product name used by the app
 - `app.short_name`: shorter product name for compact UI copy

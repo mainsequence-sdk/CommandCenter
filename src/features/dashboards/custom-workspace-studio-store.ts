@@ -12,6 +12,7 @@ import {
   loadPersistedWorkspaceUserState,
   isWorkspaceBackendEnabled,
   savePersistedWorkspace,
+  savePersistedWorkspaceUserState,
 } from "./workspace-persistence";
 import type { DashboardDefinition } from "@/dashboards/types";
 import {
@@ -674,6 +675,8 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
     }
 
     const draftWorkspaceRevision = current.workspaceDraftRevisionById[workspaceId] ?? 0;
+    const userStateRevision = current.workspaceUserStateRevisionById[workspaceId] ?? 0;
+    const backendEnabled = isWorkspaceBackendEnabled();
     const draftUserState = extractWorkspaceUserStateFromDashboard(draftWorkspace);
 
     set({
@@ -682,45 +685,65 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
     });
 
     try {
-      const savedWorkspace = await savePersistedWorkspace(
-        current.initializedUserId,
-        buildPersistedCollection(
-          current.savedWorkspaceById,
-          current.workspaceListItems,
-          current.selectedWorkspaceId ?? workspaceId,
-        ),
-        draftWorkspace,
-      );
+      const shouldSaveSharedWorkspace = !backendEnabled || draftWorkspaceRevision > 0;
+      const shouldSaveUserState = userStateRevision > 0;
+      const savedWorkspace = shouldSaveSharedWorkspace
+        ? await savePersistedWorkspace(
+            current.initializedUserId,
+            buildPersistedCollection(
+              current.savedWorkspaceById,
+              current.workspaceListItems,
+              current.selectedWorkspaceId ?? workspaceId,
+            ),
+            draftWorkspace,
+          )
+        : current.savedWorkspaceById[workspaceId] ?? draftWorkspace;
+      const persistedUserState =
+        shouldSaveUserState && backendEnabled
+          ? await savePersistedWorkspaceUserState(workspaceId, draftUserState)
+          : draftUserState;
       const normalizedSavedWorkspace = applyWorkspaceUserStateToDashboard(
         savedWorkspace,
-        draftUserState,
+        persistedUserState,
       );
       const savedAt = new Date().toISOString();
       const workspaceListItem = summarizeDashboardForWorkspaceList(normalizedSavedWorkspace, {
         updatedAt: savedAt,
       });
 
-      set((state) => ({
+      set((state) => {
+        const draftRevisionMatches =
+          (state.workspaceDraftRevisionById[workspaceId] ?? 0) === draftWorkspaceRevision;
+        const userStateRevisionMatches =
+          (state.workspaceUserStateRevisionById[workspaceId] ?? 0) === userStateRevision;
+        const canReplaceDraftWorkspace = draftRevisionMatches && userStateRevisionMatches;
+        const shouldClearUserStateRevision =
+          userStateRevisionMatches && shouldSaveUserState;
+
+        return {
         selectedWorkspaceId: workspaceId,
         savedWorkspaceById: upsertWorkspaceMap(state.savedWorkspaceById, normalizedSavedWorkspace),
         draftWorkspaceById:
-          (state.workspaceDraftRevisionById[workspaceId] ?? 0) === draftWorkspaceRevision
+          canReplaceDraftWorkspace
             ? upsertWorkspaceMap(state.draftWorkspaceById, normalizedSavedWorkspace)
             : state.draftWorkspaceById,
         workspaceListItems: upsertWorkspaceListItem(state.workspaceListItems, workspaceListItem),
         workspaceListHydrated: state.workspaceListHydrated,
         dirtyWorkspaceIds:
-          (state.workspaceDraftRevisionById[workspaceId] ?? 0) === draftWorkspaceRevision
+          draftRevisionMatches
             ? markWorkspaceIdsDirty(state.dirtyWorkspaceIds, [workspaceId], false)
             : state.dirtyWorkspaceIds,
         workspaceDraftRevisionById:
-          (state.workspaceDraftRevisionById[workspaceId] ?? 0) === draftWorkspaceRevision
+          draftRevisionMatches
             ? clearWorkspaceDraftRevisions(state.workspaceDraftRevisionById, [workspaceId])
             : state.workspaceDraftRevisionById,
-        workspaceUserStateRevisionById: state.workspaceUserStateRevisionById,
+        workspaceUserStateRevisionById: shouldClearUserStateRevision
+          ? clearWorkspaceDraftRevisions(state.workspaceUserStateRevisionById, [workspaceId])
+          : state.workspaceUserStateRevisionById,
         isSaving: false,
         error: null,
-      }));
+        };
+      });
 
       return normalizedSavedWorkspace;
     } catch (error) {

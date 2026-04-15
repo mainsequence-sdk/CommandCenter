@@ -16,6 +16,9 @@ Current surfaces in this folder:
 - `AdminOrganizationUsersPage.tsx`: organization user registry backed by the shared user endpoint
   with optional first/last-name user creation, visible name columns in the registry table, plus
   bulk delete and org-admin role actions
+- `AdminWidgetConfigurationsPage.tsx`: organization widget-type configuration inventory and CRUD
+  surface for widgets that advertise organization-scoped configuration capability, including raw
+  JSON override editing, backend registration status, and override-row deletion
 - `AdminActivePlansPage.tsx`: organization subscription inventory and per-user plan assignments
   backed by `/user/api/organization/<id>/active-plans/` with inline assign/remove seat controls
   plus a `Manage seats` modal loaded from `/user/api/organization/<id>/subscription-seats/`

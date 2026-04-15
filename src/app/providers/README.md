@@ -9,6 +9,9 @@ This directory owns top-level React provider wiring for the shell.
 ## Notable Behavior
 
 - Provider wiring must not trigger backend widget-catalog writes during normal sign-in. Widget registry publication is now an explicit platform-admin action exposed through `SettingsDialog.tsx`.
+- The app shell now also mounts `WidgetOrganizationConfigurationProvider`, which loads sparse
+  organization-scoped widget type configuration overrides once for the signed-in user when the
+  endpoint is configured. Widgets that do not opt into organization configuration ignore it.
 
 ## Maintenance Notes
 

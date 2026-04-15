@@ -1,5 +1,7 @@
 import rawCommandCenterConfig from "../../config/command-center.yaml?raw";
 
+const rawEnv = import.meta.env as Record<string, string | undefined>;
+
 export const commandCenterConfigSource = rawCommandCenterConfig.trim();
 
 export type AssistantUiProtocol = "ui-message-stream" | "data-stream";
@@ -97,7 +99,11 @@ export interface CommandCenterConfig {
     groupsDetailUrl: string;
   };
   widgetTypes: {
+    listUrl: string;
+    detailUrl: string;
     syncUrl: string;
+    organizationConfigurationsListUrl: string;
+    organizationConfigurationsDetailUrl: string;
   };
   auth: CommandCenterAuthConfig;
   accessRbac: {
@@ -186,7 +192,11 @@ interface DefaultCommandCenterConfig {
     groups_detail_url: string;
   };
   widget_types: {
+    list_url: string;
+    detail_url: string;
     sync_url: string;
+    organization_configurations_list_url: string;
+    organization_configurations_detail_url: string;
   };
   auth: {
     identifier_label: string;
@@ -289,9 +299,9 @@ const brandingAssets = import.meta.glob("../../config/branding/*", {
 }) as Record<string, string>;
 
 const defaultRawConfig: DefaultCommandCenterConfig = {
-  platform_agent_endpoint: "192.168.1.253:8787/api/chat",
+  platform_agent_endpoint: "",
   assistant_ui: {
-    endpoint: "192.168.1.253:8787/api/chat",
+    endpoint: "",
     protocol: "ui-message-stream",
   },
   app: {
@@ -328,7 +338,11 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     groups_detail_url: "/api/v1/command_center/saved-widget-groups/{id}/",
   },
   widget_types: {
+    list_url: "/api/v1/command_center/widget-types/",
+    detail_url: "/api/v1/command_center/widget-types/{id}/",
     sync_url: "/api/v1/command_center/widget-types/sync/",
+    organization_configurations_list_url: "/api/v1/command_center/org-widget-type-configurations/",
+    organization_configurations_detail_url: "/api/v1/command_center/org-widget-type-configurations/{id}/",
   },
   auth: {
     identifier_label: "Email",
@@ -574,7 +588,9 @@ const logoMarkFile = readString(
 export const commandCenterConfig: CommandCenterConfig = {
   assistantUi: {
     endpoint: readString(
-      parsedAssistantUi.endpoint ?? parsedConfig.platform_agent_endpoint,
+      rawEnv.VITE_ASSISTANT_UI_ENDPOINT ??
+        parsedAssistantUi.endpoint ??
+        parsedConfig.platform_agent_endpoint,
       defaultRawConfig.assistant_ui.endpoint,
     ),
     protocol: readAssistantUiProtocol(
@@ -657,7 +673,17 @@ export const commandCenterConfig: CommandCenterConfig = {
     ),
   },
   widgetTypes: {
+    listUrl: readString(parsedWidgetTypes.list_url, defaultRawConfig.widget_types.list_url),
+    detailUrl: readString(parsedWidgetTypes.detail_url, defaultRawConfig.widget_types.detail_url),
     syncUrl: readString(parsedWidgetTypes.sync_url, defaultRawConfig.widget_types.sync_url),
+    organizationConfigurationsListUrl: readString(
+      parsedWidgetTypes.organization_configurations_list_url,
+      defaultRawConfig.widget_types.organization_configurations_list_url,
+    ),
+    organizationConfigurationsDetailUrl: readString(
+      parsedWidgetTypes.organization_configurations_detail_url,
+      defaultRawConfig.widget_types.organization_configurations_detail_url,
+    ),
   },
   auth: {
     identifierLabel: readString(

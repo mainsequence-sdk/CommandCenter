@@ -13,17 +13,52 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import { useAuiState } from "@assistant-ui/store";
-import { ArrowUp, ChevronDown, Sparkles, Wrench } from "lucide-react";
+import { ArrowUp, ChevronDown, Sparkles, Wrench, Zap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { MarkdownContent } from "@/components/ui/markdown-content";
+import { Select } from "@/components/ui/select";
 import { env } from "@/config/env";
 import { cn } from "@/lib/utils";
+import { useShellStore } from "@/stores/shell-store";
 import { useChatFeature } from "../ChatProvider";
 
 interface ChatThreadProps {
   compact?: boolean;
   surface?: "overlay" | "page";
+}
+
+type ComposerModelOption = string;
+type ComposerReasoningEffort = string;
+
+const MODEL_PROVIDER_SETTINGS_SECTION_ID = "main_sequence_ai::model-providers";
+
+function formatModelsUnavailableMessage(error: string | null) {
+  const normalized = error?.trim();
+  const fallback =
+    "Models couldn't be fetched. The assistant cannot accept a message until the model catalog loads.";
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (
+    normalized === "Failed to fetch" ||
+    normalized.includes("Failed to fetch") ||
+    normalized.includes("ERR_ADDRESS_UNREACHABLE")
+  ) {
+    return `${fallback} The browser could not reach the assistant server.`;
+  }
+
+  return `Models couldn't be fetched. ${normalized}`;
+}
+
+function formatContextUsageNumber(value: number | null) {
+  if (value === null || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return new Intl.NumberFormat().format(value);
 }
 
 function tryParseJson(value: string) {
@@ -482,16 +517,38 @@ function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }
 }
 
 function Composer({
+  availableModelsError,
   compact = false,
+  isLoadingAvailableModels,
+  model,
+  modelOptions,
+  onModelChange,
+  onReasoningEffortChange,
+  reasoningEffortOptions,
+  reasoningEffort,
   surface = "overlay",
 }: {
+  availableModelsError: string | null;
   compact?: boolean;
+  isLoadingAvailableModels: boolean;
+  model: ComposerModelOption;
+  modelOptions: ReadonlyArray<{ disabled?: boolean; label: string; value: ComposerModelOption }>;
+  onModelChange: (value: ComposerModelOption) => void;
+  onReasoningEffortChange: (value: ComposerReasoningEffort) => void;
+  reasoningEffortOptions: ReadonlyArray<{ label: string; value: ComposerReasoningEffort }>;
+  reasoningEffort: ComposerReasoningEffort;
   surface?: "overlay" | "page";
 }) {
   const isPage = surface === "page";
   const placeholder = env.useMockData
     ? "Ask about the visible view, action bridges, or backend event wiring..."
     : "What should we investigate?";
+  const hasModelOptions = modelOptions.length > 0;
+  const hasReasoningEffortOptions = reasoningEffortOptions.length > 0;
+  const showConfigRow = isPage && hasModelOptions;
+  const modelsUnavailable = !env.useMockData && !isLoadingAvailableModels && !hasModelOptions;
+  const modelsUnavailableMessage = formatModelsUnavailableMessage(availableModelsError);
+  const openUserSettings = useShellStore((state) => state.openUserSettings);
 
   const composerBody = (
     <ComposerPrimitive.Root
@@ -504,20 +561,75 @@ function Composer({
       <div className="flex items-center gap-3">
         <ComposerPrimitive.Input
           autoFocus
+          disabled={modelsUnavailable}
           minRows={1}
           maxRows={10}
-          placeholder={placeholder}
+          placeholder={modelsUnavailable ? "Models unavailable." : placeholder}
           className={cn(
-            "w-full resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground",
+            "w-full resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60",
           )}
         />
         <ComposerPrimitive.Send
           aria-label="Send message"
           className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+          disabled={modelsUnavailable}
         >
           <ArrowUp className="h-4 w-4" />
         </ComposerPrimitive.Send>
       </div>
+      {showConfigRow ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Zap className="h-3.5 w-3.5" />
+            <Select
+              actionLabel="Sign in to provider"
+              actionOnSelect={() => {
+                openUserSettings(MODEL_PROVIDER_SETTINGS_SECTION_ID);
+              }}
+              aria-label="Model"
+              className="h-8 border-0 bg-transparent px-2 py-1 text-xs shadow-none hover:bg-muted/20 focus:ring-0"
+              fitContent
+              listboxPlacement="top"
+              value={model}
+              onChange={(event) => {
+                onModelChange(event.target.value as ComposerModelOption);
+              }}
+            >
+              {modelOptions.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                  disabled={"disabled" in option ? Boolean(option.disabled) : false}
+                >
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          {hasReasoningEffortOptions ? (
+            <Select
+              aria-label="Reasoning effort"
+              className="h-8 min-w-[128px] border-0 bg-transparent px-2 py-1 text-xs shadow-none hover:bg-muted/20 focus:ring-0"
+              listboxPlacement="top"
+              value={reasoningEffort}
+              onChange={(event) => {
+                onReasoningEffortChange(event.target.value as ComposerReasoningEffort);
+              }}
+            >
+              {reasoningEffortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          ) : null}
+        </div>
+      ) : null}
+      {modelsUnavailable ? (
+        <div className="mt-2 border-t border-border/50 pt-2 text-xs text-danger">
+          {modelsUnavailableMessage}
+        </div>
+      ) : null}
     </ComposerPrimitive.Root>
   );
 
@@ -525,9 +637,53 @@ function Composer({
 }
 
 function PageComposerFooter() {
+  const { activeSessionSummary } = useChatFeature();
+  const context = activeSessionSummary?.sessionInsights?.context ?? null;
+  const percentUsed =
+    context?.percentOfContextWindow !== null &&
+    context?.percentOfContextWindow !== undefined &&
+    Number.isFinite(context.percentOfContextWindow)
+      ? Math.min(Math.max(context.percentOfContextWindow, 0), 100)
+      : null;
+  const usedTokens = formatContextUsageNumber(context?.tokens ?? null);
+  const windowTokens = formatContextUsageNumber(context?.contextWindow ?? null);
+  const usageLabel =
+    percentUsed !== null
+      ? `${percentUsed}%`
+      : null;
+  const usageDetail =
+    usedTokens && windowTokens ? `${usedTokens} / ${windowTokens} tokens` : null;
+
   return (
-    <div className="mt-3 text-center text-xs text-muted-foreground">
-      Main Sequence AI can make mistakes. Verify important outputs before acting.
+    <div className="mt-3 space-y-3">
+      {percentUsed !== null ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+            <span>Window used</span>
+            <span className="font-mono">
+              {usageLabel}
+              {usageDetail ? ` • ${usageDetail}` : ""}
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-border/60">
+            <div
+              className={cn(
+                "h-full rounded-full transition-[width] duration-300",
+                percentUsed >= 90
+                  ? "bg-danger"
+                  : percentUsed >= 70
+                    ? "bg-warning"
+                    : "bg-primary",
+              )}
+              style={{ width: `${percentUsed}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <div className="text-center text-xs text-muted-foreground">
+        Main Sequence AI can make mistakes. Verify important outputs before acting.
+      </div>
     </div>
   );
 }
@@ -578,11 +734,33 @@ function FooterInsetSpacer({
 
 export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadProps) {
   const isPage = surface === "page";
+  const {
+    availableModels,
+    availableModelsError,
+    availableReasoningEfforts,
+    isLoadingAvailableModels,
+    selectedModelValue,
+    selectedReasoningEffortValue,
+    setSelectedModelValue,
+    setSelectedReasoningEffortValue,
+  } = useChatFeature();
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const pageFooterRef = useRef<HTMLDivElement | null>(null);
   const overlayFooterRef = useRef<HTMLDivElement | null>(null);
+  const modelOptions = availableModels.map((entry) => ({
+    disabled: Boolean(entry.auth?.required && !entry.auth.usable),
+    label:
+      entry.auth?.required && !entry.auth.usable
+        ? `${entry.label} • Not authenticated`
+        : entry.label,
+    value: entry.value,
+  }));
+  const reasoningEffortOptions = availableReasoningEfforts;
   const UserMessageComponent = isPage ? PageUserMessage : UserMessage;
+  const selectedModel = selectedModelValue ?? modelOptions[0]?.value ?? "";
+  const selectedReasoningEffort =
+    selectedReasoningEffortValue ?? reasoningEffortOptions[0]?.value ?? "";
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -596,7 +774,18 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
             </div>
             <div className="pointer-events-none absolute inset-x-4 top-1/2 -translate-y-1/2">
               <div className="pointer-events-auto mx-auto w-full max-w-3xl">
-                <Composer compact={compact} surface={surface} />
+                <Composer
+                  availableModelsError={availableModelsError}
+                  compact={compact}
+                  isLoadingAvailableModels={isLoadingAvailableModels}
+                  model={selectedModel}
+                  modelOptions={modelOptions}
+                  onModelChange={setSelectedModelValue}
+                  onReasoningEffortChange={setSelectedReasoningEffortValue}
+                  reasoningEffortOptions={reasoningEffortOptions}
+                  reasoningEffort={selectedReasoningEffort}
+                  surface={surface}
+                />
               </div>
             </div>
           </div>
@@ -640,7 +829,18 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                 className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/96 to-transparent px-4 pb-4 pt-10"
               >
                 <div className="pointer-events-auto mx-auto w-full max-w-5xl">
-                  <Composer compact={compact} surface={surface} />
+                  <Composer
+                    availableModelsError={availableModelsError}
+                    compact={compact}
+                    isLoadingAvailableModels={isLoadingAvailableModels}
+                    model={selectedModel}
+                    modelOptions={modelOptions}
+                    onModelChange={setSelectedModelValue}
+                    onReasoningEffortChange={setSelectedReasoningEffortValue}
+                    reasoningEffortOptions={reasoningEffortOptions}
+                    reasoningEffort={selectedReasoningEffort}
+                    surface={surface}
+                  />
                   <PageComposerFooter />
                 </div>
               </div>
@@ -651,7 +851,18 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                 className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background via-background/96 to-transparent px-0 pb-4 pt-10"
               >
                 <div className="pointer-events-auto">
-                  <Composer compact={compact} surface={surface} />
+                  <Composer
+                    availableModelsError={availableModelsError}
+                    compact={compact}
+                    isLoadingAvailableModels={isLoadingAvailableModels}
+                    model={selectedModel}
+                    modelOptions={modelOptions}
+                    onModelChange={setSelectedModelValue}
+                    onReasoningEffortChange={setSelectedReasoningEffortValue}
+                    reasoningEffortOptions={reasoningEffortOptions}
+                    reasoningEffort={selectedReasoningEffort}
+                    surface={surface}
+                  />
                 </div>
               </div>
             ) : null}

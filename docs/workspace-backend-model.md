@@ -40,6 +40,7 @@ Also note that the current frontend backend adapter expects a split list/detail 
 - `GET workspaces.list_url`: lightweight workspace summaries only
 - `GET workspaces.detail_url`: shared workspace content only
 - `GET workspaces.user_state_list_url?workspace=<id>`: current user control/runtime state
+- `POST workspaces.user_state_list_url`: current user control/runtime state upsert for one workspace
 - `PUT/DELETE workspaces.detail_url`: shared workspace content only
 
 The frontend now merges the current-user payload into the shared workspace locally after both

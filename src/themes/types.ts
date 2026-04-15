@@ -36,6 +36,52 @@ export type ThemeTokenKey = (typeof themeTokenKeys)[number];
 
 export type ThemeTokens = Record<ThemeTokenKey, string>;
 
+export type ThemeDataVizSequentialScaleKey = "primary" | "success" | "warning" | "neutral";
+export type ThemeDataVizDivergingScaleKey = "default" | "positive-negative";
+
+export interface ThemeDataVizColorReferenceToken {
+  alpha?: number;
+  token: ThemeTokenKey;
+}
+
+export type ThemeDataVizColorReference = string | ThemeDataVizColorReferenceToken;
+
+export interface ThemeDataVizSequentialScaleSpec {
+  end?: ThemeDataVizColorReference;
+  mid?: ThemeDataVizColorReference;
+  start?: ThemeDataVizColorReference;
+}
+
+export interface ThemeDataVizDivergingScaleSpec {
+  negative?: ThemeDataVizColorReference;
+  neutral?: ThemeDataVizColorReference;
+  positive?: ThemeDataVizColorReference;
+}
+
+export interface ThemeDataVizPaletteSpec {
+  categorical?: ThemeDataVizColorReference[];
+  diverging?: Partial<Record<ThemeDataVizDivergingScaleKey, ThemeDataVizDivergingScaleSpec>>;
+  sequential?: Partial<Record<ThemeDataVizSequentialScaleKey, ThemeDataVizSequentialScaleSpec>>;
+}
+
+export interface ResolvedThemeDataVizSequentialScale {
+  end: string;
+  mid?: string;
+  start: string;
+}
+
+export interface ResolvedThemeDataVizDivergingScale {
+  negative: string;
+  neutral: string;
+  positive: string;
+}
+
+export interface ResolvedThemeDataVizPalette {
+  categorical: string[];
+  diverging: Record<ThemeDataVizDivergingScaleKey, ResolvedThemeDataVizDivergingScale>;
+  sequential: Record<ThemeDataVizSequentialScaleKey, ResolvedThemeDataVizSequentialScale>;
+}
+
 export const themeTightnessOptions = ["relaxed", "default", "tight"] as const;
 export type ThemeTightness = (typeof themeTightnessOptions)[number];
 export const themeSurfaceHierarchyOptions = ["framed", "soft", "flat"] as const;
@@ -50,6 +96,7 @@ export interface ThemePreset {
   tightness: ThemeTightness;
   surfaceHierarchy: ThemeSurfaceHierarchy;
   tokens: ThemeTokens;
+  dataViz?: ThemeDataVizPaletteSpec;
 }
 
 export const themeTokenMetadata: Array<{

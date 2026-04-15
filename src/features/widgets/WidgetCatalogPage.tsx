@@ -8,27 +8,63 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PageHeader } from "@/components/ui/page-header";
 import { getWidgetExplorerPath } from "@/features/widgets/widget-explorer";
 import { titleCase } from "@/lib/utils";
+import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
 
 export function WidgetCatalogPage() {
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
+  const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
+  const availableWidgets = useMemo(
+    () =>
+      appRegistry.widgets.filter((widget) =>
+        hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
+        (
+          !registeredWidgetTypes.endpointConfigured ||
+          registeredWidgetTypes.activeWidgetIdSet.has(widget.id)
+        ),
+      ),
+    [permissions, registeredWidgetTypes.activeWidgetIdSet, registeredWidgetTypes.endpointConfigured],
+  );
 
   const grouped = useMemo(() => {
-    return appRegistry.widgets.reduce<Record<string, typeof appRegistry.widgets>>((acc, widget) => {
+    return availableWidgets.reduce<Record<string, typeof availableWidgets>>((acc, widget) => {
       if (!acc[widget.category]) acc[widget.category] = [];
       acc[widget.category].push(widget);
       return acc;
     }, {});
-  }, []);
+  }, [availableWidgets]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Registry"
         title="Widget Catalog"
-        description="Each widget is a module with metadata, permission requirements and typed props. Teams can add more widgets by shipping new extensions."
+        description="Each widget is a module with metadata, permission requirements and typed props. Only backend-registered active widget types are exposed when the widget registry read endpoint is configured."
       />
 
+      {registeredWidgetTypes.endpointConfigured && registeredWidgetTypes.isLoading ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-sm text-muted-foreground">
+          Loading backend-registered widget types.
+        </div>
+      ) : null}
+
+      {registeredWidgetTypes.endpointConfigured && registeredWidgetTypes.error ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          The backend widget-type registry could not be loaded. Unsynced widgets stay hidden until
+          the registry is available again.
+        </div>
+      ) : null}
+
       <div className="space-y-6">
+        {availableWidgets.length === 0 ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-8 text-center">
+            <div className="text-sm font-medium text-foreground">No registered widgets available</div>
+            <div className="mt-2 text-sm text-muted-foreground">
+              {registeredWidgetTypes.endpointConfigured
+                ? "The backend does not currently expose any active registered widget types for this user."
+                : "No widgets matched the current permission set."}
+            </div>
+          </div>
+        ) : null}
         {Object.entries(grouped).map(([category, widgets]) => (
           <section key={category} className="space-y-4">
             <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { cn, titleCase } from "@/lib/utils";
+import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
 import type { WidgetDefinition } from "@/widgets/types";
 
 import {
@@ -249,6 +250,7 @@ export function WorkspaceComponentBrowser({
   const [catalogScope, setCatalogScope] = useState<CatalogScope>("browse");
   const [favoriteWidgetIds, setFavoriteWidgetIds] = useState<string[]>([]);
   const [recentWidgetIds, setRecentWidgetIds] = useState<string[]>([]);
+  const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
   const allowedWidgetIdSet = useMemo(
     () => (allowedWidgetIds ? new Set(allowedWidgetIds) : null),
     [allowedWidgetIds],
@@ -258,9 +260,13 @@ export function WorkspaceComponentBrowser({
     () =>
       appRegistry.widgets.filter((widget) =>
         hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
-        (!allowedWidgetIdSet || allowedWidgetIdSet.has(widget.id)),
+        (!allowedWidgetIdSet || allowedWidgetIdSet.has(widget.id)) &&
+        (
+          !registeredWidgetTypes.endpointConfigured ||
+          registeredWidgetTypes.activeWidgetIdSet.has(widget.id)
+        ),
       ),
-    [allowedWidgetIdSet, permissions],
+    [allowedWidgetIdSet, permissions, registeredWidgetTypes.activeWidgetIdSet, registeredWidgetTypes.endpointConfigured],
   );
   const widgetMap = useMemo(
     () => new Map(allowedWidgets.map((widget) => [widget.id, widget])),
@@ -637,7 +643,9 @@ export function WorkspaceComponentBrowser({
           <div className="mt-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock3 className="h-3.5 w-3.5" />
-              {catalogSearchActive || catalogFiltersActive ? (
+              {registeredWidgetTypes.endpointConfigured && registeredWidgetTypes.isLoading ? (
+                <span>Loading backend-registered components</span>
+              ) : catalogSearchActive || catalogFiltersActive ? (
                 <span>{filteredWidgets.length} matching components</span>
               ) : (
                 <span>{allowedWidgets.length} available components</span>
@@ -718,7 +726,11 @@ export function WorkspaceComponentBrowser({
                       : "No components match the current search."}
               </div>
               <div className="mt-2 text-sm text-muted-foreground">
-                {allowedWidgets.length === 0
+                {registeredWidgetTypes.endpointConfigured && registeredWidgetTypes.isLoading
+                  ? "Waiting for the backend widget-type registry before showing available components."
+                  : registeredWidgetTypes.endpointConfigured && registeredWidgetTypes.error
+                    ? "The backend widget-type registry could not be loaded, so unregistered components stay hidden."
+                    : allowedWidgets.length === 0
                   ? "Your current permissions do not expose any widget definitions here."
                   : catalogScope === "favorites"
                     ? "Use the star on a component to pin it for faster access."

@@ -34,6 +34,8 @@ interface ShellState {
   commandValue: string;
   sidebarCollapsed: boolean;
   appPanelAppId: string | null;
+  userSettingsOpen: boolean;
+  userSettingsSectionId: string | null;
   kioskMode: boolean;
   workspaceCanvasMenuHidden: boolean;
   favoriteSurfaceIds: string[];
@@ -42,6 +44,8 @@ interface ShellState {
   setCommandValue: (value: string) => void;
   setSidebarCollapsed: (value: boolean) => void;
   setAppPanelAppId: (value: string | null) => void;
+  setUserSettingsOpen: (value: boolean) => void;
+  setUserSettingsSectionId: (value: string | null) => void;
   setKioskMode: (value: boolean) => void;
   setWorkspaceCanvasMenuHidden: (value: boolean) => void;
   setSurfaceFavorite: (favoriteId: string, value: boolean) => void;
@@ -55,6 +59,8 @@ interface ShellState {
   openAppPanel: (appId: string) => void;
   closeAppPanel: () => void;
   toggleAppPanel: (appId: string) => void;
+  openUserSettings: (sectionId?: string | null) => void;
+  closeUserSettings: () => void;
   expandSidebar: () => void;
   collapseSidebar: () => void;
   toggleSidebar: () => void;
@@ -68,6 +74,8 @@ export const useShellStore = create<ShellState>()(
       commandValue: "",
       sidebarCollapsed: true,
       appPanelAppId: null,
+      userSettingsOpen: false,
+      userSettingsSectionId: null,
       kioskMode: false,
       workspaceCanvasMenuHidden: false,
       favoriteSurfaceIds: [],
@@ -83,6 +91,12 @@ export const useShellStore = create<ShellState>()(
       },
       setAppPanelAppId(value) {
         set({ appPanelAppId: value });
+      },
+      setUserSettingsOpen(value) {
+        set({ userSettingsOpen: value });
+      },
+      setUserSettingsSectionId(value) {
+        set({ userSettingsSectionId: value });
       },
       setKioskMode(value) {
         set({ kioskMode: value });
@@ -154,6 +168,18 @@ export const useShellStore = create<ShellState>()(
         set((state) => ({
           appPanelAppId: state.appPanelAppId === appId ? null : appId,
         }));
+      },
+      openUserSettings(sectionId = null) {
+        set({
+          userSettingsOpen: true,
+          userSettingsSectionId: sectionId,
+        });
+      },
+      closeUserSettings() {
+        set({
+          userSettingsOpen: false,
+          userSettingsSectionId: null,
+        });
       },
       expandSidebar() {
         set({ sidebarCollapsed: false });

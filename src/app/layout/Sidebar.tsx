@@ -167,8 +167,11 @@ export function Sidebar() {
   const closeAppPanel = useShellStore((state) => state.closeAppPanel);
   const openAppPanel = useShellStore((state) => state.openAppPanel);
   const toggleAppPanel = useShellStore((state) => state.toggleAppPanel);
-  const [userSettingsOpen, setUserSettingsOpen] = useState(false);
   const chatFeature = useOptionalChatFeature();
+  const userSettingsOpen = useShellStore((state) => state.userSettingsOpen);
+  const userSettingsSectionId = useShellStore((state) => state.userSettingsSectionId);
+  const openUserSettings = useShellStore((state) => state.openUserSettings);
+  const closeUserSettings = useShellStore((state) => state.closeUserSettings);
 
   const userName = user?.name?.trim() || app.name;
   const userRoleLabel = getAccessProfileLabel(user);
@@ -355,7 +358,7 @@ export function Sidebar() {
                 />
               }
               onOpenSettings={() => {
-                setUserSettingsOpen(true);
+                openUserSettings();
               }}
               menuActions={userMenuActions}
               onLogout={() => {
@@ -418,7 +421,7 @@ export function Sidebar() {
                   </>
                 }
                 onOpenSettings={() => {
-                  setUserSettingsOpen(true);
+                  openUserSettings();
                 }}
                 menuActions={userMenuActions}
                 onLogout={() => {
@@ -448,10 +451,9 @@ export function Sidebar() {
       <SettingsDialog
         mode="user"
         open={userSettingsOpen}
+        requestedSectionId={userSettingsSectionId}
         user={user ?? undefined}
-        onClose={() => {
-          setUserSettingsOpen(false);
-        }}
+        onClose={closeUserSettings}
       />
     </aside>
   );

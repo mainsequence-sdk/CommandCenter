@@ -56,7 +56,13 @@ to backend persistence instead:
 If the backend validates widget ids against the registered widget catalog, a platform admin must
 explicitly publish the current frontend widget registry to:
 
+- `widget_types.list_url`
+- `widget_types.detail_url`
 - `widget_types.sync_url`
+
+When `widget_types.list_url` is configured, normal widget-picking surfaces now also enforce
+backend registration as an availability gate. Unsynced widget definitions stay hidden even if they
+exist in the local frontend build.
 
 That publication no longer happens automatically on normal user sign-in.
 
@@ -119,7 +125,9 @@ runtime/view state as separate concerns:
 
 The client merges that user state locally after the shared workspace structure is loaded, and
 shared workspace saves no longer send selected control values or widget `runtimeState` back to the
-main workspace endpoint.
+main workspace endpoint. The normal workspace save flow now also persists that current-user state
+through `workspaces.user_state_list_url`, so time-range / refresh changes save with the same
+workspace action even though they are stored separately from the shared workspace document.
 
 The canvas uses a fine-grained grid and stores widget placement directly in the workspace model.
 `Custom` workspaces currently normalize onto one canonical dense manual grid: `48` columns,

@@ -9,6 +9,7 @@ import {
   syncWidgetTypes,
   type WidgetTypeSyncResponse,
 } from "@/app/registry/widget-type-sync";
+import { getAccessibleShellMenuEntries } from "@/apps/utils";
 import { requestPasswordChangeEmail } from "@/auth/api";
 import { useToast } from "@/components/ui/toaster";
 import { Avatar } from "@/components/ui/avatar";
@@ -27,21 +28,17 @@ import { defaultLanguage, isSupportedLanguage, languageOptions } from "@/i18n/co
 import type { AppUser } from "@/auth/types";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/themes/ThemeProvider";
+import type { AppIcon, AppShellMenuAudience } from "@/apps/types";
 
 interface SettingsDialogProps {
   mode: "platform" | "user";
   onClose: () => void;
   open: boolean;
+  requestedSectionId?: string | null;
   user?: AppUser;
 }
 
-type SettingsSectionId =
-  | "general"
-  | "account"
-  | "auth"
-  | "configuration"
-  | "registry"
-  | "about";
+type SettingsSectionId = string;
 
 function formatWidgetTypeSyncTimestamp(value?: string) {
   if (!value) {
@@ -103,7 +100,7 @@ function SettingsNavButton({
   onClick,
 }: {
   active: boolean;
-  icon: typeof Settings2;
+  icon: AppIcon;
   label: string;
   onClick: () => void;
 }) {
@@ -864,6 +861,7 @@ export function SettingsDialog({
   mode,
   onClose,
   open,
+  requestedSectionId,
   user,
 }: SettingsDialogProps) {
   const { i18n, t } = useTranslation();
@@ -921,6 +919,12 @@ export function SettingsDialog({
   const authRefreshUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.refreshUrl);
   const authUserDetailsUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.userDetails.url);
   const configurationSource = commandCenterConfigSource;
+  const permissions = user?.permissions ?? [];
+  const shellMenuAudience: AppShellMenuAudience = mode === "platform" ? "admin" : "user";
+  const contributedSections = useMemo(
+    () => getAccessibleShellMenuEntries(permissions, shellMenuAudience),
+    [permissions, shellMenuAudience],
+  );
   const configurationGroups = buildConfigurationGroups({
     config,
     authTokenUrl,
@@ -930,7 +934,7 @@ export function SettingsDialog({
   const navItems: Array<{
     id: SettingsSectionId;
     label: string;
-    icon: typeof Settings2;
+    icon: AppIcon;
   }> = [
     { id: "general" as const, label: t("settingsDialog.generalNav"), icon: Settings2 },
     { id: "account" as const, label: t("settingsDialog.accountTitle"), icon: CircleUserRound },
@@ -953,15 +957,41 @@ export function SettingsDialog({
           },
         ]
       : []),
+    ...contributedSections.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      icon: entry.icon ?? entry.appIcon,
+    })),
     { id: "about" as const, label: t("settingsDialog.aboutNav"), icon: Info },
   ];
+  const activeContributedSection =
+    contributedSections.find((entry) => entry.id === activeSection) ?? null;
+  const ActiveContributedSectionComponent = activeContributedSection?.component ?? null;
 
   useEffect(() => {
     if (open) {
-      setActiveSection("general");
+      setActiveSection(requestedSectionId ?? "general");
       setShowRawConfiguration(false);
     }
-  }, [open, mode]);
+  }, [open, mode, requestedSectionId]);
+
+  useEffect(() => {
+    if (!open || !requestedSectionId) {
+      return;
+    }
+
+    if (navItems.some((item) => item.id === requestedSectionId)) {
+      setActiveSection(requestedSectionId);
+    }
+  }, [navItems, open, requestedSectionId]);
+
+  useEffect(() => {
+    if (!open || navItems.some((item) => item.id === activeSection)) {
+      return;
+    }
+
+    setActiveSection(navItems[0]?.id ?? "general");
+  }, [activeSection, navItems, open]);
 
   return (
     <Dialog
@@ -1283,6 +1313,15 @@ export function SettingsDialog({
                   <SettingsRow label={t("settingsDialog.websocket")} value={env.wsUrl} />
                 </>
               ) : null}
+            </SettingsSection>
+          ) : null}
+
+          {ActiveContributedSectionComponent && activeContributedSection ? (
+            <SettingsSection
+              title={activeContributedSection.label}
+              description={activeContributedSection.description}
+            >
+              <ActiveContributedSectionComponent audience={shellMenuAudience} user={user} />
             </SettingsSection>
           ) : null}
         </div>

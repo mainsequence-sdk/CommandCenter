@@ -23,7 +23,15 @@ import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import type { AgentSearchResult } from "../agent-search";
 import { buildAgentSessionRequestBodyFragment } from "../runtime/agent-session-request";
-import { resolveMainSequenceAiAssistantEndpoint } from "../runtime/assistant-endpoint";
+import type {
+  AvailableChatModelOption,
+  AvailableChatReasoningEffortOption,
+} from "../runtime/available-models-api";
+import { fetchAvailableRunConfigOptions } from "../runtime/available-models-api";
+import {
+  resolveMainSequenceAiAssistantChatEndpoint,
+  resolveMainSequenceAiAssistantEndpoint,
+} from "../runtime/assistant-endpoint";
 import {
   attachAgentToSession,
   buildAgentSessionTitle,
@@ -60,6 +68,8 @@ import {
   type ChatRailMode,
 } from "./chat-ui-store";
 import { fetchSessionHistory } from "./session-history-api";
+import { fetchSessionInsights } from "./session-insights-api";
+import type { SessionInsightsSnapshot } from "./session-insights";
 import { fetchSessionTools } from "./session-tools-api";
 import type { SessionToolDefinition, SessionToolsSnapshot } from "./session-tools";
 import {
@@ -81,6 +91,9 @@ export interface ActiveSessionSummary {
   threadId: string | null;
   runtimeSessionId: string | null;
   sessionKey: string | null;
+  sessionInsights: SessionInsightsSnapshot | null;
+  isLoadingInsights: boolean;
+  insightsError: string | null;
   availableTools: SessionToolDefinition[];
   isLoadingTools: boolean;
   toolsError: string | null;
@@ -94,6 +107,9 @@ interface ChatFeatureContextValue {
   activeSessionDisplayId: string | null;
   activeSessionPreview: string | null;
   activeSessionUpdatedAt: string | null;
+  availableModels: AvailableChatModelOption[];
+  availableModelsError: string | null;
+  availableReasoningEfforts: AvailableChatReasoningEffortOption[];
   agentId: string | null;
   agentSessions: AgentSessionSummary[];
   clearThread: () => void;
@@ -105,7 +121,9 @@ interface ChatFeatureContextValue {
   expandToPage: () => void;
   hasVisibleAssistantOutput: boolean;
   isRailOpen: boolean;
+  isLoadingAvailableModels: boolean;
   isLoadingLatestSessions: boolean;
+  isLoadingSessionInsights: boolean;
   isLoadingSessionTools: boolean;
   latestSessionsError: string | null;
   minimizeToRail: () => void;
@@ -116,7 +134,13 @@ interface ChatFeatureContextValue {
   sessionTools: SessionToolsSnapshot | null;
   sessionToolsBySessionId: Record<string, SessionToolsSnapshot>;
   sessionToolsError: string | null;
+  sessionInsightsBySessionId: Record<string, SessionInsightsSnapshot>;
+  sessionInsightsError: string | null;
   sessionNotice: string | null;
+  selectedModelValue: string | null;
+  selectedReasoningEffortValue: string | null;
+  setSelectedModelValue: (value: string | null) => void;
+  setSelectedReasoningEffortValue: (value: string | null) => void;
   startAgentSession: (agent: AgentSearchResult) => void;
   thinkingSummary: string | null;
   toggleChat: () => void;
@@ -422,14 +446,29 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [runStatus, setRunStatus] = useState<ChatRunStatus>("idle");
   const [runStatusDetail, setRunStatusDetail] = useState<string | null>(null);
   const [thinkingSummary, setThinkingSummary] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<AvailableChatModelOption[]>([]);
+  const [availableModelsError, setAvailableModelsError] = useState<string | null>(null);
+  const [availableReasoningEfforts, setAvailableReasoningEfforts] = useState<
+    AvailableChatReasoningEffortOption[]
+  >([]);
+  const [selectedModelValue, setSelectedModelValue] = useState<string | null>(null);
+  const [selectedReasoningEffortValue, setSelectedReasoningEffortValue] = useState<string | null>(
+    null,
+  );
   const [agentId, setAgentId] = useState<string | null>(null);
   const [hasVisibleAssistantOutput, setHasVisibleAssistantOutput] = useState(false);
+  const [isLoadingAvailableModels, setIsLoadingAvailableModels] = useState(false);
   const [isLoadingLatestSessions, setIsLoadingLatestSessions] = useState(false);
   const [latestSessionsError, setLatestSessionsError] = useState<string | null>(null);
   const [latestSessionsAgentFilterId, setLatestSessionsAgentFilterId] = useState<number | null>(null);
   const [sessionToolsBySessionId, setSessionToolsBySessionId] = useState<
     Record<string, SessionToolsSnapshot>
   >({});
+  const [sessionInsightsBySessionId, setSessionInsightsBySessionId] = useState<
+    Record<string, SessionInsightsSnapshot>
+  >({});
+  const [isLoadingSessionInsights, setIsLoadingSessionInsights] = useState(false);
+  const [sessionInsightsError, setSessionInsightsError] = useState<string | null>(null);
   const [isLoadingSessionTools, setIsLoadingSessionTools] = useState(false);
   const [sessionToolsError, setSessionToolsError] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
@@ -439,12 +478,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const runtimeRef = useRef<AssistantRuntime | null>(null);
   const selectedSessionRef = useRef<AgentSessionRecord | null>(null);
   const activeSessionRef = useRef<AgentSessionRecord | null>(null);
+  const selectedModelValueRef = useRef<string | null>(null);
+  const selectedReasoningEffortValueRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
   const loadedSessionIdRef = useRef<string | null>(null);
   const sessionHistoryRequestRef = useRef<AbortController | null>(null);
+  const sessionInsightsRequestRef = useRef<AbortController | null>(null);
   const sessionToolsRequestRef = useRef<AbortController | null>(null);
+  const availableModelsRequestRef = useRef<AbortController | null>(null);
   const assistantUiEndpoint = useMemo(
     () => resolveMainSequenceAiAssistantEndpoint(),
+    [],
+  );
+  const assistantUiChatEndpoint = useMemo(
+    () => resolveMainSequenceAiAssistantChatEndpoint(),
     [],
   );
   const openPreferredRail = useCallback(() => {
@@ -514,6 +561,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     return sessionToolsBySessionId[sessionLookupId] ?? null;
   }, [activeSession, sessionToolsBySessionId]);
+  const currentSessionInsights = useMemo(() => {
+    const sessionLookupId =
+      activeSession?.runtimeSessionId?.trim() || resolveSessionApiLookupId(activeSession);
+
+    if (!sessionLookupId) {
+      return null;
+    }
+
+    return sessionInsightsBySessionId[sessionLookupId] ?? null;
+  }, [activeSession, sessionInsightsBySessionId]);
   const activeSessionSummary = useMemo<ActiveSessionSummary | null>(() => {
     if (!activeSession) {
       return null;
@@ -542,11 +599,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       threadId: activeSession.threadId ?? null,
       runtimeSessionId: activeSession.runtimeSessionId ?? null,
       sessionKey: activeSession.sessionKey ?? null,
+      sessionInsights: currentSessionInsights,
+      isLoadingInsights: isLoadingSessionInsights,
+      insightsError: sessionInsightsError,
       availableTools: currentSessionTools?.availableTools ?? [],
       isLoadingTools: isLoadingSessionTools,
       toolsError: sessionToolsError,
     };
-  }, [activeSession, agentId, currentSessionTools, isLoadingSessionTools, sessionToolsError]);
+  }, [
+    activeSession,
+    agentId,
+    currentSessionInsights,
+    currentSessionTools,
+    isLoadingSessionInsights,
+    isLoadingSessionTools,
+    sessionInsightsError,
+    sessionToolsError,
+  ]);
 
   useEffect(() => {
     if (location.pathname === CHAT_PAGE_PATH) {
@@ -607,6 +676,60 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setCurrentSessionId(nextSessions[0]?.id ?? null);
     loadedSessionIdRef.current = null;
   }, [sessionUserId]);
+
+  useEffect(() => {
+    if (env.useMockData) {
+      setAvailableModels([]);
+      setAvailableReasoningEfforts([]);
+      setAvailableModelsError(null);
+      setIsLoadingAvailableModels(false);
+      return;
+    }
+
+    availableModelsRequestRef.current?.abort();
+
+    const controller = new AbortController();
+    availableModelsRequestRef.current = controller;
+    setIsLoadingAvailableModels(true);
+    setAvailableModelsError(null);
+
+    void (async () => {
+      try {
+        const options = await fetchAvailableRunConfigOptions({
+          assistantEndpoint: assistantUiEndpoint,
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setAvailableModels(options.models);
+        setAvailableReasoningEfforts(options.reasoningEfforts);
+        setAvailableModelsError(null);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setAvailableModels([]);
+        setAvailableReasoningEfforts([]);
+        setAvailableModelsError(
+          error instanceof Error ? error.message : "Available models request failed.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingAvailableModels(false);
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [assistantUiEndpoint, sessionToken, sessionTokenType]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -693,6 +816,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [activeSession]);
 
   useEffect(() => {
+    selectedModelValueRef.current = selectedModelValue;
+  }, [selectedModelValue]);
+
+  useEffect(() => {
+    selectedReasoningEffortValueRef.current = selectedReasoningEffortValue;
+  }, [selectedReasoningEffortValue]);
+
+  useEffect(() => {
     if (!env.debugChat) {
       return;
     }
@@ -703,6 +834,107 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     writeAgentSessions(sessionUserId, agentSessions);
   }, [agentSessions, sessionUserId]);
+
+  useEffect(() => {
+    if (availableModels.length === 0) {
+      if (selectedModelValue !== null) {
+        setSelectedModelValue(null);
+      }
+      return;
+    }
+
+    if (selectedModelValue && availableModels.some((model) => model.value === selectedModelValue)) {
+      return;
+    }
+
+    setSelectedModelValue(availableModels[0]?.value ?? null);
+  }, [availableModels, selectedModelValue]);
+
+  useEffect(() => {
+    if (availableReasoningEfforts.length === 0) {
+      if (selectedReasoningEffortValue !== null) {
+        setSelectedReasoningEffortValue(null);
+      }
+      return;
+    }
+
+    if (
+      selectedReasoningEffortValue &&
+      availableReasoningEfforts.some((effort) => effort.value === selectedReasoningEffortValue)
+    ) {
+      return;
+    }
+
+    setSelectedReasoningEffortValue(availableReasoningEfforts[0]?.value ?? null);
+  }, [availableReasoningEfforts, selectedReasoningEffortValue]);
+
+  useEffect(() => {
+    sessionInsightsRequestRef.current?.abort();
+
+    if (env.useMockData) {
+      setIsLoadingSessionInsights(false);
+      setSessionInsightsError(null);
+      return;
+    }
+
+    const runtimeSessionId =
+      activeSession?.runtimeSessionId?.trim() || resolveSessionApiLookupId(activeSession);
+
+    if (!runtimeSessionId) {
+      setIsLoadingSessionInsights(false);
+      setSessionInsightsError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    sessionInsightsRequestRef.current = controller;
+    setIsLoadingSessionInsights(true);
+    setSessionInsightsError(null);
+
+    void (async () => {
+      try {
+        const snapshot = await fetchSessionInsights({
+          assistantEndpoint: assistantUiEndpoint,
+          sessionId: runtimeSessionId,
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setSessionInsightsBySessionId((current) => ({
+          ...current,
+          [runtimeSessionId]: snapshot,
+        }));
+        setSessionInsightsError(null);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setSessionInsightsError(
+          error instanceof Error ? error.message : "Session insights request failed.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingSessionInsights(false);
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    assistantUiEndpoint,
+    activeSession?.id,
+    activeSession?.runtimeSessionId,
+    sessionToken,
+    sessionTokenType,
+  ]);
 
   useEffect(() => {
     sessionToolsRequestRef.current?.abort();
@@ -1269,7 +1501,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   });
 
   const liveRuntime = useLatestMessageDataStreamRuntime({
-    api: assistantUiEndpoint,
+    api: assistantUiChatEndpoint,
     protocol: commandCenterConfig.assistantUi.protocol as LatestMessageDataStreamProtocol,
     headers: async () => {
       const headers = new Headers();
@@ -1285,6 +1517,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const activeSession = activeSessionRef.current;
       const selectedSessionId = resolveSessionApiLookupId(activeSession);
       const isNewChatRequest = !activeSession || !selectedSessionId;
+      const selectedModel =
+        availableModels.find((entry) => entry.value === selectedModelValueRef.current) ??
+        availableModels[0] ??
+        null;
+      const selectedReasoningEffort =
+        selectedReasoningEffortValueRef.current ?? availableReasoningEfforts[0]?.value ?? null;
 
       pendingNewChatRequestRef.current = isNewChatRequest;
       expectedNewSessionRef.current = isNewChatRequest;
@@ -1293,6 +1531,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ...buildAgentSessionRequestBodyFragment({
           agentName: resolveSessionAgentRequestName(selectedSession),
           context: chatContext,
+          model: selectedModel
+            ? {
+                source: selectedModel.source,
+                model: selectedModel.value,
+                provider: selectedModel.provider,
+                ...(selectedReasoningEffort
+                  ? {
+                      runConfig: {
+                        reasoning_effort: selectedReasoningEffort,
+                      },
+                    }
+                  : {}),
+              }
+            : undefined,
           newChat: isNewChatRequest,
           sessionId: !isNewChatRequest ? selectedSessionId : null,
           threadId:
@@ -1300,6 +1552,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           userId: sessionUserId,
           workflowKey: activeAgentRequestName,
         }),
+        runConfig: undefined,
       };
     },
     onRequestStart: async () => {
@@ -1547,6 +1800,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeSessionDisplayId,
       activeSessionPreview,
       activeSessionUpdatedAt,
+      availableModels,
+      availableModelsError,
+      availableReasoningEfforts,
       agentId,
       agentSessions: sortedAgentSessions,
       clearThread: clearRuntimeThread,
@@ -1558,7 +1814,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       expandToPage,
       hasVisibleAssistantOutput,
       isRailOpen,
+      isLoadingAvailableModels,
       isLoadingLatestSessions,
+      isLoadingSessionInsights,
       isLoadingSessionTools,
       latestSessionsError,
       minimizeToRail,
@@ -1569,7 +1827,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       sessionTools: currentSessionTools,
       sessionToolsBySessionId,
       sessionToolsError,
+      sessionInsightsBySessionId,
+      sessionInsightsError,
       sessionNotice,
+      selectedModelValue,
+      selectedReasoningEffortValue,
+      setSelectedModelValue,
+      setSelectedReasoningEffortValue,
       startAgentSession,
       thinkingSummary,
       toggleChat,
@@ -1582,6 +1846,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeSessionDisplayId,
       activeSessionPreview,
       activeSessionUpdatedAt,
+      availableModels,
+      availableModelsError,
+      availableReasoningEfforts,
       agentId,
       currentSessionId,
       chatContext,
@@ -1592,7 +1859,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       expandToPage,
       hasVisibleAssistantOutput,
       isRailOpen,
+      isLoadingAvailableModels,
       isLoadingLatestSessions,
+      isLoadingSessionInsights,
       isLoadingSessionTools,
       latestSessionsError,
       minimizeToRail,
@@ -1603,7 +1872,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       selectAgentSession,
       sessionToolsBySessionId,
       sessionToolsError,
+      sessionInsightsBySessionId,
+      sessionInsightsError,
       sessionNotice,
+      selectedModelValue,
+      selectedReasoningEffortValue,
+      setSelectedModelValue,
+      setSelectedReasoningEffortValue,
       sortedAgentSessions,
       startAgentSession,
       thinkingSummary,

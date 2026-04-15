@@ -1,9 +1,14 @@
 import type { SessionToolsSnapshot } from "../assistant-ui/session-tools";
 import { normalizeSessionToolsSnapshot } from "../assistant-ui/session-tools";
-import { buildMainSequenceAiAssistantHeaders } from "./assistant-endpoint";
+import {
+  buildMainSequenceAiAssistantHeaders,
+  buildMainSequenceAiAssistantUrl,
+} from "./assistant-endpoint";
 
 function buildSessionToolsUrl(sessionId: string, assistantEndpoint: string) {
-  const url = new URL("/api/chat/session-tools", assistantEndpoint);
+  const url = new URL(
+    buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/chat/session-tools"),
+  );
   url.searchParams.set("sessionId", sessionId);
   return url.toString();
 }
@@ -21,24 +26,34 @@ export async function fetchSessionTools({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(buildSessionToolsUrl(sessionId, assistantEndpoint), {
-    method: "GET",
-    headers: buildMainSequenceAiAssistantHeaders({
-      accept: "application/json",
-      token,
-      tokenType,
-    }),
-    signal,
-  });
+  const url = buildSessionToolsUrl(sessionId, assistantEndpoint);
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers: buildMainSequenceAiAssistantHeaders({
+        accept: "application/json",
+        token,
+        tokenType,
+      }),
+      signal,
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown fetch error.";
+    throw new Error(
+      `Failed to load available tools for session ${sessionId} from ${url}. ${detail}`,
+    );
+  }
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as
-      | { error?: string; message?: string }
+      | { error?: string; message?: string; detail?: string }
       | null;
     throw new Error(
-      payload?.message ||
-        payload?.error ||
-        `Session tools failed with status ${response.status}.`,
+      `Failed to load available tools for session ${sessionId} from ${url} (${response.status}). ${
+        payload?.message || payload?.detail || payload?.error || response.statusText || "Unknown backend error."
+      }`,
     );
   }
 

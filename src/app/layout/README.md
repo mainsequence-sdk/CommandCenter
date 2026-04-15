@@ -10,6 +10,8 @@ Shared shell navigation and chrome for the Command Center application.
 - `AppSurfaceSelector.tsx`: topbar surface switcher for the current app.
 - `FavoriteSurfacesMenu.tsx`: favorites flyout for saved surfaces and workspaces.
 - `SettingsDialog.tsx`: shell-level settings and diagnostics.
+  It now also merges registry-backed extension-contributed settings sections for `user` and
+  `admin` audiences into the shared left-nav dialog shell.
 
 ## Navigation Behavior
 
@@ -22,8 +24,14 @@ Shared shell navigation and chrome for the Command Center application.
   platform-admin-only modal and must not be exposed through the org-admin menu.
 - Platform-owned controls such as widget-registry publication belong in `Admin Settings`, not in
   the organization-admin surface tree.
+- Extension-owned settings pages should render through the shared `SettingsDialog` contribution
+  contract instead of creating one-off shell modals.
+- Shell state can now target a specific contributed user-settings section so feature UIs can open
+  the shared dialog directly to the relevant extension-owned page.
 
 ## Maintenance Notes
 
 - Keep the topbar, sidebar, and per-app navigation semantics aligned. A control that looks like navigation should navigate.
 - If app details or metadata are needed later, expose them behind an explicit secondary affordance rather than the primary app-title control.
+- Keep shell settings chrome centralized. Extensions can contribute sections, but the shell still
+  owns the modal, nav, and interaction model.

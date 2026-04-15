@@ -4,10 +4,11 @@ import { fileURLToPath } from "node:url";
 
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig, type PluginOption } from "vite";
+import { defineConfig, loadEnv, type PluginOption } from "vite";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const appComponentProxyPrefix = "/__app_component_proxy__";
+const assistantProxyPrefix = "/__assistant__";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const cloudflareMode = "cloudflare";
 
@@ -125,6 +126,11 @@ const loopbackAuthProxyTarget = readLoopbackAuthProxyTarget();
 
 export default defineConfig(async ({ mode }) => {
   const cloudflarePlugin = mode === cloudflareMode ? await loadOptionalCloudflarePlugin() : null;
+  const env = loadEnv(mode, projectRoot, "");
+  const assistantProxyTarget =
+    env.VITE_ASSISTANT_UI_PROXY_TARGET ||
+    env.VITE_ASSISTANT_UI_ENDPOINT ||
+    "http://192.168.1.253:8787";
 
   return {
     plugins: [
@@ -146,6 +152,13 @@ export default defineConfig(async ({ mode }) => {
           changeOrigin: true,
           secure: false,
           rewrite: (requestPath: string) => requestPath.replace(new RegExp(`^${devAuthProxyPrefix}`), ""),
+        },
+        [assistantProxyPrefix]: {
+          target: assistantProxyTarget,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (requestPath: string) =>
+            requestPath.replace(new RegExp(`^${assistantProxyPrefix}`), ""),
         },
       },
     },

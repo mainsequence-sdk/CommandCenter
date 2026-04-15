@@ -29,10 +29,29 @@ remaining height. The two shells still differ intentionally:
   viewport, and the transcript keeps a measured footer inset so content stays clear of it
 - the full page keeps long user bubbles trimmed to the final two paragraphs so oversized prompts do
   not consume the reply viewport
+- the full-page composer now includes model and reasoning-effort selectors
+- model options are fetched from the assistant backend at `/api/chat/get_available_models`
+- reasoning-effort options are also fetched from the same endpoint
+- the model dropdown now includes a direct `Sign in to provider` action that opens the shared user
+  settings dialog on the `Model Providers` contributed section
+- if the backend returns no models, the entire selector row is hidden and no fallback model or
+  fallback reasoning effort is forced
+- if the backend model catalog fails or resolves to no models in live mode, the composer is
+  disabled and shows an explicit "models could not be fetched" error instead of allowing sends
+- the selected model and reasoning effort are owned by `ChatProvider`, not by assistant-ui composer
+  `runConfig`
+- if the backend returns models, `ChatProvider` selects one and every live request carries the
+  currently selected model binding from the picker
+- auth-backed models that are present in the catalog but not currently usable stay visible in the
+  picker and are rendered disabled with a `Not authenticated` label
+- live `/api/chat` requests now carry the optional top-level backend model binding:
+  `model: { source: "<catalog-source>", model: "<catalog-model>", provider?: "<provider>", runConfig?: { reasoning_effort: "<selected-effort>" } }`
 - the overlay keeps a reduced chrome surface: no context disclosure, no run-status strip, and no
   in-message thinking/tool detail blocks. The user can expand into the full page for those details
 - thinking blocks on the full page start collapsed by default, with a trimmed one-line preview of
   the latest reasoning/tool activity in the collapsed header
+- the full-page composer footer now shows a compact context-window usage bar when session insights
+  provide `context.percentOfContextWindow`
 
 The app surface itself lives separately under `extensions/main_sequence_ai/surfaces/chat/`.
 The shared page explorer UI now lives separately under `extensions/main_sequence_ai/features/chat/`.
@@ -85,6 +104,7 @@ Responsibilities:
 - expose a normalized active session summary for page shell UI
 - expose overlay/page navigation helpers
 - bridge app context into chat requests
+- own the selected backend model binding used for `/api/chat`
 - translate backend events into runtime state
 - expose request lifecycle feedback so the thread can show "sent / waiting / failed" before any
   assistant text appears
@@ -119,6 +139,7 @@ This boundary owns a feature-local session layer that:
 - replaces the visible latest-session list on every backend refresh instead of appending stale
   sessions from previous queries, while still preserving the active unsynced local draft session
 - refreshes backend session tools every time the effective backend session changes
+- refreshes backend session insights every time the effective backend session changes
 
 This is still intentionally hybrid for now. The visible explorer list comes from the backend latest
 sessions endpoint, but cached frontend transcripts and newly-started local sessions are still kept
@@ -178,6 +199,26 @@ The current tool case table starts with:
 
 Unknown tool keys are still normalized and kept as `kind: "unknown"` so backend capability flags do
 not disappear just because the UI does not render them yet.
+
+### Session Insights
+
+The backend exposes per-session runtime/model/usage metadata through:
+
+- `/api/chat/session-insights?sessionId=<runtime_session_id>`
+
+`ChatProvider.tsx` owns this lifecycle alongside session tools.
+
+Rules:
+
+- insights refresh every time the effective backend session changes
+- the fetch key is the runtime session id when available, otherwise the selected backend
+  AgentSession id
+- placeholder or local-only sessions without a backend session id do not fetch insights
+- in-flight insight requests are aborted when the selected session changes
+- the normalized snapshot is exposed through `activeSessionSummary.sessionInsights`
+
+The page session-detail rail is responsible for rendering that snapshot. The transcript pane does
+not own static runtime/model usage metadata.
 
 The first concrete tool renderer now lives in the page feature layer:
 

@@ -275,9 +275,12 @@ These flows are all part of one app surface, with instance state selected throug
 - In backend mode, the shared workspace document and the current user's runtime/view state are now
   loaded separately. `GET workspaces.detail_url` returns only shared workspace structure, while
   `GET workspaces.user_state_list_url?workspace=<id>` hydrates selected controls and widget
-  `runtimeState` locally after the shared canvas structure is available. Shared workspace mutations
-  must therefore strip current-user controls/runtime state from the payload sent back to the
-  backend.
+  `runtimeState` locally after the shared canvas structure is available. Workspace save now also
+  persists that current-user slice through `workspaces.user_state_list_url`, while shared workspace
+  mutations continue to strip current-user controls/runtime state from the main workspace payload.
+- Current-user control changes such as time range and refresh interval now count as unsaved
+  workspace state in the shared studio shell, so the normal workspace save affordance reflects both
+  shared document edits and current-user state edits.
 - The shared shell must not bootstrap the workspace list on mount. Workspace summaries now load
   only from actual workspace surfaces or explicit workspace-favorites interaction, while direct
   `?workspace=<id>` routes resolve through the detail endpoint first so canvas boot is never

@@ -29,6 +29,7 @@ import {
   type RbacAssignmentValue,
 } from "@/components/ui/rbac-assignment-matrix";
 import { listTeams } from "@/features/teams/api";
+import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
 import { builtinAppRoles } from "@/auth/types";
 
 const roles = builtinAppRoles;
@@ -68,12 +69,17 @@ export function AccessPage() {
   const session = useAuthStore((state) => state.session);
   const permissions = session?.user.permissions ?? [];
   const sessionUser = session?.user;
+  const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
 
   const accessibleApps = getAccessibleApps(permissions);
   const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
 
   const accessibleWidgets = appRegistry.widgets.filter((widget) =>
-    hasAllPermissions(permissions, widget.requiredPermissions ?? []),
+    hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
+    (
+      !registeredWidgetTypes.endpointConfigured ||
+      registeredWidgetTypes.activeWidgetIdSet.has(widget.id)
+    ),
   );
   const utilityActions = [
     {

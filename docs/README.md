@@ -31,17 +31,18 @@ product surface that feels deliberate, fast, and deeply customized to your own d
 20. [ADR: Incremental Workspace Normalization and Resource-Scoped Save](./adr/adr-incremental-workspace-normalization.md)
 21. [ADR: AppComponent Response Notification UI Contract](./adr/adr-app-component-response-notification-ui.md)
 22. [ADR: AppComponent Mock JSON Target for Pipeline Prototyping](./adr/adr-app-component-mock-json-target.md)
-23. [Workspace Runtime Performance Remediation](./workspace-runtime-performance-remediation.md)
-24. [Workspace Settings Headless Runtime Investigation](./workspace-settings-headless-runtime-investigation.md)
-25. [Configuration](./configuration.md)
-26. [Internationalization](./internationalization.md)
-27. [Extensions](./extensions.md)
-28. [Theming](./theming.md)
-29. [Backend and Auth Integration](./backend-and-auth.md)
-30. [Deployment](./deployment.md)
-31. [Notifications](./notifications.md)
-32. [RBAC Assignment Matrix](./rbac-assignment-matrix.md)
-33. [Access & RBAC App](./access-rbac-app.md)
+23. [ADR: Organization-Scoped Widget Type Configurations](./adr/adr-organization-widget-type-configurations.md)
+24. [Workspace Runtime Performance Remediation](./workspace-runtime-performance-remediation.md)
+25. [Workspace Settings Headless Runtime Investigation](./workspace-settings-headless-runtime-investigation.md)
+26. [Configuration](./configuration.md)
+27. [Internationalization](./internationalization.md)
+28. [Extensions](./extensions.md)
+29. [Theming](./theming.md)
+30. [Backend and Auth Integration](./backend-and-auth.md)
+31. [Deployment](./deployment.md)
+32. [Notifications](./notifications.md)
+33. [RBAC Assignment Matrix](./rbac-assignment-matrix.md)
+34. [Access & RBAC App](./access-rbac-app.md)
 
 ## Why it exists
 
@@ -69,6 +70,7 @@ The current repository ships with these extensions:
 
 - `core`: base widgets, apps, surfaces, and themes
 - `ag-grid`: optional data-grid widget integration
+- `echarts`: optional spec-driven chart integration with organization-scoped widget configuration support
 - `lightweight-charts`: optional market chart integration
 - `flow-lab`: bundled extension that contributes a custom widget and theme to demo surfaces
 - `main_sequence`: repo-root product namespace with separate Workbench and Markets extensions

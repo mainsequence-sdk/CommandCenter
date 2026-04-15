@@ -6,6 +6,10 @@ This directory contains the Command Center widget platform, including the shared
 
 - `types.ts`: shared widget definition contract, widget render props, and the optional settings component contract.
 - `types.ts`: shared widget definition contract, widget render props, optional header actions, and the optional settings component contract.
+- `organization-config-api.ts`: authenticated API client for sparse organization-scoped widget type configuration rows.
+- `registered-widget-types-api.ts`: authenticated API client plus shared React Query hook for the
+  backend registered widget-type catalog used to gate widget availability in user-facing catalogs.
+- `WidgetOrganizationConfigurationProvider.tsx`: app-wide provider and hooks for resolving optional organization widget type configuration overrides at runtime.
 - `shared/widget-frame.tsx`: common widget chrome used by dashboard surfaces.
 - `shared/chrome.ts`: shared widget-shell markers used so themes can target widget chrome consistently across runtime dashboards and the workspace builder.
 - `shared/widget-settings.tsx`: shared settings trigger and modal used by dashboard widgets and the custom workspace studio.
@@ -24,6 +28,9 @@ This directory contains the Command Center widget platform, including the shared
   work and publish outputs through runtime-state patches.
 - Widget definitions now also carry `widgetVersion` plus an explicit `registryContract` used for
   backend widget-type publication and agent-facing authoring metadata.
+- Widget definitions can now also declare optional `organizationConfiguration` metadata. This is an
+  opt-in widget capability used when one widget type supports organization-scoped defaults or
+  guardrails. Widgets that omit it behave exactly as they do today.
 - Widget definitions can now also expose `buildAgentSnapshot(...)`, a client-side live snapshot
   hook used by workspace archive capture. This is intentionally separate from the backend-facing
   widget registry contract: registry metadata explains how to build a widget, while
@@ -47,6 +54,12 @@ This directory contains the Command Center widget platform, including the shared
   publication. Runtime-only function properties such as React components, controller hooks,
   `resolveIo`, and output resolvers are not sent verbatim; the sync keeps only the explicit
   serializable widget type contract.
+- When a widget publishes `organizationConfiguration`, the widget-type sync manifest now also
+  publishes its organization-configuration schema, defaults, and version so backend widget-type
+  rows can advertise that capability explicitly.
+- User-facing widget catalogs can now optionally enforce backend registration as an availability
+  gate. When the registered-widget-types list endpoint is configured, unsynced widget definitions
+  must stay hidden even if they exist in the local frontend build.
 - `registryContract` is the backend-facing explanation layer for widget behavior. Use it to publish
   configuration summary, runtime ownership, IO semantics, capabilities, agent hints, and examples.
 - Simple widgets may still rely on safe fallback derivation from `schema`, `io`, `execution`, and
@@ -104,6 +117,9 @@ This directory contains the Command Center widget platform, including the shared
 - Prefer wiring new widget-level configuration through the shared settings modal before adding page-specific controls.
 - Bump `widgetVersion` whenever widget authoring semantics change materially, including changes to
   configuration model, accepted inputs, published outputs, runtime ownership, or capability modes.
+- Treat `organizationConfiguration` as widget-type metadata, not instance content. Put
+  organization-scoped defaults or ceilings there only when the widget type explicitly supports that
+  capability.
 - Use `runtimeState` only for ephemeral view state that should round-trip with a workspace; keep durable configuration in widget `props`.
 - If a widget needs a richer configuration experience, provide `settingsComponent` on its `WidgetDefinition` instead of forking the modal shell.
 - Be explicit about whether a surface is rendering a preconfigured widget instance or a user-configurable widget instance.

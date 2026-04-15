@@ -286,6 +286,17 @@ function resolveWorkspaceUserStateListPath(workspaceId: string) {
   return `${url.pathname}${url.search}`;
 }
 
+function resolveWorkspaceUserStateMutationPath() {
+  const template = commandCenterConfig.workspaces.userStateListUrl.trim();
+
+  if (!template) {
+    return "";
+  }
+
+  const url = new URL(template, env.apiBaseUrl);
+  return `${url.pathname}${url.search}`;
+}
+
 function resolveWorkspaceLabelMutationPath(
   workspaceId: string,
   action: "add" | "remove",
@@ -761,6 +772,17 @@ function serializeWorkspaceMutationPayload(
   return JSON.stringify(payload);
 }
 
+function serializeWorkspaceUserStateMutationPayload(
+  workspaceId: string,
+  userState: WorkspaceUserStateSnapshot,
+) {
+  return JSON.stringify({
+    workspace: workspaceId,
+    selectedControls: cloneJson(userState.selectedControls),
+    widgetRuntimeState: cloneJson(userState.widgetRuntimeState),
+  });
+}
+
 function unwrapDashboardPayloadRecord(payload: unknown): Record<string, unknown> | null {
   if (!isRecord(payload)) {
     return null;
@@ -1028,6 +1050,28 @@ export async function saveWorkspaceInBackend(dashboard: DashboardDefinition) {
   });
 
   return resolveMutationDashboardPayload(payload, dashboard);
+}
+
+export async function saveWorkspaceUserStateInBackend(
+  workspaceId: string,
+  userState: WorkspaceUserStateSnapshot,
+) {
+  const mutationPath = resolveWorkspaceUserStateMutationPath();
+
+  if (!mutationPath) {
+    throw new Error("Command Center workspace user state endpoint is not configured.");
+  }
+
+  if (env.useMockData) {
+    return userState;
+  }
+
+  const payload = await requestWorkspaceBackend(mutationPath, {
+    method: "POST",
+    body: serializeWorkspaceUserStateMutationPayload(workspaceId, userState),
+  });
+
+  return normalizeWorkspaceUserStatePayload(payload);
 }
 
 export async function addWorkspaceLabelInBackend(workspaceId: string, label: string) {

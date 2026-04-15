@@ -6,6 +6,7 @@ import {
 } from "@/apps/types";
 
 import { AgentsPage } from "./surfaces/agents/AgentsPage";
+import { ModelProviderSettingsSection } from "./features/settings/ModelProviderSettingsSection";
 import { ChatPage } from "./surfaces/chat/ChatPage";
 import { AgentsMonitorPage } from "./surfaces/monitor/AgentsMonitorPage";
 
@@ -16,6 +17,17 @@ export const mainSequenceAiApp: AppDefinition = {
   source: "main_sequence_ai",
   icon: Sparkles,
   defaultSurfaceId: "chat",
+  shellMenuContributions: [
+    {
+      id: "model-providers",
+      audience: "user",
+      label: "Model Providers",
+      description: "Sign in or sign off provider-backed AI models.",
+      icon: Sparkles,
+      order: 60,
+      component: ModelProviderSettingsSection,
+    },
+  ],
   surfaces: [
     {
       id: "chat",
