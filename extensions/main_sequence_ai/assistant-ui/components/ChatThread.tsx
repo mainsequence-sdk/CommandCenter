@@ -518,10 +518,14 @@ function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }
 
 function Composer({
   availableModelsError,
+  availableProviders,
   compact = false,
   isLoadingAvailableModels,
   model,
   modelOptions,
+  onProviderChange,
+  provider,
+  providerOptions,
   onModelChange,
   onReasoningEffortChange,
   reasoningEffortOptions,
@@ -529,10 +533,14 @@ function Composer({
   surface = "overlay",
 }: {
   availableModelsError: string | null;
+  availableProviders?: ReadonlyArray<{ label: string; value: string }>;
   compact?: boolean;
   isLoadingAvailableModels: boolean;
   model: ComposerModelOption;
   modelOptions: ReadonlyArray<{ disabled?: boolean; label: string; value: ComposerModelOption }>;
+  onProviderChange?: (value: string) => void;
+  provider?: string;
+  providerOptions?: ReadonlyArray<{ label: string; value: string }>;
   onModelChange: (value: ComposerModelOption) => void;
   onReasoningEffortChange: (value: ComposerReasoningEffort) => void;
   reasoningEffortOptions: ReadonlyArray<{ label: string; value: ComposerReasoningEffort }>;
@@ -544,8 +552,9 @@ function Composer({
     ? "Ask about the visible view, action bridges, or backend event wiring..."
     : "What should we investigate?";
   const hasModelOptions = modelOptions.length > 0;
+  const hasProviderOptions = (providerOptions?.length ?? 0) > 0;
   const hasReasoningEffortOptions = reasoningEffortOptions.length > 0;
-  const showConfigRow = isPage && hasModelOptions;
+  const showConfigRow = isPage && hasProviderOptions && hasModelOptions;
   const modelsUnavailable = !env.useMockData && !isLoadingAvailableModels && !hasModelOptions;
   const modelsUnavailableMessage = formatModelsUnavailableMessage(availableModelsError);
   const openUserSettings = useShellStore((state) => state.openUserSettings);
@@ -579,6 +588,23 @@ function Composer({
       </div>
       {showConfigRow ? (
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
+          {hasProviderOptions ? (
+            <Select
+              aria-label="Provider"
+              className="h-8 min-w-[160px] border-0 bg-transparent px-2 py-1 text-xs shadow-none hover:bg-muted/20 focus:ring-0"
+              listboxPlacement="top"
+              value={provider}
+              onChange={(event) => {
+                onProviderChange?.(event.target.value);
+              }}
+            >
+              {(providerOptions ?? []).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          ) : null}
           <div className="flex items-center gap-2 text-muted-foreground">
             <Zap className="h-3.5 w-3.5" />
             <Select
@@ -737,18 +763,29 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
   const {
     availableModels,
     availableModelsError,
+    availableProviders,
     availableReasoningEfforts,
     isLoadingAvailableModels,
     selectedModelValue,
+    selectedProviderValue,
     selectedReasoningEffortValue,
     setSelectedModelValue,
+    setSelectedProviderValue,
     setSelectedReasoningEffortValue,
   } = useChatFeature();
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const pageFooterRef = useRef<HTMLDivElement | null>(null);
   const overlayFooterRef = useRef<HTMLDivElement | null>(null);
-  const modelOptions = availableModels.map((entry) => ({
+  const providerOptions = availableProviders.map((entry) => ({
+    label: entry.label,
+    value: entry.value,
+  }));
+  const filteredModels =
+    selectedProviderValue
+      ? availableModels.filter((entry) => entry.provider === selectedProviderValue)
+      : availableModels;
+  const modelOptions = filteredModels.map((entry) => ({
     disabled: Boolean(entry.auth?.required && !entry.auth.usable),
     label:
       entry.auth?.required && !entry.auth.usable
@@ -759,6 +796,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
   const reasoningEffortOptions = availableReasoningEfforts;
   const UserMessageComponent = isPage ? PageUserMessage : UserMessage;
   const selectedModel = selectedModelValue ?? modelOptions[0]?.value ?? "";
+  const selectedProvider = selectedProviderValue ?? providerOptions[0]?.value ?? "";
   const selectedReasoningEffort =
     selectedReasoningEffortValue ?? reasoningEffortOptions[0]?.value ?? "";
 
@@ -776,10 +814,14 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
               <div className="pointer-events-auto mx-auto w-full max-w-3xl">
                 <Composer
                   availableModelsError={availableModelsError}
+                  availableProviders={providerOptions}
                   compact={compact}
                   isLoadingAvailableModels={isLoadingAvailableModels}
                   model={selectedModel}
                   modelOptions={modelOptions}
+                  onProviderChange={setSelectedProviderValue}
+                  provider={selectedProvider}
+                  providerOptions={providerOptions}
                   onModelChange={setSelectedModelValue}
                   onReasoningEffortChange={setSelectedReasoningEffortValue}
                   reasoningEffortOptions={reasoningEffortOptions}
@@ -831,10 +873,14 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                 <div className="pointer-events-auto mx-auto w-full max-w-5xl">
                   <Composer
                     availableModelsError={availableModelsError}
+                    availableProviders={providerOptions}
                     compact={compact}
                     isLoadingAvailableModels={isLoadingAvailableModels}
                     model={selectedModel}
                     modelOptions={modelOptions}
+                    onProviderChange={setSelectedProviderValue}
+                    provider={selectedProvider}
+                    providerOptions={providerOptions}
                     onModelChange={setSelectedModelValue}
                     onReasoningEffortChange={setSelectedReasoningEffortValue}
                     reasoningEffortOptions={reasoningEffortOptions}
@@ -853,10 +899,14 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                 <div className="pointer-events-auto">
                   <Composer
                     availableModelsError={availableModelsError}
+                    availableProviders={providerOptions}
                     compact={compact}
                     isLoadingAvailableModels={isLoadingAvailableModels}
                     model={selectedModel}
                     modelOptions={modelOptions}
+                    onProviderChange={setSelectedProviderValue}
+                    provider={selectedProvider}
+                    providerOptions={providerOptions}
                     onModelChange={setSelectedModelValue}
                     onReasoningEffortChange={setSelectedReasoningEffortValue}
                     reasoningEffortOptions={reasoningEffortOptions}

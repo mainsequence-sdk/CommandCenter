@@ -316,6 +316,7 @@ export type WidgetWorkspaceRuntimeMode =
   | "execution-owner"
   | "consumer"
   | "local-ui";
+export type WidgetCanvasEditingMode = "none" | "inline";
 export type WidgetRegistryConfigurationMode =
   | "none"
   | "static-schema"
@@ -356,6 +357,7 @@ export interface WidgetRegistryConfigurationContract {
 
 export interface WidgetRegistryRuntimeContract {
   workspaceRuntimeMode: WidgetWorkspaceRuntimeMode;
+  canvasEditingMode: WidgetCanvasEditingMode;
   supportsExecution: boolean;
   refreshPolicy: WidgetRegistryRefreshPolicy;
   executionTriggers: WidgetExecutionReason[];
@@ -399,7 +401,7 @@ export interface WidgetRegistryContractInput {
   runtime?: Partial<
     Omit<
       WidgetRegistryRuntimeContract,
-      "workspaceRuntimeMode" | "supportsExecution"
+      "workspaceRuntimeMode" | "canvasEditingMode" | "supportsExecution"
     >
   >;
   io?: Partial<WidgetRegistryIoContract>;
@@ -533,6 +535,9 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   resolveIo?: (args: WidgetIoResolverArgs<TProps>) => WidgetIoDefinition<TProps> | undefined;
   execution?: WidgetExecutionDefinition<TProps>;
   workspaceRuntimeMode?: WidgetWorkspaceRuntimeMode;
+  canvasEditing?: {
+    mode?: WidgetCanvasEditingMode;
+  };
   registryContract?: WidgetRegistryContractInput;
   organizationConfiguration?: WidgetOrganizationConfigurationContract;
   workspaceIcon?: ComponentType<{ className?: string }>;
@@ -564,9 +569,11 @@ export interface WidgetComponentProps<TProps extends Record<string, unknown> = R
   instanceId?: string;
   props: TProps;
   instanceTitle?: string;
+  editable?: boolean;
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
   resolvedInputs?: ResolvedWidgetInputs;
+  onPropsChange?: (props: TProps) => void;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
 }
 

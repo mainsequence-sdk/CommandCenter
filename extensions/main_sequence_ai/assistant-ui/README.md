@@ -29,9 +29,12 @@ remaining height. The two shells still differ intentionally:
   viewport, and the transcript keeps a measured footer inset so content stays clear of it
 - the full page keeps long user bubbles trimmed to the final two paragraphs so oversized prompts do
   not consume the reply viewport
-- the full-page composer now includes model and reasoning-effort selectors
+- the full-page composer now includes provider, model, and reasoning-effort selectors
 - model options are fetched from the assistant backend at `/api/chat/get_available_models`
-- reasoning-effort options are also fetched from the same endpoint
+- the picker now understands the grouped provider response from that endpoint and renders the
+  workflow as `Provider -> Model -> Thinking`
+- reasoning-effort options are derived from the currently selected model rather than a single
+  global list
 - the model dropdown now includes a direct `Sign in to provider` action that opens the shared user
   settings dialog on the `Model Providers` contributed section
 - if the backend returns no models, the entire selector row is hidden and no fallback model or

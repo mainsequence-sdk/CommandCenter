@@ -102,6 +102,10 @@ This directory contains the Command Center widget platform, including the shared
 - Static dashboard surfaces currently keep widget settings changes only for the current page session.
 - The custom workspace studio writes widget settings into the workspace draft, and those changes persist once the user saves the workspace.
 - Stateful widgets can report runtime state back through `WidgetComponentProps.onRuntimeStateChange` so Workspaces JSON snapshots can round-trip view state such as zoom, pan, or selected node context.
+- Widgets can now also opt into shared inline canvas editing through `canvasEditing.mode`. Hosts
+  such as the workspace studio may keep those widget bodies interactive during edit mode and pass
+  `WidgetComponentProps.editable` plus `WidgetComponentProps.onPropsChange` so the widget can write
+  directly into the current workspace draft.
 - Widgets that participate in the live workspace archive should keep `buildAgentSnapshot(...)`
   deterministic and serialization-friendly. Prefer structured summaries, small evidence payloads,
   and opt-in larger exports through the archive profile instead of depending on DOM scraping alone.
@@ -121,6 +125,8 @@ This directory contains the Command Center widget platform, including the shared
   organization-scoped defaults or ceilings there only when the widget type explicitly supports that
   capability.
 - Use `runtimeState` only for ephemeral view state that should round-trip with a workspace; keep durable configuration in widget `props`.
+- Use inline canvas editing only for widgets that genuinely need on-canvas authoring. Most widgets
+  should still stay read-only in workspace edit mode.
 - If a widget needs a richer configuration experience, provide `settingsComponent` on its `WidgetDefinition` instead of forking the modal shell.
 - Be explicit about whether a surface is rendering a preconfigured widget instance or a user-configurable widget instance.
 - Keep widget module documentation close to the implementation when adding new widget folders.

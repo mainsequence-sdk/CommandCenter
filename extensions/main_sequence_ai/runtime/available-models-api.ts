@@ -15,8 +15,10 @@ export interface AvailableChatModelOption {
       }
     | null;
   label: string;
+  defaultReasoningEffort: string | null;
   value: string;
   provider: string | null;
+  reasoningEfforts: AvailableChatReasoningEffortOption[];
   source: string;
 }
 
@@ -25,7 +27,13 @@ export interface AvailableChatReasoningEffortOption {
   value: string;
 }
 
+export interface AvailableChatProviderOption {
+  label: string;
+  value: string;
+}
+
 export interface AvailableChatRunConfigOptions {
+  providers: AvailableChatProviderOption[];
   models: AvailableChatModelOption[];
   reasoningEfforts: AvailableChatReasoningEffortOption[];
 }
@@ -49,6 +57,13 @@ function formatModelLabel(value: string) {
 }
 
 function extractModelOption(value: unknown): AvailableChatModelOption | null {
+  return extractModelOptionFromCandidate(value, null);
+}
+
+function extractModelOptionFromCandidate(
+  value: unknown,
+  providerFallback: string | null,
+): AvailableChatModelOption | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -85,6 +100,41 @@ function extractModelOption(value: unknown): AvailableChatModelOption | null {
     candidate.model;
   const rawProvider = candidate.provider;
   const rawAuth = candidate.auth;
+  const defaultsCandidate =
+    candidate.defaults && typeof candidate.defaults === "object" && !Array.isArray(candidate.defaults)
+      ? (candidate.defaults as Record<string, unknown>)
+      : null;
+  const defaultRunConfig =
+    defaultsCandidate?.runConfig &&
+    typeof defaultsCandidate.runConfig === "object" &&
+    !Array.isArray(defaultsCandidate.runConfig)
+      ? (defaultsCandidate.runConfig as Record<string, unknown>)
+      : null;
+  const capabilitiesCandidate =
+    candidate.capabilities &&
+    typeof candidate.capabilities === "object" &&
+    !Array.isArray(candidate.capabilities)
+      ? (candidate.capabilities as Record<string, unknown>)
+      : null;
+  const capabilityRunConfig =
+    capabilitiesCandidate?.runConfig &&
+    typeof capabilitiesCandidate.runConfig === "object" &&
+    !Array.isArray(capabilitiesCandidate.runConfig)
+      ? (capabilitiesCandidate.runConfig as Record<string, unknown>)
+      : null;
+  const reasoningCapability =
+    capabilityRunConfig?.reasoning_effort &&
+    typeof capabilityRunConfig.reasoning_effort === "object" &&
+    !Array.isArray(capabilityRunConfig.reasoning_effort)
+      ? (capabilityRunConfig.reasoning_effort as Record<string, unknown>)
+      : null;
+  const capabilityReasoningEntries =
+    extractReasoningEffortArray(reasoningCapability) ??
+    extractReasoningEffortArray(candidate);
+  const capabilityDefaultReasoningEffort =
+    typeof reasoningCapability?.default === "string" && reasoningCapability.default.trim()
+      ? reasoningCapability.default.trim()
+      : null;
   const normalizedAuth =
     rawAuth && typeof rawAuth === "object" && !Array.isArray(rawAuth)
       ? {
@@ -113,12 +163,23 @@ function extractModelOption(value: unknown): AvailableChatModelOption | null {
 
   return {
     auth: normalizedAuth,
+    defaultReasoningEffort:
+      typeof defaultRunConfig?.reasoning_effort === "string" && defaultRunConfig.reasoning_effort.trim()
+        ? defaultRunConfig.reasoning_effort.trim()
+        : capabilityDefaultReasoningEffort,
     label:
       typeof rawLabel === "string" && rawLabel.trim()
         ? rawLabel.trim()
         : formatModelLabel(normalizedValue),
     provider:
-      typeof rawProvider === "string" && rawProvider.trim() ? rawProvider.trim() : null,
+      typeof rawProvider === "string" && rawProvider.trim()
+        ? rawProvider.trim()
+        : providerFallback,
+    reasoningEfforts: dedupeOptions(
+      (capabilityReasoningEntries ?? [])
+        .map((entry) => extractReasoningEffortOption(entry))
+        .filter((entry): entry is AvailableChatReasoningEffortOption => Boolean(entry)),
+    ),
     source: normalizedSource,
     value: normalizedValue,
   };
@@ -149,6 +210,44 @@ function extractModelArray(payload: unknown) {
   }
 
   return null;
+}
+
+function extractGroupedProviderEntries(payload: unknown) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+
+  if (!Array.isArray(candidate.providers)) {
+    return null;
+  }
+
+  const groupedProviders: Array<{
+    provider: string;
+    models: unknown[];
+  }> = [];
+
+  for (const entry of candidate.providers as unknown[]) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+
+    const providerCandidate = entry as Record<string, unknown>;
+    const provider =
+      typeof providerCandidate.provider === "string" && providerCandidate.provider.trim()
+        ? providerCandidate.provider.trim()
+        : null;
+    const models = Array.isArray(providerCandidate.models) ? providerCandidate.models : null;
+
+    if (!provider || !models) {
+      continue;
+    }
+
+    groupedProviders.push({ provider, models });
+  }
+
+  return groupedProviders;
 }
 
 function formatReasoningEffortLabel(value: string) {
@@ -217,6 +316,7 @@ function extractReasoningEffortArray(payload: unknown) {
   const candidate = payload as Record<string, unknown>;
 
   for (const key of [
+    "values",
     "reasoning_efforts",
     "reasoningEfforts",
     "reasoning_effort_options",
@@ -261,15 +361,46 @@ function dedupeOptions<T extends { value: string }>(entries: readonly T[]) {
 export function normalizeAvailableRunConfigOptions(
   payload: unknown,
 ): AvailableChatRunConfigOptions {
-  const modelEntries = extractModelArray(payload) ?? [];
+  const groupedProviders = extractGroupedProviderEntries(payload);
+  const flatModelEntries = extractModelArray(payload) ?? [];
   const reasoningEffortEntries = extractReasoningEffortArray(payload) ?? [];
+  const models = groupedProviders
+    ? dedupeOptions(
+        groupedProviders
+          .flatMap((providerEntry) =>
+            providerEntry.models.map((entry) =>
+              extractModelOptionFromCandidate(entry, providerEntry.provider),
+            ),
+          )
+          .filter((entry): entry is AvailableChatModelOption => Boolean(entry)),
+      )
+    : dedupeOptions(
+        flatModelEntries
+          .map((entry) => extractModelOption(entry))
+          .filter((entry): entry is AvailableChatModelOption => Boolean(entry)),
+      );
+
+  const providers = groupedProviders
+    ? groupedProviders.map((entry) => ({
+        label: entry.provider,
+        value: entry.provider,
+      }))
+    : dedupeOptions(
+        models
+          .map((entry) =>
+            entry.provider
+              ? {
+                  label: entry.provider,
+                  value: entry.provider,
+                }
+              : null,
+          )
+          .filter((entry): entry is AvailableChatProviderOption => Boolean(entry)),
+      );
 
   return {
-    models: dedupeOptions(
-      modelEntries
-        .map((entry) => extractModelOption(entry))
-        .filter((entry): entry is AvailableChatModelOption => Boolean(entry)),
-    ),
+    providers,
+    models,
     reasoningEfforts: dedupeOptions(
       reasoningEffortEntries
         .map((entry) => extractReasoningEffortOption(entry))

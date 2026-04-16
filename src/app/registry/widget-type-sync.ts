@@ -20,6 +20,7 @@ import type {
   WidgetRegistryRuntimeContract,
   WidgetSettingsSchema,
   WidgetValueDescriptor,
+  WidgetCanvasEditingMode,
   WidgetWorkspaceRuntimeMode,
 } from "@/widgets/types";
 import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
@@ -27,7 +28,7 @@ import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
 const devAuthProxyPrefix = "/__command_center_auth__";
 
 // Bump when the JSON manifest contract changes in a backend-visible way.
-export const WIDGET_REGISTRY_VERSION = "2026-04-15";
+export const WIDGET_REGISTRY_VERSION = "2026-04-16";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -242,6 +243,14 @@ function deriveWorkspaceRuntimeMode(widget: WidgetDefinition): WidgetWorkspaceRu
   return "local-ui";
 }
 
+function deriveCanvasEditingMode(widget: WidgetDefinition): WidgetCanvasEditingMode {
+  if (widget.canvasEditing?.mode === "inline") {
+    return "inline";
+  }
+
+  return "none";
+}
+
 function deriveIoMode(
   widget: WidgetDefinition,
   explicitMode: WidgetRegistryIoMode | undefined,
@@ -314,10 +323,12 @@ function resolveConfigurationContract(
 function resolveRuntimeContract(widget: WidgetDefinition): WidgetRegistryRuntimeContract {
   const explicit = widget.registryContract?.runtime;
   const workspaceRuntimeMode = deriveWorkspaceRuntimeMode(widget);
+  const canvasEditingMode = deriveCanvasEditingMode(widget);
   const supportsExecution = Boolean(widget.execution);
 
   return {
     workspaceRuntimeMode,
+    canvasEditingMode,
     supportsExecution,
     refreshPolicy: explicit?.refreshPolicy ?? deriveDefaultRefreshPolicy(widget),
     executionTriggers:

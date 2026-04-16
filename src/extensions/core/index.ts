@@ -32,6 +32,7 @@ import { quartzLightTheme } from "@/themes/presets/quartz-light";
 import { sakuraTheme } from "@/themes/presets/sakura";
 import { sapphireTheme } from "@/themes/presets/sapphire";
 import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
+import { richTextNoteWidget } from "@/widgets/core/rich-text-note/definition";
 import { appComponentWidget } from "@/widgets/core/app-component/definition";
 import { workspaceRowWidget } from "@/widgets/core/workspace-row/definition";
 
@@ -494,7 +495,7 @@ const coreExtension: AppExtension = {
   id: "core",
   title: "Core Extension",
   description: "Built-in terminal apps, dashboard surfaces, and theme presets.",
-  widgets: [markdownNoteWidget, appComponentWidget, workspaceRowWidget],
+  widgets: [markdownNoteWidget, richTextNoteWidget, appComponentWidget, workspaceRowWidget],
   apps: [workspaceStudioApp, adminApp, accessRbacApp],
   themes: [
     mainSequenceSpaceTheme,

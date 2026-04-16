@@ -1062,14 +1062,17 @@ function BuilderWidgetCard({
     instanceId?: string;
     instanceTitle?: string;
     props: Record<string, unknown>;
+    editable?: boolean;
     presentation?: WidgetInstancePresentation;
     runtimeState?: Record<string, unknown>;
+    onPropsChange?: (props: Record<string, unknown>) => void;
     onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   }>;
 
   const title = instanceTitle ?? widget.title;
   const headerVisible = editable || resolveWidgetHeaderVisibility(widgetProps);
   const rowWidget = isWorkspaceRowWidgetId(widget.id);
+  const inlineCanvasEditable = editable && widget.canvasEditing?.mode === "inline";
   const minimalChrome = !rowWidget && resolveWidgetMinimalChrome(widgetProps);
   const transparentSurface = resolveWidgetTransparentSurface(widgetPresentation);
   const floatingChromeWidget = rowWidget || minimalChrome;
@@ -1293,7 +1296,7 @@ function BuilderWidgetCard({
         <div
           className={cn(
             "min-h-0 flex-1",
-            editable ? "pointer-events-none select-none" : undefined,
+            editable && !inlineCanvasEditable ? "pointer-events-none select-none" : undefined,
           )}
         >
           <WidgetErrorBoundary
@@ -1307,8 +1310,12 @@ function BuilderWidgetCard({
               instanceId={instanceId}
               instanceTitle={instanceTitle}
               props={widgetRenderProps}
+              editable={inlineCanvasEditable}
               presentation={widgetPresentation}
               runtimeState={widgetRuntimeState}
+              onPropsChange={(nextProps: Record<string, unknown>) => {
+                onPropsChange(instanceId, nextProps);
+              }}
               onRuntimeStateChange={(state) => {
                 onRuntimeStateChange(instanceId, state);
               }}

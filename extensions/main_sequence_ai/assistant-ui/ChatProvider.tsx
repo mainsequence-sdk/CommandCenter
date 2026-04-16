@@ -25,6 +25,7 @@ import type { AgentSearchResult } from "../agent-search";
 import { buildAgentSessionRequestBodyFragment } from "../runtime/agent-session-request";
 import type {
   AvailableChatModelOption,
+  AvailableChatProviderOption,
   AvailableChatReasoningEffortOption,
 } from "../runtime/available-models-api";
 import { fetchAvailableRunConfigOptions } from "../runtime/available-models-api";
@@ -109,6 +110,7 @@ interface ChatFeatureContextValue {
   activeSessionUpdatedAt: string | null;
   availableModels: AvailableChatModelOption[];
   availableModelsError: string | null;
+  availableProviders: AvailableChatProviderOption[];
   availableReasoningEfforts: AvailableChatReasoningEffortOption[];
   agentId: string | null;
   agentSessions: AgentSessionSummary[];
@@ -138,8 +140,10 @@ interface ChatFeatureContextValue {
   sessionInsightsError: string | null;
   sessionNotice: string | null;
   selectedModelValue: string | null;
+  selectedProviderValue: string | null;
   selectedReasoningEffortValue: string | null;
   setSelectedModelValue: (value: string | null) => void;
+  setSelectedProviderValue: (value: string | null) => void;
   setSelectedReasoningEffortValue: (value: string | null) => void;
   startAgentSession: (agent: AgentSearchResult) => void;
   thinkingSummary: string | null;
@@ -448,9 +452,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [thinkingSummary, setThinkingSummary] = useState<string | null>(null);
   const [availableModels, setAvailableModels] = useState<AvailableChatModelOption[]>([]);
   const [availableModelsError, setAvailableModelsError] = useState<string | null>(null);
+  const [availableProviders, setAvailableProviders] = useState<AvailableChatProviderOption[]>([]);
   const [availableReasoningEfforts, setAvailableReasoningEfforts] = useState<
     AvailableChatReasoningEffortOption[]
   >([]);
+  const [selectedProviderValue, setSelectedProviderValue] = useState<string | null>(null);
   const [selectedModelValue, setSelectedModelValue] = useState<string | null>(null);
   const [selectedReasoningEffortValue, setSelectedReasoningEffortValue] = useState<string | null>(
     null,
@@ -680,6 +686,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (env.useMockData) {
       setAvailableModels([]);
+      setAvailableProviders([]);
       setAvailableReasoningEfforts([]);
       setAvailableModelsError(null);
       setIsLoadingAvailableModels(false);
@@ -706,14 +713,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        setAvailableProviders(options.providers);
         setAvailableModels(options.models);
-        setAvailableReasoningEfforts(options.reasoningEfforts);
         setAvailableModelsError(null);
       } catch (error) {
         if (controller.signal.aborted) {
           return;
         }
 
+        setAvailableProviders([]);
         setAvailableModels([]);
         setAvailableReasoningEfforts([]);
         setAvailableModelsError(
@@ -836,22 +844,70 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [agentSessions, sessionUserId]);
 
   useEffect(() => {
-    if (availableModels.length === 0) {
+    if (availableProviders.length === 0) {
+      if (selectedProviderValue !== null) {
+        setSelectedProviderValue(null);
+      }
+      return;
+    }
+
+    if (
+      selectedProviderValue &&
+      availableProviders.some((provider) => provider.value === selectedProviderValue)
+    ) {
+      return;
+    }
+
+    setSelectedProviderValue(availableProviders[0]?.value ?? null);
+  }, [availableProviders, selectedProviderValue]);
+
+  useEffect(() => {
+    const filteredModels =
+      selectedProviderValue
+        ? availableModels.filter((model) => model.provider === selectedProviderValue)
+        : availableModels;
+
+    if (filteredModels.length === 0) {
       if (selectedModelValue !== null) {
         setSelectedModelValue(null);
       }
       return;
     }
 
-    if (selectedModelValue && availableModels.some((model) => model.value === selectedModelValue)) {
+    if (
+      selectedModelValue &&
+      filteredModels.some((model) => model.value === selectedModelValue)
+    ) {
       return;
     }
 
-    setSelectedModelValue(availableModels[0]?.value ?? null);
+    setSelectedModelValue(filteredModels[0]?.value ?? null);
+  }, [availableModels, selectedModelValue, selectedProviderValue]);
+
+  useEffect(() => {
+    const selectedModel =
+      availableModels.find((model) => model.value === selectedModelValue) ?? null;
+    const nextReasoningEfforts =
+      selectedModel?.reasoningEfforts.length
+        ? selectedModel.reasoningEfforts
+        : [];
+
+    setAvailableReasoningEfforts(nextReasoningEfforts);
   }, [availableModels, selectedModelValue]);
 
   useEffect(() => {
-    if (availableReasoningEfforts.length === 0) {
+    const selectedModel =
+      availableModels.find((model) => model.value === selectedModelValue) ?? null;
+    const nextReasoningEfforts =
+      selectedModel?.reasoningEfforts.length
+        ? selectedModel.reasoningEfforts
+        : [];
+    const defaultReasoningEffort =
+      selectedModel?.defaultReasoningEffort ??
+      nextReasoningEfforts[0]?.value ??
+      null;
+
+    if (nextReasoningEfforts.length === 0) {
       if (selectedReasoningEffortValue !== null) {
         setSelectedReasoningEffortValue(null);
       }
@@ -860,13 +916,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     if (
       selectedReasoningEffortValue &&
-      availableReasoningEfforts.some((effort) => effort.value === selectedReasoningEffortValue)
+      nextReasoningEfforts.some((effort) => effort.value === selectedReasoningEffortValue)
     ) {
       return;
     }
 
-    setSelectedReasoningEffortValue(availableReasoningEfforts[0]?.value ?? null);
-  }, [availableReasoningEfforts, selectedReasoningEffortValue]);
+    setSelectedReasoningEffortValue(defaultReasoningEffort);
+  }, [availableModels, selectedModelValue, selectedReasoningEffortValue]);
 
   useEffect(() => {
     sessionInsightsRequestRef.current?.abort();
@@ -1802,6 +1858,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeSessionUpdatedAt,
       availableModels,
       availableModelsError,
+      availableProviders,
       availableReasoningEfforts,
       agentId,
       agentSessions: sortedAgentSessions,
@@ -1831,8 +1888,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       sessionInsightsError,
       sessionNotice,
       selectedModelValue,
+      selectedProviderValue,
       selectedReasoningEffortValue,
       setSelectedModelValue,
+      setSelectedProviderValue,
       setSelectedReasoningEffortValue,
       startAgentSession,
       thinkingSummary,
@@ -1848,6 +1907,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeSessionUpdatedAt,
       availableModels,
       availableModelsError,
+      availableProviders,
       availableReasoningEfforts,
       agentId,
       currentSessionId,
@@ -1876,8 +1936,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       sessionInsightsError,
       sessionNotice,
       selectedModelValue,
+      selectedProviderValue,
       selectedReasoningEffortValue,
       setSelectedModelValue,
+      setSelectedProviderValue,
       setSelectedReasoningEffortValue,
       sortedAgentSessions,
       startAgentSession,

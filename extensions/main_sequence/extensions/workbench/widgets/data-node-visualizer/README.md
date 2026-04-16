@@ -33,6 +33,9 @@ This widget turns Main Sequence data-node table data into configurable charts, w
   styling.
 - Provider is now a real per-widget choice. `TradingView` uses Lightweight Charts, and `ECharts`
   uses the local ECharts renderer.
+- The ECharts renderer now uses a real time axis for both `Date` and `DateTime` modes. `Date`
+  mode still buckets data per UTC day, but it formats the time axis as date-only instead of
+  degrading date rows into sparse categorical buckets.
 - Series stroke styling is per-series through `seriesOverrides`. For TradingView-backed line and
   area charts, each resolved series can now choose its own built-in line style (`Solid`,
   `Dotted`, `Dashed`, `Large dashed`, `Sparse dotted`) alongside its per-series color override.

@@ -103,6 +103,10 @@ These flows are all part of one app surface, with instance state selected throug
   persistence hooks.
 - In backend mode, delete reloads the workspace collection from the backend after success instead of computing the next list locally.
 - In backend mode, workspace save keeps the submitted companion-card layout if the mutation response does not explicitly echo `companions`. It also keeps the submitted widget geometry for matching widget ids so resized cards do not snap back locally after save when the backend response omits or returns stale layout data.
+- Workspace edit mode no longer has to treat every widget body as non-interactive. Widgets that opt
+  into shared inline canvas editing can remain interactive on the canvas and write directly into
+  the current workspace draft, while normal widgets still stay non-interactive during layout/edit
+  operations.
 - Favorites can target both app surfaces and individual workspace instances.
 - Workspace labels are edited in settings as enter-to-add pills instead of a comma-separated text field.
 - Workspace settings also expose versioned JSON export/import for full workspace snapshots.

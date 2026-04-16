@@ -34,6 +34,37 @@ function buildSeriesLegendData(series: readonly DataNodeVisualizerSeries[]) {
   return series.map((entry) => entry.label);
 }
 
+function parseEChartsAxisTimeValue(value: string | number) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  const parsedValue = typeof value === "string" ? Date.parse(value) : Number.NaN;
+
+  return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function formatEChartsTimeAxisLabel(
+  value: string | number,
+  timeAxisMode: Exclude<DataNodeVisualizerTimeAxisMode, "auto">,
+) {
+  const parsedValue = parseEChartsAxisTimeValue(value);
+
+  if (parsedValue === null) {
+    return String(value);
+  }
+
+  if (timeAxisMode === "date") {
+    return formatDataNodeVisualizerUtcDateKey(parsedValue);
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(parsedValue);
+}
+
 function buildSharedChartOption(args: {
   chartType: DataNodeVisualizerChartType;
   emptyMessage: string;
@@ -42,7 +73,6 @@ function buildSharedChartOption(args: {
   tokens: Record<string, string>;
 }): EChartsOption {
   const { chartType, series, timeAxisMode, tokens } = args;
-  const isDateAxis = timeAxisMode === "date";
   const hasData = series.some((entry) => entry.points.length > 0);
 
   return {
@@ -79,37 +109,22 @@ function buildSharedChartOption(args: {
         color: tokens.foreground,
       },
     },
-    xAxis: (isDateAxis
-      ? {
-          type: "category" as const,
-          boundaryGap: chartType === "bar",
-          axisLine: {
-            lineStyle: {
-              color: withAlpha(tokens.border, 0.72),
-            },
-          },
-          axisLabel: {
-            color: tokens["muted-foreground"],
-          },
-          splitLine: {
-            show: false,
-          },
-        }
-      : {
-          type: "time" as const,
-          boundaryGap: chartType === "bar",
-          axisLine: {
-            lineStyle: {
-              color: withAlpha(tokens.border, 0.72),
-            },
-          },
-          axisLabel: {
-            color: tokens["muted-foreground"],
-          },
-          splitLine: {
-            show: false,
-          },
-        }) as EChartsOption["xAxis"],
+    xAxis: {
+      type: "time",
+      minInterval: timeAxisMode === "date" ? 24 * 60 * 60 * 1000 : undefined,
+      axisLine: {
+        lineStyle: {
+          color: withAlpha(tokens.border, 0.72),
+        },
+      },
+      axisLabel: {
+        color: tokens["muted-foreground"],
+        formatter: (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode),
+      },
+      splitLine: {
+        show: false,
+      },
+    } as EChartsOption["xAxis"],
     yAxis: {
       type: "value",
       scale: true,
@@ -129,11 +144,7 @@ function buildSharedChartOption(args: {
       ? series.map((entry) => {
           const baseSeries = {
             name: entry.label,
-            data: entry.points.map((point) =>
-              isDateAxis
-                ? [formatDataNodeVisualizerUtcDateKey(point.time), point.value]
-                : [point.time, point.value],
-            ),
+            data: entry.points.map((point) => [point.time, point.value]),
             itemStyle: {
               color: entry.color,
             },
@@ -176,7 +187,6 @@ function buildSeparateAxesChartOption(args: {
   tokens: Record<string, string>;
 }): EChartsOption {
   const { chartType, series, timeAxisMode, tokens } = args;
-  const isDateAxis = timeAxisMode === "date";
   const legendHeight = series.length > 1 ? 44 : 18;
   const availableHeight = 100 - legendHeight;
   const paneHeight = Math.max(14, availableHeight / Math.max(series.length, 1));
@@ -221,47 +231,27 @@ function buildSeparateAxesChartOption(args: {
       };
     }),
     xAxis: series.map((_, index) =>
-      (isDateAxis
-        ? {
-            type: "category" as const,
-            gridIndex: index,
-            boundaryGap: chartType === "bar",
-            axisLine: {
-              lineStyle: {
-                color: withAlpha(tokens.border, 0.72),
-              },
-            },
-            axisLabel: {
-              color: tokens["muted-foreground"],
-              show: index === series.length - 1,
-            },
-            axisTick: {
-              show: index === series.length - 1,
-            },
-            splitLine: {
-              show: false,
-            },
-          }
-        : {
-            type: "time" as const,
-            gridIndex: index,
-            boundaryGap: chartType === "bar",
-            axisLine: {
-              lineStyle: {
-                color: withAlpha(tokens.border, 0.72),
-              },
-            },
-            axisLabel: {
-              color: tokens["muted-foreground"],
-              show: index === series.length - 1,
-            },
-            axisTick: {
-              show: index === series.length - 1,
-            },
-            splitLine: {
-              show: false,
-            },
-          }) as NonNullable<EChartsOption["xAxis"]> extends Array<infer T> ? T : never,
+      ({
+        type: "time" as const,
+        gridIndex: index,
+        minInterval: timeAxisMode === "date" ? 24 * 60 * 60 * 1000 : undefined,
+        axisLine: {
+          lineStyle: {
+            color: withAlpha(tokens.border, 0.72),
+          },
+        },
+        axisLabel: {
+          color: tokens["muted-foreground"],
+          show: index === series.length - 1,
+          formatter: (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode),
+        },
+        axisTick: {
+          show: index === series.length - 1,
+        },
+        splitLine: {
+          show: false,
+        },
+      }) as NonNullable<EChartsOption["xAxis"]> extends Array<infer T> ? T : never,
     ),
     yAxis: series.map((entry, index) => ({
       type: "value",
@@ -292,11 +282,7 @@ function buildSeparateAxesChartOption(args: {
         name: entry.label,
         xAxisIndex: index,
         yAxisIndex: index,
-        data: entry.points.map((point) =>
-          isDateAxis
-            ? [formatDataNodeVisualizerUtcDateKey(point.time), point.value]
-            : [point.time, point.value],
-        ),
+        data: entry.points.map((point) => [point.time, point.value]),
         itemStyle: {
           color: entry.color,
         },

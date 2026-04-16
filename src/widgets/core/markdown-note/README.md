@@ -28,6 +28,8 @@ This widget renders Markdown-authored narrative content inside dashboards and wo
   context for widgets such as `Agent Terminal`.
 - Keep the widget on the shared `MarkdownContent` renderer instead of introducing a second Markdown
   stack.
+- Markdown remains markdown-first. Friendly inline WYSIWYG canvas editing belongs to the separate
+  `Rich Text` widget instead of this widget.
 - Keep props JSON-serializable so existing dashboard persistence flows continue to work without extra
   adapters.
 - Vertical alignment now applies to the rendered Markdown body, not only the empty state. Preserve

@@ -45,6 +45,12 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   `runConfig.reasoning_effort`.
 - `available-models-api.ts` now also preserves per-model auth metadata so shell settings can show
   auth-backed models as visible but unusable when sign-in is required.
+- `available-models-api.ts` also normalizes the provider-grouped `/api/chat/get_available_models`
+  response and preserves per-model reasoning-effort capabilities so the chat composer can render
+  provider, model, and reasoning selectors in sequence.
+- reasoning options for the chat picker are derived from each model's
+  `capabilities.runConfig.reasoning_effort` payload, with `defaults.runConfig.reasoning_effort`
+  used as the selected default when present.
 - `model-provider-auth-api.ts` now targets `/api/model-providers` rather than chat runtime
   endpoints and owns the generic sign-in attempt state machine:
   start, poll, manual input, cancel, and sign-off.
