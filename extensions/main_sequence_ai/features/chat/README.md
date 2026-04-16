@@ -17,8 +17,9 @@ explorer without moving presentational shell chrome into the runtime boundary.
   Agents Monitor workspace launcher.
 - `SessionDetailRail.tsx`
   Shared right-side session metadata rail for the selected `AgentSession` on the chat page. The
-  verbose session metadata is intentionally collapsed behind an in-rail disclosure so tool
-  availability and session insights stay visible without scrolling past static identifiers first.
+  verbose session metadata is intentionally collapsed behind an in-rail disclosure. Session
+  insights now open in a modal instead of expanding inline, so the rail stays compact and tool
+  availability remains visible.
 - `repo-diff-api.ts`
   Tool-specific fetch/normalization layer for the `repo_diff` session tool. It validates the
   backend diff payload before the UI renders it.
@@ -43,6 +44,9 @@ explorer without moving presentational shell chrome into the runtime boundary.
   surfaces do not drift apart.
 - Session metadata presentation for the chat page lives here, not in the transcript pane.
 - `SessionDetailRail.tsx` now owns the presentational rendering for provider-owned session insights
-  fetched from `/api/chat/session-insights`.
+  fetched from `/api/chat/session-insights`, including the on-demand modal presentation and the
+  writable session-config editor for the backend-supported editable subset.
+- session-insights `info` metadata is used there as optional label/help text; missing info nodes
+  fall back to the frontend’s existing labels instead of blocking rendering.
 - `repo_diff` uses the backend-provided tool `url` directly. The UI uses `diff.files` for the
   changed-file selector and `diff.patch` for the rendered unified diff body.

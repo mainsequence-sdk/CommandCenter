@@ -219,6 +219,12 @@ Rules:
 - placeholder or local-only sessions without a backend session id do not fetch insights
 - in-flight insight requests are aborted when the selected session changes
 - the normalized snapshot is exposed through `activeSessionSummary.sessionInsights`
+- the frontend now accepts the extended `config` section from that endpoint and merges
+  `config.model` / `config.compaction` into the normalized model and context views for rendering
+- the frontend also accepts the recursive `info` tree from that endpoint and uses it as
+  enhancement metadata for labels and help text in the insights UI, with frontend copy as fallback
+- `ChatProvider` also exposes `refreshSessionInsights()` so feature-layer editors can patch session
+  config and then refetch the canonical insights snapshot
 
 The page session-detail rail is responsible for rendering that snapshot. The transcript pane does
 not own static runtime/model usage metadata.

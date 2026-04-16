@@ -130,6 +130,7 @@ interface ChatFeatureContextValue {
   latestSessionsError: string | null;
   minimizeToRail: () => void;
   railMode: ChatRailMode;
+  refreshSessionInsights: () => void;
   runStatus: ChatRunStatus;
   runStatusDetail: string | null;
   selectAgentSession: (sessionId: string) => void;
@@ -475,6 +476,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   >({});
   const [isLoadingSessionInsights, setIsLoadingSessionInsights] = useState(false);
   const [sessionInsightsError, setSessionInsightsError] = useState<string | null>(null);
+  const [sessionInsightsRefreshNonce, setSessionInsightsRefreshNonce] = useState(0);
   const [isLoadingSessionTools, setIsLoadingSessionTools] = useState(false);
   const [sessionToolsError, setSessionToolsError] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
@@ -924,6 +926,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setSelectedReasoningEffortValue(defaultReasoningEffort);
   }, [availableModels, selectedModelValue, selectedReasoningEffortValue]);
 
+  const refreshSessionInsights = useCallback(() => {
+    setSessionInsightsRefreshNonce((current) => current + 1);
+  }, []);
+
   useEffect(() => {
     sessionInsightsRequestRef.current?.abort();
 
@@ -988,6 +994,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     assistantUiEndpoint,
     activeSession?.id,
     activeSession?.runtimeSessionId,
+    sessionInsightsRefreshNonce,
     sessionToken,
     sessionTokenType,
   ]);
@@ -1878,6 +1885,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       latestSessionsError,
       minimizeToRail,
       railMode,
+      refreshSessionInsights,
       runStatus,
       runStatusDetail,
       selectAgentSession,
@@ -1926,6 +1934,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       latestSessionsError,
       minimizeToRail,
       railMode,
+      refreshSessionInsights,
       runStatus,
       runStatusDetail,
       currentSessionTools,

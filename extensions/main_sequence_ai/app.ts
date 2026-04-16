@@ -6,6 +6,7 @@ import {
 } from "@/apps/types";
 
 import { AgentsPage } from "./surfaces/agents/AgentsPage";
+import { AgentSettingsSection } from "./features/settings/AgentSettingsSection";
 import { ModelProviderSettingsSection } from "./features/settings/ModelProviderSettingsSection";
 import { ChatPage } from "./surfaces/chat/ChatPage";
 import { AgentsMonitorPage } from "./surfaces/monitor/AgentsMonitorPage";
@@ -18,6 +19,15 @@ export const mainSequenceAiApp: AppDefinition = {
   icon: Sparkles,
   defaultSurfaceId: "chat",
   shellMenuContributions: [
+    {
+      id: "agents-settings",
+      audience: "user",
+      label: "Agents Settings",
+      description: "Configure Main Sequence AI agent behavior and defaults.",
+      icon: Bot,
+      order: 55,
+      component: AgentSettingsSection,
+    },
     {
       id: "model-providers",
       audience: "user",

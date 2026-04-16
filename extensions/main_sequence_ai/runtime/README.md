@@ -26,10 +26,15 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `model-provider-auth-api.ts`
   Shared assistant-backend global provider transport used by the Main Sequence AI user settings
   section for provider sign-in/sign-off and generic sign-in attempt polling.
+- `storage-usage-api.ts`
+  Shared global storage-usage transport used by the Agents settings screen.
 - `session-history-api.ts`
   Shared session history fetch helper for an existing AgentSession id.
 - `session-insights-api.ts`
   Shared session insights fetch helper for an existing runtime session id.
+- `session-config-api.ts`
+  Shared session-config patch helper for the writable subset of per-session config exposed through
+  the session-insights contract.
 - `session-tools-api.ts`
   Shared session tools fetch helper for an existing AgentSession id.
 
@@ -59,5 +64,10 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   states.
 - `model-catalog-api.ts` is the only catalog source for the global provider settings screen.
   `available-models-api.ts` remains the chat-runtime picker source.
+- `storage-usage-api.ts` targets `/api/storage/usage` and represents deployment/runtime durable
+  storage state, not session-local or chat-local storage.
+- `session-insights-api.ts` remains the canonical read contract for session config values and
+  editable constraints. `session-config-api.ts` is write-only and should only send changed writable
+  fields back to the backend.
 - The live stream helper currently assumes `assistant_ui.protocol=ui-message-stream`, which matches
   the current Command Center configuration.

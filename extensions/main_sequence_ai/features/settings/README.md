@@ -10,6 +10,9 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 
 ## Entry Points
 
+- `AgentSettingsSection.tsx`
+  User-facing global Agents settings section that loads deployment/runtime storage usage from
+  `/api/storage/usage` and presents the global durable-storage breakdown.
 - `ModelProviderSettingsSection.tsx`
   User-facing global provider-auth section that loads provider cards from `/api/model-providers`,
   loads the full model catalog from `/api/models/catalog`, groups models by provider, and drives a
@@ -24,6 +27,8 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 - `extensions/main_sequence_ai/runtime/model-provider-auth-api.ts`
   Supplies global provider auth state, sign-in/sign-off transport, and sign-in attempt polling /
   manual-input / cancel flows.
+- `extensions/main_sequence_ai/runtime/storage-usage-api.ts`
+  Supplies the global durable-storage usage snapshot for the Agents settings section.
 - `src/app/layout/SettingsDialog.tsx`
   Shared shell-owned settings dialog that renders contributed sections.
 
@@ -31,6 +36,10 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 
 - Keep this directory focused on extension-owned settings content only. Do not reimplement shell
   dialog chrome here.
+- The Agents settings storage panel is global runtime/deployment state. Do not reinterpret it as
+  chat storage, session storage, or model-provider storage.
+- The main user-facing headline number should use `consumedBytes / totalBytes`, not
+  `filesystemUsedBytes`.
 - Provider auth state is the source of truth for sign-in/sign-off controls. Do not infer provider
   authentication only from model presence.
 - Provider cards should follow backend workflow flags directly: `authenticated` controls `Sign off`,
