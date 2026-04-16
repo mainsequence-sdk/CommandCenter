@@ -1015,6 +1015,26 @@ function resolveEffectiveSourceMode(
   return preferredMode;
 }
 
+function resolveEChartsSourceModeHelpText(
+  sourceMode: EChartsSpecSourceMode,
+  errorMessage: string | null,
+) {
+  const normalizedError = errorMessage?.toLowerCase() ?? "";
+
+  if (sourceMode === "javascript") {
+    if (
+      normalizedError.includes("unexpected token")
+      || normalizedError.includes("invalid or unexpected token")
+    ) {
+      return "JavaScript builder mode is active. The source is not valid JavaScript. If a node name or label needs multiple lines, use \\n inside the string or a template literal instead of a raw line break inside single quotes.";
+    }
+
+    return "JavaScript builder mode is active. The source must be valid JavaScript that returns one ECharts option object. Theme tokens and palette references are resolved after that object is returned.";
+  }
+
+  return "JSON mode is active. This path only accepts parsed JSON plus local trusted snippet injection. Functions and JavaScript expressions are not valid in JSON mode.";
+}
+
 function useCompiledOption(
   props: EChartsSpecWidgetProps,
   configuration: ResolvedEChartsOrganizationConfiguration,
@@ -1118,6 +1138,10 @@ export function EChartsSpecWidget({ widget, props, resolvedInputs }: Props) {
   const requestedSourceMode = effectiveProps.sourceMode === "javascript" ? "javascript" : "json";
   const sourceModeBlocked =
     requestedSourceMode === "javascript" && compiled.sourceMode !== requestedSourceMode;
+  const sourceModeHelpText = resolveEChartsSourceModeHelpText(
+    compiled.sourceMode,
+    compiled.error ?? chartError,
+  );
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       {sourceModeBlocked ? (
@@ -1163,9 +1187,7 @@ export function EChartsSpecWidget({ widget, props, resolvedInputs }: Props) {
               <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             )}
             <span>
-              Source mode <strong>{compiled.sourceMode}</strong>. JSON mode only accepts parsed JSON
-              and locally injected trusted snippets. JavaScript mode is reserved for
-              <strong> unsafe-custom-js</strong>.
+              Source mode <strong>{compiled.sourceMode}</strong>. {sourceModeHelpText}
             </span>
           </div>
         </div>
