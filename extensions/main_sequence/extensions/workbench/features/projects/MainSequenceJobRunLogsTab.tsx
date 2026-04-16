@@ -4,10 +4,73 @@ import { useQuery } from "@tanstack/react-query";
 import { FileText, Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { LogTable } from "@/components/ui/log-table";
+import { LogTable, type LogTableEntry } from "@/components/ui/log-table";
 
-import { fetchJobRunLogs, formatMainSequenceError } from "../../../../common/api";
+import {
+  fetchJobRunLogs,
+  formatMainSequenceError,
+  type JobRunLogEntry,
+} from "../../../../common/api";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
+
+function mapJobRunLogRowToEntry(row: JobRunLogEntry, index: number): LogTableEntry {
+  const context: Record<string, unknown> = {
+    ...row,
+  };
+
+  delete context.id;
+  delete context.timestamp;
+  delete context.level;
+  delete context.source;
+  delete context.message;
+  delete context.summary;
+  delete context.context;
+  delete context.children;
+  delete context.tags;
+  delete context.status;
+  delete context.durationMs;
+
+  const filename = typeof row.filename === "string" && row.filename.trim() ? row.filename.trim() : null;
+  const lineNumber = typeof row.lineno === "number" && Number.isFinite(row.lineno) ? row.lineno : null;
+  const functionName =
+    typeof row.func_name === "string" && row.func_name.trim() ? row.func_name.trim() : null;
+  const source =
+    filename ??
+    functionName ??
+    (typeof row.source === "string" && row.source.trim() ? row.source.trim() : null);
+  const summaryParts = [
+    filename ? `File: ${filename}` : null,
+    lineNumber !== null ? `Line: ${lineNumber}` : null,
+    functionName ? `Function: ${functionName}` : null,
+  ].filter(Boolean);
+
+  const rowContext = row.context && typeof row.context === "object" ? row.context : null;
+  const mergedContext = {
+    ...(Object.keys(context).length > 0 ? context : {}),
+    ...(rowContext ?? {}),
+  };
+
+  return {
+    id: typeof row.id === "string" && row.id.trim() ? row.id : `${row.timestamp ?? "log"}-${index}`,
+    timestamp: row.timestamp ?? null,
+    level: typeof row.level === "string" ? row.level : null,
+    message:
+      (typeof row.event === "string" && row.event.trim() ? row.event : null) ??
+      (typeof row.message === "string" && row.message.trim() ? row.message : null) ??
+      "Log row",
+    source,
+    durationMs: typeof row.durationMs === "number" ? row.durationMs : null,
+    status: typeof row.status === "string" ? row.status : null,
+    summary:
+      (typeof row.summary === "string" && row.summary.trim() ? row.summary : null) ??
+      (summaryParts.length > 0 ? summaryParts.join(" · ") : null),
+    tags: Array.isArray(row.tags) ? row.tags.filter((tag): tag is string => typeof tag === "string") : null,
+    context: Object.keys(mergedContext).length > 0 ? mergedContext : null,
+    children: Array.isArray(row.children)
+      ? row.children.map((child, childIndex) => mapJobRunLogRowToEntry(child, childIndex))
+      : null,
+  };
+}
 
 export function MainSequenceJobRunLogsTab({
   jobRunId,
@@ -26,8 +89,9 @@ export function MainSequenceJobRunLogsTab({
   const filteredRows = useMemo(() => {
     const needle = deferredFilterValue.trim().toLowerCase();
     const rows = logsQuery.data?.rows ?? [];
+    const mappedRows = rows.map(mapJobRunLogRowToEntry);
 
-    return rows.filter((row) => {
+    return mappedRows.filter((row) => {
       if (!needle) {
         return true;
       }

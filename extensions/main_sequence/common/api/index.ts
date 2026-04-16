@@ -2510,12 +2510,17 @@ export interface JobRunLogEntry {
   level?: string | null;
   source?: string | null;
   message: string;
+  event?: string | null;
+  filename?: string | null;
+  lineno?: number | null;
+  func_name?: string | null;
   durationMs?: number | null;
   status?: string | null;
   summary?: string | null;
   tags?: string[] | null;
   context?: Record<string, unknown> | null;
   children?: JobRunLogEntry[] | null;
+  [key: string]: unknown;
 }
 
 export interface ProjectBaseImageOption {

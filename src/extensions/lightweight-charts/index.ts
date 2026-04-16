@@ -1,12 +1,15 @@
 import type { AppExtension } from "@/app/registry/types";
 
-import { priceChartWidget } from "@/widgets/extensions/lightweight-charts/definition";
+import {
+  lightweightChartsSpecWidget,
+  priceChartWidget,
+} from "@/widgets/extensions/lightweight-charts/definition";
 
 const lightweightChartsExtension: AppExtension = {
   id: "lightweight-charts",
   title: "Lightweight Charts Extension",
-  description: "Optional market chart integration kept outside the core library.",
-  widgets: [priceChartWidget],
+  description: "Optional Lightweight Charts integration for both legacy market charts and spec-driven safe JSON chart widgets.",
+  widgets: [priceChartWidget, lightweightChartsSpecWidget],
 };
 
 export default lightweightChartsExtension;

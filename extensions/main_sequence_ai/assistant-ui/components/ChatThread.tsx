@@ -590,6 +590,10 @@ function Composer({
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
           {hasProviderOptions ? (
             <Select
+              actionLabel="Sign in to provider"
+              actionOnSelect={() => {
+                openUserSettings(MODEL_PROVIDER_SETTINGS_SECTION_ID);
+              }}
               aria-label="Provider"
               className="h-8 min-w-[160px] border-0 bg-transparent px-2 py-1 text-xs shadow-none hover:bg-muted/20 focus:ring-0"
               listboxPlacement="top"
@@ -608,10 +612,6 @@ function Composer({
           <div className="flex items-center gap-2 text-muted-foreground">
             <Zap className="h-3.5 w-3.5" />
             <Select
-              actionLabel="Sign in to provider"
-              actionOnSelect={() => {
-                openUserSettings(MODEL_PROVIDER_SETTINGS_SECTION_ID);
-              }}
               aria-label="Model"
               className="h-8 border-0 bg-transparent px-2 py-1 text-xs shadow-none hover:bg-muted/20 focus:ring-0"
               fitContent

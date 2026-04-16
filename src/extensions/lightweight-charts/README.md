@@ -9,6 +9,7 @@ This extension owns the Lightweight Charts integration layer used by live widget
 ## Current Responsibilities
 
 - The `price-chart` widget implementation from `src/widgets/extensions/lightweight-charts/`
+- The `lightweight-charts-spec` widget implementation from `src/widgets/extensions/lightweight-charts/`
 - Lightweight Charts dependency isolation so vendor chart code stays out of core widget folders
 
 ## Maintenance Notes
