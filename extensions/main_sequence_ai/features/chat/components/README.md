@@ -9,8 +9,9 @@ This directory owns reusable presentational subcomponents for the shared page-le
 - `../SessionDetailRail.tsx`
   Read-only session metadata rail for the selected `AgentSession`.
 - `RepoDiffTool.tsx`
-  Specialized renderer for the `repo_diff` session tool. It loads the backend-provided diff URL,
-  exposes the changed-file list, and renders the unified patch with `react-diff-view`.
+  Specialized renderer for the `repo_diff` session tool. It keeps the session rail compact and
+  opens the backend-provided diff URL in a dedicated modal with changed-file navigation and a
+  unified patch rendered by `react-diff-view`.
 
 ## Dependencies
 

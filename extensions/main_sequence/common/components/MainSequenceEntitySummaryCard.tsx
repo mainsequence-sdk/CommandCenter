@@ -408,10 +408,11 @@ export function MainSequenceEntitySummaryCard({
                           type="button"
                           className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-foreground"
                           onClick={() => onFieldLinkClick?.(field)}
+                          title={field.meta || fieldValue}
                         >
                           {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
                           {showLabel ? <span>{field.label}</span> : null}
-                          <span className={valueClassName}>
+                          <span className={valueClassName} title={field.meta || fieldValue}>
                             {field.kind === "code" ? truncateMiddle(fieldValue, 44) : fieldValue}
                           </span>
                         </button>
@@ -419,7 +420,7 @@ export function MainSequenceEntitySummaryCard({
                         <>
                           {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
                           {showLabel ? <span>{field.label}</span> : null}
-                          <span className={valueClassName}>
+                          <span className={valueClassName} title={field.meta || fieldValue}>
                             {field.kind === "code" ? truncateMiddle(fieldValue, 44) : fieldValue}
                           </span>
                         </>

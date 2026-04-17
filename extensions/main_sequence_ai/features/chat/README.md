@@ -49,4 +49,5 @@ explorer without moving presentational shell chrome into the runtime boundary.
 - session-insights `info` metadata is used there as optional label/help text; missing info nodes
   fall back to the frontend’s existing labels instead of blocking rendering.
 - `repo_diff` uses the backend-provided tool `url` directly. The UI uses `diff.files` for the
-  changed-file selector and `diff.patch` for the rendered unified diff body.
+  changed-file selector and `diff.patch` for the rendered unified diff body. The actual diff
+  explorer opens in a modal instead of expanding inside the session rail.

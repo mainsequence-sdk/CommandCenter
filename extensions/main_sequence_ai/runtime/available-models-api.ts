@@ -14,6 +14,7 @@ export interface AvailableChatModelOption {
         usable: boolean;
       }
     | null;
+  id: string;
   label: string;
   defaultReasoningEffort: string | null;
   value: string;
@@ -160,9 +161,15 @@ function extractModelOptionFromCandidate(
           })(),
         }
       : null;
+  const normalizedProvider =
+    typeof rawProvider === "string" && rawProvider.trim()
+      ? rawProvider.trim()
+      : providerFallback;
+  const modelIdentity = [normalizedProvider ?? "", normalizedSource, normalizedValue].join("::");
 
   return {
     auth: normalizedAuth,
+    id: modelIdentity,
     defaultReasoningEffort:
       typeof defaultRunConfig?.reasoning_effort === "string" && defaultRunConfig.reasoning_effort.trim()
         ? defaultRunConfig.reasoning_effort.trim()
@@ -171,10 +178,7 @@ function extractModelOptionFromCandidate(
       typeof rawLabel === "string" && rawLabel.trim()
         ? rawLabel.trim()
         : formatModelLabel(normalizedValue),
-    provider:
-      typeof rawProvider === "string" && rawProvider.trim()
-        ? rawProvider.trim()
-        : providerFallback,
+    provider: normalizedProvider,
     reasoningEfforts: dedupeOptions(
       (capabilityReasoningEntries ?? [])
         .map((entry) => extractReasoningEffortOption(entry))
@@ -365,7 +369,7 @@ export function normalizeAvailableRunConfigOptions(
   const flatModelEntries = extractModelArray(payload) ?? [];
   const reasoningEffortEntries = extractReasoningEffortArray(payload) ?? [];
   const models = groupedProviders
-    ? dedupeOptions(
+    ? dedupeByKey(
         groupedProviders
           .flatMap((providerEntry) =>
             providerEntry.models.map((entry) =>
@@ -373,11 +377,13 @@ export function normalizeAvailableRunConfigOptions(
             ),
           )
           .filter((entry): entry is AvailableChatModelOption => Boolean(entry)),
+        (entry) => entry.id,
       )
-    : dedupeOptions(
+    : dedupeByKey(
         flatModelEntries
           .map((entry) => extractModelOption(entry))
           .filter((entry): entry is AvailableChatModelOption => Boolean(entry)),
+        (entry) => entry.id,
       );
 
   const providers = groupedProviders
@@ -407,6 +413,20 @@ export function normalizeAvailableRunConfigOptions(
         .filter((entry): entry is AvailableChatReasoningEffortOption => Boolean(entry)),
     ),
   };
+}
+
+function dedupeByKey<T>(entries: readonly T[], getKey: (entry: T) => string) {
+  const deduped = new Map<string, T>();
+
+  for (const entry of entries) {
+    const key = getKey(entry);
+
+    if (!deduped.has(key)) {
+      deduped.set(key, entry);
+    }
+  }
+
+  return [...deduped.values()];
 }
 
 export async function fetchAvailableRunConfigOptions({

@@ -791,7 +791,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
       entry.auth?.required && !entry.auth.usable
         ? `${entry.label} • Not authenticated`
         : entry.label,
-    value: entry.value,
+    value: entry.id,
   }));
   const reasoningEffortOptions = availableReasoningEfforts;
   const UserMessageComponent = isPage ? PageUserMessage : UserMessage;

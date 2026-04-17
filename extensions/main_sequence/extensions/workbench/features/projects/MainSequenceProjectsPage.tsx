@@ -954,7 +954,10 @@ export function MainSequenceProjectsPage() {
                                 <td className={getRegistryTableCellClassName(selected)}>
                                   <div className="flex items-start gap-2">
                                     <GitBranch className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                                    <div className="font-mono text-xs text-foreground">
+                                    <div
+                                      className="font-mono text-xs text-foreground"
+                                      title={project.git_ssh_url || "Not available yet"}
+                                    >
                                       {project.git_ssh_url
                                         ? truncateMiddle(project.git_ssh_url)
                                         : "Not available yet"}

@@ -878,17 +878,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     if (
       selectedModelValue &&
-      filteredModels.some((model) => model.value === selectedModelValue)
+      filteredModels.some((model) => model.id === selectedModelValue)
     ) {
       return;
     }
 
-    setSelectedModelValue(filteredModels[0]?.value ?? null);
+    setSelectedModelValue(filteredModels[0]?.id ?? null);
   }, [availableModels, selectedModelValue, selectedProviderValue]);
 
   useEffect(() => {
     const selectedModel =
-      availableModels.find((model) => model.value === selectedModelValue) ?? null;
+      availableModels.find((model) => model.id === selectedModelValue) ?? null;
     const nextReasoningEfforts =
       selectedModel?.reasoningEfforts.length
         ? selectedModel.reasoningEfforts
@@ -899,7 +899,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const selectedModel =
-      availableModels.find((model) => model.value === selectedModelValue) ?? null;
+      availableModels.find((model) => model.id === selectedModelValue) ?? null;
     const nextReasoningEfforts =
       selectedModel?.reasoningEfforts.length
         ? selectedModel.reasoningEfforts
@@ -1581,7 +1581,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const selectedSessionId = resolveSessionApiLookupId(activeSession);
       const isNewChatRequest = !activeSession || !selectedSessionId;
       const selectedModel =
-        availableModels.find((entry) => entry.value === selectedModelValueRef.current) ??
+        availableModels.find((entry) => entry.id === selectedModelValueRef.current) ??
         availableModels[0] ??
         null;
       const selectedReasoningEffort =
