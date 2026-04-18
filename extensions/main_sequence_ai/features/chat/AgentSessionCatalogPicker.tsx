@@ -15,6 +15,7 @@ import {
 } from "../../agent-search";
 import {
   fetchLatestAgentSessions,
+  getAgentSessionRecordHandleUniqueId,
   getAgentSessionRecordSessionId,
   getAgentSessionRecordSummary,
   getAgentSessionRecordTitle,
@@ -371,11 +372,12 @@ export function AgentSessionCatalogPicker({
           ) : null}
 
           {selectedAgent && !isLoadingSessions && !sessionError
-            ? agentSessions.map((session) => {
-                const sessionId = getAgentSessionRecordSessionId(session);
-                const active = normalizedCurrentSessionId === sessionId;
+              ? agentSessions.map((session) => {
+                  const sessionId = getAgentSessionRecordSessionId(session);
+                  const active = normalizedCurrentSessionId === sessionId;
+                  const handleUniqueId = getAgentSessionRecordHandleUniqueId(session);
 
-                return (
+                  return (
                   <button
                     key={`${selectedAgent.id}:${sessionId}`}
                     type="button"
@@ -406,6 +408,11 @@ export function AgentSessionCatalogPicker({
                           <div className="mt-1 truncate text-xs text-muted-foreground">
                             <span className="font-mono">Session ID: {sessionId}</span>
                           </div>
+                          {handleUniqueId ? (
+                            <div className="mt-1 truncate text-xs text-muted-foreground">
+                              <span className="font-mono">Handle: {handleUniqueId}</span>
+                            </div>
+                          ) : null}
                         </div>
                         <div className="shrink-0 text-[11px] text-muted-foreground">
                           {formatSessionTimestamp(getAgentSessionRecordUpdatedAt(session))}

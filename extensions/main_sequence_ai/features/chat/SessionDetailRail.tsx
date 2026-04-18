@@ -838,6 +838,7 @@ export function SessionDetailRail() {
                   value={activeSessionSummary.sessionDisplayId}
                   mono
                 />
+                <SessionField label="Handle" value={activeSessionSummary.handleUniqueId} mono />
                 <SessionField label="Agent ID" value={activeSessionSummary.agentId} mono />
                 <SessionField label="Last Activity" value={lastActivity || null} />
                 <SessionField label="Project ID" value={activeSessionSummary.projectId} mono />

@@ -12,6 +12,9 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 
 - `assistant-endpoint.ts`
   Resolves the configured assistant endpoint and shared auth/header helpers.
+- `command-center-base-session-api.ts`
+  Shared transport for the canonical Command Center base session handle returned by
+  `POST /orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/`.
 - `agent-session-request.ts`
   Builds the backend request-body fragments used for session-bound assistant runs.
 - `agent-session-stream.ts`
@@ -66,6 +69,9 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   `available-models-api.ts` remains the chat-runtime picker source.
 - `storage-usage-api.ts` targets `/api/storage/usage` and represents deployment/runtime durable
   storage state, not session-local or chat-local storage.
+- `command-center-base-session-api.ts` is the only canonical source for the default Command Center
+  assistant continuity session. Frontend code should not infer that default by picking the latest
+  `astro-orchestrator` session from the latest-session query.
 - `session-insights-api.ts` remains the canonical read contract for session config values and
   editable constraints. `session-config-api.ts` is write-only and should only send changed writable
   fields back to the backend.

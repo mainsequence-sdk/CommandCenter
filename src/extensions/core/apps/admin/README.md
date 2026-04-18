@@ -23,6 +23,9 @@ Current surfaces in this folder:
   backed by `/user/api/organization/<id>/active-plans/` with inline assign/remove seat controls
   plus a `Manage seats` modal loaded from `/user/api/organization/<id>/subscription-seats/`
   and submitted to the matching org-scoped POST checkout endpoint
+- `AdminLoginSessionsPage.tsx`: organization-scoped login-session registry backed by
+  `/user/api/organization/<id>/login-sessions/` with search, auth-source/state filters, paginated
+  results, and per-session revoke action through the matching org-scoped revoke endpoint
 - `AdminGithubOrganizationsPage.tsx`: GitHub organization registry backed by the pod-manager
   `github-organization` endpoint with connect-start, bulk delete, and project-import actions
 - `AdminInvoicesPage.tsx`: billing invoice registry backed by `/orm/api/pods/billing/invoices/`

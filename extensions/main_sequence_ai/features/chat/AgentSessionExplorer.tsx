@@ -296,6 +296,11 @@ export function AgentSessionExplorer({
                               <div className="mt-1 truncate text-xs text-muted-foreground">
                                 <span className="font-mono">Session ID: {session.id}</span>
                               </div>
+                              {session.handleUniqueId ? (
+                                <div className="mt-1 truncate text-xs text-muted-foreground">
+                                  <span className="font-mono">Handle: {session.handleUniqueId}</span>
+                                </div>
+                              ) : null}
                             </div>
                             <div className="shrink-0 text-[11px] text-muted-foreground">
                               {formatSessionTimestamp(session.updatedAt)}

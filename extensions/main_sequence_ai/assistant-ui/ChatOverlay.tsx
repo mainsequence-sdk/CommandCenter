@@ -1,11 +1,17 @@
-import { Expand, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Expand, Sparkles, X } from "lucide-react";
 
 import { ChatThread } from "./components/ChatThread";
 import { useChatFeature } from "./ChatProvider";
 
 export function ChatOverlay({ mode = "overlay" }: { mode?: "overlay" | "docked" }) {
-  const { closeRail, expandToPage } = useChatFeature();
+  const { activeSessionSummary, closeRail, expandToPage } = useChatFeature();
   const isDocked = mode === "docked";
+  const showDefaultSessionWarning = activeSessionSummary
+    ? !activeSessionSummary.isDefaultCommandCenterSession
+    : false;
+  const warningLabel = activeSessionSummary
+    ? activeSessionSummary.requestName || activeSessionSummary.displayName || "another session"
+    : "another session";
 
   return (
     <section
@@ -23,32 +29,48 @@ export function ChatOverlay({ mode = "overlay" }: { mode?: "overlay" | "docked" 
         <div className="absolute bottom-[-160px] left-[15%] h-72 w-72 rounded-full bg-topbar-foreground/6 blur-3xl" />
       </div>
 
-      <div className="relative flex items-start justify-between gap-4 border-b border-border/70 px-6 pt-6 pb-5">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
-              <Sparkles className="h-5 w-5" />
+      <div className="relative border-b border-border/70 px-6 pt-6 pb-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
+                <Sparkles className="h-5 w-5" />
+              </div>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/55 px-3.5 text-xs font-medium uppercase tracking-[0.14em] text-foreground transition-colors hover:bg-muted/60"
+              onClick={expandToPage}
+            >
+              <Expand className="h-3.5 w-3.5" />
+              Expand
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/55 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              aria-label="Close chat rail"
+              onClick={closeRail}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/55 px-3.5 text-xs font-medium uppercase tracking-[0.14em] text-foreground transition-colors hover:bg-muted/60"
-            onClick={expandToPage}
-          >
-            <Expand className="h-3.5 w-3.5" />
-            Expand
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/55 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-            aria-label="Close chat rail"
-            onClick={closeRail}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+
+        {showDefaultSessionWarning ? (
+          <div className="mt-4 rounded-[16px] border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-amber-100">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+              <div className="min-w-0">
+                <div className="font-medium text-amber-200">Not using the default Command Center orchestrator</div>
+                <div className="mt-1 text-xs leading-5 text-amber-100/85">
+                  This rail is currently attached to <span className="font-mono">{warningLabel}</span>, not the canonical Command Center base session.
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col px-5 py-5">

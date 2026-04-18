@@ -1,5 +1,7 @@
 import {
   type AppUser,
+  type AuthLoginChallenge,
+  type CompleteMfaSetupInput,
   type LoginInput,
   type OrganizationTeam,
   type Permission,
@@ -9,6 +11,7 @@ import {
   handleMockAuthRequest,
   handleMockJwtAuthorizedGet,
   handleMockJwtPost,
+  isMockHttpError,
 } from "@/auth/mock-jwt-auth";
 import {
   ORGANIZATION_ADMIN_PERMISSION,
@@ -41,9 +44,35 @@ export interface RestoredJwtSession extends JwtSessionBundle {
   refreshNow: boolean;
 }
 
+export type JwtLoginResult =
+  | {
+      status: "authenticated";
+      bundle: JwtSessionBundle;
+    }
+  | {
+      status: "mfa_required";
+      challenge: Extract<AuthLoginChallenge, { type: "mfa_required" }>;
+    }
+  | {
+      status: "mfa_setup_required";
+      challenge: Extract<AuthLoginChallenge, { type: "mfa_setup_required" }>;
+    };
+
 interface StoredJwtAuthState {
   session: Session;
   tokens: StoredJwtTokens;
+}
+
+class JsonResponseError extends Error {
+  status: number;
+  payload: unknown;
+
+  constructor(status: number, payload: unknown, message: string) {
+    super(message);
+    this.name = "JsonResponseError";
+    this.status = status;
+    this.payload = payload;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -310,64 +339,93 @@ function describeTransportError(error: unknown) {
   return "The request failed before the server returned a response.";
 }
 
-async function extractErrorMessage(response: Response) {
+async function readResponsePayload(response: Response) {
   const contentType = response.headers.get("content-type") ?? "";
 
   if (contentType.includes("application/json")) {
     try {
-      const data = await response.json();
-
-      if (typeof data === "string" && data.trim()) {
-        return data;
-      }
-
-      if (Array.isArray(data)) {
-        return data.filter((entry) => typeof entry === "string").join(", ");
-      }
-
-      if (isRecord(data)) {
-        const detail = data.detail;
-
-        if (typeof detail === "string" && detail.trim()) {
-          return detail;
-        }
-
-        const firstEntry = Object.values(data).find((value) => {
-          if (typeof value === "string" && value.trim()) {
-            return true;
-          }
-
-          return Array.isArray(value) && value.some((entry) => typeof entry === "string");
-        });
-
-        if (typeof firstEntry === "string") {
-          return firstEntry;
-        }
-
-        if (Array.isArray(firstEntry)) {
-          return firstEntry
-            .filter((entry): entry is string => typeof entry === "string")
-            .join(", ");
-        }
-      }
+      return await response.json();
     } catch {
-      return "";
+      return null;
     }
   }
 
   try {
-    return await response.text();
+    const text = await response.text();
+    return text.trim() ? text : null;
   } catch {
-    return "";
+    return null;
   }
+}
+
+function extractPayloadErrorMessage(payload: unknown) {
+  if (typeof payload === "string" && payload.trim()) {
+    return payload.trim();
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.filter((entry): entry is string => typeof entry === "string").join(", ");
+  }
+
+  if (isRecord(payload)) {
+    const detail = payload.detail;
+
+    if (typeof detail === "string" && detail.trim()) {
+      return detail;
+    }
+
+    const firstEntry = Object.values(payload).find((value) => {
+      if (typeof value === "string" && value.trim()) {
+        return true;
+      }
+
+      return Array.isArray(value) && value.some((entry) => typeof entry === "string");
+    });
+
+    if (typeof firstEntry === "string") {
+      return firstEntry;
+    }
+
+    if (Array.isArray(firstEntry)) {
+      return firstEntry
+        .filter((entry): entry is string => typeof entry === "string")
+        .join(", ");
+    }
+  }
+
+  return "";
+}
+
+function buildJsonResponseError(
+  status: number,
+  payload: unknown,
+  requestLabel: string,
+  url: string,
+  statusText = "",
+) {
+  const message = extractPayloadErrorMessage(payload).trim();
+
+  return new JsonResponseError(
+    status,
+    payload,
+    message || `${requestLabel} failed at ${url} with ${status}${statusText ? ` ${statusText}` : ""}.`,
+  );
 }
 
 async function postJson<T>(url: string, payload: Record<string, unknown>, requestLabel: string) {
   if (env.useMockData) {
-    const mockResponse = handleMockJwtPost(url, payload);
+    try {
+      const mockResponse = handleMockJwtPost(url, payload);
 
-    if (mockResponse !== undefined) {
-      return mockResponse as T;
+      if (mockResponse !== undefined) {
+        return mockResponse as T;
+      }
+    } catch (error) {
+      if (isMockHttpError(error)) {
+        throw buildJsonResponseError(error.status, error.payload, requestLabel, url);
+      }
+
+      throw error;
     }
   }
 
@@ -389,10 +447,73 @@ async function postJson<T>(url: string, payload: Record<string, unknown>, reques
   }
 
   if (!response.ok) {
-    const message = (await extractErrorMessage(response)).trim();
+    throw buildJsonResponseError(
+      response.status,
+      await readResponsePayload(response),
+      requestLabel,
+      url,
+      response.statusText,
+    );
+  }
+
+  return (await response.json()) as T;
+}
+
+async function requestExactJson<T>(
+  url: string,
+  init: {
+    method?: "GET" | "POST";
+    body?: Record<string, unknown>;
+  },
+  requestLabel: string,
+) {
+  const method = init.method ?? "GET";
+
+  if (env.useMockData) {
+    try {
+      const mockResponse = handleMockAuthRequest(
+        url,
+        method,
+        init.body ?? null,
+        null,
+      );
+
+      if (mockResponse !== undefined) {
+        return mockResponse as T;
+      }
+    } catch (error) {
+      if (isMockHttpError(error)) {
+        throw buildJsonResponseError(error.status, error.payload, requestLabel, url);
+      }
+
+      throw error;
+    }
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method,
+      headers: {
+        Accept: "application/json",
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(init.body ? { body: JSON.stringify(init.body) } : {}),
+    });
+  } catch (error) {
     throw new Error(
-      message ||
-        `${requestLabel} failed at ${url} with ${response.status} ${response.statusText}.`,
+      `${requestLabel} could not reach ${url}. ${describeTransportError(error)}`,
+    );
+  }
+
+  if (!response.ok) {
+    throw buildJsonResponseError(
+      response.status,
+      await readResponsePayload(response),
+      requestLabel,
+      url,
+      response.statusText,
     );
   }
 
@@ -431,14 +552,59 @@ async function fetchJsonAuthorized<T>(
   }
 
   if (!response.ok) {
-    const message = (await extractErrorMessage(response)).trim();
-    throw new Error(
-      message ||
-        `${requestLabel} failed at ${url} with ${response.status} ${response.statusText}.`,
+    throw buildJsonResponseError(
+      response.status,
+      await readResponsePayload(response),
+      requestLabel,
+      url,
+      response.statusText,
     );
   }
 
   return (await response.json()) as T;
+}
+
+async function postAuthorizedWithoutBody(
+  url: string,
+  token: string,
+  tokenType: string,
+  requestLabel: string,
+) {
+  if (env.useMockData) {
+    const mockResponse = handleMockAuthRequest(url, "POST", null, token);
+
+    if (mockResponse !== undefined) {
+      return;
+    }
+
+    return;
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `${tokenType} ${token}`,
+      },
+    });
+  } catch (error) {
+    throw new Error(
+      `${requestLabel} could not reach ${url}. ${describeTransportError(error)}`,
+    );
+  }
+
+  if (!response.ok) {
+    throw buildJsonResponseError(
+      response.status,
+      await readResponsePayload(response),
+      requestLabel,
+      url,
+      response.statusText,
+    );
+  }
 }
 
 function buildStoredTokens(
@@ -464,6 +630,65 @@ function buildStoredTokens(
     tokenType: readString(readPathValue(responseData, responseFields.tokenType), "Bearer"),
     expiresAt: expiresAtSeconds ? expiresAtSeconds * 1000 : undefined,
   } satisfies StoredJwtTokens;
+}
+
+async function resolveMfaSetupChallenge(
+  detail: string,
+  payload: Record<string, unknown>,
+): Promise<Extract<AuthLoginChallenge, { type: "mfa_setup_required" }>> {
+  const setupToken = readString(payload.setup_token);
+  const setupUrl = readString(payload.setup_url);
+  const setupVerifyUrl = readString(payload.setup_verify_url);
+
+  if (!setupToken || !setupUrl || !setupVerifyUrl) {
+    throw new Error("The MFA setup response did not include the required setup token and URLs.");
+  }
+
+  const setupData = await requestExactJson<Record<string, unknown>>(
+    setupUrl,
+    { method: "GET" },
+    "MFA setup request",
+  );
+  const qrPngBase64 = readString(setupData.qr_png_base64);
+  const manualEntryKey = readString(setupData.manual_entry_key);
+
+  if (!qrPngBase64 && !manualEntryKey) {
+    throw new Error("The MFA setup response did not include a QR code or manual entry key.");
+  }
+
+  return {
+    type: "mfa_setup_required",
+    detail: detail || "MFA setup is required before login can complete.",
+    setupToken,
+    setupUrl,
+    setupVerifyUrl,
+    qrPngBase64: qrPngBase64 || undefined,
+    manualEntryKey: manualEntryKey || undefined,
+  };
+}
+
+async function resolveLoginChallenge(
+  error: unknown,
+): Promise<AuthLoginChallenge | null> {
+  if (!(error instanceof JsonResponseError) || error.status !== 401 || !isRecord(error.payload)) {
+    return null;
+  }
+
+  const detail = readString(error.payload.detail);
+  const code = readString(error.payload.code);
+
+  if (code === "mfa_required" || readBoolean(error.payload.mfa_required) === true) {
+    return {
+      type: "mfa_required",
+      detail: detail || "MFA code required.",
+    };
+  }
+
+  if (code === "mfa_setup_required" || readBoolean(error.payload.mfa_setup_required) === true) {
+    return resolveMfaSetupChallenge(detail, error.payload);
+  }
+
+  return null;
 }
 
 function deriveName(email: string, role: string) {
@@ -908,15 +1133,68 @@ export async function resolveStoredJwtSession(
   });
 }
 
-export async function loginWithJwt(input: LoginInput): Promise<JwtSessionBundle> {
+export async function loginWithJwt(input: LoginInput): Promise<JwtLoginResult> {
   const requestFields = commandCenterConfig.auth.jwt.requestFields;
-  const responseData = await postJson<Record<string, unknown>>(
-    resolveEndpointUrl(commandCenterConfig.auth.jwt.tokenUrl),
+  const requestBody: Record<string, unknown> = {
+    [requestFields.identifier]: input.identifier,
+    [requestFields.password]: input.password,
+  };
+
+  if (input.mfaCode?.trim()) {
+    requestBody.mfa_code = input.mfaCode.trim();
+  }
+
+  let responseData: Record<string, unknown>;
+
+  try {
+    responseData = await postJson<Record<string, unknown>>(
+      resolveEndpointUrl(commandCenterConfig.auth.jwt.tokenUrl),
+      requestBody,
+      "Token request",
+    );
+  } catch (error) {
+    const challenge = await resolveLoginChallenge(error);
+
+    if (challenge?.type === "mfa_required") {
+      return {
+        status: "mfa_required",
+        challenge,
+      };
+    }
+
+    if (challenge?.type === "mfa_setup_required") {
+      return {
+        status: "mfa_setup_required",
+        challenge,
+      };
+    }
+
+    throw error;
+  }
+
+  const tokens = buildStoredTokens(responseData);
+
+  return {
+    status: "authenticated",
+    bundle: await buildSessionBundle(tokens, responseData, {
+      includeUserDetails: true,
+    }),
+  };
+}
+
+export async function verifyJwtMfaSetup(
+  input: CompleteMfaSetupInput,
+): Promise<JwtSessionBundle> {
+  const responseData = await requestExactJson<Record<string, unknown>>(
+    input.setupVerifyUrl,
     {
-      [requestFields.identifier]: input.identifier,
-      [requestFields.password]: input.password,
+      method: "POST",
+      body: {
+        setup_token: input.setupToken,
+        mfa_code: input.mfaCode.trim(),
+      },
     },
-    "Token request",
+    "MFA setup verification request",
   );
   const tokens = buildStoredTokens(responseData);
 
@@ -943,4 +1221,22 @@ export async function refreshJwtSession(
     includeUserDetails: true,
     user: currentUser,
   });
+}
+
+export async function logoutJwtSession(
+  accessToken: string,
+  tokenType = "Bearer",
+): Promise<void> {
+  const token = accessToken.trim();
+
+  if (!token) {
+    throw new Error("Cannot log out without an access token.");
+  }
+
+  await postAuthorizedWithoutBody(
+    resolveEndpointUrl("/auth/jwt-token/logout/"),
+    token,
+    tokenType,
+    "Logout request",
+  );
 }

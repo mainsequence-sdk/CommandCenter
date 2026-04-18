@@ -11,10 +11,11 @@ explorer without moving presentational shell chrome into the runtime boundary.
 
 - `AgentSessionExplorer.tsx`
   Shared explorer for agent quick-search and latest session selection. Used by both the `Chat`
-  page rail and the `Agents` surface canvas.
+  page rail and the `Agents` surface canvas. It now surfaces backend session handles when
+  `bound_handles` are present on session rows.
 - `AgentSessionCatalogPicker.tsx`
   Reusable agent-first, session-second picker used by the Agent Terminal widget settings and the
-  Agents Monitor workspace launcher.
+  Agents Monitor workspace launcher. It now also surfaces backend session handles when present.
 - `SessionDetailRail.tsx`
   Shared right-side session metadata rail for the selected `AgentSession` on the chat page. The
   verbose session metadata is intentionally collapsed behind an in-rail disclosure. Session

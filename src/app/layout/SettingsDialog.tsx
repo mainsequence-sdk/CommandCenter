@@ -1,7 +1,16 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Boxes, CircleUserRound, FileCode2, Info, Loader2, Settings2, ShieldCheck } from "lucide-react";
+import {
+  Boxes,
+  ChevronDown,
+  CircleUserRound,
+  FileCode2,
+  Info,
+  Loader2,
+  Settings2,
+  ShieldCheck,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -10,7 +19,18 @@ import {
   type WidgetTypeSyncResponse,
 } from "@/app/registry/widget-type-sync";
 import { getAccessibleShellMenuEntries } from "@/apps/utils";
-import { requestPasswordChangeEmail } from "@/auth/api";
+import {
+  getCurrentUserMfaSetup,
+  getCurrentUserMfaStatus,
+  listCurrentUserSessions,
+  requestPasswordChangeEmail,
+  revokeCurrentUserSession,
+  revokeOtherCurrentUserSessions,
+  verifyCurrentUserMfaSetup,
+  type CurrentUserMfaSetupResponse,
+} from "@/auth/api";
+import { useAuthStore } from "@/auth/auth-store";
+import { persistJwtSession } from "@/auth/jwt-auth";
 import { useToast } from "@/components/ui/toaster";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +87,56 @@ function resolveSettingsUrl(baseUrl: string, path: string) {
   } catch {
     return path;
   }
+}
+
+function formatSessionTimestamp(value: string | null) {
+  if (!value) {
+    return "—";
+  }
+
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsed);
+}
+
+function normalizeMfaCode(value: string) {
+  return value.replace(/\D/g, "").slice(0, 6);
+}
+
+function syncSessionMfaEnabled(mfaEnabled: boolean) {
+  const authState = useAuthStore.getState();
+  const currentSession = authState.session;
+
+  if (!currentSession) {
+    return;
+  }
+
+  const nextSession = {
+    ...currentSession,
+    user: {
+      ...currentSession.user,
+      mfaEnabled,
+    },
+  };
+
+  useAuthStore.setState({
+    session: nextSession,
+  });
+  persistJwtSession({
+    session: nextSession,
+    tokens: {
+      accessToken: nextSession.token,
+      refreshToken: authState.refreshToken,
+      tokenType: nextSession.tokenType ?? "Bearer",
+      expiresAt: nextSession.expiresAt,
+    },
+  });
 }
 
 function SettingsRow({
@@ -871,6 +941,10 @@ export function SettingsDialog({
   const { availableThemes, resetOverrides, setThemeById, themeId } = useTheme();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
   const [showRawConfiguration, setShowRawConfiguration] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState<number | null>(null);
+  const [authenticatedMfaSetup, setAuthenticatedMfaSetup] =
+    useState<CurrentUserMfaSetupResponse | null>(null);
+  const [authenticatedMfaCode, setAuthenticatedMfaCode] = useState("");
   const requestPasswordChangeMutation = useMutation({
     mutationFn: requestPasswordChangeEmail,
     onSuccess: (result) => {
@@ -884,6 +958,99 @@ export function SettingsDialog({
       toast({
         variant: "error",
         title: "Unable to send password change email",
+        description: error instanceof Error ? error.message : "The request failed.",
+      });
+    },
+  });
+  const userSessionsQuery = useQuery({
+    queryKey: ["auth", "current-user-sessions"],
+    queryFn: listCurrentUserSessions,
+    staleTime: 30_000,
+    enabled: open && mode === "user",
+  });
+  const mfaStatusQuery = useQuery({
+    queryKey: ["auth", "current-user-mfa-status"],
+    queryFn: getCurrentUserMfaStatus,
+    staleTime: 30_000,
+    enabled: open && mode === "user",
+  });
+  const revokeSessionMutation = useMutation({
+    mutationFn: revokeCurrentUserSession,
+    onSuccess: (session) => {
+      if (session.is_current) {
+        useAuthStore.getState().logout();
+        onClose();
+      }
+
+      toast({
+        variant: "success",
+        title: "Session revoked",
+        description: session.is_current
+          ? "Your current session was revoked and signed out locally."
+          : "Selected session was revoked.",
+      });
+      void userSessionsQuery.refetch();
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Unable to revoke session",
+        description: error instanceof Error ? error.message : "The request failed.",
+      });
+    },
+  });
+  const revokeOtherSessionsMutation = useMutation({
+    mutationFn: revokeOtherCurrentUserSessions,
+    onSuccess: (response) => {
+      toast({
+        variant: "success",
+        title: "Other sessions revoked",
+        description: `${response.detail} (${response.revoked_count} revoked)`,
+      });
+      void userSessionsQuery.refetch();
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Unable to revoke other sessions",
+        description: error instanceof Error ? error.message : "The request failed.",
+      });
+    },
+  });
+  const startAuthenticatedMfaSetupMutation = useMutation({
+    mutationFn: getCurrentUserMfaSetup,
+    onSuccess: (response) => {
+      setAuthenticatedMfaSetup(response);
+      setAuthenticatedMfaCode("");
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Unable to start MFA setup",
+        description: error instanceof Error ? error.message : "The request failed.",
+      });
+    },
+  });
+  const verifyAuthenticatedMfaSetupMutation = useMutation({
+    mutationFn: () =>
+      verifyCurrentUserMfaSetup({
+        mfa_code: authenticatedMfaCode.trim(),
+      }),
+    onSuccess: (response) => {
+      syncSessionMfaEnabled(response.mfa_enabled);
+      setAuthenticatedMfaSetup(null);
+      setAuthenticatedMfaCode("");
+      toast({
+        variant: "success",
+        title: "MFA enabled",
+        description: response.detail,
+      });
+      void mfaStatusQuery.refetch();
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Unable to verify MFA setup",
         description: error instanceof Error ? error.message : "The request failed.",
       });
     },
@@ -915,6 +1082,12 @@ export function SettingsDialog({
     user?.groups && user.groups.length > 0
       ? user.groups.join(", ")
       : t("common.unavailable");
+  const sessions = userSessionsQuery.data ?? [];
+  const currentMfaEnabled = mfaStatusQuery.data?.mfa_enabled ?? user?.mfaEnabled;
+  const activeSessionCount = sessions.filter((session) => session.is_active).length;
+  const otherActiveSessionCount = sessions.filter(
+    (session) => !session.is_current && session.is_active && !session.is_revoked,
+  ).length;
   const authTokenUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.tokenUrl);
   const authRefreshUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.refreshUrl);
   const authUserDetailsUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.userDetails.url);
@@ -938,6 +1111,15 @@ export function SettingsDialog({
   }> = [
     { id: "general" as const, label: t("settingsDialog.generalNav"), icon: Settings2 },
     { id: "account" as const, label: t("settingsDialog.accountTitle"), icon: CircleUserRound },
+    ...(mode === "user"
+      ? [
+          {
+            id: "security" as const,
+            label: "Security",
+            icon: ShieldCheck,
+          },
+        ]
+      : []),
     ...(mode === "platform"
         ? [
           {
@@ -972,8 +1154,17 @@ export function SettingsDialog({
     if (open) {
       setActiveSection(requestedSectionId ?? "general");
       setShowRawConfiguration(false);
+      setAuthenticatedMfaSetup(null);
+      setAuthenticatedMfaCode("");
     }
   }, [open, mode, requestedSectionId]);
+
+  useEffect(() => {
+    if (mfaStatusQuery.data?.mfa_enabled) {
+      setAuthenticatedMfaSetup(null);
+      setAuthenticatedMfaCode("");
+    }
+  }, [mfaStatusQuery.data?.mfa_enabled]);
 
   useEffect(() => {
     if (!open || !requestedSectionId) {
@@ -1131,6 +1322,273 @@ export function SettingsDialog({
                   }
                 />
               ) : null}
+            </SettingsSection>
+          ) : null}
+
+          {mode === "user" && activeSection === "security" ? (
+            <SettingsSection
+              title="Security"
+              description="Review your MFA status, manage MFA enrollment, and revoke login sessions you do not trust."
+            >
+              <SettingsRow
+                label="Multi-factor authentication"
+                description="Current status from the authenticated MFA status endpoint."
+                value={
+                  mfaStatusQuery.isLoading ? (
+                    "Loading status..."
+                  ) : mfaStatusQuery.isError ? (
+                    "Unable to load status"
+                  ) : (
+                    <Badge
+                      variant={
+                        currentMfaEnabled === true
+                          ? "success"
+                          : currentMfaEnabled === false
+                            ? "warning"
+                            : "neutral"
+                      }
+                    >
+                      {currentMfaEnabled === true
+                        ? "Enabled"
+                        : currentMfaEnabled === false
+                          ? "Not enabled"
+                          : "Unknown"}
+                    </Badge>
+                  )
+                }
+              />
+              {mfaStatusQuery.data?.mfa_enabled === false ? (
+                <SettingsRow
+                  label="Enable MFA"
+                  description="Start the authenticated MFA enrollment flow for this account."
+                  value={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={startAuthenticatedMfaSetupMutation.isPending || mfaStatusQuery.isLoading}
+                      onClick={() => {
+                        startAuthenticatedMfaSetupMutation.mutate();
+                      }}
+                    >
+                      {startAuthenticatedMfaSetupMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : null}
+                      Set up MFA
+                    </Button>
+                  }
+                />
+              ) : null}
+              <SettingsRow
+                label="Tracked sessions"
+                value={
+                  userSessionsQuery.isLoading
+                    ? "Loading sessions..."
+                    : userSessionsQuery.isError
+                      ? "Unable to load sessions"
+                      : `${sessions.length} total (${activeSessionCount} active)`
+                }
+              />
+              <SettingsRow
+                label="Revoke other sessions"
+                description="Immediately revoke all active sessions except your current one."
+                value={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={revokeOtherSessionsMutation.isPending || otherActiveSessionCount === 0}
+                    onClick={() => {
+                      revokeOtherSessionsMutation.mutate();
+                    }}
+                  >
+                    {revokeOtherSessionsMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    Revoke others
+                  </Button>
+                }
+              />
+              <div className="space-y-3 py-4">
+                {mfaStatusQuery.isError ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                    {mfaStatusQuery.error instanceof Error
+                      ? mfaStatusQuery.error.message
+                      : "Unable to load MFA status."}
+                  </div>
+                ) : null}
+                {authenticatedMfaSetup ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] p-4">
+                    <div className="text-sm font-medium text-topbar-foreground">
+                      Finish MFA enrollment
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {authenticatedMfaSetup.detail ||
+                        "Scan the QR code or enter the manual key, then verify with your first authenticator code."}
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-start gap-4">
+                      {authenticatedMfaSetup.qr_png_base64 ? (
+                        <img
+                          src={`data:image/png;base64,${authenticatedMfaSetup.qr_png_base64}`}
+                          alt="Authenticated MFA setup QR code"
+                          className="h-36 w-36 rounded-[calc(var(--radius)-6px)] border border-white/12 bg-white p-2"
+                        />
+                      ) : null}
+                      {authenticatedMfaSetup.manual_entry_key ? (
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                            Manual entry key
+                          </div>
+                          <div className="mt-2 rounded-[calc(var(--radius)-6px)] border border-white/10 bg-black/20 px-3 py-2 font-mono text-sm text-topbar-foreground">
+                            {authenticatedMfaSetup.manual_entry_key}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <label className="text-sm font-medium text-foreground">
+                          First authenticator code
+                        </label>
+                        <Input
+                          name="settings-mfa-setup-code"
+                          value={authenticatedMfaCode}
+                          onChange={(event) => {
+                            setAuthenticatedMfaCode(normalizeMfaCode(event.target.value));
+                          }}
+                          placeholder="123456"
+                          autoComplete="one-time-code"
+                          inputMode="numeric"
+                          maxLength={6}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={verifyAuthenticatedMfaSetupMutation.isPending || authenticatedMfaCode.length !== 6}
+                          onClick={() => {
+                            verifyAuthenticatedMfaSetupMutation.mutate();
+                          }}
+                        >
+                          {verifyAuthenticatedMfaSetupMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : null}
+                          Verify
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={verifyAuthenticatedMfaSetupMutation.isPending}
+                          onClick={() => {
+                            setAuthenticatedMfaSetup(null);
+                            setAuthenticatedMfaCode("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                {userSessionsQuery.isLoading ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] px-4 py-3 text-sm text-muted-foreground">
+                    Loading sessions
+                  </div>
+                ) : null}
+                {userSessionsQuery.isError ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                    {userSessionsQuery.error instanceof Error
+                      ? userSessionsQuery.error.message
+                      : "Unable to load login sessions."}
+                  </div>
+                ) : null}
+                {!userSessionsQuery.isLoading && !userSessionsQuery.isError && sessions.length === 0 ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] px-4 py-4 text-sm text-muted-foreground">
+                    No tracked sessions were returned.
+                  </div>
+                ) : null}
+                {!userSessionsQuery.isLoading && !userSessionsQuery.isError
+                  ? sessions.map((session) => {
+                      const isBusy =
+                        revokeSessionMutation.isPending && revokingSessionId === session.id;
+                      const canRevoke = session.is_active && !session.is_revoked;
+                      const lastSeenLabel = formatSessionTimestamp(session.last_seen_at);
+
+                      return (
+                        <details
+                          key={session.id}
+                          className="group rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02]"
+                        >
+                          <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-topbar-foreground">
+                                {session.device_label || "Unknown device"}
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                <span className="font-mono">
+                                  {session.ip_address || "No IP available"}
+                                </span>
+                                <span>Last seen: {lastSeenLabel}</span>
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                {session.is_current ? <Badge variant="primary">current</Badge> : null}
+                                <Badge variant={session.is_active ? "success" : "neutral"}>
+                                  {session.is_active ? "active" : "inactive"}
+                                </Badge>
+                                <Badge variant={session.is_revoked ? "warning" : "neutral"}>
+                                  {session.is_revoked ? "revoked" : "not revoked"}
+                                </Badge>
+                              </div>
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                Details
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </span>
+                            </div>
+                          </summary>
+                          <div className="border-t border-white/8 px-4 py-3">
+                            <div
+                              className="max-w-[600px] truncate text-xs text-muted-foreground"
+                              title={session.user_agent}
+                            >
+                              {session.user_agent || "No user agent"}
+                            </div>
+                            <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                              <div>Login: {formatSessionTimestamp(session.login_time)}</div>
+                              <div>Last refresh: {formatSessionTimestamp(session.last_refresh_at)}</div>
+                              <div>Last seen: {lastSeenLabel}</div>
+                              <div>Auth source: {session.auth_source || "unknown"}</div>
+                            </div>
+                            {session.revoked_reason?.trim() ? (
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                Reason: {session.revoked_reason}
+                              </div>
+                            ) : null}
+                            <div className="mt-3 flex justify-end">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={!canRevoke || revokeSessionMutation.isPending}
+                                onClick={() => {
+                                  setRevokingSessionId(session.id);
+                                  revokeSessionMutation.mutate(session.id);
+                                }}
+                              >
+                                {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                Revoke
+                              </Button>
+                            </div>
+                          </div>
+                        </details>
+                      );
+                    })
+                  : null}
+              </div>
             </SettingsSection>
           ) : null}
 

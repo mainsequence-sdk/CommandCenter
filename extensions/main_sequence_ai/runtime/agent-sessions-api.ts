@@ -2,27 +2,36 @@ import { env } from "@/config/env";
 
 export interface AgentSessionApiRecord {
   id: number;
-  agent_session: number;
+  agent_session?: number;
+  agent?: number;
   agent_name?: string;
-  parent_step: number | null;
-  sequence: number;
-  step_type: string;
-  actor_type: string;
-  actor_name: string;
-  title: string;
-  summary: string;
+  parent_step?: number | null;
+  sequence?: number;
+  step_type?: string;
+  actor_type?: string;
+  actor_name?: string;
+  title?: string;
+  summary?: string;
   status: string;
   started_at: string;
   ended_at: string | null;
   llm_provider: string;
   llm_model: string;
   engine_name: string;
-  runtime_config_override: Record<string, unknown>;
-  input_payload: Record<string, unknown>;
-  output_payload: Record<string, unknown>;
-  error_detail: string;
-  external_step_id: string;
-  metadata: Record<string, unknown>;
+  runtime_config_override?: Record<string, unknown>;
+  runtime_config_snapshot?: Record<string, unknown>;
+  input_payload?: Record<string, unknown>;
+  output_payload?: Record<string, unknown>;
+  error_detail?: string;
+  external_step_id?: string;
+  metadata?: Record<string, unknown>;
+  created_by_user?: number;
+  bound_handles?: Array<{
+    id: number;
+    handle_unique_id: string;
+    owner_user: number;
+    is_locked: boolean;
+  }>;
 }
 
 function buildLatestAgentSessionsUrl({
@@ -64,6 +73,11 @@ export function getAgentSessionRecordTitle(record: AgentSessionApiRecord) {
 export function getAgentSessionRecordSummary(record: AgentSessionApiRecord) {
   const trimmed = record.summary?.trim();
   return trimmed || null;
+}
+
+export function getAgentSessionRecordHandleUniqueId(record: AgentSessionApiRecord) {
+  const handle = Array.isArray(record.bound_handles) ? record.bound_handles[0] : null;
+  return handle?.handle_unique_id?.trim() || null;
 }
 
 export function getAgentSessionRecordUpdatedAt(record: AgentSessionApiRecord) {

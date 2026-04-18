@@ -30,6 +30,9 @@ import type {
 } from "../runtime/available-models-api";
 import { fetchAvailableRunConfigOptions } from "../runtime/available-models-api";
 import {
+  fetchOrCreateCommandCenterBaseSession,
+} from "../runtime/command-center-base-session-api";
+import {
   resolveMainSequenceAiAssistantChatEndpoint,
   resolveMainSequenceAiAssistantEndpoint,
 } from "../runtime/assistant-endpoint";
@@ -44,6 +47,7 @@ import {
   readAgentSessions,
   summarizeAgentSession,
   switchAgentSessionFromStream,
+  toAgentSessionRecordFromBaseHandle,
   toAgentSessionRecordFromApi,
   updateAgentSessionSnapshot,
   writeAgentSessions,
@@ -82,6 +86,8 @@ export interface ActiveSessionSummary {
   requestName: string;
   displayName: string | null;
   agentUniqueId: string | null;
+  handleUniqueId: string | null;
+  isDefaultCommandCenterSession: boolean;
   sessionDisplayId: string | null;
   sessionId: string | null;
   agentId: string | null;
@@ -114,6 +120,7 @@ interface ChatFeatureContextValue {
   availableReasoningEfforts: AvailableChatReasoningEffortOption[];
   agentId: string | null;
   agentSessions: AgentSessionSummary[];
+  baseSessionError: string | null;
   clearThread: () => void;
   closeRail: () => void;
   context: ChatViewContext;
@@ -124,6 +131,7 @@ interface ChatFeatureContextValue {
   hasVisibleAssistantOutput: boolean;
   isRailOpen: boolean;
   isLoadingAvailableModels: boolean;
+  isLoadingBaseSession: boolean;
   isLoadingLatestSessions: boolean;
   isLoadingSessionInsights: boolean;
   isLoadingSessionTools: boolean;
@@ -416,14 +424,49 @@ function resolveSessionApiLookupId(
   return null;
 }
 
-function findLatestDockAssistantSession(sessions: readonly AgentSessionRecord[]) {
-  return sortAgentSessions(sessions).find((session) => {
-    if (session.isPlaceholder || !resolveSessionApiLookupId(session)) {
-      return false;
-    }
+function normalizeCatalogKey(value: string | null | undefined) {
+  return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : null;
+}
 
-    return resolveSessionAgentRequestName(session) === DEFAULT_AGENT_NAME;
-  });
+function findProviderValueBySessionProvider(
+  providers: readonly AvailableChatProviderOption[],
+  provider: string | null | undefined,
+) {
+  const normalizedProvider = normalizeCatalogKey(provider);
+
+  if (!normalizedProvider) {
+    return null;
+  }
+
+  const match = providers.find((entry) => normalizeCatalogKey(entry.value) === normalizedProvider);
+  return match?.value ?? null;
+}
+
+function findModelIdBySessionModel(
+  models: readonly AvailableChatModelOption[],
+  {
+    model,
+    provider,
+  }: {
+    model: string | null | undefined;
+    provider?: string | null;
+  },
+) {
+  const normalizedModel = normalizeCatalogKey(model);
+
+  if (!normalizedModel) {
+    return null;
+  }
+
+  const normalizedProvider = normalizeCatalogKey(provider);
+  const scopedModels = normalizedProvider
+    ? models.filter((entry) => normalizeCatalogKey(entry.provider) === normalizedProvider)
+    : models;
+  const match =
+    scopedModels.find((entry) => normalizeCatalogKey(entry.value) === normalizedModel) ??
+    scopedModels.find((entry) => normalizeCatalogKey(entry.label) === normalizedModel);
+
+  return match?.id ?? null;
 }
 
 export function ChatProvider({ children }: { children: ReactNode }) {
@@ -439,14 +482,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const closeRail = useChatUiStore((state) => state.closeRail);
   const pageOriginPath = useChatUiStore((state) => state.pageOriginPath);
   const setPageOriginPath = useChatUiStore((state) => state.setPageOriginPath);
-  const initialSessionRef = useRef(
-    createEmptyAgentSession(createDefaultAgentSessionAgent(), { placeholder: true }),
-  );
   const [messages, setMessages] = useState<readonly ThreadMessageLike[]>([]);
-  const [agentSessions, setAgentSessions] = useState(() => [initialSessionRef.current]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(
-    () => initialSessionRef.current.id,
-  );
+  const [agentSessions, setAgentSessions] = useState<AgentSessionRecord[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [runStatus, setRunStatus] = useState<ChatRunStatus>("idle");
   const [runStatusDetail, setRunStatusDetail] = useState<string | null>(null);
@@ -466,6 +504,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [hasVisibleAssistantOutput, setHasVisibleAssistantOutput] = useState(false);
   const [isLoadingAvailableModels, setIsLoadingAvailableModels] = useState(false);
   const [isLoadingLatestSessions, setIsLoadingLatestSessions] = useState(false);
+  const [isLoadingBaseSession, setIsLoadingBaseSession] = useState(false);
+  const [baseSessionError, setBaseSessionError] = useState<string | null>(null);
   const [latestSessionsError, setLatestSessionsError] = useState<string | null>(null);
   const [latestSessionsAgentFilterId, setLatestSessionsAgentFilterId] = useState<number | null>(null);
   const [sessionToolsBySessionId, setSessionToolsBySessionId] = useState<
@@ -480,16 +520,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [isLoadingSessionTools, setIsLoadingSessionTools] = useState(false);
   const [sessionToolsError, setSessionToolsError] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const [sessionSelectionMode, setSessionSelectionMode] = useState<"auto" | "explicit">("auto");
   const shouldSignalNewChatRef = useRef(true);
   const pendingNewChatRequestRef = useRef(false);
   const expectedNewSessionRef = useRef(false);
   const runtimeRef = useRef<AssistantRuntime | null>(null);
   const selectedSessionRef = useRef<AgentSessionRecord | null>(null);
   const activeSessionRef = useRef<AgentSessionRecord | null>(null);
+  const sessionSelectionModeRef = useRef<"auto" | "explicit">("auto");
   const selectedModelValueRef = useRef<string | null>(null);
   const selectedReasoningEffortValueRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
   const loadedSessionIdRef = useRef<string | null>(null);
+  const sessionPickerSyncRef = useRef<string | null>(null);
+  const baseSessionRequestRef = useRef<AbortController | null>(null);
   const sessionHistoryRequestRef = useRef<AbortController | null>(null);
   const sessionInsightsRequestRef = useRef<AbortController | null>(null);
   const sessionToolsRequestRef = useRef<AbortController | null>(null);
@@ -597,6 +641,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       requestName: activeSession.agent?.requestName || DEFAULT_AGENT_NAME,
       displayName: activeSession.agent?.name || null,
       agentUniqueId: activeSession.agent?.agentUniqueId || null,
+      handleUniqueId: activeSession.handleUniqueId ?? null,
+      isDefaultCommandCenterSession: activeSession.origin === "astro_command_center_base",
       sessionDisplayId: resolveSessionDisplayId(activeSession),
       sessionId: activeSession.id,
       agentId: derivedAgentId,
@@ -625,6 +671,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     sessionToolsError,
   ]);
 
+  const clearThread = useCallback(() => {
+    setRunStatus("idle");
+    setRunStatusDetail(null);
+    setThinkingSummary(null);
+    setHasVisibleAssistantOutput(false);
+    setSessionNotice(null);
+  }, []);
+
   useEffect(() => {
     if (location.pathname === CHAT_PAGE_PATH) {
       closeRail();
@@ -641,49 +695,106 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
-    if (!isRailOpen || railMode !== "docked" || location.pathname === CHAT_PAGE_PATH) {
-      return;
-    }
-
-    const current = selectedSession;
-    const hasRealBackendSession = Boolean(resolveSessionApiLookupId(current));
-    const isDefaultDraft =
-      !current ||
-      (!hasRealBackendSession &&
-        resolveSessionAgentRequestName(current) === DEFAULT_AGENT_NAME &&
-        current.messages.length === 0);
-
-    if (!isDefaultDraft) {
-      return;
-    }
-
-    const latestAssistantSession = findLatestDockAssistantSession(agentSessions);
-
-    if (!latestAssistantSession || latestAssistantSession.id === currentSessionId) {
-      return;
-    }
-
-    setCurrentSessionId(latestAssistantSession.id);
-  }, [
-    agentSessions,
-    currentSessionId,
-    isRailOpen,
-    location.pathname,
-    railMode,
-    selectedSession,
-  ]);
-
-  useEffect(() => {
     const restoredSessions = sortAgentSessions(readAgentSessions(sessionUserId));
-    const nextSessions =
-      restoredSessions.length > 0
-        ? restoredSessions
-        : [createEmptyAgentSession(createDefaultAgentSessionAgent(), { placeholder: true })];
-
-    setAgentSessions(nextSessions);
-    setCurrentSessionId(nextSessions[0]?.id ?? null);
+    setAgentSessions(restoredSessions);
+    setCurrentSessionId(restoredSessions[0]?.id ?? null);
+    setSessionSelectionMode("auto");
     loadedSessionIdRef.current = null;
   }, [sessionUserId]);
+
+  useEffect(() => {
+    baseSessionRequestRef.current?.abort();
+
+    if (env.useMockData) {
+      setIsLoadingBaseSession(false);
+      setBaseSessionError(null);
+      return;
+    }
+
+    const shouldResolveBaseSession =
+      location.pathname === CHAT_PAGE_PATH || isRailOpen;
+
+    if (!shouldResolveBaseSession || !sessionUserId || !sessionToken) {
+      setIsLoadingBaseSession(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    baseSessionRequestRef.current = controller;
+    setIsLoadingBaseSession(true);
+    setBaseSessionError(null);
+
+    void (async () => {
+      try {
+        const handle = await fetchOrCreateCommandCenterBaseSession({
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setAgentSessions((currentSessions) => {
+          const existing =
+            currentSessions.find((session) => session.id === handle.sessionId) ??
+            currentSessions.find((session) => session.origin === "astro_command_center_base") ??
+            undefined;
+          const baseSession = toAgentSessionRecordFromBaseHandle(handle, existing);
+
+          return sortAgentSessions([
+            baseSession,
+            ...currentSessions.filter(
+              (session) =>
+                session.id !== baseSession.id && session.origin !== "astro_command_center_base",
+            ),
+          ]);
+        });
+
+        if (sessionSelectionModeRef.current !== "explicit") {
+          loadedSessionIdRef.current = null;
+          setCurrentSessionId(handle.sessionId);
+        }
+
+        setBaseSessionError(null);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setBaseSessionError(
+          error instanceof Error
+            ? error.message
+            : "Unable to resolve the Command Center base session.",
+        );
+
+        if (sessionSelectionModeRef.current !== "explicit") {
+          loadedSessionIdRef.current = null;
+          currentSessionIdRef.current = null;
+          setCurrentSessionId(null);
+          runtimeRef.current?.thread.reset([]);
+          setAgentId(null);
+          clearThread();
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingBaseSession(false);
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    clearThread,
+    isRailOpen,
+    location.pathname,
+    sessionToken,
+    sessionTokenType,
+    sessionUserId,
+  ]);
 
   useEffect(() => {
     if (env.useMockData) {
@@ -766,25 +877,37 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           const remoteSessions = remoteRecords.map((record) =>
             toAgentSessionRecordFromApi(record, currentById.get(String(record.agent_session || record.id))),
           );
+          const baseSession =
+            currentSessions.find((session) => session.origin === "astro_command_center_base") ?? null;
           const currentSession = currentSessions.find(
             (session) => session.id === currentSessionIdRef.current,
           );
           const keepLocalDraft =
             currentSession &&
-            (!currentSession.runtimeSessionId || currentSession.isPlaceholder);
+            (!currentSession.runtimeSessionId || currentSession.isPlaceholder) &&
+            currentSession.origin !== "astro_command_center_base";
 
           const nextSessions = sortAgentSessions(
-            keepLocalDraft
-              ? [
-                  currentSession,
-                  ...remoteSessions.filter((session) => session.id !== currentSession.id),
-                ]
-              : remoteSessions,
+            [
+              ...(baseSession &&
+              !remoteSessions.some((session) => session.id === baseSession.id)
+                ? [baseSession]
+                : []),
+              ...(keepLocalDraft
+                ? [
+                    currentSession,
+                    ...remoteSessions.filter((session) => session.id !== currentSession.id),
+                  ]
+                : remoteSessions),
+            ],
           );
 
-          if (!currentSession || currentSession.isPlaceholder) {
+          if (!currentSession && sessionSelectionModeRef.current !== "explicit") {
             setCurrentSessionId(nextSessions[0]?.id ?? null);
-          } else if (!nextSessions.some((session) => session.id === currentSession.id)) {
+          } else if (
+            currentSession &&
+            !nextSessions.some((session) => session.id === currentSession.id)
+          ) {
             setCurrentSessionId(nextSessions[0]?.id ?? null);
           }
 
@@ -826,6 +949,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [activeSession]);
 
   useEffect(() => {
+    sessionSelectionModeRef.current = sessionSelectionMode;
+  }, [sessionSelectionMode]);
+
+  useEffect(() => {
     selectedModelValueRef.current = selectedModelValue;
   }, [selectedModelValue]);
 
@@ -862,6 +989,65 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     setSelectedProviderValue(availableProviders[0]?.value ?? null);
   }, [availableProviders, selectedProviderValue]);
+
+  useEffect(() => {
+    if (!currentSessionId) {
+      return;
+    }
+
+    if (availableProviders.length === 0 || availableModels.length === 0) {
+      return;
+    }
+
+    const sessionProvider =
+      currentSessionInsights?.config?.model?.provider ??
+      currentSessionInsights?.model?.provider ??
+      selectedSession?.agent?.llmProvider ??
+      null;
+    const sessionModel =
+      currentSessionInsights?.config?.model?.model ??
+      currentSessionInsights?.model?.model ??
+      selectedSession?.agent?.llmModel ??
+      null;
+    const syncSignature = [
+      currentSessionId,
+      normalizeCatalogKey(sessionProvider) ?? "",
+      normalizeCatalogKey(sessionModel) ?? "",
+    ].join("::");
+
+    if (sessionPickerSyncRef.current === syncSignature) {
+      return;
+    }
+
+    const matchedProviderValue = findProviderValueBySessionProvider(
+      availableProviders,
+      sessionProvider,
+    );
+    const matchedModelId = findModelIdBySessionModel(availableModels, {
+      model: sessionModel,
+      provider: matchedProviderValue ?? sessionProvider,
+    });
+
+    if (matchedProviderValue) {
+      setSelectedProviderValue(matchedProviderValue);
+    }
+
+    if (matchedModelId) {
+      setSelectedModelValue(matchedModelId);
+    }
+
+    sessionPickerSyncRef.current = syncSignature;
+  }, [
+    availableModels,
+    availableProviders,
+    currentSessionId,
+    currentSessionInsights?.config?.model?.model,
+    currentSessionInsights?.config?.model?.provider,
+    currentSessionInsights?.model?.model,
+    currentSessionInsights?.model?.provider,
+    selectedSession?.agent?.llmModel,
+    selectedSession?.agent?.llmProvider,
+  ]);
 
   useEffect(() => {
     const filteredModels =
@@ -1211,6 +1397,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
 
       persistSessionMessages();
+      setSessionSelectionMode("explicit");
       setCurrentSessionId(sessionId);
     },
     [persistSessionMessages],
@@ -1218,6 +1405,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const createAgentSession = useCallback(() => {
     persistSessionMessages();
+    setSessionSelectionMode("explicit");
 
     setAgentSessions((currentSessions) => {
       const current = currentSessions.find((session) => session.id === currentSessionIdRef.current);
@@ -1278,15 +1466,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           );
 
           if (remainingSessions.length === 0) {
-            const fallbackSession = createEmptyAgentSession(
-              session.agent ?? createDefaultAgentSessionAgent(),
-              { placeholder: true },
-            );
-            setCurrentSessionId(fallbackSession.id);
-            return [fallbackSession];
+            setSessionSelectionMode("auto");
+            setCurrentSessionId(null);
+            return [];
           }
 
           if (currentSessionIdRef.current === sessionId) {
+            setSessionSelectionMode("auto");
             setCurrentSessionId(remainingSessions[0]?.id ?? null);
           }
 
@@ -1314,6 +1500,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const startAgentSession = useCallback(
     (agent: AgentSearchResult) => {
       persistSessionMessages();
+      setSessionSelectionMode("explicit");
       setLatestSessionsAgentFilterId(agent.id);
 
       setAgentSessions((currentSessions) => {
@@ -1334,14 +1521,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
     [persistSessionMessages],
   );
-
-  const clearThread = useCallback(() => {
-    setRunStatus("idle");
-    setRunStatusDetail(null);
-    setThinkingSummary(null);
-    setHasVisibleAssistantOutput(false);
-    setSessionNotice(null);
-  }, []);
 
   const loadCurrentSession = useCallback(
     (sessionId: string | null) => {
@@ -1459,11 +1638,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             return;
           }
 
+          const errorMessage =
+            error instanceof Error ? error.message : "Session history request failed.";
+          const isEmptyBaseSession =
+            session.origin === "astro_command_center_base" && fallbackMessages.length === 0;
+          const looksLikeMissingHistory =
+            /not found|no local session|session_not_found|session history failed with status 404/i.test(
+              errorMessage,
+            );
+
+          if (isEmptyBaseSession && looksLikeMissingHistory) {
+            runtimeRef.current?.thread.reset([]);
+            setAgentId(
+              session.agent?.id !== null && session.agent?.id !== undefined
+                ? String(session.agent.id)
+                : null,
+            );
+            setIsRunning(false);
+            setRunStatus("idle");
+            setRunStatusDetail(null);
+            setThinkingSummary(null);
+            setHasVisibleAssistantOutput(false);
+            setSessionNotice(null);
+            return;
+          }
+
           setIsRunning(false);
           setRunStatus("error");
-          setRunStatusDetail(
-            error instanceof Error ? error.message : "Session history request failed.",
-          );
+          setRunStatusDetail(errorMessage);
           setSessionNotice(
             "Failed to rehydrate the selected session. Showing the locally cached transcript.",
           );
@@ -1869,6 +2071,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       availableReasoningEfforts,
       agentId,
       agentSessions: sortedAgentSessions,
+      baseSessionError,
       clearThread: clearRuntimeThread,
       closeRail,
       context: chatContext,
@@ -1879,6 +2082,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       hasVisibleAssistantOutput,
       isRailOpen,
       isLoadingAvailableModels,
+      isLoadingBaseSession,
       isLoadingLatestSessions,
       isLoadingSessionInsights,
       isLoadingSessionTools,
@@ -1918,6 +2122,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       availableProviders,
       availableReasoningEfforts,
       agentId,
+      baseSessionError,
       currentSessionId,
       chatContext,
       clearRuntimeThread,
@@ -1928,6 +2133,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       hasVisibleAssistantOutput,
       isRailOpen,
       isLoadingAvailableModels,
+      isLoadingBaseSession,
       isLoadingLatestSessions,
       isLoadingSessionInsights,
       isLoadingSessionTools,

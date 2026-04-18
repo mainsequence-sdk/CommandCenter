@@ -41,6 +41,47 @@ export interface PasswordResetConfirmInput extends PasswordResetValidateInput {
   confirm_password: string;
 }
 
+export interface UserLoginSessionRecord {
+  id: number;
+  login_time: string;
+  last_seen_at: string | null;
+  last_refresh_at: string | null;
+  logout_time: string | null;
+  revoked_at: string | null;
+  revoked_reason: string;
+  ip_address: string | null;
+  user_agent: string;
+  device_label: string;
+  auth_source: string;
+  is_current: boolean;
+  is_active: boolean;
+  is_revoked: boolean;
+}
+
+export interface RevokeOtherSessionsResponse {
+  detail: string;
+  revoked_count: number;
+}
+
+export interface CurrentUserMfaStatusResponse {
+  mfa_enabled: boolean;
+}
+
+export interface CurrentUserMfaSetupResponse {
+  detail?: string;
+  qr_png_base64?: string;
+  manual_entry_key?: string;
+}
+
+export interface VerifyCurrentUserMfaSetupInput {
+  mfa_code: string;
+}
+
+export interface VerifyCurrentUserMfaSetupResponse {
+  detail: string;
+  mfa_enabled: boolean;
+}
+
 async function readResponsePayload(response: Response) {
   if (response.status === 204) {
     return null;
@@ -184,4 +225,59 @@ export function requestPasswordChangeEmail() {
   }, {
     requiresAuth: true,
   });
+}
+
+export function listCurrentUserSessions() {
+  return requestAuthJson<UserLoginSessionRecord[]>("/user/api/user/sessions/", undefined, {
+    requiresAuth: true,
+  });
+}
+
+export function revokeCurrentUserSession(sessionId: number) {
+  return requestAuthJson<UserLoginSessionRecord>(
+    `/user/api/user/sessions/${sessionId}/revoke/`,
+    {
+      method: "POST",
+    },
+    {
+      requiresAuth: true,
+    },
+  );
+}
+
+export function revokeOtherCurrentUserSessions() {
+  return requestAuthJson<RevokeOtherSessionsResponse>(
+    "/user/api/user/sessions/revoke-others/",
+    {
+      method: "POST",
+    },
+    {
+      requiresAuth: true,
+    },
+  );
+}
+
+export function getCurrentUserMfaStatus() {
+  return requestAuthJson<CurrentUserMfaStatusResponse>("/user/api/user/mfa/status/", undefined, {
+    requiresAuth: true,
+  });
+}
+
+export function getCurrentUserMfaSetup() {
+  return requestAuthJson<CurrentUserMfaSetupResponse>("/user/api/user/mfa/setup/", undefined, {
+    requiresAuth: true,
+  });
+}
+
+export function verifyCurrentUserMfaSetup(input: VerifyCurrentUserMfaSetupInput) {
+  return requestAuthJson<VerifyCurrentUserMfaSetupResponse>(
+    "/user/api/user/mfa/setup/verify/",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    {
+      requiresAuth: true,
+    },
+  );
 }

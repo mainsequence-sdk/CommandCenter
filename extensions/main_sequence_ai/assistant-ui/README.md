@@ -14,6 +14,7 @@ It owns:
 - the shell context bridge
 - the mock/live transport wiring
 - the overlay/page shared state
+- the canonical Command Center base-session bootstrap
 
 It currently powers two presentation modes that share one runtime:
 
@@ -45,12 +46,17 @@ remaining height. The two shells still differ intentionally:
   `runConfig`
 - if the backend returns models, `ChatProvider` selects one and every live request carries the
   currently selected model binding from the picker
+- when a backend-attached session is selected, `ChatProvider` best-effort initializes the provider
+  and model pickers from that session’s `llm_provider` and `llm_model`; if there is no catalog
+  match, the normal provider/model fallback selection stays in effect
 - auth-backed models that are present in the catalog but not currently usable stay visible in the
   picker and are rendered disabled with a `Not authenticated` label
 - live `/api/chat` requests now carry the optional top-level backend model binding:
   `model: { source: "<catalog-source>", model: "<catalog-model>", provider?: "<provider>", runConfig?: { reasoning_effort: "<selected-effort>" } }`
 - the overlay keeps a reduced chrome surface: no context disclosure, no run-status strip, and no
   in-message thinking/tool detail blocks. The user can expand into the full page for those details
+- the right-side rail now warns when it is attached to a non-default session instead of the
+  canonical Command Center base orchestrator session
 - thinking blocks on the full page start collapsed by default, with a trimmed one-line preview of
   the latest reasoning/tool activity in the collapsed header
 - the full-page composer footer now shows a compact context-window usage bar when session insights
@@ -102,8 +108,12 @@ Responsibilities:
 
 - own message/thread state for the chat runtime
 - own the selected AgentSession and its cached local transcript
+- resolve the canonical Command Center base session from
+  `/orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/`
 - treat `activeSession` as a real backend-attached session only; local drafts/placeholders are
   selected sessions, but not active backend sessions
+- fail fast when the backend cannot provide the canonical base session and there is no explicit
+  backend-attached session to continue
 - expose a normalized active session summary for page shell UI
 - expose overlay/page navigation helpers
 - bridge app context into chat requests
@@ -124,10 +134,12 @@ This boundary owns a feature-local session layer that:
 
 - bootstraps the visible session list from `/orm/api/agents/v1/sessions/`, filtered to
   `created_by_user=<signed-in user id>`, newest first, limited to 20
+- bootstraps the canonical Command Center base session from
+  `/orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/`
 - persists local session snapshots in browser localStorage, scoped by signed-in user id
 - keeps the selected session shared between the page and overlay runtime
-- when the docked shell rail opens on a default empty `astro-orchestrator` draft, it prefers the
-  latest real `astro-orchestrator` backend session instead of staying on that fresh local draft
+- treats that canonical base session as the default assistant continuity session instead of
+  inferring continuity from the latest `astro-orchestrator` session by name
 - exposes the selected session summary to the page shell so static session metadata can live in a
   dedicated rail instead of above the transcript
 - restores cached messages when the user switches sessions through the shared page explorer
@@ -143,10 +155,16 @@ This boundary owns a feature-local session layer that:
   sessions from previous queries, while still preserving the active unsynced local draft session
 - refreshes backend session tools every time the effective backend session changes
 - refreshes backend session insights every time the effective backend session changes
+- preserves backend `bound_handles` metadata in normalized session records so handles can be shown
+  in the explorer, catalog picker, and session detail rail
 
 This is still intentionally hybrid for now. The visible explorer list comes from the backend latest
 sessions endpoint, but cached frontend transcripts and newly-started local sessions are still kept
 feature-local until the backend exposes a fuller session-history contract.
+
+If the canonical base-session bootstrap fails, the assistant does not silently reinterpret another
+session as the default. The composer stays disabled until a real backend session is available or
+the user explicitly selects a valid backend-attached session.
 
 ### Backend Adapter
 

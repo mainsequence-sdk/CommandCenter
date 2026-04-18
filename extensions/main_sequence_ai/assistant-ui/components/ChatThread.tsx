@@ -13,7 +13,7 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import { useAuiState } from "@assistant-ui/store";
-import { ArrowUp, ChevronDown, Sparkles, Wrench, Zap } from "lucide-react";
+import { AlertTriangle, ArrowUp, ChevronDown, Sparkles, Wrench, Zap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -492,6 +492,42 @@ function EmptyState({
   );
 }
 
+function formatSessionNotice(value: string) {
+  const normalized = value.trim();
+
+  if (normalized.startsWith("Failed to rehydrate the selected session.")) {
+    return {
+      detail:
+        "The selected session could not be restored from the backend. A locally cached transcript is being shown and may be stale.",
+      tone: "warning" as const,
+      title: "Session restore failed",
+    };
+  }
+
+  if (normalized.startsWith("This new conversation did not receive the required session assignment.")) {
+    return {
+      detail:
+        "The backend did not assign a runtime session to this conversation. Retry before continuing.",
+      tone: "danger" as const,
+      title: "Session assignment missing",
+    };
+  }
+
+  if (normalized.includes("Cross-agent session handoff is not implemented yet.")) {
+    return {
+      detail: normalized,
+      tone: "warning" as const,
+      title: "Cross-agent handoff unavailable",
+    };
+  }
+
+  return {
+    detail: normalized,
+    tone: "warning" as const,
+    title: "Session status",
+  };
+}
+
 function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }) {
   const { sessionNotice } = useChatFeature();
 
@@ -499,18 +535,33 @@ function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }
     return null;
   }
 
+  const formatted = formatSessionNotice(sessionNotice);
+
   return (
     <div
       className={cn(
-        "flex items-start gap-3",
+        "rounded-[18px] border px-4 py-3",
         surface === "page" ? "mx-auto w-full max-w-5xl px-4" : "",
+        formatted.tone === "danger"
+          ? "border-danger/35 bg-danger/10 text-danger"
+          : "border-warning/35 bg-warning/10 text-warning-foreground",
       )}
     >
-      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card/85 text-primary shadow-sm">
-        <Sparkles className="h-4 w-4" />
-      </div>
-      <div className="min-w-0 max-w-[min(100%,42rem)] rounded-[22px] border border-primary/20 bg-primary/8 px-4 py-3 text-sm leading-6 text-foreground shadow-sm">
-        {sessionNotice}
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm",
+            formatted.tone === "danger"
+              ? "border-danger/35 bg-danger/12 text-danger"
+              : "border-warning/35 bg-warning/12 text-warning-foreground",
+          )}
+        >
+          <AlertTriangle className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-foreground">{formatted.title}</div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">{formatted.detail}</div>
+        </div>
       </div>
     </div>
   );
@@ -521,6 +572,7 @@ function Composer({
   availableProviders,
   compact = false,
   isLoadingAvailableModels,
+  isLoadingBaseSession,
   model,
   modelOptions,
   onProviderChange,
@@ -531,11 +583,13 @@ function Composer({
   reasoningEffortOptions,
   reasoningEffort,
   surface = "overlay",
+  sessionUnavailableMessage = null,
 }: {
   availableModelsError: string | null;
   availableProviders?: ReadonlyArray<{ label: string; value: string }>;
   compact?: boolean;
   isLoadingAvailableModels: boolean;
+  isLoadingBaseSession?: boolean;
   model: ComposerModelOption;
   modelOptions: ReadonlyArray<{ disabled?: boolean; label: string; value: ComposerModelOption }>;
   onProviderChange?: (value: string) => void;
@@ -546,6 +600,7 @@ function Composer({
   reasoningEffortOptions: ReadonlyArray<{ label: string; value: ComposerReasoningEffort }>;
   reasoningEffort: ComposerReasoningEffort;
   surface?: "overlay" | "page";
+  sessionUnavailableMessage?: string | null;
 }) {
   const isPage = surface === "page";
   const placeholder = env.useMockData
@@ -556,6 +611,7 @@ function Composer({
   const hasReasoningEffortOptions = reasoningEffortOptions.length > 0;
   const showConfigRow = isPage && hasProviderOptions && hasModelOptions;
   const modelsUnavailable = !env.useMockData && !isLoadingAvailableModels && !hasModelOptions;
+  const sessionUnavailable = !env.useMockData && Boolean(sessionUnavailableMessage);
   const modelsUnavailableMessage = formatModelsUnavailableMessage(availableModelsError);
   const openUserSettings = useShellStore((state) => state.openUserSettings);
 
@@ -570,10 +626,18 @@ function Composer({
       <div className="flex items-center gap-3">
         <ComposerPrimitive.Input
           autoFocus
-          disabled={modelsUnavailable}
+          disabled={modelsUnavailable || sessionUnavailable || isLoadingBaseSession}
           minRows={1}
           maxRows={10}
-          placeholder={modelsUnavailable ? "Models unavailable." : placeholder}
+          placeholder={
+            sessionUnavailable
+              ? "Session unavailable."
+              : modelsUnavailable
+                ? "Models unavailable."
+                : isLoadingBaseSession
+                  ? "Connecting to Command Center..."
+                  : placeholder
+          }
           className={cn(
             "w-full resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60",
           )}
@@ -581,7 +645,7 @@ function Composer({
         <ComposerPrimitive.Send
           aria-label="Send message"
           className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
-          disabled={modelsUnavailable}
+          disabled={modelsUnavailable || sessionUnavailable || isLoadingBaseSession}
         >
           <ArrowUp className="h-4 w-4" />
         </ComposerPrimitive.Send>
@@ -649,6 +713,11 @@ function Composer({
               ))}
             </Select>
           ) : null}
+        </div>
+      ) : null}
+      {sessionUnavailable ? (
+        <div className="mt-2 border-t border-border/50 pt-2 text-xs text-danger">
+          {sessionUnavailableMessage}
         </div>
       ) : null}
       {modelsUnavailable ? (
@@ -765,10 +834,14 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
     availableModelsError,
     availableProviders,
     availableReasoningEfforts,
+    baseSessionError,
+    currentSessionId,
     isLoadingAvailableModels,
+    isLoadingBaseSession,
     selectedModelValue,
     selectedProviderValue,
     selectedReasoningEffortValue,
+    sessionNotice,
     setSelectedModelValue,
     setSelectedProviderValue,
     setSelectedReasoningEffortValue,
@@ -799,6 +872,14 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
   const selectedProvider = selectedProviderValue ?? providerOptions[0]?.value ?? "";
   const selectedReasoningEffort =
     selectedReasoningEffortValue ?? reasoningEffortOptions[0]?.value ?? "";
+  const sessionUnavailableMessage =
+    !currentSessionId && !env.useMockData
+      ? baseSessionError
+        ? `Unable to open the Command Center base session. ${baseSessionError}`
+        : isLoadingBaseSession
+          ? "Connecting to the Command Center base session."
+          : null
+      : null;
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -817,6 +898,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   availableProviders={providerOptions}
                   compact={compact}
                   isLoadingAvailableModels={isLoadingAvailableModels}
+                  isLoadingBaseSession={isLoadingBaseSession}
                   model={selectedModel}
                   modelOptions={modelOptions}
                   onProviderChange={setSelectedProviderValue}
@@ -826,6 +908,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   onReasoningEffortChange={setSelectedReasoningEffortValue}
                   reasoningEffortOptions={reasoningEffortOptions}
                   reasoningEffort={selectedReasoningEffort}
+                  sessionUnavailableMessage={sessionUnavailableMessage}
                   surface={surface}
                 />
               </div>
@@ -850,7 +933,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   isPage ? "gap-6" : "gap-4",
                 )}
               >
-                {!isPage ? (
+                {!isPage && !sessionNotice ? (
                   <ThreadPrimitive.Empty>
                     <EmptyState compact={compact} surface={surface} />
                   </ThreadPrimitive.Empty>
@@ -876,6 +959,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     availableProviders={providerOptions}
                     compact={compact}
                     isLoadingAvailableModels={isLoadingAvailableModels}
+                    isLoadingBaseSession={isLoadingBaseSession}
                     model={selectedModel}
                     modelOptions={modelOptions}
                     onProviderChange={setSelectedProviderValue}
@@ -885,6 +969,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     onReasoningEffortChange={setSelectedReasoningEffortValue}
                     reasoningEffortOptions={reasoningEffortOptions}
                     reasoningEffort={selectedReasoningEffort}
+                    sessionUnavailableMessage={sessionUnavailableMessage}
                     surface={surface}
                   />
                   <PageComposerFooter />
@@ -902,6 +987,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     availableProviders={providerOptions}
                     compact={compact}
                     isLoadingAvailableModels={isLoadingAvailableModels}
+                    isLoadingBaseSession={isLoadingBaseSession}
                     model={selectedModel}
                     modelOptions={modelOptions}
                     onProviderChange={setSelectedProviderValue}
@@ -911,6 +997,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     onReasoningEffortChange={setSelectedReasoningEffortValue}
                     reasoningEffortOptions={reasoningEffortOptions}
                     reasoningEffort={selectedReasoningEffort}
+                    sessionUnavailableMessage={sessionUnavailableMessage}
                     surface={surface}
                   />
                 </div>

@@ -293,6 +293,39 @@ export interface OrganizationSubscriptionSeatsUpdateResponse {
   redirect_url: string | null;
 }
 
+export type OrganizationLoginSessionAuthSource = "django_session" | "jwt";
+
+export interface OrganizationLoginSessionUserSummary {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface OrganizationLoginSessionRecord {
+  id: number;
+  user: OrganizationLoginSessionUserSummary;
+  login_time: string;
+  last_seen_at: string | null;
+  last_refresh_at: string | null;
+  logout_time: string | null;
+  revoked_at: string | null;
+  revoked_reason: string;
+  ip_address: string | null;
+  user_agent: string;
+  device_label: string;
+  auth_source: OrganizationLoginSessionAuthSource | string;
+  is_active: boolean;
+  is_revoked: boolean;
+}
+
+export interface OrganizationLoginSessionsPage {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: OrganizationLoginSessionRecord[];
+}
+
 interface CurrentUserDetailsPayload {
   organization?: {
     id?: number;
@@ -473,6 +506,55 @@ export function updateOrganizationActivePlanAssignment(
     {
       method: "POST",
       body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function listOrganizationLoginSessions(
+  organizationId: number,
+  {
+    limit,
+    offset,
+    search,
+    userId,
+    authSource,
+    isActive,
+    isRevoked,
+  }: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    userId?: number;
+    authSource?: OrganizationLoginSessionAuthSource;
+    isActive?: boolean;
+    isRevoked?: boolean;
+  } = {},
+) {
+  return requestAdminJson<OrganizationLoginSessionsPage>(
+    `/user/api/organization/${encodeURIComponent(String(organizationId))}/login-sessions/`,
+    {
+      method: "GET",
+    },
+    {
+      limit,
+      offset,
+      search,
+      user_id: userId,
+      auth_source: authSource,
+      is_active: isActive,
+      is_revoked: isRevoked,
+    },
+  );
+}
+
+export function revokeOrganizationLoginSession(
+  organizationId: number,
+  sessionId: number,
+) {
+  return requestAdminJson<OrganizationLoginSessionRecord>(
+    `/user/api/organization/${encodeURIComponent(String(organizationId))}/login-sessions/${encodeURIComponent(String(sessionId))}/revoke/`,
+    {
+      method: "POST",
     },
   );
 }

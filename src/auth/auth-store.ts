@@ -2,7 +2,9 @@ import { create } from "zustand";
 
 import {
   clearStoredJwtSession,
+  verifyJwtMfaSetup,
   loginWithJwt,
+  logoutJwtSession,
   persistJwtSession,
   refreshJwtSession,
   resolveStoredJwtSession,
@@ -11,7 +13,7 @@ import {
 } from "@/auth/jwt-auth";
 import { hasAllPermissions } from "@/auth/permissions";
 import { loginWithRole } from "@/auth/mock-auth";
-import type { LoginInput, Session } from "@/auth/types";
+import type { AuthLoginChallenge, CompleteMfaSetupInput, LoginInput, Session } from "@/auth/types";
 import { env } from "@/config/env";
 
 const restoredJwtSession = env.bypassAuth ? null : restoreStoredJwtSession();
@@ -19,6 +21,7 @@ const restoredJwtSession = env.bypassAuth ? null : restoreStoredJwtSession();
 let refreshTimer: number | null = null;
 let loginPromise: Promise<boolean> | null = null;
 let refreshPromise: Promise<boolean> | null = null;
+let mfaSetupPromise: Promise<boolean> | null = null;
 
 function readErrorMessage(error: unknown) {
   return error instanceof Error ? error.message.trim() : "";
@@ -72,9 +75,12 @@ interface AuthState {
   refreshToken: string | null;
   status: "anonymous" | "resolving" | "authenticating" | "authenticated";
   error: string | null;
+  challenge: AuthLoginChallenge | null;
   login: (input: LoginInput) => Promise<boolean>;
+  completeMfaSetup: (input: CompleteMfaSetupInput) => Promise<boolean>;
   refreshSession: () => Promise<boolean>;
   logout: () => void;
+  resetLoginState: () => void;
   can: (permission: string | string[]) => boolean;
 }
 
@@ -83,11 +89,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshToken: restoredJwtSession?.tokens.refreshToken ?? null,
   status: restoredJwtSession ? "authenticated" : "anonymous",
   error: null,
+  challenge: null,
   async login(input) {
     if (loginPromise) {
       return loginPromise;
     }
 
+    const previousChallenge = get().challenge;
     set({ status: "authenticating", error: null });
 
     loginPromise = (async () => {
@@ -101,11 +109,66 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             refreshToken: null,
             status: "authenticated",
             error: null,
+            challenge: null,
           });
           return true;
         }
 
-        const bundle = await loginWithJwt(input);
+        const result = await loginWithJwt(input);
+
+        if (result.status === "authenticated") {
+          persistJwtSession(result.bundle);
+          const { session, tokens } = result.bundle;
+          scheduleRefresh(tokens);
+          set({
+            session,
+            refreshToken: tokens.refreshToken,
+            status: "authenticated",
+            error: null,
+            challenge: null,
+          });
+          return true;
+        }
+
+        clearStoredJwtSession();
+        clearRefreshTimer();
+        set({
+          session: null,
+          refreshToken: null,
+          status: "anonymous",
+          error: null,
+          challenge: result.challenge,
+        });
+        return false;
+      } catch (error) {
+        clearStoredJwtSession();
+        clearRefreshTimer();
+        set({
+          error: getLoginErrorMessage(error),
+          session: null,
+          refreshToken: null,
+          status: "anonymous",
+          challenge: previousChallenge,
+        });
+        return false;
+      } finally {
+        loginPromise = null;
+      }
+    })();
+
+    return loginPromise;
+  },
+  async completeMfaSetup(input) {
+    if (mfaSetupPromise) {
+      return mfaSetupPromise;
+    }
+
+    const previousChallenge = get().challenge;
+    set({ status: "authenticating", error: null });
+
+    mfaSetupPromise = (async () => {
+      try {
+        const bundle = await verifyJwtMfaSetup(input);
         persistJwtSession(bundle);
         const { session, tokens } = bundle;
         scheduleRefresh(tokens);
@@ -114,24 +177,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           refreshToken: tokens.refreshToken,
           status: "authenticated",
           error: null,
+          challenge: null,
         });
         return true;
       } catch (error) {
+        clearStoredJwtSession();
+        clearRefreshTimer();
         set({
-          error: getLoginErrorMessage(error),
           session: null,
           refreshToken: null,
           status: "anonymous",
+          error: getLoginErrorMessage(error),
+          challenge: previousChallenge,
         });
-        clearStoredJwtSession();
-        clearRefreshTimer();
         return false;
       } finally {
-        loginPromise = null;
+        mfaSetupPromise = null;
       }
     })();
 
-    return loginPromise;
+    return mfaSetupPromise;
   },
   async refreshSession() {
     if (env.bypassAuth) {
@@ -159,6 +224,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           refreshToken: tokens.refreshToken,
           status: "authenticated",
           error: null,
+          challenge: null,
         });
         return true;
       } catch (error) {
@@ -169,6 +235,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           refreshToken: null,
           status: "anonymous",
           error: "Your session expired. Please sign in again.",
+          challenge: null,
         });
         return false;
       } finally {
@@ -179,9 +246,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return refreshPromise;
   },
   logout() {
+    const activeToken = get().session?.token;
+    const tokenType = get().session?.tokenType || "Bearer";
+
+    if (!env.bypassAuth && activeToken) {
+      void logoutJwtSession(activeToken, tokenType).catch(() => {
+        // Local sign-out remains immediate even if backend logout fails.
+      });
+    }
+
     clearStoredJwtSession();
     clearRefreshTimer();
-    set({ session: null, refreshToken: null, status: "anonymous", error: null });
+    set({ session: null, refreshToken: null, status: "anonymous", error: null, challenge: null });
+  },
+  resetLoginState() {
+    set({ error: null, challenge: null });
   },
   can(permission) {
     const current = get().session?.user.permissions ?? [];

@@ -12,6 +12,9 @@ Shared shell navigation and chrome for the Command Center application.
 - `SettingsDialog.tsx`: shell-level settings and diagnostics.
   It now also merges registry-backed extension-contributed settings sections for `user` and
   `admin` audiences into the shared left-nav dialog shell.
+  The user audience now includes a built-in `Security` section that lists tracked sessions for the
+  current user, reads MFA status from the authenticated MFA status endpoint, supports authenticated
+  MFA setup and verification, and supports revoking one session or revoking all other sessions.
 
 ## Navigation Behavior
 

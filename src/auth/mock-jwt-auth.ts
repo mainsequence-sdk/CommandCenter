@@ -33,7 +33,57 @@ type MockAuthConfig = {
   users: MockAuthUserRecord[];
 };
 
+type MockTrackedSessionRecord = {
+  id: number;
+  user_id: string;
+  login_time: string;
+  last_seen_at: string | null;
+  last_refresh_at: string | null;
+  logout_time: string | null;
+  revoked_at: string | null;
+  revoked_reason: string;
+  ip_address: string | null;
+  user_agent: string;
+  device_label: string;
+  auth_source: string;
+  is_current: boolean;
+  is_active: boolean;
+  is_revoked: boolean;
+};
+
+type MockMfaSetupRecord = {
+  userId: string;
+  setupToken: string;
+  createdAt: string;
+};
+
 const devAuthProxyPrefix = "/__command_center_auth__";
+const mockMfaEnrollmentCode = "123456";
+const mockQrPngBase64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sN8pKcAAAAASUVORK5CYII=";
+
+export class MockHttpError extends Error {
+  status: number;
+  payload: unknown;
+
+  constructor(status: number, payload: unknown) {
+    super(
+      typeof payload === "object" &&
+        payload !== null &&
+        "detail" in payload &&
+        typeof payload.detail === "string"
+        ? payload.detail
+        : `Mock request failed with ${status}.`,
+    );
+    this.name = "MockHttpError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
+export function isMockHttpError(error: unknown): error is MockHttpError {
+  return error instanceof MockHttpError;
+}
 
 function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -52,6 +102,9 @@ function readMockConfig(): MockAuthConfig {
 }
 
 let mockAuthState = readMockConfig();
+let mockSessionIdCounter = 100;
+const mockTrackedSessions: MockTrackedSessionRecord[] = [];
+const mockMfaSetups = new Map<string, MockMfaSetupRecord>();
 
 function readString(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
@@ -133,6 +186,73 @@ function findUserByIdentifier(identifier: string) {
 
 function findUserById(id: string) {
   return mockAuthState.users.find((user) => user.id === id) ?? null;
+}
+
+function isPrivilegedMockUser(user: MockAuthUserRecord) {
+  return Boolean(
+    user.is_platform_admin ||
+      user.organization_role === "ORG_ADMIN" ||
+      user.permissions.includes("org_admin:view") ||
+      user.permissions.includes("platform_admin:access"),
+  );
+}
+
+function buildMockMfaManualEntryKey(user: MockAuthUserRecord) {
+  return `MS-${user.id.padStart(4, "0")}-AUTH`;
+}
+
+function buildMockMfaSetupPayload(user: MockAuthUserRecord) {
+  return {
+    qr_png_base64: mockQrPngBase64,
+    manual_entry_key: buildMockMfaManualEntryKey(user),
+    detail: "Scan the QR code or enter the manual key, then verify with your first code.",
+  };
+}
+
+function buildMockMfaSetupUrl(setupToken: string) {
+  return new URL(
+    `/user/api/user/mfa/setup/?setup_token=${encodeURIComponent(setupToken)}`,
+    window.location.origin,
+  ).toString();
+}
+
+function buildMockMfaSetupVerifyUrl() {
+  return new URL("/user/api/user/mfa/setup/verify/", window.location.origin).toString();
+}
+
+function issueMockMfaSetup(user: MockAuthUserRecord) {
+  const setupToken = `mock-setup.${user.id}.${Date.now()}`;
+  mockMfaSetups.set(setupToken, {
+    userId: user.id,
+    setupToken,
+    createdAt: new Date().toISOString(),
+  });
+
+  return {
+    setupToken,
+    setupUrl: buildMockMfaSetupUrl(setupToken),
+    setupVerifyUrl: buildMockMfaSetupVerifyUrl(),
+  };
+}
+
+function resolveMockMfaSetup(setupToken: string) {
+  const setup = mockMfaSetups.get(setupToken);
+
+  if (!setup) {
+    return null;
+  }
+
+  const user = findUserById(setup.userId);
+
+  if (!user) {
+    mockMfaSetups.delete(setupToken);
+    return null;
+  }
+
+  return {
+    setup,
+    user,
+  };
 }
 
 function buildUserDetails(user: MockAuthUserRecord) {
@@ -217,6 +337,116 @@ function normalizeMockAuthPathname(url: string) {
   return normalizedPathname || "/";
 }
 
+function nextMockSessionId() {
+  mockSessionIdCounter += 1;
+  return mockSessionIdCounter;
+}
+
+function createMockSession(input: {
+  userId: string;
+  userAgent: string;
+  deviceLabel: string;
+  ipAddress: string;
+  isCurrent: boolean;
+  loginTime: string;
+  lastSeenAt: string;
+  lastRefreshAt: string;
+}) {
+  const session: MockTrackedSessionRecord = {
+    id: nextMockSessionId(),
+    user_id: input.userId,
+    login_time: input.loginTime,
+    last_seen_at: input.lastSeenAt,
+    last_refresh_at: input.lastRefreshAt,
+    logout_time: null,
+    revoked_at: null,
+    revoked_reason: "",
+    ip_address: input.ipAddress,
+    user_agent: input.userAgent,
+    device_label: input.deviceLabel,
+    auth_source: "jwt",
+    is_current: input.isCurrent,
+    is_active: true,
+    is_revoked: false,
+  };
+  mockTrackedSessions.push(session);
+  return session;
+}
+
+function ensureTrackedSessionsForUser(
+  user: MockAuthUserRecord,
+  activeUserAgent: string,
+) {
+  const userSessions = mockTrackedSessions.filter((session) => session.user_id === user.id);
+
+  if (userSessions.length === 0) {
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const previousIso = new Date(now.getTime() - 1000 * 60 * 27).toISOString();
+    const previousSeenIso = new Date(now.getTime() - 1000 * 60 * 4).toISOString();
+
+    createMockSession({
+      userId: user.id,
+      userAgent: activeUserAgent,
+      deviceLabel: "Current browser session",
+      ipAddress: "203.0.113.10",
+      isCurrent: true,
+      loginTime: nowIso,
+      lastSeenAt: nowIso,
+      lastRefreshAt: nowIso,
+    });
+    createMockSession({
+      userId: user.id,
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2_1) AppleWebKit/537.36",
+      deviceLabel: "Chrome on macOS",
+      ipAddress: "198.51.100.41",
+      isCurrent: false,
+      loginTime: previousIso,
+      lastSeenAt: previousSeenIso,
+      lastRefreshAt: previousSeenIso,
+    });
+  } else if (!userSessions.some((session) => session.is_current && session.is_active)) {
+    const nowIso = new Date().toISOString();
+    createMockSession({
+      userId: user.id,
+      userAgent: activeUserAgent,
+      deviceLabel: "Current browser session",
+      ipAddress: "203.0.113.10",
+      isCurrent: true,
+      loginTime: nowIso,
+      lastSeenAt: nowIso,
+      lastRefreshAt: nowIso,
+    });
+  }
+}
+
+function listTrackedSessionsForUser(user: MockAuthUserRecord) {
+  ensureTrackedSessionsForUser(user, navigator.userAgent);
+
+  return mockTrackedSessions
+    .filter((session) => session.user_id === user.id)
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.login_time);
+      const rightTime = Date.parse(right.login_time);
+      return Number.isNaN(rightTime) || Number.isNaN(leftTime) ? 0 : rightTime - leftTime;
+    })
+    .map(({ user_id: _userId, ...session }) => ({
+      ...session,
+    }));
+}
+
+function revokeTrackedSession(session: MockTrackedSessionRecord, reason: string) {
+  const nowIso = new Date().toISOString();
+
+  session.is_active = false;
+  session.is_revoked = true;
+  session.is_current = false;
+  session.revoked_at = nowIso;
+  session.logout_time = nowIso;
+  session.revoked_reason = reason;
+  session.last_seen_at = nowIso;
+}
+
 function buildConfigPath(
   template: string,
   params: Record<string, string | number>,
@@ -241,10 +471,38 @@ export function handleMockJwtPost(
     const passwordField = commandCenterConfig.auth.jwt.requestFields.password;
     const identifier = readString(payload[identifierField]);
     const password = readString(payload[passwordField]);
+    const mfaCode = readString(payload.mfa_code);
     const user = findUserByIdentifier(identifier);
 
     if (!user || user.password !== password) {
       throw new Error("Unable to sign in with the provided credentials.");
+    }
+
+    if (user.mfa_enabled) {
+      if (!mfaCode) {
+        throw new MockHttpError(401, {
+          detail: "MFA code required.",
+          code: "mfa_required",
+          mfa_required: true,
+        });
+      }
+
+      if (mfaCode !== mockMfaEnrollmentCode) {
+        throw new MockHttpError(401, {
+          detail: "Invalid MFA code.",
+        });
+      }
+    } else if (isPrivilegedMockUser(user)) {
+      const setupChallenge = issueMockMfaSetup(user);
+
+      throw new MockHttpError(401, {
+        detail: "MFA setup is required before login can complete.",
+        code: "mfa_setup_required",
+        mfa_setup_required: true,
+        setup_token: setupChallenge.setupToken,
+        setup_url: setupChallenge.setupUrl,
+        setup_verify_url: setupChallenge.setupVerifyUrl,
+      });
     }
 
     const { token, expiresAtSeconds } = buildMockJwt(user);
@@ -402,11 +660,188 @@ export function handleMockAuthRequest(
     };
   }
 
+  if (pathname === "/user/api/user/mfa/status/" && method === "GET") {
+    const user = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
+
+    if (!user) {
+      throw new Error(getMockUnauthorizedMessage());
+    }
+
+    return {
+      mfa_enabled: user.mfa_enabled ?? false,
+    };
+  }
+
+  if (pathname === "/user/api/user/mfa/setup/" && method === "GET") {
+    const authenticatedUser = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
+
+    if (authenticatedUser) {
+      if (authenticatedUser.mfa_enabled) {
+        throw new Error("MFA is already enabled for this account.");
+      }
+
+      return buildMockMfaSetupPayload(authenticatedUser);
+    }
+
+    const setupToken = readString(new URL(url, window.location.origin).searchParams.get("setup_token"));
+    const resolved = resolveMockMfaSetup(setupToken);
+
+    if (!resolved) {
+      throw new MockHttpError(401, {
+        detail: "MFA setup token is invalid or expired.",
+      });
+    }
+
+    return buildMockMfaSetupPayload(resolved.user);
+  }
+
+  if (pathname === "/user/api/user/mfa/setup/verify/" && method === "POST") {
+    const authenticatedUser = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
+
+    if (authenticatedUser) {
+      const mfaCode = readString(body?.mfa_code);
+
+      if (!mfaCode) {
+        throw new Error("MFA code is required.");
+      }
+
+      if (mfaCode !== mockMfaEnrollmentCode) {
+        throw new MockHttpError(401, {
+          detail: "Invalid MFA code.",
+        });
+      }
+
+      authenticatedUser.mfa_enabled = true;
+      authenticatedUser.last_login = new Date().toISOString();
+
+      return {
+        detail: "MFA enabled successfully.",
+        mfa_enabled: true,
+      };
+    }
+
+    const setupToken = readString(body?.setup_token);
+    const mfaCode = readString(body?.mfa_code);
+    const resolved = resolveMockMfaSetup(setupToken);
+
+    if (!resolved) {
+      throw new MockHttpError(401, {
+        detail: "MFA setup token is invalid or expired.",
+      });
+    }
+
+    if (mfaCode !== mockMfaEnrollmentCode) {
+      throw new MockHttpError(401, {
+        detail: "Invalid MFA code.",
+      });
+    }
+
+    resolved.user.mfa_enabled = true;
+    resolved.user.last_login = new Date().toISOString();
+    mockMfaSetups.delete(setupToken);
+
+    const { token, expiresAtSeconds } = buildMockJwt(resolved.user);
+    const responseFields = commandCenterConfig.auth.jwt.responseFields;
+
+    return {
+      detail: "MFA enabled successfully.",
+      mfa_enabled: true,
+      mfa_policy_enforced: true,
+      mfa_setup_required: false,
+      [responseFields.accessToken]: token,
+      [responseFields.refreshToken]: buildMockRefreshToken(
+        resolved.user,
+        expiresAtSeconds + 7 * 24 * 60 * 60,
+      ),
+      [responseFields.tokenType]: "Bearer",
+    };
+  }
+
+  if (pathname === "/auth/jwt-token/logout/" && method === "POST") {
+    const user = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
+
+    if (!user) {
+      throw new Error(getMockUnauthorizedMessage());
+    }
+
+    const currentSession = mockTrackedSessions.find(
+      (session) => session.user_id === user.id && session.is_current && session.is_active,
+    );
+
+    if (currentSession) {
+      revokeTrackedSession(currentSession, "User logged out.");
+    }
+
+    return {
+      detail: "JWT session logged out successfully.",
+    };
+  }
+
+  if (pathname === "/user/api/user/sessions/" && method === "GET") {
+    const user = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
+
+    if (!user) {
+      throw new Error(getMockUnauthorizedMessage());
+    }
+
+    return listTrackedSessionsForUser(user);
+  }
+
+  const revokeOneMatch = pathname.match(/^\/user\/api\/user\/sessions\/(\d+)\/revoke\/$/);
+
+  if (revokeOneMatch && method === "POST") {
+    const user = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
+
+    if (!user) {
+      throw new Error(getMockUnauthorizedMessage());
+    }
+
+    const sessionId = Number.parseInt(revokeOneMatch[1] ?? "", 10);
+    const session = mockTrackedSessions.find(
+      (entry) => entry.id === sessionId && entry.user_id === user.id,
+    );
+
+    if (!session) {
+      throw new Error("Session not found.");
+    }
+
+    revokeTrackedSession(session, "Revoked by current user.");
+
+    const { user_id: _userId, ...record } = session;
+    return record;
+  }
+
+  if (pathname === "/user/api/user/sessions/revoke-others/" && method === "POST") {
+    const user = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
+
+    if (!user) {
+      throw new Error(getMockUnauthorizedMessage());
+    }
+
+    const sessions = mockTrackedSessions.filter((session) => session.user_id === user.id);
+    let revokedCount = 0;
+
+    for (const session of sessions) {
+      if (!session.is_current && session.is_active && !session.is_revoked) {
+        revokeTrackedSession(session, "Revoked by current user.");
+        revokedCount += 1;
+      }
+    }
+
+    return {
+      detail: "Other tracked sessions revoked successfully.",
+      revoked_count: revokedCount,
+    };
+  }
+
   return undefined;
 }
 
 export function getMockAuthHint() {
-  const primaryUser = mockAuthState.users[0] ?? null;
+  const primaryUser =
+    mockAuthState.users.find((user) => !user.mfa_enabled && !isPrivilegedMockUser(user)) ??
+    mockAuthState.users[0] ??
+    null;
 
   if (!primaryUser) {
     return null;

@@ -44,5 +44,30 @@ export interface Session {
 export interface LoginInput {
   identifier: string;
   password: string;
+  mfaCode?: string;
   role?: BuiltinAppRole;
+}
+
+export interface MfaSetupChallenge {
+  detail: string;
+  setupToken: string;
+  setupUrl: string;
+  setupVerifyUrl: string;
+  qrPngBase64?: string;
+  manualEntryKey?: string;
+}
+
+export type AuthLoginChallenge =
+  | {
+      type: "mfa_required";
+      detail: string;
+    }
+  | ({
+      type: "mfa_setup_required";
+    } & MfaSetupChallenge);
+
+export interface CompleteMfaSetupInput {
+  setupToken: string;
+  setupVerifyUrl: string;
+  mfaCode: string;
 }

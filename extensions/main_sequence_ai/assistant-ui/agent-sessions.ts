@@ -2,6 +2,7 @@ import type { ThreadMessageLike } from "@assistant-ui/react";
 
 import type { AgentSearchResult } from "../agent-search";
 import type { AgentSessionApiRecord } from "../runtime/agent-sessions-api";
+import type { CommandCenterBaseSessionHandle } from "../runtime/command-center-base-session-api";
 
 export const DEFAULT_AGENT_NAME = "astro-orchestrator";
 export const DEFAULT_AGENT_LABEL = "Astro Orchestrator";
@@ -24,11 +25,13 @@ export interface AgentSessionRecord {
   preview: string | null;
   runtimeSessionId: string | null;
   sessionKey: string | null;
+  handleUniqueId: string | null;
   threadId: string | null;
   projectId: string | null;
   cwd: string | null;
   updatedAt: string;
   agent: AgentSessionAgent | null;
+  origin: "astro_command_center_base" | null;
   isPlaceholder: boolean;
   messages: ThreadMessageLike[];
 }
@@ -133,6 +136,10 @@ export function toAgentSessionRecordFromApi(
   const updatedAt = record.ended_at || record.started_at || new Date().toISOString();
   const title = record.title?.trim() || record.summary?.trim() || `Agent session ${sessionId}`;
   const preview = record.summary?.trim() || null;
+  const handleUniqueId =
+    (Array.isArray(record.bound_handles) ? record.bound_handles[0]?.handle_unique_id : null) ??
+    existing?.handleUniqueId ??
+    null;
 
   return {
     id: sessionId,
@@ -140,16 +147,22 @@ export function toAgentSessionRecordFromApi(
     preview,
     runtimeSessionId: existing?.runtimeSessionId ?? sessionId,
     sessionKey: existing?.sessionKey ?? null,
+    handleUniqueId,
     threadId: existing?.threadId ?? null,
     projectId: existing?.projectId ?? null,
     cwd: existing?.cwd ?? null,
     updatedAt,
+    origin: existing?.origin ?? null,
     isPlaceholder: false,
     agent: {
-      id: existing?.agent?.id ?? null,
-      name: record.actor_name?.trim() || existing?.agent?.name || "Astro Orchestrator",
+      id: record.agent ?? existing?.agent?.id ?? null,
+      name:
+        record.actor_name?.trim() ||
+        record.agent_name?.trim() ||
+        existing?.agent?.name ||
+        "Astro Orchestrator",
       requestName: record.agent_name?.trim() || existing?.agent?.requestName || DEFAULT_AGENT_NAME,
-      agentUniqueId: existing?.agent?.agentUniqueId || "astro-orchestrator",
+      agentUniqueId: handleUniqueId || existing?.agent?.agentUniqueId || "astro-orchestrator",
       description: existing?.agent?.description || "",
       status: record.status || existing?.agent?.status || "",
       llmProvider: record.llm_provider || existing?.agent?.llmProvider || "",
@@ -213,11 +226,13 @@ export function createEmptyAgentSession(
     preview: null,
     runtimeSessionId: null,
     sessionKey: null,
+    handleUniqueId: null,
     threadId: null,
     projectId: null,
     cwd: null,
     updatedAt: new Date().toISOString(),
     agent,
+    origin: null,
     isPlaceholder: options.placeholder ?? false,
     messages: [],
   };
@@ -252,6 +267,7 @@ export function attachAgentToSession(session: AgentSessionRecord, agent: AgentSe
   return {
     ...session,
     agent: nextAgent,
+    origin: session.origin,
     isPlaceholder: false,
     title:
       session.messages.length === 0
@@ -279,7 +295,9 @@ export function promoteAgentSessionFromStream({
       id: stream.agentSessionId,
       runtimeSessionId: stream.agentSessionId,
       sessionKey: stream.sessionKey ?? session.sessionKey,
+      handleUniqueId: session.handleUniqueId,
       threadId: stream.threadId ?? session.threadId,
+      origin: session.origin,
       isPlaceholder: false,
       updatedAt: new Date().toISOString(),
       agent: {
@@ -310,9 +328,11 @@ export function switchAgentSessionFromStream({
       id: stream.agentSessionId,
       runtimeSessionId: stream.runtimeSessionId ?? stream.agentSessionId,
       sessionKey: stream.sessionKey ?? session.sessionKey,
+      handleUniqueId: session.handleUniqueId,
       threadId: stream.threadId ?? session.threadId,
       projectId: stream.projectId ?? session.projectId,
       cwd: stream.cwd ?? session.cwd,
+      origin: session.origin,
       isPlaceholder: false,
       updatedAt: new Date().toISOString(),
       agent: {
@@ -325,6 +345,45 @@ export function switchAgentSessionFromStream({
     },
     messages,
   });
+}
+
+export function toAgentSessionRecordFromBaseHandle(
+  handle: CommandCenterBaseSessionHandle,
+  existing?: AgentSessionRecord,
+): AgentSessionRecord {
+  const nextAgent = existing?.agent ?? createDefaultAgentSessionAgent();
+  const requestName = handle.agent.requestName?.trim() || DEFAULT_AGENT_NAME;
+  const displayName =
+    handle.agent.name?.trim() ||
+    (requestName === DEFAULT_AGENT_NAME ? DEFAULT_AGENT_LABEL : requestName);
+
+  return {
+    id: handle.sessionId,
+    title:
+      existing?.title ||
+      displayName,
+    preview: existing?.preview ?? null,
+    runtimeSessionId: handle.runtimeSessionId ?? existing?.runtimeSessionId ?? handle.sessionId,
+    sessionKey: handle.sessionKey ?? existing?.sessionKey ?? null,
+    handleUniqueId: handle.handleUniqueId ?? existing?.handleUniqueId ?? null,
+    threadId: handle.threadId ?? existing?.threadId ?? null,
+    projectId: handle.projectId ?? existing?.projectId ?? null,
+    cwd: handle.cwd ?? existing?.cwd ?? null,
+    updatedAt: handle.updatedAt ?? existing?.updatedAt ?? new Date().toISOString(),
+    agent: {
+      ...nextAgent,
+      id: handle.agent.id ?? nextAgent.id,
+      name: displayName,
+      requestName,
+      agentUniqueId:
+        handle.agent.agentUniqueId?.trim() ||
+        nextAgent.agentUniqueId ||
+        requestName,
+    },
+    origin: "astro_command_center_base",
+    isPlaceholder: false,
+    messages: existing?.messages ?? [],
+  };
 }
 
 export function readAgentSessions(userId: string | null) {
@@ -370,6 +429,10 @@ export function readAgentSessions(userId: string | null) {
             typeof candidate.sessionKey === "string" && candidate.sessionKey
               ? candidate.sessionKey
               : null,
+          handleUniqueId:
+            typeof candidate.handleUniqueId === "string" && candidate.handleUniqueId
+              ? candidate.handleUniqueId
+              : null,
           threadId:
             typeof candidate.threadId === "string" && candidate.threadId
               ? candidate.threadId
@@ -386,6 +449,10 @@ export function readAgentSessions(userId: string | null) {
             typeof candidate.updatedAt === "string" && candidate.updatedAt
               ? candidate.updatedAt
               : new Date().toISOString(),
+          origin:
+            candidate.origin === "astro_command_center_base"
+              ? "astro_command_center_base"
+              : null,
           agent:
             candidate.agent && typeof candidate.agent === "object" && !Array.isArray(candidate.agent)
               ? ({

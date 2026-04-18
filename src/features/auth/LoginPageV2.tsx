@@ -553,10 +553,17 @@ function AnalyticsShowcase({ phase }: { phase: number }) {
   );
 }
 
+function normalizeMfaCode(value: string) {
+  return value.replace(/\D/g, "").slice(0, 6);
+}
+
 export function LoginPageV2() {
   const navigate = useNavigate();
   const location = useLocation();
   const login = useAuthStore((state) => state.login);
+  const completeMfaSetup = useAuthStore((state) => state.completeMfaSetup);
+  const challenge = useAuthStore((state) => state.challenge);
+  const resetLoginState = useAuthStore((state) => state.resetLoginState);
   const status = useAuthStore((state) => state.status);
   const error = useAuthStore((state) => state.error);
   const { app, auth } = useCommandCenterConfig();
@@ -569,10 +576,36 @@ export function LoginPageV2() {
   );
   const [password, setPassword] = useState(isBypassAuth ? "demo" : "");
   const [role, setRole] = useState<BuiltinAppRole>("org_admin");
+  const [mfaCode, setMfaCode] = useState("");
+  const [setupCode, setSetupCode] = useState("");
 
   const redirectTarget =
     (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/app";
+  const loginUiState: "password_login" | "mfa_verify" | "mfa_setup" =
+    challenge?.type === "mfa_setup_required"
+      ? "mfa_setup"
+      : challenge?.type === "mfa_required"
+        ? "mfa_verify"
+        : "password_login";
+  const mfaVerifyChallenge = challenge?.type === "mfa_required" ? challenge : null;
+  const mfaSetupChallenge = challenge?.type === "mfa_setup_required" ? challenge : null;
+  const isMfaRequired = loginUiState === "mfa_verify";
+  const isMfaSetupRequired = loginUiState === "mfa_setup";
   const isSubmitting = status === "authenticating" || status === "resolving";
+  const submitLabel =
+    status === "resolving"
+      ? "Authorizing..."
+      : isSubmitting
+        ? isMfaSetupRequired
+          ? "Enabling MFA..."
+          : isMfaRequired
+            ? "Verifying code..."
+            : "Signing in..."
+        : isMfaSetupRequired
+          ? "Enable MFA and sign in"
+          : isMfaRequired
+            ? "Verify code"
+            : "Sign in";
 
   const glowPoint = useMemo(() => [18, 26, 38, 52, 66, 58][phase % 6], [phase]);
 
@@ -592,13 +625,36 @@ export function LoginPageV2() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isMfaRequired) {
+      setMfaCode("");
+    }
+
+    if (!isMfaSetupRequired) {
+      setSetupCode("");
+    }
+  }, [isMfaRequired, isMfaSetupRequired]);
+
+  function resetChallengeAndInputs() {
+    resetLoginState();
+    setMfaCode("");
+    setSetupCode("");
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const didLogin = await login({
-      identifier,
-      password,
-      role: isBypassAuth ? role : undefined,
-    });
+    const didLogin = isMfaSetupRequired
+      ? await completeMfaSetup({
+          setupToken: mfaSetupChallenge?.setupToken ?? "",
+          setupVerifyUrl: mfaSetupChallenge?.setupVerifyUrl ?? "",
+          mfaCode: setupCode,
+        })
+      : await login({
+          identifier,
+          password,
+          mfaCode: isMfaRequired ? mfaCode : undefined,
+          role: isBypassAuth ? role : undefined,
+        });
 
     if (didLogin) {
       navigate(redirectTarget, { replace: true });
@@ -670,6 +726,7 @@ export function LoginPageV2() {
                       variant={option === role ? "primary" : "neutral"}
                       className="cursor-pointer"
                       onClick={() => {
+                        resetChallengeAndInputs();
                         setRole(option);
                         setIdentifier(`${option}@mainsequence.local`);
                       }}
@@ -690,7 +747,12 @@ export function LoginPageV2() {
                   <Input
                     name="auth-identifier"
                     value={identifier}
-                    onChange={(event) => setIdentifier(event.target.value)}
+                    onChange={(event) => {
+                      if (challenge) {
+                        resetChallengeAndInputs();
+                      }
+                      setIdentifier(event.target.value);
+                    }}
                     placeholder={auth.identifierPlaceholder}
                     autoCapitalize="none"
                     autoCorrect="off"
@@ -705,7 +767,12 @@ export function LoginPageV2() {
                   <PasswordInput
                     name="auth-password"
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) => {
+                      if (challenge) {
+                        resetChallengeAndInputs();
+                      }
+                      setPassword(event.target.value);
+                    }}
                     placeholder={isBypassAuth ? "demo" : "Enter your password"}
                     autoComplete="new-password"
                     data-1p-ignore="true"
@@ -715,7 +782,76 @@ export function LoginPageV2() {
                   />
                 </div>
 
-                {!isBypassAuth ? (
+                {isMfaRequired ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/10 px-3 py-3 text-sm text-foreground">
+                    <div className="font-medium">Authenticator code required</div>
+                    <div className="mt-1 text-muted-foreground">{mfaVerifyChallenge?.detail}</div>
+                  </div>
+                ) : null}
+
+                {isMfaSetupRequired ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/10 p-4">
+                    <div className="text-sm font-medium text-foreground">
+                      Multi-factor setup required
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">{mfaSetupChallenge?.detail}</div>
+                    <div className="mt-4 flex flex-wrap items-start gap-4">
+                      {mfaSetupChallenge?.qrPngBase64 ? (
+                        <img
+                          src={`data:image/png;base64,${mfaSetupChallenge.qrPngBase64}`}
+                          alt="MFA setup QR code"
+                          className="h-36 w-36 rounded-[calc(var(--radius)-6px)] border border-white/12 bg-white p-2"
+                        />
+                      ) : null}
+                      {mfaSetupChallenge?.manualEntryKey ? (
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                            Manual entry key
+                          </div>
+                          <div className="mt-2 rounded-[calc(var(--radius)-6px)] border border-white/10 bg-black/20 px-3 py-2 font-mono text-sm text-topbar-foreground">
+                            {mfaSetupChallenge.manualEntryKey}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
+                {isMfaRequired ? (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Authenticator code</label>
+                    <Input
+                      name="auth-mfa-code"
+                      value={mfaCode}
+                      onChange={(event) => setMfaCode(normalizeMfaCode(event.target.value))}
+                      placeholder="123456"
+                      autoComplete="one-time-code"
+                      inputMode="numeric"
+                      maxLength={6}
+                      className="bg-background/50"
+                    />
+                  </div>
+                ) : null}
+
+                {isMfaSetupRequired ? (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">
+                      First authenticator code
+                    </label>
+                    <Input
+                      name="auth-mfa-setup-code"
+                      value={setupCode}
+                      onChange={(event) => setSetupCode(normalizeMfaCode(event.target.value))}
+                      placeholder="123456"
+                      autoComplete="one-time-code"
+                      inputMode="numeric"
+                      maxLength={6}
+                      className="bg-background/50"
+                    />
+                  </div>
+                ) : null}
+
+                {!isBypassAuth && !isMfaSetupRequired ? (
                   <div className="flex justify-end">
                     <Link
                       to="/reset-password"
@@ -731,7 +867,10 @@ export function LoginPageV2() {
                     <label className="text-sm font-medium text-foreground">Access class</label>
                     <select
                       value={role}
-                      onChange={(event) => setRole(event.target.value as BuiltinAppRole)}
+                      onChange={(event) => {
+                        resetChallengeAndInputs();
+                        setRole(event.target.value as BuiltinAppRole);
+                      }}
                       className="h-10 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-background/50 px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     >
                       {builtinAppRoles.map((option) => (
@@ -750,13 +889,21 @@ export function LoginPageV2() {
                 ) : null}
 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {status === "resolving"
-                    ? "Authorizing..."
-                    : isSubmitting
-                      ? "Signing in..."
-                      : "Sign in"}
+                  {submitLabel}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
+
+                {challenge ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={isSubmitting}
+                    onClick={resetChallengeAndInputs}
+                  >
+                    Start over
+                  </Button>
+                ) : null}
               </form>
 
               <div className="mt-5 space-y-3 rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.03] p-4">
@@ -774,6 +921,10 @@ export function LoginPageV2() {
                     <span className="font-mono text-foreground">VITE_BYPASS_AUTH=true</span> is
                     enabled. This `v2` route still follows the same local bypass behavior.
                   </>
+                ) : isMfaSetupRequired ? (
+                  <>Complete MFA enrollment with the returned setup token flow before sign-in finishes.</>
+                ) : isMfaRequired ? (
+                  <>Submit the 6-digit authenticator code to finish the login flow.</>
                 ) : (
                   <>Use your organization credentials to access the command center.</>
                 )}

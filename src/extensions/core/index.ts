@@ -16,6 +16,7 @@ import { AdminActivePlansPage } from "@/extensions/core/apps/admin/AdminActivePl
 import { AdminBillingDetailsPage } from "@/extensions/core/apps/admin/AdminBillingDetailsPage";
 import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/AdminGithubOrganizationsPage";
 import { AdminInvoicesPage } from "@/extensions/core/apps/admin/AdminInvoicesPage";
+import { AdminLoginSessionsPage } from "@/extensions/core/apps/admin/AdminLoginSessionsPage";
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
 import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
 import { SavedWidgetsPage } from "@/features/dashboards/SavedWidgetsPage";
@@ -237,6 +238,31 @@ const adminApp: AppDefinition = {
         order: 40,
       },
       component: AdminActivePlansPage,
+    },
+    {
+      id: "security-sessions",
+      title: "Security Sessions",
+      navLabel: "Security",
+      description: "Review and revoke organization-scoped tracked login sessions.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Security Sessions. This page lists tracked organization login sessions and allows scoped revocation.",
+        availableActions: [
+          "Search tracked sessions",
+          "Filter by auth source and state",
+          "Revoke a session in organization scope",
+        ],
+      }),
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["org_admin:view"],
+      navigationSection: {
+        id: "organization-users",
+        label: "Organization Users",
+        description: "Directory surfaces backed by organization-scoped user data.",
+        order: 40,
+      },
+      component: AdminLoginSessionsPage,
     },
     {
       id: "widget-configurations",
