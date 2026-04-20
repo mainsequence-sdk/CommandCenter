@@ -1,17 +1,6 @@
 import type { SessionInsightsSnapshot } from "../assistant-ui/session-insights";
 import { normalizeSessionInsightsSnapshot } from "../assistant-ui/session-insights";
-import {
-  buildMainSequenceAiAssistantUrl,
-  fetchMainSequenceAiAssistantResponse,
-} from "./assistant-endpoint";
-
-function buildSessionInsightsUrl(sessionId: string, assistantEndpoint: string) {
-  const url = new URL(
-    buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/chat/session-insights"),
-  );
-  url.searchParams.set("sessionId", sessionId);
-  return url.toString();
-}
+import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
 
 export async function fetchSessionInsights({
   assistantEndpoint,
@@ -20,22 +9,22 @@ export async function fetchSessionInsights({
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
   sessionId: string;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
 }) {
-  const url = buildSessionInsightsUrl(sessionId, assistantEndpoint);
+  const requestPath = `/api/chat/session-insights?sessionId=${encodeURIComponent(sessionId)}`;
   let response: Response;
-  let requestUrl = url;
+  let requestUrl = requestPath;
 
   try {
     ({ response, url: requestUrl } = await fetchMainSequenceAiAssistantResponse({
       accept: "application/json",
       assistantEndpoint,
       currentSessionId: sessionId,
-      requestPath: `/api/chat/session-insights?sessionId=${encodeURIComponent(sessionId)}`,
+      requestPath,
       method: "GET",
       signal,
       sessionToken: token,

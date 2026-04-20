@@ -1,5 +1,8 @@
 import { commandCenterConfig, type AssistantUiProtocol } from "@/config/command-center";
-import { fetchOrCreateCommandCenterBaseSession } from "./command-center-base-session-api";
+import {
+  fetchOrCreateCommandCenterBaseSession,
+  type CommandCenterBaseSessionHandle,
+} from "./command-center-base-session-api";
 
 export interface MainSequenceAiResolvedAssistantAccess {
   assistantEndpoint: string;
@@ -11,8 +14,6 @@ export interface MainSequenceAiResolvedAssistantAccess {
 }
 
 export type MainSequenceAiAssistantRuntimeTarget = "agent-runtime" | "configured";
-
-const BLANK_CONFIGURED_ASSISTANT_ENDPOINT_FALLBACK = "/";
 
 let cachedDynamicAssistantAccess: MainSequenceAiResolvedAssistantAccess | null = null;
 let cachedDynamicAssistantAccessSessionId: string | null = null;
@@ -54,10 +55,13 @@ function toAssistantBaseUrl(endpoint: string) {
 }
 
 export function resolveMainSequenceAiAssistantEndpoint() {
-  return (
-    resolveMainSequenceAiConfiguredAssistantEndpoint() ??
-    BLANK_CONFIGURED_ASSISTANT_ENDPOINT_FALLBACK
-  );
+  const configuredAssistantEndpoint = resolveMainSequenceAiConfiguredAssistantEndpoint();
+
+  if (!configuredAssistantEndpoint) {
+    throw new Error("assistant_ui.endpoint is blank.");
+  }
+
+  return configuredAssistantEndpoint;
 }
 
 export function buildMainSequenceAiAssistantUrl(assistantEndpoint: string, requestPath: string) {
@@ -114,7 +118,7 @@ export function buildMainSequenceAiAssistantHeaders({
 }
 
 function normalizeDynamicAssistantAccess(
-  payload: Awaited<ReturnType<typeof fetchOrCreateCommandCenterBaseSession>>,
+  payload: CommandCenterBaseSessionHandle,
 ): MainSequenceAiResolvedAssistantAccess {
   const rpcUrl = payload.runtimeAccess?.rpcUrl?.trim();
   const runtimeToken = payload.runtimeAccess?.token?.trim();
@@ -141,15 +145,18 @@ function normalizeDynamicAssistantAccess(
   };
 }
 
-export function setMainSequenceAiResolvedRuntimeAccess(
-  payload: Awaited<ReturnType<typeof fetchOrCreateCommandCenterBaseSession>> | null,
+function cacheDynamicAssistantAccess(
+  access: MainSequenceAiResolvedAssistantAccess | null,
+  currentSessionId: string | null,
 ) {
-  if (!payload?.runtimeAccess) {
+  if (!access) {
     cachedDynamicAssistantAccess = null;
+    cachedDynamicAssistantAccessSessionId = null;
     return;
   }
 
-  cachedDynamicAssistantAccess = normalizeDynamicAssistantAccess(payload);
+  cachedDynamicAssistantAccess = access;
+  cachedDynamicAssistantAccessSessionId = currentSessionId;
 }
 
 export function clearMainSequenceAiResolvedRuntimeAccess() {
@@ -165,6 +172,35 @@ function normalizeRuntimeSessionId(value: string | number | null | undefined) {
 
   const normalized = String(value).trim();
   return normalized || null;
+}
+
+export async function fetchMainSequenceAiCommandCenterRuntimeHandle({
+  currentSessionId,
+  signal,
+  sessionToken,
+  sessionTokenType = "Bearer",
+}: {
+  currentSessionId?: string | number | null;
+  signal?: AbortSignal;
+  sessionToken?: string | null;
+  sessionTokenType?: string;
+}) {
+  const normalizedCurrentSessionId = normalizeRuntimeSessionId(currentSessionId);
+
+  if (!sessionToken) {
+    throw new Error("No authenticated session token is available for dynamic assistant access.");
+  }
+
+  const handle = await fetchOrCreateCommandCenterBaseSession({
+    currentSessionId: normalizedCurrentSessionId,
+    signal,
+    token: sessionToken,
+    tokenType: sessionTokenType,
+  });
+  const access = normalizeDynamicAssistantAccess(handle);
+  cacheDynamicAssistantAccess(access, normalizedCurrentSessionId);
+
+  return { access, handle };
 }
 
 async function refreshDynamicAssistantAccess({
@@ -190,15 +226,12 @@ async function refreshDynamicAssistantAccess({
   }
 
   const refreshPromise = (async () => {
-    const payload = await fetchOrCreateCommandCenterBaseSession({
+    const { access } = await fetchMainSequenceAiCommandCenterRuntimeHandle({
       currentSessionId: normalizedCurrentSessionId,
-      token: sessionToken,
-      tokenType: sessionTokenType,
+      sessionToken,
+      sessionTokenType,
     });
-    const resolved = normalizeDynamicAssistantAccess(payload);
-    cachedDynamicAssistantAccess = resolved;
-    cachedDynamicAssistantAccessSessionId = normalizedCurrentSessionId;
-    return resolved;
+    return access;
   })();
 
   inFlightDynamicAssistantAccessRefresh = refreshPromise;

@@ -51,7 +51,8 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
   without adding a frontend-specific status contract.
 - Settings sections must resolve the backend astro Command Center session before calling
   assistant-runtime endpoints so they use `runtime_access.rpc_url`, not the static configured
-  endpoint or the Vite assistant proxy.
+  endpoint or the Vite assistant proxy. Settings queries should remain disabled until that dynamic
+  runtime root exists.
 - The main user-facing headline number should use `consumedBytes / totalBytes`, not
   `filesystemUsedBytes`.
 - Preserve the `detail.mainsequence` bucket when the storage endpoint returns it. The normalizer

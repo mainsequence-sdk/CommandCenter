@@ -145,7 +145,7 @@ export async function streamAgentSessionResponse({
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
   body: Record<string, unknown>;
   onChunk?: (chunk: AgentSessionStreamChunk) => void;
   protocol: AssistantUiProtocol;

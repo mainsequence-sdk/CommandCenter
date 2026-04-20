@@ -317,7 +317,10 @@ If you do those steps, the main project should return to its pre-chat shape beca
 
 ## Live Transport Notes
 
-- `assistant_ui.endpoint` is the canonical assistant `POST` endpoint in live mode.
+- Live assistant-runtime requests resolve their root through `runtime/assistant-endpoint.ts`,
+  which exchanges the Command Center base session handle and uses `runtime_access.rpc_url`.
+  `assistant_ui.endpoint` is only for explicitly configured/static mode and is not a fallback for
+  Main Sequence AI agent-runtime calls.
 - The live runtime keeps assistant-ui's standard stream decoding, but sends only the most recent
   user message in `messages` instead of the full thread history.
 - The selected `AgentSession` now overrides `threadId` in the live request body, so backend session

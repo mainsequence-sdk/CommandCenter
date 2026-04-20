@@ -3,6 +3,7 @@ import { Loader2, RefreshCcw } from "lucide-react";
 
 import type { AppShellMenuRenderProps } from "@/apps/types";
 import { Button } from "@/components/ui/button";
+import { buildMainSequenceAiAssistantUrl } from "../../runtime/assistant-endpoint";
 import { fetchAssistantHealth } from "../../runtime/assistant-health-api";
 import { fetchStorageUsage } from "../../runtime/storage-usage-api";
 import { useAssistantRuntimeAccess } from "./useAssistantRuntimeAccess";
@@ -96,32 +97,46 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
   const assistantEndpoint = assistantRuntime.assistantEndpoint;
   const sessionToken = assistantRuntime.sessionToken;
   const sessionTokenType = assistantRuntime.sessionTokenType;
+  const hasAssistantRuntimeEndpoint = assistantRuntime.isReady && Boolean(assistantEndpoint);
 
   const storageUsageQuery = useQuery({
     queryKey: ["main-sequence-ai", "storage-usage", assistantEndpoint, sessionToken],
-    enabled: assistantRuntime.isReady,
-    queryFn: ({ signal }) =>
-      fetchStorageUsage({
+    enabled: hasAssistantRuntimeEndpoint,
+    queryFn: ({ signal }) => {
+      if (!assistantEndpoint) {
+        throw new Error("Assistant runtime endpoint is not resolved.");
+      }
+
+      return fetchStorageUsage({
         assistantEndpoint,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
-      }),
+      });
+    },
   });
   const healthQuery = useQuery({
     queryKey: ["main-sequence-ai", "assistant-health", assistantEndpoint, sessionToken],
-    enabled: assistantRuntime.isReady,
-    queryFn: ({ signal }) =>
-      fetchAssistantHealth({
+    enabled: hasAssistantRuntimeEndpoint,
+    queryFn: ({ signal }) => {
+      if (!assistantEndpoint) {
+        throw new Error("Assistant runtime endpoint is not resolved.");
+      }
+
+      return fetchAssistantHealth({
         assistantEndpoint,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
-      }),
+      });
+    },
   });
 
   const snapshot = storageUsageQuery.data ?? null;
   const healthSnapshot = healthQuery.data ?? null;
+  const healthEndpointUrl = assistantEndpoint
+    ? buildMainSequenceAiAssistantUrl(assistantEndpoint, "/health")
+    : null;
   const capturedAt = formatTimestamp(snapshot?.capturedAt ?? null);
   const healthCapturedAt = formatTimestamp(healthSnapshot?.capturedAt ?? null);
   const consumedPercent = snapshot ? Math.min(Math.max(snapshot.consumedPercentOfTotal, 0), 100) : 0;
@@ -137,6 +152,11 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
             <div className="mt-1 text-sm text-muted-foreground">
               Global runtime storage for Agents. This is deployment-level storage usage, not chat or session-only usage.
             </div>
+            {assistantEndpoint ? (
+              <div className="mt-2 break-all font-mono text-xs text-muted-foreground">
+                Runtime root: {assistantEndpoint}
+              </div>
+            ) : null}
           </div>
           <Button
             type="button"
@@ -144,7 +164,7 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
             variant="outline"
             disabled={settingsRefreshing}
             onClick={() => {
-              if (!assistantRuntime.isReady) {
+              if (!hasAssistantRuntimeEndpoint) {
                 void assistantRuntime.refetch();
                 return;
               }
@@ -188,6 +208,11 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
             <div className="mt-1 text-sm text-muted-foreground">
               Raw response from <span className="font-mono">GET /health</span> on the assistant runtime.
             </div>
+            {healthEndpointUrl ? (
+              <div className="mt-2 break-all font-mono text-xs text-muted-foreground">
+                {healthEndpointUrl}
+              </div>
+            ) : null}
           </div>
           {healthSnapshot ? (
             <div
@@ -216,7 +241,7 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
         {healthSnapshot ? (
           <div className="mt-4 space-y-3">
             <div className="grid gap-3 md:grid-cols-2">
-              <DetailRow label="URL" value={healthSnapshot.url} />
+              <DetailRow label="URL" value={healthSnapshot.url || healthEndpointUrl || "/health"} />
               <DetailRow label="Captured" value={healthCapturedAt ?? healthSnapshot.capturedAt} />
               <DetailRow
                 label="Content type"

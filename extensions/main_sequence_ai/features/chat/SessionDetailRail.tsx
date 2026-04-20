@@ -8,7 +8,6 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
-import { resolveMainSequenceAiAssistantEndpoint } from "../../runtime/assistant-endpoint";
 import {
   patchSessionConfig,
   SessionConfigApiError,
@@ -104,7 +103,6 @@ function SessionInsightsContent({
   onSessionMissing: () => void;
 }) {
   const { activeSessionSummary, refreshSessionInsights } = useChatFeature();
-  const assistantEndpoint = resolveMainSequenceAiAssistantEndpoint();
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const sessionInsights = activeSessionSummary?.sessionInsights ?? null;
@@ -411,7 +409,6 @@ function SessionInsightsContent({
 
                     try {
                       const response = await patchSessionConfig({
-                        assistantEndpoint,
                         body: {
                           sessionId: sessionLookupId,
                           config: {

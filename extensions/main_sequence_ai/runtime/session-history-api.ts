@@ -9,7 +9,7 @@ export async function fetchSessionHistory({
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
   sessionId: string;
   signal?: AbortSignal;
   token?: string | null;

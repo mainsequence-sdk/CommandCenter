@@ -359,6 +359,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
   const assistantEndpoint = assistantRuntime.assistantEndpoint;
   const sessionToken = assistantRuntime.sessionToken;
   const sessionTokenType = assistantRuntime.sessionTokenType;
+  const hasAssistantRuntimeEndpoint = assistantRuntime.isReady && Boolean(assistantEndpoint);
   const [activeAttempt, setActiveAttempt] = useState<SignInAttempt | null>(null);
   const [manualInputValue, setManualInputValue] = useState("");
   const [attemptError, setAttemptError] = useState<string | null>(null);
@@ -368,30 +369,40 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
   const providerAuthQuery = useQuery({
     queryKey: providerQueryKey,
-    enabled: assistantRuntime.isReady,
-    queryFn: ({ signal }) =>
-      fetchModelProviderAuthStates({
+    enabled: hasAssistantRuntimeEndpoint,
+    queryFn: ({ signal }) => {
+      if (!assistantEndpoint) {
+        throw new Error("Assistant runtime endpoint is not resolved.");
+      }
+
+      return fetchModelProviderAuthStates({
         assistantEndpoint,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
-      }),
+      });
+    },
   });
 
   const modelsQuery = useQuery({
     queryKey: catalogQueryKey,
-    enabled: assistantRuntime.isReady,
-    queryFn: ({ signal }) =>
-      fetchModelCatalog({
+    enabled: hasAssistantRuntimeEndpoint,
+    queryFn: ({ signal }) => {
+      if (!assistantEndpoint) {
+        throw new Error("Assistant runtime endpoint is not resolved.");
+      }
+
+      return fetchModelCatalog({
         assistantEndpoint,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
-      }),
+      });
+    },
   });
 
   const refresh = async () => {
-    if (!assistantRuntime.isReady) {
+    if (!hasAssistantRuntimeEndpoint) {
       await assistantRuntime.refetch();
       return;
     }
@@ -411,16 +422,21 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       activeAttempt?.provider,
       activeAttempt?.id,
     ],
-    enabled: assistantRuntime.isReady && Boolean(activeAttempt),
-    queryFn: ({ signal }) =>
-      fetchModelProviderSignInAttempt({
+    enabled: hasAssistantRuntimeEndpoint && Boolean(activeAttempt),
+    queryFn: ({ signal }) => {
+      if (!assistantEndpoint) {
+        throw new Error("Assistant runtime endpoint is not resolved.");
+      }
+
+      return fetchModelProviderSignInAttempt({
         assistantEndpoint,
         provider: activeAttempt?.provider ?? "",
         attemptId: activeAttempt?.id ?? "",
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
-      }),
+      });
+    },
     refetchInterval: (query) => {
       const nextAttempt = query.state.data;
 
@@ -433,13 +449,18 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
   });
 
   const signInMutation = useMutation({
-    mutationFn: async (provider: string) =>
-      startModelProviderSignIn({
+    mutationFn: async (provider: string) => {
+      if (!assistantEndpoint) {
+        throw new Error("Assistant runtime endpoint is not resolved.");
+      }
+
+      return startModelProviderSignIn({
         assistantEndpoint,
         provider,
         token: sessionToken,
         tokenType: sessionTokenType,
-      }),
+      });
+    },
     onSuccess: async (result) => {
       setAttemptError(null);
       setManualInputValue("");
@@ -465,13 +486,18 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
   });
 
   const signOffMutation = useMutation({
-    mutationFn: async (provider: string) =>
-      signOffModelProvider({
+    mutationFn: async (provider: string) => {
+      if (!assistantEndpoint) {
+        throw new Error("Assistant runtime endpoint is not resolved.");
+      }
+
+      return signOffModelProvider({
         assistantEndpoint,
         provider,
         token: sessionToken,
         tokenType: sessionTokenType,
-      }),
+      });
+    },
     onSuccess: async () => {
       await refresh();
     },
@@ -481,6 +507,10 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
     mutationFn: async () => {
       if (!activeAttempt) {
         return null;
+      }
+
+      if (!assistantEndpoint) {
+        throw new Error("Assistant runtime endpoint is not resolved.");
       }
 
       return submitModelProviderManualSignIn({
@@ -508,6 +538,10 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
     mutationFn: async () => {
       if (!activeAttempt) {
         return;
+      }
+
+      if (!assistantEndpoint) {
+        throw new Error("Assistant runtime endpoint is not resolved.");
       }
 
       await cancelModelProviderSignIn({
@@ -671,7 +705,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
       {!providerAuthQuery.isLoading &&
       !modelsQuery.isLoading &&
-      assistantRuntime.isReady &&
+      hasAssistantRuntimeEndpoint &&
       !providerAuthQuery.isError &&
       !modelsQuery.isError &&
       providerOrder.length === 0 ? (
@@ -682,7 +716,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
       {!providerAuthQuery.isLoading &&
       !modelsQuery.isLoading &&
-      assistantRuntime.isReady &&
+      hasAssistantRuntimeEndpoint &&
       !providerAuthQuery.isError &&
       !modelsQuery.isError ? (
         <div className="space-y-4">

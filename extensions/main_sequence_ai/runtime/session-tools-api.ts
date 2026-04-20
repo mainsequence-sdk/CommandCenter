@@ -1,17 +1,6 @@
 import type { SessionToolsSnapshot } from "../assistant-ui/session-tools";
 import { normalizeSessionToolsSnapshot } from "../assistant-ui/session-tools";
-import {
-  buildMainSequenceAiAssistantUrl,
-  fetchMainSequenceAiAssistantResponse,
-} from "./assistant-endpoint";
-
-function buildSessionToolsUrl(sessionId: string, assistantEndpoint: string) {
-  const url = new URL(
-    buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/chat/session-tools"),
-  );
-  url.searchParams.set("sessionId", sessionId);
-  return url.toString();
-}
+import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
 
 export async function fetchSessionTools({
   assistantEndpoint,
@@ -20,16 +9,16 @@ export async function fetchSessionTools({
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
   sessionId: string;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
 }) {
-  const url = buildSessionToolsUrl(sessionId, assistantEndpoint);
+  const requestPath = `/api/chat/session-tools?sessionId=${encodeURIComponent(sessionId)}`;
   let response: Response;
-  let requestUrl = url;
-  let resolvedAssistantEndpoint = assistantEndpoint;
+  let requestUrl = requestPath;
+  let resolvedAssistantEndpoint: string | null = null;
 
   try {
     ({
@@ -40,7 +29,7 @@ export async function fetchSessionTools({
       accept: "application/json",
       assistantEndpoint,
       currentSessionId: sessionId,
-      requestPath: `/api/chat/session-tools?sessionId=${encodeURIComponent(sessionId)}`,
+      requestPath,
       method: "GET",
       signal,
       sessionToken: token,
@@ -65,5 +54,11 @@ export async function fetchSessionTools({
   }
 
   const payload = (await response.json()) as unknown;
+  if (!resolvedAssistantEndpoint) {
+    throw new Error(
+      `Failed to load available tools for session ${sessionId}. Assistant runtime endpoint was not resolved.`,
+    );
+  }
+
   return normalizeSessionToolsSnapshot(payload, resolvedAssistantEndpoint) satisfies SessionToolsSnapshot;
 }

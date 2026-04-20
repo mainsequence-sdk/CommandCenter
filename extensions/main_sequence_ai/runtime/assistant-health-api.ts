@@ -1,4 +1,7 @@
-import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
+import {
+  buildMainSequenceAiAssistantUrl,
+  fetchMainSequenceAiAssistantResponse,
+} from "./assistant-endpoint";
 
 export interface AssistantHealthSnapshot {
   body: unknown;
@@ -46,15 +49,24 @@ export async function fetchAssistantHealth({
   token?: string | null;
   tokenType?: string;
 }): Promise<AssistantHealthSnapshot> {
-  const { response, url } = await fetchMainSequenceAiAssistantResponse({
-    accept: "application/json, text/plain;q=0.9, */*;q=0.8",
-    assistantEndpoint,
-    requestPath: "/health",
-    method: "GET",
-    signal,
-    sessionToken: token,
-    sessionTokenType: tokenType,
-  });
+  let url = buildMainSequenceAiAssistantUrl(assistantEndpoint, "/health");
+  let response: Response;
+
+  try {
+    ({ response, url } = await fetchMainSequenceAiAssistantResponse({
+      accept: "application/json, text/plain;q=0.9, */*;q=0.8",
+      assistantEndpoint,
+      requestPath: "/health",
+      method: "GET",
+      signal,
+      sessionToken: token,
+      sessionTokenType: tokenType,
+    }));
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown fetch error.";
+    throw new Error(`Failed to fetch health endpoint ${url}. ${detail}`);
+  }
+
   const body = await readHealthBody(response);
 
   return {

@@ -428,7 +428,7 @@ export async function fetchAvailableRunConfigOptions({
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;

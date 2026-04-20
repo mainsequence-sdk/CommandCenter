@@ -14,8 +14,6 @@ import {
   type AgentSessionStreamChunk,
 } from "../../runtime/agent-session-stream";
 import {
-  resolveMainSequenceAiAssistantChatEndpoint,
-  resolveMainSequenceAiAssistantEndpoint,
   resolveMainSequenceAiAssistantProtocol,
 } from "../../runtime/assistant-endpoint";
 import { fetchSessionHistory } from "../../runtime/session-history-api";
@@ -154,8 +152,6 @@ export function AgentTerminalWidget({
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
   const widgetExecution = useDashboardWidgetExecution();
-  const assistantEndpoint = useMemo(() => resolveMainSequenceAiAssistantEndpoint(), []);
-  const assistantChatEndpoint = useMemo(() => resolveMainSequenceAiAssistantChatEndpoint(), []);
   const assistantProtocol = useMemo(() => resolveMainSequenceAiAssistantProtocol(), []);
   const [lines, setLines] = useState<AgentTerminalLine[]>(() => buildAgentTerminalPlaceholderLines());
   const [sessionState, setSessionState] = useState<AgentTerminalSessionState | null>(null);
@@ -425,14 +421,12 @@ export function AgentTerminalWidget({
       try {
         const [historyResult, toolsResult] = await Promise.allSettled([
           fetchSessionHistory({
-            assistantEndpoint,
             sessionId: targetSessionId,
             signal: controller.signal,
             token: sessionToken,
             tokenType: sessionTokenType,
           }),
           fetchSessionTools({
-            assistantEndpoint,
             sessionId: targetSessionId,
             signal: controller.signal,
             token: sessionToken,
@@ -509,7 +503,6 @@ export function AgentTerminalWidget({
       }
     },
     [
-      assistantEndpoint,
       focusPromptInput,
       publishLatestAssistantMarkdown,
       sessionToken,
@@ -638,7 +631,6 @@ export function AgentTerminalWidget({
 
       try {
         await streamAgentSessionResponse({
-          assistantEndpoint: assistantChatEndpoint,
           body: buildAgentSessionLiveRequestBody({
             agentName: activeSession.agentName,
             context: buildWidgetContext({
@@ -774,7 +766,6 @@ export function AgentTerminalWidget({
     [
       appendLine,
       appendOutputDelta,
-      assistantEndpoint,
       assistantProtocol,
       hydrateSession,
       instanceId,

@@ -30,15 +30,9 @@ import type {
 } from "../runtime/available-models-api";
 import { fetchAvailableRunConfigOptions } from "../runtime/available-models-api";
 import {
-  fetchOrCreateCommandCenterBaseSession,
-} from "../runtime/command-center-base-session-api";
-import {
   clearMainSequenceAiResolvedRuntimeAccess,
+  fetchMainSequenceAiCommandCenterRuntimeHandle,
   fetchMainSequenceAiAssistantResponse,
-  resolveMainSequenceAiAssistantAccess,
-  resolveMainSequenceAiAssistantChatEndpoint,
-  resolveMainSequenceAiAssistantEndpoint,
-  setMainSequenceAiResolvedRuntimeAccess,
 } from "../runtime/assistant-endpoint";
 import {
   attachAgentToSession,
@@ -542,14 +536,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const sessionInsightsRequestRef = useRef<AbortController | null>(null);
   const sessionToolsRequestRef = useRef<AbortController | null>(null);
   const availableModelsRequestRef = useRef<AbortController | null>(null);
-  const assistantUiEndpoint = useMemo(
-    () => resolveMainSequenceAiAssistantEndpoint(),
-    [],
-  );
-  const assistantUiChatEndpoint = useMemo(
-    () => resolveMainSequenceAiAssistantChatEndpoint(),
-    [],
-  );
+  const shouldHydrateChatRuntime =
+    location.pathname === CHAT_PAGE_PATH || isRailOpen;
   const openPreferredRail = useCallback(() => {
     openRail(resolvePreferredChatRailMode());
   }, [openRail]);
@@ -716,10 +704,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const shouldResolveBaseSession =
-      location.pathname === CHAT_PAGE_PATH || isRailOpen;
-
-    if (!shouldResolveBaseSession || !sessionUserId || !sessionToken) {
+    if (!shouldHydrateChatRuntime || !sessionUserId || !sessionToken) {
       if (!sessionToken) {
         clearMainSequenceAiResolvedRuntimeAccess();
       }
@@ -734,17 +719,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       try {
-        const handle = await fetchOrCreateCommandCenterBaseSession({
+        const { handle } = await fetchMainSequenceAiCommandCenterRuntimeHandle({
           signal: controller.signal,
-          token: sessionToken,
-          tokenType: sessionTokenType,
+          sessionToken,
+          sessionTokenType,
         });
 
         if (controller.signal.aborted) {
           return;
         }
-
-        setMainSequenceAiResolvedRuntimeAccess(handle);
 
         setAgentSessions((currentSessions) => {
           const existing =
@@ -801,8 +784,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, [
     clearThread,
-    isRailOpen,
-    location.pathname,
+    shouldHydrateChatRuntime,
     sessionToken,
     sessionTokenType,
     sessionUserId,
@@ -820,6 +802,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     availableModelsRequestRef.current?.abort();
 
+    if (!shouldHydrateChatRuntime) {
+      setAvailableModelsError(null);
+      setIsLoadingAvailableModels(false);
+      return;
+    }
+
     if (!sessionToken) {
       setAvailableModels([]);
       setAvailableProviders([]);
@@ -836,19 +824,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       try {
-        const resolvedAccess = await resolveMainSequenceAiAssistantAccess({
-          assistantEndpoint: assistantUiEndpoint,
-          runtimeTarget: "agent-runtime",
-          sessionToken,
-          sessionTokenType,
-        });
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
         const options = await fetchAvailableRunConfigOptions({
-          assistantEndpoint: resolvedAccess.assistantEndpoint,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
@@ -882,9 +858,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return () => {
       controller.abort();
     };
-  }, [assistantUiEndpoint, sessionToken, sessionTokenType]);
+  }, [
+    sessionToken,
+    sessionTokenType,
+    shouldHydrateChatRuntime,
+  ]);
 
   useEffect(() => {
+    if (!shouldHydrateChatRuntime || !sessionToken) {
+      setIsLoadingLatestSessions(false);
+      setLatestSessionsError(null);
+      return;
+    }
+
     const controller = new AbortController();
 
     void (async () => {
@@ -966,7 +952,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return () => {
       controller.abort();
     };
-  }, [latestSessionsAgentFilterId, sessionToken, sessionTokenType, sessionUserId]);
+  }, [
+    latestSessionsAgentFilterId,
+    sessionToken,
+    sessionTokenType,
+    sessionUserId,
+    shouldHydrateChatRuntime,
+  ]);
 
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
@@ -1157,6 +1149,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (!shouldHydrateChatRuntime) {
+      setIsLoadingSessionInsights(false);
+      setSessionInsightsError(null);
+      return;
+    }
+
     const runtimeSessionId =
       activeSession?.runtimeSessionId?.trim() || resolveSessionApiLookupId(activeSession);
 
@@ -1174,7 +1172,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         const snapshot = await fetchSessionInsights({
-          assistantEndpoint: assistantUiEndpoint,
           sessionId: runtimeSessionId,
           signal: controller.signal,
           token: sessionToken,
@@ -1209,18 +1206,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       controller.abort();
     };
   }, [
-    assistantUiEndpoint,
     activeSession?.id,
     activeSession?.runtimeSessionId,
     sessionInsightsRefreshNonce,
     sessionToken,
     sessionTokenType,
+    shouldHydrateChatRuntime,
   ]);
 
   useEffect(() => {
     sessionToolsRequestRef.current?.abort();
 
     if (env.useMockData) {
+      setIsLoadingSessionTools(false);
+      setSessionToolsError(null);
+      return;
+    }
+
+    if (!shouldHydrateChatRuntime) {
       setIsLoadingSessionTools(false);
       setSessionToolsError(null);
       return;
@@ -1243,7 +1246,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         const snapshot = await fetchSessionTools({
-          assistantEndpoint: assistantUiEndpoint,
           sessionId: runtimeSessionId,
           signal: controller.signal,
           token: sessionToken,
@@ -1278,11 +1280,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       controller.abort();
     };
   }, [
-    assistantUiEndpoint,
     activeSession?.id,
     activeSession?.runtimeSessionId,
     sessionToken,
     sessionTokenType,
+    shouldHydrateChatRuntime,
   ]);
 
   const updateAssistantText = useCallback((assistantId: string, chunk: string) => {
@@ -1594,7 +1596,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       void (async () => {
         try {
           const snapshot = await fetchSessionHistory({
-            assistantEndpoint: assistantUiEndpoint,
             sessionId: lookupSessionId,
             signal: controller.signal,
             token: sessionToken,
@@ -1706,7 +1707,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
     [
       agentSessions,
-      assistantUiEndpoint,
       clearThread,
       sessionToken,
       sessionTokenType,
@@ -1798,12 +1798,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   });
 
   const liveRuntime = useLatestMessageDataStreamRuntime({
-    api: assistantUiChatEndpoint,
+    api: "/api/chat",
     fetch: async (_input, init) => {
       const activeSession = activeSessionRef.current;
       const currentSessionId = resolveSessionApiLookupId(activeSession);
       const { response } = await fetchMainSequenceAiAssistantResponse({
-        assistantEndpoint: assistantUiChatEndpoint,
         currentSessionId,
         requestPath: "/api/chat",
         runtimeTarget: "agent-runtime",
@@ -2000,8 +1999,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!shouldHydrateChatRuntime) {
+      sessionHistoryRequestRef.current?.abort();
+      return;
+    }
+
     loadCurrentSession(currentSessionId);
-  }, [currentSessionId, loadCurrentSession]);
+  }, [currentSessionId, loadCurrentSession, shouldHydrateChatRuntime]);
 
   useEffect(() => {
     if (!env.useMockData || !currentSessionId) {

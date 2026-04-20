@@ -33,7 +33,7 @@ export async function patchSessionConfig({
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
   body: SessionConfigPatchRequest;
   token?: string | null;
   tokenType?: string;
