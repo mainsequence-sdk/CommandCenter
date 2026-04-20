@@ -158,10 +158,11 @@ export function AppComponentSchemaDiscoverySection({
             <div className="space-y-1 rounded-[calc(var(--radius)-8px)] border border-danger/30 bg-black/20 p-3 text-xs text-danger/95">
               <div className="font-semibold uppercase tracking-[0.14em]">Request auth context</div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                <span className="break-all">Request URL: {openApiDiscoveryError.requestUrl ?? "unknown"}</span>
                 <span>Auth mode: {formatAuthModeTag(openApiDiscoveryError.authMode)}</span>
                 <span>Transport: {openApiDiscoveryError.requestTransport ?? "unknown"}</span>
                 <span>
-                  Session JWT present:
+                  Session JWT present:{" "}
                   {formatBoolean(openApiDiscoveryError.authTokenPresent)}
                 </span>
                 <span>
@@ -172,7 +173,7 @@ export function AppComponentSchemaDiscoverySection({
                   Authorization source: {formatAuthorizationSource(openApiDiscoveryError.authHeaderSource)}
                 </span>
                 <span>
-                  Authorization attached:
+                  Authorization attached:{` `}
                   {formatBoolean(openApiDiscoveryError.authHeaderAttached)}
                 </span>
               </div>
