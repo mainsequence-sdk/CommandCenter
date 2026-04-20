@@ -265,7 +265,16 @@ async function readResponseBody(response: Response) {
 
   if (contentType.includes("application/json")) {
     try {
-      return await response.json();
+      const text = await response.text();
+      if (!text.trim()) {
+        return null;
+      }
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text.trim() ? text : null;
+      }
     } catch {
       return null;
     }
