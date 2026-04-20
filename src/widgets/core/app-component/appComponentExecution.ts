@@ -7,6 +7,7 @@ import type {
 
 import {
   APP_COMPONENT_SAFE_RESPONSE_CACHE_TTL_MS,
+  buildAppComponentResponseErrorMessage,
   fetchAppComponentOpenApiDocument,
   submitAppComponentRequest,
 } from "./appComponentApi";
@@ -230,20 +231,10 @@ export async function executeAppComponent(
         lastResponseHeaders: response.headers,
         lastResponseBody: response.body,
         editableFormSession,
-        error:
-          response.ok
-            ? undefined
-            : typeof response.body === "string"
-              ? response.body
-              : `Request failed with ${response.status}.`,
+        error: response.ok ? undefined : buildAppComponentResponseErrorMessage(response),
         publishedOutputs,
       },
-      error:
-        response.ok
-          ? undefined
-          : typeof response.body === "string"
-            ? response.body
-            : `Request failed with ${response.status}.`,
+      error: response.ok ? undefined : buildAppComponentResponseErrorMessage(response),
     };
   } catch (error) {
     return buildAppComponentErrorResult(

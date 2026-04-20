@@ -40,7 +40,10 @@ import {
   type AppComponentGeneratedForm,
   type AppComponentWidgetProps,
 } from "./appComponentModel";
-import { submitAppComponentRequest } from "./appComponentApi";
+import {
+  buildAppComponentResponseErrorMessage,
+  submitAppComponentRequest,
+} from "./appComponentApi";
 
 export interface AppComponentFieldBindingDisplayState {
   isBound: boolean;
@@ -286,11 +289,7 @@ function AsyncSelectSearchFieldEditor({
       });
 
       if (!response.ok) {
-        throw new Error(
-          typeof response.body === "string"
-            ? response.body
-            : `Search request failed with ${response.status}.`,
-        );
+        throw new Error(buildAppComponentResponseErrorMessage(response, "Search request"));
       }
 
       const items = resolveAppComponentResponseValueAtPath(response.body, enhancement.itemsPath);

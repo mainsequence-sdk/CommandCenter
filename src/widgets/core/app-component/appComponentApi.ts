@@ -48,6 +48,7 @@ const inFlightOpenApiRequests = new Map<string, Promise<OpenApiDocument>>();
 const safeResponseCache = new Map<string, CachedEntry<AppComponentTransportResponse>>();
 const inFlightSafeResponses = new Map<string, Promise<AppComponentTransportResponse>>();
 const APP_COMPONENT_OPENAPI_ERROR_SAMPLE_MAX_CHARS = 1600;
+const APP_COMPONENT_RESPONSE_ERROR_MAX_CHARS = 24_000;
 
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
@@ -310,6 +311,41 @@ export interface AppComponentTransportResponse {
   url: string;
   headers: Record<string, string>;
   body: unknown;
+}
+
+export function buildAppComponentResponseErrorMessage(
+  response: Pick<AppComponentTransportResponse, "status" | "statusText" | "body">,
+  requestLabel = "Request",
+) {
+  const normalizedStatusText = response.statusText.trim();
+  const statusLabel = normalizedStatusText
+    ? `${response.status} ${normalizedStatusText}`
+    : `${response.status}`;
+
+  if (response.body == null) {
+    return `${requestLabel} failed with ${statusLabel}.`;
+  }
+
+  if (typeof response.body === "string") {
+    const bodyText = response.body.trim();
+    return bodyText
+      ? `${requestLabel} failed with ${statusLabel}. Response body: ${bodyText}`
+      : `${requestLabel} failed with ${statusLabel}.`;
+  }
+
+  try {
+    const serialized = JSON.stringify(response.body);
+    const bounded =
+      serialized.length > APP_COMPONENT_RESPONSE_ERROR_MAX_CHARS
+        ? `${serialized.slice(0, APP_COMPONENT_RESPONSE_ERROR_MAX_CHARS)}…`
+        : serialized;
+
+    return `${requestLabel} failed with ${statusLabel}. Response body: ${bounded}`;
+  } catch {
+    const bodyText = String(response.body);
+
+    return `${requestLabel} failed with ${statusLabel}. Response body: ${bodyText}`;
+  }
 }
 
 function readHeaders(response: Response) {
