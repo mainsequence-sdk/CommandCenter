@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ExternalLink, Loader2 } from "lucide-react";
 
 import type { AppShellMenuRenderProps } from "@/apps/types";
-import { useAuthStore } from "@/auth/auth-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -22,7 +21,7 @@ import {
   type ProviderAuthStatus,
   type SignInAttempt,
 } from "../../runtime/model-provider-auth-api";
-import { resolveMainSequenceAiAssistantEndpoint } from "../../runtime/assistant-endpoint";
+import { useAssistantRuntimeAccess } from "./useAssistantRuntimeAccess";
 
 function formatProviderLabel(provider: string) {
   return provider
@@ -356,9 +355,10 @@ function ProviderSignInModal({
 
 export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
   const queryClient = useQueryClient();
-  const assistantEndpoint = resolveMainSequenceAiAssistantEndpoint();
-  const sessionToken = useAuthStore((state) => state.session?.token ?? null);
-  const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
+  const assistantRuntime = useAssistantRuntimeAccess();
+  const assistantEndpoint = assistantRuntime.assistantEndpoint;
+  const sessionToken = assistantRuntime.sessionToken;
+  const sessionTokenType = assistantRuntime.sessionTokenType;
   const [activeAttempt, setActiveAttempt] = useState<SignInAttempt | null>(null);
   const [manualInputValue, setManualInputValue] = useState("");
   const [attemptError, setAttemptError] = useState<string | null>(null);
@@ -368,9 +368,11 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
   const providerAuthQuery = useQuery({
     queryKey: providerQueryKey,
-    queryFn: () =>
+    enabled: assistantRuntime.isReady,
+    queryFn: ({ signal }) =>
       fetchModelProviderAuthStates({
         assistantEndpoint,
+        signal,
         token: sessionToken,
         tokenType: sessionTokenType,
       }),
@@ -378,15 +380,22 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
   const modelsQuery = useQuery({
     queryKey: catalogQueryKey,
-    queryFn: () =>
+    enabled: assistantRuntime.isReady,
+    queryFn: ({ signal }) =>
       fetchModelCatalog({
         assistantEndpoint,
+        signal,
         token: sessionToken,
         tokenType: sessionTokenType,
       }),
   });
 
   const refresh = async () => {
+    if (!assistantRuntime.isReady) {
+      await assistantRuntime.refetch();
+      return;
+    }
+
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: providerQueryKey }),
       queryClient.invalidateQueries({ queryKey: catalogQueryKey }),
@@ -402,12 +411,13 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       activeAttempt?.provider,
       activeAttempt?.id,
     ],
-    enabled: Boolean(activeAttempt),
-    queryFn: () =>
+    enabled: assistantRuntime.isReady && Boolean(activeAttempt),
+    queryFn: ({ signal }) =>
       fetchModelProviderSignInAttempt({
         assistantEndpoint,
         provider: activeAttempt?.provider ?? "",
         attemptId: activeAttempt?.id ?? "",
+        signal,
         token: sessionToken,
         tokenType: sessionTokenType,
       }),
@@ -620,10 +630,20 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
         </div>
       </div>
 
-      {providerAuthQuery.isLoading || modelsQuery.isLoading ? (
+      {assistantRuntime.isLoading || providerAuthQuery.isLoading || modelsQuery.isLoading ? (
         <div className="flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading provider auth and model catalog
+          {assistantRuntime.isLoading
+            ? "Resolving assistant runtime session"
+            : "Loading provider auth and model catalog"}
+        </div>
+      ) : null}
+
+      {assistantRuntime.isError ? (
+        <div className="rounded-[calc(var(--radius)-4px)] border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+          {assistantRuntime.error instanceof Error
+            ? assistantRuntime.error.message
+            : "Unable to resolve the assistant runtime session."}
         </div>
       ) : null}
 
@@ -651,6 +671,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
       {!providerAuthQuery.isLoading &&
       !modelsQuery.isLoading &&
+      assistantRuntime.isReady &&
       !providerAuthQuery.isError &&
       !modelsQuery.isError &&
       providerOrder.length === 0 ? (
@@ -661,6 +682,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
       {!providerAuthQuery.isLoading &&
       !modelsQuery.isLoading &&
+      assistantRuntime.isReady &&
       !providerAuthQuery.isError &&
       !modelsQuery.isError ? (
         <div className="space-y-4">

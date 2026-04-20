@@ -1,0 +1,28 @@
+{
+  "id": "platform/platform-index",
+  "title": "Platform",
+  "description": "This section covers the shell-level foundation that everything else builds on.",
+  "source": "@site/../docs/platform/README.md",
+  "sourceDirName": "platform",
+  "slug": "/platform",
+  "permalink": "/docs/platform",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/platform/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "platform-index",
+    "title": "Platform",
+    "slug": "/platform"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/docs/"
+  },
+  "next": {
+    "title": "Architecture",
+    "permalink": "/docs/platform/architecture"
+  }
+}

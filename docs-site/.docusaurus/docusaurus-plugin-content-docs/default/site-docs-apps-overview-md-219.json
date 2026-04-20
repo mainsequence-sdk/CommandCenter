@@ -1,0 +1,24 @@
+{
+  "id": "apps/overview",
+  "title": "Apps and Surfaces",
+  "description": "Overview",
+  "source": "@site/../docs/apps/overview.md",
+  "sourceDirName": "apps",
+  "slug": "/apps/overview",
+  "permalink": "/docs/apps/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/apps/overview.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Apps",
+    "permalink": "/docs/apps"
+  },
+  "next": {
+    "title": "Widgets",
+    "permalink": "/docs/widgets"
+  }
+}

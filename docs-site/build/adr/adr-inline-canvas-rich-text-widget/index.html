@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-inline-canvas-rich-text-widget" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: Inline Canvas Editing Capability and Rich Text Widget | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-inline-canvas-rich-text-widget"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Inline Canvas Editing Capability and Rich Text Widget | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-inline-canvas-rich-text-widget"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-inline-canvas-rich-text-widget" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-inline-canvas-rich-text-widget" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ADR: Inline Canvas Editing Capability and Rich Text Widget","item":"https://mainsequence-sdk.github.io/docs/adr/adr-inline-canvas-rich-text-widget"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
+<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/"><span title="Overview" class="linkLabel_WmDU">Overview</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/platform"><span title="Platform" class="categoryLinkLabel_W154">Platform</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform"><span title="Platform" class="linkLabel_WmDU">Platform</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/configuration"><span title="Configuration" class="linkLabel_WmDU">Configuration</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/theming"><span title="Theming" class="linkLabel_WmDU">Theming</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/internationalization"><span title="Internationalization" class="linkLabel_WmDU">Internationalization</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/notifications"><span title="Notifications" class="linkLabel_WmDU">Notifications</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/apps"><span title="Apps" class="categoryLinkLabel_W154">Apps</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps"><span title="Apps" class="linkLabel_WmDU">Apps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps/overview"><span title="Apps and Surfaces" class="linkLabel_WmDU">Apps and Surfaces</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/widgets"><span title="Widgets" class="categoryLinkLabel_W154">Widgets</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets"><span title="Widgets" class="linkLabel_WmDU">Widgets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets/core-widgets"><span title="Core Widgets" class="linkLabel_WmDU">Core Widgets</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/workspaces"><span title="Workspaces" class="categoryLinkLabel_W154">Workspaces</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/overview"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/dashboard-layouts"><span title="Dashboard Layouts" class="linkLabel_WmDU">Dashboard Layouts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/backend-model"><span title="Workspace Backend Model" class="linkLabel_WmDU">Workspace Backend Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/runtime-performance-remediation"><span title="Workspace Runtime Performance Remediation" class="linkLabel_WmDU">Workspace Runtime Performance Remediation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/settings-headless-runtime-investigation"><span title="Workspace Settings Headless Runtime Investigation" class="linkLabel_WmDU">Workspace Settings Headless Runtime Investigation</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/extensions"><span title="Extensions" class="categoryLinkLabel_W154">Extensions</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions/overview"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/auth"><span title="Auth" class="categoryLinkLabel_W154">Auth</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth"><span title="Auth" class="linkLabel_WmDU">Auth</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth/backend-and-auth"><span title="Backend and Auth Integration" class="linkLabel_WmDU">Backend and Auth Integration</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/access-control"><span title="Access Control" class="categoryLinkLabel_W154">Access Control</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control"><span title="Access Control" class="linkLabel_WmDU">Access Control</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/rbac-assignment-matrix"><span title="RBAC Assignment Matrix" class="linkLabel_WmDU">RBAC Assignment Matrix</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/access-rbac-app"><span title="Access &amp; RBAC App" class="linkLabel_WmDU">Access &amp; RBAC App</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/operations"><span title="Operations" class="categoryLinkLabel_W154">Operations</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations"><span title="Operations" class="linkLabel_WmDU">Operations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations/deployment"><span title="Deployment" class="linkLabel_WmDU">Deployment</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docs/adr"><span title="ADRs" class="categoryLinkLabel_W154">ADRs</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr"><span title="Architecture Decision Records" class="linkLabel_WmDU">Architecture Decision Records</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-shared-workspace-state"><span title="Workspace And Runtime" class="categoryLinkLabel_W154">Workspace And Runtime</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docs/adr/adr-widget-bindings-and-dependency-graph"><span title="Widget Contracts" class="categoryLinkLabel_W154">Widget Contracts</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-widget-bindings-and-dependency-graph"><span title="ADR: First-Class Widget Bindings and Dependency Graph" class="linkLabel_WmDU">ADR: First-Class Widget Bindings and Dependency Graph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-binding-output-transforms"><span title="ADR: Binding-Level Output Transforms for Structured Widget Outputs" class="linkLabel_WmDU">ADR: Binding-Level Output Transforms for Structured Widget Outputs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-executable-widget-graph-runner"><span title="ADR: Executable Widget Graph Runner and Refresh Coordination" class="linkLabel_WmDU">ADR: Executable Widget Graph Runner and Refresh Coordination</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-source-driven-downstream-execution"><span title="ADR: Source-Driven Downstream Execution After Manual Widget Actions" class="linkLabel_WmDU">ADR: Source-Driven Downstream Execution After Manual Widget Actions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-agent-ready-widget-type-registry-contract"><span title="ADR: Agent-Ready Widget Type Registry Contract" class="linkLabel_WmDU">ADR: Agent-Ready Widget Type Registry Contract</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-organization-widget-type-configurations"><span title="ADR: Organization-Scoped Widget Type Configurations" class="linkLabel_WmDU">ADR: Organization-Scoped Widget Type Configurations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docs/adr/adr-inline-canvas-rich-text-widget"><span title="ADR: Inline Canvas Editing Capability and Rich Text Widget" class="linkLabel_WmDU">ADR: Inline Canvas Editing Capability and Rich Text Widget</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-app-component-binding-native-api-widget"><span title="AppComponent And API" class="categoryLinkLabel_W154">AppComponent And API</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-extension-contributed-shell-settings-menus"><span title="Shell And Extensions" class="categoryLinkLabel_W154">Shell And Extensions</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-main-sequence-ai-command-center-base-session"><span title="Main Sequence AI" class="categoryLinkLabel_W154">Main Sequence AI</span></a></div></li></ul></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">ADRs</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Widget Contracts</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">ADR: Inline Canvas Editing Capability and Rich Text Widget</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: Inline Canvas Editing Capability and Rich Text Widget</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-04-16</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/adr-rgl-v2-workspace-studio">ADR: Use React Grid Layout v2 API in Workspace Studio</a></li>
+<li class=""><a class="" href="/docs/adr/adr-shared-workspace-state">ADR: Shared Workspace Content vs Per-User View State</a></li>
+<li class=""><a class="" href="/docs/adr/adr-agent-ready-widget-type-registry-contract">ADR: Agent-Ready Widget Type Registry Contract</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The current <code>Markdown</code> widget is source-authored and settings-driven:</p>
+<ul>
+<li class="">content is stored as a markdown string in widget props</li>
+<li class="">users edit that content in the widget settings panel</li>
+<li class="">the mounted widget runtime only renders the markdown body</li>
+</ul>
+<p>That model is fine for markdown-first documentation, but it is not friendly for users who want to
+author narrative card content directly on the workspace canvas.</p>
+<p>At the same time, the current workspace host blocks inline authoring even if a widget wanted it:</p>
+<ul>
+<li class="">workspace edit mode globally disables pointer events for widget bodies</li>
+<li class="">widget runtime components do not currently receive a direct prop-update callback</li>
+<li class="">there is no shared widget capability that says “this widget may remain interactive in edit mode”</li>
+</ul>
+<p>There is also a content-model problem:</p>
+<ul>
+<li class=""><code>Markdown</code> stores raw markdown</li>
+<li class="">a TipTap-style rich text editor wants HTML or ProseMirror JSON</li>
+</ul>
+<p>Trying to bolt TipTap onto the existing <code>Markdown</code> widget would create a misleading and fragile
+content model. It would pretend the widget is still markdown-first while actually becoming a rich
+text editor.</p>
+<p>So there are really two separate needs:</p>
+<ol>
+<li class="">a general platform capability for widgets that can edit inline on the canvas</li>
+<li class="">a new rich text widget for friendly inline authoring</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>We will not turn the existing <code>Markdown</code> widget into a TipTap-backed inline editor.</p>
+<p>Instead we will:</p>
+<ol>
+<li class="">keep <code>Markdown</code> as a markdown-first widget</li>
+<li class="">add a general inline canvas editing capability to the widget platform</li>
+<li class="">create a new core <code>Rich Text</code> widget that uses that capability</li>
+</ol>
+<p>This keeps content models honest:</p>
+<ul>
+<li class=""><code>Markdown</code> remains source-oriented and markdown-native</li>
+<li class=""><code>Rich Text</code> becomes the friendly WYSIWYG card authoring widget</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-markdown-stays-separate">Why Markdown Stays Separate<a href="#why-markdown-stays-separate" class="hash-link" aria-label="Direct link to Why Markdown Stays Separate" title="Direct link to Why Markdown Stays Separate" translate="no">​</a></h2>
+<p>The existing <code>Markdown</code> widget should continue to mean:</p>
+<ul>
+<li class="">markdown is the canonical stored content</li>
+<li class="">authored content is text/source oriented</li>
+<li class="">the settings editor remains the primary authoring surface</li>
+<li class="">the runtime renderer is a markdown viewer, not a rich text editor</li>
+</ul>
+<p>The platform should not silently convert a markdown widget into a rich-text widget.</p>
+<p>That split matters for:</p>
+<ul>
+<li class="">predictable persistence</li>
+<li class="">clear agent/tooling semantics</li>
+<li class="">honest registry contracts</li>
+<li class="">lower migration risk for existing workspaces</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision-details">Decision Details<a href="#decision-details" class="hash-link" aria-label="Direct link to Decision Details" title="Direct link to Decision Details" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-add-a-shared-inline-canvas-editing-capability">1. Add a shared inline canvas editing capability<a href="#1-add-a-shared-inline-canvas-editing-capability" class="hash-link" aria-label="Direct link to 1. Add a shared inline canvas editing capability" title="Direct link to 1. Add a shared inline canvas editing capability" translate="no">​</a></h3>
+<p>The widget platform will gain a general capability for widgets that may stay interactive while the
+workspace is in edit mode.</p>
+<p>This should be modeled in the shared widget contract, not hardcoded for one widget family.</p>
+<p>Recommended shape:</p>
+<ul>
+<li class="">widget capability or canvas-editing configuration such as:<!-- -->
+<ul>
+<li class=""><code>canvasEditing.mode = &quot;none&quot; | &quot;inline&quot;</code></li>
+</ul>
+</li>
+</ul>
+<p>This capability must be reusable by future widgets, not only rich text.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-extend-the-widget-runtime-contract">2. Extend the widget runtime contract<a href="#2-extend-the-widget-runtime-contract" class="hash-link" aria-label="Direct link to 2. Extend the widget runtime contract" title="Direct link to 2. Extend the widget runtime contract" translate="no">​</a></h3>
+<p>Widgets that support inline editing need more than read-only props.</p>
+<p>The shared <code>WidgetComponentProps</code> contract should be extended so widgets can know:</p>
+<ul>
+<li class="">whether the host is in editable canvas mode</li>
+<li class="">whether inline editing is allowed for this instance</li>
+<li class="">how to push instance prop updates back to the workspace draft</li>
+</ul>
+<p>This should be a shared runtime contract change, not a widget-local workaround.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-make-workspace-edit-mode-selective-not-global">3. Make workspace edit mode selective, not global<a href="#3-make-workspace-edit-mode-selective-not-global" class="hash-link" aria-label="Direct link to 3. Make workspace edit mode selective, not global" title="Direct link to 3. Make workspace edit mode selective, not global" translate="no">​</a></h3>
+<p>Current workspace edit mode blocks interaction for all widget bodies.</p>
+<p>That behavior will change to:</p>
+<ul>
+<li class="">non-inline-edit widgets still get the current non-interactive behavior in edit mode</li>
+<li class="">inline-edit widgets remain interactive inside their body</li>
+</ul>
+<p>So the host changes from a blanket pointer-event block to capability-aware gating.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-introduce-a-new-rich-text-widget">4. Introduce a new <code>Rich Text</code> widget<a href="#4-introduce-a-new-rich-text-widget" class="hash-link" aria-label="Direct link to 4-introduce-a-new-rich-text-widget" title="Direct link to 4-introduce-a-new-rich-text-widget" translate="no">​</a></h3>
+<p>We will add a new core widget, recommended as:</p>
+<ul>
+<li class="">widget id: <code>rich-text-note</code></li>
+<li class="">title: <code>Rich Text</code></li>
+</ul>
+<p>This widget will:</p>
+<ul>
+<li class="">support inline canvas editing in workspace edit mode</li>
+<li class="">use a TipTap-based authoring surface</li>
+<li class="">store rich text natively</li>
+<li class="">remain local authored content, not an execution widget</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-use-a-rich-text-native-storage-model">5. Use a rich-text-native storage model<a href="#5-use-a-rich-text-native-storage-model" class="hash-link" aria-label="Direct link to 5. Use a rich-text-native storage model" title="Direct link to 5. Use a rich-text-native storage model" translate="no">​</a></h3>
+<p>For v1 the new widget will store HTML as canonical content.</p>
+<p>Recommended props:</p>
+<ul>
+<li class=""><code>contentHtml?: string</code></li>
+<li class=""><code>contentWidth?: &quot;compact&quot; | &quot;prose&quot; | &quot;full&quot;</code></li>
+<li class=""><code>contentVerticalAlign?: &quot;top&quot; | &quot;center&quot; | &quot;bottom&quot;</code></li>
+<li class=""><code>openLinksInNewTab?: boolean</code></li>
+</ul>
+<p>Why HTML for v1:</p>
+<ul>
+<li class="">simpler than round-tripping markdown through TipTap</li>
+<li class="">easier runtime rendering</li>
+<li class="">easier persistence</li>
+<li class="">easier snapshot/debug visibility</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-keep-markdown-as-a-separate-authoring-path">6. Keep Markdown as a separate authoring path<a href="#6-keep-markdown-as-a-separate-authoring-path" class="hash-link" aria-label="Direct link to 6. Keep Markdown as a separate authoring path" title="Direct link to 6. Keep Markdown as a separate authoring path" translate="no">​</a></h3>
+<p>Users should choose the right widget for the right content model:</p>
+<ul>
+<li class=""><code>Markdown</code> for markdown-first notes, runbooks, and source-authored content</li>
+<li class=""><code>Rich Text</code> for friendly inline card editing and WYSIWYG authoring</li>
+</ul>
+<p>There should be no automatic replacement of <code>Markdown</code> with <code>Rich Text</code>.</p>
+<p>Any future conversion flow should be explicit and optional.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="architecture">Architecture<a href="#architecture" class="hash-link" aria-label="Direct link to Architecture" title="Direct link to Architecture" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="platform-capability">Platform capability<a href="#platform-capability" class="hash-link" aria-label="Direct link to Platform capability" title="Direct link to Platform capability" translate="no">​</a></h3>
+<p>The platform work belongs in the shared widget and workspace host layers:</p>
+<ul>
+<li class="">shared widget definition contract</li>
+<li class="">shared widget component props</li>
+<li class="">workspace canvas host behavior in edit mode</li>
+</ul>
+<p>This is not a markdown-only change.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-implementation">Widget implementation<a href="#widget-implementation" class="hash-link" aria-label="Direct link to Widget implementation" title="Direct link to Widget implementation" translate="no">​</a></h3>
+<p>The new widget belongs under:</p>
+<ul>
+<li class=""><code>src/widgets/core/rich-text-note/</code></li>
+</ul>
+<p>It must include:</p>
+<ul>
+<li class=""><code>README.md</code></li>
+<li class=""><code>definition.ts</code></li>
+<li class=""><code>RichTextNoteWidget.tsx</code></li>
+<li class=""><code>RichTextNoteWidgetSettings.tsx</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="editor-behavior">Editor behavior<a href="#editor-behavior" class="hash-link" aria-label="Direct link to Editor behavior" title="Direct link to Editor behavior" translate="no">​</a></h3>
+<p>Recommended v1 behavior:</p>
+<ul>
+<li class="">normal view mode:<!-- -->
+<ul>
+<li class="">render stored HTML</li>
+</ul>
+</li>
+<li class="">workspace edit mode:<!-- -->
+<ul>
+<li class="">render TipTap inline editor directly on the card</li>
+</ul>
+</li>
+<li class="">settings:<!-- -->
+<ul>
+<li class="">keep only secondary presentation controls</li>
+<li class="">optionally expose a source HTML panel for advanced inspection</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="toolbar-scope">Toolbar scope<a href="#toolbar-scope" class="hash-link" aria-label="Direct link to Toolbar scope" title="Direct link to Toolbar scope" translate="no">​</a></h3>
+<p>The first toolbar should stay practical:</p>
+<ul>
+<li class="">bold</li>
+<li class="">italic</li>
+<li class="">headings</li>
+<li class="">bullet list</li>
+<li class="">ordered list</li>
+<li class="">blockquote</li>
+<li class="">code</li>
+<li class="">link</li>
+<li class="">undo</li>
+<li class="">redo</li>
+</ul>
+<p>Do not expand this into a full page-layout system in v1.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">workspace users can author narrative cards directly where they appear</li>
+<li class="">the platform gains a reusable inline canvas editing capability</li>
+<li class=""><code>Markdown</code> stays honest and predictable</li>
+<li class=""><code>Rich Text</code> can be optimized for usability without distorting markdown semantics</li>
+</ul>
+<p>Negative:</p>
+<ul>
+<li class="">the workspace host gets a more complex interaction model in edit mode</li>
+<li class="">widget runtime props need a broader host contract</li>
+<li class="">the new widget introduces a richer editor dependency and a new persistence format</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="guardrails">Guardrails<a href="#guardrails" class="hash-link" aria-label="Direct link to Guardrails" title="Direct link to Guardrails" translate="no">​</a></h2>
+<ul>
+<li class="">Do not add TipTap to the existing <code>Markdown</code> widget.</li>
+<li class="">Do not add widget-specific host hacks for one inline editor.</li>
+<li class="">Do not keep the current blanket <code>pointer-events-none</code> behavior once inline-edit widgets exist.</li>
+<li class="">Do not claim markdown semantics for HTML-authored content.</li>
+<li class="">Do not make settings the only authoring path for the new rich text widget.</li>
+<li class="">Keep the existing <code>Markdown</code> widget markdown-first.</li>
+<li class="">Rich inline editing belongs to the new <code>Rich Text</code> widget, not <code>Markdown</code>.</li>
+<li class="">Do not add automatic Markdown-to-Rich-Text conversion in this rollout.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="open-questions">Open Questions<a href="#open-questions" class="hash-link" aria-label="Direct link to Open Questions" title="Direct link to Open Questions" translate="no">​</a></h2>
+<ul>
+<li class="">Should the platform later support an explicit one-way conversion flow from <code>Markdown</code> to <code>Rich Text</code>?</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rollout-checklist">Rollout Checklist<a href="#rollout-checklist" class="hash-link" aria-label="Direct link to Rollout Checklist" title="Direct link to Rollout Checklist" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-1-shared-inline-canvas-editing-capability">Phase 1: Shared inline canvas editing capability<a href="#phase-1-shared-inline-canvas-editing-capability" class="hash-link" aria-label="Direct link to Phase 1: Shared inline canvas editing capability" title="Direct link to Phase 1: Shared inline canvas editing capability" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a shared widget-level capability for inline canvas editing to the widget definition contract.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extend <code>WidgetComponentProps</code> with edit-mode and prop-update hooks needed by inline-edit widgets.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Document the new shared capability in the shared widget docs.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add registry-contract support so agent/admin tooling can see whether a widget supports inline canvas editing.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-2-workspace-host-interaction-model">Phase 2: Workspace host interaction model<a href="#phase-2-workspace-host-interaction-model" class="hash-link" aria-label="Direct link to Phase 2: Workspace host interaction model" title="Direct link to Phase 2: Workspace host interaction model" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Refactor workspace edit mode so widget body interactivity is gated by widget capability, not disabled globally.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep non-inline-edit widgets non-interactive in workspace edit mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Allow inline-edit widgets to receive pointer events and remain editable in workspace edit mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Verify drag, selection, resize, and widget action chrome still behave correctly around interactive widget bodies.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-3-new-rich-text-widget-scaffold">Phase 3: New Rich Text widget scaffold<a href="#phase-3-new-rich-text-widget-scaffold" class="hash-link" aria-label="Direct link to Phase 3: New Rich Text widget scaffold" title="Direct link to Phase 3: New Rich Text widget scaffold" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Create <code>src/widgets/core/rich-text-note/</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <code>README.md</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <code>definition.ts</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add runtime component and settings component files.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Register the widget in the core extension.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add an explicit widget registry contract and initial <code>widgetVersion</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-4-rich-text-content-model">Phase 4: Rich text content model<a href="#phase-4-rich-text-content-model" class="hash-link" aria-label="Direct link to Phase 4: Rich text content model" title="Direct link to Phase 4: Rich text content model" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Store canonical content as <code>contentHtml</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add rich-text presentation props such as content width and vertical alignment.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Render saved HTML safely in normal viewing mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure the widget remains local authored content with no execution ownership.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-5-tiptap-inline-editor">Phase 5: TipTap inline editor<a href="#phase-5-tiptap-inline-editor" class="hash-link" aria-label="Direct link to Phase 5: TipTap inline editor" title="Direct link to Phase 5: TipTap inline editor" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add TipTap dependencies.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Build a minimal inline toolbar for the Rich Text widget.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Mount the editor directly in the widget body when the workspace is in edit mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Persist edits back into workspace draft props through the shared host callback.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Preserve normal card rendering in non-edit mode.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-6-settings-and-authoring-ux">Phase 6: Settings and authoring UX<a href="#phase-6-settings-and-authoring-ux" class="hash-link" aria-label="Direct link to Phase 6: Settings and authoring UX" title="Direct link to Phase 6: Settings and authoring UX" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep settings for secondary presentation controls.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Avoid making settings the primary content-authoring surface for the Rich Text widget.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Optionally add an advanced HTML source view for inspection/debugging.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Make the widget title, registry hints, and settings copy clearly distinguish Rich Text from Markdown.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-7-docs-and-validation">Phase 7: Docs and validation<a href="#phase-7-docs-and-validation" class="hash-link" aria-label="Direct link to Phase 7: Docs and validation" title="Direct link to Phase 7: Docs and validation" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update local READMEs for the new widget and any changed host/shared modules.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update markdown docs to clarify that rich inline editing belongs to <code>Rich Text</code>, not <code>Markdown</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update broader docs if the new widget changes authoring guidance for workspace users.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add checks or tests around inline-edit host behavior if feasible.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Mark this ADR <code>Accepted</code> only after the host capability and new widget are both implemented.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-inline-canvas-rich-text-widget.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/adr/adr-organization-widget-type-configurations"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ADR: Organization-Scoped Widget Type Configurations</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/adr/adr-app-component-binding-native-api-widget"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">ADR: AppComponent as a Binding-Native API Widget</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#why-markdown-stays-separate" class="table-of-contents__link toc-highlight">Why Markdown Stays Separate</a></li><li><a href="#decision-details" class="table-of-contents__link toc-highlight">Decision Details</a><ul><li><a href="#1-add-a-shared-inline-canvas-editing-capability" class="table-of-contents__link toc-highlight">1. Add a shared inline canvas editing capability</a></li><li><a href="#2-extend-the-widget-runtime-contract" class="table-of-contents__link toc-highlight">2. Extend the widget runtime contract</a></li><li><a href="#3-make-workspace-edit-mode-selective-not-global" class="table-of-contents__link toc-highlight">3. Make workspace edit mode selective, not global</a></li><li><a href="#4-introduce-a-new-rich-text-widget" class="table-of-contents__link toc-highlight">4. Introduce a new <code>Rich Text</code> widget</a></li><li><a href="#5-use-a-rich-text-native-storage-model" class="table-of-contents__link toc-highlight">5. Use a rich-text-native storage model</a></li><li><a href="#6-keep-markdown-as-a-separate-authoring-path" class="table-of-contents__link toc-highlight">6. Keep Markdown as a separate authoring path</a></li></ul></li><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#platform-capability" class="table-of-contents__link toc-highlight">Platform capability</a></li><li><a href="#widget-implementation" class="table-of-contents__link toc-highlight">Widget implementation</a></li><li><a href="#editor-behavior" class="table-of-contents__link toc-highlight">Editor behavior</a></li><li><a href="#toolbar-scope" class="table-of-contents__link toc-highlight">Toolbar scope</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li><li><a href="#open-questions" class="table-of-contents__link toc-highlight">Open Questions</a></li><li><a href="#rollout-checklist" class="table-of-contents__link toc-highlight">Rollout Checklist</a><ul><li><a href="#phase-1-shared-inline-canvas-editing-capability" class="table-of-contents__link toc-highlight">Phase 1: Shared inline canvas editing capability</a></li><li><a href="#phase-2-workspace-host-interaction-model" class="table-of-contents__link toc-highlight">Phase 2: Workspace host interaction model</a></li><li><a href="#phase-3-new-rich-text-widget-scaffold" class="table-of-contents__link toc-highlight">Phase 3: New Rich Text widget scaffold</a></li><li><a href="#phase-4-rich-text-content-model" class="table-of-contents__link toc-highlight">Phase 4: Rich text content model</a></li><li><a href="#phase-5-tiptap-inline-editor" class="table-of-contents__link toc-highlight">Phase 5: TipTap inline editor</a></li><li><a href="#phase-6-settings-and-authoring-ux" class="table-of-contents__link toc-highlight">Phase 6: Settings and authoring UX</a></li><li><a href="#phase-7-docs-and-validation" class="table-of-contents__link toc-highlight">Phase 7: Docs and validation</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

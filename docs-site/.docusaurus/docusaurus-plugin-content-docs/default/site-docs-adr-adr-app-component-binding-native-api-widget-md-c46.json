@@ -1,0 +1,24 @@
+{
+  "id": "adr/adr-app-component-binding-native-api-widget",
+  "title": "ADR: AppComponent as a Binding-Native API Widget",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/adr-app-component-binding-native-api-widget.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-app-component-binding-native-api-widget",
+  "permalink": "/docs/adr/adr-app-component-binding-native-api-widget",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-app-component-binding-native-api-widget.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Inline Canvas Editing Capability and Rich Text Widget",
+    "permalink": "/docs/adr/adr-inline-canvas-rich-text-widget"
+  },
+  "next": {
+    "title": "ADR: Shared AppComponent Discovery and Safe-Response Caching",
+    "permalink": "/docs/adr/adr-app-component-caching"
+  }
+}

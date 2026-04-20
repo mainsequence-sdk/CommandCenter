@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-source-driven-downstream-execution" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: Source-Driven Downstream Execution After Manual Widget Actions | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-source-driven-downstream-execution"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Source-Driven Downstream Execution After Manual Widget Actions | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-source-driven-downstream-execution"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-source-driven-downstream-execution" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-source-driven-downstream-execution" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ADR: Source-Driven Downstream Execution After Manual Widget Actions","item":"https://mainsequence-sdk.github.io/docs/adr/adr-source-driven-downstream-execution"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
+<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/"><span title="Overview" class="linkLabel_WmDU">Overview</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/platform"><span title="Platform" class="categoryLinkLabel_W154">Platform</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform"><span title="Platform" class="linkLabel_WmDU">Platform</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/configuration"><span title="Configuration" class="linkLabel_WmDU">Configuration</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/theming"><span title="Theming" class="linkLabel_WmDU">Theming</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/internationalization"><span title="Internationalization" class="linkLabel_WmDU">Internationalization</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/notifications"><span title="Notifications" class="linkLabel_WmDU">Notifications</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/apps"><span title="Apps" class="categoryLinkLabel_W154">Apps</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps"><span title="Apps" class="linkLabel_WmDU">Apps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps/overview"><span title="Apps and Surfaces" class="linkLabel_WmDU">Apps and Surfaces</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/widgets"><span title="Widgets" class="categoryLinkLabel_W154">Widgets</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets"><span title="Widgets" class="linkLabel_WmDU">Widgets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets/core-widgets"><span title="Core Widgets" class="linkLabel_WmDU">Core Widgets</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/workspaces"><span title="Workspaces" class="categoryLinkLabel_W154">Workspaces</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/overview"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/dashboard-layouts"><span title="Dashboard Layouts" class="linkLabel_WmDU">Dashboard Layouts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/backend-model"><span title="Workspace Backend Model" class="linkLabel_WmDU">Workspace Backend Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/runtime-performance-remediation"><span title="Workspace Runtime Performance Remediation" class="linkLabel_WmDU">Workspace Runtime Performance Remediation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/settings-headless-runtime-investigation"><span title="Workspace Settings Headless Runtime Investigation" class="linkLabel_WmDU">Workspace Settings Headless Runtime Investigation</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/extensions"><span title="Extensions" class="categoryLinkLabel_W154">Extensions</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions/overview"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/auth"><span title="Auth" class="categoryLinkLabel_W154">Auth</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth"><span title="Auth" class="linkLabel_WmDU">Auth</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth/backend-and-auth"><span title="Backend and Auth Integration" class="linkLabel_WmDU">Backend and Auth Integration</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/access-control"><span title="Access Control" class="categoryLinkLabel_W154">Access Control</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control"><span title="Access Control" class="linkLabel_WmDU">Access Control</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/rbac-assignment-matrix"><span title="RBAC Assignment Matrix" class="linkLabel_WmDU">RBAC Assignment Matrix</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/access-rbac-app"><span title="Access &amp; RBAC App" class="linkLabel_WmDU">Access &amp; RBAC App</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/operations"><span title="Operations" class="categoryLinkLabel_W154">Operations</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations"><span title="Operations" class="linkLabel_WmDU">Operations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations/deployment"><span title="Deployment" class="linkLabel_WmDU">Deployment</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docs/adr"><span title="ADRs" class="categoryLinkLabel_W154">ADRs</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr"><span title="Architecture Decision Records" class="linkLabel_WmDU">Architecture Decision Records</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-shared-workspace-state"><span title="Workspace And Runtime" class="categoryLinkLabel_W154">Workspace And Runtime</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docs/adr/adr-widget-bindings-and-dependency-graph"><span title="Widget Contracts" class="categoryLinkLabel_W154">Widget Contracts</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-widget-bindings-and-dependency-graph"><span title="ADR: First-Class Widget Bindings and Dependency Graph" class="linkLabel_WmDU">ADR: First-Class Widget Bindings and Dependency Graph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-binding-output-transforms"><span title="ADR: Binding-Level Output Transforms for Structured Widget Outputs" class="linkLabel_WmDU">ADR: Binding-Level Output Transforms for Structured Widget Outputs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-executable-widget-graph-runner"><span title="ADR: Executable Widget Graph Runner and Refresh Coordination" class="linkLabel_WmDU">ADR: Executable Widget Graph Runner and Refresh Coordination</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docs/adr/adr-source-driven-downstream-execution"><span title="ADR: Source-Driven Downstream Execution After Manual Widget Actions" class="linkLabel_WmDU">ADR: Source-Driven Downstream Execution After Manual Widget Actions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-agent-ready-widget-type-registry-contract"><span title="ADR: Agent-Ready Widget Type Registry Contract" class="linkLabel_WmDU">ADR: Agent-Ready Widget Type Registry Contract</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-organization-widget-type-configurations"><span title="ADR: Organization-Scoped Widget Type Configurations" class="linkLabel_WmDU">ADR: Organization-Scoped Widget Type Configurations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-inline-canvas-rich-text-widget"><span title="ADR: Inline Canvas Editing Capability and Rich Text Widget" class="linkLabel_WmDU">ADR: Inline Canvas Editing Capability and Rich Text Widget</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-app-component-binding-native-api-widget"><span title="AppComponent And API" class="categoryLinkLabel_W154">AppComponent And API</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-extension-contributed-shell-settings-menus"><span title="Shell And Extensions" class="categoryLinkLabel_W154">Shell And Extensions</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-main-sequence-ai-command-center-base-session"><span title="Main Sequence AI" class="categoryLinkLabel_W154">Main Sequence AI</span></a></div></li></ul></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">ADRs</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Widget Contracts</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">ADR: Source-Driven Downstream Execution After Manual Widget Actions</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: Source-Driven Downstream Execution After Manual Widget Actions</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-04-05</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/adr-executable-widget-graph-runner">ADR: Executable Widget Graph Runner and Refresh Coordination</a></li>
+<li class=""><a class="" href="/docs/adr/adr-app-component-binding-native-api-widget">ADR: AppComponent as a Binding-Native API Widget</a></li>
+<li class=""><a class="" href="/docs/adr/adr-binding-output-transforms">ADR: Binding-Level Output Transforms for Structured Widget Outputs</a></li>
+<li class=""><a class="" href="/docs/adr/adr-single-runtime-owner-workspace-widgets">ADR: Single Runtime Owner for Workspace Widgets</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The shared execution runner now gives the platform a clean way to execute a target widget with its
+valid upstream executable dependencies first.</p>
+<p>Today that runtime path is centered on:</p>
+<ul>
+<li class=""><a class="" href="/docs/src/dashboards/widget-graph-execution.ts"><code>src/dashboards/widget-graph-execution.ts</code></a></li>
+<li class=""><a class="" href="/docs/src/dashboards/DashboardWidgetExecution.tsx"><code>src/dashboards/DashboardWidgetExecution.tsx</code></a></li>
+<li class=""><a class="" href="/docs/src/widgets/core/app-component/AppComponentWidget.tsx"><code>src/widgets/core/app-component/AppComponentWidget.tsx</code></a></li>
+</ul>
+<p>That architecture is correct for:</p>
+<ul>
+<li class="">dashboard refresh</li>
+<li class="">explicit target recalculation</li>
+<li class="">settings-side test execution</li>
+<li class="">any case where the caller means &quot;run this widget graph&quot;</li>
+</ul>
+<p>It is not sufficient for source-driven manual actions.</p>
+<p>The clearest example is <code>AppComponent</code>:</p>
+<ul>
+<li class="">the normal widget card exposes a <code>Submit</code> button</li>
+<li class="">submit currently calls <code>executeWidgetGraph(instanceId, { reason: &quot;manual-submit&quot; })</code></li>
+<li class="">that executes upstream executable dependencies and the target widget itself</li>
+<li class="">it does not execute downstream executable dependents that consume the newly published outputs</li>
+</ul>
+<p>So the current user-visible behavior is:</p>
+<ol>
+<li class="">click <code>Submit</code> on an <code>AppComponent</code></li>
+<li class="">the AppComponent request runs and publishes fresh runtime outputs</li>
+<li class="">downstream widgets bound to those outputs do not recompute immediately</li>
+<li class="">they only update later when a dashboard refresh or explicit recalculation happens</li>
+</ol>
+<p>This breaks the expected mental model for binding-native composition:</p>
+<ul>
+<li class="">manual source actions should propagate through the flow</li>
+<li class="">downstream execution should not require a second unrelated refresh</li>
+<li class="">the behavior should stay generic, not AppComponent-specific</li>
+</ul>
+<p>There is also a second issue in the passive-resolution layer:</p>
+<ul>
+<li class=""><code>useResolveWidgetUpstream(...)</code> currently keys resolution off topology and dashboard-control state</li>
+<li class="">it does not include upstream output freshness</li>
+<li class="">a manual source execution therefore does not naturally invalidate passive upstream-resolution
+requests either</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>We will keep target-graph execution and source-driven flow execution as two separate runtime APIs.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-executewidgetgraph-keeps-its-current-meaning">1. <code>executeWidgetGraph(...)</code> keeps its current meaning<a href="#1-executewidgetgraph-keeps-its-current-meaning" class="hash-link" aria-label="Direct link to 1-executewidgetgraph-keeps-its-current-meaning" title="Direct link to 1-executewidgetgraph-keeps-its-current-meaning" translate="no">​</a></h3>
+<p><code>executeWidgetGraph(targetInstanceId, ...)</code> continues to mean:</p>
+<ul>
+<li class="">resolve valid upstream executable dependencies</li>
+<li class="">execute upstream first</li>
+<li class="">execute the target last</li>
+</ul>
+<p>It remains an upstream-and-target API.</p>
+<p>We will not redefine it to also walk downstream dependents.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-add-a-new-source-driven-flow-api">2. Add a new source-driven flow API<a href="#2-add-a-new-source-driven-flow-api" class="hash-link" aria-label="Direct link to 2. Add a new source-driven flow API" title="Direct link to 2. Add a new source-driven flow API" translate="no">​</a></h3>
+<p>We will add a second runtime API at the dashboard execution-provider layer:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">executeWidgetFlow</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token plain">sourceInstanceId</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  reason</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;manual-submit&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;manual-action&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;upstream-update&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><br></span></code></pre></div></div>
+<p>This API means:</p>
+<ol>
+<li class="">execute the source widget graph</li>
+<li class="">rebuild the dependency snapshot with the updated runtime state</li>
+<li class="">discover downstream execution targets that depend on that source</li>
+<li class="">execute those downstream targets in dependency-safe order</li>
+</ol>
+<p>This is the correct model for actions like:</p>
+<ul>
+<li class=""><code>AppComponent</code> card submit</li>
+<li class="">future source widgets with explicit &quot;Run&quot;, &quot;Search&quot;, or &quot;Load&quot; buttons</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-downstream-propagation-is-topology-based-not-resolved-input-state-based">3. Downstream propagation is topology-based, not resolved-input-state-based<a href="#3-downstream-propagation-is-topology-based-not-resolved-input-state-based" class="hash-link" aria-label="Direct link to 3. Downstream propagation is topology-based, not resolved-input-state-based" title="Direct link to 3. Downstream propagation is topology-based, not resolved-input-state-based" translate="no">​</a></h3>
+<p>Downstream target discovery must use canonical binding topology, not only current resolved-input
+validity.</p>
+<p>Reason:</p>
+<ul>
+<li class="">before the source action runs, some downstream edges may currently be unresolved because the
+source has not published outputs yet</li>
+<li class="">those edges are still real graph dependencies and must become eligible after the source updates</li>
+</ul>
+<p>The downstream walk must therefore inspect canonical bindings, not just <code>status === &quot;valid&quot;</code> on the
+pre-action snapshot.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-propagation-targets-are-ordered-executable-downstream-candidates">4. Propagation targets are ordered executable downstream candidates<a href="#4-propagation-targets-are-ordered-executable-downstream-candidates" class="hash-link" aria-label="Direct link to 4. Propagation targets are ordered executable downstream candidates" title="Direct link to 4. Propagation targets are ordered executable downstream candidates" translate="no">​</a></h3>
+<p>The runtime should not blindly execute every downstream node, but it also must not collapse the
+flow to leaves only.</p>
+<p>For a chain such as:</p>
+<ul>
+<li class=""><code>AppComponent A -&gt; AppComponent B -&gt; AppComponent C</code></li>
+</ul>
+<p>the runtime must be able to execute <code>B</code> first so it can publish fresh outputs before <code>C</code> is
+considered.</p>
+<p>The downstream target selector therefore returns reachable executable widgets in downstream
+topological order. Each selected target still runs through the existing upstream-aware graph runner,
+so shared executable ancestors are deduped across the whole flow.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-settings-test-stays-isolated">5. Settings test stays isolated<a href="#5-settings-test-stays-isolated" class="hash-link" aria-label="Direct link to 5. Settings test stays isolated" title="Direct link to 5. Settings test stays isolated" translate="no">​</a></h3>
+<p>Settings-side <code>Test request</code> remains a target-only execution path.</p>
+<p>It must not propagate through the live workspace graph because it runs against target overrides and
+draft state.</p>
+<p>Normal widget submit and settings test therefore intentionally diverge here:</p>
+<ul>
+<li class="">normal widget submit -&gt; source-driven flow execution</li>
+<li class="">settings test -&gt; target graph execution only</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-passive-upstream-resolution-must-gain-freshness-awareness">6. Passive upstream resolution must gain freshness awareness<a href="#6-passive-upstream-resolution-must-gain-freshness-awareness" class="hash-link" aria-label="Direct link to 6. Passive upstream resolution must gain freshness awareness" title="Direct link to 6. Passive upstream resolution must gain freshness awareness" translate="no">​</a></h3>
+<p>Provider-level upstream-resolution invalidation must also include upstream execution freshness, not
+only topology plus dashboard controls.</p>
+<p>The execution provider will maintain a per-instance execution revision or freshness token and fold
+those upstream revisions into the passive request key used by:</p>
+<ul>
+<li class=""><code>getUpstreamRequirement(...)</code></li>
+<li class=""><code>useResolveWidgetUpstream(...)</code></li>
+</ul>
+<p>This keeps passive consumers coherent after manual source execution.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="architecture">Architecture<a href="#architecture" class="hash-link" aria-label="Direct link to Architecture" title="Direct link to Architecture" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-keep-the-current-graph-runner-intact">1. Keep the current graph runner intact<a href="#1-keep-the-current-graph-runner-intact" class="hash-link" aria-label="Direct link to 1. Keep the current graph runner intact" title="Direct link to 1. Keep the current graph runner intact" translate="no">​</a></h3>
+<p>The existing runner in
+<a class="" href="/docs/src/dashboards/widget-graph-execution.ts"><code>src/dashboards/widget-graph-execution.ts</code></a>
+remains the canonical implementation of:</p>
+<ul>
+<li class="">cycle detection</li>
+<li class="">upstream traversal</li>
+<li class="">topological ordering</li>
+<li class="">runtime-state patch application</li>
+<li class="">execution status reporting</li>
+</ul>
+<p>That file should continue to own target-graph execution.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-add-downstream-graph-helpers-beside-the-current-upstream-helpers">2. Add downstream graph helpers beside the current upstream helpers<a href="#2-add-downstream-graph-helpers-beside-the-current-upstream-helpers" class="hash-link" aria-label="Direct link to 2. Add downstream graph helpers beside the current upstream helpers" title="Direct link to 2. Add downstream graph helpers beside the current upstream helpers" translate="no">​</a></h3>
+<p>We will add shared helpers for source-driven propagation:</p>
+<ul>
+<li class=""><code>collectDirectDownstreamBindingIds(...)</code></li>
+<li class=""><code>collectTransitiveDownstreamIds(...)</code></li>
+<li class=""><code>listDashboardDownstreamExecutionTargets(...)</code></li>
+</ul>
+<p>These helpers should:</p>
+<ul>
+<li class="">walk canonical bindings from source to dependents</li>
+<li class="">include passive hops in the traversal</li>
+<li class="">return executable downstream candidates in stable dependency order</li>
+<li class="">avoid requiring the pre-action snapshot to already have valid resolved values</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-add-provider-orchestration-for-source-driven-flows">3. Add provider orchestration for source-driven flows<a href="#3-add-provider-orchestration-for-source-driven-flows" class="hash-link" aria-label="Direct link to 3. Add provider orchestration for source-driven flows" title="Direct link to 3. Add provider orchestration for source-driven flows" translate="no">​</a></h3>
+<p><code>DashboardWidgetExecutionProvider</code> will expose both APIs:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">executeWidgetGraph</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token plain">targetInstanceId</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> options</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">executeWidgetFlow</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token plain">sourceInstanceId</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> options</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><br></span></code></pre></div></div>
+<p><code>executeWidgetFlow(...)</code> will:</p>
+<ol>
+<li class="">run the source graph</li>
+<li class="">rebuild the execution snapshot from updated widgets/runtime state</li>
+<li class="">compute downstream execution targets</li>
+<li class="">run those downstream target graphs</li>
+<li class="">share one <code>executedInstanceIds</code> set across the whole flow to prevent duplicate execution</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-use-a-distinct-execution-reason-for-downstream-propagation">4. Use a distinct execution reason for downstream propagation<a href="#4-use-a-distinct-execution-reason-for-downstream-propagation" class="hash-link" aria-label="Direct link to 4. Use a distinct execution reason for downstream propagation" title="Direct link to 4. Use a distinct execution reason for downstream propagation" translate="no">​</a></h3>
+<p>We will extend <code>WidgetExecutionReason</code> with a dedicated downstream-propagation reason:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">WidgetExecutionReason</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;manual-submit&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;settings-test&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;dashboard-refresh&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;manual-recalculate&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;upstream-update&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><br></span></code></pre></div></div>
+<p>This lets request tracing and execution diagnostics distinguish:</p>
+<ul>
+<li class="">the source widget explicitly triggered by the user</li>
+<li class="">downstream widgets rerun because upstream state changed</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-appcomponent-card-submit-becomes-a-flow-trigger">5. <code>AppComponent</code> card submit becomes a flow trigger<a href="#5-appcomponent-card-submit-becomes-a-flow-trigger" class="hash-link" aria-label="Direct link to 5-appcomponent-card-submit-becomes-a-flow-trigger" title="Direct link to 5-appcomponent-card-submit-becomes-a-flow-trigger" translate="no">​</a></h3>
+<p>The normal submit path in
+<a class="" href="/docs/src/widgets/core/app-component/AppComponentWidget.tsx"><code>src/widgets/core/app-component/AppComponentWidget.tsx</code></a>
+will switch from:</p>
+<ul>
+<li class=""><code>executeWidgetGraph(instanceId, { reason: &quot;manual-submit&quot; })</code></li>
+</ul>
+<p>to:</p>
+<ul>
+<li class=""><code>executeWidgetFlow(instanceId, { reason: &quot;manual-submit&quot; })</code></li>
+</ul>
+<p>The settings path in
+<a class="" href="/docs/src/widgets/core/app-component/AppComponentWidgetSettings.tsx"><code>src/widgets/core/app-component/AppComponentWidgetSettings.tsx</code></a>
+must keep using isolated target execution.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-this-split">Why This Split<a href="#why-this-split" class="hash-link" aria-label="Direct link to Why This Split" title="Direct link to Why This Split" translate="no">​</a></h2>
+<p>This is the cleanest way to preserve the current architecture while fixing the user-visible gap.</p>
+<p>It keeps:</p>
+<ul>
+<li class="">one clear meaning for target-graph execution</li>
+<li class="">one clear meaning for source-driven propagation</li>
+<li class="">one shared runner for actual node execution</li>
+<li class="">one shared dependency model for topology and input resolution</li>
+</ul>
+<p>It avoids:</p>
+<ul>
+<li class="">overloading <code>executeWidgetGraph(...)</code> with two contradictory semantics</li>
+<li class="">AppComponent-specific downstream hacks in widget components</li>
+<li class="">treating settings preview/test as if it were live workspace execution</li>
+<li class="">forcing passive widgets to become executable just to see source updates</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="flow-semantics">Flow Semantics<a href="#flow-semantics" class="hash-link" aria-label="Direct link to Flow Semantics" title="Direct link to Flow Semantics" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-linear-executable-chain">1. Linear executable chain<a href="#1-linear-executable-chain" class="hash-link" aria-label="Direct link to 1. Linear executable chain" title="Direct link to 1. Linear executable chain" translate="no">​</a></h3>
+<p>Given:</p>
+<ul>
+<li class=""><code>AppComponent A -&gt; AppComponent B -&gt; AppComponent C</code></li>
+<li class="">all three widgets are executable</li>
+<li class=""><code>B</code> and <code>C</code> have every required request field satisfied through bindings, defaults, prefills, or
+optional empty inputs</li>
+</ul>
+<p>When the user clicks <code>Submit</code> on <code>A</code>, the runtime does this:</p>
+<ol>
+<li class="">execute <code>A</code> with reason <code>manual-submit</code></li>
+<li class="">rebuild the snapshot from <code>A</code>&#x27;s updated runtime state</li>
+<li class="">schedule downstream executable candidates in order</li>
+<li class="">execute <code>B</code> with reason <code>upstream-update</code></li>
+<li class="">rebuild the snapshot from <code>B</code>&#x27;s updated runtime state</li>
+<li class="">execute <code>C</code> with reason <code>upstream-update</code></li>
+</ol>
+<p>The visible result is a full chained flow from the source button click without requiring a separate
+dashboard refresh.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-linear-chain-with-a-missing-required-request-argument">2. Linear chain with a missing required request argument<a href="#2-linear-chain-with-a-missing-required-request-argument" class="hash-link" aria-label="Direct link to 2. Linear chain with a missing required request argument" title="Direct link to 2. Linear chain with a missing required request argument" translate="no">​</a></h3>
+<p>Given:</p>
+<ul>
+<li class=""><code>AppComponent A -&gt; AppComponent B -&gt; AppComponent C</code></li>
+<li class=""><code>B</code> has a required request field that is not satisfied by bindings, defaults, or user input</li>
+</ul>
+<p>When the user clicks <code>Submit</code> on <code>A</code>, the runtime does this:</p>
+<ol>
+<li class="">execute <code>A</code></li>
+<li class="">attempt <code>B</code></li>
+<li class=""><code>B</code> fails during request build/execution because its required request input is missing</li>
+<li class=""><code>B</code> clears its published outputs and response snapshot for that failed execution</li>
+<li class=""><code>C</code> does not execute because the chain is now blocked at <code>B</code></li>
+</ol>
+<p>So the execution stops on that branch at the first widget whose required runtime inputs are still
+unsatisfied.</p>
+<p>Important detail:</p>
+<ul>
+<li class="">for <code>AppComponent</code>, missing required request arguments do not fail topology discovery or
+<code>canExecute(...)</code></li>
+<li class="">they fail at request-build time inside execution</li>
+<li class="">that still counts as a branch-local execution stop</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-branching-flow-with-one-failing-branch">3. Branching flow with one failing branch<a href="#3-branching-flow-with-one-failing-branch" class="hash-link" aria-label="Direct link to 3. Branching flow with one failing branch" title="Direct link to 3. Branching flow with one failing branch" translate="no">​</a></h3>
+<p>Given:</p>
+<ul>
+<li class=""><code>AppComponent A -&gt; AppComponent B</code></li>
+<li class=""><code>AppComponent A -&gt; AppComponent C</code></li>
+<li class=""><code>B</code> is missing a required request field</li>
+<li class=""><code>C</code> is fully satisfiable</li>
+</ul>
+<p>When the user clicks <code>Submit</code> on <code>A</code>, the runtime does this:</p>
+<ol>
+<li class="">execute <code>A</code></li>
+<li class="">attempt downstream candidates in dependency order</li>
+<li class=""><code>B</code> fails and stops its own branch</li>
+<li class=""><code>C</code> can still execute because it is an independent downstream branch of <code>A</code></li>
+</ol>
+<p>So downstream propagation is branch-local, not all-or-nothing for the whole workspace.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-target-graph-failure-vs-flow-failure">4. Target-graph failure vs flow failure<a href="#4-target-graph-failure-vs-flow-failure" class="hash-link" aria-label="Direct link to 4. Target-graph failure vs flow failure" title="Direct link to 4. Target-graph failure vs flow failure" translate="no">​</a></h3>
+<p>Each selected downstream target still runs through <code>executeWidgetGraph(...)</code>.</p>
+<p>That means:</p>
+<ul>
+<li class="">a failure inside one selected target stops that target graph immediately</li>
+<li class="">the outer source-driven flow may still consider later downstream candidates</li>
+<li class="">only candidates whose upstream requirements still resolve from the updated snapshot will run</li>
+</ul>
+<p>This is why the runtime can both:</p>
+<ul>
+<li class="">stop a broken linear chain at the first missing required input</li>
+<li class="">continue a separate sibling branch that does not depend on the broken target</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">manual source actions propagate immediately to bound downstream executable widgets</li>
+<li class=""><code>AppComponent</code> behaves like a real flow source instead of a refresh-only source</li>
+<li class="">source-driven actions and refresh-driven actions stay distinct in traces and reasoning</li>
+<li class="">the runtime model stays generic for future executable source widgets</li>
+</ul>
+<p>Negative:</p>
+<ul>
+<li class="">the execution provider gains a second public orchestration API</li>
+<li class="">downstream flow behavior becomes more explicit and therefore more important to document for widget
+authors, especially around branch-local stopping behavior and request-build failures</li>
+<li class="">downstream target selection adds another graph traversal concept to maintain</li>
+<li class="">passive freshness invalidation becomes more stateful because execution revisions must be tracked</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="guardrails">Guardrails<a href="#guardrails" class="hash-link" aria-label="Direct link to Guardrails" title="Direct link to Guardrails" translate="no">​</a></h2>
+<ul>
+<li class="">Do not redefine <code>executeWidgetGraph(...)</code> to include downstream propagation.</li>
+<li class="">Do not discover downstream targets only from currently valid resolved inputs.</li>
+<li class="">Do not let settings test execution propagate into the live workspace graph.</li>
+<li class="">Do not execute every downstream node when a smaller set of executable leaves is sufficient.</li>
+<li class="">Do not rely only on topology-based request keys for passive upstream resolution after manual
+source execution.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="verification">Verification<a href="#verification" class="hash-link" aria-label="Direct link to Verification" title="Direct link to Verification" translate="no">​</a></h2>
+<p>After implementation, the platform should prove these cases:</p>
+<ol>
+<li class="">
+<p><code>AppComponent -&gt; executable downstream</code>
+Manual submit runs the AppComponent and immediately reruns the downstream executable widget.</p>
+</li>
+<li class="">
+<p><code>AppComponent -&gt; passive -&gt; executable</code>
+Manual submit propagates through the passive hop and reruns the downstream executable leaf.</p>
+</li>
+<li class="">
+<p><code>settings test</code>
+Test request updates only the isolated target preview and does not mutate the live workspace
+flow.</p>
+</li>
+<li class="">
+<p><code>refresh</code>
+Dashboard refresh behavior remains unchanged and continues to use the target-graph refresh path.</p>
+</li>
+<li class="">
+<p><code>shared upstream</code>
+When multiple downstream targets share the same upstream executable widgets, propagation dedupes
+correctly through shared <code>executedInstanceIds</code>.</p>
+</li>
+</ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-source-driven-downstream-execution.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/adr/adr-executable-widget-graph-runner"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ADR: Executable Widget Graph Runner and Refresh Coordination</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/adr/adr-agent-ready-widget-type-registry-contract"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">ADR: Agent-Ready Widget Type Registry Contract</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#1-executewidgetgraph-keeps-its-current-meaning" class="table-of-contents__link toc-highlight">1. <code>executeWidgetGraph(...)</code> keeps its current meaning</a></li><li><a href="#2-add-a-new-source-driven-flow-api" class="table-of-contents__link toc-highlight">2. Add a new source-driven flow API</a></li><li><a href="#3-downstream-propagation-is-topology-based-not-resolved-input-state-based" class="table-of-contents__link toc-highlight">3. Downstream propagation is topology-based, not resolved-input-state-based</a></li><li><a href="#4-propagation-targets-are-ordered-executable-downstream-candidates" class="table-of-contents__link toc-highlight">4. Propagation targets are ordered executable downstream candidates</a></li><li><a href="#5-settings-test-stays-isolated" class="table-of-contents__link toc-highlight">5. Settings test stays isolated</a></li><li><a href="#6-passive-upstream-resolution-must-gain-freshness-awareness" class="table-of-contents__link toc-highlight">6. Passive upstream resolution must gain freshness awareness</a></li></ul></li><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#1-keep-the-current-graph-runner-intact" class="table-of-contents__link toc-highlight">1. Keep the current graph runner intact</a></li><li><a href="#2-add-downstream-graph-helpers-beside-the-current-upstream-helpers" class="table-of-contents__link toc-highlight">2. Add downstream graph helpers beside the current upstream helpers</a></li><li><a href="#3-add-provider-orchestration-for-source-driven-flows" class="table-of-contents__link toc-highlight">3. Add provider orchestration for source-driven flows</a></li><li><a href="#4-use-a-distinct-execution-reason-for-downstream-propagation" class="table-of-contents__link toc-highlight">4. Use a distinct execution reason for downstream propagation</a></li><li><a href="#5-appcomponent-card-submit-becomes-a-flow-trigger" class="table-of-contents__link toc-highlight">5. <code>AppComponent</code> card submit becomes a flow trigger</a></li></ul></li><li><a href="#why-this-split" class="table-of-contents__link toc-highlight">Why This Split</a></li><li><a href="#flow-semantics" class="table-of-contents__link toc-highlight">Flow Semantics</a><ul><li><a href="#1-linear-executable-chain" class="table-of-contents__link toc-highlight">1. Linear executable chain</a></li><li><a href="#2-linear-chain-with-a-missing-required-request-argument" class="table-of-contents__link toc-highlight">2. Linear chain with a missing required request argument</a></li><li><a href="#3-branching-flow-with-one-failing-branch" class="table-of-contents__link toc-highlight">3. Branching flow with one failing branch</a></li><li><a href="#4-target-graph-failure-vs-flow-failure" class="table-of-contents__link toc-highlight">4. Target-graph failure vs flow failure</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li><li><a href="#verification" class="table-of-contents__link toc-highlight">Verification</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

@@ -423,8 +423,8 @@ This ADR is not complete until every task below is done.
 
 ### Phase 7: Documentation and migration completion
 
-- [x] Update [src/app/registry/README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/registry/README.md) to describe the new explicit registry contract once implemented
-- [x] Update [src/widgets/README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/README.md) to document the new widget definition contract section
+- [x] Update `src/app/registry/README.md` to describe the new explicit registry contract once implemented
+- [x] Update `src/widgets/README.md` to document the new widget definition contract section
 - [x] Update widget-local READMEs as each widget family gains explicit type contracts
 - [x] Document backend expectations for the richer manifest shape
 - [x] Mark this ADR as `Accepted` once the contract is implemented and enforced for all published real widgets

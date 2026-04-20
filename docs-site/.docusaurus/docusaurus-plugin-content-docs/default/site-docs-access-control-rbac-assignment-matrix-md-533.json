@@ -1,0 +1,24 @@
+{
+  "id": "access-control/rbac-assignment-matrix",
+  "title": "RBAC Assignment Matrix",
+  "description": "RbacAssignmentMatrix is the reusable core-platform component for assigning object access to",
+  "source": "@site/../docs/access-control/rbac-assignment-matrix.md",
+  "sourceDirName": "access-control",
+  "slug": "/access-control/rbac-assignment-matrix",
+  "permalink": "/docs/access-control/rbac-assignment-matrix",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/access-control/rbac-assignment-matrix.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Access Control",
+    "permalink": "/docs/access-control"
+  },
+  "next": {
+    "title": "Access & RBAC App",
+    "permalink": "/docs/access-control/access-rbac-app"
+  }
+}

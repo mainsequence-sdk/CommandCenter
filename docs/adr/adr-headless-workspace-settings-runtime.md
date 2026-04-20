@@ -3,8 +3,8 @@
 - Status: Accepted
 - Date: 2026-04-03
 - Related:
-  - [Workspace Settings Headless Runtime Investigation](./workspace-settings-headless-runtime-investigation.md)
-  - [Workspace Runtime Performance Remediation](./workspace-runtime-performance-remediation.md)
+  - [Workspace Settings Headless Runtime Investigation](../workspaces/settings-headless-runtime-investigation.md)
+  - [Workspace Runtime Performance Remediation](../workspaces/runtime-performance-remediation.md)
   - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
 
 ## Context
@@ -127,4 +127,3 @@ Negative:
 - New runtime-producing widgets should prefer `WidgetDefinition.execution` over mount-side effects.
 - If a widget settings page needs preview behavior, mount only the edited widget or an explicit
   preview surface.
-

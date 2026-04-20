@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-04-14
 - Related:
-  - [Workspaces](../workspaces.md)
+  - [Workspaces](../workspaces/overview.md)
   - [ADR: Shared Workspace Content vs Per-User View State](./adr-shared-workspace-state.md)
   - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
   - [ADR: Single Runtime Owner for Workspace Widgets](./adr-single-runtime-owner-workspace-widgets.md)

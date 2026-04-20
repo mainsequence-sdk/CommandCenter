@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-agent-ready-widget-type-registry-contract" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: Agent-Ready Widget Type Registry Contract | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-agent-ready-widget-type-registry-contract"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Agent-Ready Widget Type Registry Contract | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-agent-ready-widget-type-registry-contract"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-agent-ready-widget-type-registry-contract" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-agent-ready-widget-type-registry-contract" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ADR: Agent-Ready Widget Type Registry Contract","item":"https://mainsequence-sdk.github.io/docs/adr/adr-agent-ready-widget-type-registry-contract"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
+<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/"><span title="Overview" class="linkLabel_WmDU">Overview</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/platform"><span title="Platform" class="categoryLinkLabel_W154">Platform</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform"><span title="Platform" class="linkLabel_WmDU">Platform</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/configuration"><span title="Configuration" class="linkLabel_WmDU">Configuration</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/theming"><span title="Theming" class="linkLabel_WmDU">Theming</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/internationalization"><span title="Internationalization" class="linkLabel_WmDU">Internationalization</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/notifications"><span title="Notifications" class="linkLabel_WmDU">Notifications</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/apps"><span title="Apps" class="categoryLinkLabel_W154">Apps</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps"><span title="Apps" class="linkLabel_WmDU">Apps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps/overview"><span title="Apps and Surfaces" class="linkLabel_WmDU">Apps and Surfaces</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/widgets"><span title="Widgets" class="categoryLinkLabel_W154">Widgets</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets"><span title="Widgets" class="linkLabel_WmDU">Widgets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets/core-widgets"><span title="Core Widgets" class="linkLabel_WmDU">Core Widgets</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/workspaces"><span title="Workspaces" class="categoryLinkLabel_W154">Workspaces</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/overview"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/dashboard-layouts"><span title="Dashboard Layouts" class="linkLabel_WmDU">Dashboard Layouts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/backend-model"><span title="Workspace Backend Model" class="linkLabel_WmDU">Workspace Backend Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/runtime-performance-remediation"><span title="Workspace Runtime Performance Remediation" class="linkLabel_WmDU">Workspace Runtime Performance Remediation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/settings-headless-runtime-investigation"><span title="Workspace Settings Headless Runtime Investigation" class="linkLabel_WmDU">Workspace Settings Headless Runtime Investigation</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/extensions"><span title="Extensions" class="categoryLinkLabel_W154">Extensions</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions/overview"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/auth"><span title="Auth" class="categoryLinkLabel_W154">Auth</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth"><span title="Auth" class="linkLabel_WmDU">Auth</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth/backend-and-auth"><span title="Backend and Auth Integration" class="linkLabel_WmDU">Backend and Auth Integration</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/access-control"><span title="Access Control" class="categoryLinkLabel_W154">Access Control</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control"><span title="Access Control" class="linkLabel_WmDU">Access Control</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/rbac-assignment-matrix"><span title="RBAC Assignment Matrix" class="linkLabel_WmDU">RBAC Assignment Matrix</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/access-rbac-app"><span title="Access &amp; RBAC App" class="linkLabel_WmDU">Access &amp; RBAC App</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/operations"><span title="Operations" class="categoryLinkLabel_W154">Operations</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations"><span title="Operations" class="linkLabel_WmDU">Operations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations/deployment"><span title="Deployment" class="linkLabel_WmDU">Deployment</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docs/adr"><span title="ADRs" class="categoryLinkLabel_W154">ADRs</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr"><span title="Architecture Decision Records" class="linkLabel_WmDU">Architecture Decision Records</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-shared-workspace-state"><span title="Workspace And Runtime" class="categoryLinkLabel_W154">Workspace And Runtime</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docs/adr/adr-widget-bindings-and-dependency-graph"><span title="Widget Contracts" class="categoryLinkLabel_W154">Widget Contracts</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-widget-bindings-and-dependency-graph"><span title="ADR: First-Class Widget Bindings and Dependency Graph" class="linkLabel_WmDU">ADR: First-Class Widget Bindings and Dependency Graph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-binding-output-transforms"><span title="ADR: Binding-Level Output Transforms for Structured Widget Outputs" class="linkLabel_WmDU">ADR: Binding-Level Output Transforms for Structured Widget Outputs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-executable-widget-graph-runner"><span title="ADR: Executable Widget Graph Runner and Refresh Coordination" class="linkLabel_WmDU">ADR: Executable Widget Graph Runner and Refresh Coordination</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-source-driven-downstream-execution"><span title="ADR: Source-Driven Downstream Execution After Manual Widget Actions" class="linkLabel_WmDU">ADR: Source-Driven Downstream Execution After Manual Widget Actions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docs/adr/adr-agent-ready-widget-type-registry-contract"><span title="ADR: Agent-Ready Widget Type Registry Contract" class="linkLabel_WmDU">ADR: Agent-Ready Widget Type Registry Contract</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-organization-widget-type-configurations"><span title="ADR: Organization-Scoped Widget Type Configurations" class="linkLabel_WmDU">ADR: Organization-Scoped Widget Type Configurations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-inline-canvas-rich-text-widget"><span title="ADR: Inline Canvas Editing Capability and Rich Text Widget" class="linkLabel_WmDU">ADR: Inline Canvas Editing Capability and Rich Text Widget</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-app-component-binding-native-api-widget"><span title="AppComponent And API" class="categoryLinkLabel_W154">AppComponent And API</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-extension-contributed-shell-settings-menus"><span title="Shell And Extensions" class="categoryLinkLabel_W154">Shell And Extensions</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-main-sequence-ai-command-center-base-session"><span title="Main Sequence AI" class="categoryLinkLabel_W154">Main Sequence AI</span></a></div></li></ul></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">ADRs</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Widget Contracts</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">ADR: Agent-Ready Widget Type Registry Contract</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: Agent-Ready Widget Type Registry Contract</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-04-13</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/adr-app-component-binding-native-api-widget">ADR: AppComponent as a Binding-Native API Widget</a></li>
+<li class=""><a class="" href="/docs/adr/adr-executable-widget-graph-runner">ADR: Executable Widget Graph Runner and Refresh Coordination</a></li>
+<li class=""><a class="" href="/docs/adr/adr-single-runtime-owner-workspace-widgets">ADR: Single Runtime Owner for Workspace Widgets</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The current backend widget-type registry is only a thin catalog projection.</p>
+<p>Today the sync manifest is mostly limited to:</p>
+<ul>
+<li class="">catalog identity fields such as <code>widgetId</code>, <code>title</code>, <code>description</code>, <code>category</code>, and <code>tags</code></li>
+<li class="">static settings schema when a widget exposes <code>schema</code></li>
+<li class="">static IO plus a <code>dynamic: true</code> hint when a widget uses <code>resolveIo(...)</code></li>
+<li class="">default presentation metadata</li>
+</ul>
+<p>That is enough for a basic catalog, but not enough for agentic or backend-driven tooling that needs
+to understand how a widget type is configured and how it behaves.</p>
+<p>The problem is most obvious for dynamic widgets such as <code>app-component</code>:</p>
+<ul>
+<li class="">it has custom settings instead of only static schema fields</li>
+<li class="">its concrete inputs and outputs are instance-specific after operation selection</li>
+<li class="">it has execution semantics, target modes, request/response behavior, and compilation
+requirements that are not represented in the current synced row</li>
+</ul>
+<p>The current registry therefore fails at the exact use case we need:</p>
+<ul>
+<li class="">an admin, backend service, or agent cannot reliably understand how to configure a widget type</li>
+<li class="">an agent cannot reason about what kind of widget to build from the registry contract alone</li>
+<li class="">the sync contract does not distinguish clearly between type-level capability metadata and
+instance-level compiled metadata</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>We will replace the current thin widget catalog projection with an explicit, standardized,
+backend-visible widget type contract that is rich enough for agentic tooling to reason about how to
+build widget instances.</p>
+<p>The contract must be descriptive enough that an agent can answer these questions from the registry
+alone:</p>
+<ul>
+<li class="">what this widget is for</li>
+<li class="">what configuration model it uses</li>
+<li class="">which inputs it accepts</li>
+<li class="">which outputs it can publish</li>
+<li class="">whether the IO is static or instance-derived</li>
+<li class="">whether the widget executes work or only consumes upstream data</li>
+<li class="">what modes or capabilities it supports</li>
+<li class="">what must be configured before the widget is usable</li>
+</ul>
+<p>The contract must not pretend to know instance-specific details that only exist after authoring.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="versioning">Versioning<a href="#versioning" class="hash-link" aria-label="Direct link to Versioning" title="Direct link to Versioning" translate="no">​</a></h2>
+<p>The registry needs two different versioning layers.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-global-manifest-version">1. Global manifest version<a href="#1-global-manifest-version" class="hash-link" aria-label="Direct link to 1. Global manifest version" title="Direct link to 1. Global manifest version" translate="no">​</a></h3>
+<p>The existing global registry version remains necessary.</p>
+<p>It answers:</p>
+<ul>
+<li class="">did the overall manifest schema change</li>
+<li class="">did the payload serialization contract change</li>
+</ul>
+<p>This stays at the registry-sync layer.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-per-widget-type-version">2. Per-widget type version<a href="#2-per-widget-type-version" class="hash-link" aria-label="Direct link to 2. Per-widget type version" title="Direct link to 2. Per-widget type version" translate="no">​</a></h3>
+<p>Every widget type must also publish its own internal version.</p>
+<p>This answers:</p>
+<ul>
+<li class="">did this specific widget&#x27;s type contract change</li>
+<li class="">did its authoring semantics change</li>
+<li class="">did its runtime or output behavior change in a way that matters to agents or backend tooling</li>
+</ul>
+<p>The per-widget version must be part of the synced widget row so backend services can reason about
+widget evolution without diffing the whole manifest.</p>
+<p>Recommended field:</p>
+<ul>
+<li class=""><code>widgetVersion</code></li>
+</ul>
+<p>This should be a simple string version owned by the widget definition.</p>
+<p>It must be bumped when any of these change materially:</p>
+<ul>
+<li class="">type-level configuration model</li>
+<li class="">accepted input contracts</li>
+<li class="">published output contracts</li>
+<li class="">execution behavior</li>
+<li class="">capability modes</li>
+<li class="">agent-facing authoring requirements</li>
+</ul>
+<p>It does not need to bump for purely cosmetic changes that do not affect authoring or behavioral
+semantics.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope-boundary">Scope Boundary<a href="#scope-boundary" class="hash-link" aria-label="Direct link to Scope Boundary" title="Direct link to Scope Boundary" translate="no">​</a></h2>
+<p>The new registry contract must describe widget-type behavior, not instance snapshots.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="type-level-metadata-belongs-in-the-registry">Type-level metadata belongs in the registry<a href="#type-level-metadata-belongs-in-the-registry" class="hash-link" aria-label="Direct link to Type-level metadata belongs in the registry" title="Direct link to Type-level metadata belongs in the registry" translate="no">​</a></h3>
+<ul>
+<li class="">widget purpose and category</li>
+<li class="">runtime ownership mode</li>
+<li class="">configuration model</li>
+<li class="">static schema fields</li>
+<li class="">dynamic-configuration summary</li>
+<li class="">static IO</li>
+<li class="">dynamic IO semantics</li>
+<li class="">execution behavior</li>
+<li class="">supported capability modes</li>
+<li class="">agent-facing usage notes</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="instance-level-metadata-does-not-belong-in-the-registry">Instance-level metadata does not belong in the registry<a href="#instance-level-metadata-does-not-belong-in-the-registry" class="hash-link" aria-label="Direct link to Instance-level metadata does not belong in the registry" title="Direct link to Instance-level metadata does not belong in the registry" translate="no">​</a></h3>
+<ul>
+<li class="">selected upstream binding ids</li>
+<li class="">selected OpenAPI operation ids for one saved widget instance</li>
+<li class="">compiled request forms for one saved widget instance</li>
+<li class="">concrete resolved input ports for one saved widget instance</li>
+<li class="">concrete resolved output ports for one saved widget instance</li>
+<li class="">user-entered instance props and runtime state</li>
+</ul>
+<p>This distinction is mandatory. The registry must be truthful about what it knows.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="standard-contract">Standard Contract<a href="#standard-contract" class="hash-link" aria-label="Direct link to Standard Contract" title="Direct link to Standard Contract" translate="no">​</a></h2>
+<p>Every synced widget type will expose the same top-level sections.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-identity">1. <code>identity</code><a href="#1-identity" class="hash-link" aria-label="Direct link to 1-identity" title="Direct link to 1-identity" translate="no">​</a></h3>
+<p>Required for every widget:</p>
+<ul>
+<li class=""><code>widgetVersion</code></li>
+<li class=""><code>widgetId</code></li>
+<li class=""><code>title</code></li>
+<li class=""><code>description</code></li>
+<li class=""><code>kind</code></li>
+<li class=""><code>category</code></li>
+<li class=""><code>source</code></li>
+<li class=""><code>tags</code></li>
+<li class=""><code>requiredPermissions</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-runtime">2. <code>runtime</code><a href="#2-runtime" class="hash-link" aria-label="Direct link to 2-runtime" title="Direct link to 2-runtime" translate="no">​</a></h3>
+<p>Required for every widget:</p>
+<ul>
+<li class=""><code>workspaceRuntimeMode</code>
+<ul>
+<li class=""><code>execution-owner</code></li>
+<li class=""><code>consumer</code></li>
+<li class=""><code>local-ui</code></li>
+</ul>
+</li>
+<li class=""><code>supportsExecution</code></li>
+<li class=""><code>refreshPolicy</code></li>
+<li class=""><code>executionTriggers</code></li>
+<li class=""><code>executionSummary</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-configuration">3. <code>configuration</code><a href="#3-configuration" class="hash-link" aria-label="Direct link to 3-configuration" title="Direct link to 3-configuration" translate="no">​</a></h3>
+<p>Required for every widget:</p>
+<ul>
+<li class=""><code>mode</code>
+<ul>
+<li class=""><code>static-schema</code></li>
+<li class=""><code>custom-settings</code></li>
+<li class=""><code>hybrid</code></li>
+<li class=""><code>none</code></li>
+</ul>
+</li>
+<li class=""><code>sections</code></li>
+<li class=""><code>fields</code></li>
+<li class=""><code>dynamicConfigSummary</code></li>
+<li class=""><code>configurationNotes</code></li>
+<li class=""><code>requiredSetupSteps</code></li>
+</ul>
+<p>Static-schema widgets may derive this mostly from <code>schema</code>.
+Custom or hybrid widgets must publish explicit type-level configuration metadata instead of leaving
+the registry empty.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-io">4. <code>io</code><a href="#4-io" class="hash-link" aria-label="Direct link to 4-io" title="Direct link to 4-io" translate="no">​</a></h3>
+<p>Required for every widget:</p>
+<ul>
+<li class=""><code>mode</code>
+<ul>
+<li class=""><code>none</code></li>
+<li class=""><code>static</code></li>
+<li class=""><code>dynamic</code></li>
+<li class=""><code>consumer</code></li>
+</ul>
+</li>
+<li class=""><code>inputs</code></li>
+<li class=""><code>outputs</code></li>
+<li class=""><code>dynamicIoSummary</code></li>
+<li class=""><code>inputContracts</code></li>
+<li class=""><code>outputContracts</code></li>
+<li class=""><code>ioNotes</code></li>
+</ul>
+<p>For dynamic widgets, the contract must explain why ports are dynamic and what they depend on.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-capabilities">5. <code>capabilities</code><a href="#5-capabilities" class="hash-link" aria-label="Direct link to 5-capabilities" title="Direct link to 5-capabilities" translate="no">​</a></h3>
+<p>Required when the widget supports modes, strategies, or typed behaviors that materially affect how
+an agent should configure it.</p>
+<p>Examples:</p>
+<ul>
+<li class="">supported source modes for <code>main-sequence-data-node</code></li>
+<li class="">supported chart providers for <code>main-sequence-data-node-visualizer</code></li>
+<li class="">supported target modes and auth strategies for <code>app-component</code></li>
+<li class="">transform support, parser behavior, or aggregation options where relevant</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-agenthints">6. <code>agentHints</code><a href="#6-agenthints" class="hash-link" aria-label="Direct link to 6-agenthints" title="Direct link to 6-agenthints" translate="no">​</a></h3>
+<p>Required for every widget:</p>
+<ul>
+<li class=""><code>buildPurpose</code></li>
+<li class=""><code>whenToUse</code></li>
+<li class=""><code>whenNotToUse</code></li>
+<li class=""><code>authoringSteps</code></li>
+<li class=""><code>blockingRequirements</code></li>
+<li class=""><code>commonPitfalls</code></li>
+</ul>
+<p>This section must be concise, explicit, and machine-readable enough for agent workflows without
+being tied to a specific LLM implementation.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="7-examples">7. <code>examples</code><a href="#7-examples" class="hash-link" aria-label="Direct link to 7-examples" title="Direct link to 7-examples" translate="no">​</a></h3>
+<p>Recommended for every widget, required for dynamic or execution-owner widgets:</p>
+<ul>
+<li class="">example configuration shapes</li>
+<li class="">example upstream binding usage</li>
+<li class="">example output behavior summaries</li>
+</ul>
+<p>These remain type-level examples, not live instance payloads.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="architecture">Architecture<a href="#architecture" class="hash-link" aria-label="Direct link to Architecture" title="Direct link to Architecture" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-explicit-contract-over-inference">1. Explicit contract over inference<a href="#1-explicit-contract-over-inference" class="hash-link" aria-label="Direct link to 1. Explicit contract over inference" title="Direct link to 1. Explicit contract over inference" translate="no">​</a></h3>
+<p>We will stop relying on scraping React-oriented widget definition fields as the primary backend
+contract.</p>
+<p>The current fields such as:</p>
+<ul>
+<li class=""><code>schema</code></li>
+<li class=""><code>resolveIo(...)</code></li>
+<li class=""><code>settingsComponent</code></li>
+<li class=""><code>execution</code></li>
+</ul>
+<p>remain important runtime implementation hooks, but they are not sufficient as the registry source
+of truth.</p>
+<p>We will add an explicit backend-visible widget type contract to <code>WidgetDefinition</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-safe-derivation-remains-allowed">2. Safe derivation remains allowed<a href="#2-safe-derivation-remains-allowed" class="hash-link" aria-label="Direct link to 2. Safe derivation remains allowed" title="Direct link to 2. Safe derivation remains allowed" translate="no">​</a></h3>
+<p>Static widgets may still derive parts of the registry contract automatically from:</p>
+<ul>
+<li class=""><code>schema</code></li>
+<li class=""><code>io</code></li>
+<li class=""><code>workspaceRuntimeMode</code></li>
+<li class=""><code>execution</code></li>
+</ul>
+<p>But the sync layer must prefer explicit contract sections whenever a widget provides them.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-dynamic-widgets-must-not-hide-behind-empty-schema">3. Dynamic widgets must not hide behind empty schema<a href="#3-dynamic-widgets-must-not-hide-behind-empty-schema" class="hash-link" aria-label="Direct link to 3. Dynamic widgets must not hide behind empty schema" title="Direct link to 3. Dynamic widgets must not hide behind empty schema" translate="no">​</a></h3>
+<p>Widgets with custom settings or instance-derived IO must publish an explicit contract describing:</p>
+<ul>
+<li class="">how configuration works</li>
+<li class="">what dynamic IO depends on</li>
+<li class="">what the execution surface does</li>
+</ul>
+<p>An empty <code>schema_payload</code> is not an acceptable final contract for agent-facing registry use.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-backend-manifest-validation-becomes-strict">4. Backend manifest validation becomes strict<a href="#4-backend-manifest-validation-becomes-strict" class="hash-link" aria-label="Direct link to 4. Backend manifest validation becomes strict" title="Direct link to 4. Backend manifest validation becomes strict" translate="no">​</a></h3>
+<p>The platform must reject publication of incomplete real widgets.</p>
+<p>Before a widget type can be published, it must have:</p>
+<ul>
+<li class="">a runtime classification</li>
+<li class="">a configuration mode</li>
+<li class="">an IO mode</li>
+<li class="">non-empty agent hints</li>
+<li class="">capability summaries where applicable</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-class-templates">Widget Class Templates<a href="#widget-class-templates" class="hash-link" aria-label="Direct link to Widget Class Templates" title="Direct link to Widget Class Templates" translate="no">​</a></h2>
+<p>To keep the registry standardized, widgets will follow one of these contract templates.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="a-local-ui">A. <code>local-ui</code><a href="#a-local-ui" class="hash-link" aria-label="Direct link to a-local-ui" title="Direct link to a-local-ui" translate="no">​</a></h3>
+<p>For widgets that do not own runtime execution and do not participate in binding-driven dataflow.</p>
+<p>Must define:</p>
+<ul>
+<li class=""><code>runtime.workspaceRuntimeMode = &quot;local-ui&quot;</code></li>
+<li class=""><code>configuration</code></li>
+<li class=""><code>agentHints</code></li>
+</ul>
+<p>IO and execution sections can be minimal.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="b-consumer">B. <code>consumer</code><a href="#b-consumer" class="hash-link" aria-label="Direct link to b-consumer" title="Direct link to b-consumer" translate="no">​</a></h3>
+<p>For widgets that render upstream typed outputs.</p>
+<p>Must define:</p>
+<ul>
+<li class="">accepted upstream contracts</li>
+<li class="">field requirements and assumptions</li>
+<li class="">consumer-only runtime behavior</li>
+<li class="">any formatting or rendering constraints</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="c-execution-owner">C. <code>execution-owner</code><a href="#c-execution-owner" class="hash-link" aria-label="Direct link to c-execution-owner" title="Direct link to c-execution-owner" translate="no">​</a></h3>
+<p>For widgets that own canonical runtime execution.</p>
+<p>Must define:</p>
+<ul>
+<li class="">refresh behavior</li>
+<li class="">execution triggers</li>
+<li class="">output publication summary</li>
+<li class="">required setup before execution is valid</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="d-dynamic-execution-owner">D. <code>dynamic execution-owner</code><a href="#d-dynamic-execution-owner" class="hash-link" aria-label="Direct link to d-dynamic-execution-owner" title="Direct link to d-dynamic-execution-owner" translate="no">​</a></h3>
+<p>For widgets like <code>app-component</code> where the exact authoring surface is partly instance-derived.</p>
+<p>Must additionally define:</p>
+<ul>
+<li class="">dynamic configuration summary</li>
+<li class="">dynamic IO explanation</li>
+<li class="">blocking setup requirements</li>
+<li class="">examples of valid authored shapes</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="appcomponent-standard">AppComponent Standard<a href="#appcomponent-standard" class="hash-link" aria-label="Direct link to AppComponent Standard" title="Direct link to AppComponent Standard" translate="no">​</a></h2>
+<p><code>app-component</code> is the reference case for why this ADR exists.</p>
+<p>Its registry contract must explicitly declare:</p>
+<ul>
+<li class="">runtime ownership as <code>execution-owner</code></li>
+<li class="">configuration mode as <code>custom-settings</code></li>
+<li class="">supported target modes</li>
+<li class="">supported auth modes</li>
+<li class="">request input categories<!-- -->
+<ul>
+<li class="">path</li>
+<li class="">query</li>
+<li class="">header</li>
+<li class="">body</li>
+<li class="">form</li>
+</ul>
+</li>
+<li class="">response publication model</li>
+<li class="">dynamic IO explanation</li>
+<li class="">requirement that a saved widget instance must have a compiled binding spec before runtime</li>
+</ul>
+<p>The registry must not claim exact request fields or exact output ports for every future instance.
+Those remain instance-level authoring artifacts.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">backend tooling can reason about widget types instead of only listing them</li>
+<li class="">agents can choose and configure widgets from registry data without reverse-engineering React code</li>
+<li class="">dynamic widgets stop appearing as empty or opaque catalog rows</li>
+<li class="">admin publication becomes a meaningful contract publish instead of a thin manifest dump</li>
+<li class="">backend systems can identify per-widget contract changes without reinterpreting the whole
+registry manifest</li>
+</ul>
+<p>Negative:</p>
+<ul>
+<li class="">widget definitions gain one more explicit contract surface to maintain</li>
+<li class="">the sync manifest becomes larger and more opinionated</li>
+<li class="">contract validation will force older widgets to be documented more rigorously before publication</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rollout-tasks">Rollout Tasks<a href="#rollout-tasks" class="hash-link" aria-label="Direct link to Rollout Tasks" title="Direct link to Rollout Tasks" translate="no">​</a></h2>
+<p>This ADR is not complete until every task below is done.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-1-contract-types-and-sync-shape">Phase 1: Contract types and sync shape<a href="#phase-1-contract-types-and-sync-shape" class="hash-link" aria-label="Direct link to Phase 1: Contract types and sync shape" title="Direct link to Phase 1: Contract types and sync shape" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add <code>widgetVersion</code> to the shared widget definition contract in <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/types.ts">src/widgets/types.ts</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit widget registry contract types to <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/types.ts">src/widgets/types.ts</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add standardized sections for <code>identity</code>, <code>runtime</code>, <code>configuration</code>, <code>io</code>, <code>capabilities</code>, <code>agentHints</code>, and <code>examples</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/registry/widget-type-sync.ts">src/app/registry/widget-type-sync.ts</a> to serialize the explicit registry contract</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Bump <code>WIDGET_REGISTRY_VERSION</code> because the backend-visible manifest contract changed</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep safe fallback derivation for simple static widgets</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Document when widget authors must bump <code>widgetVersion</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-2-validation-and-admin-visibility">Phase 2: Validation and admin visibility<a href="#phase-2-validation-and-admin-visibility" class="hash-link" aria-label="Direct link to Phase 2: Validation and admin visibility" title="Direct link to Phase 2: Validation and admin visibility" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add manifest validation so incomplete real widgets cannot be published</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Validate that every published real widget has a non-empty <code>widgetVersion</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Surface validation failures in the admin publish UI in <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/layout/SettingsDialog.tsx">src/app/layout/SettingsDialog.tsx</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Expand the admin manifest preview so it shows the richer contract sections, not only checksum and counts</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Show per-widget version in the admin manifest preview</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests or sanity checks covering contract completeness for all published widgets</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-3-core-widgets">Phase 3: Core widgets<a href="#phase-3-core-widgets" class="hash-link" aria-label="Direct link to Phase 3: Core widgets" title="Direct link to Phase 3: Core widgets" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/core/app-component">src/widgets/core/app-component</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/core/markdown-note">src/widgets/core/markdown-note</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/core/workspace-row">src/widgets/core/workspace-row</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-4-main-sequence-execution-owner-widgets">Phase 4: Main Sequence execution-owner widgets<a href="#phase-4-main-sequence-execution-owner-widgets" class="hash-link" aria-label="Direct link to Phase 4: Main Sequence execution-owner widgets" title="Direct link to Phase 4: Main Sequence execution-owner widgets" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/workbench/widgets/data-node-filter">extensions/main_sequence/extensions/workbench/widgets/data-node-filter</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/workbench/widgets/dependency-graph">extensions/main_sequence/extensions/workbench/widgets/dependency-graph</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table">extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-5-main-sequence-consumer-widgets">Phase 5: Main Sequence consumer widgets<a href="#phase-5-main-sequence-consumer-widgets" class="hash-link" aria-label="Direct link to Phase 5: Main Sequence consumer widgets" title="Direct link to Phase 5: Main Sequence consumer widgets" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/workbench/widgets/data-node-table">extensions/main_sequence/extensions/workbench/widgets/data-node-table</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer">extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/workbench/widgets/data-node-statistic">extensions/main_sequence/extensions/workbench/widgets/data-node-statistic</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/markets/widgets/curve-plot">extensions/main_sequence/extensions/markets/widgets/curve-plot</a></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/markets/widgets/zero-curve">extensions/main_sequence/extensions/markets/widgets/zero-curve</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-6-remaining-local-ui-widgets-in-scope">Phase 6: Remaining local UI widgets in scope<a href="#phase-6-remaining-local-ui-widgets-in-scope" class="hash-link" aria-label="Direct link to Phase 6: Remaining local UI widgets in scope" title="Direct link to Phase 6: Remaining local UI widgets in scope" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit contracts for <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/workbench/widgets/project-infra-graph">extensions/main_sequence/extensions/workbench/widgets/project-infra-graph</a></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-7-documentation-and-migration-completion">Phase 7: Documentation and migration completion<a href="#phase-7-documentation-and-migration-completion" class="hash-link" aria-label="Direct link to Phase 7: Documentation and migration completion" title="Direct link to Phase 7: Documentation and migration completion" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>src/app/registry/README.md</code> to describe the new explicit registry contract once implemented</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>src/widgets/README.md</code> to document the new widget definition contract section</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update widget-local READMEs as each widget family gains explicit type contracts</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Document backend expectations for the richer manifest shape</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Mark this ADR as <code>Accepted</code> once the contract is implemented and enforced for all published real widgets</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="guardrails">Guardrails<a href="#guardrails" class="hash-link" aria-label="Direct link to Guardrails" title="Direct link to Guardrails" translate="no">​</a></h2>
+<ul>
+<li class="">Do not encode instance snapshots into the widget type registry.</li>
+<li class="">Do not rely on <code>settingsComponent</code> or <code>resolveIo(...)</code> scraping as the only explanation for
+dynamic widgets.</li>
+<li class="">Do not publish incomplete real widgets with empty agent-facing contract sections.</li>
+<li class="">Do not let mock or demo widgets define the standard for real production widgets.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-agent-ready-widget-type-registry-contract.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/adr/adr-source-driven-downstream-execution"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ADR: Source-Driven Downstream Execution After Manual Widget Actions</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/adr/adr-organization-widget-type-configurations"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">ADR: Organization-Scoped Widget Type Configurations</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#versioning" class="table-of-contents__link toc-highlight">Versioning</a><ul><li><a href="#1-global-manifest-version" class="table-of-contents__link toc-highlight">1. Global manifest version</a></li><li><a href="#2-per-widget-type-version" class="table-of-contents__link toc-highlight">2. Per-widget type version</a></li></ul></li><li><a href="#scope-boundary" class="table-of-contents__link toc-highlight">Scope Boundary</a><ul><li><a href="#type-level-metadata-belongs-in-the-registry" class="table-of-contents__link toc-highlight">Type-level metadata belongs in the registry</a></li><li><a href="#instance-level-metadata-does-not-belong-in-the-registry" class="table-of-contents__link toc-highlight">Instance-level metadata does not belong in the registry</a></li></ul></li><li><a href="#standard-contract" class="table-of-contents__link toc-highlight">Standard Contract</a><ul><li><a href="#1-identity" class="table-of-contents__link toc-highlight">1. <code>identity</code></a></li><li><a href="#2-runtime" class="table-of-contents__link toc-highlight">2. <code>runtime</code></a></li><li><a href="#3-configuration" class="table-of-contents__link toc-highlight">3. <code>configuration</code></a></li><li><a href="#4-io" class="table-of-contents__link toc-highlight">4. <code>io</code></a></li><li><a href="#5-capabilities" class="table-of-contents__link toc-highlight">5. <code>capabilities</code></a></li><li><a href="#6-agenthints" class="table-of-contents__link toc-highlight">6. <code>agentHints</code></a></li><li><a href="#7-examples" class="table-of-contents__link toc-highlight">7. <code>examples</code></a></li></ul></li><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#1-explicit-contract-over-inference" class="table-of-contents__link toc-highlight">1. Explicit contract over inference</a></li><li><a href="#2-safe-derivation-remains-allowed" class="table-of-contents__link toc-highlight">2. Safe derivation remains allowed</a></li><li><a href="#3-dynamic-widgets-must-not-hide-behind-empty-schema" class="table-of-contents__link toc-highlight">3. Dynamic widgets must not hide behind empty schema</a></li><li><a href="#4-backend-manifest-validation-becomes-strict" class="table-of-contents__link toc-highlight">4. Backend manifest validation becomes strict</a></li></ul></li><li><a href="#widget-class-templates" class="table-of-contents__link toc-highlight">Widget Class Templates</a><ul><li><a href="#a-local-ui" class="table-of-contents__link toc-highlight">A. <code>local-ui</code></a></li><li><a href="#b-consumer" class="table-of-contents__link toc-highlight">B. <code>consumer</code></a></li><li><a href="#c-execution-owner" class="table-of-contents__link toc-highlight">C. <code>execution-owner</code></a></li><li><a href="#d-dynamic-execution-owner" class="table-of-contents__link toc-highlight">D. <code>dynamic execution-owner</code></a></li></ul></li><li><a href="#appcomponent-standard" class="table-of-contents__link toc-highlight">AppComponent Standard</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#rollout-tasks" class="table-of-contents__link toc-highlight">Rollout Tasks</a><ul><li><a href="#phase-1-contract-types-and-sync-shape" class="table-of-contents__link toc-highlight">Phase 1: Contract types and sync shape</a></li><li><a href="#phase-2-validation-and-admin-visibility" class="table-of-contents__link toc-highlight">Phase 2: Validation and admin visibility</a></li><li><a href="#phase-3-core-widgets" class="table-of-contents__link toc-highlight">Phase 3: Core widgets</a></li><li><a href="#phase-4-main-sequence-execution-owner-widgets" class="table-of-contents__link toc-highlight">Phase 4: Main Sequence execution-owner widgets</a></li><li><a href="#phase-5-main-sequence-consumer-widgets" class="table-of-contents__link toc-highlight">Phase 5: Main Sequence consumer widgets</a></li><li><a href="#phase-6-remaining-local-ui-widgets-in-scope" class="table-of-contents__link toc-highlight">Phase 6: Remaining local UI widgets in scope</a></li><li><a href="#phase-7-documentation-and-migration-completion" class="table-of-contents__link toc-highlight">Phase 7: Documentation and migration completion</a></li></ul></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

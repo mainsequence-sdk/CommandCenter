@@ -1,7 +1,4 @@
-import {
-  buildMainSequenceAiAssistantHeaders,
-  buildMainSequenceAiAssistantUrl,
-} from "./assistant-endpoint";
+import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
 
 export type ModelCatalogAuthKind = "api_key" | "oauth";
 export type ModelCatalogReasoningEffort =
@@ -222,10 +219,6 @@ function normalizeModelCatalogPayload(payload: unknown) {
   return singleEntry ? [singleEntry] : [];
 }
 
-function buildModelCatalogUrl(assistantEndpoint: string) {
-  return buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/models/catalog");
-}
-
 export async function fetchModelCatalog({
   assistantEndpoint,
   signal,
@@ -237,14 +230,14 @@ export async function fetchModelCatalog({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(buildModelCatalogUrl(assistantEndpoint), {
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    requestPath: "/api/models/catalog",
     method: "GET",
-    headers: buildMainSequenceAiAssistantHeaders({
-      accept: "application/json",
-      token,
-      tokenType,
-    }),
     signal,
+    sessionToken: token,
+    sessionTokenType: tokenType,
   });
 
   if (!response.ok) {

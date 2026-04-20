@@ -1,0 +1,24 @@
+{
+  "id": "operations/deployment",
+  "title": "Deployment",
+  "description": "This repository intentionally does not hardcode host-specific SPA fallback rules for static",
+  "source": "@site/../docs/operations/deployment.md",
+  "sourceDirName": "operations",
+  "slug": "/operations/deployment",
+  "permalink": "/docs/operations/deployment",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/operations/deployment.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Operations",
+    "permalink": "/docs/operations"
+  },
+  "next": {
+    "title": "Architecture Decision Records",
+    "permalink": "/docs/adr"
+  }
+}

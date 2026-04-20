@@ -6,6 +6,13 @@ export interface CommandCenterBaseSessionHandle {
   threadId: string | null;
   sessionKey: string | null;
   handleUniqueId: string | null;
+  runtimeAccess: {
+    codingAgentId: string | null;
+    codingAgentServiceId: string | null;
+    mode: string | null;
+    rpcUrl: string | null;
+    token: string | null;
+  } | null;
   projectId: string | null;
   cwd: string | null;
   updatedAt: string | null;
@@ -65,6 +72,7 @@ function extractHandleCandidate(payload: unknown) {
 function normalizeCommandCenterBaseSessionHandle(payload: unknown): CommandCenterBaseSessionHandle {
   const candidate = extractHandleCandidate(payload);
   const agentCandidate = asRecord(candidate.agent);
+  const runtimeAccessCandidate = asRecord(candidate.runtime_access ?? candidate.runtimeAccess);
   const boundHandle =
     Array.isArray(candidate.bound_handles) && candidate.bound_handles[0]
       ? asRecord(candidate.bound_handles[0])
@@ -99,6 +107,25 @@ function normalizeCommandCenterBaseSessionHandle(payload: unknown): CommandCente
       normalizeString(boundHandle?.handle_unique_id) ??
       normalizeString(candidate.handle_unique_id) ??
       normalizeString(candidate.handleUniqueId),
+    runtimeAccess:
+      Object.keys(runtimeAccessCandidate).length > 0
+        ? {
+            codingAgentId:
+              normalizeIdentifier(
+                runtimeAccessCandidate.coding_agent_id ?? runtimeAccessCandidate.codingAgentId,
+              ),
+            codingAgentServiceId:
+              normalizeIdentifier(
+                runtimeAccessCandidate.coding_agent_service_id ??
+                  runtimeAccessCandidate.codingAgentServiceId,
+              ),
+            mode: normalizeString(runtimeAccessCandidate.mode),
+            rpcUrl:
+              normalizeString(runtimeAccessCandidate.rpc_url) ??
+              normalizeString(runtimeAccessCandidate.rpcUrl),
+            token: normalizeString(runtimeAccessCandidate.token),
+          }
+        : null,
     projectId: normalizeIdentifier(candidate.project_id) ?? normalizeIdentifier(candidate.projectId),
     cwd: normalizeString(candidate.cwd),
     updatedAt:
@@ -134,16 +161,33 @@ function normalizeCommandCenterBaseSessionHandle(payload: unknown): CommandCente
 
 function buildCommandCenterBaseSessionUrl() {
   return new URL(
-    "/orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/",
+    "/orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/",
     env.apiBaseUrl,
   ).toString();
 }
 
+function normalizePayloadSessionId(value: string | number | null | undefined) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const normalized = String(value).trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  const numeric = Number(normalized);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : normalized;
+}
+
 export async function fetchOrCreateCommandCenterBaseSession({
+  currentSessionId,
   signal,
   token,
   tokenType = "Bearer",
 }: {
+  currentSessionId?: string | number | null;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
@@ -151,14 +195,26 @@ export async function fetchOrCreateCommandCenterBaseSession({
   const headers = new Headers({
     Accept: "application/json",
   });
+  const payloadSessionId = normalizePayloadSessionId(currentSessionId);
 
   if (token) {
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
+  if (payloadSessionId !== null) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const response = await fetch(buildCommandCenterBaseSessionUrl(), {
     method: "POST",
     headers,
+    ...(payloadSessionId !== null
+      ? {
+          body: JSON.stringify({
+            current_session: payloadSessionId,
+          }),
+        }
+      : {}),
     signal,
   });
 

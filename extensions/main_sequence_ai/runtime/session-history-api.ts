@@ -1,17 +1,6 @@
 import type { SessionHistorySnapshot } from "../assistant-ui/session-history";
 import { normalizeSessionHistorySnapshot } from "../assistant-ui/session-history";
-import {
-  buildMainSequenceAiAssistantHeaders,
-  buildMainSequenceAiAssistantUrl,
-} from "./assistant-endpoint";
-
-function buildSessionHistoryUrl(sessionId: string, assistantEndpoint: string) {
-  const url = new URL(
-    buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/chat/history"),
-  );
-  url.searchParams.set("sessionId", sessionId);
-  return url.toString();
-}
+import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
 
 export async function fetchSessionHistory({
   assistantEndpoint,
@@ -26,14 +15,15 @@ export async function fetchSessionHistory({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(buildSessionHistoryUrl(sessionId, assistantEndpoint), {
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    currentSessionId: sessionId,
+    requestPath: `/api/chat/history?sessionId=${encodeURIComponent(sessionId)}`,
     method: "GET",
-    headers: buildMainSequenceAiAssistantHeaders({
-      accept: "application/json",
-      token,
-      tokenType,
-    }),
     signal,
+    sessionToken: token,
+    sessionTokenType: tokenType,
   });
 
   if (!response.ok) {

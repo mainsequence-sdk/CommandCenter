@@ -30,7 +30,7 @@ Those assumptions are weak.
 
 The backend now provides a dedicated endpoint for the canonical Command Center session:
 
-- `POST /orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/`
+- `POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`
 
 This endpoint is the correct source of truth for the assistant’s default continuity session.
 
@@ -94,7 +94,7 @@ assistant continuity target.
 
 The only canonical source for the default Command Center session is:
 
-- `POST /orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/`
+- `POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`
 
 This endpoint must replace the current dock-open heuristic that selects the latest
 `astro-orchestrator` session by name.
@@ -196,7 +196,7 @@ canonical Command Center continuity session.
 
 ## Tasks
 
-- [x] Add a dedicated runtime transport for `POST /orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/`.
+- [x] Add a dedicated runtime transport for `POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`.
 - [x] Define the normalized frontend response model for the base session handle in `extensions/main_sequence_ai/runtime/`.
 - [x] Add explicit `baseSession` state ownership to [ChatProvider.tsx](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence_ai/assistant-ui/ChatProvider.tsx).
 - [x] Remove the current “latest `astro-orchestrator` session” dock-open heuristic from [ChatProvider.tsx](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence_ai/assistant-ui/ChatProvider.tsx).
@@ -211,8 +211,8 @@ canonical Command Center continuity session.
 - [x] Add a frontend-only origin marker for the base session and document its storage semantics.
 - [x] Keep explicit user session selection higher priority than automatic base-session selection.
 - [x] Fail fast when the base-session endpoint fails instead of silently falling back to a fabricated default draft.
-- [x] Update [extensions/main_sequence_ai/assistant-ui/README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence_ai/assistant-ui/README.md) after implementation.
-- [x] Update [extensions/main_sequence_ai/runtime/README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence_ai/runtime/README.md) after implementation.
+- [x] Update `extensions/main_sequence_ai/assistant-ui/README.md` after implementation.
+- [x] Update `extensions/main_sequence_ai/runtime/README.md` after implementation.
 
 ## Rejected Alternative
 

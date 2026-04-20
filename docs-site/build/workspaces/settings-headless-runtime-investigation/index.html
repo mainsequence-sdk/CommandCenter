@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-workspaces/settings-headless-runtime-investigation" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Workspace Settings Headless Runtime Investigation | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/workspaces/settings-headless-runtime-investigation"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Workspace Settings Headless Runtime Investigation | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Investigated, then implemented"><meta data-rh="true" property="og:description" content="- Status: Investigated, then implemented"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/workspaces/settings-headless-runtime-investigation"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/workspaces/settings-headless-runtime-investigation" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/workspaces/settings-headless-runtime-investigation" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Workspace Settings Headless Runtime Investigation","item":"https://mainsequence-sdk.github.io/docs/workspaces/settings-headless-runtime-investigation"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
+<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/"><span title="Overview" class="linkLabel_WmDU">Overview</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/platform"><span title="Platform" class="categoryLinkLabel_W154">Platform</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform"><span title="Platform" class="linkLabel_WmDU">Platform</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/configuration"><span title="Configuration" class="linkLabel_WmDU">Configuration</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/theming"><span title="Theming" class="linkLabel_WmDU">Theming</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/internationalization"><span title="Internationalization" class="linkLabel_WmDU">Internationalization</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/notifications"><span title="Notifications" class="linkLabel_WmDU">Notifications</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/apps"><span title="Apps" class="categoryLinkLabel_W154">Apps</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps"><span title="Apps" class="linkLabel_WmDU">Apps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps/overview"><span title="Apps and Surfaces" class="linkLabel_WmDU">Apps and Surfaces</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/widgets"><span title="Widgets" class="categoryLinkLabel_W154">Widgets</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets"><span title="Widgets" class="linkLabel_WmDU">Widgets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets/core-widgets"><span title="Core Widgets" class="linkLabel_WmDU">Core Widgets</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docs/workspaces"><span title="Workspaces" class="categoryLinkLabel_W154">Workspaces</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/overview"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/dashboard-layouts"><span title="Dashboard Layouts" class="linkLabel_WmDU">Dashboard Layouts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/backend-model"><span title="Workspace Backend Model" class="linkLabel_WmDU">Workspace Backend Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/runtime-performance-remediation"><span title="Workspace Runtime Performance Remediation" class="linkLabel_WmDU">Workspace Runtime Performance Remediation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docs/workspaces/settings-headless-runtime-investigation"><span title="Workspace Settings Headless Runtime Investigation" class="linkLabel_WmDU">Workspace Settings Headless Runtime Investigation</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/extensions"><span title="Extensions" class="categoryLinkLabel_W154">Extensions</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions/overview"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/auth"><span title="Auth" class="categoryLinkLabel_W154">Auth</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth"><span title="Auth" class="linkLabel_WmDU">Auth</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth/backend-and-auth"><span title="Backend and Auth Integration" class="linkLabel_WmDU">Backend and Auth Integration</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/access-control"><span title="Access Control" class="categoryLinkLabel_W154">Access Control</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control"><span title="Access Control" class="linkLabel_WmDU">Access Control</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/rbac-assignment-matrix"><span title="RBAC Assignment Matrix" class="linkLabel_WmDU">RBAC Assignment Matrix</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/access-rbac-app"><span title="Access &amp; RBAC App" class="linkLabel_WmDU">Access &amp; RBAC App</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/operations"><span title="Operations" class="categoryLinkLabel_W154">Operations</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations"><span title="Operations" class="linkLabel_WmDU">Operations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations/deployment"><span title="Deployment" class="linkLabel_WmDU">Deployment</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docs/adr"><span title="ADRs" class="categoryLinkLabel_W154">ADRs</span></a></div></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Workspaces</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Workspace Settings Headless Runtime Investigation</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Workspace Settings Headless Runtime Investigation</h1></header>
+<ul>
+<li class="">Status: Investigated, then implemented</li>
+<li class="">Date: 2026-04-03</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/workspaces/runtime-performance-remediation">Workspace Runtime Performance Remediation</a></li>
+<li class=""><a class="" href="/docs/adr/adr-widget-bindings-and-dependency-graph">ADR: First-Class Widget Bindings and Dependency Graph</a></li>
+<li class=""><a class="" href="/docs/adr/adr-executable-widget-graph-runner">ADR: Executable Widget Graph Runner and Refresh Coordination</a></li>
+<li class=""><a class="" href="/docs/adr/adr-headless-workspace-settings-runtime">ADR: Headless Workspace Widget Settings Runtime</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="goal">Goal<a href="#goal" class="hash-link" aria-label="Direct link to Goal" title="Direct link to Goal" translate="no">​</a></h2>
+<p>Determine whether the widget settings route can stop hidden-mounting the full workspace, and if
+not, identify the exact blockers before we change runtime behavior.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="historical-note">Historical note<a href="#historical-note" class="hash-link" aria-label="Direct link to Historical note" title="Direct link to Historical note" translate="no">​</a></h2>
+<p>This document records the investigation before the fix landed.</p>
+<p>The hidden full-workspace mount described below has since been removed from
+<a class="" href="/docs/src/features/dashboards/CustomWidgetSettingsPage.tsx"><code>src/features/dashboards/CustomWidgetSettingsPage.tsx</code></a>,
+and <code>main-sequence-data-node</code> now publishes headlessly through its execution contract:</p>
+<ul>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-filter/dataNodeFilterExecution.ts"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-filter/dataNodeFilterExecution.ts</code></a></li>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts</code></a></li>
+</ul>
+<p>The findings remain important because they explain why the old implementation existed and why the
+Data Node source family had to change first.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-at-the-time-of-investigation">Implementation at the time of investigation<a href="#implementation-at-the-time-of-investigation" class="hash-link" aria-label="Direct link to Implementation at the time of investigation" title="Direct link to Implementation at the time of investigation" translate="no">​</a></h2>
+<p>The settings route currently mounts the full dashboard provider stack, then also renders every
+widget component into an invisible offscreen container:</p>
+<ul>
+<li class=""><a class="" href="/docs/src/features/dashboards/CustomWidgetSettingsPage.tsx#L324"><code>src/features/dashboards/CustomWidgetSettingsPage.tsx#L324</code></a></li>
+<li class=""><a class="" href="/docs/src/features/dashboards/CustomWidgetSettingsPage.tsx#L335"><code>src/features/dashboards/CustomWidgetSettingsPage.tsx#L335</code></a></li>
+<li class=""><a class="" href="/docs/src/features/dashboards/CustomWidgetSettingsPage.tsx#L364"><code>src/features/dashboards/CustomWidgetSettingsPage.tsx#L364</code></a></li>
+</ul>
+<p>That means opening settings for one widget still mounts every other widget in the workspace.</p>
+<p>Because those are real component mounts, hidden widgets still run:</p>
+<ul>
+<li class="">hooks</li>
+<li class="">React Query requests</li>
+<li class="">controller-driven dependency reads</li>
+<li class="">runtime-state effects</li>
+<li class="">execution-state reads</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="verified-findings">Verified findings<a href="#verified-findings" class="hash-link" aria-label="Direct link to Verified findings" title="Direct link to Verified findings" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-generic-settingscontroller-wiring-is-already-mostly-headless-capable">1. Generic settings/controller wiring is already mostly headless-capable<a href="#1-generic-settingscontroller-wiring-is-already-mostly-headless-capable" class="hash-link" aria-label="Direct link to 1. Generic settings/controller wiring is already mostly headless-capable" title="Direct link to 1. Generic settings/controller wiring is already mostly headless-capable" translate="no">​</a></h3>
+<p>The shared settings shell does not require widget components to be mounted. It resolves controller
+context directly from the widget definition through the dependency provider:</p>
+<ul>
+<li class=""><a class="" href="/docs/src/widgets/shared/widget-schema.ts#L198"><code>src/widgets/shared/widget-schema.ts#L198</code></a></li>
+<li class=""><a class="" href="/docs/src/widgets/shared/widget-settings.tsx#L210"><code>src/widgets/shared/widget-settings.tsx#L210</code></a></li>
+</ul>
+<p>This means schema visibility, controller-derived field options, and binding-aware settings do not
+inherently require the full hidden widget tree.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-some-settings-components-are-already-safe-without-hidden-sibling-mounts">2. Some settings components are already safe without hidden sibling mounts<a href="#2-some-settings-components-are-already-safe-without-hidden-sibling-mounts" class="hash-link" aria-label="Direct link to 2. Some settings components are already safe without hidden sibling mounts" title="Direct link to 2. Some settings components are already safe without hidden sibling mounts" translate="no">​</a></h3>
+<p>These settings surfaces are local forms or route-local queries and do not depend on hidden sibling
+widget components:</p>
+<ul>
+<li class=""><a class="" href="/docs/src/widgets/core/markdown-note/MarkdownNoteWidgetSettings.tsx"><code>src/widgets/core/markdown-note/MarkdownNoteWidgetSettings.tsx</code></a></li>
+<li class=""><a class="" href="/docs/src/widgets/core/workspace-row/WorkspaceRowWidgetSettings.tsx"><code>src/widgets/core/workspace-row/WorkspaceRowWidgetSettings.tsx</code></a></li>
+<li class=""><a class="" href="/docs/extensions/demo/widgets/yield-curve-plot/YieldCurvePlotWidgetSettings.tsx"><code>extensions/demo/widgets/yield-curve-plot/YieldCurvePlotWidgetSettings.tsx</code></a></li>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table/PortfolioWeightsWidgetSettings.tsx"><code>extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table/PortfolioWeightsWidgetSettings.tsx</code></a></li>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/dependency-graph/MainSequenceDependencyGraphWidgetSettings.tsx"><code>extensions/main_sequence/extensions/workbench/widgets/dependency-graph/MainSequenceDependencyGraphWidgetSettings.tsx</code></a></li>
+</ul>
+<p>These can run in a provider-backed settings host without any hidden full-workspace mount.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-appcomponent-settings-are-already-much-closer-to-headless-safe">3. AppComponent settings are already much closer to headless-safe<a href="#3-appcomponent-settings-are-already-much-closer-to-headless-safe" class="hash-link" aria-label="Direct link to 3. AppComponent settings are already much closer to headless-safe" title="Direct link to 3. AppComponent settings are already much closer to headless-safe" translate="no">​</a></h3>
+<p><code>AppComponent</code> settings explicitly use the dependency and execution providers:</p>
+<ul>
+<li class=""><a class="" href="/docs/src/widgets/core/app-component/AppComponentWidgetSettings.tsx#L165"><code>src/widgets/core/app-component/AppComponentWidgetSettings.tsx#L165</code></a></li>
+<li class=""><a class="" href="/docs/src/widgets/core/app-component/AppComponentWidgetSettings.tsx#L166"><code>src/widgets/core/app-component/AppComponentWidgetSettings.tsx#L166</code></a></li>
+<li class=""><a class="" href="/docs/src/widgets/core/app-component/AppComponentWidgetSettings.tsx#L168"><code>src/widgets/core/app-component/AppComponentWidgetSettings.tsx#L168</code></a></li>
+</ul>
+<p>It also owns its own OpenAPI discovery query in settings:</p>
+<ul>
+<li class=""><a class="" href="/docs/src/widgets/core/app-component/AppComponentWidgetSettings.tsx#L182"><code>src/widgets/core/app-component/AppComponentWidgetSettings.tsx#L182</code></a></li>
+</ul>
+<p>And unlike passive data widgets, <code>AppComponent</code> has a first-class execution contract:</p>
+<ul>
+<li class=""><a class="" href="/docs/src/widgets/core/app-component/definition.ts#L45"><code>src/widgets/core/app-component/definition.ts#L45</code></a></li>
+<li class=""><a class="" href="/docs/src/widgets/core/app-component/definition.ts#L46"><code>src/widgets/core/app-component/definition.ts#L46</code></a></li>
+</ul>
+<p>So AppComponent settings do not appear to need hidden sibling widget mounts as the main runtime
+mechanism.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-the-main-blocker-is-the-data-node-source-runtime-model">4. The main blocker is the Data Node source runtime model<a href="#4-the-main-blocker-is-the-data-node-source-runtime-model" class="hash-link" aria-label="Direct link to 4. The main blocker is the Data Node source runtime model" title="Direct link to 4. The main blocker is the Data Node source runtime model" translate="no">​</a></h3>
+<p>The Data Node source resolution helper still depends on source widget runtime state:</p>
+<ul>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-shared/dataNodeWidgetSource.tsx#L466"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-shared/dataNodeWidgetSource.tsx#L466</code></a></li>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-shared/dataNodeWidgetSource.tsx#L504"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-shared/dataNodeWidgetSource.tsx#L504</code></a></li>
+</ul>
+<p>Specifically, it resolves source data from:</p>
+<ul>
+<li class="">canonical resolved input value, or</li>
+<li class="">referenced source widget <code>runtimeState</code></li>
+</ul>
+<p>That second path matters because the source widget itself is passive.</p>
+<p>The <code>main-sequence-data-node</code> widget publishes its output from <code>runtimeState</code>:</p>
+<ul>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts#L67"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts#L67</code></a></li>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts#L74"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts#L74</code></a></li>
+</ul>
+<p>But that runtime state is materialized by the real widget component through mounted queries and an
+<code>onRuntimeStateChange(...)</code> effect:</p>
+<ul>
+<li class="">query work: <a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-filter/MainSequenceDataNodeFilterWidget.tsx#L155"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-filter/MainSequenceDataNodeFilterWidget.tsx#L155</code></a></li>
+<li class="">runtime write: <a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-filter/MainSequenceDataNodeFilterWidget.tsx#L389"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-filter/MainSequenceDataNodeFilterWidget.tsx#L389</code></a></li>
+</ul>
+<p>This widget has no <code>execution</code> contract today. It is not headlessly executable by the dashboard
+execution provider.</p>
+<p>So the hidden mount is currently acting as a fake runtime host for Data Node source widgets.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-multiple-consumer-families-inherit-the-same-blocker">5. Multiple consumer families inherit the same blocker<a href="#5-multiple-consumer-families-inherit-the-same-blocker" class="hash-link" aria-label="Direct link to 5. Multiple consumer families inherit the same blocker" title="Direct link to 5. Multiple consumer families inherit the same blocker" translate="no">​</a></h3>
+<p>The following settings flows depend on the shared Data Node source binding/context helpers and
+therefore depend on source runtime being available:</p>
+<ul>
+<li class="">Data Node filter settings<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-filter/MainSequenceDataNodeFilterWidgetSettings.tsx#L200"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-filter/MainSequenceDataNodeFilterWidgetSettings.tsx#L200</code></a></li>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-filter/MainSequenceDataNodeFilterWidgetSettings.tsx#L213"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-filter/MainSequenceDataNodeFilterWidgetSettings.tsx#L213</code></a></li>
+</ul>
+</li>
+<li class="">Data Node visualizer settings<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/MainSequenceDataNodeVisualizerWidgetSettings.tsx#L93"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/MainSequenceDataNodeVisualizerWidgetSettings.tsx#L93</code></a></li>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/MainSequenceDataNodeVisualizerWidgetSettings.tsx#L103"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/MainSequenceDataNodeVisualizerWidgetSettings.tsx#L103</code></a></li>
+</ul>
+</li>
+<li class="">Data Node statistic settings<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-statistic/StatisticWidgetSettings.tsx#L135"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-statistic/StatisticWidgetSettings.tsx#L135</code></a></li>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-statistic/StatisticWidgetSettings.tsx#L139"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-statistic/StatisticWidgetSettings.tsx#L139</code></a></li>
+</ul>
+</li>
+<li class="">Data Node table settings<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-table/DataNodeTableWidgetSettings.tsx#L272"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-table/DataNodeTableWidgetSettings.tsx#L272</code></a></li>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/workbench/widgets/data-node-table/DataNodeTableWidgetSettings.tsx#L276"><code>extensions/main_sequence/extensions/workbench/widgets/data-node-table/DataNodeTableWidgetSettings.tsx#L276</code></a></li>
+</ul>
+</li>
+</ul>
+<p>The Markets widgets that use the same controller context also inherit this dependency:</p>
+<ul>
+<li class="">curve plot controller<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/markets/widgets/curve-plot/controller.ts#L53"><code>extensions/main_sequence/extensions/markets/widgets/curve-plot/controller.ts#L53</code></a></li>
+</ul>
+</li>
+<li class="">zero curve controller<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/extensions/main_sequence/extensions/markets/widgets/zero-curve/controller.ts#L34"><code>extensions/main_sequence/extensions/markets/widgets/zero-curve/controller.ts#L34</code></a></li>
+</ul>
+</li>
+</ul>
+<p>These widgets are not blocked because their settings components are unusually complex. They are
+blocked because the shared Data Node source model still expects mounted source widget runtime.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="investigation-matrix">Investigation matrix<a href="#investigation-matrix" class="hash-link" aria-label="Direct link to Investigation matrix" title="Direct link to Investigation matrix" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="safe-now-with-provider-backed-settings-only">Safe now with provider-backed settings only<a href="#safe-now-with-provider-backed-settings-only" class="hash-link" aria-label="Direct link to Safe now with provider-backed settings only" title="Direct link to Safe now with provider-backed settings only" translate="no">​</a></h3>
+<ul>
+<li class="">Markdown Note</li>
+<li class="">Workspace Row</li>
+<li class="">Yield Curve Plot demo widget</li>
+<li class="">Portfolio Weights</li>
+<li class="">Main Sequence Dependency Graph widget</li>
+<li class="">shared bindings tab</li>
+<li class="">generic schema/controller-driven settings shell</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="largely-headless-safe-already">Largely headless-safe already<a href="#largely-headless-safe-already" class="hash-link" aria-label="Direct link to Largely headless-safe already" title="Direct link to Largely headless-safe already" translate="no">​</a></h3>
+<ul>
+<li class="">AppComponent</li>
+</ul>
+<p>Reason:</p>
+<ul>
+<li class="">has its own execution contract</li>
+<li class="">queries OpenAPI directly in settings</li>
+<li class="">reads dependency/execution context directly from providers</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="not-safe-yet">Not safe yet<a href="#not-safe-yet" class="hash-link" aria-label="Direct link to Not safe yet" title="Direct link to Not safe yet" translate="no">​</a></h3>
+<ul>
+<li class="">Data Node source widget (<code>main-sequence-data-node</code>)</li>
+<li class="">Data Node consumer settings family</li>
+<li class="">Markets widgets built on <code>useDataNodeWidgetSourceControllerContext(...)</code></li>
+</ul>
+<p>Reason:</p>
+<ul>
+<li class="">source output is derived from <code>runtimeState</code></li>
+<li class="">runtime state is populated by component mount side effects</li>
+<li class="">there is no equivalent headless source execution/materialization path</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="conclusion">Conclusion<a href="#conclusion" class="hash-link" aria-label="Direct link to Conclusion" title="Direct link to Conclusion" translate="no">​</a></h2>
+<p>We should not remove the hidden full-workspace mount first.</p>
+<p>The hidden mount is a bad implementation, but the current system still relies on it for one real
+architectural reason:</p>
+<ul>
+<li class="">passive Data Node source widgets are being used as runtime publishers without a headless runtime path</li>
+</ul>
+<p>If we remove the hidden mount today, the most likely regressions are:</p>
+<ul>
+<li class="">stale or missing source datasets in Data Node consumer settings</li>
+<li class="">broken field-option derivation in Data Node / Curve / Zero Curve settings</li>
+<li class="">incorrect preview state for widgets that depend on source runtime rows</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="minimal-safe-direction">Minimal safe direction<a href="#minimal-safe-direction" class="hash-link" aria-label="Direct link to Minimal safe direction" title="Direct link to Minimal safe direction" translate="no">​</a></h2>
+<p>The first real runtime change for this area should be:</p>
+<ol>
+<li class="">make the Data Node source widget publish its dataset headlessly</li>
+<li class="">stop depending on component mount side effects for source runtime materialization</li>
+<li class="">only then remove the hidden full-workspace component tree from settings</li>
+</ol>
+<p>There are two plausible follow-up designs:</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="option-a-make-main-sequence-data-node-executable">Option A: Make <code>main-sequence-data-node</code> executable<a href="#option-a-make-main-sequence-data-node-executable" class="hash-link" aria-label="Direct link to option-a-make-main-sequence-data-node-executable" title="Direct link to option-a-make-main-sequence-data-node-executable" translate="no">​</a></h3>
+<p>Add a first-class <code>execution</code> contract to the Data Node source widget so the execution provider can
+materialize and refresh its runtime state without mounting the visual component.</p>
+<p>This is the cleaner fit with the current executable widget graph architecture.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="option-b-add-a-headless-source-materializer-for-passive-data-widgets">Option B: Add a headless source materializer for passive data widgets<a href="#option-b-add-a-headless-source-materializer-for-passive-data-widgets" class="hash-link" aria-label="Direct link to Option B: Add a headless source materializer for passive data widgets" title="Direct link to Option B: Add a headless source materializer for passive data widgets" translate="no">​</a></h3>
+<p>Keep the widget non-executable, but move its runtime publication logic into a provider-level
+headless data-source host used by settings.</p>
+<p>This may be narrower in scope, but it creates a second runtime mechanism next to the execution
+system and is therefore less desirable.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="recommendation">Recommendation<a href="#recommendation" class="hash-link" aria-label="Direct link to Recommendation" title="Direct link to Recommendation" translate="no">​</a></h2>
+<p>Treat this investigation as complete and use it to drive the next plan.</p>
+<p>The implementation plan for item 4 in the remediation document should start with:</p>
+<ul>
+<li class="">headless runtime materialization for the Data Node source family</li>
+<li class="">verification that Data Node consumers no longer depend on mounted sibling widgets</li>
+<li class="">then removal of the hidden full-workspace mount from the settings route</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implemented-outcome">Implemented outcome<a href="#implemented-outcome" class="hash-link" aria-label="Direct link to Implemented outcome" title="Direct link to Implemented outcome" translate="no">​</a></h2>
+<p>That recommendation is now the implemented path:</p>
+<ol>
+<li class=""><code>main-sequence-data-node</code> became an executable widget that materializes direct-query and
+bound-source runtime state headlessly through the shared execution layer.</li>
+<li class="">execution contexts now carry dashboard control state so headless Data Node execution still
+respects the active workspace range.</li>
+<li class=""><code>CustomWidgetSettingsPage</code> keeps the dashboard provider stack but no longer hidden-mounts the
+full workspace component tree.</li>
+</ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/settings-headless-runtime-investigation.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/workspaces/runtime-performance-remediation"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Workspace Runtime Performance Remediation</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/extensions"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Extensions</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#goal" class="table-of-contents__link toc-highlight">Goal</a></li><li><a href="#historical-note" class="table-of-contents__link toc-highlight">Historical note</a></li><li><a href="#implementation-at-the-time-of-investigation" class="table-of-contents__link toc-highlight">Implementation at the time of investigation</a></li><li><a href="#verified-findings" class="table-of-contents__link toc-highlight">Verified findings</a><ul><li><a href="#1-generic-settingscontroller-wiring-is-already-mostly-headless-capable" class="table-of-contents__link toc-highlight">1. Generic settings/controller wiring is already mostly headless-capable</a></li><li><a href="#2-some-settings-components-are-already-safe-without-hidden-sibling-mounts" class="table-of-contents__link toc-highlight">2. Some settings components are already safe without hidden sibling mounts</a></li><li><a href="#3-appcomponent-settings-are-already-much-closer-to-headless-safe" class="table-of-contents__link toc-highlight">3. AppComponent settings are already much closer to headless-safe</a></li><li><a href="#4-the-main-blocker-is-the-data-node-source-runtime-model" class="table-of-contents__link toc-highlight">4. The main blocker is the Data Node source runtime model</a></li><li><a href="#5-multiple-consumer-families-inherit-the-same-blocker" class="table-of-contents__link toc-highlight">5. Multiple consumer families inherit the same blocker</a></li></ul></li><li><a href="#investigation-matrix" class="table-of-contents__link toc-highlight">Investigation matrix</a><ul><li><a href="#safe-now-with-provider-backed-settings-only" class="table-of-contents__link toc-highlight">Safe now with provider-backed settings only</a></li><li><a href="#largely-headless-safe-already" class="table-of-contents__link toc-highlight">Largely headless-safe already</a></li><li><a href="#not-safe-yet" class="table-of-contents__link toc-highlight">Not safe yet</a></li></ul></li><li><a href="#conclusion" class="table-of-contents__link toc-highlight">Conclusion</a></li><li><a href="#minimal-safe-direction" class="table-of-contents__link toc-highlight">Minimal safe direction</a><ul><li><a href="#option-a-make-main-sequence-data-node-executable" class="table-of-contents__link toc-highlight">Option A: Make <code>main-sequence-data-node</code> executable</a></li><li><a href="#option-b-add-a-headless-source-materializer-for-passive-data-widgets" class="table-of-contents__link toc-highlight">Option B: Add a headless source materializer for passive data widgets</a></li></ul></li><li><a href="#recommendation" class="table-of-contents__link toc-highlight">Recommendation</a></li><li><a href="#implemented-outcome" class="table-of-contents__link toc-highlight">Implemented outcome</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

@@ -4,6 +4,16 @@ This folder contains Main Sequence workbench widget modules. The workbench exten
 registers the Dependency Graph, the Project Infrastructure Graph, and the Main Sequence Data Node
 widget family in the live widget catalog.
 
+## Widget Readmes
+
+- [Dependency Graph](./dependency-graph/README.md)
+- [Project Infrastructure Graph](./project-infra-graph/README.md)
+- [Data Node Filter](./data-node-filter/README.md)
+- [Data Node Statistic](./data-node-statistic/README.md)
+- [Data Node Table](./data-node-table/README.md)
+- [Data Node Visualizer](./data-node-visualizer/README.md)
+- [Data Node Shared Contracts](./data-node-shared/README.md)
+
 ## Rules
 
 - Each widget must follow the platform `WidgetDefinition` contract when it is re-enabled from `extensions/main_sequence/extensions/workbench/index.ts`.
@@ -12,6 +22,8 @@ widget family in the live widget catalog.
   surface instead of baking a route-specific size into the reusable widget definition.
 - Each widget folder should document both the reusable widget definition and the expected instance-level configuration model.
 - Main Sequence apps may mount preconfigured widget instances, while dashboard/workspace builders may expose instance settings for the same widget definition.
+- Each widget listed above must keep its own local `README.md` current; do not rely on this folder
+  index as the only documentation.
 - Current widget folders include `dependency-graph/` for mixed update dependency-graph rendering,
   `project-infra-graph/` for project-scoped infrastructure graph exploration in the project detail
   shell and reusable workspace widget,

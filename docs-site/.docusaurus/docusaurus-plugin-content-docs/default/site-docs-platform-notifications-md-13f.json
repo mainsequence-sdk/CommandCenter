@@ -1,0 +1,24 @@
+{
+  "id": "platform/notifications",
+  "title": "Notifications",
+  "description": "Notifications are aggregated per app. Each app registers one or more notification sources, and the",
+  "source": "@site/../docs/platform/notifications.md",
+  "sourceDirName": "platform",
+  "slug": "/platform/notifications",
+  "permalink": "/docs/platform/notifications",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/platform/notifications.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Internationalization",
+    "permalink": "/docs/platform/internationalization"
+  },
+  "next": {
+    "title": "Apps",
+    "permalink": "/docs/apps"
+  }
+}

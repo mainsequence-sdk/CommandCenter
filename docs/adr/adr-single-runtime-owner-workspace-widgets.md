@@ -5,7 +5,7 @@
 - Related:
   - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
   - [ADR: Headless Workspace Widget Settings Runtime](./adr-headless-workspace-settings-runtime.md)
-  - [Workspace Runtime Performance Remediation](./workspace-runtime-performance-remediation.md)
+  - [Workspace Runtime Performance Remediation](../workspaces/runtime-performance-remediation.md)
 
 ## Context
 

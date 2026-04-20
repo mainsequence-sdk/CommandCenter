@@ -1,0 +1,24 @@
+{
+  "id": "adr/adr-app-component-mock-json-target",
+  "title": "ADR: AppComponent Mock JSON Target for Pipeline Prototyping",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/adr-app-component-mock-json-target.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-app-component-mock-json-target",
+  "permalink": "/docs/adr/adr-app-component-mock-json-target",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-app-component-mock-json-target.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: AppComponent Response Notification UI Contract",
+    "permalink": "/docs/adr/adr-app-component-response-notification-ui"
+  },
+  "next": {
+    "title": "ADR: Extension-Contributed Shell Settings Menus",
+    "permalink": "/docs/adr/adr-extension-contributed-shell-settings-menus"
+  }
+}

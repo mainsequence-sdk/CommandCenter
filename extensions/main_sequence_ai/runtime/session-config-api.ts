@@ -1,7 +1,4 @@
-import {
-  buildMainSequenceAiAssistantHeaders,
-  buildMainSequenceAiAssistantUrl,
-} from "./assistant-endpoint";
+import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
 
 export interface SessionConfigPatchRequest {
   sessionId: string;
@@ -30,10 +27,6 @@ export class SessionConfigApiError extends Error {
   }
 }
 
-function buildSessionConfigUrl(assistantEndpoint: string) {
-  return buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/chat/session-config");
-}
-
 export async function patchSessionConfig({
   assistantEndpoint,
   body,
@@ -45,18 +38,18 @@ export async function patchSessionConfig({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(buildSessionConfigUrl(assistantEndpoint), {
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    currentSessionId: body.sessionId,
+    requestPath: "/api/chat/session-config",
     method: "PATCH",
-    headers: (() => {
-      const headers = buildMainSequenceAiAssistantHeaders({
-        accept: "application/json",
-        token,
-        tokenType,
-      });
-      headers.set("Content-Type", "application/json");
-      return headers;
-    })(),
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
+    sessionToken: token,
+    sessionTokenType: tokenType,
   });
 
   if (!response.ok) {

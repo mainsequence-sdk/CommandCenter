@@ -1,8 +1,8 @@
 import type { SessionToolsSnapshot } from "../assistant-ui/session-tools";
 import { normalizeSessionToolsSnapshot } from "../assistant-ui/session-tools";
 import {
-  buildMainSequenceAiAssistantHeaders,
   buildMainSequenceAiAssistantUrl,
+  fetchMainSequenceAiAssistantResponse,
 } from "./assistant-endpoint";
 
 function buildSessionToolsUrl(sessionId: string, assistantEndpoint: string) {
@@ -28,21 +28,28 @@ export async function fetchSessionTools({
 }) {
   const url = buildSessionToolsUrl(sessionId, assistantEndpoint);
   let response: Response;
+  let requestUrl = url;
+  let resolvedAssistantEndpoint = assistantEndpoint;
 
   try {
-    response = await fetch(url, {
+    ({
+      response,
+      url: requestUrl,
+      resolvedAccess: { assistantEndpoint: resolvedAssistantEndpoint },
+    } = await fetchMainSequenceAiAssistantResponse({
+      accept: "application/json",
+      assistantEndpoint,
+      currentSessionId: sessionId,
+      requestPath: `/api/chat/session-tools?sessionId=${encodeURIComponent(sessionId)}`,
       method: "GET",
-      headers: buildMainSequenceAiAssistantHeaders({
-        accept: "application/json",
-        token,
-        tokenType,
-      }),
       signal,
-    });
+      sessionToken: token,
+      sessionTokenType: tokenType,
+    }));
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unknown fetch error.";
     throw new Error(
-      `Failed to load available tools for session ${sessionId} from ${url}. ${detail}`,
+      `Failed to load available tools for session ${sessionId} from ${requestUrl}. ${detail}`,
     );
   }
 
@@ -51,12 +58,12 @@ export async function fetchSessionTools({
       | { error?: string; message?: string; detail?: string }
       | null;
     throw new Error(
-      `Failed to load available tools for session ${sessionId} from ${url} (${response.status}). ${
+      `Failed to load available tools for session ${sessionId} from ${requestUrl} (${response.status}). ${
         payload?.message || payload?.detail || payload?.error || response.statusText || "Unknown backend error."
       }`,
     );
   }
 
   const payload = (await response.json()) as unknown;
-  return normalizeSessionToolsSnapshot(payload, assistantEndpoint) satisfies SessionToolsSnapshot;
+  return normalizeSessionToolsSnapshot(payload, resolvedAssistantEndpoint) satisfies SessionToolsSnapshot;
 }

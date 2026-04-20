@@ -1,0 +1,24 @@
+{
+  "id": "workspaces/dashboard-layouts",
+  "title": "Dashboard Layouts",
+  "description": "Overview",
+  "source": "@site/../docs/workspaces/dashboard-layouts.md",
+  "sourceDirName": "workspaces",
+  "slug": "/workspaces/dashboard-layouts",
+  "permalink": "/docs/workspaces/dashboard-layouts",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/dashboard-layouts.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Workspaces",
+    "permalink": "/docs/workspaces/overview"
+  },
+  "next": {
+    "title": "Workspace Backend Model",
+    "permalink": "/docs/workspaces/backend-model"
+  }
+}

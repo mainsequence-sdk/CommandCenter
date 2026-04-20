@@ -1,0 +1,24 @@
+{
+  "id": "adr/adr-single-runtime-owner-workspace-widgets",
+  "title": "ADR: Single Runtime Owner for Workspace Widgets",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/adr-single-runtime-owner-workspace-widgets.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-single-runtime-owner-workspace-widgets",
+  "permalink": "/docs/adr/adr-single-runtime-owner-workspace-widgets",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-single-runtime-owner-workspace-widgets.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Headless Workspace Widget Settings Runtime",
+    "permalink": "/docs/adr/adr-headless-workspace-settings-runtime"
+  },
+  "next": {
+    "title": "ADR: Incremental Workspace Normalization and Resource-Scoped Save",
+    "permalink": "/docs/adr/adr-incremental-workspace-normalization"
+  }
+}

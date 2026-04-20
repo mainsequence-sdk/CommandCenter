@@ -1,126 +1,207 @@
 {
-  "/docs/__docusaurus/debug-e58": {
-    "__comp": "__comp---theme-debug-config-23-a-2ff",
+  "/docs/-344": {
+    "__comp": "5e95c892",
     "__context": {
-      "plugin": "plugin---docs-docusaurus-debugb-38-c84"
+      "plugin": "aba21aa0"
     }
   },
-  "/docs/__docusaurus/debug/config-2ce": {
-    "__comp": "__comp---theme-debug-config-23-a-2ff",
-    "__context": {
-      "plugin": "plugin---docs-docusaurus-debugb-38-c84"
-    }
+  "/docs/-f93": {
+    "__comp": "a7bd4aaa",
+    "__props": "11b43341"
   },
-  "/docs/__docusaurus/debug/content-11b": {
-    "__comp": "__comp---theme-debug-contentba-8-ce7",
-    "__context": {
-      "plugin": "plugin---docs-docusaurus-debugb-38-c84"
-    },
-    "__props": "__props---docs-docusaurus-debug-content-344-8d5"
+  "/docs/-b2f": {
+    "__comp": "a94703ab"
   },
-  "/docs/__docusaurus/debug/globalData-f13": {
-    "__comp": "__comp---theme-debug-global-dataede-0fa",
-    "__context": {
-      "plugin": "plugin---docs-docusaurus-debugb-38-c84"
-    }
+  "/docs/access-control-073": {
+    "__comp": "17896441",
+    "content": "c7e9bc0c"
   },
-  "/docs/__docusaurus/debug/metadata-bff": {
-    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
-    "__context": {
-      "plugin": "plugin---docs-docusaurus-debugb-38-c84"
-    }
+  "/docs/access-control/access-rbac-app-868": {
+    "__comp": "17896441",
+    "content": "005a02b8"
   },
-  "/docs/__docusaurus/debug/registry-830": {
-    "__comp": "__comp---theme-debug-registry-679-501",
-    "__context": {
-      "plugin": "plugin---docs-docusaurus-debugb-38-c84"
-    }
+  "/docs/access-control/rbac-assignment-matrix-1cc": {
+    "__comp": "17896441",
+    "content": "5336f271"
   },
-  "/docs/__docusaurus/debug/routes-13e": {
-    "__comp": "__comp---theme-debug-routes-946-699",
-    "__context": {
-      "plugin": "plugin---docs-docusaurus-debugb-38-c84"
-    }
+  "/docs/adr-265": {
+    "__comp": "17896441",
+    "content": "b03f83d9"
   },
-  "/docs/-a9a": {
-    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
-    "__context": {
-      "plugin": "plugin---docs-aba-4f5"
-    }
+  "/docs/adr/adr-agent-ready-widget-type-registry-contract-005": {
+    "__comp": "17896441",
+    "content": "de2ea857"
   },
-  "/docs/-3c2": {
-    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
-    "__props": "__props---docs-11-b-f70"
+  "/docs/adr/adr-app-component-binding-native-api-widget-7f0": {
+    "__comp": "17896441",
+    "content": "c468483c"
   },
-  "/docs/-c57": {
-    "__comp": "__comp---theme-doc-roota-94-67a"
+  "/docs/adr/adr-app-component-caching-222": {
+    "__comp": "17896441",
+    "content": "c123b4bf"
   },
-  "/docs/access-rbac-app-f1f": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-access-rbac-appd-42-300"
+  "/docs/adr/adr-app-component-mock-json-target-da1": {
+    "__comp": "17896441",
+    "content": "e9510f24"
   },
-  "/docs/adr-shared-workspace-state-edd": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-adr-shared-workspace-statec-25-cdf"
+  "/docs/adr/adr-app-component-response-notification-ui-ce1": {
+    "__comp": "17896441",
+    "content": "720c448b"
   },
-  "/docs/apps-and-surfaces-7ef": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-apps-and-surfaces-659-427"
+  "/docs/adr/adr-binding-output-transforms-cbb": {
+    "__comp": "17896441",
+    "content": "afdf42b8"
   },
-  "/docs/architecture-0e9": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-architecture-23-c-290"
+  "/docs/adr/adr-executable-widget-graph-runner-4e5": {
+    "__comp": "17896441",
+    "content": "f4636ece"
   },
-  "/docs/backend-and-auth-55f": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-backend-and-auth-383-776"
+  "/docs/adr/adr-extension-contributed-shell-settings-menus-05f": {
+    "__comp": "17896441",
+    "content": "9f6e852a"
   },
-  "/docs/configuration-193": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-configuration-2-bb-d48"
+  "/docs/adr/adr-headless-workspace-settings-runtime-609": {
+    "__comp": "17896441",
+    "content": "68b9c37e"
   },
-  "/docs/core-widgets-c30": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-core-widgets-9-ef-d9b"
+  "/docs/adr/adr-incremental-workspace-normalization-c0c": {
+    "__comp": "17896441",
+    "content": "d010e29c"
   },
-  "/docs/dashboard-layouts-6a5": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-dashboard-layouts-40-c-1bf"
+  "/docs/adr/adr-inline-canvas-rich-text-widget-905": {
+    "__comp": "17896441",
+    "content": "3f4e8372"
   },
-  "/docs/deployment-fe6": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-deploymente-33-fd8"
+  "/docs/adr/adr-live-workspace-agent-snapshot-archive-478": {
+    "__comp": "17896441",
+    "content": "86b0b52d"
   },
-  "/docs/extensions-b84": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-extensions-3-b-5-376"
+  "/docs/adr/adr-main-sequence-ai-command-center-base-session-e22": {
+    "__comp": "17896441",
+    "content": "dffc3662"
   },
-  "/docs/internationalization-246": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-internationalizationd-50-112"
+  "/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution-278": {
+    "__comp": "17896441",
+    "content": "4fd55335"
   },
-  "/docs/notifications-38f": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-notificationsa-96-682"
+  "/docs/adr/adr-organization-widget-type-configurations-286": {
+    "__comp": "17896441",
+    "content": "75b4b6df"
   },
-  "/docs/rbac-assignment-matrix-bb0": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-rbac-assignment-matrixae-6-707"
+  "/docs/adr/adr-rgl-v2-workspace-studio-563": {
+    "__comp": "17896441",
+    "content": "0b358b27"
   },
-  "/docs/theming-4c1": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-theming-5-a-0-f65"
+  "/docs/adr/adr-shared-workspace-state-a15": {
+    "__comp": "17896441",
+    "content": "0cfbbc03"
   },
-  "/docs/workspace-backend-model-f87": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-workspace-backend-model-012-365"
+  "/docs/adr/adr-single-runtime-owner-workspace-widgets-9e4": {
+    "__comp": "17896441",
+    "content": "68c250d5"
   },
-  "/docs/workspaces-aa3": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-workspaces-2-e-1-90f"
+  "/docs/adr/adr-source-driven-downstream-execution-84c": {
+    "__comp": "17896441",
+    "content": "d3f94d7a"
+  },
+  "/docs/adr/adr-widget-agent-context-bindings-bbe": {
+    "__comp": "17896441",
+    "content": "7462a85b"
+  },
+  "/docs/adr/adr-widget-bindings-and-dependency-graph-acd": {
+    "__comp": "17896441",
+    "content": "f8b77628"
+  },
+  "/docs/apps-6d0": {
+    "__comp": "17896441",
+    "content": "6aa31a3b"
+  },
+  "/docs/apps/overview-77e": {
+    "__comp": "17896441",
+    "content": "2197ada2"
+  },
+  "/docs/auth-075": {
+    "__comp": "17896441",
+    "content": "37d37c97"
+  },
+  "/docs/auth/backend-and-auth-2b0": {
+    "__comp": "17896441",
+    "content": "57559bef"
+  },
+  "/docs/extensions-40c": {
+    "__comp": "17896441",
+    "content": "96314e9e"
+  },
+  "/docs/extensions/overview-77e": {
+    "__comp": "17896441",
+    "content": "fdba0099"
+  },
+  "/docs/operations-cba": {
+    "__comp": "17896441",
+    "content": "166b483b"
+  },
+  "/docs/operations/deployment-cdb": {
+    "__comp": "17896441",
+    "content": "a504aed1"
+  },
+  "/docs/platform-ca8": {
+    "__comp": "17896441",
+    "content": "eee2455d"
+  },
+  "/docs/platform/architecture-77c": {
+    "__comp": "17896441",
+    "content": "336b0c5f"
+  },
+  "/docs/platform/configuration-22b": {
+    "__comp": "17896441",
+    "content": "6ad7dc48"
+  },
+  "/docs/platform/internationalization-d6b": {
+    "__comp": "17896441",
+    "content": "12000a31"
+  },
+  "/docs/platform/notifications-ae2": {
+    "__comp": "17896441",
+    "content": "13fe58cc"
+  },
+  "/docs/platform/theming-bbf": {
+    "__comp": "17896441",
+    "content": "5a8ed451"
+  },
+  "/docs/widgets-66d": {
+    "__comp": "17896441",
+    "content": "192e5939"
+  },
+  "/docs/widgets/core-widgets-2f5": {
+    "__comp": "17896441",
+    "content": "66c57c33"
+  },
+  "/docs/workspaces-b5c": {
+    "__comp": "17896441",
+    "content": "2e93c54e"
+  },
+  "/docs/workspaces/backend-model-cf0": {
+    "__comp": "17896441",
+    "content": "40c9f175"
+  },
+  "/docs/workspaces/dashboard-layouts-f86": {
+    "__comp": "17896441",
+    "content": "8b15a81b"
+  },
+  "/docs/workspaces/overview-41f": {
+    "__comp": "17896441",
+    "content": "9dc65b6f"
+  },
+  "/docs/workspaces/runtime-performance-remediation-627": {
+    "__comp": "17896441",
+    "content": "a4d46e49"
+  },
+  "/docs/workspaces/settings-headless-runtime-investigation-b50": {
+    "__comp": "17896441",
+    "content": "3c374310"
   },
   "/docs/-597": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-608-670"
+    "__comp": "17896441",
+    "content": "608d6ba6"
   }
 }

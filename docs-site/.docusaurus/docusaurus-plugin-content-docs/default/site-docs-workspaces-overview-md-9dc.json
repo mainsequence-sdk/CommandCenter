@@ -1,0 +1,24 @@
+{
+  "id": "workspaces/overview",
+  "title": "Workspaces",
+  "description": "Overview",
+  "source": "@site/../docs/workspaces/overview.md",
+  "sourceDirName": "workspaces",
+  "slug": "/workspaces/overview",
+  "permalink": "/docs/workspaces/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/overview.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Workspaces",
+    "permalink": "/docs/workspaces"
+  },
+  "next": {
+    "title": "Dashboard Layouts",
+    "permalink": "/docs/workspaces/dashboard-layouts"
+  }
+}

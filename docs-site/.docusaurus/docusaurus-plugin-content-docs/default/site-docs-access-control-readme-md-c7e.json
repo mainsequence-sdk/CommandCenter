@@ -1,0 +1,28 @@
+{
+  "id": "access-control/access-control-index",
+  "title": "Access Control",
+  "description": "This section covers reusable RBAC primitives and the dedicated access-control application.",
+  "source": "@site/../docs/access-control/README.md",
+  "sourceDirName": "access-control",
+  "slug": "/access-control",
+  "permalink": "/docs/access-control",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/access-control/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "access-control-index",
+    "title": "Access Control",
+    "slug": "/access-control"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Backend and Auth Integration",
+    "permalink": "/docs/auth/backend-and-auth"
+  },
+  "next": {
+    "title": "RBAC Assignment Matrix",
+    "permalink": "/docs/access-control/rbac-assignment-matrix"
+  }
+}

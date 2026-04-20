@@ -1,8 +1,8 @@
 import type { SessionInsightsSnapshot } from "../assistant-ui/session-insights";
 import { normalizeSessionInsightsSnapshot } from "../assistant-ui/session-insights";
 import {
-  buildMainSequenceAiAssistantHeaders,
   buildMainSequenceAiAssistantUrl,
+  fetchMainSequenceAiAssistantResponse,
 } from "./assistant-endpoint";
 
 function buildSessionInsightsUrl(sessionId: string, assistantEndpoint: string) {
@@ -28,21 +28,23 @@ export async function fetchSessionInsights({
 }) {
   const url = buildSessionInsightsUrl(sessionId, assistantEndpoint);
   let response: Response;
+  let requestUrl = url;
 
   try {
-    response = await fetch(url, {
+    ({ response, url: requestUrl } = await fetchMainSequenceAiAssistantResponse({
+      accept: "application/json",
+      assistantEndpoint,
+      currentSessionId: sessionId,
+      requestPath: `/api/chat/session-insights?sessionId=${encodeURIComponent(sessionId)}`,
       method: "GET",
-      headers: buildMainSequenceAiAssistantHeaders({
-        accept: "application/json",
-        token,
-        tokenType,
-      }),
       signal,
-    });
+      sessionToken: token,
+      sessionTokenType: tokenType,
+    }));
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unknown fetch error.";
     throw new Error(
-      `Failed to load session insights for session ${sessionId} from ${url}. ${detail}`,
+      `Failed to load session insights for session ${sessionId} from ${requestUrl}. ${detail}`,
     );
   }
 
@@ -51,7 +53,7 @@ export async function fetchSessionInsights({
       | { detail?: string; error?: string; message?: string }
       | null;
     throw new Error(
-      `Failed to load session insights for session ${sessionId} from ${url} (${response.status}). ${
+      `Failed to load session insights for session ${sessionId} from ${requestUrl} (${response.status}). ${
         payload?.message || payload?.detail || payload?.error || response.statusText || "Unknown backend error."
       }`,
     );

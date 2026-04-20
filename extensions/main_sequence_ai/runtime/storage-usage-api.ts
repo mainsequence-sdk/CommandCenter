@@ -1,7 +1,4 @@
-import {
-  buildMainSequenceAiAssistantHeaders,
-  buildMainSequenceAiAssistantUrl,
-} from "./assistant-endpoint";
+import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
 
 export interface StorageUsageSnapshot {
   version: number;
@@ -13,6 +10,9 @@ export interface StorageUsageSnapshot {
   consumedBytes: number;
   consumedPercentOfTotal: number;
   detail: {
+    mainsequence: {
+      bytes: number;
+    };
     pi: {
       bytes: number;
     };
@@ -48,8 +48,8 @@ function normalizeStorageUsageSnapshot(payload: unknown): StorageUsageSnapshot {
       ? (candidate.detail as Record<string, unknown>)
       : {};
 
-  const normalizeDetailBytes = (key: string) => {
-    const entry = detail[key];
+  const normalizeDetailBytes = (...keys: string[]) => {
+    const entry = keys.map((key) => detail[key]).find(Boolean);
 
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
       return 0;
@@ -68,6 +68,9 @@ function normalizeStorageUsageSnapshot(payload: unknown): StorageUsageSnapshot {
     consumedBytes: normalizeNumber(candidate.consumedBytes),
     consumedPercentOfTotal: normalizeNumber(candidate.consumedPercentOfTotal),
     detail: {
+      mainsequence: {
+        bytes: normalizeDetailBytes("mainsequence", "mainSequence", "main_sequence"),
+      },
       pi: {
         bytes: normalizeDetailBytes("pi"),
       },
@@ -85,10 +88,6 @@ function normalizeStorageUsageSnapshot(payload: unknown): StorageUsageSnapshot {
   };
 }
 
-function buildStorageUsageUrl(assistantEndpoint: string) {
-  return buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/storage/usage");
-}
-
 export async function fetchStorageUsage({
   assistantEndpoint,
   signal,
@@ -100,14 +99,14 @@ export async function fetchStorageUsage({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(buildStorageUsageUrl(assistantEndpoint), {
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    requestPath: "/api/storage/usage",
     method: "GET",
-    headers: buildMainSequenceAiAssistantHeaders({
-      accept: "application/json",
-      token,
-      tokenType,
-    }),
     signal,
+    sessionToken: token,
+    sessionTokenType: tokenType,
   });
 
   if (!response.ok) {

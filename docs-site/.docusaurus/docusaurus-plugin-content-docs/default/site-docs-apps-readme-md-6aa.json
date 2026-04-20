@@ -1,0 +1,28 @@
+{
+  "id": "apps/apps-index",
+  "title": "Apps",
+  "description": "This section explains how Command Center is organized as apps and surfaces instead of one flat list",
+  "source": "@site/../docs/apps/README.md",
+  "sourceDirName": "apps",
+  "slug": "/apps",
+  "permalink": "/docs/apps",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/apps/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "apps-index",
+    "title": "Apps",
+    "slug": "/apps"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Notifications",
+    "permalink": "/docs/platform/notifications"
+  },
+  "next": {
+    "title": "Apps and Surfaces",
+    "permalink": "/docs/apps/overview"
+  }
+}

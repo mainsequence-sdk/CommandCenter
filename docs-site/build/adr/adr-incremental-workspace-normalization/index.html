@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-incremental-workspace-normalization" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: Incremental Workspace Normalization and Resource-Scoped Save | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-incremental-workspace-normalization"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Incremental Workspace Normalization and Resource-Scoped Save | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-incremental-workspace-normalization"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-incremental-workspace-normalization" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-incremental-workspace-normalization" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ADR: Incremental Workspace Normalization and Resource-Scoped Save","item":"https://mainsequence-sdk.github.io/docs/adr/adr-incremental-workspace-normalization"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
+<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/"><span title="Overview" class="linkLabel_WmDU">Overview</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/platform"><span title="Platform" class="categoryLinkLabel_W154">Platform</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform"><span title="Platform" class="linkLabel_WmDU">Platform</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/configuration"><span title="Configuration" class="linkLabel_WmDU">Configuration</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/theming"><span title="Theming" class="linkLabel_WmDU">Theming</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/internationalization"><span title="Internationalization" class="linkLabel_WmDU">Internationalization</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/notifications"><span title="Notifications" class="linkLabel_WmDU">Notifications</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/apps"><span title="Apps" class="categoryLinkLabel_W154">Apps</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps"><span title="Apps" class="linkLabel_WmDU">Apps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps/overview"><span title="Apps and Surfaces" class="linkLabel_WmDU">Apps and Surfaces</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/widgets"><span title="Widgets" class="categoryLinkLabel_W154">Widgets</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets"><span title="Widgets" class="linkLabel_WmDU">Widgets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets/core-widgets"><span title="Core Widgets" class="linkLabel_WmDU">Core Widgets</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/workspaces"><span title="Workspaces" class="categoryLinkLabel_W154">Workspaces</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/overview"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/dashboard-layouts"><span title="Dashboard Layouts" class="linkLabel_WmDU">Dashboard Layouts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/backend-model"><span title="Workspace Backend Model" class="linkLabel_WmDU">Workspace Backend Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/runtime-performance-remediation"><span title="Workspace Runtime Performance Remediation" class="linkLabel_WmDU">Workspace Runtime Performance Remediation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/settings-headless-runtime-investigation"><span title="Workspace Settings Headless Runtime Investigation" class="linkLabel_WmDU">Workspace Settings Headless Runtime Investigation</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/extensions"><span title="Extensions" class="categoryLinkLabel_W154">Extensions</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions/overview"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/auth"><span title="Auth" class="categoryLinkLabel_W154">Auth</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth"><span title="Auth" class="linkLabel_WmDU">Auth</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth/backend-and-auth"><span title="Backend and Auth Integration" class="linkLabel_WmDU">Backend and Auth Integration</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/access-control"><span title="Access Control" class="categoryLinkLabel_W154">Access Control</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control"><span title="Access Control" class="linkLabel_WmDU">Access Control</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/rbac-assignment-matrix"><span title="RBAC Assignment Matrix" class="linkLabel_WmDU">RBAC Assignment Matrix</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/access-rbac-app"><span title="Access &amp; RBAC App" class="linkLabel_WmDU">Access &amp; RBAC App</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/operations"><span title="Operations" class="categoryLinkLabel_W154">Operations</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations"><span title="Operations" class="linkLabel_WmDU">Operations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations/deployment"><span title="Deployment" class="linkLabel_WmDU">Deployment</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docs/adr"><span title="ADRs" class="categoryLinkLabel_W154">ADRs</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr"><span title="Architecture Decision Records" class="linkLabel_WmDU">Architecture Decision Records</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docs/adr/adr-shared-workspace-state"><span title="Workspace And Runtime" class="categoryLinkLabel_W154">Workspace And Runtime</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-shared-workspace-state"><span title="ADR: Shared Workspace Content vs Per-User View State" class="linkLabel_WmDU">ADR: Shared Workspace Content vs Per-User View State</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-rgl-v2-workspace-studio"><span title="ADR: Use React Grid Layout v2 API in Workspace Studio" class="linkLabel_WmDU">ADR: Use React Grid Layout v2 API in Workspace Studio</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-headless-workspace-settings-runtime"><span title="ADR: Headless Workspace Widget Settings Runtime" class="linkLabel_WmDU">ADR: Headless Workspace Widget Settings Runtime</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-single-runtime-owner-workspace-widgets"><span title="ADR: Single Runtime Owner for Workspace Widgets" class="linkLabel_WmDU">ADR: Single Runtime Owner for Workspace Widgets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docs/adr/adr-incremental-workspace-normalization"><span title="ADR: Incremental Workspace Normalization and Resource-Scoped Save" class="linkLabel_WmDU">ADR: Incremental Workspace Normalization and Resource-Scoped Save</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-live-workspace-agent-snapshot-archive"><span title="ADR: Live Workspace Agent Snapshot Archive" class="linkLabel_WmDU">ADR: Live Workspace Agent Snapshot Archive</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-widget-agent-context-bindings"><span title="ADR: Widget Agent Context Bindings for Agent Terminal Consumers" class="linkLabel_WmDU">ADR: Widget Agent Context Bindings for Agent Terminal Consumers</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-widget-bindings-and-dependency-graph"><span title="Widget Contracts" class="categoryLinkLabel_W154">Widget Contracts</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-app-component-binding-native-api-widget"><span title="AppComponent And API" class="categoryLinkLabel_W154">AppComponent And API</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-extension-contributed-shell-settings-menus"><span title="Shell And Extensions" class="categoryLinkLabel_W154">Shell And Extensions</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-main-sequence-ai-command-center-base-session"><span title="Main Sequence AI" class="categoryLinkLabel_W154">Main Sequence AI</span></a></div></li></ul></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">ADRs</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Workspace And Runtime</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">ADR: Incremental Workspace Normalization and Resource-Scoped Save</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: Incremental Workspace Normalization and Resource-Scoped Save</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-04-03</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/adr-shared-workspace-state">ADR: Shared Workspace Content vs Per-User View State</a></li>
+<li class=""><a class="" href="/docs/workspaces/runtime-performance-remediation">Workspace Runtime Performance Remediation</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The Workspaces feature currently pays too much synchronous client-side cost before a save request is
+sent.</p>
+<p>Two problems are coupled together:</p>
+<ol>
+<li class="">save has historically been treated as a full-collection synchronization problem instead of a
+resource-scoped workspace save</li>
+<li class="">normalization/migration work is still too concentrated on the save path</li>
+</ol>
+<p>That creates the wrong runtime behavior for the normal user action:</p>
+<ul>
+<li class="">the user is editing one selected workspace</li>
+<li class="">the UI says <code>Save workspace</code></li>
+<li class="">but the client can still spend significant time serializing, normalizing, and reconciling more
+state than the selected workspace actually needs</li>
+</ul>
+<p>The deeper architectural issue is that <code>normalizeDashboardDefinition(...)</code> currently carries too
+many responsibilities:</p>
+<ul>
+<li class="">migrate legacy persisted workspace shapes</li>
+<li class="">sanitize current workspace structure</li>
+<li class="">materialize layout defaults</li>
+<li class="">repair partially normalized widget instances</li>
+</ul>
+<p>Those responsibilities are all valid, but they should not all happen on the hot path every time the
+user clicks save.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="problem">Problem<a href="#problem" class="hash-link" aria-label="Direct link to Problem" title="Direct link to Problem" translate="no">​</a></h2>
+<p>The current save-time approach has three bad properties:</p>
+<ol>
+<li class="">
+<p>it is late
+Save is doing structural cleanup after the user is already waiting for the request to leave the
+browser.</p>
+</li>
+<li class="">
+<p>it is global
+The code tends to normalize larger workspace structures than the user actually changed.</p>
+</li>
+<li class="">
+<p>it is mixed-purpose
+Legacy migration and cheap canonical sanitization are treated as the same operation.</p>
+</li>
+</ol>
+<p>This makes save slower, harder to reason about, and harder to debug when the request does not even
+reach the backend immediately.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>We will move the workspace model toward:</p>
+<ol>
+<li class="">resource-scoped persistence</li>
+<li class="">canonical draft state</li>
+<li class="">incremental normalization</li>
+<li class="">cheap save-time sanitization</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-save-is-resource-scoped">1. Save is resource-scoped<a href="#1-save-is-resource-scoped" class="hash-link" aria-label="Direct link to 1. Save is resource-scoped" title="Direct link to 1. Save is resource-scoped" translate="no">​</a></h3>
+<p>Normal workspace save must operate on the selected workspace only.</p>
+<p>That means:</p>
+<ul>
+<li class=""><code>POST /workspaces/</code> for create</li>
+<li class=""><code>PUT /workspaces/:id/</code> for save/update</li>
+<li class=""><code>DELETE /workspaces/:id/</code> for delete</li>
+</ul>
+<p>The normal <code>Save workspace</code> action must not perform full-collection reconciliation first.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-draft-state-should-stay-close-to-canonical">2. Draft state should stay close to canonical<a href="#2-draft-state-should-stay-close-to-canonical" class="hash-link" aria-label="Direct link to 2. Draft state should stay close to canonical" title="Direct link to 2. Draft state should stay close to canonical" translate="no">​</a></h3>
+<p>The workspace draft stored in the client should already be in near-persisted shape.</p>
+<p>Mutation helpers should return canonical data for the part they touch instead of letting malformed
+or legacy-compatible intermediate shapes accumulate until save.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-migration-and-sanitization-are-separate-concerns">3. Migration and sanitization are separate concerns<a href="#3-migration-and-sanitization-are-separate-concerns" class="hash-link" aria-label="Direct link to 3. Migration and sanitization are separate concerns" title="Direct link to 3. Migration and sanitization are separate concerns" translate="no">​</a></h3>
+<p>We will split the current normalization intent into two layers:</p>
+<ul>
+<li class=""><code>migrateDashboardDefinition(...)</code>
+Handles legacy persisted shapes and one-time structural upgrades.</li>
+<li class=""><code>sanitizeDashboardDefinition(...)</code>
+Applies cheap canonical cleanup for the current schema.</li>
+</ul>
+<p>Migration is for:</p>
+<ul>
+<li class="">load from backend</li>
+<li class="">load from local storage</li>
+<li class="">JSON import</li>
+</ul>
+<p>Sanitization is for:</p>
+<ul>
+<li class="">mutation helper boundaries</li>
+<li class="">final save-time cleanup</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-save-time-work-must-be-lightweight-and-idempotent">4. Save-time work must be lightweight and idempotent<a href="#4-save-time-work-must-be-lightweight-and-idempotent" class="hash-link" aria-label="Direct link to 4. Save-time work must be lightweight and idempotent" title="Direct link to 4. Save-time work must be lightweight and idempotent" translate="no">​</a></h3>
+<p>By the time the user clicks save, the selected workspace should already be mostly canonical.</p>
+<p>The save path should do only:</p>
+<ol>
+<li class="">fetch selected draft workspace</li>
+<li class="">run cheap <code>sanitizeDashboardDefinition(...)</code></li>
+<li class="">serialize once</li>
+<li class="">send request</li>
+<li class="">merge backend response</li>
+</ol>
+<p>It must not perform broad migration or whole-collection repair work.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-guidance">Implementation Guidance<a href="#implementation-guidance" class="hash-link" aria-label="Direct link to Implementation Guidance" title="Direct link to Implementation Guidance" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="mutation-boundaries">Mutation boundaries<a href="#mutation-boundaries" class="hash-link" aria-label="Direct link to Mutation boundaries" title="Direct link to Mutation boundaries" translate="no">​</a></h3>
+<p>Helpers that update workspace content should sanitize the changed slice immediately.</p>
+<p>Examples include:</p>
+<ul>
+<li class="">widget settings updates</li>
+<li class="">bindings updates</li>
+<li class="">widget runtime-state updates</li>
+<li class="">row collapse/expand operations</li>
+<li class="">committed layout writes</li>
+<li class="">companion layout updates</li>
+</ul>
+<p>The principle is:</p>
+<ul>
+<li class="">normalize early</li>
+<li class="">normalize locally</li>
+<li class="">preserve structural sharing for unchanged branches</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="store-initialization">Store initialization<a href="#store-initialization" class="hash-link" aria-label="Direct link to Store initialization" title="Direct link to Store initialization" translate="no">​</a></h3>
+<p>When a workspace collection is loaded, workspaces should be migrated once before entering the draft
+store.</p>
+<p>After load, the editor should operate on canonical workspace objects rather than repeatedly
+re-migrating them on save.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="save-path">Save path<a href="#save-path" class="hash-link" aria-label="Direct link to Save path" title="Direct link to Save path" translate="no">​</a></h3>
+<p>The save path should be resource-scoped and small:</p>
+<ul>
+<li class="">selected workspace only</li>
+<li class="">no collection diff</li>
+<li class="">no whole-collection serialization</li>
+<li class="">no legacy migration pass</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="local-mode-and-backend-mode">Local mode and backend mode<a href="#local-mode-and-backend-mode" class="hash-link" aria-label="Direct link to Local mode and backend mode" title="Direct link to Local mode and backend mode" translate="no">​</a></h3>
+<p>Both persistence modes should follow the same conceptual model:</p>
+<ul>
+<li class="">save one workspace</li>
+<li class="">update saved state for that workspace</li>
+<li class="">keep collection metadata such as <code>savedAt</code></li>
+</ul>
+<p>The difference should only be the transport:</p>
+<ul>
+<li class="">local storage write</li>
+<li class="">backend <code>PUT</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">save requests leave the browser faster</li>
+<li class="">save behavior matches the UI action the user actually invoked</li>
+<li class="">normalization becomes easier to reason about and profile</li>
+<li class="">legacy migration remains supported without polluting the hot path</li>
+<li class="">draft state is more stable and predictable across canvas, graph, and settings surfaces</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">mutation helpers must take on stricter responsibility for returning canonical state</li>
+<li class="">the storage layer will need a clearer split between migration and sanitization helpers</li>
+<li class="">some existing broad normalization helpers may need to be decomposed before the architecture is
+fully clean</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="non-goals">Non-Goals<a href="#non-goals" class="hash-link" aria-label="Direct link to Non-Goals" title="Direct link to Non-Goals" translate="no">​</a></h2>
+<p>This ADR does not require:</p>
+<ul>
+<li class="">removing all normalization from the frontend</li>
+<li class="">sending arbitrary unsanitized draft JSON to the backend</li>
+<li class="">changing the backend workspace schema</li>
+</ul>
+<p>The goal is not to skip canonicalization. The goal is to do it at the right boundaries and at the
+right cost.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="follow-up-work">Follow-Up Work<a href="#follow-up-work" class="hash-link" aria-label="Direct link to Follow-Up Work" title="Direct link to Follow-Up Work" translate="no">​</a></h2>
+<ol>
+<li class="">Introduce <code>migrateDashboardDefinition(...)</code> and <code>sanitizeDashboardDefinition(...)</code></li>
+<li class="">Migrate workspaces once at load/import time</li>
+<li class="">Update mutation helpers to sanitize only the changed slice</li>
+<li class="">Keep save-time normalization cheap and resource-scoped</li>
+<li class="">Remove remaining deep full-workspace repair from normal save flows</li>
+</ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-incremental-workspace-normalization.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/adr/adr-single-runtime-owner-workspace-widgets"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ADR: Single Runtime Owner for Workspace Widgets</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/adr/adr-live-workspace-agent-snapshot-archive"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">ADR: Live Workspace Agent Snapshot Archive</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#problem" class="table-of-contents__link toc-highlight">Problem</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#1-save-is-resource-scoped" class="table-of-contents__link toc-highlight">1. Save is resource-scoped</a></li><li><a href="#2-draft-state-should-stay-close-to-canonical" class="table-of-contents__link toc-highlight">2. Draft state should stay close to canonical</a></li><li><a href="#3-migration-and-sanitization-are-separate-concerns" class="table-of-contents__link toc-highlight">3. Migration and sanitization are separate concerns</a></li><li><a href="#4-save-time-work-must-be-lightweight-and-idempotent" class="table-of-contents__link toc-highlight">4. Save-time work must be lightweight and idempotent</a></li></ul></li><li><a href="#implementation-guidance" class="table-of-contents__link toc-highlight">Implementation Guidance</a><ul><li><a href="#mutation-boundaries" class="table-of-contents__link toc-highlight">Mutation boundaries</a></li><li><a href="#store-initialization" class="table-of-contents__link toc-highlight">Store initialization</a></li><li><a href="#save-path" class="table-of-contents__link toc-highlight">Save path</a></li><li><a href="#local-mode-and-backend-mode" class="table-of-contents__link toc-highlight">Local mode and backend mode</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li><li><a href="#follow-up-work" class="table-of-contents__link toc-highlight">Follow-Up Work</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "id": "adr/adr-source-driven-downstream-execution",
+  "title": "ADR: Source-Driven Downstream Execution After Manual Widget Actions",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/adr-source-driven-downstream-execution.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-source-driven-downstream-execution",
+  "permalink": "/docs/adr/adr-source-driven-downstream-execution",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-source-driven-downstream-execution.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Executable Widget Graph Runner and Refresh Coordination",
+    "permalink": "/docs/adr/adr-executable-widget-graph-runner"
+  },
+  "next": {
+    "title": "ADR: Agent-Ready Widget Type Registry Contract",
+    "permalink": "/docs/adr/adr-agent-ready-widget-type-registry-contract"
+  }
+}

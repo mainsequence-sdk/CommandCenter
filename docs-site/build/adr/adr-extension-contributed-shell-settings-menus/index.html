@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-extension-contributed-shell-settings-menus" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: Extension-Contributed Shell Settings Menus | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-extension-contributed-shell-settings-menus"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Extension-Contributed Shell Settings Menus | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-extension-contributed-shell-settings-menus"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-extension-contributed-shell-settings-menus" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-extension-contributed-shell-settings-menus" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ADR: Extension-Contributed Shell Settings Menus","item":"https://mainsequence-sdk.github.io/docs/adr/adr-extension-contributed-shell-settings-menus"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
+<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/"><span title="Overview" class="linkLabel_WmDU">Overview</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/platform"><span title="Platform" class="categoryLinkLabel_W154">Platform</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform"><span title="Platform" class="linkLabel_WmDU">Platform</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/configuration"><span title="Configuration" class="linkLabel_WmDU">Configuration</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/theming"><span title="Theming" class="linkLabel_WmDU">Theming</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/internationalization"><span title="Internationalization" class="linkLabel_WmDU">Internationalization</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/notifications"><span title="Notifications" class="linkLabel_WmDU">Notifications</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/apps"><span title="Apps" class="categoryLinkLabel_W154">Apps</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps"><span title="Apps" class="linkLabel_WmDU">Apps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps/overview"><span title="Apps and Surfaces" class="linkLabel_WmDU">Apps and Surfaces</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/widgets"><span title="Widgets" class="categoryLinkLabel_W154">Widgets</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets"><span title="Widgets" class="linkLabel_WmDU">Widgets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets/core-widgets"><span title="Core Widgets" class="linkLabel_WmDU">Core Widgets</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/workspaces"><span title="Workspaces" class="categoryLinkLabel_W154">Workspaces</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/overview"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/dashboard-layouts"><span title="Dashboard Layouts" class="linkLabel_WmDU">Dashboard Layouts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/backend-model"><span title="Workspace Backend Model" class="linkLabel_WmDU">Workspace Backend Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/runtime-performance-remediation"><span title="Workspace Runtime Performance Remediation" class="linkLabel_WmDU">Workspace Runtime Performance Remediation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/settings-headless-runtime-investigation"><span title="Workspace Settings Headless Runtime Investigation" class="linkLabel_WmDU">Workspace Settings Headless Runtime Investigation</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/extensions"><span title="Extensions" class="categoryLinkLabel_W154">Extensions</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions/overview"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/auth"><span title="Auth" class="categoryLinkLabel_W154">Auth</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth"><span title="Auth" class="linkLabel_WmDU">Auth</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth/backend-and-auth"><span title="Backend and Auth Integration" class="linkLabel_WmDU">Backend and Auth Integration</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/access-control"><span title="Access Control" class="categoryLinkLabel_W154">Access Control</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control"><span title="Access Control" class="linkLabel_WmDU">Access Control</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/rbac-assignment-matrix"><span title="RBAC Assignment Matrix" class="linkLabel_WmDU">RBAC Assignment Matrix</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/access-rbac-app"><span title="Access &amp; RBAC App" class="linkLabel_WmDU">Access &amp; RBAC App</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/operations"><span title="Operations" class="categoryLinkLabel_W154">Operations</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations"><span title="Operations" class="linkLabel_WmDU">Operations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations/deployment"><span title="Deployment" class="linkLabel_WmDU">Deployment</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docs/adr"><span title="ADRs" class="categoryLinkLabel_W154">ADRs</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr"><span title="Architecture Decision Records" class="linkLabel_WmDU">Architecture Decision Records</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-shared-workspace-state"><span title="Workspace And Runtime" class="categoryLinkLabel_W154">Workspace And Runtime</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-widget-bindings-and-dependency-graph"><span title="Widget Contracts" class="categoryLinkLabel_W154">Widget Contracts</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-app-component-binding-native-api-widget"><span title="AppComponent And API" class="categoryLinkLabel_W154">AppComponent And API</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docs/adr/adr-extension-contributed-shell-settings-menus"><span title="Shell And Extensions" class="categoryLinkLabel_W154">Shell And Extensions</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docs/adr/adr-extension-contributed-shell-settings-menus"><span title="ADR: Extension-Contributed Shell Settings Menus" class="linkLabel_WmDU">ADR: Extension-Contributed Shell Settings Menus</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-main-sequence-ai-command-center-base-session"><span title="Main Sequence AI" class="categoryLinkLabel_W154">Main Sequence AI</span></a></div></li></ul></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">ADRs</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Shell And Extensions</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">ADR: Extension-Contributed Shell Settings Menus</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: Extension-Contributed Shell Settings Menus</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-04-15</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/adr-headless-workspace-settings-runtime">ADR: Headless Workspace Settings Runtime</a></li>
+<li class=""><a class="" href="/docs/adr/adr-agent-ready-widget-type-registry-contract">ADR: Agent-Ready Widget Type Registry Contract</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The Command Center shell already has two settings/menu surfaces that matter here:</p>
+<ul>
+<li class="">the user menu in the global sidebar</li>
+<li class="">the settings dialog opened in <code>user</code> or <code>platform</code> mode</li>
+</ul>
+<p>Today both are shell-owned and largely hardcoded:</p>
+<ul>
+<li class=""><a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/layout/Sidebar.tsx">src/app/layout/Sidebar.tsx</a>
+assembles sidebar menu actions inline</li>
+<li class=""><a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/layout/UserMenu.tsx">src/app/layout/UserMenu.tsx</a>
+renders a generic menu shell but receives a static action list from callers</li>
+<li class=""><a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/layout/SettingsDialog.tsx">src/app/layout/SettingsDialog.tsx</a>
+owns a fixed set of sections such as <code>general</code>, <code>account</code>, <code>configuration</code>, and <code>registry</code></li>
+</ul>
+<p>The app registry currently supports:</p>
+<ul>
+<li class="">app-level navigation</li>
+<li class="">surface registration</li>
+<li class="">permission-aware visibility</li>
+<li class="">assistant-facing surface metadata</li>
+</ul>
+<p>It does <strong>not</strong> support extension-contributed settings/menu entries.</p>
+<p>That means extension apps such as <code>main_sequence_forge</code> or <code>main_sequence_markets</code> cannot add:</p>
+<ul>
+<li class="">user-facing settings/menu pages</li>
+<li class="">admin-facing settings/menu pages</li>
+<li class="">app-scoped settings groups inside the shared shell dialog</li>
+</ul>
+<p>without directly editing the shell.</p>
+<p>This is the wrong ownership model. These entries should be extension-defined and registry-driven,
+but still rendered by one shell-owned UI.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>We will add a registry-backed contribution model for shell settings menus.</p>
+<p>The model must let any extension app contribute entries to:</p>
+<ul>
+<li class="">user settings/menu</li>
+<li class="">admin settings/menu</li>
+</ul>
+<p>without requiring direct shell edits for each new app.</p>
+<p>The shell remains the single renderer. Extensions contribute structured metadata and page content.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<p>This ADR covers:</p>
+<ul>
+<li class="">contribution contract</li>
+<li class="">registry ownership</li>
+<li class="">shell rendering ownership</li>
+<li class="">permission and audience rules</li>
+<li class="">ordering/grouping model</li>
+</ul>
+<p>It does <strong>not</strong> require implementing every extension page immediately.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="design">Design<a href="#design" class="hash-link" aria-label="Direct link to Design" title="Direct link to Design" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-contribution-ownership">1. Contribution ownership<a href="#1-contribution-ownership" class="hash-link" aria-label="Direct link to 1. Contribution ownership" title="Direct link to 1. Contribution ownership" translate="no">​</a></h3>
+<p>The contribution should be declared on the app definition layer, not in a separate parallel
+extension registry.</p>
+<p>Reason:</p>
+<ul>
+<li class="">the app registry is already the runtime source of truth for extension-owned shell-visible objects</li>
+<li class="">permission gating already exists there</li>
+<li class="">extension apps already have identity, title, icon, and source metadata there</li>
+</ul>
+<p>So the contribution contract belongs in <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/apps/types.ts">src/apps/types.ts</a>
+as part of <code>AppDefinition</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-new-app-level-contract">2. New app-level contract<a href="#2-new-app-level-contract" class="hash-link" aria-label="Direct link to 2. New app-level contract" title="Direct link to 2. New app-level contract" translate="no">​</a></h3>
+<p>Add an optional top-level property:</p>
+<ul>
+<li class=""><code>shellMenuContributions?: AppShellMenuContribution[]</code></li>
+</ul>
+<p>Recommended shape:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">AppShellMenuAudience</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;user&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;admin&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">AppShellMenuContribution</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  id</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  audience</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AppShellMenuAudience</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  label</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  description</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  icon</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AppIcon</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  order</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  requiredPermissions</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  group</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    id</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    label</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    order</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  component</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ComponentType</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Important rules:</p>
+<ul>
+<li class=""><code>audience=&quot;user&quot;</code> means it can appear in user settings/menu flows</li>
+<li class=""><code>audience=&quot;admin&quot;</code> means it can appear in admin settings/menu flows</li>
+<li class=""><code>requiredPermissions</code> is evaluated in addition to app-level permissions</li>
+<li class=""><code>component</code> is the shell-rendered content panel for that entry</li>
+<li class=""><code>group</code> is optional but gives us a stable section model for future scale</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-registry-assembly">3. Registry assembly<a href="#3-registry-assembly" class="hash-link" aria-label="Direct link to 3. Registry assembly" title="Direct link to 3. Registry assembly" translate="no">​</a></h3>
+<p>The flattened app registry should also assemble shell-menu contributions.</p>
+<p>Add a derived collection on the runtime registry:</p>
+<ul>
+<li class=""><code>shellMenuContributions: AppShellMenuEntry[]</code></li>
+</ul>
+<p>where <code>AppShellMenuEntry</code> extends the contribution with app metadata:</p>
+<ul>
+<li class=""><code>appId</code></li>
+<li class=""><code>appTitle</code></li>
+<li class=""><code>appIcon</code></li>
+<li class=""><code>appSource</code></li>
+</ul>
+<p>This mirrors how surfaces are already flattened into <code>AppSurfaceEntry</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-rendering-ownership">4. Rendering ownership<a href="#4-rendering-ownership" class="hash-link" aria-label="Direct link to 4. Rendering ownership" title="Direct link to 4. Rendering ownership" translate="no">​</a></h3>
+<p>The shell continues to own rendering:</p>
+<ul>
+<li class=""><code>Sidebar.tsx</code> decides where user/admin triggers live</li>
+<li class=""><code>UserMenu.tsx</code> remains the generic menu shell</li>
+<li class=""><code>SettingsDialog.tsx</code> remains the generic content shell</li>
+</ul>
+<p>But the dialog/nav entries are no longer fixed-only.</p>
+<p>Instead:</p>
+<ul>
+<li class="">built-in core sections stay supported</li>
+<li class="">extension-contributed sections are appended into the same section model</li>
+<li class="">the left rail/nav of the settings dialog becomes data-driven</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-menu-model">5. Menu model<a href="#5-menu-model" class="hash-link" aria-label="Direct link to 5. Menu model" title="Direct link to 5. Menu model" translate="no">​</a></h3>
+<p>There are two distinct but related surfaces:</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="a-user-menu-shortcuts">A. User menu shortcuts<a href="#a-user-menu-shortcuts" class="hash-link" aria-label="Direct link to A. User menu shortcuts" title="Direct link to A. User menu shortcuts" translate="no">​</a></h4>
+<p>These are quick actions in the avatar/user menu.</p>
+<p>Not every contributed settings section needs to appear here.</p>
+<p>So the contract should <strong>not</strong> automatically imply a user-menu action.</p>
+<p>If we need that behavior, add a separate optional flag later:</p>
+<ul>
+<li class=""><code>showInUserMenu?: boolean</code></li>
+</ul>
+<p>Default:</p>
+<ul>
+<li class="">contributed sections render in the dialog nav</li>
+<li class="">only selected entries opt into direct user-menu shortcuts</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="b-settings-dialog-sections">B. Settings dialog sections<a href="#b-settings-dialog-sections" class="hash-link" aria-label="Direct link to B. Settings dialog sections" title="Direct link to B. Settings dialog sections" translate="no">​</a></h4>
+<p>This is the primary target.</p>
+<p>Contributed entries should appear as additional left-nav items inside:</p>
+<ul>
+<li class=""><code>mode=&quot;user&quot;</code></li>
+<li class=""><code>mode=&quot;platform&quot;</code> or admin mode</li>
+</ul>
+<p>depending on <code>audience</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-routing-vs-inline-section-rendering">6. Routing vs inline section rendering<a href="#6-routing-vs-inline-section-rendering" class="hash-link" aria-label="Direct link to 6. Routing vs inline section rendering" title="Direct link to 6. Routing vs inline section rendering" translate="no">​</a></h3>
+<p>For this feature, use inline section rendering inside the existing <code>SettingsDialog</code>.</p>
+<p>Do <strong>not</strong> create separate routes for the first pass.</p>
+<p>Reason:</p>
+<ul>
+<li class="">the UI in the screenshot is clearly a modal/sheet-style settings surface</li>
+<li class="">this is already how <code>SettingsDialog.tsx</code> works</li>
+<li class="">the shell should remain the owner of that experience</li>
+</ul>
+<p>If some contributed pages later become too heavy, we can add a route-backed escape hatch, but that
+should be a second-step decision.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="7-ordering">7. Ordering<a href="#7-ordering" class="hash-link" aria-label="Direct link to 7. Ordering" title="Direct link to 7. Ordering" translate="no">​</a></h3>
+<p>Ordering should be explicit and deterministic.</p>
+<p>Rules:</p>
+<ul>
+<li class="">built-in core sections keep existing stable ordering</li>
+<li class="">extension-contributed sections sort by:<!-- -->
+<ol>
+<li class="">group order</li>
+<li class="">section order</li>
+<li class="">app title</li>
+<li class="">label</li>
+</ol>
+</li>
+</ul>
+<p>This prevents random movement as more extensions contribute content.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="8-permissions">8. Permissions<a href="#8-permissions" class="hash-link" aria-label="Direct link to 8. Permissions" title="Direct link to 8. Permissions" translate="no">​</a></h3>
+<p>Visibility rule:</p>
+<ul>
+<li class="">app-level required permissions must pass</li>
+<li class="">contribution-level required permissions must pass</li>
+</ul>
+<p>This keeps the model consistent with the rest of the registry.</p>
+<p>Example:</p>
+<ul>
+<li class=""><code>main_sequence_markets</code> can contribute a user settings panel visible to all markets users</li>
+<li class=""><code>main_sequence_forge</code> can contribute an admin panel visible only to org/platform admins with its
+own explicit permissions</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="9-empty-state-behavior">9. Empty-state behavior<a href="#9-empty-state-behavior" class="hash-link" aria-label="Direct link to 9. Empty-state behavior" title="Direct link to 9. Empty-state behavior" translate="no">​</a></h3>
+<p>If no extension contributes to a given audience:</p>
+<ul>
+<li class="">the shell behaves exactly as it does now</li>
+</ul>
+<p>So this is a pure extension point, not a required migration.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">extension apps can add settings/admin pages without shell forks</li>
+<li class="">the shell keeps one visual system and one interaction model</li>
+<li class="">permissions stay registry-driven</li>
+<li class="">future apps scale without another hardcoded sidebar/menu pass</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tradeoffs">Tradeoffs<a href="#tradeoffs" class="hash-link" aria-label="Direct link to Tradeoffs" title="Direct link to Tradeoffs" translate="no">​</a></h3>
+<ul>
+<li class=""><code>SettingsDialog.tsx</code> becomes more data-driven and slightly more complex</li>
+<li class="">the app registry grows another flattened entry type</li>
+<li class="">extension authors now own lifecycle/documentation for shell-contributed settings sections</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-plan">Implementation Plan<a href="#implementation-plan" class="hash-link" aria-label="Direct link to Implementation Plan" title="Direct link to Implementation Plan" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-1-registry-contract">Phase 1: registry contract<a href="#phase-1-registry-contract" class="hash-link" aria-label="Direct link to Phase 1: registry contract" title="Direct link to Phase 1: registry contract" translate="no">​</a></h3>
+<ol>
+<li class="">Extend <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/apps/types.ts">src/apps/types.ts</a>
+with shell-menu contribution types.</li>
+<li class="">Extend <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/registry/types.ts">src/app/registry/types.ts</a>
+with flattened shell-menu entry types.</li>
+<li class="">Extend <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/registry/index.ts">src/app/registry/index.ts</a>
+to flatten and export those entries.</li>
+<li class="">Add helper selectors in <code>apps/utils.ts</code> for audience/permission-filtered menu sections.</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-2-shell-rendering">Phase 2: shell rendering<a href="#phase-2-shell-rendering" class="hash-link" aria-label="Direct link to Phase 2: shell rendering" title="Direct link to Phase 2: shell rendering" translate="no">​</a></h3>
+<ol>
+<li class="">Refactor <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/layout/SettingsDialog.tsx">src/app/layout/SettingsDialog.tsx</a>
+so its nav/content model can merge:<!-- -->
+<ul>
+<li class="">built-in sections</li>
+<li class="">extension-contributed sections</li>
+</ul>
+</li>
+<li class="">Keep current core sections as built-in entries in the same internal section list.</li>
+<li class="">Render contributed components inside the same content pane.</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-3-user-menu-integration">Phase 3: user-menu integration<a href="#phase-3-user-menu-integration" class="hash-link" aria-label="Direct link to Phase 3: user-menu integration" title="Direct link to Phase 3: user-menu integration" translate="no">​</a></h3>
+<ol>
+<li class="">Extend <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/layout/UserMenu.tsx">src/app/layout/UserMenu.tsx</a>
+caller data so selected contributions can also appear as quick actions if needed.</li>
+<li class="">Keep this opt-in, not automatic.</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-4-first-extension-adopters">Phase 4: first extension adopters<a href="#phase-4-first-extension-adopters" class="hash-link" aria-label="Direct link to Phase 4: first extension adopters" title="Direct link to Phase 4: first extension adopters" translate="no">​</a></h3>
+<ol>
+<li class="">Add one user contribution from a non-core extension.</li>
+<li class="">Add one admin contribution from a non-core extension.</li>
+<li class="">Validate ordering, permission gating, and empty states.</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rejected-alternatives">Rejected Alternatives<a href="#rejected-alternatives" class="hash-link" aria-label="Direct link to Rejected Alternatives" title="Direct link to Rejected Alternatives" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="separate-shell-settings-registry-outside-the-app-registry">Separate shell-settings registry outside the app registry<a href="#separate-shell-settings-registry-outside-the-app-registry" class="hash-link" aria-label="Direct link to Separate shell-settings registry outside the app registry" title="Direct link to Separate shell-settings registry outside the app registry" translate="no">​</a></h3>
+<p>Rejected because it duplicates extension identity and permission ownership that the app registry
+already has.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="hardcode-more-app-specific-sections-in-settingsdialogtsx">Hardcode more app-specific sections in <code>SettingsDialog.tsx</code><a href="#hardcode-more-app-specific-sections-in-settingsdialogtsx" class="hash-link" aria-label="Direct link to hardcode-more-app-specific-sections-in-settingsdialogtsx" title="Direct link to hardcode-more-app-specific-sections-in-settingsdialogtsx" translate="no">​</a></h3>
+<p>Rejected because it does not scale and keeps shell code coupled to individual extensions.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="route-every-settings-page-separately">Route every settings page separately<a href="#route-every-settings-page-separately" class="hash-link" aria-label="Direct link to Route every settings page separately" title="Direct link to Route every settings page separately" translate="no">​</a></h3>
+<p>Rejected for the first pass because the current UX target is a shared modal/sidebar shell, not a
+full-page app handoff.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="resulting-mental-model">Resulting Mental Model<a href="#resulting-mental-model" class="hash-link" aria-label="Direct link to Resulting Mental Model" title="Direct link to Resulting Mental Model" translate="no">​</a></h2>
+<ul>
+<li class="">extension app owns contributed settings/admin content</li>
+<li class="">app registry owns discovery and permission filtering</li>
+<li class="">shell owns rendering and interaction chrome</li>
+</ul>
+<p>That is the correct split.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-extension-contributed-shell-settings-menus.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/adr/adr-app-component-mock-json-target"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ADR: AppComponent Mock JSON Target for Pipeline Prototyping</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/adr/adr-main-sequence-ai-command-center-base-session"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">ADR: Main Sequence AI Command Center Base Session</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a></li><li><a href="#design" class="table-of-contents__link toc-highlight">Design</a><ul><li><a href="#1-contribution-ownership" class="table-of-contents__link toc-highlight">1. Contribution ownership</a></li><li><a href="#2-new-app-level-contract" class="table-of-contents__link toc-highlight">2. New app-level contract</a></li><li><a href="#3-registry-assembly" class="table-of-contents__link toc-highlight">3. Registry assembly</a></li><li><a href="#4-rendering-ownership" class="table-of-contents__link toc-highlight">4. Rendering ownership</a></li><li><a href="#5-menu-model" class="table-of-contents__link toc-highlight">5. Menu model</a></li><li><a href="#6-routing-vs-inline-section-rendering" class="table-of-contents__link toc-highlight">6. Routing vs inline section rendering</a></li><li><a href="#7-ordering" class="table-of-contents__link toc-highlight">7. Ordering</a></li><li><a href="#8-permissions" class="table-of-contents__link toc-highlight">8. Permissions</a></li><li><a href="#9-empty-state-behavior" class="table-of-contents__link toc-highlight">9. Empty-state behavior</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#tradeoffs" class="table-of-contents__link toc-highlight">Tradeoffs</a></li></ul></li><li><a href="#implementation-plan" class="table-of-contents__link toc-highlight">Implementation Plan</a><ul><li><a href="#phase-1-registry-contract" class="table-of-contents__link toc-highlight">Phase 1: registry contract</a></li><li><a href="#phase-2-shell-rendering" class="table-of-contents__link toc-highlight">Phase 2: shell rendering</a></li><li><a href="#phase-3-user-menu-integration" class="table-of-contents__link toc-highlight">Phase 3: user-menu integration</a></li><li><a href="#phase-4-first-extension-adopters" class="table-of-contents__link toc-highlight">Phase 4: first extension adopters</a></li></ul></li><li><a href="#rejected-alternatives" class="table-of-contents__link toc-highlight">Rejected Alternatives</a><ul><li><a href="#separate-shell-settings-registry-outside-the-app-registry" class="table-of-contents__link toc-highlight">Separate shell-settings registry outside the app registry</a></li><li><a href="#hardcode-more-app-specific-sections-in-settingsdialogtsx" class="table-of-contents__link toc-highlight">Hardcode more app-specific sections in <code>SettingsDialog.tsx</code></a></li><li><a href="#route-every-settings-page-separately" class="table-of-contents__link toc-highlight">Route every settings page separately</a></li></ul></li><li><a href="#resulting-mental-model" class="table-of-contents__link toc-highlight">Resulting Mental Model</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import type { AssistantUiProtocol } from "@/config/command-center";
 
-import { buildMainSequenceAiAssistantHeaders } from "./assistant-endpoint";
+import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
 
 export type AgentSessionStreamChunk = Record<string, unknown> & { type: string };
 
@@ -158,20 +158,27 @@ export async function streamAgentSessionResponse({
       `Agent terminal widget currently supports ui-message-stream only. Received ${protocol}.`,
     );
   }
+  const currentSessionId =
+    typeof body.sessionId === "string" || typeof body.sessionId === "number"
+      ? body.sessionId
+      : typeof body.runtime_session_id === "string" ||
+          typeof body.runtime_session_id === "number"
+        ? body.runtime_session_id
+        : null;
 
-  const headers = buildMainSequenceAiAssistantHeaders({
+  const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "text/event-stream",
-    token,
-    tokenType,
-  });
-  headers.set("Content-Type", "application/json");
-
-  const response = await fetch(assistantEndpoint, {
+    assistantEndpoint,
+    currentSessionId,
+    requestPath: "/api/chat",
     method: "POST",
-    headers,
-    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
     signal,
+    sessionToken: token,
+    sessionTokenType: tokenType,
   });
 
   if (!response.ok) {

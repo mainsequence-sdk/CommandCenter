@@ -1,7 +1,4 @@
-import {
-  buildMainSequenceAiAssistantHeaders,
-  buildMainSequenceAiAssistantUrl,
-} from "./assistant-endpoint";
+import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
 
 export type ProviderAuthKind = "api_key" | "oauth";
 
@@ -238,17 +235,6 @@ function normalizeProviderAuthPayload(payload: unknown) {
   return singleEntry ? [singleEntry] : [];
 }
 
-function buildModelProvidersUrl(assistantEndpoint: string) {
-  return buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/model-providers");
-}
-
-function buildProviderActionUrl(assistantEndpoint: string, provider: string, suffix: string) {
-  return buildMainSequenceAiAssistantUrl(
-    assistantEndpoint,
-    `/api/model-providers/${encodeURIComponent(provider)}${suffix}`,
-  );
-}
-
 async function parseJsonSafe(response: Response) {
   return (await response.json().catch(() => null)) as
     | Record<string, unknown>
@@ -289,14 +275,14 @@ export async function fetchModelProviderAuthStates({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(buildModelProvidersUrl(assistantEndpoint), {
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    requestPath: "/api/model-providers",
     method: "GET",
-    headers: buildMainSequenceAiAssistantHeaders({
-      accept: "application/json",
-      token,
-      tokenType,
-    }),
     signal,
+    sessionToken: token,
+    sessionTokenType: tokenType,
   });
 
   if (!response.ok) {
@@ -317,13 +303,13 @@ export async function startModelProviderSignIn({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(buildProviderActionUrl(assistantEndpoint, provider, "/signin"), {
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin`,
     method: "POST",
-    headers: buildMainSequenceAiAssistantHeaders({
-      accept: "application/json",
-      token,
-      tokenType,
-    }),
+    sessionToken: token,
+    sessionTokenType: tokenType,
   });
 
   if (!response.ok) {
@@ -370,22 +356,15 @@ export async function fetchModelProviderSignInAttempt({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(
-    buildProviderActionUrl(
-      assistantEndpoint,
-      provider,
-      `/signin/${encodeURIComponent(attemptId)}`,
-    ),
-    {
-      method: "GET",
-      headers: buildMainSequenceAiAssistantHeaders({
-        accept: "application/json",
-        token,
-        tokenType,
-      }),
-      signal,
-    },
-  );
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}`,
+    method: "GET",
+    signal,
+    sessionToken: token,
+    sessionTokenType: tokenType,
+  });
 
   if (!response.ok) {
     await throwProviderApiError(
@@ -424,26 +403,18 @@ export async function submitModelProviderManualSignIn({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(
-    buildProviderActionUrl(
-      assistantEndpoint,
-      provider,
-      `/signin/${encodeURIComponent(attemptId)}/manual`,
-    ),
-    {
-      method: "POST",
-      headers: (() => {
-        const headers = buildMainSequenceAiAssistantHeaders({
-        accept: "application/json",
-        token,
-        tokenType,
-        });
-        headers.set("Content-Type", "application/json");
-        return headers;
-      })(),
-      body: JSON.stringify({ input }),
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/manual`,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({ input }),
+    sessionToken: token,
+    sessionTokenType: tokenType,
+  });
 
   if (!response.ok) {
     await throwProviderApiError(
@@ -469,21 +440,14 @@ export async function cancelModelProviderSignIn({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(
-    buildProviderActionUrl(
-      assistantEndpoint,
-      provider,
-      `/signin/${encodeURIComponent(attemptId)}/cancel`,
-    ),
-    {
-      method: "POST",
-      headers: buildMainSequenceAiAssistantHeaders({
-        accept: "application/json",
-        token,
-        tokenType,
-      }),
-    },
-  );
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/cancel`,
+    method: "POST",
+    sessionToken: token,
+    sessionTokenType: tokenType,
+  });
 
   if (!response.ok) {
     await throwProviderApiError(
@@ -504,13 +468,13 @@ export async function signOffModelProvider({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(buildProviderActionUrl(assistantEndpoint, provider, "/signoff"), {
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signoff`,
     method: "POST",
-    headers: buildMainSequenceAiAssistantHeaders({
-      accept: "application/json",
-      token,
-      tokenType,
-    }),
+    sessionToken: token,
+    sessionTokenType: tokenType,
   });
 
   if (!response.ok) {

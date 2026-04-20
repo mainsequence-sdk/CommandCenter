@@ -1,0 +1,28 @@
+{
+  "id": "auth/auth-index",
+  "title": "Auth",
+  "description": "This section covers backend integration and authentication contracts.",
+  "source": "@site/../docs/auth/README.md",
+  "sourceDirName": "auth",
+  "slug": "/auth",
+  "permalink": "/docs/auth",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/auth/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "auth-index",
+    "title": "Auth",
+    "slug": "/auth"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Extensions",
+    "permalink": "/docs/extensions/overview"
+  },
+  "next": {
+    "title": "Backend and Auth Integration",
+    "permalink": "/docs/auth/backend-and-auth"
+  }
+}

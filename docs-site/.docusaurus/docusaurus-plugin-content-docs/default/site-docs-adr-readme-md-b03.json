@@ -1,0 +1,28 @@
+{
+  "id": "adr/adr-index",
+  "title": "Architecture Decision Records",
+  "description": "This section is the decision log for architectural choices that affect more than one file or one",
+  "source": "@site/../docs/adr/README.md",
+  "sourceDirName": "adr",
+  "slug": "/adr",
+  "permalink": "/docs/adr",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "adr-index",
+    "title": "Architecture Decision Records",
+    "slug": "/adr"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Deployment",
+    "permalink": "/docs/operations/deployment"
+  },
+  "next": {
+    "title": "ADR: Shared Workspace Content vs Per-User View State",
+    "permalink": "/docs/adr/adr-shared-workspace-state"
+  }
+}

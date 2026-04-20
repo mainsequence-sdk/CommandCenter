@@ -1,0 +1,24 @@
+{
+  "id": "widgets/core-widgets",
+  "title": "Core Widgets",
+  "description": "Core widgets are the reusable visual building blocks that ship with the platform out of the box.",
+  "source": "@site/../docs/widgets/core-widgets.md",
+  "sourceDirName": "widgets",
+  "slug": "/widgets/core-widgets",
+  "permalink": "/docs/widgets/core-widgets",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/widgets/core-widgets.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Widgets",
+    "permalink": "/docs/widgets"
+  },
+  "next": {
+    "title": "Workspaces",
+    "permalink": "/docs/workspaces"
+  }
+}

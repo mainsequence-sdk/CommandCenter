@@ -1,0 +1,24 @@
+{
+  "id": "adr/adr-headless-workspace-settings-runtime",
+  "title": "ADR: Headless Workspace Widget Settings Runtime",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/adr-headless-workspace-settings-runtime.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-headless-workspace-settings-runtime",
+  "permalink": "/docs/adr/adr-headless-workspace-settings-runtime",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-headless-workspace-settings-runtime.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Use React Grid Layout v2 API in Workspace Studio",
+    "permalink": "/docs/adr/adr-rgl-v2-workspace-studio"
+  },
+  "next": {
+    "title": "ADR: Single Runtime Owner for Workspace Widgets",
+    "permalink": "/docs/adr/adr-single-runtime-owner-workspace-widgets"
+  }
+}

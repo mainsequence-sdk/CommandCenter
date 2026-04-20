@@ -1,0 +1,24 @@
+{
+  "id": "platform/architecture",
+  "title": "Architecture",
+  "description": "Overview",
+  "source": "@site/../docs/platform/architecture.md",
+  "sourceDirName": "platform",
+  "slug": "/platform/architecture",
+  "permalink": "/docs/platform/architecture",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/platform/architecture.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Platform",
+    "permalink": "/docs/platform"
+  },
+  "next": {
+    "title": "Configuration",
+    "permalink": "/docs/platform/configuration"
+  }
+}

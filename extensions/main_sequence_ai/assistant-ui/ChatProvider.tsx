@@ -33,8 +33,12 @@ import {
   fetchOrCreateCommandCenterBaseSession,
 } from "../runtime/command-center-base-session-api";
 import {
+  clearMainSequenceAiResolvedRuntimeAccess,
+  fetchMainSequenceAiAssistantResponse,
+  resolveMainSequenceAiAssistantAccess,
   resolveMainSequenceAiAssistantChatEndpoint,
   resolveMainSequenceAiAssistantEndpoint,
+  setMainSequenceAiResolvedRuntimeAccess,
 } from "../runtime/assistant-endpoint";
 import {
   attachAgentToSession,
@@ -706,6 +710,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     baseSessionRequestRef.current?.abort();
 
     if (env.useMockData) {
+      clearMainSequenceAiResolvedRuntimeAccess();
       setIsLoadingBaseSession(false);
       setBaseSessionError(null);
       return;
@@ -715,6 +720,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       location.pathname === CHAT_PAGE_PATH || isRailOpen;
 
     if (!shouldResolveBaseSession || !sessionUserId || !sessionToken) {
+      if (!sessionToken) {
+        clearMainSequenceAiResolvedRuntimeAccess();
+      }
       setIsLoadingBaseSession(false);
       return;
     }
@@ -735,6 +743,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         if (controller.signal.aborted) {
           return;
         }
+
+        setMainSequenceAiResolvedRuntimeAccess(handle);
 
         setAgentSessions((currentSessions) => {
           const existing =
@@ -762,6 +772,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         if (controller.signal.aborted) {
           return;
         }
+
+        clearMainSequenceAiResolvedRuntimeAccess();
 
         setBaseSessionError(
           error instanceof Error
@@ -808,6 +820,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     availableModelsRequestRef.current?.abort();
 
+    if (!sessionToken) {
+      setAvailableModels([]);
+      setAvailableProviders([]);
+      setAvailableReasoningEfforts([]);
+      setAvailableModelsError(null);
+      setIsLoadingAvailableModels(false);
+      return;
+    }
+
     const controller = new AbortController();
     availableModelsRequestRef.current = controller;
     setIsLoadingAvailableModels(true);
@@ -815,8 +836,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       try {
-        const options = await fetchAvailableRunConfigOptions({
+        const resolvedAccess = await resolveMainSequenceAiAssistantAccess({
           assistantEndpoint: assistantUiEndpoint,
+          runtimeTarget: "agent-runtime",
+          sessionToken,
+          sessionTokenType,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const options = await fetchAvailableRunConfigOptions({
+          assistantEndpoint: resolvedAccess.assistantEndpoint,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
@@ -1767,6 +1799,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const liveRuntime = useLatestMessageDataStreamRuntime({
     api: assistantUiChatEndpoint,
+    fetch: async (_input, init) => {
+      const activeSession = activeSessionRef.current;
+      const currentSessionId = resolveSessionApiLookupId(activeSession);
+      const { response } = await fetchMainSequenceAiAssistantResponse({
+        assistantEndpoint: assistantUiChatEndpoint,
+        currentSessionId,
+        requestPath: "/api/chat",
+        runtimeTarget: "agent-runtime",
+        ...init,
+        sessionToken,
+        sessionTokenType,
+      });
+      return response;
+    },
     protocol: commandCenterConfig.assistantUi.protocol as LatestMessageDataStreamProtocol,
     headers: async () => {
       const headers = new Headers();

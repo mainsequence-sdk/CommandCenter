@@ -1,0 +1,24 @@
+{
+  "id": "adr/adr-app-component-response-notification-ui",
+  "title": "ADR: AppComponent Response Notification UI Contract",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/adr-app-component-response-notification-ui.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-app-component-response-notification-ui",
+  "permalink": "/docs/adr/adr-app-component-response-notification-ui",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-app-component-response-notification-ui.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Shared AppComponent Discovery and Safe-Response Caching",
+    "permalink": "/docs/adr/adr-app-component-caching"
+  },
+  "next": {
+    "title": "ADR: AppComponent Mock JSON Target for Pipeline Prototyping",
+    "permalink": "/docs/adr/adr-app-component-mock-json-target"
+  }
+}

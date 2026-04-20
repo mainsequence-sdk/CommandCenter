@@ -11,10 +11,15 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 ## Entry Points
 
 - `assistant-endpoint.ts`
-  Resolves the configured assistant endpoint and shared auth/header helpers.
+  Resolves assistant-runtime access, including dynamic runtime `rpc_url` resolution, bearer-token
+  injection, selected-session binding, and shared `401` / `403` refresh-and-retry behavior.
+- `assistant-health-api.ts`
+  Fetches the assistant-runtime `GET /health` response and preserves the raw JSON or text payload
+  for the Agents settings diagnostics panel.
 - `command-center-base-session-api.ts`
   Shared transport for the canonical Command Center base session handle returned by
-  `POST /orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/`.
+  `POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`.
+  It can send `current_session` when a frontend request targets an existing backend AgentSession.
 - `agent-session-request.ts`
   Builds the backend request-body fragments used for session-bound assistant runs.
 - `agent-session-stream.ts`
@@ -44,6 +49,19 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 ## Maintenance Notes
 
 - Keep this directory free of `assistant-ui` runtime hooks and overlay/page UI concerns.
+- Assistant-runtime calls for agent sessions use `runtime_access.rpc_url` plus
+  `Authorization: Bearer <runtime_access.token>`.
+- `assistant_ui.endpoint` may be blank when Main Sequence AI should rely entirely on backend
+  runtime access. Render paths must not call the configured/static endpoint as a hard requirement
+  for agent-runtime calls.
+- `VITE_ASSISTANT_UI_PROXY_TARGET` may still configure Vite's development proxy, but it is not the
+  source of truth for Main Sequence AI agent-runtime calls.
+- Requests that target a specific existing AgentSession should pass the session id through
+  `currentSessionId` so the backend exchange can bind the astro command-center handle to
+  `current_session` before hitting runtime endpoints such as history, tools, insights, or chat.
+- Dynamic runtime-token refresh is centralized in `assistant-endpoint.ts`. Assistant-runtime
+  transports should use the shared fetch wrapper instead of issuing raw `fetch(...)` calls so
+  `401` / `403` can reacquire runtime access once and retry consistently.
 - Session catalog transport shared by widgets or workspace surfaces belongs here, not under
   `assistant-ui/`.
 - If the backend assistant request shape changes, update `agent-session-request.ts` first so the
@@ -68,7 +86,10 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `model-catalog-api.ts` is the only catalog source for the global provider settings screen.
   `available-models-api.ts` remains the chat-runtime picker source.
 - `storage-usage-api.ts` targets `/api/storage/usage` and represents deployment/runtime durable
-  storage state, not session-local or chat-local storage.
+  storage state, not session-local or chat-local storage. It preserves the `mainsequence` detail
+  bucket when present, including `mainSequence` and `main_sequence` casing variants.
+- `assistant-health-api.ts` intentionally does not impose a strict health response schema; the
+  settings screen should render the backend answer as returned.
 - `command-center-base-session-api.ts` is the only canonical source for the default Command Center
   assistant continuity session. Frontend code should not infer that default by picking the latest
   `astro-orchestrator` session from the latest-session query.

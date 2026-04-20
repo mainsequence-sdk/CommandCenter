@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-workspaces/overview" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Workspaces | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/workspaces/overview"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Workspaces | Main Sequence Command Center"><meta data-rh="true" name="description" content="Overview"><meta data-rh="true" property="og:description" content="Overview"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/workspaces/overview"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/workspaces/overview" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/workspaces/overview" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Workspaces","item":"https://mainsequence-sdk.github.io/docs/workspaces/overview"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
+<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/"><span title="Overview" class="linkLabel_WmDU">Overview</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/platform"><span title="Platform" class="categoryLinkLabel_W154">Platform</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform"><span title="Platform" class="linkLabel_WmDU">Platform</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/configuration"><span title="Configuration" class="linkLabel_WmDU">Configuration</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/theming"><span title="Theming" class="linkLabel_WmDU">Theming</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/internationalization"><span title="Internationalization" class="linkLabel_WmDU">Internationalization</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/notifications"><span title="Notifications" class="linkLabel_WmDU">Notifications</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/apps"><span title="Apps" class="categoryLinkLabel_W154">Apps</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps"><span title="Apps" class="linkLabel_WmDU">Apps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps/overview"><span title="Apps and Surfaces" class="linkLabel_WmDU">Apps and Surfaces</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/widgets"><span title="Widgets" class="categoryLinkLabel_W154">Widgets</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets"><span title="Widgets" class="linkLabel_WmDU">Widgets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets/core-widgets"><span title="Core Widgets" class="linkLabel_WmDU">Core Widgets</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docs/workspaces"><span title="Workspaces" class="categoryLinkLabel_W154">Workspaces</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docs/workspaces/overview"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/dashboard-layouts"><span title="Dashboard Layouts" class="linkLabel_WmDU">Dashboard Layouts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/backend-model"><span title="Workspace Backend Model" class="linkLabel_WmDU">Workspace Backend Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/runtime-performance-remediation"><span title="Workspace Runtime Performance Remediation" class="linkLabel_WmDU">Workspace Runtime Performance Remediation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/settings-headless-runtime-investigation"><span title="Workspace Settings Headless Runtime Investigation" class="linkLabel_WmDU">Workspace Settings Headless Runtime Investigation</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/extensions"><span title="Extensions" class="categoryLinkLabel_W154">Extensions</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions/overview"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/auth"><span title="Auth" class="categoryLinkLabel_W154">Auth</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth"><span title="Auth" class="linkLabel_WmDU">Auth</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth/backend-and-auth"><span title="Backend and Auth Integration" class="linkLabel_WmDU">Backend and Auth Integration</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/access-control"><span title="Access Control" class="categoryLinkLabel_W154">Access Control</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control"><span title="Access Control" class="linkLabel_WmDU">Access Control</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/rbac-assignment-matrix"><span title="RBAC Assignment Matrix" class="linkLabel_WmDU">RBAC Assignment Matrix</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/access-rbac-app"><span title="Access &amp; RBAC App" class="linkLabel_WmDU">Access &amp; RBAC App</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/operations"><span title="Operations" class="categoryLinkLabel_W154">Operations</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations"><span title="Operations" class="linkLabel_WmDU">Operations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations/deployment"><span title="Deployment" class="linkLabel_WmDU">Deployment</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docs/adr"><span title="ADRs" class="categoryLinkLabel_W154">ADRs</span></a></div></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Workspaces</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Workspaces</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Workspaces</h1></header>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="overview">Overview<a href="#overview" class="hash-link" aria-label="Direct link to Overview" title="Direct link to Overview" translate="no">​</a></h2>
+<p><code>Workspaces</code> is the core extension&#x27;s user-scoped workspace builder.</p>
+<p>It is intentionally modeled as an app, not a loose dashboard utility. The app owns one surface,
+<code>Workspaces</code>, and that surface handles five states:</p>
+<ul>
+<li class="">workspace index</li>
+<li class="">workspace canvas</li>
+<li class="">workspace graph</li>
+<li class="">widget settings</li>
+<li class="">workspace settings</li>
+</ul>
+<p>The canvas and settings are not separate app destinations. They are views over a selected
+workspace instance.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="route-model">Route Model<a href="#route-model" class="hash-link" aria-label="Direct link to Route Model" title="Direct link to Route Model" translate="no">​</a></h2>
+<p>The primary route is:</p>
+<ul>
+<li class=""><code>/app/workspace-studio/workspaces</code></li>
+</ul>
+<p>The entire app is gated by <code>VITE_INCLUDE_WORKSPACES=true</code>. When that env flag is set to <code>false</code>, the
+runtime registry does not expose <code>workspace-studio</code>, and direct app routes fall back through the
+normal app-resolution redirect path.</p>
+<p>State is selected through query params:</p>
+<ul>
+<li class=""><code>?workspace=&lt;id&gt;</code> opens the selected workspace canvas</li>
+<li class=""><code>?workspace=&lt;id&gt;&amp;view=graph</code> opens the workspace graph editor</li>
+<li class=""><code>?workspace=&lt;id&gt;&amp;view=settings</code> opens the settings view for that same workspace</li>
+<li class=""><code>?workspace=&lt;id&gt;&amp;view=widget-settings&amp;widget=&lt;instanceId&gt;</code> opens one widget instance settings view</li>
+</ul>
+<p>This keeps the app model simple while still supporting instance-specific editing flows.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="persistence-model">Persistence Model<a href="#persistence-model" class="hash-link" aria-label="Direct link to Persistence Model" title="Direct link to Persistence Model" translate="no">​</a></h2>
+<p>Workspaces are stored in browser <code>localStorage</code> during development by default.</p>
+<p>The current implementation is:</p>
+<ul>
+<li class="">local to the browser</li>
+<li class="">scoped by signed-in user id</li>
+<li class="">draft-aware, with explicit save/reset behavior</li>
+<li class="">migration-capable for older grid formats</li>
+</ul>
+<p>If both workspace backend URLs are configured in <code>config/command-center.yaml</code>, the studio switches
+to backend persistence instead:</p>
+<ul>
+<li class=""><code>workspaces.list_url</code></li>
+<li class=""><code>workspaces.detail_url</code></li>
+<li class=""><code>workspaces.user_state_list_url</code></li>
+</ul>
+<p>If the backend validates widget ids against the registered widget catalog, a platform admin must
+explicitly publish the current frontend widget registry to:</p>
+<ul>
+<li class=""><code>widget_types.list_url</code></li>
+<li class=""><code>widget_types.detail_url</code></li>
+<li class=""><code>widget_types.sync_url</code></li>
+</ul>
+<p>When <code>widget_types.list_url</code> is configured, normal widget-picking surfaces now also enforce
+backend registration as an availability gate. Unsynced widget definitions stay hidden even if they
+exist in the local frontend build.</p>
+<p>That publication no longer happens automatically on normal user sign-in.</p>
+<p>Blank, <code>null</code>, or <code>None</code> values keep the browser-local fallback active.</p>
+<p>The main persistence code lives in:</p>
+<ul>
+<li class=""><code>src/features/dashboards/custom-dashboard-storage.ts</code></li>
+<li class=""><code>src/features/dashboards/custom-workspace-studio-store.ts</code></li>
+<li class=""><code>src/features/dashboards/workspace-api.ts</code></li>
+<li class=""><code>src/features/dashboards/workspace-persistence.ts</code></li>
+</ul>
+<p>When the backend uses numeric workspace ids, the frontend normalizes them to strings in the
+workspace model and URL state.
+In backend mode, workspace creation waits for the backend response and adopts the backend-assigned
+id instead of persisting a client-generated id.
+The workspace index page uses the backend-backed saved collection as its source of truth in backend
+mode only for loaded workspace documents. The list itself now comes from lightweight backend
+summary rows, and full workspace detail is fetched on demand when a workspace is opened or copied.
+The workspace index intentionally focuses on user-facing metadata and does not expose internal grid
+column counts or similar layout-density implementation details.
+Collection-level wrapper metadata such as the store <code>savedAt</code> timestamp is internal transport
+state only and should not be shown as if it belongs to an individual workspace.
+In backend mode, the editor keeps a local draft and only persists changes when the user explicitly
+saves.
+In backend mode, delete reloads the workspace collection from the backend after success instead of
+computing the next list locally.
+In backend mode, workspace settings also expose a <code>Permissions</code> tab backed by the standard
+object-sharing endpoints for the workspace object itself. Browser-local workspaces cannot be shared
+through RBAC and show an explanatory backend-only message instead.</p>
+<p>For the recommended production backend model for shared workspaces, see:</p>
+<ul>
+<li class=""><code>docs/workspace-backend-model.md</code></li>
+<li class=""><code>docs/adr/adr-shared-workspace-state.md</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="workspace-model">Workspace Model<a href="#workspace-model" class="hash-link" aria-label="Direct link to Workspace Model" title="Direct link to Workspace Model" translate="no">​</a></h2>
+<p>Each workspace is a dashboard-like model with:</p>
+<ul>
+<li class="">id</li>
+<li class="">title</li>
+<li class="">description</li>
+<li class="">labels</li>
+<li class="">grid config</li>
+<li class="">shared dashboard controls state</li>
+<li class="">widget instances and widget geometry</li>
+<li class="">widget bindings when a widget instance declares first-class inputs</li>
+</ul>
+<p>The persisted workspace document stores widget instances only. Widget definitions such as title,
+description, category, settings schema, and IO/binding contracts still come from the runtime widget
+registry. Backend validation should therefore rely on the separately published widget-type catalog
+instead of expecting <code>workspace.widgets</code> to carry full type metadata.
+In backend mode, the frontend now treats the shared workspace document and the current user&#x27;s
+runtime/view state as separate concerns:</p>
+<ul>
+<li class=""><code>GET workspaces.detail_url</code>: shared workspace structure only</li>
+<li class=""><code>GET workspaces.user_state_list_url?workspace=&lt;id&gt;</code>: current-user selected controls and widget
+runtime state</li>
+</ul>
+<p>The client merges that user state locally after the shared workspace structure is loaded, and
+shared workspace saves no longer send selected control values or widget <code>runtimeState</code> back to the
+main workspace endpoint. The normal workspace save flow now also persists that current-user state
+through <code>workspaces.user_state_list_url</code>, so time-range / refresh changes save with the same
+workspace action even though they are stored separately from the shared workspace document.</p>
+<p>The canvas uses a fine-grained grid and stores widget placement directly in the workspace model.
+<code>Custom</code> workspaces currently normalize onto one canonical dense manual grid: <code>48</code> columns,
+<code>15px</code> row units, and <code>8px</code> visual gutters. Older <code>12</code>-, <code>24</code>-, and <code>96</code>-column custom layouts are
+migrated into that model on load so the studio no longer inherits legacy resize steps.
+The studio now uses the root <code>react-grid-layout</code> v2 API directly through grouped
+<code>gridConfig</code> / <code>dragConfig</code> / <code>resizeConfig</code> props instead of the old flat prop surface.
+In <code>custom</code> edit mode, the editor intentionally uses only the bottom-right <code>se</code> resize handle so
+width and height resize together from one corner.
+Labels are edited in workspace settings as pill chips with enter-to-add behavior.
+Widget runtime state can also be stored per instance when the widget reports it through the shared
+widget contract.
+Widget instances can also persist canonical <code>bindings</code> separately from props. Binding changes clear
+that widget&#x27;s runtime state by default so stale upstream-derived caches do not survive rebinding.
+Workspace edit mode is not persisted with the workspace document. It is client-side per-workspace
+UI state and should survive route changes between the canvas and widget settings for the same
+workspace during the current session.
+In canvas edit mode, widget cards keep the same header height as normal viewing, use the existing
+header area as the drag target, and reveal edit actions on hover instead of adding a separate move
+control.
+Widget instances may hide their header during normal viewing, but the canvas forces headers visible
+again in edit mode so widget controls remain reachable.
+Non-row widgets in <code>custom</code> can resize down to a single column and a single row; only row widgets
+keep the fixed full-width structural sizing rules.
+Freshly inserted non-row widgets now all start from one shared workspace footprint instead of
+deriving their starting geometry from each widget definition&#x27;s <code>defaultSize</code>.
+The canvas <code>Components</code> browser supports large widget catalogs with search, category/kind/source
+filters, favorites, recent widgets, and grouped category browse when search is empty.
+If a workspace still contains a widget id that is no longer available in the current client build,
+the canvas explains that the widget is a legacy/unavailable instance and offers a direct delete
+action.
+Workspace deletion from settings uses the app&#x27;s destructive confirmation dialog. In backend mode,
+the workspace remains in the UI until the backend confirms the delete.
+The dedicated widget settings page now also hosts a <code>Bindings</code> tab for widgets that declare
+dependency inputs, so inter-widget edges are edited separately from normal settings rather than
+hidden in raw props JSON. The binding UI is explicit per input: users select both the upstream
+widget and the upstream output port, then see the final <code>output -&gt; input</code> mapping directly.
+Unsaved state is tracked per workspace mutation, not derived by deep-comparing serialized
+workspace objects during render. Workspace-scoped pages should therefore use the selected
+workspace dirty flag, and reset actions should only revert the current workspace rather than the
+entire in-memory collection.
+The shared studio store now keeps loaded workspace documents keyed by workspace id instead of
+wrapping them in one in-memory collection model. <code>updateWorkspaceDraft(workspaceId, updater)</code> is
+the standard path for editing one loaded workspace, while <code>workspaceListItems</code> remains the
+lightweight list/index state and <code>selectedWorkspaceId</code> tracks the currently active workspace.
+The widget settings route now keeps only the shared dashboard runtime providers alive. It no
+longer hidden-mounts the whole workspace widget tree just to make sibling runtime available.
+Headless source publication now comes from executable widgets through the shared execution layer,
+including <code>main-sequence-data-node</code>, which still respects the active workspace time range while
+settings are open.
+The <code>dashboard</code> and <code>widget-settings</code> views now also share one mounted workspace studio host.
+Opening widget settings keeps the canvas/runtime mounted underneath and shows settings as the
+active overlay surface, so returning to the workspace does not trigger a full canvas boot.
+The settings shell should appear immediately. Heavy widget-specific configuration such as schema
+resolution, upstream preview work, or API discovery now hydrates asynchronously with local loading
+states instead of blocking the full overlay.
+Opening a workspace should follow the same rule. The client should fetch shared workspace detail
+first so the shell and canvas can render as soon as the structure is available, then hydrate
+current-user controls/runtime locally from <code>workspaces.user_state_list_url</code> and let widgets load
+their own data asynchronously. Full-page loading is reserved for the case where there is no usable
+shared workspace document yet.
+For direct backend routes like <code>?workspace=&lt;id&gt;</code>, the client should start from
+<code>GET /workspaces/:id/</code> immediately instead of waiting for the workspace list to confirm that id
+first. A <code>404</code> from the detail endpoint is the authoritative &quot;workspace does not exist&quot; signal for
+that route. The per-user <code>workspace-user-states</code> fetch is secondary hydration only and must not
+block the canvas shell.
+The workspace graph is a dedicated React Flow view over those same canonical bindings. It renders
+all widget instances as nodes, including sidebar-only widgets and collapsed-row children, and lets
+users create or remove bindings visually without changing the saved canvas layout. The graph stays
+inside the normal Workspaces shell so the standard app navigation remains visible, keeps the shared
+dashboard control strip at the top of the page, reuses the same workspace toolbar language and
+left widget rail as the canvas, keeps the <code>Components</code> drawer available for adding widgets without
+leaving graph mode, and adds only a matching return-to-workspace action for graph mode.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="json-snapshots">JSON Snapshots<a href="#json-snapshots" class="hash-link" aria-label="Direct link to JSON Snapshots" title="Direct link to JSON Snapshots" translate="no">​</a></h2>
+<p>Workspaces can now be exported and recovered through a versioned JSON snapshot from workspace
+settings.</p>
+<p>The snapshot includes:</p>
+<ul>
+<li class="">workspace metadata</li>
+<li class="">labels</li>
+<li class="">controls state</li>
+<li class="">grid configuration</li>
+<li class="">widget layout and props</li>
+<li class="">widget bindings</li>
+<li class="">widget runtime state when the widget supports it</li>
+</ul>
+<p>The current envelope is <code>mainsequence.workspace</code> version <code>1</code>.</p>
+<p>Import supports two recovery paths:</p>
+<ul>
+<li class="">create a new workspace from the snapshot</li>
+<li class="">replace the current workspace draft with the snapshot</li>
+</ul>
+<p>Import changes the draft model first. Users still save explicitly if they want the recovered
+workspace written to the active persistence target.</p>
+<p>In a production backend, this snapshot shape should map to revision/export transport rather than
+the primary <code>Workspace</code> row itself.</p>
+<p>This JSON snapshot is intentionally separate from the live workspace agent snapshot archive. The
+JSON export remains the canonical workspace document export/import format, while the agent snapshot
+archive is a separate live-runtime zip artifact for automation,
+screenshots, graph capture, and widget-output inspection. See
+<a class="" href="/docs/adr/adr-live-workspace-agent-snapshot-archive"><code>docs/adr/adr-live-workspace-agent-snapshot-archive.md</code></a>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="live-agent-snapshot-archive">Live Agent Snapshot Archive<a href="#live-agent-snapshot-archive" class="hash-link" aria-label="Direct link to Live Agent Snapshot Archive" title="Direct link to Live Agent Snapshot Archive" translate="no">​</a></h2>
+<p>The live workspace agent snapshot archive is a different artifact from the JSON export.</p>
+<p>Its purpose is to capture what the mounted workspace runtime is actually showing, including:</p>
+<ul>
+<li class="">current workspace view and controls</li>
+<li class="">widget relationship graph</li>
+<li class="">screenshots</li>
+<li class="">hidden/sidebar/collapsed widget content</li>
+<li class="">per-widget structured live summaries</li>
+<li class="">optional raw data exports for large data widgets</li>
+</ul>
+<p>The current trigger model is the snapshot route:</p>
+<ul>
+<li class=""><code>/app/workspace-studio/workspaces?workspace=&lt;id&gt;&amp;snapshot=true</code></li>
+</ul>
+<p>This route is still a normal SPA route, not an API endpoint. The archive is generated by the real
+client runtime in a browser engine.</p>
+<p>The current client-side behavior is:</p>
+<ul>
+<li class="">snapshot mode forces the selected workspace into dashboard view</li>
+<li class="">the mounted runtime waits for widgets to settle</li>
+<li class="">the client captures structured widget snapshots plus PNG artifacts</li>
+<li class="">the client assembles one zip archive locally</li>
+<li class="">the archive is exposed on <code>window.__COMMAND_CENTER_SNAPSHOT__</code></li>
+<li class="">the client dispatches <code>command-center:snapshot-ready</code></li>
+<li class="">the workspace edit toolbar also exposes <code>Create snapshot</code>, which triggers the same archive
+pipeline from the currently open workspace and downloads the generated zip directly</li>
+</ul>
+<p>Authentication for this flow reuses the existing local-storage JWT session contract instead of
+inventing a second snapshot-only auth model.</p>
+<p>The current archive includes:</p>
+<ul>
+<li class=""><code>manifest.json</code></li>
+<li class=""><code>workspace-definition.json</code></li>
+<li class=""><code>workspace-live-state.json</code></li>
+<li class=""><code>controls.json</code></li>
+<li class=""><code>relationships/widget-graph.json</code></li>
+<li class=""><code>relationships/widget-graph.png</code></li>
+<li class=""><code>screenshots/viewport.png</code></li>
+<li class=""><code>screenshots/full-canvas.png</code> from the actual workspace canvas root</li>
+<li class=""><code>screenshots/hidden-widgets-sheet.png</code></li>
+<li class=""><code>widgets/&lt;instanceId&gt;/snapshot.json</code></li>
+<li class=""><code>widgets/&lt;instanceId&gt;/screenshot.png</code> when DOM capture succeeds</li>
+<li class="">widget data exports such as <code>data.json</code>, <code>data.csv</code>, <code>chart-data.json</code>, or <code>response.json</code> when
+the widget snapshot exposes that content</li>
+</ul>
+<p>The important structure is:</p>
+<ul>
+<li class=""><code>workspace-definition.json</code>
+<ul>
+<li class="">the normal sanitized JSON workspace snapshot from <code>createWorkspaceSnapshot(...)</code></li>
+</ul>
+</li>
+<li class=""><code>workspace-live-state.json</code>
+<ul>
+<li class="">schema: <code>mainsequence.workspace-agent-live-state</code></li>
+<li class="">current live controls</li>
+<li class="">resolved dependency graph</li>
+<li class="">one widget record per workspace instance, including hidden/sidebar state, optional layout,
+screenshot path, artifact paths, and the widget&#x27;s structured live snapshot</li>
+</ul>
+</li>
+<li class=""><code>manifest.json</code>
+<ul>
+<li class="">schema: <code>mainsequence.workspace-agent-archive</code></li>
+<li class="">capture profile</li>
+<li class="">warnings and errors</li>
+<li class="">one manifest entry per file with media type, byte size, and description</li>
+</ul>
+</li>
+</ul>
+<p>Per-widget snapshot behavior is intentionally conditional:</p>
+<ul>
+<li class="">every widget gets <code>widgets/&lt;instanceId&gt;/snapshot.json</code></li>
+<li class="">widgets with visible canvas DOM also get <code>widgets/&lt;instanceId&gt;/screenshot.png</code></li>
+<li class="">widgets that expose rows, series, or response payloads through <code>buildAgentSnapshot(...)</code> may also
+emit <code>data.json</code>, <code>data.csv</code>, <code>chart-data.json</code>, or <code>response.json</code></li>
+<li class="">widgets without a custom snapshot builder still emit a generic fallback snapshot with rendered
+text summary when available</li>
+</ul>
+<p>The capture profile controls how much widget data is included:</p>
+<ul>
+<li class=""><code>snapshotProfile=full-data</code>
+<ul>
+<li class="">allows widget snapshot builders to include deeper row/series payloads</li>
+</ul>
+</li>
+<li class=""><code>snapshotProfile=evidence</code>
+<ul>
+<li class="">keeps the same archive structure but allows widgets to truncate large data-heavy payloads</li>
+</ul>
+</li>
+</ul>
+<p>The existing JSON export/import flow remains unchanged and is still the canonical persisted
+workspace document transport.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="favorites">Favorites<a href="#favorites" class="hash-link" aria-label="Direct link to Favorites" title="Direct link to Favorites" translate="no">​</a></h2>
+<p>Workspaces support instance-level favorites in addition to the shell&#x27;s existing surface favorites.</p>
+<p>That means users can:</p>
+<ul>
+<li class="">favorite the <code>Workspaces</code> app surface like any other surface</li>
+<li class="">favorite a specific workspace instance from the workspace table</li>
+<li class="">open those favorited workspace instances from the global favorites menu</li>
+</ul>
+<p>Workspace favorites are stored in shell-local persisted state, then resolved against the current
+workspace collection.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="copying-workspaces">Copying Workspaces<a href="#copying-workspaces" class="hash-link" aria-label="Direct link to Copying Workspaces" title="Direct link to Copying Workspaces" translate="no">​</a></h2>
+<p>The workspace index also exposes a direct <code>Copy</code> action for each workspace row.</p>
+<p>Copy works by cloning the current workspace document into a fresh workspace instance and then
+routing through the normal create flow:</p>
+<ul>
+<li class="">local mode creates a new browser-local workspace</li>
+<li class="">backend mode first hydrates the source workspace detail on demand, then issues a normal
+workspace create request so the copy is stored as a new backend workspace rather than updating
+the original one</li>
+</ul>
+<p>The copied workspace gets a fresh workspace id and a default title prefixed with <code>Copy of</code>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="recommended-production-split">Recommended Production Split<a href="#recommended-production-split" class="hash-link" aria-label="Direct link to Recommended Production Split" title="Direct link to Recommended Production Split" translate="no">​</a></h2>
+<p>For shared workspaces, the recommended backend split is:</p>
+<ul>
+<li class="">shared workspace content in <code>Workspace</code></li>
+<li class="">direct and team access in object-level grant tables</li>
+<li class="">per-user temporary viewing state in <code>WorkspaceUserState</code></li>
+<li class="">immutable snapshots in <code>WorkspaceRevision</code></li>
+</ul>
+<p>That split exists because a shared editable workspace should still avoid collaboration conflicts on
+temporary interactions such as:</p>
+<ul>
+<li class="">zoom / pan</li>
+<li class="">selected date range</li>
+<li class="">selected refresh interval</li>
+<li class="">selected graph node</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="main-entry-points">Main Entry Points<a href="#main-entry-points" class="hash-link" aria-label="Direct link to Main Entry Points" title="Direct link to Main Entry Points" translate="no">​</a></h2>
+<ul>
+<li class=""><code>src/features/dashboards/WorkspacesPage.tsx</code></li>
+<li class=""><code>src/features/dashboards/CustomDashboardStudioPage.tsx</code></li>
+<li class=""><code>src/features/dashboards/CustomWorkspaceGraphPage.tsx</code></li>
+<li class=""><code>src/features/dashboards/CustomWorkspaceSettingsPage.tsx</code></li>
+<li class=""><code>src/features/dashboards/useCustomWorkspaceStudio.ts</code></li>
+</ul>
+<p>The app registration lives in:</p>
+<ul>
+<li class=""><code>src/extensions/core/index.ts</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="maintenance-notes">Maintenance Notes<a href="#maintenance-notes" class="hash-link" aria-label="Direct link to Maintenance Notes" title="Direct link to Maintenance Notes" translate="no">​</a></h2>
+<p>Update this page whenever any of the following change:</p>
+<ul>
+<li class="">route/query-param model</li>
+<li class="">local-storage schema or migration behavior</li>
+<li class="">JSON snapshot schema or import/export behavior</li>
+<li class="">favorites behavior</li>
+<li class="">workspace list, canvas, or settings ownership boundaries</li>
+<li class="">saved control state or widget layout behavior</li>
+</ul>
+<p>Keep <code>src/features/dashboards/README.md</code> aligned with this page so code-local docs and product docs
+do not drift.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/overview.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/workspaces"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Workspaces</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/workspaces/dashboard-layouts"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Dashboard Layouts</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#route-model" class="table-of-contents__link toc-highlight">Route Model</a></li><li><a href="#persistence-model" class="table-of-contents__link toc-highlight">Persistence Model</a></li><li><a href="#workspace-model" class="table-of-contents__link toc-highlight">Workspace Model</a></li><li><a href="#json-snapshots" class="table-of-contents__link toc-highlight">JSON Snapshots</a></li><li><a href="#live-agent-snapshot-archive" class="table-of-contents__link toc-highlight">Live Agent Snapshot Archive</a></li><li><a href="#favorites" class="table-of-contents__link toc-highlight">Favorites</a></li><li><a href="#copying-workspaces" class="table-of-contents__link toc-highlight">Copying Workspaces</a></li><li><a href="#recommended-production-split" class="table-of-contents__link toc-highlight">Recommended Production Split</a></li><li><a href="#main-entry-points" class="table-of-contents__link toc-highlight">Main Entry Points</a></li><li><a href="#maintenance-notes" class="table-of-contents__link toc-highlight">Maintenance Notes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

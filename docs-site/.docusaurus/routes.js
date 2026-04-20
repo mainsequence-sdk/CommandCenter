@@ -3,143 +3,298 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
-    path: '/docs/__docusaurus/debug',
-    component: ComponentCreator('/docs/__docusaurus/debug', 'e58'),
-    exact: true
-  },
-  {
-    path: '/docs/__docusaurus/debug/config',
-    component: ComponentCreator('/docs/__docusaurus/debug/config', '2ce'),
-    exact: true
-  },
-  {
-    path: '/docs/__docusaurus/debug/content',
-    component: ComponentCreator('/docs/__docusaurus/debug/content', '11b'),
-    exact: true
-  },
-  {
-    path: '/docs/__docusaurus/debug/globalData',
-    component: ComponentCreator('/docs/__docusaurus/debug/globalData', 'f13'),
-    exact: true
-  },
-  {
-    path: '/docs/__docusaurus/debug/metadata',
-    component: ComponentCreator('/docs/__docusaurus/debug/metadata', 'bff'),
-    exact: true
-  },
-  {
-    path: '/docs/__docusaurus/debug/registry',
-    component: ComponentCreator('/docs/__docusaurus/debug/registry', '830'),
-    exact: true
-  },
-  {
-    path: '/docs/__docusaurus/debug/routes',
-    component: ComponentCreator('/docs/__docusaurus/debug/routes', '13e'),
-    exact: true
-  },
-  {
     path: '/docs/',
-    component: ComponentCreator('/docs/', 'a9a'),
+    component: ComponentCreator('/docs/', '344'),
     routes: [
       {
         path: '/docs/',
-        component: ComponentCreator('/docs/', '3c2'),
+        component: ComponentCreator('/docs/', 'f93'),
         routes: [
           {
             path: '/docs/',
-            component: ComponentCreator('/docs/', 'c57'),
+            component: ComponentCreator('/docs/', 'b2f'),
             routes: [
               {
-                path: '/docs/access-rbac-app',
-                component: ComponentCreator('/docs/access-rbac-app', 'f1f'),
+                path: '/docs/access-control',
+                component: ComponentCreator('/docs/access-control', '073'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/adr-shared-workspace-state',
-                component: ComponentCreator('/docs/adr-shared-workspace-state', 'edd'),
-                exact: true
-              },
-              {
-                path: '/docs/apps-and-surfaces',
-                component: ComponentCreator('/docs/apps-and-surfaces', '7ef'),
+                path: '/docs/access-control/access-rbac-app',
+                component: ComponentCreator('/docs/access-control/access-rbac-app', '868'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/architecture',
-                component: ComponentCreator('/docs/architecture', '0e9'),
+                path: '/docs/access-control/rbac-assignment-matrix',
+                component: ComponentCreator('/docs/access-control/rbac-assignment-matrix', '1cc'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/backend-and-auth',
-                component: ComponentCreator('/docs/backend-and-auth', '55f'),
+                path: '/docs/adr',
+                component: ComponentCreator('/docs/adr', '265'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/configuration',
-                component: ComponentCreator('/docs/configuration', '193'),
+                path: '/docs/adr/adr-agent-ready-widget-type-registry-contract',
+                component: ComponentCreator('/docs/adr/adr-agent-ready-widget-type-registry-contract', '005'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/core-widgets',
-                component: ComponentCreator('/docs/core-widgets', 'c30'),
+                path: '/docs/adr/adr-app-component-binding-native-api-widget',
+                component: ComponentCreator('/docs/adr/adr-app-component-binding-native-api-widget', '7f0'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/dashboard-layouts',
-                component: ComponentCreator('/docs/dashboard-layouts', '6a5'),
+                path: '/docs/adr/adr-app-component-caching',
+                component: ComponentCreator('/docs/adr/adr-app-component-caching', '222'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/deployment',
-                component: ComponentCreator('/docs/deployment', 'fe6'),
-                exact: true
+                path: '/docs/adr/adr-app-component-mock-json-target',
+                component: ComponentCreator('/docs/adr/adr-app-component-mock-json-target', 'da1'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-app-component-response-notification-ui',
+                component: ComponentCreator('/docs/adr/adr-app-component-response-notification-ui', 'ce1'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-binding-output-transforms',
+                component: ComponentCreator('/docs/adr/adr-binding-output-transforms', 'cbb'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-executable-widget-graph-runner',
+                component: ComponentCreator('/docs/adr/adr-executable-widget-graph-runner', '4e5'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-extension-contributed-shell-settings-menus',
+                component: ComponentCreator('/docs/adr/adr-extension-contributed-shell-settings-menus', '05f'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-headless-workspace-settings-runtime',
+                component: ComponentCreator('/docs/adr/adr-headless-workspace-settings-runtime', '609'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-incremental-workspace-normalization',
+                component: ComponentCreator('/docs/adr/adr-incremental-workspace-normalization', 'c0c'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-inline-canvas-rich-text-widget',
+                component: ComponentCreator('/docs/adr/adr-inline-canvas-rich-text-widget', '905'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-live-workspace-agent-snapshot-archive',
+                component: ComponentCreator('/docs/adr/adr-live-workspace-agent-snapshot-archive', '478'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-main-sequence-ai-command-center-base-session',
+                component: ComponentCreator('/docs/adr/adr-main-sequence-ai-command-center-base-session', 'e22'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution',
+                component: ComponentCreator('/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution', '278'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-organization-widget-type-configurations',
+                component: ComponentCreator('/docs/adr/adr-organization-widget-type-configurations', '286'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-rgl-v2-workspace-studio',
+                component: ComponentCreator('/docs/adr/adr-rgl-v2-workspace-studio', '563'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-shared-workspace-state',
+                component: ComponentCreator('/docs/adr/adr-shared-workspace-state', 'a15'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-single-runtime-owner-workspace-widgets',
+                component: ComponentCreator('/docs/adr/adr-single-runtime-owner-workspace-widgets', '9e4'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-source-driven-downstream-execution',
+                component: ComponentCreator('/docs/adr/adr-source-driven-downstream-execution', '84c'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-widget-agent-context-bindings',
+                component: ComponentCreator('/docs/adr/adr-widget-agent-context-bindings', 'bbe'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-widget-bindings-and-dependency-graph',
+                component: ComponentCreator('/docs/adr/adr-widget-bindings-and-dependency-graph', 'acd'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/apps',
+                component: ComponentCreator('/docs/apps', '6d0'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/apps/overview',
+                component: ComponentCreator('/docs/apps/overview', '77e'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/auth',
+                component: ComponentCreator('/docs/auth', '075'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/auth/backend-and-auth',
+                component: ComponentCreator('/docs/auth/backend-and-auth', '2b0'),
+                exact: true,
+                sidebar: "docsSidebar"
               },
               {
                 path: '/docs/extensions',
-                component: ComponentCreator('/docs/extensions', 'b84'),
+                component: ComponentCreator('/docs/extensions', '40c'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/internationalization',
-                component: ComponentCreator('/docs/internationalization', '246'),
+                path: '/docs/extensions/overview',
+                component: ComponentCreator('/docs/extensions/overview', '77e'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/notifications',
-                component: ComponentCreator('/docs/notifications', '38f'),
+                path: '/docs/operations',
+                component: ComponentCreator('/docs/operations', 'cba'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/rbac-assignment-matrix',
-                component: ComponentCreator('/docs/rbac-assignment-matrix', 'bb0'),
+                path: '/docs/operations/deployment',
+                component: ComponentCreator('/docs/operations/deployment', 'cdb'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/theming',
-                component: ComponentCreator('/docs/theming', '4c1'),
+                path: '/docs/platform',
+                component: ComponentCreator('/docs/platform', 'ca8'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/workspace-backend-model',
-                component: ComponentCreator('/docs/workspace-backend-model', 'f87'),
-                exact: true
+                path: '/docs/platform/architecture',
+                component: ComponentCreator('/docs/platform/architecture', '77c'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/platform/configuration',
+                component: ComponentCreator('/docs/platform/configuration', '22b'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/platform/internationalization',
+                component: ComponentCreator('/docs/platform/internationalization', 'd6b'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/platform/notifications',
+                component: ComponentCreator('/docs/platform/notifications', 'ae2'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/platform/theming',
+                component: ComponentCreator('/docs/platform/theming', 'bbf'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/widgets',
+                component: ComponentCreator('/docs/widgets', '66d'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/widgets/core-widgets',
+                component: ComponentCreator('/docs/widgets/core-widgets', '2f5'),
+                exact: true,
+                sidebar: "docsSidebar"
               },
               {
                 path: '/docs/workspaces',
-                component: ComponentCreator('/docs/workspaces', 'aa3'),
-                exact: true
+                component: ComponentCreator('/docs/workspaces', 'b5c'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/workspaces/backend-model',
+                component: ComponentCreator('/docs/workspaces/backend-model', 'cf0'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/workspaces/dashboard-layouts',
+                component: ComponentCreator('/docs/workspaces/dashboard-layouts', 'f86'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/workspaces/overview',
+                component: ComponentCreator('/docs/workspaces/overview', '41f'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/workspaces/runtime-performance-remediation',
+                component: ComponentCreator('/docs/workspaces/runtime-performance-remediation', '627'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/workspaces/settings-headless-runtime-investigation',
+                component: ComponentCreator('/docs/workspaces/settings-headless-runtime-investigation', 'b50'),
+                exact: true,
+                sidebar: "docsSidebar"
               },
               {
                 path: '/docs/',

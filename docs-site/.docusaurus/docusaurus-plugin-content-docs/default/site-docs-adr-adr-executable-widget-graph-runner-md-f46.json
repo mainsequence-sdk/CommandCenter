@@ -1,0 +1,24 @@
+{
+  "id": "adr/adr-executable-widget-graph-runner",
+  "title": "ADR: Executable Widget Graph Runner and Refresh Coordination",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/adr-executable-widget-graph-runner.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-executable-widget-graph-runner",
+  "permalink": "/docs/adr/adr-executable-widget-graph-runner",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-executable-widget-graph-runner.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Binding-Level Output Transforms for Structured Widget Outputs",
+    "permalink": "/docs/adr/adr-binding-output-transforms"
+  },
+  "next": {
+    "title": "ADR: Source-Driven Downstream Execution After Manual Widget Actions",
+    "permalink": "/docs/adr/adr-source-driven-downstream-execution"
+  }
+}

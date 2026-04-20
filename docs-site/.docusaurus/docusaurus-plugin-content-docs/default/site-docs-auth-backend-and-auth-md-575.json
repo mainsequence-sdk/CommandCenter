@@ -1,0 +1,24 @@
+{
+  "id": "auth/backend-and-auth",
+  "title": "Backend and Auth Integration",
+  "description": "Current state",
+  "source": "@site/../docs/auth/backend-and-auth.md",
+  "sourceDirName": "auth",
+  "slug": "/auth/backend-and-auth",
+  "permalink": "/docs/auth/backend-and-auth",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/auth/backend-and-auth.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Auth",
+    "permalink": "/docs/auth"
+  },
+  "next": {
+    "title": "Access Control",
+    "permalink": "/docs/access-control"
+  }
+}

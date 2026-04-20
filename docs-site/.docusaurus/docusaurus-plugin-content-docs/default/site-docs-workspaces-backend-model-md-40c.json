@@ -1,0 +1,24 @@
+{
+  "id": "workspaces/backend-model",
+  "title": "Workspace Backend Model",
+  "description": "Purpose",
+  "source": "@site/../docs/workspaces/backend-model.md",
+  "sourceDirName": "workspaces",
+  "slug": "/workspaces/backend-model",
+  "permalink": "/docs/workspaces/backend-model",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/backend-model.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Dashboard Layouts",
+    "permalink": "/docs/workspaces/dashboard-layouts"
+  },
+  "next": {
+    "title": "Workspace Runtime Performance Remediation",
+    "permalink": "/docs/workspaces/runtime-performance-remediation"
+  }
+}

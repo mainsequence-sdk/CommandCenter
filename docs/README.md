@@ -1,71 +1,64 @@
-# Documentation
+# Command Center Docs
 
-Main Sequence Command Center is the foundation for teams that want to launch branded market
-products, internal operating consoles, and extension-driven workflows without rebuilding the shell
-from scratch every time.
+Command Center is a frontend platform for teams building internal products, operational consoles,
+and extension-driven workflows without re-implementing the shell every time.
 
-These docs are here to show how the platform comes together and how you can turn it into a
-product surface that feels deliberate, fast, and deeply customized to your own domain.
+These docs are written for developers. Start here if you need to understand the platform quickly,
+find the extension seam for a new feature, or change a subsystem without guessing how the rest of
+the app fits together.
 
-## Recommended reading order
+## Pick Your Starting Point
 
-1. [Architecture](./architecture.md)
-2. [Apps and Surfaces](./apps-and-surfaces.md)
-3. [Core Widgets](./core-widgets.md)
-4. [Dashboard Layouts](./dashboard-layouts.md)
-5. [Workspaces](./workspaces.md)
-6. [Workspace Backend Model](./workspace-backend-model.md)
-7. [ADR: Shared Workspace Content vs Per-User View State](./adr/adr-shared-workspace-state.md)
-8. [ADR: Use React Grid Layout v2 API in Workspace Studio](./adr/adr-rgl-v2-workspace-studio.md)
-9. [ADR: First-Class Widget Bindings and Dependency Graph](./adr/adr-widget-bindings-and-dependency-graph.md)
-10. [ADR: AppComponent as a Binding-Native API Widget](./adr/adr-app-component-binding-native-api-widget.md)
-11. [ADR: Shared AppComponent Discovery and Safe-Response Caching](./adr/adr-app-component-caching.md)
-12. [ADR: Binding-Level Output Transforms for Structured Widget Outputs](./adr/adr-binding-output-transforms.md)
-13. [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr/adr-executable-widget-graph-runner.md)
-14. [ADR: Source-Driven Downstream Execution After Manual Widget Actions](./adr/adr-source-driven-downstream-execution.md)
-15. [ADR: Headless Workspace Widget Settings Runtime](./adr/adr-headless-workspace-settings-runtime.md)
-16. [ADR: Single Runtime Owner for Workspace Widgets](./adr/adr-single-runtime-owner-workspace-widgets.md)
-17. [ADR: Agent-Ready Widget Type Registry Contract](./adr/adr-agent-ready-widget-type-registry-contract.md)
-18. [ADR: Live Workspace Agent Snapshot Archive](./adr/adr-live-workspace-agent-snapshot-archive.md)
-19. [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](./adr/adr-widget-agent-context-bindings.md)
-20. [ADR: Incremental Workspace Normalization and Resource-Scoped Save](./adr/adr-incremental-workspace-normalization.md)
-21. [ADR: AppComponent Response Notification UI Contract](./adr/adr-app-component-response-notification-ui.md)
-22. [ADR: AppComponent Mock JSON Target for Pipeline Prototyping](./adr/adr-app-component-mock-json-target.md)
-23. [ADR: Organization-Scoped Widget Type Configurations](./adr/adr-organization-widget-type-configurations.md)
-24. [ADR: Inline Canvas Editing Capability and Rich Text Widget](./adr/adr-inline-canvas-rich-text-widget.md)
-25. [Workspace Runtime Performance Remediation](./workspace-runtime-performance-remediation.md)
-26. [Workspace Settings Headless Runtime Investigation](./workspace-settings-headless-runtime-investigation.md)
-27. [Configuration](./configuration.md)
-28. [Internationalization](./internationalization.md)
-29. [Extensions](./extensions.md)
-30. [Theming](./theming.md)
-31. [Backend and Auth Integration](./backend-and-auth.md)
-32. [Deployment](./deployment.md)
-33. [Notifications](./notifications.md)
-34. [RBAC Assignment Matrix](./rbac-assignment-matrix.md)
-35. [Access & RBAC App](./access-rbac-app.md)
+- [Platform](./platform/README.md): shell architecture, configuration, theming, internationalization,
+  and notifications.
+- [Apps](./apps/README.md): app and surface model, routing, and navigation.
+- [Auth](./auth/README.md): backend integration and authentication boundaries.
+- [Workspaces](./workspaces/README.md): workspace model, layout, persistence, and runtime notes.
+- [Widgets](./widgets/README.md): widget concepts plus links to widget-local implementation docs.
+- [Extensions](./extensions/README.md): how to add product surface area without polluting the shell.
+- [Access Control](./access-control/README.md): RBAC primitives and the dedicated access app.
+- [Operations](./operations/README.md): deployment and operational constraints.
+- [ADRs](./adr/README.md): accepted and proposed design decisions.
 
-## Why it exists
+## If You Are New Here
 
-Command Center is an extension-first frontend platform for financial and operational products. It
-is built for teams that want to move faster on product delivery without giving up structure,
-branding control, or permission boundaries.
+- Read [Platform](./platform/README.md), then [Apps](./apps/README.md), then
+  [Widgets](./widgets/README.md), then [Workspaces](./workspaces/README.md).
+- Use [Extensions](./extensions/README.md) when you are adding product-specific behavior and want
+  to avoid polluting core.
+- Use [ADRs](./adr/README.md) when the code feels more opinionated than the current docs explain.
 
-The core shell stays focused on the parts every serious product needs:
+## Authoring Rules
 
-- app shell and routing
-- role and permission checks
-- theme registry and runtime token overrides
-- widget, app, surface, and theme registry
-- mock REST and WebSocket adapters for local development
+- Put docs under the owning domain folder. Workspace docs go in `docs/workspaces/`, auth docs go
+  in `docs/auth/`, extension docs go in `docs/extensions/`, and so on.
+- Every section folder must have a `README.md` that acts as the local index and reading order.
+- Docs should not stop at description. Each section should explain what exists, how to extend it,
+  and the guardrails that keep it maintainable.
+- Widget-facing docs must point to the nearest widget implementation `README.md`.
+- Extension-facing docs must point to the owning extension `README.md`.
+- ADRs stay in `docs/adr/`. Do not scatter architectural decisions through feature folders.
 
-Everything more specific, more opinionated, or more product-driven belongs in extensions.
+## Recommended Reading Order
 
-Vendor-specific charting or grid libraries are not treated as core platform dependencies. Those
-live in optional extensions where teams can evolve the experience without hardwiring the platform
-to one stack forever.
+1. [Platform](./platform/README.md)
+2. [Apps](./apps/README.md)
+3. [Widgets](./widgets/README.md)
+4. [Workspaces](./workspaces/README.md)
+5. [Extensions](./extensions/README.md)
+6. [Auth](./auth/README.md)
+7. [Access Control](./access-control/README.md)
+8. [Operations](./operations/README.md)
+9. [ADRs](./adr/README.md)
 
-## Extension inventory
+## How To Use These Docs
+
+- Read the section index first if you need the big picture.
+- Read the detailed page next if you are changing one capability.
+- Use widget and extension `README.md` files when you need the implementation-level contract for a
+  specific module.
+
+## Extension Inventory
 
 The current repository ships with these extensions:
 
@@ -76,7 +69,7 @@ The current repository ships with these extensions:
 - `flow-lab`: bundled extension that contributes a custom widget and theme to demo surfaces
 - `main_sequence`: repo-root product namespace with separate Workbench and Markets extensions
 
-## Local development
+## Local Development
 
 ```bash
 npm install

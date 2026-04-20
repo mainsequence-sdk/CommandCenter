@@ -1,0 +1,24 @@
+{
+  "id": "adr/adr-rgl-v2-workspace-studio",
+  "title": "ADR: Use React Grid Layout v2 API in Workspace Studio",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/adr-rgl-v2-workspace-studio.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-rgl-v2-workspace-studio",
+  "permalink": "/docs/adr/adr-rgl-v2-workspace-studio",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-rgl-v2-workspace-studio.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Shared Workspace Content vs Per-User View State",
+    "permalink": "/docs/adr/adr-shared-workspace-state"
+  },
+  "next": {
+    "title": "ADR: Headless Workspace Widget Settings Runtime",
+    "permalink": "/docs/adr/adr-headless-workspace-settings-runtime"
+  }
+}

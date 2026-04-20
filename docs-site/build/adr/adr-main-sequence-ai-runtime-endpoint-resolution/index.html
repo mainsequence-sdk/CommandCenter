@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-main-sequence-ai-runtime-endpoint-resolution" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: Main Sequence AI Runtime Endpoint Resolution | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Main Sequence AI Runtime Endpoint Resolution | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ADR: Main Sequence AI Runtime Endpoint Resolution","item":"https://mainsequence-sdk.github.io/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
+<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/docs/"><span title="Overview" class="linkLabel_WmDU">Overview</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/platform"><span title="Platform" class="categoryLinkLabel_W154">Platform</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform"><span title="Platform" class="linkLabel_WmDU">Platform</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/configuration"><span title="Configuration" class="linkLabel_WmDU">Configuration</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/theming"><span title="Theming" class="linkLabel_WmDU">Theming</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/internationalization"><span title="Internationalization" class="linkLabel_WmDU">Internationalization</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/platform/notifications"><span title="Notifications" class="linkLabel_WmDU">Notifications</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/apps"><span title="Apps" class="categoryLinkLabel_W154">Apps</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps"><span title="Apps" class="linkLabel_WmDU">Apps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/apps/overview"><span title="Apps and Surfaces" class="linkLabel_WmDU">Apps and Surfaces</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/widgets"><span title="Widgets" class="categoryLinkLabel_W154">Widgets</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets"><span title="Widgets" class="linkLabel_WmDU">Widgets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/widgets/core-widgets"><span title="Core Widgets" class="linkLabel_WmDU">Core Widgets</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/workspaces"><span title="Workspaces" class="categoryLinkLabel_W154">Workspaces</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/overview"><span title="Workspaces" class="linkLabel_WmDU">Workspaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/dashboard-layouts"><span title="Dashboard Layouts" class="linkLabel_WmDU">Dashboard Layouts</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/backend-model"><span title="Workspace Backend Model" class="linkLabel_WmDU">Workspace Backend Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/runtime-performance-remediation"><span title="Workspace Runtime Performance Remediation" class="linkLabel_WmDU">Workspace Runtime Performance Remediation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/workspaces/settings-headless-runtime-investigation"><span title="Workspace Settings Headless Runtime Investigation" class="linkLabel_WmDU">Workspace Settings Headless Runtime Investigation</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/extensions"><span title="Extensions" class="categoryLinkLabel_W154">Extensions</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/extensions/overview"><span title="Extensions" class="linkLabel_WmDU">Extensions</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/auth"><span title="Auth" class="categoryLinkLabel_W154">Auth</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth"><span title="Auth" class="linkLabel_WmDU">Auth</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/auth/backend-and-auth"><span title="Backend and Auth Integration" class="linkLabel_WmDU">Backend and Auth Integration</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/access-control"><span title="Access Control" class="categoryLinkLabel_W154">Access Control</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control"><span title="Access Control" class="linkLabel_WmDU">Access Control</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/rbac-assignment-matrix"><span title="RBAC Assignment Matrix" class="linkLabel_WmDU">RBAC Assignment Matrix</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/access-control/access-rbac-app"><span title="Access &amp; RBAC App" class="linkLabel_WmDU">Access &amp; RBAC App</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docs/operations"><span title="Operations" class="categoryLinkLabel_W154">Operations</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations"><span title="Operations" class="linkLabel_WmDU">Operations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/operations/deployment"><span title="Deployment" class="linkLabel_WmDU">Deployment</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docs/adr"><span title="ADRs" class="categoryLinkLabel_W154">ADRs</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr"><span title="Architecture Decision Records" class="linkLabel_WmDU">Architecture Decision Records</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-shared-workspace-state"><span title="Workspace And Runtime" class="categoryLinkLabel_W154">Workspace And Runtime</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-widget-bindings-and-dependency-graph"><span title="Widget Contracts" class="categoryLinkLabel_W154">Widget Contracts</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-app-component-binding-native-api-widget"><span title="AppComponent And API" class="categoryLinkLabel_W154">AppComponent And API</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docs/adr/adr-extension-contributed-shell-settings-menus"><span title="Shell And Extensions" class="categoryLinkLabel_W154">Shell And Extensions</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docs/adr/adr-main-sequence-ai-command-center-base-session"><span title="Main Sequence AI" class="categoryLinkLabel_W154">Main Sequence AI</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docs/adr/adr-main-sequence-ai-command-center-base-session"><span title="ADR: Main Sequence AI Command Center Base Session" class="linkLabel_WmDU">ADR: Main Sequence AI Command Center Base Session</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution"><span title="ADR: Main Sequence AI Runtime Endpoint Resolution" class="linkLabel_WmDU">ADR: Main Sequence AI Runtime Endpoint Resolution</span></a></li></ul></li></ul></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docs/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">ADRs</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Main Sequence AI</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">ADR: Main Sequence AI Runtime Endpoint Resolution</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: Main Sequence AI Runtime Endpoint Resolution</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-04-19</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/adr-main-sequence-ai-command-center-base-session">ADR: Main Sequence AI Command Center Base Session</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p><code>Main Sequence AI</code> currently resolves assistant-runtime endpoints from a configured frontend root.
+That works for the proxied local-dev path, but it is no longer sufficient for deployments where the
+runtime endpoint is issued dynamically per user/session.</p>
+<p>The frontend now has two valid runtime modes:</p>
+<ol>
+<li class="">proxied/static mode</li>
+<li class="">dynamic RPC mode</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="proxiedstatic-mode">Proxied/static mode<a href="#proxiedstatic-mode" class="hash-link" aria-label="Direct link to Proxied/static mode" title="Direct link to Proxied/static mode" translate="no">​</a></h3>
+<p>When <code>VITE_ASSISTANT_UI_PROXY_TARGET</code> is set, the current frontend behavior should remain in place:</p>
+<ul>
+<li class="">use <code>VITE_ASSISTANT_UI_ENDPOINT</code> as the assistant root</li>
+<li class="">keep current request flow unchanged</li>
+<li class="">keep using the current bearer token behavior already implemented for that path</li>
+</ul>
+<p>This mode is important for local development and should not be broken by the dynamic-runtime work.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dynamic-rpc-mode">Dynamic RPC mode<a href="#dynamic-rpc-mode" class="hash-link" aria-label="Direct link to Dynamic RPC mode" title="Direct link to Dynamic RPC mode" translate="no">​</a></h3>
+<p>When <code>VITE_ASSISTANT_UI_PROXY_TARGET</code> is <strong>not</strong> set, the frontend must not assume a fixed
+assistant-runtime root.</p>
+<p>Instead it must resolve runtime access through:</p>
+<ul>
+<li class=""><code>POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/</code></li>
+</ul>
+<p>That endpoint returns the canonical Command Center session payload plus:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;runtime_access&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;coding_agent_service_id&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;...&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;coding_agent_id&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;...&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;mode&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;token&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;rpc_url&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;https://&lt;subdomain&gt;.&lt;CODING_AGENTS_DOMAIN&gt;/&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;token&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;...&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>In dynamic mode the frontend must:</p>
+<ul>
+<li class="">read <code>runtime_access.rpc_url</code></li>
+<li class="">read <code>runtime_access.token</code></li>
+<li class="">call the runtime using:<!-- -->
+<ul>
+<li class=""><code>Authorization: Bearer &lt;runtime_access.token&gt;</code></li>
+</ul>
+</li>
+</ul>
+<p>The ORM API root does <strong>not</strong> change. Only assistant-runtime endpoints switch to the discovered
+<code>rpc_url</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="expiration-and-refresh">Expiration and refresh<a href="#expiration-and-refresh" class="hash-link" aria-label="Direct link to Expiration and refresh" title="Direct link to Expiration and refresh" translate="no">​</a></h3>
+<p>The runtime token can expire or become invalid for scope/service reasons.</p>
+<p>When that happens:</p>
+<ul>
+<li class=""><code>GET /coding-agent/jwt/validate/</code> would reject it</li>
+<li class="">assistant-runtime requests may fail with:<!-- -->
+<ul>
+<li class=""><code>401</code></li>
+<li class=""><code>403</code></li>
+</ul>
+</li>
+</ul>
+<p>When that happens, the frontend must reacquire runtime access from:</p>
+<ul>
+<li class=""><code>POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/</code></li>
+</ul>
+<p>This refresh behavior should be centralized instead of being duplicated in each transport helper.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p><code>Main Sequence AI</code> will support two assistant-runtime resolution modes:</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-proxiedstatic-mode">1. Proxied/static mode<a href="#1-proxiedstatic-mode" class="hash-link" aria-label="Direct link to 1. Proxied/static mode" title="Direct link to 1. Proxied/static mode" translate="no">​</a></h3>
+<p>Active when:</p>
+<ul>
+<li class=""><code>VITE_ASSISTANT_UI_PROXY_TARGET</code> is set</li>
+</ul>
+<p>Behavior:</p>
+<ul>
+<li class="">keep current assistant root resolution exactly as it works today</li>
+<li class="">do not introduce dynamic RPC discovery in this mode</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-dynamic-rpc-mode">2. Dynamic RPC mode<a href="#2-dynamic-rpc-mode" class="hash-link" aria-label="Direct link to 2. Dynamic RPC mode" title="Direct link to 2. Dynamic RPC mode" translate="no">​</a></h3>
+<p>Active when:</p>
+<ul>
+<li class=""><code>VITE_ASSISTANT_UI_PROXY_TARGET</code> is not set</li>
+</ul>
+<p>Behavior:</p>
+<ul>
+<li class="">resolve runtime access from the Command Center base-session endpoint</li>
+<li class="">use <code>runtime_access.rpc_url</code> as the assistant root</li>
+<li class="">use <code>runtime_access.token</code> as the bearer token for assistant-runtime calls</li>
+</ul>
+<p>This runtime-access object becomes the source of truth for all assistant-runtime requests in
+dynamic mode.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<p>This ADR covers:</p>
+<ul>
+<li class="">assistant-runtime root resolution</li>
+<li class="">assistant-runtime bearer token source</li>
+<li class="">runtime-access refresh behavior</li>
+<li class="">boot ordering for runtime-dependent requests</li>
+</ul>
+<p>It does <strong>not</strong> change:</p>
+<ul>
+<li class="">ORM endpoint roots</li>
+<li class="">the meaning of the Command Center base session itself</li>
+<li class="">chat/session domain contracts beyond consuming <code>runtime_access</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="design">Design<a href="#design" class="hash-link" aria-label="Direct link to Design" title="Direct link to Design" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-two-endpoint-families-remain-separate">1. Two endpoint families remain separate<a href="#1-two-endpoint-families-remain-separate" class="hash-link" aria-label="Direct link to 1. Two endpoint families remain separate" title="Direct link to 1. Two endpoint families remain separate" translate="no">​</a></h3>
+<p>There are still two backend families:</p>
+<ul>
+<li class="">ORM endpoints</li>
+<li class="">assistant-runtime endpoints</li>
+</ul>
+<p>Rules:</p>
+<ul>
+<li class="">ORM endpoints stay rooted at <code>env.apiBaseUrl</code></li>
+<li class="">assistant-runtime endpoints use:<!-- -->
+<ul>
+<li class="">proxied/static root in proxied mode</li>
+<li class="">discovered <code>rpc_url</code> in dynamic mode</li>
+</ul>
+</li>
+</ul>
+<p>The frontend must not mix those roots.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-base-session-bootstrap-also-becomes-runtime-access-bootstrap">2. Base-session bootstrap also becomes runtime-access bootstrap<a href="#2-base-session-bootstrap-also-becomes-runtime-access-bootstrap" class="hash-link" aria-label="Direct link to 2. Base-session bootstrap also becomes runtime-access bootstrap" title="Direct link to 2. Base-session bootstrap also becomes runtime-access bootstrap" translate="no">​</a></h3>
+<p>The existing Command Center base-session bootstrap endpoint now also provides runtime access.</p>
+<p>The normalized frontend response for this endpoint must preserve:</p>
+<ul>
+<li class="">session identity</li>
+<li class=""><code>runtime_access.coding_agent_service_id</code></li>
+<li class=""><code>runtime_access.coding_agent_id</code></li>
+<li class=""><code>runtime_access.mode</code></li>
+<li class=""><code>runtime_access.rpc_url</code></li>
+<li class=""><code>runtime_access.token</code></li>
+</ul>
+<p>This does not change the semantic meaning of the base session. It adds the runtime-routing and
+runtime-auth information needed to talk to the assigned coding-agent service.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-provider-owned-runtime-access-state">3. Provider-owned runtime access state<a href="#3-provider-owned-runtime-access-state" class="hash-link" aria-label="Direct link to 3. Provider-owned runtime access state" title="Direct link to 3. Provider-owned runtime access state" translate="no">​</a></h3>
+<p><code>ChatProvider</code> should explicitly own the currently resolved runtime access state, for example:</p>
+<ul>
+<li class=""><code>resolvedAssistantRoot</code></li>
+<li class=""><code>resolvedAssistantToken</code></li>
+<li class=""><code>resolvedAssistantMode</code></li>
+<li class=""><code>resolvedCodingAgentServiceId</code></li>
+<li class=""><code>resolvedCodingAgentId</code></li>
+</ul>
+<p>Resolution rules:</p>
+<ul>
+<li class="">proxied mode:<!-- -->
+<ul>
+<li class="">use current assistant endpoint configuration</li>
+</ul>
+</li>
+<li class="">dynamic mode:<!-- -->
+<ul>
+<li class="">require valid <code>runtime_access.rpc_url</code></li>
+<li class="">require valid <code>runtime_access.token</code></li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-boot-ordering">4. Boot ordering<a href="#4-boot-ordering" class="hash-link" aria-label="Direct link to 4. Boot ordering" title="Direct link to 4. Boot ordering" translate="no">​</a></h3>
+<p>In dynamic mode, runtime-dependent fetches must not start until runtime access has been resolved.</p>
+<p>Required order:</p>
+<ol>
+<li class="">call the ORM base-session endpoint</li>
+<li class="">normalize session + <code>runtime_access</code></li>
+<li class="">store resolved runtime root/token</li>
+<li class="">only then call assistant-runtime endpoints</li>
+</ol>
+<p>This applies to:</p>
+<ul>
+<li class=""><code>/api/chat</code></li>
+<li class=""><code>/api/chat/history</code></li>
+<li class=""><code>/api/chat/session-tools</code></li>
+<li class=""><code>/api/chat/session-insights</code></li>
+<li class=""><code>/api/chat/get_available_models</code></li>
+<li class=""><code>/api/model-providers</code></li>
+<li class=""><code>/api/models/catalog</code></li>
+<li class=""><code>/api/storage/usage</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-centralized-refresh-on-401403">5. Centralized refresh-on-401/403<a href="#5-centralized-refresh-on-401403" class="hash-link" aria-label="Direct link to 5. Centralized refresh-on-401/403" title="Direct link to 5. Centralized refresh-on-401/403" translate="no">​</a></h3>
+<p>Dynamic mode must support runtime token refresh.</p>
+<p>Refresh trigger:</p>
+<ul>
+<li class="">assistant-runtime response status <code>401</code></li>
+<li class="">assistant-runtime response status <code>403</code></li>
+</ul>
+<p>Refresh action:</p>
+<ul>
+<li class="">call
+<code>POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/</code></li>
+<li class="">replace the stored runtime root/token with the new <code>runtime_access</code></li>
+<li class="">retry the failed assistant-runtime request once</li>
+</ul>
+<p>This logic must be centralized in a shared runtime wrapper rather than copied into every API file.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-single-flight-refresh">6. Single-flight refresh<a href="#6-single-flight-refresh" class="hash-link" aria-label="Direct link to 6. Single-flight refresh" title="Direct link to 6. Single-flight refresh" translate="no">​</a></h3>
+<p>When multiple runtime requests fail at the same time, the frontend should avoid issuing many
+parallel refresh calls.</p>
+<p>Recommended behavior:</p>
+<ul>
+<li class="">keep one in-flight refresh promise/lock</li>
+<li class="">have concurrent failing requests await the same refresh</li>
+<li class="">retry once after refresh completes</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="7-strict-failure-behavior">7. Strict failure behavior<a href="#7-strict-failure-behavior" class="hash-link" aria-label="Direct link to 7. Strict failure behavior" title="Direct link to 7. Strict failure behavior" translate="no">​</a></h3>
+<p>If dynamic runtime access cannot be resolved or refreshed:</p>
+<ul>
+<li class="">mark assistant runtime unavailable</li>
+<li class="">disable the composer/runtime-dependent UI</li>
+<li class="">show an explicit runtime-access failure state</li>
+<li class="">do not silently fall back to:<!-- -->
+<ul>
+<li class="">stale runtime tokens</li>
+<li class="">user session tokens</li>
+<li class="">guessed assistant roots</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="8-token-lifetime-handling">8. Token lifetime handling<a href="#8-token-lifetime-handling" class="hash-link" aria-label="Direct link to 8. Token lifetime handling" title="Direct link to 8. Token lifetime handling" translate="no">​</a></h3>
+<p>The backend may default token lifetime to <code>86400</code> when unset, but frontend logic should not depend
+on that assumption for correctness.</p>
+<p>Frontend refresh should be driven by actual runtime authorization failures (<code>401</code> / <code>403</code>), not by
+locally guessed expiry times.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">deployed runtime routing becomes explicit and backend-driven</li>
+<li class="">local proxied development stays stable</li>
+<li class="">assistant-runtime auth becomes aligned with the assigned coding-agent service</li>
+<li class="">token refresh behavior becomes predictable and centralized</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">boot flow becomes more complex in dynamic mode</li>
+<li class="">assistant-runtime requests depend on successful runtime-access bootstrap</li>
+<li class="">more provider/runtime state must be tracked in <code>ChatProvider</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="tasks">Tasks<a href="#tasks" class="hash-link" aria-label="Direct link to Tasks" title="Direct link to Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extend the normalized Command Center base-session transport to preserve <code>runtime_access</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Preserve <code>runtime_access.rpc_url</code> in the normalized frontend model.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Preserve <code>runtime_access.token</code> in the normalized frontend model.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Preserve <code>runtime_access.mode</code> in the normalized frontend model.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Preserve <code>runtime_access.coding_agent_service_id</code> in the normalized frontend model.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Preserve <code>runtime_access.coding_agent_id</code> in the normalized frontend model.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add explicit assistant-runtime access state ownership to <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence_ai/assistant-ui/ChatProvider.tsx">ChatProvider.tsx</a>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep current proxied assistant behavior unchanged when <code>VITE_ASSISTANT_UI_PROXY_TARGET</code> is set.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add dynamic assistant-root selection when <code>VITE_ASSISTANT_UI_PROXY_TARGET</code> is not set.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Route assistant-runtime fetches through the resolved runtime root in dynamic mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Route assistant-runtime fetches through the resolved runtime token in dynamic mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep ORM fetches on <code>env.apiBaseUrl</code> and the normal app auth token.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Gate runtime-dependent boot requests until dynamic runtime access has been resolved.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a shared assistant-runtime fetch wrapper that can refresh runtime access on <code>401</code> / <code>403</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add single-flight protection so concurrent runtime failures share one refresh request.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Retry a failed assistant-runtime request once after successful refresh.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Surface explicit runtime-access failure UI when dynamic access cannot be resolved or refreshed.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <code>extensions/main_sequence_ai/runtime/README.md</code> after implementation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <code>extensions/main_sequence_ai/assistant-ui/README.md</code> after implementation.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rejected-alternatives">Rejected Alternatives<a href="#rejected-alternatives" class="hash-link" aria-label="Direct link to Rejected Alternatives" title="Direct link to Rejected Alternatives" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="always-use-vite_assistant_ui_endpoint">Always use <code>VITE_ASSISTANT_UI_ENDPOINT</code><a href="#always-use-vite_assistant_ui_endpoint" class="hash-link" aria-label="Direct link to always-use-vite_assistant_ui_endpoint" title="Direct link to always-use-vite_assistant_ui_endpoint" translate="no">​</a></h3>
+<p>Rejected.</p>
+<p>Reason:</p>
+<ul>
+<li class="">it cannot support deployments where the runtime host is assigned dynamically</li>
+<li class="">it ignores the runtime token issued by the ORM bootstrap endpoint</li>
+<li class="">it conflates proxied dev behavior with deployed runtime behavior</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="use-orm-auth-token-directly-against-the-runtime-rpc-url">Use ORM auth token directly against the runtime RPC URL<a href="#use-orm-auth-token-directly-against-the-runtime-rpc-url" class="hash-link" aria-label="Direct link to Use ORM auth token directly against the runtime RPC URL" title="Direct link to Use ORM auth token directly against the runtime RPC URL" translate="no">​</a></h3>
+<p>Rejected.</p>
+<p>Reason:</p>
+<ul>
+<li class="">the backend is explicitly returning a runtime-scoped token for this purpose</li>
+<li class="">wrong token or wrong scope may result in <code>403</code></li>
+<li class="">assistant-runtime auth should follow the issued <code>runtime_access</code> contract rather than guessing</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/adr/adr-main-sequence-ai-command-center-base-session"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ADR: Main Sequence AI Command Center Base Session</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a><ul><li><a href="#proxiedstatic-mode" class="table-of-contents__link toc-highlight">Proxied/static mode</a></li><li><a href="#dynamic-rpc-mode" class="table-of-contents__link toc-highlight">Dynamic RPC mode</a></li><li><a href="#expiration-and-refresh" class="table-of-contents__link toc-highlight">Expiration and refresh</a></li></ul></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#1-proxiedstatic-mode" class="table-of-contents__link toc-highlight">1. Proxied/static mode</a></li><li><a href="#2-dynamic-rpc-mode" class="table-of-contents__link toc-highlight">2. Dynamic RPC mode</a></li></ul></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a></li><li><a href="#design" class="table-of-contents__link toc-highlight">Design</a><ul><li><a href="#1-two-endpoint-families-remain-separate" class="table-of-contents__link toc-highlight">1. Two endpoint families remain separate</a></li><li><a href="#2-base-session-bootstrap-also-becomes-runtime-access-bootstrap" class="table-of-contents__link toc-highlight">2. Base-session bootstrap also becomes runtime-access bootstrap</a></li><li><a href="#3-provider-owned-runtime-access-state" class="table-of-contents__link toc-highlight">3. Provider-owned runtime access state</a></li><li><a href="#4-boot-ordering" class="table-of-contents__link toc-highlight">4. Boot ordering</a></li><li><a href="#5-centralized-refresh-on-401403" class="table-of-contents__link toc-highlight">5. Centralized refresh-on-401/403</a></li><li><a href="#6-single-flight-refresh" class="table-of-contents__link toc-highlight">6. Single-flight refresh</a></li><li><a href="#7-strict-failure-behavior" class="table-of-contents__link toc-highlight">7. Strict failure behavior</a></li><li><a href="#8-token-lifetime-handling" class="table-of-contents__link toc-highlight">8. Token lifetime handling</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li><li><a href="#tasks" class="table-of-contents__link toc-highlight">Tasks</a></li><li><a href="#rejected-alternatives" class="table-of-contents__link toc-highlight">Rejected Alternatives</a><ul><li><a href="#always-use-vite_assistant_ui_endpoint" class="table-of-contents__link toc-highlight">Always use <code>VITE_ASSISTANT_UI_ENDPOINT</code></a></li><li><a href="#use-orm-auth-token-directly-against-the-runtime-rpc-url" class="table-of-contents__link toc-highlight">Use ORM auth token directly against the runtime RPC URL</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "id": "extensions/extensions-index",
+  "title": "Extensions",
+  "description": "This section covers the extension model for adding apps, widgets, themes, and product-specific",
+  "source": "@site/../docs/extensions/README.md",
+  "sourceDirName": "extensions",
+  "slug": "/extensions",
+  "permalink": "/docs/extensions",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/extensions/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "extensions-index",
+    "title": "Extensions",
+    "slug": "/extensions"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Workspace Settings Headless Runtime Investigation",
+    "permalink": "/docs/workspaces/settings-headless-runtime-investigation"
+  },
+  "next": {
+    "title": "Extensions",
+    "permalink": "/docs/extensions/overview"
+  }
+}

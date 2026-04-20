@@ -1,0 +1,24 @@
+{
+  "id": "access-control/access-rbac-app",
+  "title": "Access & RBAC App",
+  "description": "Overview",
+  "source": "@site/../docs/access-control/access-rbac-app.md",
+  "sourceDirName": "access-control",
+  "slug": "/access-control/access-rbac-app",
+  "permalink": "/docs/access-control/access-rbac-app",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/access-control/access-rbac-app.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "RBAC Assignment Matrix",
+    "permalink": "/docs/access-control/rbac-assignment-matrix"
+  },
+  "next": {
+    "title": "Operations",
+    "permalink": "/docs/operations"
+  }
+}

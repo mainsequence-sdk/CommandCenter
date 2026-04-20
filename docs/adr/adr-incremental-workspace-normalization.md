@@ -4,7 +4,7 @@
 - Date: 2026-04-03
 - Related:
   - [ADR: Shared Workspace Content vs Per-User View State](./adr-shared-workspace-state.md)
-  - [Workspace Runtime Performance Remediation](./workspace-runtime-performance-remediation.md)
+  - [Workspace Runtime Performance Remediation](../workspaces/runtime-performance-remediation.md)
 
 ## Context
 

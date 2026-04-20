@@ -12,11 +12,15 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 
 - `AgentSettingsSection.tsx`
   User-facing global Agents settings section that loads deployment/runtime storage usage from
-  `/api/storage/usage` and presents the global durable-storage breakdown.
+  `/api/storage/usage`, probes the assistant runtime `GET /health` endpoint, and presents both
+  the global durable-storage breakdown and raw health response.
 - `ModelProviderSettingsSection.tsx`
   User-facing global provider-auth section that loads provider cards from `/api/model-providers`,
   loads the full model catalog from `/api/models/catalog`, groups models by provider, and drives a
   generic sign-in attempt modal from the backend attempt state machine.
+- `useAssistantRuntimeAccess.ts`
+  Shared settings hook that resolves backend assistant-runtime access before settings panels call
+  agent-runtime endpoints.
 
 ## Dependencies
 
@@ -29,6 +33,11 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
   manual-input / cancel flows.
 - `extensions/main_sequence_ai/runtime/storage-usage-api.ts`
   Supplies the global durable-storage usage snapshot for the Agents settings section.
+- `extensions/main_sequence_ai/runtime/assistant-health-api.ts`
+  Supplies the assistant-runtime health probe shown in the Agents settings section.
+- `extensions/main_sequence_ai/runtime/assistant-endpoint.ts`
+  Resolves the configured proxy endpoint or the backend astro Command Center session endpoint used
+  by settings requests.
 - `src/app/layout/SettingsDialog.tsx`
   Shared shell-owned settings dialog that renders contributed sections.
 
@@ -38,8 +47,15 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
   dialog chrome here.
 - The Agents settings storage panel is global runtime/deployment state. Do not reinterpret it as
   chat storage, session storage, or model-provider storage.
+- The health panel intentionally shows the raw `/health` response so backend changes are visible
+  without adding a frontend-specific status contract.
+- Settings sections must resolve the backend astro Command Center session before calling
+  assistant-runtime endpoints so they use `runtime_access.rpc_url`, not the static configured
+  endpoint or the Vite assistant proxy.
 - The main user-facing headline number should use `consumedBytes / totalBytes`, not
   `filesystemUsedBytes`.
+- Preserve the `detail.mainsequence` bucket when the storage endpoint returns it. The normalizer
+  also accepts `mainSequence` and `main_sequence` for backend casing compatibility.
 - Provider auth state is the source of truth for sign-in/sign-off controls. Do not infer provider
   authentication only from model presence.
 - Provider cards should follow backend workflow flags directly: `authenticated` controls `Sign off`,

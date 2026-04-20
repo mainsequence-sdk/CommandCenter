@@ -1,0 +1,24 @@
+{
+  "id": "workspaces/settings-headless-runtime-investigation",
+  "title": "Workspace Settings Headless Runtime Investigation",
+  "description": "- Status: Investigated, then implemented",
+  "source": "@site/../docs/workspaces/settings-headless-runtime-investigation.md",
+  "sourceDirName": "workspaces",
+  "slug": "/workspaces/settings-headless-runtime-investigation",
+  "permalink": "/docs/workspaces/settings-headless-runtime-investigation",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/settings-headless-runtime-investigation.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Workspace Runtime Performance Remediation",
+    "permalink": "/docs/workspaces/runtime-performance-remediation"
+  },
+  "next": {
+    "title": "Extensions",
+    "permalink": "/docs/extensions"
+  }
+}

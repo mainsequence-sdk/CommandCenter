@@ -1,7 +1,7 @@
 {
   "id": "README",
-  "title": "Documentation",
-  "description": "Main Sequence Command Center is the foundation for teams that want to launch branded market",
+  "title": "Command Center Docs",
+  "description": "Command Center is a frontend platform for teams building internal products, operational consoles,",
   "source": "@site/../docs/README.md",
   "sourceDirName": ".",
   "slug": "/",
@@ -14,7 +14,7 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "next": {
-    "title": "Architecture",
-    "permalink": "/docs/architecture"
+    "title": "Platform",
+    "permalink": "/docs/platform"
   }
 }

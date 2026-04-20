@@ -15,6 +15,7 @@ It owns:
 - the mock/live transport wiring
 - the overlay/page shared state
 - the canonical Command Center base-session bootstrap
+- the resolved assistant-runtime access state used by the chat/runtime fetch layer
 
 It currently powers two presentation modes that share one runtime:
 
@@ -32,6 +33,9 @@ remaining height. The two shells still differ intentionally:
   not consume the reply viewport
 - the full-page composer now includes provider, model, and reasoning-effort selectors
 - model options are fetched from the assistant backend at `/api/chat/get_available_models`
+- available-model fetching resolves the backend Command Center base session first, so it calls the
+  returned `runtime_access.rpc_url` instead of the static configured endpoint or Vite assistant
+  proxy
 - the picker now understands the grouped provider response from that endpoint and renders the
   workflow as `Provider -> Model -> Thinking`
 - reasoning-effort options are derived from the currently selected model rather than a single
@@ -109,11 +113,14 @@ Responsibilities:
 - own message/thread state for the chat runtime
 - own the selected AgentSession and its cached local transcript
 - resolve the canonical Command Center base session from
-  `/orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/`
+  `/orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`
+- bind dynamic assistant-runtime access from that same bootstrap for AgentSession runtime calls
 - treat `activeSession` as a real backend-attached session only; local drafts/placeholders are
   selected sessions, but not active backend sessions
 - fail fast when the backend cannot provide the canonical base session and there is no explicit
   backend-attached session to continue
+- rely on the shared runtime endpoint helper for assistant-runtime requests so dynamic `rpc_url`
+  and runtime-token refresh behavior stay centralized
 - expose a normalized active session summary for page shell UI
 - expose overlay/page navigation helpers
 - bridge app context into chat requests
@@ -135,7 +142,7 @@ This boundary owns a feature-local session layer that:
 - bootstraps the visible session list from `/orm/api/agents/v1/sessions/`, filtered to
   `created_by_user=<signed-in user id>`, newest first, limited to 20
 - bootstraps the canonical Command Center base session from
-  `/orm/api/agents/v1/agents/session-handles/get_or_create_astro_command_center/`
+  `/orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`
 - persists local session snapshots in browser localStorage, scoped by signed-in user id
 - keeps the selected session shared between the page and overlay runtime
 - treats that canonical base session as the default assistant continuity session instead of
@@ -165,6 +172,11 @@ feature-local until the backend exposes a fuller session-history contract.
 If the canonical base-session bootstrap fails, the assistant does not silently reinterpret another
 session as the default. The composer stays disabled until a real backend session is available or
 the user explicitly selects a valid backend-attached session.
+
+Agent-runtime calls resolve through the base-session bootstrap and use the returned
+`runtime_access.rpc_url` plus runtime-scoped bearer token instead of the normal app session token.
+The Vite `VITE_ASSISTANT_UI_PROXY_TARGET` may still exist for configured-proxy development, but it
+is not the source of truth for Main Sequence AI AgentSession runtime calls.
 
 ### Backend Adapter
 

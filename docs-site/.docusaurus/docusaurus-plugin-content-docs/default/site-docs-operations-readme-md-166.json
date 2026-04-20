@@ -1,0 +1,28 @@
+{
+  "id": "operations/operations-index",
+  "title": "Operations",
+  "description": "This section covers operational deployment constraints and runtime environment concerns.",
+  "source": "@site/../docs/operations/README.md",
+  "sourceDirName": "operations",
+  "slug": "/operations",
+  "permalink": "/docs/operations",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/operations/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "operations-index",
+    "title": "Operations",
+    "slug": "/operations"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Access & RBAC App",
+    "permalink": "/docs/access-control/access-rbac-app"
+  },
+  "next": {
+    "title": "Deployment",
+    "permalink": "/docs/operations/deployment"
+  }
+}

@@ -4,18 +4,18 @@ This folder contains widget definitions and widget-owned presentation components
 
 ## Widgets
 
-- `curve-plot/`: live `Curve Plot` widget that renders yield-curve style datasets from a linked
+- [`curve-plot/`](./curve-plot/README.md): live `Curve Plot` widget that renders yield-curve style datasets from a linked
   Main Sequence `Data Node` widget with mapped maturity/value fields and Lightweight Charts. It is
   now tagged as a workspace runtime `consumer`.
-- `zero-curve/`: live `Zero Curve` widget that renders compressed Main Sequence curve payloads on
+- [`zero-curve/`](./zero-curve/README.md): live `Zero Curve` widget that renders compressed Main Sequence curve payloads on
   a numeric days axis with ECharts. It is now tagged as a workspace runtime `consumer`.
-- `price-chart`: the stable `price-chart` widget id is classified as `main_sequence_markets`, even
+- [`price-chart`](../../../../../src/widgets/extensions/lightweight-charts/README.md): the stable `price-chart` widget id is classified as `main_sequence_markets`, even
   though its Lightweight Charts renderer implementation still lives in
   `src/widgets/extensions/lightweight-charts/`.
-- `positions-table`: the stable `positions-table` widget id is classified as
+- [`positions-table`](../../../../../src/widgets/extensions/ag-grid/README.md): the stable `positions-table` widget id is classified as
   `main_sequence_markets`, even though its AG Grid renderer implementation still lives in
   `src/widgets/extensions/ag-grid/`.
-- `portfolio-weights-table/`: reusable `Portfolio Weights` widget plus the shared table renderer used by the portfolio detail flow. The widget now has an execution-owner runtime path, but the module remains on disk and is not currently registered in the live widget catalog.
+- [`portfolio-weights-table/`](./portfolio-weights-table/README.md): reusable `Portfolio Weights` widget plus the shared table renderer used by the portfolio detail flow. The widget now has an execution-owner runtime path, but the module remains on disk and is not currently registered in the live widget catalog.
 
 ## Browser Grouping
 

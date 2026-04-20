@@ -1,0 +1,24 @@
+{
+  "id": "platform/theming",
+  "title": "Theming",
+  "description": "Model",
+  "source": "@site/../docs/platform/theming.md",
+  "sourceDirName": "platform",
+  "slug": "/platform/theming",
+  "permalink": "/docs/platform/theming",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/platform/theming.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Configuration",
+    "permalink": "/docs/platform/configuration"
+  },
+  "next": {
+    "title": "Internationalization",
+    "permalink": "/docs/platform/internationalization"
+  }
+}

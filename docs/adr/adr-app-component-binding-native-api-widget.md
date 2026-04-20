@@ -337,9 +337,9 @@ These decisions should be locked before coding starts:
 14. Verify the dependency graph renders dynamic `AppComponent` ports correctly in settings/studio
     contexts.
 15. Add docs updates to:
-    - [`docs/core-widgets.md`](./core-widgets.md)
-    - [`src/widgets/core/app-component/README.md`](../src/widgets/core/app-component/README.md)
-    - [`src/widgets/README.md`](../src/widgets/README.md)
+    - [`docs/widgets/core-widgets.md`](../widgets/core-widgets.md)
+    - `src/widgets/core/app-component/README.md`
+    - `src/widgets/README.md`
 
 ## Risks And Watchpoints
 

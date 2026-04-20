@@ -1,0 +1,24 @@
+{
+  "id": "workspaces/runtime-performance-remediation",
+  "title": "Workspace Runtime Performance Remediation",
+  "description": "This document tracks the main performance problems in the workspace runtime and the ordered fixes",
+  "source": "@site/../docs/workspaces/runtime-performance-remediation.md",
+  "sourceDirName": "workspaces",
+  "slug": "/workspaces/runtime-performance-remediation",
+  "permalink": "/docs/workspaces/runtime-performance-remediation",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/runtime-performance-remediation.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Workspace Backend Model",
+    "permalink": "/docs/workspaces/backend-model"
+  },
+  "next": {
+    "title": "Workspace Settings Headless Runtime Investigation",
+    "permalink": "/docs/workspaces/settings-headless-runtime-investigation"
+  }
+}

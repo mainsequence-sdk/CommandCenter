@@ -1,0 +1,24 @@
+{
+  "id": "adr/adr-agent-ready-widget-type-registry-contract",
+  "title": "ADR: Agent-Ready Widget Type Registry Contract",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/adr-agent-ready-widget-type-registry-contract.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-agent-ready-widget-type-registry-contract",
+  "permalink": "/docs/adr/adr-agent-ready-widget-type-registry-contract",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-agent-ready-widget-type-registry-contract.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Source-Driven Downstream Execution After Manual Widget Actions",
+    "permalink": "/docs/adr/adr-source-driven-downstream-execution"
+  },
+  "next": {
+    "title": "ADR: Organization-Scoped Widget Type Configurations",
+    "permalink": "/docs/adr/adr-organization-widget-type-configurations"
+  }
+}

@@ -16,6 +16,23 @@ This directory contains the Command Center widget platform, including the shared
 - `core/`: built-in widgets shipped with the core extension.
 - `extensions/`: optional widget implementations used by example or third-party extensions.
 
+## Widget Readmes
+
+Use these local docs before reading the implementation in code:
+
+- Core widgets:
+  [`core/app-component/README.md`](./core/app-component/README.md),
+  [`core/markdown-note/README.md`](./core/markdown-note/README.md),
+  [`core/rich-text-note/README.md`](./core/rich-text-note/README.md),
+  [`core/workspace-row/README.md`](./core/workspace-row/README.md)
+- Platform extension widget families:
+  [`extensions/ag-grid/README.md`](./extensions/ag-grid/README.md),
+  [`extensions/echarts/README.md`](./extensions/echarts/README.md),
+  [`extensions/lightweight-charts/README.md`](./extensions/lightweight-charts/README.md)
+- Main Sequence widget families:
+  [`extensions/main_sequence/extensions/workbench/widgets/README.md`](../../extensions/main_sequence/extensions/workbench/widgets/README.md),
+  [`extensions/main_sequence/extensions/markets/widgets/README.md`](../../extensions/main_sequence/extensions/markets/widgets/README.md)
+
 ## Notable behavior
 
 - A `WidgetDefinition` is the reusable widget type: metadata, render component, and optional typed settings UI.
@@ -119,6 +136,7 @@ This directory contains the Command Center widget platform, including the shared
 ## Maintenance notes
 
 - Prefer wiring new widget-level configuration through the shared settings modal before adding page-specific controls.
+- Keep this index updated when a new widget folder adds its own `README.md`.
 - Bump `widgetVersion` whenever widget authoring semantics change materially, including changes to
   configuration model, accepted inputs, published outputs, runtime ownership, or capability modes.
 - Treat `organizationConfiguration` as widget-type metadata, not instance content. Put

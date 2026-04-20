@@ -1,0 +1,24 @@
+{
+  "id": "platform/configuration",
+  "title": "Configuration",
+  "description": "Purpose",
+  "source": "@site/../docs/platform/configuration.md",
+  "sourceDirName": "platform",
+  "slug": "/platform/configuration",
+  "permalink": "/docs/platform/configuration",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/platform/configuration.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Architecture",
+    "permalink": "/docs/platform/architecture"
+  },
+  "next": {
+    "title": "Theming",
+    "permalink": "/docs/platform/theming"
+  }
+}

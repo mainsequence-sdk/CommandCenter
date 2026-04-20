@@ -1,7 +1,4 @@
-import {
-  buildMainSequenceAiAssistantHeaders,
-  buildMainSequenceAiAssistantUrl,
-} from "./assistant-endpoint";
+import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
 
 export interface AvailableChatModelOption {
   auth:
@@ -37,10 +34,6 @@ export interface AvailableChatRunConfigOptions {
   providers: AvailableChatProviderOption[];
   models: AvailableChatModelOption[];
   reasoningEfforts: AvailableChatReasoningEffortOption[];
-}
-
-function buildAvailableModelsUrl(assistantEndpoint: string) {
-  return buildMainSequenceAiAssistantUrl(assistantEndpoint, "/api/chat/get_available_models");
 }
 
 function formatModelLabel(value: string) {
@@ -440,14 +433,14 @@ export async function fetchAvailableRunConfigOptions({
   token?: string | null;
   tokenType?: string;
 }) {
-  const response = await fetch(buildAvailableModelsUrl(assistantEndpoint), {
+  const { response } = await fetchMainSequenceAiAssistantResponse({
+    accept: "application/json",
+    assistantEndpoint,
+    requestPath: "/api/chat/get_available_models",
     method: "GET",
-    headers: buildMainSequenceAiAssistantHeaders({
-      accept: "application/json",
-      token,
-      tokenType,
-    }),
     signal,
+    sessionToken: token,
+    sessionTokenType: tokenType,
   });
 
   if (!response.ok) {

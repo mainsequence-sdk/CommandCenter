@@ -1,0 +1,28 @@
+{
+  "id": "workspaces/workspaces-index",
+  "title": "Workspaces",
+  "description": "This section covers the workspace builder, its persistence model, and the runtime behavior that",
+  "source": "@site/../docs/workspaces/README.md",
+  "sourceDirName": "workspaces",
+  "slug": "/workspaces",
+  "permalink": "/docs/workspaces",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "workspaces-index",
+    "title": "Workspaces",
+    "slug": "/workspaces"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Core Widgets",
+    "permalink": "/docs/widgets/core-widgets"
+  },
+  "next": {
+    "title": "Workspaces",
+    "permalink": "/docs/workspaces/overview"
+  }
+}

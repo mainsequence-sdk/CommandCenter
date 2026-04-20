@@ -1,0 +1,24 @@
+{
+  "id": "extensions/overview",
+  "title": "Extensions",
+  "description": "Purpose",
+  "source": "@site/../docs/extensions/overview.md",
+  "sourceDirName": "extensions",
+  "slug": "/extensions/overview",
+  "permalink": "/docs/extensions/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/extensions/overview.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Extensions",
+    "permalink": "/docs/extensions"
+  },
+  "next": {
+    "title": "Auth",
+    "permalink": "/docs/auth"
+  }
+}

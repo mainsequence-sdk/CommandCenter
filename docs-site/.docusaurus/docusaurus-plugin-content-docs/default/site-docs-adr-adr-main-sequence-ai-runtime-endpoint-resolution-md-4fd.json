@@ -1,0 +1,20 @@
+{
+  "id": "adr/adr-main-sequence-ai-runtime-endpoint-resolution",
+  "title": "ADR: Main Sequence AI Runtime Endpoint Resolution",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-main-sequence-ai-runtime-endpoint-resolution",
+  "permalink": "/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Main Sequence AI Command Center Base Session",
+    "permalink": "/docs/adr/adr-main-sequence-ai-command-center-base-session"
+  }
+}

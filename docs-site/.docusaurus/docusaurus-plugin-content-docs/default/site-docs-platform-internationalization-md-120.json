@@ -1,0 +1,24 @@
+{
+  "id": "platform/internationalization",
+  "title": "Internationalization",
+  "description": "Command Center now uses i18next with react-i18next for runtime translations in the React shell.",
+  "source": "@site/../docs/platform/internationalization.md",
+  "sourceDirName": "platform",
+  "slug": "/platform/internationalization",
+  "permalink": "/docs/platform/internationalization",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/platform/internationalization.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Theming",
+    "permalink": "/docs/platform/theming"
+  },
+  "next": {
+    "title": "Notifications",
+    "permalink": "/docs/platform/notifications"
+  }
+}

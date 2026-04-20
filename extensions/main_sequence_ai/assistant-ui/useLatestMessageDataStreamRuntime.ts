@@ -18,6 +18,7 @@ export type LatestMessageDataStreamProtocol = "ui-message-stream" | "data-stream
 
 export type UseLatestMessageDataStreamRuntimeOptions = {
   api: string;
+  fetch?: (input: string, init: RequestInit) => Promise<Response>;
   protocol?: LatestMessageDataStreamProtocol;
   onRequestStart?: () => void | Promise<void>;
   onData?: (data: {
@@ -320,7 +321,8 @@ class LatestMessageDataStreamRuntimeAdapter implements ChatModelAdapter {
       console.log("[main_sequence_ai] assistant request body", requestBody);
     }
 
-    const result = await fetch(this.options.api, {
+    const executeFetch = this.options.fetch ?? fetch;
+    const result = await executeFetch(this.options.api, {
       method: "POST",
       headers,
       credentials: this.options.credentials ?? "same-origin",

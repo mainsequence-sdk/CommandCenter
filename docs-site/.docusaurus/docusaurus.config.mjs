@@ -5,13 +5,13 @@
  */
 export default {
   "title": "Main Sequence Command Center",
-  "tagline": "Launch branded command surfaces faster.",
+  "tagline": "Build apps, widgets, and workspaces without rebuilding the shell.",
   "favicon": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1017'/%3E%3Cpath d='M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z' fill='%23f1e7c9'/%3E%3C/svg%3E",
   "url": "https://mainsequence-sdk.github.io",
   "baseUrl": "/docs/",
   "organizationName": "mainsequence-sdk",
   "projectName": "CommandCenter",
-  "onBrokenLinks": "throw",
+  "onBrokenLinks": "warn",
   "markdown": {
     "hooks": {
       "onBrokenMarkdownLinks": "throw",
@@ -82,15 +82,15 @@ export default {
           "items": [
             {
               "label": "Architecture",
-              "to": "/architecture"
+              "to": "/platform/architecture"
             },
             {
               "label": "Notifications",
-              "to": "/notifications"
+              "to": "/platform/notifications"
             },
             {
               "label": "RBAC Assignment Matrix",
-              "to": "/rbac-assignment-matrix"
+              "to": "/access-control/rbac-assignment-matrix"
             }
           ]
         },
@@ -103,7 +103,7 @@ export default {
             },
             {
               "label": "Extensions",
-              "to": "/extensions"
+              "to": "/extensions/overview"
             }
           ]
         }

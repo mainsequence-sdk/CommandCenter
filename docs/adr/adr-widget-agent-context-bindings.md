@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-04-14
 - Related:
-  - [Workspaces](../workspaces.md)
+  - [Workspaces](../workspaces/overview.md)
   - [ADR: First-Class Widget Bindings and Dependency Graph](./adr-widget-bindings-and-dependency-graph.md)
   - [ADR: Binding-Level Output Transforms for Structured Widget Outputs](./adr-binding-output-transforms.md)
   - [ADR: Agent-Ready Widget Type Registry Contract](./adr-agent-ready-widget-type-registry-contract.md)

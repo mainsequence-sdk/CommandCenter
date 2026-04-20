@@ -11,66 +11,198 @@
           "mainDocId": "README",
           "docs": [
             {
-              "id": "access-rbac-app",
-              "path": "/docs/access-rbac-app",
+              "id": "access-control/access-control-index",
+              "path": "/docs/access-control",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "adr-shared-workspace-state",
-              "path": "/docs/adr-shared-workspace-state"
-            },
-            {
-              "id": "apps-and-surfaces",
-              "path": "/docs/apps-and-surfaces",
+              "id": "access-control/access-rbac-app",
+              "path": "/docs/access-control/access-rbac-app",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "architecture",
-              "path": "/docs/architecture",
+              "id": "access-control/rbac-assignment-matrix",
+              "path": "/docs/access-control/rbac-assignment-matrix",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "backend-and-auth",
-              "path": "/docs/backend-and-auth",
+              "id": "adr/adr-agent-ready-widget-type-registry-contract",
+              "path": "/docs/adr/adr-agent-ready-widget-type-registry-contract",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "configuration",
-              "path": "/docs/configuration",
+              "id": "adr/adr-app-component-binding-native-api-widget",
+              "path": "/docs/adr/adr-app-component-binding-native-api-widget",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "core-widgets",
-              "path": "/docs/core-widgets",
+              "id": "adr/adr-app-component-caching",
+              "path": "/docs/adr/adr-app-component-caching",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "dashboard-layouts",
-              "path": "/docs/dashboard-layouts",
+              "id": "adr/adr-app-component-mock-json-target",
+              "path": "/docs/adr/adr-app-component-mock-json-target",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "deployment",
-              "path": "/docs/deployment"
+              "id": "adr/adr-app-component-response-notification-ui",
+              "path": "/docs/adr/adr-app-component-response-notification-ui",
+              "sidebar": "docsSidebar"
             },
             {
-              "id": "extensions",
+              "id": "adr/adr-binding-output-transforms",
+              "path": "/docs/adr/adr-binding-output-transforms",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-executable-widget-graph-runner",
+              "path": "/docs/adr/adr-executable-widget-graph-runner",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-extension-contributed-shell-settings-menus",
+              "path": "/docs/adr/adr-extension-contributed-shell-settings-menus",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-headless-workspace-settings-runtime",
+              "path": "/docs/adr/adr-headless-workspace-settings-runtime",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-incremental-workspace-normalization",
+              "path": "/docs/adr/adr-incremental-workspace-normalization",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-index",
+              "path": "/docs/adr",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-inline-canvas-rich-text-widget",
+              "path": "/docs/adr/adr-inline-canvas-rich-text-widget",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-live-workspace-agent-snapshot-archive",
+              "path": "/docs/adr/adr-live-workspace-agent-snapshot-archive",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-main-sequence-ai-command-center-base-session",
+              "path": "/docs/adr/adr-main-sequence-ai-command-center-base-session",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-main-sequence-ai-runtime-endpoint-resolution",
+              "path": "/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-organization-widget-type-configurations",
+              "path": "/docs/adr/adr-organization-widget-type-configurations",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-rgl-v2-workspace-studio",
+              "path": "/docs/adr/adr-rgl-v2-workspace-studio",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-shared-workspace-state",
+              "path": "/docs/adr/adr-shared-workspace-state",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-single-runtime-owner-workspace-widgets",
+              "path": "/docs/adr/adr-single-runtime-owner-workspace-widgets",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-source-driven-downstream-execution",
+              "path": "/docs/adr/adr-source-driven-downstream-execution",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-widget-agent-context-bindings",
+              "path": "/docs/adr/adr-widget-agent-context-bindings",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-widget-bindings-and-dependency-graph",
+              "path": "/docs/adr/adr-widget-bindings-and-dependency-graph",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "apps/apps-index",
+              "path": "/docs/apps",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "apps/overview",
+              "path": "/docs/apps/overview",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "auth/auth-index",
+              "path": "/docs/auth",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "auth/backend-and-auth",
+              "path": "/docs/auth/backend-and-auth",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "extensions/extensions-index",
               "path": "/docs/extensions",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "internationalization",
-              "path": "/docs/internationalization",
+              "id": "extensions/overview",
+              "path": "/docs/extensions/overview",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "notifications",
-              "path": "/docs/notifications",
+              "id": "operations/deployment",
+              "path": "/docs/operations/deployment",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "rbac-assignment-matrix",
-              "path": "/docs/rbac-assignment-matrix",
+              "id": "operations/operations-index",
+              "path": "/docs/operations",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "platform/architecture",
+              "path": "/docs/platform/architecture",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "platform/configuration",
+              "path": "/docs/platform/configuration",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "platform/internationalization",
+              "path": "/docs/platform/internationalization",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "platform/notifications",
+              "path": "/docs/platform/notifications",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "platform/platform-index",
+              "path": "/docs/platform",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "platform/theming",
+              "path": "/docs/platform/theming",
               "sidebar": "docsSidebar"
             },
             {
@@ -79,17 +211,44 @@
               "sidebar": "docsSidebar"
             },
             {
-              "id": "theming",
-              "path": "/docs/theming",
+              "id": "widgets/core-widgets",
+              "path": "/docs/widgets/core-widgets",
               "sidebar": "docsSidebar"
             },
             {
-              "id": "workspace-backend-model",
-              "path": "/docs/workspace-backend-model"
+              "id": "widgets/widgets-index",
+              "path": "/docs/widgets",
+              "sidebar": "docsSidebar"
             },
             {
-              "id": "workspaces",
-              "path": "/docs/workspaces"
+              "id": "workspaces/backend-model",
+              "path": "/docs/workspaces/backend-model",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "workspaces/dashboard-layouts",
+              "path": "/docs/workspaces/dashboard-layouts",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "workspaces/overview",
+              "path": "/docs/workspaces/overview",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "workspaces/runtime-performance-remediation",
+              "path": "/docs/workspaces/runtime-performance-remediation",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "workspaces/settings-headless-runtime-investigation",
+              "path": "/docs/workspaces/settings-headless-runtime-investigation",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "workspaces/workspaces-index",
+              "path": "/docs/workspaces",
+              "sidebar": "docsSidebar"
             }
           ],
           "draftIds": [],
@@ -97,7 +256,7 @@
             "docsSidebar": {
               "link": {
                 "path": "/docs/",
-                "label": "README"
+                "label": "Overview"
               }
             }
           }

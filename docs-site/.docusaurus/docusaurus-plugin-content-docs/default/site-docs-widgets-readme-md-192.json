@@ -1,0 +1,28 @@
+{
+  "id": "widgets/widgets-index",
+  "title": "Widgets",
+  "description": "This section explains how widgets fit into the product, when to reuse an existing widget, and",
+  "source": "@site/../docs/widgets/README.md",
+  "sourceDirName": "widgets",
+  "slug": "/widgets",
+  "permalink": "/docs/widgets",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/widgets/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "widgets-index",
+    "title": "Widgets",
+    "slug": "/widgets"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Apps and Surfaces",
+    "permalink": "/docs/apps/overview"
+  },
+  "next": {
+    "title": "Core Widgets",
+    "permalink": "/docs/widgets/core-widgets"
+  }
+}
