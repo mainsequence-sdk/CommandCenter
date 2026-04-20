@@ -18,6 +18,31 @@ import {
 } from "./appComponentModel";
 import { AppComponentOpenApiDiscoveryError } from "./appComponentApi";
 
+function formatAuthModeTag(authMode: AppComponentOpenApiDiscoveryError["authMode"]) {
+  if (authMode === "none") {
+    return "No automatic auth";
+  }
+
+  return "session-jwt";
+}
+
+function formatAuthorizationSource(
+  source: AppComponentOpenApiDiscoveryError["authHeaderSource"],
+) {
+  switch (source) {
+    case "configured-header":
+      return "Authorization set in service headers";
+    case "session-jwt":
+      return "Session JWT attached";
+    default:
+      return "No Authorization header";
+  }
+}
+
+function formatBoolean(value: boolean | undefined) {
+  return value ? "yes" : "no";
+}
+
 function buildResponseModelWarningMessage(
   responseModelStatus: {
     declaredResponseCodes: string[];
@@ -129,6 +154,30 @@ export function AppComponentSchemaDiscoverySection({
               ? openApiError.message
               : "Unable to load the target OpenAPI document."}
           </div>
+          {openApiDiscoveryError?.requestTransport || openApiDiscoveryError?.authMode ? (
+            <div className="space-y-1 rounded-[calc(var(--radius)-8px)] border border-danger/30 bg-black/20 p-3 text-xs text-danger/95">
+              <div className="font-semibold uppercase tracking-[0.14em]">Request auth context</div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                <span>Auth mode: {formatAuthModeTag(openApiDiscoveryError.authMode)}</span>
+                <span>Transport: {openApiDiscoveryError.requestTransport ?? "unknown"}</span>
+                <span>
+                  Session JWT present:
+                  {formatBoolean(openApiDiscoveryError.authTokenPresent)}
+                </span>
+                <span>
+                  Authorization configured:{" "}
+                  {formatBoolean(openApiDiscoveryError.authorizationHeaderConfigured)}
+                </span>
+                <span>
+                  Authorization source: {formatAuthorizationSource(openApiDiscoveryError.authHeaderSource)}
+                </span>
+                <span>
+                  Authorization attached:
+                  {formatBoolean(openApiDiscoveryError.authHeaderAttached)}
+                </span>
+              </div>
+            </div>
+          ) : null}
           {openApiDiscoveryError?.responseSample ? (
             <div className="space-y-2 rounded-[calc(var(--radius)-8px)] border border-danger/30 bg-black/20 p-3 text-danger/95">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.14em]">

@@ -83,26 +83,47 @@ function buildOpenApiErrorSample(payload: unknown) {
 }
 
 export class AppComponentOpenApiDiscoveryError extends Error {
+  authHeaderAttached?: boolean;
+  authHeaderSource?: "session-jwt" | "configured-header" | "none";
+  authMode?: AppComponentAuthMode;
+  authTokenPresent?: boolean;
+  authorizationHeaderConfigured?: boolean;
   responseContentType?: string;
   responseSample?: string;
   responseStatus?: number;
   responseUrl?: string;
+  requestTransport?: string;
+  requestUrl?: string;
 
   constructor(
     message: string,
     options?: {
+      authHeaderAttached?: boolean;
+      authHeaderSource?: "session-jwt" | "configured-header" | "none";
+      authMode?: AppComponentAuthMode;
+      authTokenPresent?: boolean;
+      authorizationHeaderConfigured?: boolean;
       responseContentType?: string;
       responseSample?: string;
       responseStatus?: number;
       responseUrl?: string;
+      requestTransport?: string;
+      requestUrl?: string;
     },
   ) {
     super(message);
     this.name = "AppComponentOpenApiDiscoveryError";
+    this.authHeaderAttached = options?.authHeaderAttached;
+    this.authHeaderSource = options?.authHeaderSource;
+    this.authMode = options?.authMode;
+    this.authTokenPresent = options?.authTokenPresent;
+    this.authorizationHeaderConfigured = options?.authorizationHeaderConfigured;
     this.responseContentType = options?.responseContentType;
     this.responseSample = options?.responseSample;
     this.responseStatus = options?.responseStatus;
     this.responseUrl = options?.responseUrl;
+    this.requestTransport = options?.requestTransport;
+    this.requestUrl = options?.requestUrl;
   }
 }
 
@@ -208,7 +229,46 @@ function describeTransportStrategy(requestUrl: string) {
     resolvedUrl,
     transportUrl: proxied
       ? `${appComponentProxyPrefix}?target=${encodeURIComponent(resolvedUrl.toString())}`
-      : resolvedUrl.toString(),
+    : resolvedUrl.toString(),
+  };
+}
+
+function buildOpenApiRequestContext({
+  authMode,
+  headers,
+  requestUrl,
+}: {
+  authMode: AppComponentAuthMode;
+  headers?: Record<string, string>;
+  requestUrl: string;
+}) {
+  const { proxied, transportUrl } = describeTransportStrategy(requestUrl);
+  const configuredHeaders = new Headers(headers);
+  const authorizationHeaderConfigured = configuredHeaders.has("Authorization");
+  const session = useAuthStore.getState().session;
+  const authTokenPresent = Boolean(session?.token);
+  const authHeaderSource: AppComponentOpenApiDiscoveryError["authHeaderSource"] =
+    authMode === "session-jwt"
+      ? authTokenPresent
+        ? "session-jwt"
+        : authorizationHeaderConfigured
+          ? "configured-header"
+          : "none"
+      : authorizationHeaderConfigured
+        ? "configured-header"
+        : "none";
+
+  return {
+    authHeaderAttached:
+      authMode === "session-jwt" &&
+      !authorizationHeaderConfigured &&
+      authTokenPresent,
+    authHeaderSource,
+    authMode,
+    authTokenPresent,
+    authorizationHeaderConfigured,
+    requestTransport: proxied ? "via AppComponent proxy" : "direct browser request",
+    requestUrl: transportUrl,
   };
 }
 
@@ -545,25 +605,45 @@ export async function fetchAppComponentOpenApiDocument({
   }
 
   const requestPromise = (async () => {
-    const response = isAppComponentMainSequenceResourceReleaseMode(normalizedProps)
-      ? await sendMainSequenceReleaseRequest(openApiUrl, {
-          props: normalizedProps,
-          init: {
-            headers: resolveAppComponentConfiguredHeadersRecord(
-              normalizedProps.serviceHeaders,
-            ),
-          },
-          traceMeta,
-        })
-      : await sendAuthenticatedRequest(openApiUrl, {
+    const requestHeaders = resolveAppComponentConfiguredHeadersRecord(
+      normalizedProps.serviceHeaders,
+    );
+    const requestContext = isAppComponentMainSequenceResourceReleaseMode(normalizedProps)
+      ? undefined
+      : buildOpenApiRequestContext({
           authMode: normalizedProps.authMode ?? "session-jwt",
-          init: {
-            headers: resolveAppComponentConfiguredHeadersRecord(
-              normalizedProps.serviceHeaders,
-            ),
-          },
-          traceMeta,
+          headers: requestHeaders,
+          requestUrl: openApiUrl,
         });
+
+    let response: Response;
+    try {
+      response = isAppComponentMainSequenceResourceReleaseMode(normalizedProps)
+        ? await sendMainSequenceReleaseRequest(openApiUrl, {
+            props: normalizedProps,
+            init: {
+              headers: requestHeaders,
+            },
+            traceMeta,
+          })
+        : await sendAuthenticatedRequest(openApiUrl, {
+            authMode: normalizedProps.authMode ?? "session-jwt",
+            init: {
+              headers: requestHeaders,
+            },
+            traceMeta,
+          });
+    } catch (error) {
+      throw new AppComponentOpenApiDiscoveryError(
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "The browser failed before receiving the OpenAPI document.",
+        {
+          ...(requestContext ?? {}),
+          responseUrl: openApiUrl,
+        },
+      );
+    }
     const payload = await readResponseBody(response);
     const responseSample = buildOpenApiErrorSample(payload);
     const responseContentType = response.headers.get("content-type") ?? undefined;
@@ -578,6 +658,7 @@ export async function fetchAppComponentOpenApiDocument({
               : "OpenAPI request was rejected. Refresh the session or verify the target API."
             : `OpenAPI request failed with ${response.status}.`,
         {
+          ...requestContext,
           responseContentType,
           responseSample,
           responseStatus: response.status,
@@ -590,6 +671,7 @@ export async function fetchAppComponentOpenApiDocument({
       throw new AppComponentOpenApiDiscoveryError(
         "The target /openapi.json response did not look like an OpenAPI document.",
         {
+          ...requestContext,
           responseContentType,
           responseSample,
           responseStatus: response.status,
