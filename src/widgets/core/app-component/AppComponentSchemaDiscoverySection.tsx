@@ -179,7 +179,9 @@ export function AppComponentSchemaDiscoverySection({
               </div>
             </div>
           ) : null}
-          {openApiDiscoveryError?.responseSample ? (
+          {(openApiDiscoveryError?.responseStatus ||
+            openApiDiscoveryError?.responseContentType ||
+            openApiDiscoveryError?.responseSample) ? (
             <div className="space-y-2 rounded-[calc(var(--radius)-8px)] border border-danger/30 bg-black/20 p-3 text-danger/95">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.14em]">
                 <span>Response sample</span>
@@ -195,7 +197,7 @@ export function AppComponentSchemaDiscoverySection({
                 ) : null}
               </div>
               <pre className="max-h-64 overflow-auto rounded-[calc(var(--radius)-10px)] border border-danger/25 bg-black/25 p-3 text-xs leading-5 whitespace-pre-wrap break-words text-danger/95">
-                {openApiDiscoveryError.responseSample}
+                {openApiDiscoveryError.responseSample ?? "No response body available."}
               </pre>
             </div>
           ) : null}
