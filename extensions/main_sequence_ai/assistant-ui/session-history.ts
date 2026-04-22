@@ -2,10 +2,15 @@ import type { ThreadMessageLike } from "@assistant-ui/react";
 
 type HistoryMessageStatus = "running" | "completed" | "error";
 
-type HistoryMessagePart = {
-  type: "text";
-  text: string;
-};
+type HistoryMessagePart =
+  | {
+      type: "text";
+      text: string;
+    }
+  | {
+      type: "reasoning";
+      text: string;
+    };
 
 export interface SessionHistoryApiSession {
   sessionId: string;
@@ -41,28 +46,137 @@ function normalizeDate(value: unknown) {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
-function normalizeTextParts(value: unknown): HistoryMessagePart[] {
+function pushTextPart(parts: HistoryMessagePart[], text: string) {
+  if (text.length === 0) {
+    return;
+  }
+
+  parts.push({
+    type: "text",
+    text,
+  });
+}
+
+function pushReasoningPart(parts: HistoryMessagePart[], text: string) {
+  if (!text.trim()) {
+    return;
+  }
+
+  parts.push({
+    type: "reasoning",
+    text,
+  });
+}
+
+type ThinkTagParserState = {
+  thinkingText: string | null;
+};
+
+function appendAssistantTextPart(
+  parts: HistoryMessagePart[],
+  state: ThinkTagParserState,
+  text: string,
+) {
+  const thinkTagPattern = /<\/?think\b[^>]*>/gi;
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(thinkTagPattern)) {
+    const tag = match[0].toLowerCase();
+    const segment = text.slice(lastIndex, match.index);
+
+    if (state.thinkingText !== null) {
+      state.thinkingText += segment;
+    } else {
+      pushTextPart(parts, segment);
+    }
+
+    if (tag.startsWith("</think")) {
+      if (state.thinkingText !== null) {
+        pushReasoningPart(parts, state.thinkingText);
+        state.thinkingText = null;
+      }
+    } else if (state.thinkingText === null) {
+      state.thinkingText = "";
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  const tail = text.slice(lastIndex);
+
+  if (state.thinkingText !== null) {
+    state.thinkingText += tail;
+  } else {
+    pushTextPart(parts, tail);
+  }
+}
+
+function normalizeHistoryParts(
+  value: unknown,
+  role: "assistant" | "user" | "system",
+): HistoryMessagePart[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return value.flatMap((entry) => {
+  const parts: HistoryMessagePart[] = [];
+  const thinkTagState: ThinkTagParserState = {
+    thinkingText: null,
+  };
+
+  for (const entry of value) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      return [];
+      continue;
     }
 
     const candidate = entry as Record<string, unknown>;
-    if (candidate.type !== "text" || typeof candidate.text !== "string") {
-      return [];
+
+    if (candidate.type === "text" && typeof candidate.text === "string") {
+      if (role === "assistant") {
+        appendAssistantTextPart(parts, thinkTagState, candidate.text);
+      } else {
+        pushTextPart(parts, candidate.text);
+      }
+      continue;
     }
 
-    return [
-      {
-        type: "text" as const,
-        text: candidate.text,
-      },
-    ];
-  });
+    if (
+      role === "assistant" &&
+      (candidate.type === "reasoning" || candidate.type === "thinking") &&
+      typeof candidate.text === "string"
+    ) {
+      pushReasoningPart(parts, candidate.text);
+      continue;
+    }
+
+    if (
+      role === "assistant" &&
+      candidate.type === "thinking" &&
+      typeof candidate.content === "string"
+    ) {
+      pushReasoningPart(parts, candidate.content);
+      continue;
+    }
+
+    if (
+      role === "assistant" &&
+      candidate.type === "reasoning" &&
+      typeof candidate.content === "string"
+    ) {
+      pushReasoningPart(parts, candidate.content);
+      continue;
+    }
+  }
+
+  if (thinkTagState.thinkingText !== null) {
+    pushReasoningPart(parts, thinkTagState.thinkingText);
+  }
+
+  return parts;
+}
+
+function hasRenderableHistoryContent(parts: HistoryMessagePart[]) {
+  return parts.some((part) => part.text.trim().length > 0);
 }
 
 function normalizeAssistantStatus(
@@ -101,8 +215,8 @@ function normalizeHistoryMessage(
     return null;
   }
 
-  const content = normalizeTextParts(candidate.content);
-  if (content.length === 0) {
+  const content = normalizeHistoryParts(candidate.content, role);
+  if (!hasRenderableHistoryContent(content)) {
     return null;
   }
 

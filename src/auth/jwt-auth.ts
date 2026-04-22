@@ -27,6 +27,8 @@ import { env } from "@/config/env";
 const authStorageKey = "command-center.jwt-auth";
 const refreshSkewMs = 60_000;
 const devAuthProxyPrefix = "/__command_center_auth__";
+const commandCenterAccessDeniedMessage =
+  "Your account can sign in, but it does not have access to Command Center. Ask an organization admin to grant Command Center access.";
 
 export interface StoredJwtTokens {
   accessToken: string;
@@ -763,12 +765,22 @@ async function fetchUserShellAccess(
     user_id: userId,
   });
 
-  const payload = await fetchJsonAuthorized<Record<string, unknown>>(
-    resolveEndpointUrl(shellAccessPath),
-    tokens.accessToken,
-    tokens.tokenType,
-    "Shell access request",
-  );
+  let payload: Record<string, unknown>;
+
+  try {
+    payload = await fetchJsonAuthorized<Record<string, unknown>>(
+      resolveEndpointUrl(shellAccessPath),
+      tokens.accessToken,
+      tokens.tokenType,
+      "Shell access request",
+    );
+  } catch (error) {
+    if (error instanceof JsonResponseError && error.status === 403) {
+      throw new Error(commandCenterAccessDeniedMessage);
+    }
+
+    throw error;
+  }
 
   return normalizeShellAccessPermissions(payload);
 }

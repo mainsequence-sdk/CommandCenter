@@ -1,35 +1,42 @@
 import type { SessionInsightsSnapshot } from "../assistant-ui/session-insights";
 import { normalizeSessionInsightsSnapshot } from "../assistant-ui/session-insights";
-import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
+import { env } from "@/config/env";
+
+function buildSessionInsightsUrl(sessionId: string | number) {
+  return new URL(
+    `/orm/api/agents/v1/sessions/${encodeURIComponent(String(sessionId))}/insights/`,
+    env.apiBaseUrl,
+  ).toString();
+}
 
 export async function fetchSessionInsights({
-  assistantEndpoint,
   sessionId,
   signal,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint?: string;
-  sessionId: string;
+  sessionId: string | number;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
 }) {
-  const requestPath = `/api/chat/session-insights?sessionId=${encodeURIComponent(sessionId)}`;
+  const requestUrl = buildSessionInsightsUrl(sessionId);
+  const headers = new Headers({
+    Accept: "application/json",
+  });
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
   let response: Response;
-  let requestUrl = requestPath;
 
   try {
-    ({ response, url: requestUrl } = await fetchMainSequenceAiAssistantResponse({
-      accept: "application/json",
-      assistantEndpoint,
-      currentSessionId: sessionId,
-      requestPath,
+    response = await fetch(requestUrl, {
       method: "GET",
+      headers,
       signal,
-      sessionToken: token,
-      sessionTokenType: tokenType,
-    }));
+    });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unknown fetch error.";
     throw new Error(

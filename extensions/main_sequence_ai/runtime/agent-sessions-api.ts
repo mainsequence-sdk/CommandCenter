@@ -18,6 +18,8 @@ export interface AgentSessionApiRecord {
   llm_provider: string;
   llm_model: string;
   engine_name: string;
+  runtime_state?: string | null;
+  working?: boolean;
   runtime_config_override?: Record<string, unknown>;
   runtime_config_snapshot?: Record<string, unknown>;
   input_payload?: Record<string, unknown>;
@@ -58,6 +60,10 @@ function buildLatestAgentSessionsUrl({
 }
 
 function buildDeleteAgentSessionUrl(sessionId: string | number) {
+  return new URL(`/orm/api/agents/v1/sessions/${sessionId}/`, env.apiBaseUrl).toString();
+}
+
+function buildAgentSessionDetailUrl(sessionId: string | number) {
   return new URL(`/orm/api/agents/v1/sessions/${sessionId}/`, env.apiBaseUrl).toString();
 }
 
@@ -163,6 +169,93 @@ export async function deleteAgentSessionRequest({
       | null;
     throw new Error(
       payload?.message || payload?.error || `Session delete failed with status ${response.status}.`,
+    );
+  }
+}
+
+export async function fetchAgentSessionDetail({
+  sessionId,
+  signal,
+  token,
+  tokenType = "Bearer",
+}: {
+  sessionId: string | number;
+  signal?: AbortSignal;
+  token?: string | null;
+  tokenType?: string;
+}) {
+  const headers = new Headers({
+    Accept: "application/json",
+  });
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
+  const response = await fetch(buildAgentSessionDetailUrl(sessionId), {
+    method: "GET",
+    headers,
+    signal,
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as
+      | { detail?: string; error?: string; message?: string }
+      | null;
+    throw new Error(
+      payload?.message ||
+        payload?.detail ||
+        payload?.error ||
+        `Session detail failed with status ${response.status}.`,
+    );
+  }
+
+  return (await response.json()) as AgentSessionApiRecord;
+}
+
+export async function patchAgentSessionModelConfig({
+  llmModel,
+  llmProvider,
+  sessionId,
+  signal,
+  token,
+  tokenType = "Bearer",
+}: {
+  llmModel: string;
+  llmProvider: string;
+  sessionId: string | number;
+  signal?: AbortSignal;
+  token?: string | null;
+  tokenType?: string;
+}) {
+  const headers = new Headers({
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  });
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
+  const response = await fetch(buildAgentSessionDetailUrl(sessionId), {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({
+      llm_provider: llmProvider,
+      llm_model: llmModel,
+    }),
+    signal,
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as
+      | { detail?: string; error?: string; message?: string }
+      | null;
+    throw new Error(
+      payload?.message ||
+        payload?.detail ||
+        payload?.error ||
+        `Session model update failed with status ${response.status}.`,
     );
   }
 }

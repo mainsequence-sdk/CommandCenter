@@ -56,7 +56,10 @@ import {
   DashboardDataControls,
   DashboardRefreshProgressLine,
 } from "@/dashboards/DashboardControls";
-import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  DashboardWidgetDependenciesProvider,
+  useResolvedWidgetInputs,
+} from "@/dashboards/DashboardWidgetDependencies";
 import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import {
@@ -112,6 +115,7 @@ import {
 } from "@/widgets/shared/widget-schema";
 import type {
   WidgetDefinition,
+  WidgetComponentProps,
   WidgetHeaderActionsProps,
 } from "@/widgets/types";
 import {
@@ -1057,17 +1061,9 @@ function BuilderWidgetCard({
   rowCollapsed?: boolean;
   onToggleRowCollapse?: (instanceId: string) => void;
 }) {
-  const Component = widget.component as ComponentType<{
-    widget: typeof widget;
-    instanceId?: string;
-    instanceTitle?: string;
-    props: Record<string, unknown>;
-    editable?: boolean;
-    presentation?: WidgetInstancePresentation;
-    runtimeState?: Record<string, unknown>;
-    onPropsChange?: (props: Record<string, unknown>) => void;
-    onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-  }>;
+  const Component =
+    widget.component as ComponentType<WidgetComponentProps<Record<string, unknown>>>;
+  const resolvedInputs = useResolvedWidgetInputs(instanceId);
 
   const title = instanceTitle ?? widget.title;
   const headerVisible = editable || resolveWidgetHeaderVisibility(widgetProps);
@@ -1313,6 +1309,7 @@ function BuilderWidgetCard({
               editable={inlineCanvasEditable}
               presentation={widgetPresentation}
               runtimeState={widgetRuntimeState}
+              resolvedInputs={resolvedInputs}
               onPropsChange={(nextProps: Record<string, unknown>) => {
                 onPropsChange(instanceId, nextProps);
               }}

@@ -58,6 +58,7 @@ function getRunStatusClasses(status: "idle" | "queued" | "thinking" | "respondin
 export function ChatPage() {
   const navigate = useNavigate();
   const {
+    activeSessionSummary,
     context,
     createAgentSession,
     minimizeToRail,
@@ -67,7 +68,16 @@ export function ChatPage() {
   const [explorerOpen, setExplorerOpen] = useState(false);
   const [sessionDetailOpen, setSessionDetailOpen] = useState(true);
   const contextPayload = JSON.stringify(context, null, 2);
-  const busy = runStatus === "queued" || runStatus === "thinking" || runStatus === "responding";
+  const busy =
+    runStatus === "queued" ||
+    runStatus === "thinking" ||
+    runStatus === "responding" ||
+    Boolean(activeSessionSummary?.working);
+  const displayedRunStatus =
+    activeSessionSummary?.working &&
+    (runStatus === "idle" || runStatus === "complete")
+      ? "thinking"
+      : runStatus;
 
   return (
     <div
@@ -145,10 +155,10 @@ export function ChatPage() {
           <div
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-[calc(var(--radius)-6px)] border",
-              getRunStatusClasses(runStatus),
+              getRunStatusClasses(displayedRunStatus),
             )}
-            title={getRunStatusLabel(runStatus)}
-            aria-label={getRunStatusLabel(runStatus)}
+            title={activeSessionSummary?.working ? "Working" : getRunStatusLabel(runStatus)}
+            aria-label={activeSessionSummary?.working ? "Working" : getRunStatusLabel(runStatus)}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           </div>

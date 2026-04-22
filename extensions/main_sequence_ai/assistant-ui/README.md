@@ -44,8 +44,10 @@ remaining height. The two shells still differ intentionally:
   settings dialog on the `Model Providers` contributed section
 - if the backend returns no models, the entire selector row is hidden and no fallback model or
   fallback reasoning effort is forced
-- if the backend model catalog fails or resolves to no models in live mode, the composer is
-  disabled and shows an explicit "models could not be fetched" error instead of allowing sends
+- if the backend model catalog request fails in live mode, the composer is disabled and shows an
+  explicit "models could not be fetched" error instead of allowing sends
+- if the backend model catalog loads successfully but returns no available models, the composer is
+  disabled and shows a provider-registration link rather than presenting it as a fetch failure
 - the selected model and reasoning effort are owned by `ChatProvider`, not by assistant-ui composer
   `runConfig`
 - if the backend returns models, `ChatProvider` selects one and every live request carries the
@@ -53,10 +55,20 @@ remaining height. The two shells still differ intentionally:
 - when a backend-attached session is selected, `ChatProvider` best-effort initializes the provider
   and model pickers from that session’s `llm_provider` and `llm_model`; if there is no catalog
   match, the normal provider/model fallback selection stays in effect
+- the canonical Command Center base-session response also preserves `llm_provider` and `llm_model`,
+  and those values are authoritative for picker initialization when they exist in the runtime
+  model catalog
+- if a selected session asks for a provider/model that is not available in
+  `/api/chat/get_available_models`, the picker falls back to an available model and shows a toast
+  explaining that the session model is unavailable
+- when the user changes the provider or model picker for a backend-attached session, `ChatProvider`
+  persists that selection to the ORM AgentSession using `llm_provider` and `llm_model`
 - auth-backed models that are present in the catalog but not currently usable stay visible in the
   picker and are rendered disabled with a `Not authenticated` label
 - live `/api/chat` requests now carry the optional top-level backend model binding:
   `model: { source: "<catalog-source>", model: "<catalog-model>", provider?: "<provider>", runConfig?: { reasoning_effort: "<selected-effort>" } }`
+- live stream `type: "error"` frames preserve the backend `error` message and surface that message
+  in the chat error state instead of falling back to assistant-ui's generic error text
 - the overlay keeps a reduced chrome surface: no context disclosure, no run-status strip, and no
   in-message thinking/tool detail blocks. The user can expand into the full page for those details
 - the right-side rail now warns when it is attached to a non-default session instead of the
@@ -161,9 +173,16 @@ This boundary owns a feature-local session layer that:
 - replaces the visible latest-session list on every backend refresh instead of appending stale
   sessions from previous queries, while still preserving the active unsynced local draft session
 - refreshes backend session tools every time the effective backend session changes
-- refreshes backend session insights every time the effective backend session changes
+- refreshes backend session insights from
+  `/orm/api/agents/v1/sessions/{agent_session_id}/insights/` every time the effective backend
+  session changes
 - preserves backend `bound_handles` metadata in normalized session records so handles can be shown
   in the explorer, catalog picker, and session detail rail
+- preserves backend `runtime_state` and `working` on normalized session records. `working=true`
+  means the backend runtime is already processing that session, so the composer is read-only and
+  the send action becomes a stop action instead of starting another chat request
+- sends user stop requests to `/api/chat/session/cancel` with the selected runtime session id,
+  thread id, user id, and `reason: "user_requested"` before clearing the local busy state
 
 This is still intentionally hybrid for now. The visible explorer list comes from the backend latest
 sessions endpoint, but cached frontend transcripts and newly-started local sessions are still kept
@@ -173,10 +192,10 @@ If the canonical base-session bootstrap fails, the assistant does not silently r
 session as the default. The composer stays disabled until a real backend session is available or
 the user explicitly selects a valid backend-attached session.
 
-Agent-runtime calls resolve through the base-session bootstrap and use the returned
-`runtime_access.rpc_url` plus runtime-scoped bearer token instead of the normal app session token.
-The Vite `VITE_ASSISTANT_UI_PROXY_TARGET` may still exist for configured-proxy development, but it
-is not the source of truth for Main Sequence AI AgentSession runtime calls.
+When `VITE_ASSISTANT_UI_PROXY_TARGET` is set, assistant-runtime calls use the configured Vite
+proxy endpoint and the base-session bootstrap sends `create_knative_service=false`. When that proxy
+target is unset, agent-runtime calls resolve through the base-session bootstrap and use the returned
+`runtime_access.rpc_url` plus runtime-scoped bearer token.
 
 ### Backend Adapter
 

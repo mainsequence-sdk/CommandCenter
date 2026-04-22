@@ -66,6 +66,48 @@ function extractUiMessageStreamChunk(value: unknown) {
   return typeof chunk.type === "string" ? { type: chunk.type, data: chunk } : null;
 }
 
+function normalizeErrorField(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function extractUiMessageStreamError(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const chunk = value as Record<string, unknown>;
+
+  if (chunk.type !== "error") {
+    return null;
+  }
+
+  const message =
+    normalizeErrorField(chunk.error) ??
+    normalizeErrorField(chunk.message) ??
+    normalizeErrorField(chunk.error_detail) ??
+    "The assistant runtime reported an error.";
+  const status =
+    typeof chunk.status === "number" && Number.isFinite(chunk.status)
+      ? chunk.status
+      : null;
+  const errorCode = normalizeErrorField(chunk.error_code);
+  const detail = normalizeErrorField(chunk.error_detail);
+  const error = new Error(message) as Error & {
+    agentId?: unknown;
+    errorCode?: string | null;
+    errorDetail?: string | null;
+    status?: number | null;
+  };
+
+  error.name = "AssistantRuntimeStreamError";
+  error.status = status;
+  error.errorCode = errorCode;
+  error.errorDetail = detail;
+  error.agentId = chunk.agent_id ?? chunk.agentId;
+
+  return error;
+}
+
 function createUiMessageStreamMetadataTap(
   options: Pick<UseLatestMessageDataStreamRuntimeOptions, "onChunk" | "onData">,
 ): TransformStream<Uint8Array, Uint8Array> {
@@ -92,9 +134,14 @@ function createUiMessageStreamMetadataTap(
     try {
       const parsed = JSON.parse(rawData) as unknown;
       const chunk = extractUiMessageStreamChunk(parsed);
+      const streamError = extractUiMessageStreamError(parsed);
 
       if (chunk) {
         options.onChunk?.(chunk);
+      }
+
+      if (streamError) {
+        throw streamError;
       }
 
       const metadata = extractAgentMetadata(parsed);
@@ -106,7 +153,11 @@ function createUiMessageStreamMetadataTap(
           data: metadata,
         });
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === "AssistantRuntimeStreamError") {
+        throw error;
+      }
+
       // Ignore malformed metadata frames and let the main decoder own protocol validation.
     }
 
@@ -261,6 +312,43 @@ function toLatestLanguageModelMessages(
   });
 }
 
+function cloneDebugPayload(value: unknown) {
+  try {
+    return JSON.parse(JSON.stringify(value)) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+async function formatResponseError(response: Response) {
+  const rawBody = await response.text().catch(() => "");
+
+  if (rawBody.trim()) {
+    try {
+      const payload = JSON.parse(rawBody) as unknown;
+
+      if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+        const candidate = payload as Record<string, unknown>;
+        const message =
+          normalizeErrorField(candidate.error) ??
+          normalizeErrorField(candidate.message) ??
+          normalizeErrorField(candidate.detail) ??
+          normalizeErrorField(candidate.error_detail);
+
+        if (message) {
+          return message;
+        }
+      }
+    } catch {
+      return rawBody;
+    }
+
+    return rawBody;
+  }
+
+  return response.statusText || `Status ${response.status}`;
+}
+
 class LatestMessageDataStreamRuntimeAdapter implements ChatModelAdapter {
   constructor(
     private options: Omit<UseLatestMessageDataStreamRuntimeOptions, keyof LocalRuntimeOptions>,
@@ -318,7 +406,13 @@ class LatestMessageDataStreamRuntimeAdapter implements ChatModelAdapter {
     } satisfies DataStreamRuntimeRequestOptions;
 
     if (env.debugChat) {
-      console.log("[main_sequence_ai] assistant request body", requestBody);
+      const debugPayload = cloneDebugPayload(requestBody);
+      console.info("[main_sequence_ai] /api/chat request endpoint", this.options.api);
+      console.info("[main_sequence_ai] /api/chat request payload", debugPayload);
+      console.info(
+        "[main_sequence_ai] /api/chat request payload JSON",
+        typeof debugPayload === "string" ? debugPayload : JSON.stringify(debugPayload, null, 2),
+      );
     }
 
     const executeFetch = this.options.fetch ?? fetch;
@@ -332,7 +426,7 @@ class LatestMessageDataStreamRuntimeAdapter implements ChatModelAdapter {
 
     try {
       if (!result.ok) {
-        throw new Error(`Status ${result.status}: ${await result.text()}`);
+        throw new Error(await formatResponseError(result));
       }
 
       if (!result.body) {

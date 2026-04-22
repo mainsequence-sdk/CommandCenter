@@ -24,6 +24,53 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function coerceDescriptorContract(
+  descriptor: WidgetValueDescriptor | undefined,
+): WidgetValueDescriptor | undefined {
+  return coerceTabularFrameValueDescriptorContract(descriptor) ?? descriptor;
+}
+
+function resolveSourceValueDescriptor(source: {
+  contractId: WidgetContractId;
+  value: unknown;
+  valueDescriptor?: WidgetValueDescriptor;
+}): WidgetValueDescriptor {
+  const declaredDescriptor = coerceDescriptorContract(source.valueDescriptor);
+
+  if (source.value !== undefined) {
+    const rawInferredDescriptor = inferWidgetValueDescriptor(
+      source.value,
+      declaredDescriptor?.contract ?? source.contractId,
+    );
+    const inferredDescriptor =
+      coerceDescriptorContract(rawInferredDescriptor) ?? rawInferredDescriptor;
+
+    if (!declaredDescriptor || declaredDescriptor.kind === "unknown") {
+      return inferredDescriptor;
+    }
+
+    if (
+      declaredDescriptor.kind === "object" &&
+      declaredDescriptor.fields.length === 0 &&
+      inferredDescriptor?.kind === "object" &&
+      inferredDescriptor.fields.length > 0
+    ) {
+      return inferredDescriptor;
+    }
+
+    if (
+      declaredDescriptor.kind === "array" &&
+      !declaredDescriptor.items &&
+      inferredDescriptor?.kind === "array" &&
+      inferredDescriptor.items
+    ) {
+      return inferredDescriptor;
+    }
+  }
+
+  return declaredDescriptor ?? inferWidgetValueDescriptor(source.value, source.contractId);
+}
+
 function isValidArrayItemIndex(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
@@ -404,10 +451,7 @@ export function applyWidgetBindingTransform(
   contractId: WidgetContractId;
   valueDescriptor?: WidgetValueDescriptor;
 } {
-  const baseDescriptor =
-    coerceTabularFrameValueDescriptorContract(
-      source.valueDescriptor ?? inferWidgetValueDescriptor(source.value, source.contractId),
-    ) ?? inferWidgetValueDescriptor(source.value, source.contractId);
+  const baseDescriptor = resolveSourceValueDescriptor(source);
   const transformSteps = resolveWidgetBindingTransformSteps(binding);
   const transformId = binding?.transformId?.trim();
 

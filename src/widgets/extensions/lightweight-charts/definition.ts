@@ -75,19 +75,19 @@ export const lightweightChartsSpecWidget = defineWidget<LightweightChartsSpecWid
         label: "Props JSON",
         accepts: [CORE_VALUE_JSON_CONTRACT],
         description:
-          "Consumes one JSON object and merges it over the local widget props before the Lightweight Charts spec is compiled. Upstream payloads can provide specJson or a structured spec object.",
+          "Consumes one JSON object as the effective widget props before the Lightweight Charts spec is compiled. Upstream payloads can provide specJson, a structured spec object, or the spec object directly.",
         effects: [
           {
             kind: "drives-render",
             sourcePath: "$",
             target: {
               kind: "render",
-              id: "compiled-spec",
-            },
-            description:
-              "Bound JSON can replace or extend specJson and spec without editing the widget locally.",
+            id: "compiled-spec",
           },
-        ],
+          description:
+              "Bound JSON replaces the local starter props while the binding is valid.",
+        },
+      ],
       },
     ],
   },
@@ -122,7 +122,7 @@ export const lightweightChartsSpecWidget = defineWidget<LightweightChartsSpecWid
       inputContracts: [CORE_VALUE_JSON_CONTRACT],
       ioNotes: [
         "Bind an upstream AppComponent JSON output when the chart spec should be produced dynamically.",
-        "The bound JSON object is merged over the widget's saved local props.",
+        "The bound JSON object replaces the widget's saved local props while the binding is valid, so starter specJson cannot shadow a bound spec.",
       ],
     },
     capabilities: {

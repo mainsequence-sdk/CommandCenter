@@ -13,7 +13,7 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import { useAuiState } from "@assistant-ui/store";
-import { AlertTriangle, ArrowUp, ChevronDown, Sparkles, Wrench, Zap } from "lucide-react";
+import { AlertTriangle, ArrowUp, ChevronDown, Sparkles, Square, Wrench, Zap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -51,6 +51,10 @@ function formatModelsUnavailableMessage(error: string | null) {
   }
 
   return `Models couldn't be fetched. ${normalized}`;
+}
+
+function formatEmptyModelCatalogMessage() {
+  return "No chat models are available yet. Register or sign in to a model provider before sending a message.";
 }
 
 function formatContextUsageNumber(value: number | null) {
@@ -272,9 +276,10 @@ function ToolFallbackPart({ argsText, isError, result, toolName }: ToolCallMessa
 }
 
 function ChainOfThoughtBlock() {
-  const { runStatus } = useChatFeature();
+  const { activeSessionSummary } = useChatFeature();
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
   const parts = useAuiState((s) => s.chainOfThought.parts);
+  const threadIsRunning = useAuiState((s) => s.thread.isRunning);
   const isLastAssistantMessage = useAuiState(
     (s) => s.message.index === s.thread.messages.length - 1,
   );
@@ -282,7 +287,7 @@ function ChainOfThoughtBlock() {
   const contentRef = useRef<HTMLDivElement | null>(null);
   const isActiveThinking =
     isLastAssistantMessage &&
-    (runStatus === "queued" || runStatus === "thinking" || runStatus === "responding");
+    (threadIsRunning || Boolean(activeSessionSummary?.working));
   const thinkingPreview = getThinkingPreview(parts);
 
   useEffect(() => {
@@ -374,8 +379,9 @@ function PageUserMessage() {
 }
 
 function AssistantMessage({ surface = "overlay" }: { surface?: "overlay" | "page" }) {
-  const { runStatus } = useChatFeature();
+  const { activeSessionSummary } = useChatFeature();
   const showThinkingDetails = surface === "page";
+  const threadIsRunning = useAuiState((s) => s.thread.isRunning);
   const isLastAssistantMessage = useAuiState(
     (s) => s.message.index === s.thread.messages.length - 1,
   );
@@ -391,10 +397,10 @@ function AssistantMessage({ surface = "overlay" }: { surface?: "overlay" | "page
   const isPendingAssistant =
     isLastAssistantMessage &&
     !hasRenderableContent &&
-    (runStatus === "queued" || runStatus === "thinking" || runStatus === "responding");
+    (threadIsRunning || Boolean(activeSessionSummary?.working));
   const isActiveAssistant =
     isLastAssistantMessage &&
-    (runStatus === "queued" || runStatus === "thinking" || runStatus === "responding");
+    (threadIsRunning || Boolean(activeSessionSummary?.working));
 
   return (
     <MessagePrimitive.Root className="flex items-start gap-3">
@@ -438,12 +444,6 @@ function EmptyState({
   const description = env.useMockData
     ? "This shell is isolated inside `extensions/main_sequence_ai/assistant-ui/`. Mock mode keeps the local scaffold adapter active so the UI can be exercised without a backend."
     : "The assistant receives the current surface context automatically. Start a conversation about what is visible here or what action to take next.";
-  const firstPrompt = env.useMockData
-    ? "Summarize the current route context."
-    : "Summarize what I am looking at right now.";
-  const secondPrompt = env.useMockData
-    ? "List the action bridges still needed for this chat integration."
-    : "What actions can I take on this surface?";
 
   return (
     <div
@@ -472,22 +472,6 @@ function EmptyState({
           description
         )}
       </p>
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-        <ThreadPrimitive.Suggestion
-          send
-          prompt={firstPrompt}
-          className="rounded-full border border-border/70 bg-card/80 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/60"
-        >
-          {env.useMockData ? "Summarize route" : "Summarize view"}
-        </ThreadPrimitive.Suggestion>
-        <ThreadPrimitive.Suggestion
-          send
-          prompt={secondPrompt}
-          className="rounded-full border border-border/70 bg-card/80 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/60"
-        >
-          {env.useMockData ? "List action bridges" : "List actions"}
-        </ThreadPrimitive.Suggestion>
-      </div>
     </div>
   );
 }
@@ -569,10 +553,14 @@ function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }
 
 function Composer({
   availableModelsError,
+  hasAvailableModels,
   availableProviders,
+  busyPlaceholder = "Session is working...",
   compact = false,
   isLoadingAvailableModels,
   isLoadingBaseSession,
+  isCancellingSession,
+  isSessionBusy,
   model,
   modelOptions,
   onProviderChange,
@@ -580,16 +568,21 @@ function Composer({
   providerOptions,
   onModelChange,
   onReasoningEffortChange,
+  onStop,
   reasoningEffortOptions,
   reasoningEffort,
   surface = "overlay",
   sessionUnavailableMessage = null,
 }: {
   availableModelsError: string | null;
+  hasAvailableModels: boolean;
   availableProviders?: ReadonlyArray<{ label: string; value: string }>;
+  busyPlaceholder?: string;
   compact?: boolean;
   isLoadingAvailableModels: boolean;
   isLoadingBaseSession?: boolean;
+  isCancellingSession?: boolean;
+  isSessionBusy?: boolean;
   model: ComposerModelOption;
   modelOptions: ReadonlyArray<{ disabled?: boolean; label: string; value: ComposerModelOption }>;
   onProviderChange?: (value: string) => void;
@@ -597,6 +590,7 @@ function Composer({
   providerOptions?: ReadonlyArray<{ label: string; value: string }>;
   onModelChange: (value: ComposerModelOption) => void;
   onReasoningEffortChange: (value: ComposerReasoningEffort) => void;
+  onStop?: () => void;
   reasoningEffortOptions: ReadonlyArray<{ label: string; value: ComposerReasoningEffort }>;
   reasoningEffort: ComposerReasoningEffort;
   surface?: "overlay" | "page";
@@ -610,9 +604,14 @@ function Composer({
   const hasProviderOptions = (providerOptions?.length ?? 0) > 0;
   const hasReasoningEffortOptions = reasoningEffortOptions.length > 0;
   const showConfigRow = isPage && hasProviderOptions && hasModelOptions;
-  const modelsUnavailable = !env.useMockData && !isLoadingAvailableModels && !hasModelOptions;
+  const modelsUnavailable = !env.useMockData && !isLoadingAvailableModels && !hasAvailableModels;
+  const modelCatalogError = modelsUnavailable && Boolean(availableModelsError?.trim());
+  const emptyModelCatalog = modelsUnavailable && !modelCatalogError;
   const sessionUnavailable = !env.useMockData && Boolean(sessionUnavailableMessage);
-  const modelsUnavailableMessage = formatModelsUnavailableMessage(availableModelsError);
+  const blockTyping = modelsUnavailable || sessionUnavailable || isLoadingBaseSession || Boolean(isSessionBusy);
+  const modelsUnavailableMessage = modelCatalogError
+    ? formatModelsUnavailableMessage(availableModelsError)
+    : formatEmptyModelCatalogMessage();
   const openUserSettings = useShellStore((state) => state.openUserSettings);
 
   const composerBody = (
@@ -626,7 +625,7 @@ function Composer({
       <div className="flex items-center gap-3">
         <ComposerPrimitive.Input
           autoFocus
-          disabled={modelsUnavailable || sessionUnavailable || isLoadingBaseSession}
+          disabled={blockTyping}
           minRows={1}
           maxRows={10}
           placeholder={
@@ -636,19 +635,36 @@ function Composer({
                 ? "Models unavailable."
                 : isLoadingBaseSession
                   ? "Connecting to Command Center..."
-                  : placeholder
+                  : isCancellingSession
+                    ? "Stopping session..."
+                    : isSessionBusy
+                      ? busyPlaceholder
+                      : placeholder
           }
           className={cn(
             "w-full resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60",
           )}
         />
-        <ComposerPrimitive.Send
-          aria-label="Send message"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
-          disabled={modelsUnavailable || sessionUnavailable || isLoadingBaseSession}
-        >
-          <ArrowUp className="h-4 w-4" />
-        </ComposerPrimitive.Send>
+        {isSessionBusy ? (
+          <button
+            type="button"
+            aria-label={isCancellingSession ? "Stopping session" : "Stop session"}
+            title={isCancellingSession ? "Stopping session" : "Stop session"}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+            disabled={isCancellingSession || sessionUnavailable || !onStop}
+            onClick={onStop}
+          >
+            <Square className="h-3.5 w-3.5 fill-current" />
+          </button>
+        ) : (
+          <ComposerPrimitive.Send
+            aria-label="Send message"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+            disabled={modelsUnavailable || sessionUnavailable || isLoadingBaseSession}
+          >
+            <ArrowUp className="h-4 w-4" />
+          </ComposerPrimitive.Send>
+        )}
       </div>
       {showConfigRow ? (
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
@@ -721,8 +737,24 @@ function Composer({
         </div>
       ) : null}
       {modelsUnavailable ? (
-        <div className="mt-2 border-t border-border/50 pt-2 text-xs text-danger">
-          {modelsUnavailableMessage}
+        <div
+          className={cn(
+            "mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2 text-xs",
+            modelCatalogError ? "text-danger" : "text-muted-foreground",
+          )}
+        >
+          <span>{modelsUnavailableMessage}</span>
+          {emptyModelCatalog ? (
+            <button
+              type="button"
+              className="rounded-full border border-border/70 px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/30"
+              onClick={() => {
+                openUserSettings(MODEL_PROVIDER_SETTINGS_SECTION_ID);
+              }}
+            >
+              Register provider
+            </button>
+          ) : null}
         </div>
       ) : null}
     </ComposerPrimitive.Root>
@@ -733,7 +765,12 @@ function Composer({
 
 function PageComposerFooter() {
   const { activeSessionSummary } = useChatFeature();
-  const context = activeSessionSummary?.sessionInsights?.context ?? null;
+  const context =
+    activeSessionSummary &&
+    !activeSessionSummary.isLoadingInsights &&
+    !activeSessionSummary.insightsError
+      ? activeSessionSummary.sessionInsights?.context ?? null
+      : null;
   const percentUsed =
     context?.percentOfContextWindow !== null &&
     context?.percentOfContextWindow !== undefined &&
@@ -830,12 +867,15 @@ function FooterInsetSpacer({
 export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadProps) {
   const isPage = surface === "page";
   const {
+    activeSessionSummary,
     availableModels,
     availableModelsError,
     availableProviders,
     availableReasoningEfforts,
     baseSessionError,
+    cancelActiveSession,
     currentSessionId,
+    isCancellingSession,
     isLoadingAvailableModels,
     isLoadingBaseSession,
     selectedModelValue,
@@ -847,6 +887,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
     setSelectedReasoningEffortValue,
   } = useChatFeature();
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  const threadIsRunning = useAuiState((s) => s.thread.isRunning);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const pageFooterRef = useRef<HTMLDivElement | null>(null);
   const overlayFooterRef = useRef<HTMLDivElement | null>(null);
@@ -872,6 +913,10 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
   const selectedProvider = selectedProviderValue ?? providerOptions[0]?.value ?? "";
   const selectedReasoningEffort =
     selectedReasoningEffortValue ?? reasoningEffortOptions[0]?.value ?? "";
+  const sessionBusy = threadIsRunning || Boolean(activeSessionSummary?.working);
+  const busyPlaceholder = activeSessionSummary?.working
+    ? "Session is working..."
+    : "Waiting for response...";
   const sessionUnavailableMessage =
     !currentSessionId && !env.useMockData
       ? baseSessionError
@@ -895,10 +940,14 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
               <div className="pointer-events-auto mx-auto w-full max-w-3xl">
                 <Composer
                   availableModelsError={availableModelsError}
+                  hasAvailableModels={availableModels.length > 0}
                   availableProviders={providerOptions}
+                  busyPlaceholder={busyPlaceholder}
                   compact={compact}
                   isLoadingAvailableModels={isLoadingAvailableModels}
                   isLoadingBaseSession={isLoadingBaseSession}
+                  isCancellingSession={isCancellingSession}
+                  isSessionBusy={sessionBusy}
                   model={selectedModel}
                   modelOptions={modelOptions}
                   onProviderChange={setSelectedProviderValue}
@@ -906,6 +955,9 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   providerOptions={providerOptions}
                   onModelChange={setSelectedModelValue}
                   onReasoningEffortChange={setSelectedReasoningEffortValue}
+                  onStop={() => {
+                    void cancelActiveSession();
+                  }}
                   reasoningEffortOptions={reasoningEffortOptions}
                   reasoningEffort={selectedReasoningEffort}
                   sessionUnavailableMessage={sessionUnavailableMessage}
@@ -956,10 +1008,14 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                 <div className="pointer-events-auto mx-auto w-full max-w-5xl">
                   <Composer
                     availableModelsError={availableModelsError}
+                    hasAvailableModels={availableModels.length > 0}
                     availableProviders={providerOptions}
+                    busyPlaceholder={busyPlaceholder}
                     compact={compact}
                     isLoadingAvailableModels={isLoadingAvailableModels}
                     isLoadingBaseSession={isLoadingBaseSession}
+                    isCancellingSession={isCancellingSession}
+                    isSessionBusy={sessionBusy}
                     model={selectedModel}
                     modelOptions={modelOptions}
                     onProviderChange={setSelectedProviderValue}
@@ -967,6 +1023,9 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     providerOptions={providerOptions}
                     onModelChange={setSelectedModelValue}
                     onReasoningEffortChange={setSelectedReasoningEffortValue}
+                    onStop={() => {
+                      void cancelActiveSession();
+                    }}
                     reasoningEffortOptions={reasoningEffortOptions}
                     reasoningEffort={selectedReasoningEffort}
                     sessionUnavailableMessage={sessionUnavailableMessage}
@@ -984,10 +1043,14 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                 <div className="pointer-events-auto">
                   <Composer
                     availableModelsError={availableModelsError}
+                    hasAvailableModels={availableModels.length > 0}
                     availableProviders={providerOptions}
+                    busyPlaceholder={busyPlaceholder}
                     compact={compact}
                     isLoadingAvailableModels={isLoadingAvailableModels}
                     isLoadingBaseSession={isLoadingBaseSession}
+                    isCancellingSession={isCancellingSession}
+                    isSessionBusy={sessionBusy}
                     model={selectedModel}
                     modelOptions={modelOptions}
                     onProviderChange={setSelectedProviderValue}
@@ -995,6 +1058,9 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     providerOptions={providerOptions}
                     onModelChange={setSelectedModelValue}
                     onReasoningEffortChange={setSelectedReasoningEffortValue}
+                    onStop={() => {
+                      void cancelActiveSession();
+                    }}
                     reasoningEffortOptions={reasoningEffortOptions}
                     reasoningEffort={selectedReasoningEffort}
                     sessionUnavailableMessage={sessionUnavailableMessage}

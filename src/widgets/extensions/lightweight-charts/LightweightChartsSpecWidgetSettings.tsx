@@ -14,17 +14,17 @@ import {
 
 function normalizeSpecJsonDraftValue(value: unknown) {
   if (typeof value === "string") {
-    return value.trim() || starterSpecJson;
+    return value;
   }
 
   if (value === undefined) {
-    return starterSpecJson;
+    return "";
   }
 
   try {
     return JSON.stringify(value, null, 2);
   } catch {
-    return starterSpecJson;
+    return "";
   }
 }
 
@@ -109,9 +109,9 @@ export function LightweightChartsSpecWidgetSettings({
         <p className="mt-2 text-sm text-muted-foreground">
           Bind one <code>core.value.json@v1</code> payload into the <strong>Props JSON</strong>{" "}
           input when an AppComponent or another upstream widget should publish the Lightweight
-          Charts widget props dynamically. The bound JSON object is merged over the saved local
-          props, and it can provide the chart spec either as <code>specJson</code> or directly as{" "}
-          <code>spec</code>.
+          Charts widget props dynamically. A valid binding replaces saved local props, and it can
+          provide the chart spec as <code>specJson</code>, under <code>spec</code>, or as the raw
+          spec object directly.
         </p>
         {resolvedInputs?.["props-json"] ? (
           <div className="mt-3 text-xs text-muted-foreground">
@@ -129,20 +129,36 @@ export function LightweightChartsSpecWidgetSettings({
               tokens and theme chart palettes.
             </p>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!editable}
-            onClick={() => {
-              onDraftPropsChange({
-                ...draftProps,
-                specJson: starterSpecJson,
-              });
-            }}
-          >
-            Use starter example
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!editable}
+              onClick={() => {
+                onDraftPropsChange({
+                  ...draftProps,
+                  specJson: "",
+                });
+              }}
+            >
+              Clear local spec
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!editable}
+              onClick={() => {
+                onDraftPropsChange({
+                  ...draftProps,
+                  specJson: starterSpecJson,
+                });
+              }}
+            >
+              Use starter example
+            </Button>
+          </div>
         </div>
 
         <div className="text-xs text-muted-foreground">

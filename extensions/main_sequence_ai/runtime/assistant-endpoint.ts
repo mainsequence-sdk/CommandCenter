@@ -4,6 +4,8 @@ import {
   type CommandCenterBaseSessionHandle,
 } from "./command-center-base-session-api";
 
+const rawEnv = import.meta.env as Record<string, string | undefined>;
+
 export interface MainSequenceAiResolvedAssistantAccess {
   assistantEndpoint: string;
   codingAgentId: string | null;
@@ -42,6 +44,10 @@ export function normalizeMainSequenceAiAssistantEndpoint(endpoint: string) {
 export function resolveMainSequenceAiConfiguredAssistantEndpoint() {
   const endpoint = commandCenterConfig.assistantUi.endpoint?.trim() ?? "";
   return endpoint ? normalizeMainSequenceAiAssistantEndpoint(endpoint) : null;
+}
+
+export function isMainSequenceAiAssistantProxyMode() {
+  return Boolean(rawEnv.VITE_ASSISTANT_UI_PROXY_TARGET?.trim());
 }
 
 function toAssistantBaseUrl(endpoint: string) {
@@ -266,7 +272,7 @@ export async function resolveMainSequenceAiAssistantAccess({
   sessionToken?: string | null;
   sessionTokenType?: string;
 }): Promise<MainSequenceAiResolvedAssistantAccess> {
-  if (runtimeTarget === "configured") {
+  if (isMainSequenceAiAssistantProxyMode() || runtimeTarget === "configured") {
     const configuredAssistantEndpoint =
       assistantEndpoint?.trim()
         ? normalizeMainSequenceAiAssistantEndpoint(assistantEndpoint)

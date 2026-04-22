@@ -29,6 +29,8 @@ export interface AgentSessionRecord {
   threadId: string | null;
   projectId: string | null;
   cwd: string | null;
+  runtimeState: string | null;
+  working: boolean;
   updatedAt: string;
   agent: AgentSessionAgent | null;
   origin: "astro_command_center_base" | null;
@@ -151,6 +153,8 @@ export function toAgentSessionRecordFromApi(
     threadId: existing?.threadId ?? null,
     projectId: existing?.projectId ?? null,
     cwd: existing?.cwd ?? null,
+    runtimeState: record.runtime_state?.trim() || existing?.runtimeState || null,
+    working: record.working ?? existing?.working ?? false,
     updatedAt,
     origin: existing?.origin ?? null,
     isPlaceholder: false,
@@ -230,6 +234,8 @@ export function createEmptyAgentSession(
     threadId: null,
     projectId: null,
     cwd: null,
+    runtimeState: null,
+    working: false,
     updatedAt: new Date().toISOString(),
     agent,
     origin: null,
@@ -332,6 +338,8 @@ export function switchAgentSessionFromStream({
       threadId: stream.threadId ?? session.threadId,
       projectId: stream.projectId ?? session.projectId,
       cwd: stream.cwd ?? session.cwd,
+      runtimeState: session.runtimeState,
+      working: session.working,
       origin: session.origin,
       isPlaceholder: false,
       updatedAt: new Date().toISOString(),
@@ -369,6 +377,8 @@ export function toAgentSessionRecordFromBaseHandle(
     threadId: handle.threadId ?? existing?.threadId ?? null,
     projectId: handle.projectId ?? existing?.projectId ?? null,
     cwd: handle.cwd ?? existing?.cwd ?? null,
+    runtimeState: handle.runtimeState ?? existing?.runtimeState ?? null,
+    working: handle.working ?? existing?.working ?? false,
     updatedAt: handle.updatedAt ?? existing?.updatedAt ?? new Date().toISOString(),
     agent: {
       ...nextAgent,
@@ -379,6 +389,8 @@ export function toAgentSessionRecordFromBaseHandle(
         handle.agent.agentUniqueId?.trim() ||
         nextAgent.agentUniqueId ||
         requestName,
+      llmProvider: handle.agent.llmProvider?.trim() || nextAgent.llmProvider || "",
+      llmModel: handle.agent.llmModel?.trim() || nextAgent.llmModel || "",
     },
     origin: "astro_command_center_base",
     isPlaceholder: false,
@@ -445,6 +457,11 @@ export function readAgentSessions(userId: string | null) {
             typeof candidate.cwd === "string" && candidate.cwd
               ? candidate.cwd
               : null,
+          runtimeState:
+            typeof candidate.runtimeState === "string" && candidate.runtimeState
+              ? candidate.runtimeState
+              : null,
+          working: Boolean(candidate.working),
           updatedAt:
             typeof candidate.updatedAt === "string" && candidate.updatedAt
               ? candidate.updatedAt

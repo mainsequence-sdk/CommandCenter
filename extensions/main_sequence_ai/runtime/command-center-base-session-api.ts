@@ -1,5 +1,7 @@
 import { env } from "@/config/env";
 
+const rawEnv = import.meta.env as Record<string, string | undefined>;
+
 export interface CommandCenterBaseSessionHandle {
   sessionId: string;
   runtimeSessionId: string | null;
@@ -16,11 +18,15 @@ export interface CommandCenterBaseSessionHandle {
   projectId: string | null;
   cwd: string | null;
   updatedAt: string | null;
+  runtimeState: string | null;
+  working: boolean;
   agent: {
     id: number | null;
     name: string | null;
     requestName: string | null;
     agentUniqueId: string | null;
+    llmProvider: string | null;
+    llmModel: string | null;
   };
 }
 
@@ -133,6 +139,9 @@ function normalizeCommandCenterBaseSessionHandle(payload: unknown): CommandCente
       normalizeString(candidate.updatedAt) ??
       normalizeString(candidate.started_at) ??
       normalizeString(candidate.startedAt),
+    runtimeState:
+      normalizeString(candidate.runtime_state) ?? normalizeString(candidate.runtimeState),
+    working: candidate.working === true,
     agent: {
       id: normalizeNumber(
         candidate.agent_id ?? candidate.agentId ?? agentCandidate.id ?? agentCandidate.agent_id,
@@ -155,6 +164,16 @@ function normalizeCommandCenterBaseSessionHandle(payload: unknown): CommandCente
         normalizeString(candidate.agentUniqueId) ??
         normalizeString(agentCandidate.agent_unique_id) ??
         normalizeString(agentCandidate.agentUniqueId),
+      llmProvider:
+        normalizeString(candidate.llm_provider) ??
+        normalizeString(candidate.llmProvider) ??
+        normalizeString(agentCandidate.llm_provider) ??
+        normalizeString(agentCandidate.llmProvider),
+      llmModel:
+        normalizeString(candidate.llm_model) ??
+        normalizeString(candidate.llmModel) ??
+        normalizeString(agentCandidate.llm_model) ??
+        normalizeString(agentCandidate.llmModel),
     },
   };
 }
@@ -181,6 +200,10 @@ function normalizePayloadSessionId(value: string | number | null | undefined) {
   return Number.isInteger(numeric) && numeric > 0 ? numeric : normalized;
 }
 
+function shouldSkipKnativeServiceCreation() {
+  return Boolean(rawEnv.VITE_ASSISTANT_UI_PROXY_TARGET?.trim());
+}
+
 export async function fetchOrCreateCommandCenterBaseSession({
   currentSessionId,
   signal,
@@ -196,23 +219,27 @@ export async function fetchOrCreateCommandCenterBaseSession({
     Accept: "application/json",
   });
   const payloadSessionId = normalizePayloadSessionId(currentSessionId);
+  const createKnativeService = !shouldSkipKnativeServiceCreation();
+  const requestBody = {
+    ...(payloadSessionId !== null ? { current_session: payloadSessionId } : {}),
+    ...(createKnativeService ? {} : { create_knative_service: false }),
+  };
+  const hasRequestBody = Object.keys(requestBody).length > 0;
 
   if (token) {
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  if (payloadSessionId !== null) {
+  if (hasRequestBody) {
     headers.set("Content-Type", "application/json");
   }
 
   const response = await fetch(buildCommandCenterBaseSessionUrl(), {
     method: "POST",
     headers,
-    ...(payloadSessionId !== null
+    ...(hasRequestBody
       ? {
-          body: JSON.stringify({
-            current_session: payloadSessionId,
-          }),
+          body: JSON.stringify(requestBody),
         }
       : {}),
     signal,

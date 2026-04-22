@@ -11,9 +11,8 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 ## Entry Points
 
 - `AgentSettingsSection.tsx`
-  User-facing global Agents settings section that loads deployment/runtime storage usage from
-  `/api/storage/usage`, probes the assistant runtime `GET /health` endpoint, and presents both
-  the global durable-storage breakdown and raw health response.
+  User-facing global Agents settings section that resolves the assistant runtime and probes the
+  assistant runtime `GET /health` endpoint for diagnostics.
 - `ModelProviderSettingsSection.tsx`
   User-facing global provider-auth section that loads provider cards from `/api/model-providers`,
   loads the full model catalog from `/api/models/catalog`, groups models by provider, and drives a
@@ -31,8 +30,6 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 - `extensions/main_sequence_ai/runtime/model-provider-auth-api.ts`
   Supplies global provider auth state, sign-in/sign-off transport, and sign-in attempt polling /
   manual-input / cancel flows.
-- `extensions/main_sequence_ai/runtime/storage-usage-api.ts`
-  Supplies the global durable-storage usage snapshot for the Agents settings section.
 - `extensions/main_sequence_ai/runtime/assistant-health-api.ts`
   Supplies the assistant-runtime health probe shown in the Agents settings section.
 - `extensions/main_sequence_ai/runtime/assistant-endpoint.ts`
@@ -45,18 +42,12 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 
 - Keep this directory focused on extension-owned settings content only. Do not reimplement shell
   dialog chrome here.
-- The Agents settings storage panel is global runtime/deployment state. Do not reinterpret it as
-  chat storage, session storage, or model-provider storage.
 - The health panel intentionally shows the raw `/health` response so backend changes are visible
   without adding a frontend-specific status contract.
 - Settings sections must resolve the backend astro Command Center session before calling
   assistant-runtime endpoints so they use `runtime_access.rpc_url`, not the static configured
   endpoint or the Vite assistant proxy. Settings queries should remain disabled until that dynamic
   runtime root exists.
-- The main user-facing headline number should use `consumedBytes / totalBytes`, not
-  `filesystemUsedBytes`.
-- Preserve the `detail.mainsequence` bucket when the storage endpoint returns it. The normalizer
-  also accepts `mainSequence` and `main_sequence` for backend casing compatibility.
 - Provider auth state is the source of truth for sign-in/sign-off controls. Do not infer provider
   authentication only from model presence.
 - Provider cards should follow backend workflow flags directly: `authenticated` controls `Sign off`,

@@ -49,6 +49,7 @@ export function AgentSessionExplorer({
 }) {
   const navigate = useNavigate();
   const {
+    activeSessionSummary,
     activeAgentName,
     agentSessions,
     currentSessionId,
@@ -67,7 +68,11 @@ export function AgentSessionExplorer({
   const [isSearching, setIsSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const trimmedQuery = searchValue.trim();
-  const busy = runStatus === "queued" || runStatus === "thinking" || runStatus === "responding";
+  const busy =
+    runStatus === "queued" ||
+    runStatus === "thinking" ||
+    runStatus === "responding" ||
+    Boolean(activeSessionSummary?.working);
   const showAgentSearchResults =
     isSearching || Boolean(searchError) || trimmedQuery.length >= 3;
 
@@ -299,6 +304,12 @@ export function AgentSessionExplorer({
                               {session.handleUniqueId ? (
                                 <div className="mt-1 truncate text-xs text-muted-foreground">
                                   <span className="font-mono">Handle: {session.handleUniqueId}</span>
+                                </div>
+                              ) : null}
+                              {session.working ? (
+                                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                                  <Sparkles className="h-3 w-3 animate-pulse" />
+                                  Working
                                 </div>
                               ) : null}
                             </div>

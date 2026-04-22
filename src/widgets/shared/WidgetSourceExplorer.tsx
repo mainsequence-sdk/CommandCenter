@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   applyWidgetBindingTransform,
+  inferWidgetValueDescriptor,
   resolveLegacyWidgetBindingTransformFields,
   listWidgetValueDescriptorPaths,
   resolveWidgetBindingTransformSteps,
@@ -56,7 +57,54 @@ type WidgetSourceExplorerEvaluation = {
 const maxBindingPreviewLines = 100;
 
 function isStructuredOutput(option: WidgetSourceExplorerOutputOption | undefined) {
-  return option?.valueDescriptor?.kind === "object" || option?.valueDescriptor?.kind === "array";
+  return (
+    option?.valueDescriptor?.kind === "object" ||
+    option?.valueDescriptor?.kind === "array" ||
+    (option?.value !== null && typeof option?.value === "object")
+  );
+}
+
+function resolveExplorableValueDescriptor(
+  option: WidgetSourceExplorerOutputOption | undefined,
+): WidgetValueDescriptor | undefined {
+  if (!option) {
+    return undefined;
+  }
+
+  const descriptor = option.valueDescriptor;
+
+  if (option.value === undefined || option.value === null || typeof option.value !== "object") {
+    return descriptor;
+  }
+
+  const inferredDescriptor = inferWidgetValueDescriptor(
+    option.value,
+    descriptor?.contract ?? option.contract,
+  );
+
+  if (!descriptor || descriptor.kind === "unknown") {
+    return inferredDescriptor;
+  }
+
+  if (
+    descriptor.kind === "object" &&
+    descriptor.fields.length === 0 &&
+    inferredDescriptor.kind === "object" &&
+    inferredDescriptor.fields.length > 0
+  ) {
+    return inferredDescriptor;
+  }
+
+  if (
+    descriptor.kind === "array" &&
+    !descriptor.items &&
+    inferredDescriptor.kind === "array" &&
+    inferredDescriptor.items
+  ) {
+    return inferredDescriptor;
+  }
+
+  return descriptor;
 }
 
 function cropBindingPreviewLines(value: string) {
@@ -421,9 +469,15 @@ export function WidgetSourceExplorer({
       ),
     [transformSteps],
   );
-  const selectedOutputDescriptor = selectedOutput?.valueDescriptor;
+  const selectedOutputDescriptor = useMemo(
+    () => resolveExplorableValueDescriptor(selectedOutput),
+    [selectedOutput],
+  );
   const selectedOutputIsArray = selectedOutputDescriptor?.kind === "array";
-  const selectedOutputStructured = isStructuredOutput(selectedOutput);
+  const selectedOutputStructured =
+    selectedOutputDescriptor?.kind === "object" ||
+    selectedOutputDescriptor?.kind === "array" ||
+    isStructuredOutput(selectedOutput);
   const currentCollectionMode =
     selectedOutputIsArray ? (arraySelectionStep?.mode ?? "identity") : "identity";
   const currentValueMappingMode = extractPathStep ? "extract-path" : "identity";
@@ -446,10 +500,10 @@ export function WidgetSourceExplorer({
         ? applyWidgetBindingTransform(collectionOnlyBinding, {
             contractId: selectedOutput.contract,
             value: selectedOutput.value,
-            valueDescriptor: selectedOutput.valueDescriptor,
+            valueDescriptor: selectedOutputDescriptor,
           })
         : undefined,
-    [collectionOnlyBinding, selectedOutput],
+    [collectionOnlyBinding, selectedOutput, selectedOutputDescriptor],
   );
   const pathSourceDescriptor = useMemo(() => {
     if (selectedOutputIsArray) {
@@ -462,8 +516,8 @@ export function WidgetSourceExplorer({
         : undefined;
     }
 
-    return selectedOutput?.valueDescriptor;
-  }, [collectionOutput, selectedOutput?.valueDescriptor, selectedOutputDescriptor, selectedOutputIsArray]);
+    return selectedOutputDescriptor;
+  }, [collectionOutput, selectedOutputDescriptor, selectedOutputIsArray]);
   const pathOptions = useMemo(
     () => listWidgetValueDescriptorPaths(pathSourceDescriptor),
     [pathSourceDescriptor],
@@ -492,10 +546,10 @@ export function WidgetSourceExplorer({
         ? applyWidgetBindingTransform(bindingForEvaluation, {
             contractId: selectedOutput.contract,
             value: selectedOutput.value,
-            valueDescriptor: selectedOutput.valueDescriptor,
+            valueDescriptor: selectedOutputDescriptor,
           })
         : undefined,
-    [bindingForEvaluation, selectedOutput],
+    [bindingForEvaluation, selectedOutput, selectedOutputDescriptor],
   );
   const selectedOutputContractId =
     selectedOutput?.valueDescriptor?.contract ?? selectedOutput?.contract;
@@ -579,7 +633,7 @@ export function WidgetSourceExplorer({
                     };
   const showObjectValueMappingControls =
     !selectedOutputIsArray &&
-    (selectedOutput?.valueDescriptor?.kind === "object" || currentValueMappingMode === "extract-path");
+    (selectedOutputDescriptor?.kind === "object" || currentValueMappingMode === "extract-path");
   const showArrayValueMappingControls =
     selectedOutputIsArray &&
     currentCollectionMode !== "identity" &&

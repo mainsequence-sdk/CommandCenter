@@ -250,22 +250,8 @@ function cloneJsonObject<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function mergeRecords(
-  base: Record<string, unknown>,
-  override: Record<string, unknown>,
-): Record<string, unknown> {
-  const next: Record<string, unknown> = { ...base };
-
-  Object.entries(override).forEach(([key, value]) => {
-    if (isRecord(value) && isRecord(next[key])) {
-      next[key] = mergeRecords(next[key] as Record<string, unknown>, value);
-      return;
-    }
-
-    next[key] = value;
-  });
-
-  return next;
+function looksLikeLightweightChartsSpec(value: Record<string, unknown>) {
+  return Array.isArray(value.series);
 }
 
 function readResolvedInputValue(
@@ -296,7 +282,13 @@ function resolveEffectiveWidgetProps(
     return props;
   }
 
-  return mergeRecords(props, boundPropsValue) as LightweightChartsSpecWidgetProps;
+  if (looksLikeLightweightChartsSpec(boundPropsValue)) {
+    return {
+      spec: boundPropsValue,
+    };
+  }
+
+  return cloneJsonObject(boundPropsValue) as LightweightChartsSpecWidgetProps;
 }
 
 function normalizeJsonSpecSource(props: LightweightChartsSpecWidgetProps) {

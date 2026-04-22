@@ -276,6 +276,7 @@ function buildOpenApiRequestContext({
 function buildTransportErrorMessage(
   requestUrl: string,
   authMode: AppComponentAuthMode,
+  hasConfiguredAuthorizationHeader: boolean,
   error: unknown,
 ) {
   const { proxied, resolvedUrl } = describeTransportStrategy(requestUrl);
@@ -289,7 +290,9 @@ function buildTransportErrorMessage(
       ? session?.token
         ? `Auth mode is session-jwt and the current session JWT was attached to the request.`
         : `Auth mode is session-jwt but there is no session JWT available in the current browser session.`
-      : "Auth mode is none, so no Authorization header was sent.";
+      : hasConfiguredAuthorizationHeader
+        ? "Auth mode is none; no session JWT was used. If your Authorization header is configured in service headers, it is still sent."
+        : "Auth mode is none, so no Authorization header was sent.";
   const transportMessage = import.meta.env.DEV
     ? proxied
       ? "The request went through the local AppComponent proxy because the target host is loopback."
@@ -558,7 +561,13 @@ async function sendAuthenticatedRequest(
   try {
     response = await execute();
   } catch (error) {
-    const transportErrorMessage = buildTransportErrorMessage(requestUrl, authMode, error);
+    const headers = new Headers(init?.headers);
+    const transportErrorMessage = buildTransportErrorMessage(
+      requestUrl,
+      authMode,
+      headers.has("Authorization"),
+      error,
+    );
     requestTrace?.fail(transportErrorMessage);
     throw new Error(transportErrorMessage);
   }
