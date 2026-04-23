@@ -17,6 +17,7 @@ These flows are all part of one app surface, with instance state selected throug
 
 - `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance.
 - `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio.
+- `WorkspaceRenderErrorBoundary.tsx`: workspace-level recovery surface used when malformed or unsupported workspace data breaks canvas or graph rendering. It keeps a readable error UI in front of the user and preserves a route back into workspace settings for JSON export/import recovery.
 - `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize, controls, and save flow.
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
@@ -103,6 +104,10 @@ These flows are all part of one app surface, with instance state selected throug
   pass for legacy payloads, while normal edit/save paths use the cheaper shared sanitize path so
   new widgets and extensions inherit canonical draft handling automatically without adding their own
   persistence hooks.
+- If workspace layout resolution or the shared canvas/graph provider stack throws, the route should
+  degrade to the shared workspace recovery surface instead of crashing the whole shell. That
+  recovery surface must keep `Open workspace settings` available so corrupted documents can still be
+  exported or repaired from JSON.
 - In backend mode, delete reloads the workspace collection from the backend after success instead of computing the next list locally.
 - In backend mode, workspace save keeps the submitted companion-card layout if the mutation response does not explicitly echo `companions`. It also keeps the submitted widget geometry for matching widget ids so resized cards do not snap back locally after save when the backend response omits or returns stale layout data.
 - Workspace edit mode no longer has to treat every widget body as non-interactive. Widgets that opt

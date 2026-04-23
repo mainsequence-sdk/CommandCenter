@@ -37,7 +37,13 @@ interface NormalizedWidgetLayout {
 function isLegacyLayout(
   layout: DashboardWidgetInstance["layout"],
 ): layout is DashboardWidgetLegacyLayout {
-  return "w" in layout && "h" in layout;
+  return typeof layout === "object" && layout !== null && "w" in layout && "h" in layout;
+}
+
+function isCanonicalLayout(
+  layout: DashboardWidgetInstance["layout"],
+): layout is DashboardWidgetSpan {
+  return typeof layout === "object" && layout !== null && "cols" in layout && "rows" in layout;
 }
 
 function clampInteger(value: number | undefined, fallback: number, minimum = 0) {
@@ -77,19 +83,29 @@ function normalizeWidgetLayout(
   const isCompactFilterWidget =
     instance.widgetId === "main-sequence-data-node" &&
     (isMinimalChrome || instance.props?.chromeMode == null);
-  const rawSpan: DashboardWidgetSpan = isLegacyLayout(instance.layout)
+  const rawSpan: Partial<DashboardWidgetSpan> = isLegacyLayout(instance.layout)
     ? {
         cols: instance.layout.w,
         rows: instance.layout.h,
       }
-    : instance.layout;
-
+    : isCanonicalLayout(instance.layout)
+      ? instance.layout
+      : {};
   const rawPosition = isLegacyLayout(instance.layout)
     ? {
         x: instance.layout.x,
         y: instance.layout.y,
       }
-    : instance.position ?? {};
+    : instance.position && typeof instance.position === "object"
+      ? instance.position
+      : {};
+
+  if (!isLegacyLayout(instance.layout) && !isCanonicalLayout(instance.layout)) {
+    issues.push({
+      widgetId: instance.id,
+      message: "Widget layout was missing or invalid and was reset to a safe default size.",
+    });
+  }
   const compactSpan = resolveCompactWidgetSpan(grid);
   const w = isWorkspaceRow
     ? columns

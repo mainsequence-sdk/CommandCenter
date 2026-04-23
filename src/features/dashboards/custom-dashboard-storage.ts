@@ -16,10 +16,12 @@ import type {
   DashboardCompanionLayoutItem,
   DashboardControlsState,
   DashboardDefinition,
+  DashboardWidgetLayout,
   DashboardWidgetRowState,
   DashboardWidgetInstance,
   DashboardWidgetLegacyLayout,
   DashboardWidgetPlacement,
+  DashboardWidgetSpan,
 } from "@/dashboards/types";
 import type { WidgetDefinition } from "@/widgets/types";
 import { resolveDefaultWidgetPresentation } from "@/widgets/shared/widget-schema";
@@ -344,18 +346,88 @@ function normalizeDashboardRowState(
   };
 }
 
+function isCanonicalLayout(
+  layout: DashboardWidgetLayout,
+): layout is DashboardWidgetSpan {
+  return (
+    isPlainRecord(layout) &&
+    typeof layout.cols === "number" &&
+    Number.isFinite(layout.cols) &&
+    typeof layout.rows === "number" &&
+    Number.isFinite(layout.rows)
+  );
+}
+
 function isLegacyLayout(
   layout: DashboardWidgetInstance["layout"],
 ): layout is DashboardWidgetLegacyLayout {
-  return "w" in layout && "h" in layout;
+  return (
+    isPlainRecord(layout) &&
+    typeof layout.w === "number" &&
+    Number.isFinite(layout.w) &&
+    typeof layout.h === "number" &&
+    Number.isFinite(layout.h)
+  );
 }
 
-function getLayoutCols(layout: DashboardWidgetInstance["layout"]) {
-  return isLegacyLayout(layout) ? layout.w : layout.cols;
+function getFallbackWidgetLayout(widgetId: string) {
+  return isWorkspaceRowWidgetId(widgetId)
+    ? {
+        cols: DEFAULT_WORKSPACE_COLUMNS,
+        rows: WORKSPACE_ROW_HEIGHT_ROWS,
+      }
+    : {
+        cols: DEFAULT_WORKSPACE_WIDGET_SPAWN_COLS,
+        rows: DEFAULT_WORKSPACE_WIDGET_SPAWN_ROWS,
+      };
 }
 
-function getLayoutRows(layout: DashboardWidgetInstance["layout"]) {
-  return isLegacyLayout(layout) ? layout.h : layout.rows;
+function getLayoutCols(
+  layout: DashboardWidgetInstance["layout"],
+  widgetId: string,
+) {
+  if (isLegacyLayout(layout)) {
+    return layout.w;
+  }
+
+  if (isCanonicalLayout(layout)) {
+    return layout.cols;
+  }
+
+  return getFallbackWidgetLayout(widgetId).cols;
+}
+
+function getLayoutRows(
+  layout: DashboardWidgetInstance["layout"],
+  widgetId: string,
+) {
+  if (isLegacyLayout(layout)) {
+    return layout.h;
+  }
+
+  if (isCanonicalLayout(layout)) {
+    return layout.rows;
+  }
+
+  return getFallbackWidgetLayout(widgetId).rows;
+}
+
+function getWidgetPosition(instance: DashboardWidgetInstance): DashboardWidgetPlacement | undefined {
+  if (isLegacyLayout(instance.layout)) {
+    return {
+      x: instance.layout.x,
+      y: instance.layout.y,
+    };
+  }
+
+  if (!isPlainRecord(instance.position)) {
+    return undefined;
+  }
+
+  return {
+    x: typeof instance.position.x === "number" ? instance.position.x : undefined,
+    y: typeof instance.position.y === "number" ? instance.position.y : undefined,
+  };
 }
 
 function clampWidgetMinimumLayout(
@@ -371,16 +443,17 @@ function clampWidgetMinimumLayout(
         },
         position: {
           x: 0,
-          y: widget.position?.y,
+          y: getWidgetPosition(widget)?.y,
         },
       }
     : (() => {
         const cols = Math.min(
-          Math.max(getLayoutCols(widget.layout), MIN_WORKSPACE_WIDGET_COLS),
+          Math.max(getLayoutCols(widget.layout, widget.widgetId), MIN_WORKSPACE_WIDGET_COLS),
           maxColumns,
         );
-        const rows = Math.max(getLayoutRows(widget.layout), MIN_WORKSPACE_WIDGET_ROWS);
-        const currentX = widget.position?.x;
+        const rows = Math.max(getLayoutRows(widget.layout, widget.widgetId), MIN_WORKSPACE_WIDGET_ROWS);
+        const position = getWidgetPosition(widget);
+        const currentX = position?.x;
 
         return {
           ...widget,
@@ -388,13 +461,13 @@ function clampWidgetMinimumLayout(
             cols,
             rows,
           },
-          position: widget.position
+          position: position
             ? {
                 x:
                   typeof currentX === "number"
                     ? Math.max(0, Math.min(currentX, Math.max(0, maxColumns - cols)))
                     : undefined,
-                y: widget.position.y,
+                y: position.y,
               }
             : undefined,
         };
@@ -421,19 +494,14 @@ function normalizeDashboardWidgetInstance(
 ): DashboardWidgetInstance {
   const { autoGrid: _legacyAutoGrid, ...instanceWithoutLegacyAutoGrid } =
     instance as DashboardWidgetInstance & { autoGrid?: unknown };
-  const rawPosition = isLegacyLayout(instance.layout)
-    ? {
-        x: instance.layout.x,
-        y: instance.layout.y,
-      }
-    : instance.position;
+  const rawPosition = getWidgetPosition(instance);
   const scaled: DashboardWidgetInstance = {
     ...instanceWithoutLegacyAutoGrid,
     bindings: normalizeWidgetInstanceBindings(instance.bindings),
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
     layout: {
-      cols: scaleGridW(getLayoutCols(instance.layout), migration),
-      rows: scaleGridH(getLayoutRows(instance.layout), migration),
+      cols: scaleGridW(getLayoutCols(instance.layout, instance.widgetId), migration),
+      rows: scaleGridH(getLayoutRows(instance.layout, instance.widgetId), migration),
     },
     position: rawPosition
       ? {
@@ -488,6 +556,10 @@ function dashboardWidgetTreeRequiresMigration(
 ): boolean {
   return widgets.some((widget) => {
     const rowState = widget.row as (DashboardWidgetRowState & { panels?: DashboardWidgetInstance[] }) | undefined;
+
+    if (!isLegacyLayout(widget.layout) && !isCanonicalLayout(widget.layout)) {
+      return true;
+    }
 
     if (isLegacyLayout(widget.layout)) {
       return true;
@@ -545,19 +617,14 @@ function sanitizeCanonicalDashboardWidgetInstance(
   instance: DashboardWidgetInstance,
   maxColumns: number,
 ): DashboardWidgetInstance {
-  const rawPosition = isLegacyLayout(instance.layout)
-    ? {
-        x: instance.layout.x,
-        y: instance.layout.y,
-      }
-    : instance.position;
+  const rawPosition = getWidgetPosition(instance);
   const nextWidget: DashboardWidgetInstance = {
     ...instance,
     bindings: normalizeWidgetInstanceBindings(instance.bindings),
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
     layout: {
-      cols: getLayoutCols(instance.layout),
-      rows: getLayoutRows(instance.layout),
+      cols: getLayoutCols(instance.layout, instance.widgetId),
+      rows: getLayoutRows(instance.layout, instance.widgetId),
     },
     position: rawPosition
       ? {
@@ -1479,8 +1546,8 @@ export function setDashboardWidgetGeometry(
         };
       }
 
-      const cols = getLayoutCols(widget.layout);
-      const rows = getLayoutRows(widget.layout);
+      const cols = getLayoutCols(widget.layout, widget.widgetId);
+      const rows = getLayoutRows(widget.layout, widget.widgetId);
 
       return {
         ...widget,
@@ -1741,8 +1808,8 @@ export function duplicateDashboardWidget(
     return dashboard;
   }
 
-  const cols = getLayoutCols(current.layout);
-  const rows = getLayoutRows(current.layout);
+  const cols = getLayoutCols(current.layout, current.widgetId);
+  const rows = getLayoutRows(current.layout, current.widgetId);
   const currentX = current.position?.x ?? 0;
   const currentY = current.position?.y ?? 0;
   const maxColumns = dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS;

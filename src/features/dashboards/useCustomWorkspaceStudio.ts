@@ -155,9 +155,43 @@ export function useCustomWorkspaceStudio() {
   ]);
 
   const resolvedDashboard = useMemo(
-    () => (selectedDashboard ? resolveDashboardLayout(selectedDashboard) : null),
+    () => {
+      if (!selectedDashboard) {
+        return {
+          error: null,
+          resolvedDashboard: null,
+        };
+      }
+
+      try {
+        return {
+          error: null,
+          resolvedDashboard: resolveDashboardLayout(selectedDashboard),
+        };
+      } catch (error) {
+        return {
+          error:
+            error instanceof Error
+              ? error
+              : new Error("Unable to resolve the selected workspace layout."),
+          resolvedDashboard: null,
+        };
+      }
+    },
     [selectedDashboard],
   );
+
+  useEffect(() => {
+    if (!selectedDashboard || !resolvedDashboard.error) {
+      return;
+    }
+
+    console.error("[workspaces] Unable to resolve selected workspace layout.", {
+      workspaceId: selectedDashboard.id,
+      workspaceTitle: selectedDashboard.title,
+      error: resolvedDashboard.error,
+    });
+  }, [resolvedDashboard.error, selectedDashboard]);
 
   const dirty = useMemo(
     () => {
@@ -398,7 +432,8 @@ export function useCustomWorkspaceStudio() {
     persistenceMode,
     selectedDashboardSource,
     selectedDashboard,
-    resolvedDashboard,
+    resolvedDashboard: resolvedDashboard.resolvedDashboard,
+    resolvedDashboardError: resolvedDashboard.error,
     dirty,
     selectedWorkspaceDirty,
     selectedWorkspaceEditing,
@@ -433,6 +468,7 @@ export type CustomWorkspaceStudioState = {
   isSaving: boolean;
   error: string | null;
   persistenceMode: "backend" | "local";
+  resolvedDashboardError: Error | null;
   workspaceSelectionPending: boolean;
   requestedWorkspaceMissing: boolean;
 };
