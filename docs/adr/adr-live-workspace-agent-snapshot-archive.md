@@ -37,7 +37,6 @@ The missing pieces are:
 
 - live widget output and rendered state
 - visible table rows and chart series
-- screenshots of the actual rendered dashboard
 - hidden/sidebar/collapsed widget content that is still part of the workspace state
 - the current widget relationship graph as a first-class artifact
 
@@ -59,7 +58,6 @@ The current JSON export remains the canonical workspace document export/import f
 
 It must not be repurposed into:
 
-- a screenshot bundle
 - a widget data dump
 - a graph capture archive
 - a general agent-facing runtime artifact
@@ -70,8 +68,8 @@ The new workspace agent snapshot archive will:
 
 - run inside the real mounted client runtime
 - capture what the workspace is displaying now
-- include rendered evidence such as screenshots and graph images
 - include structured per-widget summaries for agents
+- include JSON relationship, live-state, and widget-output artifacts
 - bundle everything into one zip file
 
 The client will generate the archive locally and return it to the caller. It will not upload the
@@ -84,8 +82,7 @@ Implemented on the client:
 - route-level snapshot mode with `?snapshot=true`
 - profile selection with `snapshotProfile=evidence|full-data`
 - client-side zip assembly
-- dashboard screenshots and hidden-widget report capture
-- dependency graph JSON and PNG export
+- dependency graph JSON export
 - per-widget structured snapshot files
 - browser completion contract through `window.__COMMAND_CENTER_SNAPSHOT__` and
   `command-center:snapshot-ready`
@@ -124,19 +121,27 @@ When snapshot mode is active, the client should:
 
 - suppress nonessential shell chrome
 - load the requested workspace and current-user runtime state
-- wait for widgets to settle or timeout
+- mount the normal dashboard runtime providers
+- expand collapsed workspace rows in the mounted snapshot runtime so row-owned widgets are visible
+  to automation without persisting that expansion
+- rely on the shared dashboard execution provider for normal initial refresh and refresh-cycle
+  orchestration
+- wait for active refresh/execution work to settle or timeout
 - collect structured widget snapshots
-- collect rendered screenshots
 - collect the widget relationship graph
 - assemble the zip archive
 - expose the result to the external runner
 
+Snapshot mode does not force a separate manual dashboard refresh. It captures the current mounted
+runtime state after the normal execution layer reports no active refresh cycle and no running widget
+executions.
+
 ### 2. Authentication is bootstrapped into the client runtime
 
-The caller may have:
+The caller may have either:
 
-- access JWT
-- refresh JWT
+- canonical interactive JWT auth material: access JWT plus refresh JWT
+- runtime credential auth material: `MAINSEQUENCE_ACCESS_TOKEN`
 
 The client already restores authenticated session state from browser local storage through
 [`src/auth/jwt-auth.ts`](../../src/auth/jwt-auth.ts) and
@@ -146,7 +151,21 @@ The runner should therefore authenticate the SPA by writing:
 
 - localStorage key: `command-center.jwt-auth`
 
-with the same stored token shape the client already understands.
+with one of the stored token shapes the client already understands.
+
+For normal human-equivalent sessions, use the canonical JWT+refresh payload shape. For
+machine-run browser automation, prefer the runtime credential shape:
+
+```json
+{
+  "authMode": "runtime_credential",
+  "MAINSEQUENCE_ACCESS_TOKEN": "<runtime access JWT>"
+}
+```
+
+The runtime credential is still sent as `Authorization: Bearer <runtime access JWT>`, but the
+client treats it as a scoped machine/runtime identity with no refresh token and no interactive
+logout call.
 
 This keeps auth aligned with the existing runtime and avoids inventing a special snapshot-only auth
 path.
@@ -188,16 +207,10 @@ workspace-agent-snapshot-<workspaceId>-<timestamp>.zip
   workspace-live-state.json
   controls.json
   relationships/widget-graph.json
-  relationships/widget-graph.png
-  screenshots/viewport.png
-  screenshots/full-canvas.png
-  screenshots/hidden-widgets-sheet.png
   widgets/<instanceId>/snapshot.json
-  widgets/<instanceId>/screenshot.png
-  widgets/<instanceId>/data.csv.gz
-  widgets/<instanceId>/data.parquet
+  widgets/<instanceId>/data.json
   widgets/<instanceId>/chart-data.json
-  widgets/<instanceId>/chart.png
+  widgets/<instanceId>/response.json
 ```
 
 Not every widget will emit every file type. The manifest is the source of truth for which files
@@ -237,23 +250,16 @@ model in [`src/dashboards/widget-dependencies.ts`](../../src/dashboards/widget-d
 The archive should include:
 
 - graph JSON
-- graph image
 
-### 4. Visual evidence
+### 4. Structured Evidence
 
-The archive will include:
-
-- the current viewport screenshot
-- a full scrollable dashboard screenshot
-- a generated image covering hidden/sidebar/collapsed widgets
-- per-widget screenshots
-
-This is necessary because a single screenshot cannot represent both "exactly what the user saw"
-and "all hidden content".
+The archive intentionally does not generate screenshots, rendered graph images, hidden-widget
+report images, or CSV/text exports. Hidden/sidebar/collapsed widgets remain visible to agents
+through the structured widget records in `workspace-live-state.json` and per-widget JSON files.
 
 ## Widget Snapshot Contract
 
-Each widget family should contribute a structured live snapshot in addition to images.
+Each widget family should contribute a structured live snapshot.
 
 Minimum contract:
 
@@ -271,11 +277,11 @@ Examples:
 - Data Node table widgets:
   visible columns, row count, visible rows, sort/filter state, optional raw export
 - Data Node chart widgets:
-  chart type, visible series, x/y/group fields, visible range, chart image, chart data
+  chart type, visible series, x/y/group fields, visible range, chart data
 - AppComponent widgets:
-  current form values, selected target, last response summary, response preview, screenshot
+  current form values, selected target, last response summary, response preview
 - Markdown/note widgets:
-  raw content, rendered text summary, screenshot
+  raw content, rendered text summary
 
 ## Data Volume Policy
 
@@ -289,9 +295,7 @@ Includes:
 
 - workspace definition
 - live state
-- graph JSON and image
-- viewport/full/hidden screenshots
-- per-widget screenshots
+- graph JSON
 - visible rows/series and compact structured summaries
 
 ### Optional profile: `full-data`
@@ -315,7 +319,7 @@ The current JSON workspace export and the new archive must remain separate in co
 ### Agent snapshot archive becomes:
 
 - live-runtime-oriented
-- screenshot- and data-bearing
+- JSON- and data-bearing
 - not importable as a workspace document
 - intended for agent inspection and debugging
 
@@ -328,9 +332,11 @@ The expected caller is an external runner, for example Python controlling a real
 Expected flow:
 
 1. open a browser context
-2. write `command-center.jwt-auth` into local storage with access and refresh tokens
+2. write `command-center.jwt-auth` into local storage with canonical JWT+refresh tokens or with
+   `authMode: "runtime_credential"` plus `MAINSEQUENCE_ACCESS_TOKEN`
 3. navigate to `/app/workspace-studio/workspaces?workspace=<id>&snapshot=true`
-4. wait for the page-level snapshot completion event
+4. wait for the page-level snapshot completion event and require `status: "ready"` in the event
+   detail or `window.__COMMAND_CENTER_SNAPSHOT__`
 5. read the archive bytes and persist them locally
 
 This keeps the archive generation inside the client while keeping orchestration outside it.
@@ -343,7 +349,7 @@ This work is only complete when all of the following are true.
 
 - A new snapshot mode exists for the workspace route.
 - Snapshot mode is separate from the current JSON export/import flow.
-- Snapshot mode can authenticate from the existing local-storage JWT session shape.
+- Snapshot mode can authenticate from the shared local-storage auth session shape.
 - The page exposes a machine-readable completion signal for automation.
 
 ### Phase 2: Workspace-level archive assembly
@@ -357,21 +363,18 @@ This work is only complete when all of the following are true.
 ### Phase 3: Relationship graph capture
 
 - The archive includes `relationships/widget-graph.json`.
-- The archive includes a rendered graph image.
 - The graph export reuses the shared dependency model instead of a second graph implementation.
 
-### Phase 4: Visual capture
+### Phase 4: JSON-only evidence
 
-- The archive includes `screenshots/viewport.png`.
-- The archive includes `screenshots/full-canvas.png`.
-- The archive includes `screenshots/hidden-widgets-sheet.png`.
-- The archive includes per-widget screenshots for supported widgets.
+- The archive does not include generated images or screenshots.
+- Hidden/sidebar/collapsed widgets are represented through structured JSON records.
 
 ### Phase 5: Widget-family live snapshots
 
 - Main Sequence Data Node source widgets emit structured live snapshots.
 - Table widgets emit visible-table snapshots.
-- Graph/chart widgets emit structured chart snapshots plus chart images.
+- Graph/chart widgets emit structured chart snapshots.
 - AppComponent emits structured request/response snapshots.
 - Markdown/note widgets emit content snapshots.
 
@@ -383,7 +386,8 @@ This work is only complete when all of the following are true.
 
 ### Phase 7: Runner integration
 
-- A browser automation runner can bootstrap auth using access and refresh JWTs.
+- A browser automation runner can bootstrap auth using canonical JWT+refresh tokens or the runtime
+  credential `MAINSEQUENCE_ACCESS_TOKEN`.
 - The runner can trigger snapshot mode with only workspace id plus profile inputs.
 - The runner can persist the generated zip without backend upload.
 
@@ -401,9 +405,10 @@ This work is only complete when all of the following are true.
 
 - [x] Support snapshot runner auth bootstrap through the existing `command-center.jwt-auth`
       local-storage contract.
-- [ ] Document the bootstrap payload shape for access and refresh JWTs.
-- [ ] Validate that snapshot mode can restore the normal authenticated session without a manual
-      login flow.
+- [x] Document the bootstrap payload shape for canonical access/refresh JWTs and runtime
+      credentials.
+- [ ] Validate that snapshot mode can restore canonical JWT and runtime credential sessions without
+      a manual login flow in a real machine-run browser.
 
 ### Archive contract
 
@@ -420,15 +425,12 @@ This work is only complete when all of the following are true.
 
 - [x] Reuse `src/dashboards/widget-dependencies.ts` to export
       `relationships/widget-graph.json`.
-- [x] Add rendered `relationships/widget-graph.png`.
 - [x] Ensure graph export uses the same dependency model as the normal workspace graph view.
 
-### Visual capture
+### JSON-only evidence
 
-- [x] Add viewport screenshot capture.
-- [x] Add full-canvas screenshot capture.
-- [x] Add hidden/sidebar/collapsed widget sheet capture.
-- [x] Add per-widget screenshot capture.
+- [x] Keep generated images and screenshots out of the archive.
+- [x] Represent hidden/sidebar/collapsed widget state through structured JSON.
 
 ### Widget-family snapshots
 

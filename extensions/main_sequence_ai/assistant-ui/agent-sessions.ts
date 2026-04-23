@@ -316,6 +316,41 @@ export function promoteAgentSessionFromStream({
   });
 }
 
+export function createAgentSessionFromStreamHandoff(
+  stream: StreamCreatedAgentSession,
+  existing?: AgentSessionRecord | null,
+): AgentSessionRecord {
+  const nextAgent = existing?.agent ?? createDefaultAgentSessionAgent();
+  const agentLabel =
+    stream.agentUniqueId?.trim() ||
+    (stream.agentId !== null ? `Agent ${stream.agentId}` : DEFAULT_AGENT_LABEL);
+
+  return {
+    id: stream.agentSessionId,
+    title: existing?.title || agentLabel,
+    preview: existing?.preview ?? null,
+    runtimeSessionId: stream.agentSessionId,
+    sessionKey: stream.sessionKey ?? existing?.sessionKey ?? null,
+    handleUniqueId: existing?.handleUniqueId ?? null,
+    threadId: stream.threadId ?? existing?.threadId ?? stream.agentSessionId,
+    projectId: existing?.projectId ?? null,
+    cwd: existing?.cwd ?? null,
+    runtimeState: existing?.runtimeState ?? null,
+    working: true,
+    updatedAt: new Date().toISOString(),
+    agent: {
+      ...nextAgent,
+      id: stream.agentId ?? nextAgent.id,
+      name: agentLabel,
+      requestName: stream.agentUniqueId?.trim() || agentLabel,
+      agentUniqueId: stream.agentUniqueId?.trim() || nextAgent.agentUniqueId,
+    },
+    origin: existing?.origin ?? null,
+    isPlaceholder: false,
+    messages: existing?.messages ?? [],
+  };
+}
+
 export function switchAgentSessionFromStream({
   session,
   stream,

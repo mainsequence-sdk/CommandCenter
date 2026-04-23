@@ -1170,6 +1170,34 @@ export function expandDashboardRow(
   });
 }
 
+export function expandAllDashboardRows(
+  dashboard: DashboardDefinition,
+) {
+  let nextDashboard = dashboard;
+  let expandedAny = false;
+
+  for (let guard = 0; guard < 1000; guard += 1) {
+    const collapsedRow = nextDashboard.widgets.find((widget) =>
+      isWorkspaceRowWidgetId(widget.widgetId) && isWorkspaceRowCollapsed(widget),
+    );
+
+    if (!collapsedRow) {
+      break;
+    }
+
+    const expandedDashboard = expandDashboardRow(nextDashboard, collapsedRow.id);
+
+    if (expandedDashboard === nextDashboard) {
+      break;
+    }
+
+    nextDashboard = expandedDashboard;
+    expandedAny = true;
+  }
+
+  return expandedAny ? nextDashboard : dashboard;
+}
+
 export function appendCatalogWidget(
   dashboard: DashboardDefinition,
   widget: Pick<

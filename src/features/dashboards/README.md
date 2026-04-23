@@ -113,34 +113,42 @@ These flows are all part of one app surface, with instance state selected throug
 - That JSON workspace snapshot/export flow is document-oriented and intentionally separate from the
   live agent snapshot archive described in
   `docs/adr/adr-live-workspace-agent-snapshot-archive.md`. Do not merge the import/export serializer
-  with future screenshot/data/graph capture flows.
+  with the live runtime archive flow.
 - The live agent archive now runs through a dedicated snapshot runtime mode on the workspace route:
   `?workspace=<id>&snapshot=true`.
 - Snapshot mode forces the selected workspace into normal dashboard view, keeps the existing JSON
   export path separate, and mounts `snapshot/WorkspaceSnapshotCapture.tsx` inside the shared
   runtime providers so the archive is assembled from the real mounted client state.
+- Snapshot mode expands collapsed workspace rows in the mounted runtime by default so row-owned
+  widgets are visible to automation. This expansion is not persisted and does not mark the
+  workspace dirty.
+- Snapshot capture does not force a manual dashboard refresh. It observes the shared dashboard
+  execution state, waits for the normal initial refresh or any active refresh/execution cycle to
+  settle, then captures the mounted runtime state.
 - The normal workspace edit toolbar now also exposes `Create snapshot`, which runs the same client-
   side archive pipeline in-place and downloads the generated zip directly from the current mounted
   workspace.
 - Snapshot mode currently supports `snapshotProfile=full-data` by default and
   `snapshotProfile=evidence` as a lighter alternative.
-- The client-side snapshot contract reuses the existing `command-center.jwt-auth` browser storage
+- The client-side snapshot contract reuses the shared `command-center.jwt-auth` browser storage
   session shape and returns the generated zip directly from the page runtime through
   `window.__COMMAND_CENTER_SNAPSHOT__` plus the `command-center:snapshot-ready` event instead of
-  uploading archives to the backend by default.
+  uploading archives to the backend by default. Normal users keep using canonical JWT+refresh
+  auth; machine-run browser automation may inject `authMode: "runtime_credential"` with
+  `MAINSEQUENCE_ACCESS_TOKEN`, which sends the same bearer header but disables refresh and
+  interactive logout behavior.
 - The current archive contents include:
   - `manifest.json`
   - `workspace-definition.json` from `createWorkspaceSnapshot(...)`
   - `workspace-live-state.json` with live controls, dependency graph, and per-widget records
   - `controls.json`
-  - dashboard screenshots
-  - widget dependency graph JSON and PNG
+  - widget dependency graph JSON
   - `widgets/<instanceId>/snapshot.json` for every widget, including generic fallback snapshots for
     widget families without a custom builder
-  - per-widget screenshots when DOM capture succeeds
-  - optional per-widget `data.json`, `data.csv`, `chart-data.json`, or `response.json` files when
+  - optional per-widget `data.json`, `chart-data.json`, or `response.json` files when
     the widget snapshot exposes rows, series, or response payloads
-  - a hidden-widget report sheet
+- The live archive is JSON-only; it does not generate screenshots, PNG graph exports, hidden-widget
+  report images, or CSV/text exports.
 - Snapshot profiles control widget data volume, not the outer archive shape:
   - `full-data` allows widget snapshots to include deeper data payloads
   - `evidence` keeps the same file structure but allows widgets to truncate large datasets before

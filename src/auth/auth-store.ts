@@ -13,10 +13,12 @@ import {
 } from "@/auth/jwt-auth";
 import { hasAllPermissions } from "@/auth/permissions";
 import { loginWithRole } from "@/auth/mock-auth";
-import type { AuthLoginChallenge, CompleteMfaSetupInput, LoginInput, Session } from "@/auth/types";
+import type { AuthLoginChallenge, AuthMode, CompleteMfaSetupInput, LoginInput, Session } from "@/auth/types";
 import { env } from "@/config/env";
 
 const restoredJwtSession = env.bypassAuth ? null : restoreStoredJwtSession();
+const restoredAuthMode = restoredJwtSession?.tokens.authMode ?? "jwt";
+const shouldResolveRestoredSessionBeforeAuth = restoredAuthMode === "runtime_credential";
 
 let refreshTimer: number | null = null;
 let loginPromise: Promise<boolean> | null = null;
@@ -73,6 +75,7 @@ function scheduleRefresh(tokens: StoredJwtTokens) {
 interface AuthState {
   session: Session | null;
   refreshToken: string | null;
+  authMode: AuthMode;
   status: "anonymous" | "resolving" | "authenticating" | "authenticated";
   error: string | null;
   challenge: AuthLoginChallenge | null;
@@ -85,9 +88,16 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  session: restoredJwtSession?.session ?? null,
-  refreshToken: restoredJwtSession?.tokens.refreshToken ?? null,
-  status: restoredJwtSession ? "authenticated" : "anonymous",
+  session: shouldResolveRestoredSessionBeforeAuth ? null : restoredJwtSession?.session ?? null,
+  refreshToken: shouldResolveRestoredSessionBeforeAuth
+    ? null
+    : restoredJwtSession?.tokens.refreshToken ?? null,
+  authMode: restoredAuthMode,
+  status: restoredJwtSession
+    ? shouldResolveRestoredSessionBeforeAuth
+      ? "resolving"
+      : "authenticated"
+    : "anonymous",
   error: null,
   challenge: null,
   async login(input) {
@@ -107,6 +117,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           set({
             session,
             refreshToken: null,
+            authMode: "jwt",
             status: "authenticated",
             error: null,
             challenge: null,
@@ -123,6 +134,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           set({
             session,
             refreshToken: tokens.refreshToken,
+            authMode: tokens.authMode ?? "jwt",
             status: "authenticated",
             error: null,
             challenge: null,
@@ -135,6 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({
           session: null,
           refreshToken: null,
+          authMode: "jwt",
           status: "anonymous",
           error: null,
           challenge: result.challenge,
@@ -147,6 +160,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           error: getLoginErrorMessage(error),
           session: null,
           refreshToken: null,
+          authMode: "jwt",
           status: "anonymous",
           challenge: previousChallenge,
         });
@@ -175,6 +189,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({
           session,
           refreshToken: tokens.refreshToken,
+          authMode: tokens.authMode ?? "jwt",
           status: "authenticated",
           error: null,
           challenge: null,
@@ -186,6 +201,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({
           session: null,
           refreshToken: null,
+          authMode: "jwt",
           status: "anonymous",
           error: getLoginErrorMessage(error),
           challenge: previousChallenge,
@@ -209,7 +225,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const refreshToken = get().refreshToken;
 
-    if (!refreshToken) {
+    if (get().authMode === "runtime_credential" || !refreshToken) {
       return false;
     }
 
@@ -222,6 +238,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({
           session,
           refreshToken: tokens.refreshToken,
+          authMode: tokens.authMode ?? "jwt",
           status: "authenticated",
           error: null,
           challenge: null,
@@ -233,6 +250,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({
           session: null,
           refreshToken: null,
+          authMode: "jwt",
           status: "anonymous",
           error: "Your session expired. Please sign in again.",
           challenge: null,
@@ -248,8 +266,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout() {
     const activeToken = get().session?.token;
     const tokenType = get().session?.tokenType || "Bearer";
+    const authMode = get().authMode;
 
-    if (!env.bypassAuth && activeToken) {
+    if (!env.bypassAuth && activeToken && authMode !== "runtime_credential") {
       void logoutJwtSession(activeToken, tokenType).catch(() => {
         // Local sign-out remains immediate even if backend logout fails.
       });
@@ -257,7 +276,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     clearStoredJwtSession();
     clearRefreshTimer();
-    set({ session: null, refreshToken: null, status: "anonymous", error: null, challenge: null });
+    set({
+      session: null,
+      refreshToken: null,
+      authMode: "jwt",
+      status: "anonymous",
+      error: null,
+      challenge: null,
+    });
   },
   resetLoginState() {
     set({ error: null, challenge: null });
@@ -273,10 +299,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 if (restoredJwtSession) {
   scheduleRefresh(restoredJwtSession.tokens);
 
-  if (!restoredJwtSession.refreshNow) {
+  if (!restoredJwtSession.refreshNow && !shouldResolveRestoredSessionBeforeAuth) {
     useAuthStore.setState({
       session: restoredJwtSession.session,
       refreshToken: restoredJwtSession.tokens.refreshToken,
+      authMode: restoredJwtSession.tokens.authMode ?? "jwt",
       status: "authenticated",
       error: null,
     });
@@ -289,6 +316,7 @@ if (restoredJwtSession) {
         useAuthStore.setState({
           session: bundle.session,
           refreshToken: bundle.tokens.refreshToken,
+          authMode: bundle.tokens.authMode ?? "jwt",
           status: "authenticated",
           error: null,
         });
@@ -305,6 +333,7 @@ if (restoredJwtSession) {
         useAuthStore.setState({
           session: bundle.session,
           refreshToken: bundle.tokens.refreshToken,
+          authMode: bundle.tokens.authMode ?? "jwt",
           status: "authenticated",
           error: null,
         });
@@ -314,6 +343,7 @@ if (restoredJwtSession) {
         useAuthStore.setState({
           session: null,
           refreshToken: null,
+          authMode: "jwt",
           status: "anonymous",
           error: isSessionExpiryError(error)
             ? null

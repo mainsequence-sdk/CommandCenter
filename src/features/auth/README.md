@@ -33,3 +33,8 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
 - Command Center shell visibility is a separate concern: reusable policies come from
   `/api/v1/command_center/access-policies/`, while per-user assignments and overrides come from
   `/api/v1/command_center/users/<user_id>/shell-access/`.
+- Runtime credential auth is supported for machine-run browsers that inject
+  `command-center.jwt-auth` before navigation. The stored session uses `authMode:
+  "runtime_credential"` and `MAINSEQUENCE_ACCESS_TOKEN` or `tokens.accessToken`; requests still
+  send `Authorization: Bearer <runtime access JWT>`, but the auth store treats the session as a
+  scoped machine/runtime identity with no refresh token and no interactive logout call.

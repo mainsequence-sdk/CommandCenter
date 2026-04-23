@@ -17,6 +17,7 @@ export function WorkspaceStudioCanvasHost() {
   const {
     permissions,
     selectedDashboard,
+    selectedDashboardSource,
     resolvedDashboard,
     snapshotMode,
     snapshotProfile,
@@ -60,6 +61,7 @@ export function WorkspaceStudioCanvasHost() {
             {snapshotMode ? (
               <WorkspaceSnapshotCapture
                 dashboard={selectedDashboard}
+                workspaceDefinitionDashboard={selectedDashboardSource ?? selectedDashboard}
                 resolvedDashboard={resolvedDashboard}
                 permissions={permissions}
                 profile={snapshotProfile}

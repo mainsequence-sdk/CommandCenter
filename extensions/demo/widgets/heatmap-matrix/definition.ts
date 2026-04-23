@@ -1,13 +1,14 @@
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import type { WidgetDefinition } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { HeatmapMatrixWidget } from "./HeatmapMatrixWidget";
 
 export const heatmapMatrixWidget: WidgetDefinition<{ desk?: string }> = {
   id: "heatmap-matrix-chart",
   widgetVersion: "1.0.0",
   title: "Heatmap Matrix",
-  description:
-    "Mock cross-asset heatmap with a Lightweight Charts drilldown for the selected cell.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Market",
   kind: "chart",
   source: "demo",

@@ -1,8 +1,10 @@
 import { LineChart } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import {
   ECHARTS_WIDGET_ORGANIZATION_CONFIGURATION,
   EChartsSpecWidget,
@@ -16,7 +18,7 @@ export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
   id: "echarts-spec",
   widgetVersion: "1.2.0",
   title: "ECharts Spec",
-  description: "Render an ECharts option payload with optional organization-scoped capability controls.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Visualization",
   kind: "chart",
   source: "echarts",

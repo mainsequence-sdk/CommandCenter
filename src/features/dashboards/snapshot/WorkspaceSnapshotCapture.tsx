@@ -12,11 +12,16 @@ import type {
 } from "@/dashboards/types";
 
 import { buildWorkspaceAgentSnapshotArchive } from "./archive";
-import { waitForNextFrame } from "./capture";
 import type {
   CommandCenterSnapshotWindowState,
   WorkspaceSnapshotCaptureProfile,
 } from "./types";
+
+function waitForNextFrame() {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+}
 
 function publishSnapshotState(state: CommandCenterSnapshotWindowState) {
   window.__COMMAND_CENTER_SNAPSHOT__ = state;
@@ -63,9 +68,11 @@ export function useWorkspaceSnapshotCaptureController({
   permissions,
   profile,
   resolvedDashboard,
+  workspaceDefinitionDashboard,
 }: {
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
+  workspaceDefinitionDashboard?: DashboardDefinition;
   permissions: string[];
   profile: WorkspaceSnapshotCaptureProfile;
 }) {
@@ -129,6 +136,7 @@ export function useWorkspaceSnapshotCaptureController({
 
       const archive = await buildWorkspaceAgentSnapshotArchive({
         dashboard,
+        workspaceDefinitionDashboard,
         resolvedDashboard,
         permissions,
         controlsState: {
@@ -215,6 +223,7 @@ export function useWorkspaceSnapshotCaptureController({
     permissions,
     profile,
     resolvedDashboard,
+    workspaceDefinitionDashboard,
     widgetIds,
   ]);
 
@@ -276,9 +285,11 @@ export function WorkspaceSnapshotCapture({
   permissions,
   profile,
   resolvedDashboard,
+  workspaceDefinitionDashboard,
 }: {
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
+  workspaceDefinitionDashboard?: DashboardDefinition;
   permissions: string[];
   profile: WorkspaceSnapshotCaptureProfile;
 }) {
@@ -286,6 +297,7 @@ export function WorkspaceSnapshotCapture({
     useWorkspaceSnapshotCaptureController({
       dashboard,
       resolvedDashboard,
+      workspaceDefinitionDashboard,
       permissions,
       profile,
     });

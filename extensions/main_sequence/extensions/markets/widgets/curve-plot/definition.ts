@@ -1,7 +1,9 @@
 import { LineChart } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../../workbench/widget-contracts/mainSequenceDataSourceBundle";
 import { DATA_NODE_SOURCE_INPUT_ID } from "../../../workbench/widgets/data-node-shared/widgetBindings";
 import { mainSequenceCurvePlotWidgetController } from "./controller";
@@ -13,7 +15,7 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
   id: "main-sequence-curve-plot",
   widgetVersion: "1.0.0",
   title: "Curve Plot",
-  description: "DataNode-backed tenor curve chart rendered from mapped maturity and yield fields.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",

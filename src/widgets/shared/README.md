@@ -9,6 +9,8 @@ This directory contains reusable widget presentation primitives that are shared 
 - `widget-settings.tsx`: shared settings trigger plus the reusable full-page settings panel used to edit widget instances outside the old modal flow. It also exports the shared duplicate trigger used by workspace widget chrome.
 - `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, preview, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors.
 - `tabular-frame-source.ts`: shared generic tabular-frame contract and normalization helpers used when widgets bind table-like datasets across extension boundaries. It defines the platform-level `columns + rows + fields + source` shape so widget families do not invent incompatible table payloads.
+- `widget-description.ts`: normalizes raw `DESCRIPTION.md` content into the short catalog
+  description assigned to `WidgetDefinition.description` and published by backend widget-type sync.
 - `widget-schema.ts`: shared helpers for widget schema visibility, controller context resolution, and exposed-field presentation state.
 - `widget-schema-form.tsx`: generic settings form renderer for schema-based widget fields. The form
   now supports per-field layout width through `WidgetFieldDefinition.settingsColumnSpan`, so shared

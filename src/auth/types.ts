@@ -4,6 +4,7 @@ export type BuiltinAppRole = (typeof builtinAppRoles)[number];
 export type AppRole = string;
 
 export type Permission = string;
+export type AuthMode = "jwt" | "runtime_credential";
 
 export interface OrganizationTeam {
   id: number;
@@ -38,6 +39,7 @@ export interface Session {
   token: string;
   tokenType?: string;
   expiresAt?: number;
+  authMode?: AuthMode;
   user: AppUser;
 }
 

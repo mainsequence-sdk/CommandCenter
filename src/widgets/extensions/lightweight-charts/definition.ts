@@ -1,8 +1,10 @@
 import { LineChart } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import {
   LIGHTWEIGHT_CHARTS_WIDGET_ORGANIZATION_CONFIGURATION,
   LightweightChartsSpecWidget,
@@ -16,7 +18,7 @@ export const priceChartWidget = defineWidget<{ symbol?: string }>({
   id: "price-chart",
   widgetVersion: "1.0.0",
   title: "Price Chart",
-  description: "Main Sequence Markets price chart widget backed by Lightweight Charts.",
+  description: resolveWidgetDescription(descriptionMarkdown, "price-chart"),
   category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",
@@ -56,7 +58,7 @@ export const lightweightChartsSpecWidget = defineWidget<LightweightChartsSpecWid
   id: "lightweight-charts-spec",
   widgetVersion: "1.0.0",
   title: "Lightweight Charts Spec",
-  description: "Render a declarative Lightweight Charts spec with theme-aware colors, palette support, and organization-scoped resource budgets.",
+  description: resolveWidgetDescription(descriptionMarkdown, "lightweight-charts-spec"),
   category: "Visualization",
   kind: "chart",
   source: "lightweight-charts",

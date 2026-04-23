@@ -6,7 +6,10 @@ import { useAuthStore } from "@/auth/auth-store";
 import { useToast } from "@/components/ui/toaster";
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import type { DashboardDefinition } from "@/dashboards/types";
-import { createBlankDashboard } from "./custom-dashboard-storage";
+import {
+  createBlankDashboard,
+  expandAllDashboardRows,
+} from "./custom-dashboard-storage";
 import type { WorkspaceSnapshotCaptureProfile } from "./snapshot/types";
 import { useCustomWorkspaceStudioStore } from "./custom-workspace-studio-store";
 import { getWorkspacePersistenceMode } from "./workspace-persistence";
@@ -86,9 +89,16 @@ export function useCustomWorkspaceStudio() {
     });
   }, [initialize, requestedWorkspaceId, user?.id]);
 
-  const selectedDashboard = useMemo(
+  const selectedDashboardSource = useMemo(
     () => (requestedWorkspaceId ? (draftWorkspaceById[requestedWorkspaceId] ?? null) : null),
     [draftWorkspaceById, requestedWorkspaceId],
+  );
+  const selectedDashboard = useMemo(
+    () =>
+      snapshotMode && selectedDashboardSource
+        ? expandAllDashboardRows(selectedDashboardSource)
+        : selectedDashboardSource,
+    [selectedDashboardSource, snapshotMode],
   );
   const workspaceListItems = persistedWorkspaceListItems;
   useEffect(() => {
@@ -386,6 +396,7 @@ export function useCustomWorkspaceStudio() {
     isSaving,
     error,
     persistenceMode,
+    selectedDashboardSource,
     selectedDashboard,
     resolvedDashboard,
     dirty,

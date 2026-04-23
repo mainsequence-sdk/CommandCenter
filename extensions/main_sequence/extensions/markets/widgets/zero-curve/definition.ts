@@ -1,7 +1,9 @@
 import { LineChart } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../../workbench/widget-contracts/mainSequenceDataSourceBundle";
 import { DATA_NODE_SOURCE_INPUT_ID } from "../../../workbench/widgets/data-node-shared/widgetBindings";
 import { mainSequenceZeroCurveWidgetController } from "./controller";
@@ -13,7 +15,7 @@ export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWid
   id: "main-sequence-zero-curve",
   widgetVersion: "1.0.0",
   title: "Zero Curve",
-  description: "Compressed Curve Data Node chart rendered on a numeric days axis with ECharts.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",

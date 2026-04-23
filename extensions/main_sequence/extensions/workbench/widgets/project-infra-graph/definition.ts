@@ -1,7 +1,9 @@
 import { Network } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { MainSequenceProjectInfraGraphWidget } from "./MainSequenceProjectInfraGraphWidget";
 import { MainSequenceProjectInfraGraphWidgetSettings } from "./MainSequenceProjectInfraGraphWidgetSettings";
 import type { MainSequenceProjectInfraGraphWidgetProps } from "./projectInfraGraphRuntime";
@@ -10,8 +12,7 @@ export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProj
   id: "main-sequence-project-infra-graph",
   widgetVersion: "1.0.0",
   title: "Project Infrastructure Graph",
-  description:
-    "Explores project infrastructure relationships across resources, jobs, images, releases, updates, and secrets.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence Infrastructure",
   kind: "chart",
   source: "main_sequence_workbench",

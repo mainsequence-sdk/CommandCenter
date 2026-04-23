@@ -24,7 +24,6 @@ export interface WorkspaceAgentWidgetSnapshotRecord {
   layout?: ResolvedDashboardWidgetLayout;
   parentRowId?: string;
   domTextContent?: string;
-  screenshotPath?: string;
   artifactPaths: string[];
   snapshot: WidgetAgentSnapshot;
 }

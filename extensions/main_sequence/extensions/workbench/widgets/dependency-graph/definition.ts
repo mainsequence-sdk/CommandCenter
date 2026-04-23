@@ -1,5 +1,7 @@
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { dependencyGraphExecutionDefinition } from "./dependencyGraphExecution";
 import {
   MainSequenceDependencyGraphWidget,
@@ -11,7 +13,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
   id: "main-sequence-dependency-graph",
   widgetVersion: "1.0.0",
   title: "Dependency Graph",
-  description: "Main Sequence dependency graph widget for update relationships across platform resources.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence Infrastructure",
   kind: "chart",
   source: "main_sequence_workbench",

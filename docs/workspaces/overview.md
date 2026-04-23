@@ -233,7 +233,7 @@ the primary `Workspace` row itself.
 This JSON snapshot is intentionally separate from the live workspace agent snapshot archive. The
 JSON export remains the canonical workspace document export/import format, while the agent snapshot
 archive is a separate live-runtime zip artifact for automation,
-screenshots, graph capture, and widget-output inspection. See
+graph capture, and widget-output inspection. See
 [`docs/adr/adr-live-workspace-agent-snapshot-archive.md`](../adr/adr-live-workspace-agent-snapshot-archive.md).
 
 ## Live Agent Snapshot Archive
@@ -244,10 +244,9 @@ Its purpose is to capture what the mounted workspace runtime is actually showing
 
 - current workspace view and controls
 - widget relationship graph
-- screenshots
 - hidden/sidebar/collapsed widget content
 - per-widget structured live summaries
-- optional raw data exports for large data widgets
+- optional JSON data exports for large data widgets
 
 The current trigger model is the snapshot route:
 
@@ -259,16 +258,25 @@ client runtime in a browser engine.
 The current client-side behavior is:
 
 - snapshot mode forces the selected workspace into dashboard view
-- the mounted runtime waits for widgets to settle
-- the client captures structured widget snapshots plus PNG artifacts
+- collapsed workspace rows are expanded in the mounted snapshot runtime by default so row-owned
+  widgets are visible to automation; this does not persist back to the workspace
+- snapshot mode does not force a manual dashboard refresh; it mounts the normal dashboard runtime
+  and lets the shared execution provider own refresh behavior
+- on a fresh mount, the normal initial refresh may execute refresh-eligible widgets before capture
+- the capture controller waits for active refresh/execution work to settle, or timeout, before
+  reading the mounted runtime state
+- the client captures structured widget snapshots and JSON artifacts
 - the client assembles one zip archive locally
 - the archive is exposed on `window.__COMMAND_CENTER_SNAPSHOT__`
 - the client dispatches `command-center:snapshot-ready`
 - the workspace edit toolbar also exposes `Create snapshot`, which triggers the same archive
   pipeline from the currently open workspace and downloads the generated zip directly
 
-Authentication for this flow reuses the existing local-storage JWT session contract instead of
-inventing a second snapshot-only auth model.
+Authentication for this flow reuses the shared `command-center.jwt-auth` local-storage session
+contract instead of inventing a snapshot-only auth model. Human sessions keep using canonical
+JWT+refresh auth. Machine-run browsers may instead inject `authMode: "runtime_credential"` with
+`MAINSEQUENCE_ACCESS_TOKEN`; the client still sends `Authorization: Bearer <runtime access JWT>`
+but skips refresh/logout behavior.
 
 The current archive includes:
 
@@ -277,13 +285,8 @@ The current archive includes:
 - `workspace-live-state.json`
 - `controls.json`
 - `relationships/widget-graph.json`
-- `relationships/widget-graph.png`
-- `screenshots/viewport.png`
-- `screenshots/full-canvas.png` from the actual workspace canvas root
-- `screenshots/hidden-widgets-sheet.png`
 - `widgets/<instanceId>/snapshot.json`
-- `widgets/<instanceId>/screenshot.png` when DOM capture succeeds
-- widget data exports such as `data.json`, `data.csv`, `chart-data.json`, or `response.json` when
+- widget data exports such as `data.json`, `chart-data.json`, or `response.json` when
   the widget snapshot exposes that content
 
 The important structure is:
@@ -294,8 +297,9 @@ The important structure is:
   - schema: `mainsequence.workspace-agent-live-state`
   - current live controls
   - resolved dependency graph
-  - one widget record per workspace instance, including hidden/sidebar state, optional layout,
-    screenshot path, artifact paths, and the widget's structured live snapshot
+  - one widget record per runtime-mounted workspace instance, including widgets expanded out of
+    collapsed rows for snapshot mode, hidden/sidebar state, optional layout, artifact paths, and the
+    widget's structured live snapshot
 - `manifest.json`
   - schema: `mainsequence.workspace-agent-archive`
   - capture profile
@@ -305,11 +309,12 @@ The important structure is:
 Per-widget snapshot behavior is intentionally conditional:
 
 - every widget gets `widgets/<instanceId>/snapshot.json`
-- widgets with visible canvas DOM also get `widgets/<instanceId>/screenshot.png`
 - widgets that expose rows, series, or response payloads through `buildAgentSnapshot(...)` may also
-  emit `data.json`, `data.csv`, `chart-data.json`, or `response.json`
+  emit `data.json`, `chart-data.json`, or `response.json`
 - widgets without a custom snapshot builder still emit a generic fallback snapshot with rendered
   text summary when available
+- the archive contents are JSON-only; screenshots, rendered graph images, hidden-widget report
+  images, and CSV/text exports are not generated
 
 The capture profile controls how much widget data is included:
 

@@ -1,7 +1,9 @@
 import { FileText } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import {
   RichTextNoteWidget,
   richTextNoteStarterHtml,
@@ -13,7 +15,7 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
   id: "rich-text-note",
   widgetVersion: "1.1.0",
   title: "Rich Text",
-  description: "Render and edit rich text notes directly on the workspace canvas.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Core",
   kind: "custom",
   source: "core",

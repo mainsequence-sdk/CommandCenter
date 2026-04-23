@@ -1,5 +1,7 @@
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import type { WidgetDefinition } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { OrderBookDepthWidget } from "./OrderBookDepthWidget";
 import { OrderBookWidget } from "./OrderBookWidget";
 
@@ -7,7 +9,7 @@ export const orderBookWidget: WidgetDefinition<{ symbol?: string }> = {
   id: "order-book",
   widgetVersion: "1.0.0",
   title: "Order Book",
-  description: "Level II style side-by-side bid/ask widget shipped by an extension.",
+  description: resolveWidgetDescription(descriptionMarkdown, "order-book"),
   category: "Execution",
   kind: "custom",
   source: "flow-lab",
@@ -41,8 +43,7 @@ export const orderBookDepthWidget: WidgetDefinition<{ symbol?: string }> = {
   id: "order-book-depth",
   widgetVersion: "1.0.0",
   title: "Order Book Depth",
-  description:
-    "Depth-oriented Level II widget that overlays numeric size with filled bid/ask distribution bars.",
+  description: resolveWidgetDescription(descriptionMarkdown, "order-book-depth"),
   category: "Execution",
   kind: "custom",
   source: "flow-lab",

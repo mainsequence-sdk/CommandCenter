@@ -1,9 +1,11 @@
 import { Bot } from "lucide-react";
 
 import { CORE_VALUE_STRING_CONTRACT } from "@/widgets/shared/value-contracts";
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 import { CORE_WIDGET_AGENT_CONTEXT_CONTRACT } from "@/widgets/shared/agent-context";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { AgentTerminalWidget } from "./AgentTerminalWidget";
 import { agentTerminalExecutionDefinition } from "./agentTerminalExecution";
 import { AgentTerminalWidgetSettings } from "./AgentTerminalWidgetSettings";
@@ -16,10 +18,9 @@ import {
 
 export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
   id: "main-sequence-ai-agent-terminal",
-  widgetVersion: "2.0.0",
+  widgetVersion: "2.1.0",
   title: "Agent Terminal",
-  description:
-    "Attach a widget to one existing Main Sequence AI AgentSession and continue the conversation through a terminal-style shell.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence AI",
   kind: "custom",
   source: "main_sequence_ai",
@@ -30,7 +31,9 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
   requiredPermissions: ["workspaces:view"],
   tags: ["agents", "terminal", "chat", "sessions"],
   exampleProps: {
+    agentName: "mainsequence-project-coder",
     agentSessionId: "12345",
+    loadInitialHistory: false,
     historyRefreshMode: "workspace",
   },
   mockProps: {},
@@ -68,9 +71,10 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Connects one widget instance to an existing AgentSession, stores a saved refresh prompt, and can append several bound upstream widget contexts during automated refresh.",
+        "Connects one widget instance to an existing AgentSession, stores the selected agent name, optionally loads initial history, stores a saved refresh prompt, and can append several bound upstream widget contexts during automated refresh.",
       requiredSetupSteps: [
-        "Set the target agent session id.",
+        "Set the target agent session id and selected agent name.",
+        "Optionally enable initial history loading; it is disabled by default.",
         "Optionally configure a saved prompt that runs on refresh.",
         "Optionally bind one or more upstream widget contexts.",
       ],
@@ -79,7 +83,7 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-submit"],
       executionSummary:
-        "Owns terminal-style execution against one existing AgentSession, composing saved refresh prompts with bound upstream widget context during automated refresh and publishing the latest assistant markdown output.",
+        "Owns terminal-style execution against one existing AgentSession, validating the session against the normal backend before any assistant-runtime call, avoiding assistant runtime requests on mount unless initial history loading is explicitly enabled, composing saved refresh prompts with bound upstream widget context during automated refresh, and publishing the latest assistant markdown output.",
     },
     io: {
       mode: "static",
@@ -108,6 +112,7 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
       blockingRequirements: ["A valid agent session id is required."],
       commonPitfalls: [
         "This widget expects an existing session rather than creating a new agent workflow from scratch.",
+        "Manual terminal input requires the selected agent name to be persisted in props; reselect older widgets that only stored a session id.",
         "Bound widget context is only appended during automated refresh; manual terminal input stays unchanged.",
       ],
     },

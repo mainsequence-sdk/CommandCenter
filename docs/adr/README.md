@@ -43,6 +43,7 @@ feature folder.
 ## Shell And Extension ADRs
 
 - [ADR: Extension-Contributed Shell Settings Menus](./adr-extension-contributed-shell-settings-menus.md)
+- [ADR: Runtime Credential Browser Auth](./adr-runtime-credential-browser-auth.md)
 
 ## Main Sequence AI ADRs
 

@@ -17,7 +17,9 @@ export const AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_RUNTIME_KEY = "latestAssis
 export const AGENT_TERMINAL_LATEST_ASSISTANT_UPDATED_AT_RUNTIME_KEY = "latestAssistantUpdatedAt";
 
 export type AgentTerminalWidgetProps = Record<string, unknown> & {
+  agentName?: string;
   agentSessionId?: string;
+  loadInitialHistory?: boolean;
   historyRefreshMode?: AgentTerminalHistoryRefreshMode;
   historyRefreshIntervalSeconds?: number;
   promptOnRefresh?: string;
@@ -35,9 +37,9 @@ export interface AgentTerminalLine {
 
 export interface AgentTerminalSessionState {
   agentName: string;
+  requestAgentName: string | null;
   sessionId: string;
   threadId: string | null;
-  toolSummary: string | null;
 }
 
 function normalizeOptionalMarkdownString(value: unknown) {
@@ -46,6 +48,15 @@ function normalizeOptionalMarkdownString(value: unknown) {
   }
 
   return value.trim() ? value : undefined;
+}
+
+function normalizeOptionalTrimmedString(value: unknown) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -149,6 +160,8 @@ export function normalizeAgentTerminalWidgetProps(
 ): AgentTerminalWidgetProps {
   const normalizedSessionId =
     typeof props.agentSessionId === "string" ? props.agentSessionId.trim() : "";
+  const agentName = normalizeOptionalTrimmedString(props.agentName);
+  const loadInitialHistory = props.loadInitialHistory === true;
   const historyRefreshMode = normalizeAgentTerminalHistoryRefreshMode(props.historyRefreshMode);
   const historyRefreshIntervalSeconds = normalizeAgentTerminalHistoryRefreshIntervalSeconds(
     props.historyRefreshIntervalSeconds,
@@ -156,7 +169,9 @@ export function normalizeAgentTerminalWidgetProps(
   const promptOnRefresh = normalizeOptionalMarkdownString(props.promptOnRefresh);
 
   return {
+    ...(agentName ? { agentName } : {}),
     ...(normalizedSessionId ? { agentSessionId: normalizedSessionId } : {}),
+    ...(loadInitialHistory ? { loadInitialHistory: true } : {}),
     historyRefreshMode,
     ...(historyRefreshMode === "interval" || props.historyRefreshIntervalSeconds != null
       ? { historyRefreshIntervalSeconds }
@@ -328,6 +343,24 @@ export function buildAgentTerminalLoadingLines(sessionId: string) {
   ];
 }
 
+export function buildAgentTerminalValidationLines(sessionId: string) {
+  return [
+    createAgentTerminalOutputLine({
+      text: `[validate] Checking AgentSession ${sessionId}...`,
+      tone: "muted",
+    }),
+  ];
+}
+
+export function buildAgentTerminalSessionNotFoundLines(sessionId: string) {
+  return [
+    createAgentTerminalOutputLine({
+      text: `[session-not-found] AgentSession ${sessionId} was not found in the backend. Reselect a valid session in widget settings.`,
+      tone: "danger",
+    }),
+  ];
+}
+
 export function buildAgentTerminalErrorLines(message: string) {
   return [
     createAgentTerminalOutputLine({
@@ -354,15 +387,6 @@ export function buildAgentTerminalSessionLines({
       tone: "muted",
     }),
   ];
-
-  if (session.toolSummary) {
-    lines.push(
-      createAgentTerminalOutputLine({
-        text: `[tools] ${session.toolSummary}`,
-        tone: "muted",
-      }),
-    );
-  }
 
   const historyLines = messages.flatMap((message) => {
     const text = flattenThreadMessageText(message);
@@ -399,7 +423,7 @@ export function buildAgentTerminalSessionLines({
   if (historyLines.length === 0) {
     lines.push(
       createAgentTerminalOutputLine({
-        text: "[ready] Session loaded. Type a command to continue the conversation.",
+        text: "[ready] Session attached. Type a command to continue the conversation.",
         tone: "muted",
       }),
     );

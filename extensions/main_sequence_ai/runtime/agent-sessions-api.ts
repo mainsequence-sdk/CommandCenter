@@ -36,6 +36,21 @@ export interface AgentSessionApiRecord {
   }>;
 }
 
+export class AgentSessionNotFoundError extends Error {
+  readonly status = 404;
+  readonly sessionId: string;
+
+  constructor(sessionId: string | number, message = "AgentSession not found.") {
+    super(message);
+    this.name = "AgentSessionNotFoundError";
+    this.sessionId = String(sessionId);
+  }
+}
+
+export function isAgentSessionNotFoundError(error: unknown): error is AgentSessionNotFoundError {
+  return error instanceof AgentSessionNotFoundError;
+}
+
 function buildLatestAgentSessionsUrl({
   createdByUser,
   agentId,
@@ -64,6 +79,10 @@ function buildDeleteAgentSessionUrl(sessionId: string | number) {
 }
 
 function buildAgentSessionDetailUrl(sessionId: string | number) {
+  return new URL(`/orm/api/agents/v1/agent_sessions/${sessionId}/`, env.apiBaseUrl).toString();
+}
+
+function buildAgentSessionModelConfigUrl(sessionId: string | number) {
   return new URL(`/orm/api/agents/v1/sessions/${sessionId}/`, env.apiBaseUrl).toString();
 }
 
@@ -202,12 +221,17 @@ export async function fetchAgentSessionDetail({
     const payload = (await response.json().catch(() => null)) as
       | { detail?: string; error?: string; message?: string }
       | null;
-    throw new Error(
+    const message =
       payload?.message ||
-        payload?.detail ||
-        payload?.error ||
-        `Session detail failed with status ${response.status}.`,
-    );
+      payload?.detail ||
+      payload?.error ||
+      `Session detail failed with status ${response.status}.`;
+
+    if (response.status === 404) {
+      throw new AgentSessionNotFoundError(sessionId, message);
+    }
+
+    throw new Error(message);
   }
 
   return (await response.json()) as AgentSessionApiRecord;
@@ -237,7 +261,7 @@ export async function patchAgentSessionModelConfig({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildAgentSessionDetailUrl(sessionId), {
+  const response = await fetch(buildAgentSessionModelConfigUrl(sessionId), {
     method: "PATCH",
     headers,
     body: JSON.stringify({

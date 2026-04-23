@@ -1,7 +1,9 @@
 import { Calculator } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../widget-contracts/mainSequenceDataSourceBundle";
 import { DATA_NODE_SOURCE_INPUT_ID } from "../data-node-shared/widgetBindings";
 import { StatisticWidget } from "./StatisticWidget";
@@ -12,7 +14,7 @@ export const mainSequenceDataNodeStatisticWidget = defineWidget<MainSequenceData
   id: "main-sequence-data-node-statistic",
   widgetVersion: "1.0.0",
   title: "Statistic",
-  description: "Reduces a linked Data Node dataset into one or more statistic tiles.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence Data Nodes",
   kind: "custom",
   source: "main_sequence_workbench",

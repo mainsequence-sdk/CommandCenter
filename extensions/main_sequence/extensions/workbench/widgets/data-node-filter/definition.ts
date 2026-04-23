@@ -1,7 +1,9 @@
 import { Database } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { dataNodeFilterWidgetController } from "./controller";
 import { dataNodeFilterExecutionDefinition } from "./dataNodeFilterExecution";
 import { MainSequenceDataNodeFilterWidget } from "./MainSequenceDataNodeFilterWidget";
@@ -23,7 +25,7 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
   id: "main-sequence-data-node",
   widgetVersion: "1.1.0",
   title: "Data Node",
-  description: "Stores a reusable Main Sequence dataset node, with a settings-only table preview.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence Data Nodes",
   kind: "custom",
   source: "main_sequence_workbench",

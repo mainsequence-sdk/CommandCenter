@@ -7,8 +7,10 @@ import {
   CORE_VALUE_NUMBER_CONTRACT,
   CORE_VALUE_STRING_CONTRACT,
 } from "@/widgets/shared/value-contracts";
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import {
   UPSTREAM_INSPECTOR_INPUT_ID,
   UpstreamInspectorWidget,
@@ -22,8 +24,7 @@ export const upstreamInspectorWidget = defineWidget<UpstreamInspectorWidgetProps
   id: UPSTREAM_INSPECTOR_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Upstream Inspector",
-  description:
-    "Bind an upstream widget output and inspect the resolved value as Markdown or raw text.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence AI",
   kind: "custom",
   source: "main_sequence_ai",

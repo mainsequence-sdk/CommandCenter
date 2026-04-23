@@ -1,7 +1,9 @@
 import { Table } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import {
   MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT,
   normalizeMainSequenceDataSourceBundle,
@@ -32,7 +34,7 @@ export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisuali
   id: "data-node-table-visualizer",
   widgetVersion: "1.1.0",
   title: "Data Node Table",
-  description: "Main Sequence table formatter for live data-node rows with instance-owned field config.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence Data Nodes",
   kind: "table",
   source: "main_sequence_workbench",

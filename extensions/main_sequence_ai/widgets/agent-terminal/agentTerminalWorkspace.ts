@@ -120,6 +120,7 @@ export function upsertAgentTerminalWidgetForSession(
   },
 ) {
   const normalizedSessionId = normalizeAgentSessionId(sessionId);
+  const normalizedAgentName = normalizeAgentName(agentName);
 
   if (!normalizedSessionId) {
     throw new Error("Agent Terminal widgets require a non-empty AgentSession id.");
@@ -127,17 +128,28 @@ export function upsertAgentTerminalWidgetForSession(
 
   const existing = findAgentTerminalWidgetForSession(dashboard, normalizedSessionId);
   const nextTitle = buildAgentTerminalSessionWidgetTitle({
-    agentName,
+    agentName: normalizedAgentName,
     sessionId: normalizedSessionId,
   });
 
   if (existing) {
+    const currentProps = normalizeAgentTerminalWidgetProps(
+      (existing.props ?? {}) as Record<string, unknown>,
+    );
+    const nextProps = normalizeAgentTerminalWidgetProps({
+      ...currentProps,
+      ...(normalizedAgentName ? { agentName: normalizedAgentName } : {}),
+      agentSessionId: normalizedSessionId,
+    });
+    const shouldUpdateTitle = existing.title !== nextTitle;
+    const shouldUpdateProps = JSON.stringify(currentProps) !== JSON.stringify(nextProps);
     const nextDashboard =
-      existing.title === nextTitle
-        ? dashboard
-        : updateDashboardWidgetSettings(dashboard, existing.id, {
-            title: nextTitle,
-          });
+      shouldUpdateTitle || shouldUpdateProps
+        ? updateDashboardWidgetSettings(dashboard, existing.id, {
+            ...(shouldUpdateTitle ? { title: nextTitle } : {}),
+            ...(shouldUpdateProps ? { props: nextProps } : {}),
+          })
+        : dashboard;
 
     return {
       dashboard: nextDashboard,
@@ -154,6 +166,7 @@ export function upsertAgentTerminalWidgetForSession(
       ...(
         appendedDashboard.widgets.find((widget) => widget.id === instanceId)?.props ?? {}
       ),
+      ...(normalizedAgentName ? { agentName: normalizedAgentName } : {}),
       agentSessionId: normalizedSessionId,
     }),
   });

@@ -1,7 +1,9 @@
 import { Braces } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { resolveAppComponentWidgetIo } from "./appComponentDynamicIo";
 import { appComponentExecutionDefinition } from "./appComponentExecution";
 import { AppComponentRailSummary } from "./AppComponentRailSummary";
@@ -16,8 +18,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   id: "app-component",
   widgetVersion: "1.1.0",
   title: "AppComponent",
-  description:
-    "OpenAPI-driven request form widget that discovers one route and can run against a manual service URL, a Main Sequence FastAPI resource release, or an inline Mock JSON target.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Core",
   kind: "custom",
   source: "core",

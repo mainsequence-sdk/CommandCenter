@@ -1,7 +1,9 @@
 import { FileText } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { MarkdownNoteWidget, type MarkdownNoteWidgetProps } from "./MarkdownNoteWidget";
 import { MarkdownNoteWidgetSettings } from "./MarkdownNoteWidgetSettings";
 
@@ -25,7 +27,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
   id: "markdown-note",
   widgetVersion: "1.2.0",
   title: "Markdown",
-  description: "Render Markdown notes, runbooks, and narrative context inside a dashboard widget.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Core",
   kind: "custom",
   source: "core",

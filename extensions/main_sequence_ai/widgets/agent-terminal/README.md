@@ -5,7 +5,8 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 ## Entry Points
 
 - `definition.ts`: widget registry definition and stable widget id.
-- `AgentTerminalWidget.tsx`: terminal renderer, session hydration, and live streaming behavior.
+- `AgentTerminalWidget.tsx`: terminal renderer, optional session hydration, and live streaming
+  behavior.
 - `AgentTerminalWidget.css`: theme-aware overrides for the `react-terminal-ui` shell.
 - `AgentTerminalWidgetSettings.tsx`: widget settings UI with the reusable agent-first/session-second
   picker plus durable history-refresh configuration and Markdown refresh prompts.
@@ -20,15 +21,28 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 ## Behavior Notes
 
 - The widget binds to one existing AgentSession id and does not create sessions.
-- Session history and tools are loaded through the same endpoints used by the page chat.
+- New widgets persist both the selected AgentSession id and the selected agent name. The agent name
+  lets the terminal send live chat requests without first loading history just to recover metadata.
+- On mount or session-id change, the widget first validates the AgentSession through the normal
+  Command Center backend detail endpoint. If that detail request returns `404`, the terminal is
+  invalidated, shows `session-not-found`, and does not call the assistant runtime.
+- Initial session history loading is optional and disabled by default through the
+  `loadInitialHistory` prop. With the default settings, mounting the widget validates against the
+  normal backend but does not call the assistant runtime.
+- The terminal widget does not call `/api/chat/session-tools`; tool availability remains a chat UI
+  concern and is intentionally not loaded by this widget.
+- Session history is loaded only when `loadInitialHistory` is enabled, when a refresh without a
+  prompt explicitly reloads history, or after a sent terminal message completes and the widget
+  reconciles the transcript.
 - Live requests post to the same assistant endpoint as chat, but render the stream as terminal
   output instead of chat bubbles.
 - Widget settings and Agents Monitor now both reuse the same agent/session picker instead of
   requiring a raw session-id text field.
-- Durable widget props now include a history refresh policy:
-  `workspace`, `never`, or `interval`, plus interval seconds when custom polling is selected.
+- Durable widget props now include `agentName`, optional `loadInitialHistory`, and a history refresh
+  policy: `workspace`, `never`, or `interval`, plus interval seconds when custom polling is
+  selected.
 - The default history refresh policy is `workspace`, so workspace refresh and auto-refresh cycles
-  silently reload the session transcript after the initial load.
+  silently reload the session transcript when the workspace explicitly refreshes after mount.
 - The widget can also store a Markdown `promptOnRefresh`. When present, each refresh sends that
   prompt into the bound session instead of only reloading transcript history.
 - `Prompt on refresh` is now settings-only. It is no longer a bindable widget input.
@@ -55,8 +69,9 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   input is focused automatically after the widget lands on the canvas. Normal transcript refreshes
   must not keep stealing page-level focus after that initial autofocus.
 - Transcript buffers and stream state stay component-local. Durable props are limited to the
-  selected `agentSessionId`, the history-refresh configuration, and the optional refresh prompt.
-  The published latest-assistant output lives in widget runtime state, not durable props.
+  selected `agentName`, selected `agentSessionId`, optional initial-history loading, the
+  history-refresh configuration, and the optional refresh prompt. The published latest-assistant
+  output lives in widget runtime state, not durable props.
 
 ## Maintenance Notes
 
@@ -68,9 +83,10 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   `buildAgentSnapshot(...)`. If that platform contract changes, update this widget in the same
   change. See
   [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../../../docs/adr/adr-widget-agent-context-bindings.md).
-- If backend widget-prop validation is strict, this widget's persisted `agentSessionId`,
-  `historyRefreshMode`, `historyRefreshIntervalSeconds`, and `promptOnRefresh` props must be
-  allowed by the widget-type sync contract as well.
+- If backend widget-prop validation is strict, this widget's persisted `agentName`,
+  `agentSessionId`, `loadInitialHistory`, `historyRefreshMode`,
+  `historyRefreshIntervalSeconds`, and `promptOnRefresh` props must be allowed by the widget-type
+  sync contract as well.
 - `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
   `registryContract`.
 - Keep that registry contract aligned with the real execution-owner behavior here: bound session

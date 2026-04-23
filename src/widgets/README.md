@@ -45,6 +45,9 @@ Use these local docs before reading the implementation in code:
   work and publish outputs through runtime-state patches.
 - Widget definitions now also carry `widgetVersion` plus an explicit `registryContract` used for
   backend widget-type publication and agent-facing authoring metadata.
+- Widget catalog descriptions are sourced from each widget module's `DESCRIPTION.md` file through
+  `resolveWidgetDescription(...)`. The resolved `WidgetDefinition.description` string is what the
+  backend widget-type sync publishes.
 - Widget definitions can now also declare optional `organizationConfiguration` metadata. This is an
   opt-in widget capability used when one widget type supports organization-scoped defaults or
   guardrails. Widgets that omit it behave exactly as they do today.
@@ -137,6 +140,8 @@ Use these local docs before reading the implementation in code:
 
 - Prefer wiring new widget-level configuration through the shared settings modal before adding page-specific controls.
 - Keep this index updated when a new widget folder adds its own `README.md`.
+- Add a colocated `DESCRIPTION.md` for every widget type and import it with `?raw`; do not hardcode
+  top-level `WidgetDefinition.description` text inline in `definition.ts`.
 - Bump `widgetVersion` whenever widget authoring semantics change materially, including changes to
   configuration model, accepted inputs, published outputs, runtime ownership, or capability modes.
 - Treat `organizationConfiguration` as widget-type metadata, not instance content. Put

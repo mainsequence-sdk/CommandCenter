@@ -1,5 +1,6 @@
 import {
   type AppUser,
+  type AuthMode,
   type AuthLoginChallenge,
   type CompleteMfaSetupInput,
   type LoginInput,
@@ -35,6 +36,7 @@ export interface StoredJwtTokens {
   refreshToken: string | null;
   tokenType: string;
   expiresAt?: number;
+  authMode?: AuthMode;
 }
 
 export interface JwtSessionBundle {
@@ -61,6 +63,7 @@ export type JwtLoginResult =
     };
 
 interface StoredJwtAuthState {
+  authMode?: AuthMode;
   session: Session;
   tokens: StoredJwtTokens;
 }
@@ -128,6 +131,14 @@ function readBoolean(value: unknown) {
   }
 
   return undefined;
+}
+
+function normalizeAuthMode(value: unknown): AuthMode {
+  return value === "runtime_credential" ? "runtime_credential" : "jwt";
+}
+
+function normalizeTokenType(value: unknown) {
+  return readString(value, "Bearer");
 }
 
 function readPathValue(source: Record<string, unknown>, path: string) {
@@ -629,8 +640,9 @@ function buildStoredTokens(
       readString(readPathValue(responseData, responseFields.refreshToken)) ||
       previousRefreshToken ||
       null,
-    tokenType: readString(readPathValue(responseData, responseFields.tokenType), "Bearer"),
+    tokenType: normalizeTokenType(readPathValue(responseData, responseFields.tokenType)),
     expiresAt: expiresAtSeconds ? expiresAtSeconds * 1000 : undefined,
+    authMode: "jwt",
   } satisfies StoredJwtTokens;
 }
 
@@ -968,24 +980,32 @@ async function buildSessionBundle(
     user?: AppUser;
   },
 ) {
-  const userDetails = options?.includeUserDetails ? await fetchUserDetails(tokens) : null;
-  const claims = decodeJwtClaims(tokens.accessToken);
-  const expiresAt = tokens.expiresAt ?? readNumber(claims.exp);
+  const authMode = normalizeAuthMode(tokens.authMode);
+  const normalizedTokens: StoredJwtTokens = {
+    ...tokens,
+    refreshToken: authMode === "runtime_credential" ? null : tokens.refreshToken,
+    tokenType: tokens.tokenType || "Bearer",
+    authMode,
+  };
+  const userDetails = options?.includeUserDetails ? await fetchUserDetails(normalizedTokens) : null;
+  const claims = decodeJwtClaims(normalizedTokens.accessToken);
+  const expiresAt = normalizedTokens.expiresAt ?? readNumber(claims.exp);
   const resolvedUser =
     userDetails
-      ? buildUserProfile(tokens, tokenResponse, userDetails)
-      : options?.user ?? buildUserProfile(tokens, tokenResponse, userDetails);
+      ? buildUserProfile(normalizedTokens, tokenResponse, userDetails)
+      : options?.user ?? buildUserProfile(normalizedTokens, tokenResponse, userDetails);
   const session: Session = {
-    token: tokens.accessToken,
-    tokenType: tokens.tokenType,
+    token: normalizedTokens.accessToken,
+    tokenType: normalizedTokens.tokenType,
     expiresAt:
       expiresAt && expiresAt > 10_000_000_000 ? expiresAt : expiresAt ? expiresAt * 1000 : undefined,
-    user: await hydrateUserShellAccess(tokens, resolvedUser),
+    authMode: normalizedTokens.authMode,
+    user: await hydrateUserShellAccess(normalizedTokens, resolvedUser),
   };
 
   return {
     session,
-    tokens,
+    tokens: normalizedTokens,
   } satisfies JwtSessionBundle;
 }
 
@@ -1027,8 +1047,9 @@ function parseStoredSession(value: unknown): Session | null {
 
   return {
     token: readString(value.token),
-    tokenType: readString(value.tokenType, "Bearer"),
+    tokenType: normalizeTokenType(value.tokenType),
     expiresAt: readNumber(value.expiresAt),
+    authMode: normalizeAuthMode(value.authMode),
     user: {
       id: readStringish(value.user.id),
       name: readString(value.user.name, "User"),
@@ -1059,8 +1080,12 @@ export function persistJwtSession(bundle: JwtSessionBundle) {
   }
 
   const payload: StoredJwtAuthState = {
+    authMode: normalizeAuthMode(bundle.tokens.authMode ?? bundle.session.authMode),
     session: bundle.session,
-    tokens: bundle.tokens,
+    tokens: {
+      ...bundle.tokens,
+      authMode: normalizeAuthMode(bundle.tokens.authMode ?? bundle.session.authMode),
+    },
   };
 
   window.localStorage.setItem(authStorageKey, JSON.stringify(payload));
@@ -1094,11 +1119,25 @@ export function restoreStoredJwtSession(): RestoredJwtSession | null {
     }
 
     const rawTokens = isRecord(parsed.tokens) ? parsed.tokens : parsed;
+    const authMode = normalizeAuthMode(
+      parsed.authMode ?? rawTokens.authMode ?? parsed.mode ?? rawTokens.mode,
+    );
+    const accessToken =
+      readString(rawTokens.accessToken) ||
+      readString(rawTokens.MAINSEQUENCE_ACCESS_TOKEN) ||
+      readString(parsed.MAINSEQUENCE_ACCESS_TOKEN) ||
+      readString(parsed.mainsequenceAccessToken);
     const tokens: StoredJwtTokens = {
-      accessToken: readString(rawTokens.accessToken),
-      refreshToken: readString(rawTokens.refreshToken) || null,
-      tokenType: readString(rawTokens.tokenType, "Bearer"),
-      expiresAt: readNumber(rawTokens.expiresAt),
+      accessToken,
+      refreshToken:
+        authMode === "runtime_credential"
+          ? null
+          : readString(rawTokens.refreshToken) || null,
+      tokenType: normalizeTokenType(
+        rawTokens.tokenType ?? rawTokens.token_type ?? parsed.tokenType ?? parsed.token_type,
+      ),
+      expiresAt: readNumber(rawTokens.expiresAt ?? parsed.expiresAt),
+      authMode,
     };
 
     if (!tokens.accessToken) {
@@ -1115,12 +1154,14 @@ export function restoreStoredJwtSession(): RestoredJwtSession | null {
               token: storedSession.token,
               tokenType: storedSession.tokenType,
               expiresAt: storedSession.expiresAt,
+              authMode,
               user: storedSession.user,
             }
           : {
               token: tokens.accessToken,
               tokenType: tokens.tokenType,
               expiresAt: tokens.expiresAt,
+              authMode,
               user: buildUserProfile(tokens),
             },
       tokens,
@@ -1135,7 +1176,11 @@ export function restoreStoredJwtSession(): RestoredJwtSession | null {
 export async function resolveStoredJwtSession(
   restored: RestoredJwtSession,
 ): Promise<JwtSessionBundle> {
-  if (shouldRefresh(restored.tokens.expiresAt) && restored.tokens.refreshToken) {
+  if (
+    restored.tokens.authMode !== "runtime_credential" &&
+    shouldRefresh(restored.tokens.expiresAt) &&
+    restored.tokens.refreshToken
+  ) {
     return refreshJwtSession(restored.tokens.refreshToken, restored.session.user);
   }
 

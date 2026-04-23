@@ -1,5 +1,7 @@
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import type { WidgetDefinition } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import {
   YieldCurvePlotWidget,
   type YieldCurvePlotWidgetProps,
@@ -10,7 +12,7 @@ export const yieldCurvePlotWidget: WidgetDefinition<YieldCurvePlotWidgetProps> =
   id: "yield-curve-plot",
   widgetVersion: "1.0.0",
   title: "Yield Curve Plot",
-  description: "Mock multi-curve rates plot for Demo dashboards rendered with Lightweight Charts.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Market",
   kind: "chart",
   source: "demo",

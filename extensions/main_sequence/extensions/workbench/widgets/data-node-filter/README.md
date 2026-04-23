@@ -8,6 +8,8 @@ charts and tables.
 ## Files
 
 - `definition.ts`: widget metadata and registration payload.
+- `DESCRIPTION.md`: short catalog description imported by `definition.ts` and published by backend
+  widget-type sync.
 - `dataNodeFilterExecution.ts`: headless executable-widget contract for direct Data Node fetches
   and bound-source transform publication. This is the runtime path that keeps `Data Node`
   publishing in settings/graph flows without requiring the visual widget component to mount.
@@ -121,6 +123,8 @@ charts and tables.
 
 - `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
   `registryContract`.
+- `description` is sourced from `DESCRIPTION.md`; keep that short catalog text accurate because it
+  is the value synced to the backend widget-type registry.
 - Keep the registry contract aligned with the real authoring surface here: source modes, transform
   modes, execution-owner behavior, published dataset contract, and manual-table workflow.
 - Bump `widgetVersion` when this widget's configuration model, published output contract, runtime

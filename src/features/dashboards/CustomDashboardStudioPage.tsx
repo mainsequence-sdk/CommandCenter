@@ -2831,7 +2831,7 @@ export function CustomDashboardStudioPage({
 
         <div
           ref={canvasScrollContainerRef}
-          data-workspace-snapshot-scroll-container=""
+          data-workspace-canvas-scroll-container="true"
           className={cn(
             "absolute inset-0 overflow-auto pr-4 pb-4 transition-[padding] duration-200",
             editMode ? "pl-12" : "pl-4",
@@ -2841,7 +2841,6 @@ export function CustomDashboardStudioPage({
         >
           {!dashboardMenuHidden ? (
             <div
-              data-workspace-snapshot-sticky-header=""
               className={cn(
                 "sticky top-0 z-40 mb-3 border-b px-0 py-2 backdrop-blur-xl",
                 editMode
@@ -2952,7 +2951,7 @@ export function CustomDashboardStudioPage({
 
           <div
             ref={gridRef}
-            data-workspace-snapshot-canvas-root=""
+            data-workspace-canvas-content="true"
             className="relative min-h-full"
             style={{
               minHeight:

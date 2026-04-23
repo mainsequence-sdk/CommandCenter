@@ -497,11 +497,11 @@ function formatSessionNotice(value: string) {
     };
   }
 
-  if (normalized.includes("Cross-agent session handoff is not implemented yet.")) {
+  if (normalized.startsWith("A new agent session was created by agent")) {
     return {
       detail: normalized,
       tone: "warning" as const,
-      title: "Cross-agent handoff unavailable",
+      title: "New agent session available",
     };
   }
 
@@ -513,7 +513,7 @@ function formatSessionNotice(value: string) {
 }
 
 function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }) {
-  const { sessionNotice } = useChatFeature();
+  const { activateSessionHandoff, pendingSessionHandoff, sessionNotice } = useChatFeature();
 
   if (!sessionNotice) {
     return null;
@@ -542,9 +542,18 @@ function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }
         >
           <AlertTriangle className="h-4 w-4" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-foreground">{formatted.title}</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">{formatted.detail}</div>
+          {pendingSessionHandoff ? (
+            <button
+              type="button"
+              className="mt-3 inline-flex rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50"
+              onClick={activateSessionHandoff}
+            >
+              Open session {pendingSessionHandoff.sessionId}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

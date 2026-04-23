@@ -1,7 +1,9 @@
 import { BarChart3 } from "lucide-react";
 
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import {
   MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT,
   normalizeMainSequenceDataSourceBundle,
@@ -36,7 +38,7 @@ export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNode
   id: "main-sequence-data-node-visualizer",
   widgetVersion: "1.1.0",
   title: "Data Node Graph",
-  description: "Turns Main Sequence data-node tables into charts, with a settings-only table preview.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Main Sequence Data Nodes",
   kind: "chart",
   source: "main_sequence_workbench",

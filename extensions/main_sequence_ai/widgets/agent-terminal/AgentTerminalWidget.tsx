@@ -16,8 +16,12 @@ import {
 import {
   resolveMainSequenceAiAssistantProtocol,
 } from "../../runtime/assistant-endpoint";
+import {
+  fetchAgentSessionDetail,
+  isAgentSessionNotFoundError,
+  type AgentSessionApiRecord,
+} from "../../runtime/agent-sessions-api";
 import { fetchSessionHistory } from "../../runtime/session-history-api";
-import { fetchSessionTools } from "../../runtime/session-tools-api";
 import "./AgentTerminalWidget.css";
 import { AGENT_TERMINAL_HISTORY_REFRESH_RUNTIME_KEY } from "./agentTerminalExecution";
 import {
@@ -31,6 +35,8 @@ import {
   buildAgentTerminalPlaceholderLines,
   buildAgentTerminalPrompt,
   buildAgentTerminalSessionLines,
+  buildAgentTerminalSessionNotFoundLines,
+  buildAgentTerminalValidationLines,
   createAgentTerminalInputLine,
   createAgentTerminalOutputLine,
   normalizeAgentTerminalWidgetProps,
@@ -48,6 +54,22 @@ import {
 } from "./agentTerminalWorkspace";
 
 type Props = WidgetComponentProps<AgentTerminalWidgetProps>;
+
+type PublishLatestAssistantMarkdownFn = (input: {
+  markdown: string | null | undefined;
+  triggerDownstream?: boolean;
+}) => Promise<void>;
+
+type HydrateSessionOptions = {
+  showLoading: boolean;
+  publishLatestAssistantOutput?: boolean;
+  fallbackLatestAssistantMarkdown?: string | null;
+};
+
+type HydrateSessionFn = (
+  targetSessionId: string,
+  options: HydrateSessionOptions,
+) => Promise<void>;
 
 function TerminalChromeHidden() {
   return null;
@@ -136,6 +158,63 @@ function buildWidgetContext({
   };
 }
 
+function inferAgentNameFromTitle({
+  sessionId,
+  title,
+}: {
+  sessionId: string;
+  title?: string | null;
+}) {
+  const normalizedTitle = title?.trim();
+  const normalizedSessionId = sessionId.trim();
+
+  if (!normalizedTitle || !normalizedSessionId) {
+    return null;
+  }
+
+  const sessionSuffix = `(${normalizedSessionId})`;
+
+  if (!normalizedTitle.endsWith(sessionSuffix)) {
+    return null;
+  }
+
+  const candidate = normalizedTitle.slice(0, -sessionSuffix.length).trim();
+
+  if (!candidate || candidate === "Agent Terminal") {
+    return null;
+  }
+
+  return candidate;
+}
+
+function buildValidatedSessionState({
+  fallbackAgentName,
+  record,
+  sessionId,
+}: {
+  fallbackAgentName: string | null | undefined;
+  record: AgentSessionApiRecord;
+  sessionId: string;
+}): AgentTerminalSessionState {
+  const displayAgentName =
+    record.actor_name?.trim() ||
+    record.agent_name?.trim() ||
+    fallbackAgentName?.trim() ||
+    "Agent session";
+  const requestAgentName =
+    record.agent_name?.trim() ||
+    fallbackAgentName?.trim() ||
+    record.actor_name?.trim() ||
+    null;
+
+  return {
+    agentName: displayAgentName,
+    requestAgentName,
+    sessionId,
+    threadId: null,
+  };
+}
+
 export function AgentTerminalWidget({
   instanceId,
   instanceTitle,
@@ -155,7 +234,9 @@ export function AgentTerminalWidget({
   const assistantProtocol = useMemo(() => resolveMainSequenceAiAssistantProtocol(), []);
   const [lines, setLines] = useState<AgentTerminalLine[]>(() => buildAgentTerminalPlaceholderLines());
   const [sessionState, setSessionState] = useState<AgentTerminalSessionState | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const sessionValidationControllerRef = useRef<AbortController | null>(null);
   const loadControllerRef = useRef<AbortController | null>(null);
   const streamControllerRef = useRef<AbortController | null>(null);
   const activeOutputLineIdRef = useRef<string | null>(null);
@@ -165,6 +246,8 @@ export function AgentTerminalWidget({
   const lastHistoryRefreshNonceRef = useRef<number | null>(null);
   const runtimeStateRef = useRef<Record<string, unknown> | undefined>(runtimeState);
   const sessionStateRef = useRef<AgentTerminalSessionState | null>(null);
+  const hydrateSessionRef = useRef<HydrateSessionFn | null>(null);
+  const publishLatestAssistantMarkdownRef = useRef<PublishLatestAssistantMarkdownFn | null>(null);
   const reasoningNoticeRef = useRef(false);
   const receivedTextRef = useRef(false);
   const streamedAssistantTextRef = useRef("");
@@ -182,6 +265,16 @@ export function AgentTerminalWidget({
       : null;
 
   const prompt = useMemo(() => buildAgentTerminalPrompt(sessionId), [sessionId]);
+  const configuredAgentName = useMemo(
+    () =>
+      normalizedProps.agentName?.trim() ||
+      inferAgentNameFromTitle({
+        sessionId,
+        title: instanceTitle,
+      }),
+    [instanceTitle, normalizedProps.agentName, sessionId],
+  );
+  const loadInitialHistory = normalizedProps.loadInitialHistory === true;
   const historyRefreshMode = normalizedProps.historyRefreshMode ?? "workspace";
   const historyRefreshIntervalSeconds =
     normalizedProps.historyRefreshIntervalSeconds ??
@@ -401,11 +494,7 @@ export function AgentTerminalWidget({
         fallbackLatestAssistantMarkdown,
         publishLatestAssistantOutput = false,
         showLoading,
-      }: {
-        showLoading: boolean;
-        publishLatestAssistantOutput?: boolean;
-        fallbackLatestAssistantMarkdown?: string | null;
-      },
+      }: HydrateSessionOptions,
     ) => {
       loadControllerRef.current?.abort();
       const controller = new AbortController();
@@ -419,50 +508,33 @@ export function AgentTerminalWidget({
       }
 
       try {
-        const [historyResult, toolsResult] = await Promise.allSettled([
-          fetchSessionHistory({
-            sessionId: targetSessionId,
-            signal: controller.signal,
-            token: sessionToken,
-            tokenType: sessionTokenType,
-          }),
-          fetchSessionTools({
-            sessionId: targetSessionId,
-            signal: controller.signal,
-            token: sessionToken,
-            tokenType: sessionTokenType,
-          }),
-        ]);
+        const history = await fetchSessionHistory({
+          sessionId: targetSessionId,
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
 
         if (controller.signal.aborted) {
           return;
         }
 
-        if (historyResult.status !== "fulfilled") {
-          throw historyResult.reason;
-        }
-
         const currentSessionState = sessionStateRef.current;
-        const history = historyResult.value;
-        const tools =
-          toolsResult.status === "fulfilled"
-            ? toolsResult.value
-            : null;
-        const toolSummary =
-          tools?.availableTools.length
-            ? tools.availableTools.map((tool) => tool.toolKey).join(", ")
-            : toolsResult.status === "rejected"
-              ? currentSessionState?.toolSummary ?? "unavailable"
-              : null;
+        const historyAgentName = history.session.agentName.trim();
+        const requestAgentName =
+          historyAgentName ||
+          currentSessionState?.requestAgentName ||
+          configuredAgentName ||
+          null;
         const nextSessionState: AgentTerminalSessionState = {
           agentName:
-            history.session.agentName.trim() ||
-            tools?.session.agentName.trim() ||
+            historyAgentName ||
             currentSessionState?.agentName ||
+            requestAgentName ||
             "Agent session",
+          requestAgentName,
           sessionId: targetSessionId,
           threadId: history.session.threadId ?? currentSessionState?.threadId ?? null,
-          toolSummary,
         };
 
         setSessionState(nextSessionState);
@@ -504,11 +576,20 @@ export function AgentTerminalWidget({
     },
     [
       focusPromptInput,
+      configuredAgentName,
       publishLatestAssistantMarkdown,
       sessionToken,
       sessionTokenType,
     ],
   );
+
+  useEffect(() => {
+    hydrateSessionRef.current = hydrateSession;
+  }, [hydrateSession]);
+
+  useEffect(() => {
+    publishLatestAssistantMarkdownRef.current = publishLatestAssistantMarkdown;
+  }, [publishLatestAssistantMarkdown]);
 
   useEffect(() => {
     runtimeStateRef.current = runtimeState;
@@ -521,46 +602,125 @@ export function AgentTerminalWidget({
       return;
     }
 
-    input.disabled = isStreaming;
+    input.disabled = isStreaming || !sessionReady;
 
     if (isStreaming) {
       input.blur();
       return;
     }
 
+    if (!sessionReady) {
+      return;
+    }
+
     const cursorPosition = input.value.length;
     input.focus({ preventScroll: true });
     input.setSelectionRange(cursorPosition, cursorPosition);
-  }, [isStreaming]);
+  }, [isStreaming, sessionReady]);
 
   useEffect(() => {
+    sessionValidationControllerRef.current?.abort();
     streamControllerRef.current?.abort();
     loadControllerRef.current?.abort();
     activeOutputLineIdRef.current = null;
     pendingHistoryRefreshRef.current = false;
     reasoningNoticeRef.current = false;
     receivedTextRef.current = false;
+    setSessionReady(false);
     setIsStreaming(false);
 
     if (!sessionId) {
       setSessionState(null);
       sessionStateRef.current = null;
       setLines(buildAgentTerminalPlaceholderLines());
-      void publishLatestAssistantMarkdown({
+      void publishLatestAssistantMarkdownRef.current?.({
         markdown: null,
       });
       focusPromptInput(6, 20);
       return;
     }
 
+    const controller = new AbortController();
+    sessionValidationControllerRef.current = controller;
+    setLines(buildAgentTerminalValidationLines(sessionId));
     focusPromptInput(6, 20);
-    void hydrateSession(sessionId, { showLoading: true });
+
+    void (async () => {
+      try {
+        const sessionDetail = await fetchAgentSessionDetail({
+          sessionId,
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const validatedSessionState = buildValidatedSessionState({
+          fallbackAgentName: configuredAgentName,
+          record: sessionDetail,
+          sessionId,
+        });
+
+        setSessionReady(true);
+        setSessionState(validatedSessionState);
+        sessionStateRef.current = validatedSessionState;
+
+        if (loadInitialHistory) {
+          void hydrateSessionRef.current?.(sessionId, { showLoading: true });
+          return;
+        }
+
+        setLines(
+          buildAgentTerminalSessionLines({
+            messages: [],
+            prompt,
+            session: validatedSessionState,
+          }),
+        );
+        void publishLatestAssistantMarkdownRef.current?.({
+          markdown: null,
+        });
+        focusPromptInput(8, 40);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setSessionReady(false);
+        setSessionState(null);
+        sessionStateRef.current = null;
+        setLines(
+          isAgentSessionNotFoundError(error)
+            ? buildAgentTerminalSessionNotFoundLines(sessionId)
+            : buildAgentTerminalErrorLines(
+                error instanceof Error
+                  ? error.message
+                  : "Failed to validate the configured AgentSession.",
+              ),
+        );
+        void publishLatestAssistantMarkdownRef.current?.({
+          markdown: null,
+        });
+      }
+    })();
 
     return () => {
+      sessionValidationControllerRef.current?.abort();
       streamControllerRef.current?.abort();
       loadControllerRef.current?.abort();
     };
-  }, [hydrateSession, publishLatestAssistantMarkdown, sessionId]);
+  }, [
+    configuredAgentName,
+    focusPromptInput,
+    loadInitialHistory,
+    prompt,
+    sessionId,
+    sessionToken,
+    sessionTokenType,
+  ]);
 
   const sendTerminalInput = useCallback(
     async ({
@@ -591,6 +751,21 @@ export function AgentTerminalWidget({
         return;
       }
 
+      if (!sessionReady) {
+        if (automated) {
+          pendingHistoryRefreshRef.current = true;
+          return;
+        }
+
+        appendLine(
+          createAgentTerminalOutputLine({
+            text: "[unavailable] AgentSession is not validated. Wait for validation or reselect a valid session in widget settings.",
+            tone: "danger",
+          }),
+        );
+        return;
+      }
+
       const activeSession = sessionStateRef.current;
 
       if (!sessionId || !activeSession) {
@@ -607,6 +782,22 @@ export function AgentTerminalWidget({
         appendLine(
           createAgentTerminalOutputLine({
             text: "[unavailable] Load a valid AgentSession before sending terminal input.",
+            tone: "danger",
+          }),
+        );
+        return;
+      }
+
+      if (!activeSession.requestAgentName) {
+        if (automated) {
+          pendingHistoryRefreshRef.current = true;
+          void hydrateSession(sessionId, { showLoading: false });
+          return;
+        }
+
+        appendLine(
+          createAgentTerminalOutputLine({
+            text: "[unavailable] Agent name is missing. Reselect the session in widget settings or enable initial history load once to recover it.",
             tone: "danger",
           }),
         );
@@ -632,7 +823,7 @@ export function AgentTerminalWidget({
       try {
         await streamAgentSessionResponse({
           body: buildAgentSessionLiveRequestBody({
-            agentName: activeSession.agentName,
+            agentName: activeSession.requestAgentName,
             context: buildWidgetContext({
               instanceId,
               sessionId,
@@ -643,7 +834,7 @@ export function AgentTerminalWidget({
             sessionId,
             threadId: activeSession.threadId ?? sessionId,
             userId: sessionUserId,
-            workflowKey: activeSession.agentName,
+            workflowKey: activeSession.requestAgentName,
           }),
           onChunk: (chunk) => {
             if (chunk.type === "text-delta") {
@@ -695,6 +886,7 @@ export function AgentTerminalWidget({
                 const nextState = {
                   ...current,
                   agentName: nextAgentName ?? current.agentName,
+                  requestAgentName: nextAgentName ?? current.requestAgentName,
                   threadId: nextThreadId ?? current.threadId,
                 };
                 sessionStateRef.current = nextState;
@@ -772,6 +964,7 @@ export function AgentTerminalWidget({
       isStreaming,
       prompt,
       sessionId,
+      sessionReady,
       sessionToken,
       sessionTokenType,
       sessionUserId,
@@ -781,7 +974,7 @@ export function AgentTerminalWidget({
 
   const requestRefreshAction = useCallback(
     (targetSessionId: string) => {
-      if (!targetSessionId) {
+      if (!targetSessionId || !sessionReady) {
         return;
       }
 
@@ -802,7 +995,7 @@ export function AgentTerminalWidget({
       pendingHistoryRefreshRef.current = false;
       void hydrateSession(targetSessionId, { showLoading: false });
     },
-    [automatedRefreshInput, hydrateSession, isStreaming, sendTerminalInput],
+    [automatedRefreshInput, hydrateSession, isStreaming, sendTerminalInput, sessionReady],
   );
 
   useEffect(() => {
@@ -845,7 +1038,12 @@ export function AgentTerminalWidget({
     requestRefreshAction(sessionId);
   }, [historyRefreshNonce, requestRefreshAction, sessionId]);
   useEffect(() => {
-    if (historyRefreshMode !== "interval" || !sessionId || typeof window === "undefined") {
+    if (
+      historyRefreshMode !== "interval" ||
+      !sessionId ||
+      !sessionReady ||
+      typeof window === "undefined"
+    ) {
       return;
     }
 
@@ -861,9 +1059,10 @@ export function AgentTerminalWidget({
     historyRefreshMode,
     requestRefreshAction,
     sessionId,
+    sessionReady,
   ]);
   useEffect(() => {
-    if (!sessionId || isStreaming || !pendingHistoryRefreshRef.current) {
+    if (!sessionId || !sessionReady || isStreaming || !pendingHistoryRefreshRef.current) {
       return;
     }
 
@@ -873,6 +1072,7 @@ export function AgentTerminalWidget({
     automatedRefreshInput,
     requestRefreshAction,
     sessionId,
+    sessionReady,
     sessionState?.sessionId,
   ]);
   useLayoutEffect(

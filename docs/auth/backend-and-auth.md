@@ -147,6 +147,53 @@ Important behavior:
 - the shell now resolves org-admin access from `effective_permissions` returned by the dedicated
   shell-access endpoint
 
+## Runtime credential browser auth
+
+Runtime credential auth is a second restored-session mode for machine-run browsers. It is designed
+for automation that controls a real browser, injects browser storage, opens a protected SPA route,
+and lets the mounted Command Center runtime make its normal API calls.
+
+It is not the canonical interactive login path. Human login continues to use the standard JWT
+access-token plus refresh-token flow described above.
+
+Automation writes `command-center.jwt-auth` before navigation with `authMode:
+"runtime_credential"` and either a normal `tokens.accessToken` value or the runner-friendly
+`MAINSEQUENCE_ACCESS_TOKEN` field:
+
+```json
+{
+  "authMode": "runtime_credential",
+  "tokens": {
+    "accessToken": "<MAINSEQUENCE_ACCESS_TOKEN>",
+    "tokenType": "Bearer",
+    "refreshToken": null
+  }
+}
+```
+
+Compact runner shape:
+
+```json
+{
+  "authMode": "runtime_credential",
+  "MAINSEQUENCE_ACCESS_TOKEN": "<runtime access JWT>"
+}
+```
+
+Runtime credential behavior:
+
+- every request still uses `Authorization: Bearer <runtime access JWT>`
+- the credential is treated as a scoped machine/runtime identity, not a normal interactive
+  JWT+refresh browser session
+- no refresh token is required or persisted
+- `401` responses are not refreshable in this mode
+- logout only clears local browser state and does not call the interactive logout endpoint
+- boot still resolves user details and shell access through the configured backend endpoints
+
+The backend contract changes only if the runtime credential cannot call the same user-details,
+shell-access, workspace, widget, and Main Sequence endpoints needed by the automated browser run.
+No snapshot-specific auth endpoint is added on the frontend.
+
 ## Command Center shell-access contract
 
 Identity and Command Center shell visibility are now separate contracts.

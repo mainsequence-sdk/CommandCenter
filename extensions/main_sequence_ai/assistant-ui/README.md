@@ -165,6 +165,9 @@ This boundary owns a feature-local session layer that:
 - rehydrates the selected session from `/api/chat/history?sessionId=<AgentSession.id>` when the
   user selects a backend session, then replaces the local cached transcript with the backend
   history payload
+- stages cross-agent `new_session` stream events as pending handoffs: the target AgentSession is
+  added locally, latest sessions are refreshed, and the notice offers an immediate open-session
+  action
 - lets page surfaces search agents and start a new session attached to the selected agent
 - applies `agent_id=<selected agent id>` to the latest-sessions query after the user picks an
   agent from the session search bar

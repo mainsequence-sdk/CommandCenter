@@ -28,8 +28,10 @@ export function AgentTerminalWidgetSettings({
   resolvedInputs,
 }: WidgetSettingsComponentProps<AgentTerminalWidgetProps>) {
   const normalizedProps = normalizeAgentTerminalWidgetProps(draftProps);
+  const agentName = normalizedProps.agentName ?? "";
   const sessionId = normalizedProps.agentSessionId ?? "";
   const previewPrompt = buildAgentTerminalPrompt(sessionId || "session");
+  const loadInitialHistory = normalizedProps.loadInitialHistory === true;
   const historyRefreshMode = normalizedProps.historyRefreshMode ?? "workspace";
   const historyRefreshIntervalSeconds =
     normalizedProps.historyRefreshIntervalSeconds ??
@@ -66,14 +68,17 @@ export function AgentTerminalWidgetSettings({
           onClear={() => {
             onDraftPropsChange({
               ...normalizedProps,
+              agentName: undefined,
               agentSessionId: undefined,
             });
           }}
-          onSelect={({ session }) => {
+          onSelect={({ agent, session }) => {
             const nextSessionId = getAgentSessionRecordSessionId(session);
+            const nextAgentName = agent.name || session.actor_name || session.agent_name || "";
 
             onDraftPropsChange({
               ...normalizedProps,
+              agentName: nextAgentName,
               agentSessionId: nextSessionId,
             });
 
@@ -85,7 +90,7 @@ export function AgentTerminalWidgetSettings({
             ) {
               onInstanceTitleChange(
                 buildAgentTerminalSessionWidgetTitle({
-                  agentName: session.actor_name || session.agent_name || undefined,
+                  agentName: nextAgentName,
                   sessionId: nextSessionId,
                 }),
               );
@@ -95,10 +100,38 @@ export function AgentTerminalWidgetSettings({
       </section>
 
       <section className="space-y-3">
+        <label className="flex items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-3 py-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-border"
+            checked={loadInitialHistory}
+            disabled={!editable}
+            onChange={(event) => {
+              onDraftPropsChange({
+                ...normalizedProps,
+                loadInitialHistory: event.target.checked,
+              });
+            }}
+          />
+          <span className="space-y-1">
+            <span className="block text-sm font-medium text-topbar-foreground">
+              Load initial history
+            </span>
+            <span className="block text-sm text-muted-foreground">
+              Off by default. When disabled, the widget makes no assistant runtime request on mount;
+              it only calls the runtime after manual terminal input, an automated refresh prompt, or
+              an explicit history refresh.
+            </span>
+          </span>
+        </label>
+      </section>
+
+      <section className="space-y-3">
         <div>
           <div className="text-sm font-medium text-topbar-foreground">History refresh</div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Control when the widget reloads session history after the initial mount.
+            Control when the widget reloads session history after mount. Initial history loading is
+            controlled separately above.
           </p>
         </div>
 
@@ -155,7 +188,7 @@ export function AgentTerminalWidgetSettings({
             <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-3 py-3 text-sm text-muted-foreground">
               {historyRefreshMode === "workspace"
                 ? "The widget listens to workspace refresh and refresh-interval cycles."
-                : "Automatic history refresh is disabled after the initial session load."}
+                : "Automatic history refresh is disabled."}
             </div>
           )}
         </div>
@@ -203,8 +236,13 @@ export function AgentTerminalWidgetSettings({
           <div className="space-y-2 px-4 py-4 font-mono text-xs leading-6 text-foreground">
             <div className="text-muted-foreground">
               {sessionId
-                ? `[session] Attached to AgentSession ${sessionId}`
+                ? `[session] Attached to ${agentName || "AgentSession"} ${sessionId}`
                 : "[configure] Select an agent and session to enable the widget."}
+            </div>
+            <div className="text-muted-foreground">
+              {loadInitialHistory
+                ? "[initial-load] Session history loads when the widget mounts."
+                : "[initial-load] No runtime request is sent when the widget mounts."}
             </div>
             <div className="text-muted-foreground">
               {historyRefreshMode === "workspace"

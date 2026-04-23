@@ -1,6 +1,8 @@
 import { WORKSPACE_ROW_WIDGET_ID } from "@/dashboards/structural-widgets";
+import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
 import { defineWidget } from "@/widgets/types";
 
+import descriptionMarkdown from "./DESCRIPTION.md?raw";
 import { WorkspaceRowWidget, type WorkspaceRowWidgetProps } from "./WorkspaceRowWidget";
 import { WorkspaceRowWidgetSettings } from "./WorkspaceRowWidgetSettings";
 
@@ -8,8 +10,7 @@ export const workspaceRowWidget = defineWidget<WorkspaceRowWidgetProps>({
   id: WORKSPACE_ROW_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Row",
-  description:
-    "Workspace row header that can collapse or expand the following sibling widgets.",
+  description: resolveWidgetDescription(descriptionMarkdown),
   category: "Core",
   kind: "custom",
   source: "core",

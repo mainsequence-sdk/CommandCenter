@@ -121,7 +121,10 @@ const sidebars = {
           type: "category",
           label: "Shell And Extensions",
           collapsed: true,
-          items: ["adr/adr-extension-contributed-shell-settings-menus"],
+          items: [
+            "adr/adr-extension-contributed-shell-settings-menus",
+            "adr/adr-runtime-credential-browser-auth",
+          ],
         },
         {
           type: "category",

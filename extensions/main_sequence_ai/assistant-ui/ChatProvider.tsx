@@ -41,6 +41,7 @@ import { cancelChatSession } from "../runtime/session-cancel-api";
 import {
   attachAgentToSession,
   buildAgentSessionTitle,
+  createAgentSessionFromStreamHandoff,
   createDefaultAgentSessionAgent,
   createEmptyAgentSession,
   DEFAULT_AGENT_LABEL,
@@ -112,6 +113,11 @@ export interface ActiveSessionSummary {
   toolsError: string | null;
 }
 
+export interface PendingSessionHandoff {
+  agentId: string | null;
+  sessionId: string;
+}
+
 interface ChatFeatureContextValue {
   activeAgentLabel: string;
   activeAgentName: string;
@@ -120,6 +126,7 @@ interface ChatFeatureContextValue {
   activeSessionDisplayId: string | null;
   activeSessionPreview: string | null;
   activeSessionUpdatedAt: string | null;
+  activateSessionHandoff: () => void;
   availableModels: AvailableChatModelOption[];
   availableModelsError: string | null;
   availableProviders: AvailableChatProviderOption[];
@@ -145,6 +152,7 @@ interface ChatFeatureContextValue {
   isLoadingSessionTools: boolean;
   latestSessionsError: string | null;
   minimizeToRail: () => void;
+  pendingSessionHandoff: PendingSessionHandoff | null;
   railMode: ChatRailMode;
   refreshSessionInsights: () => void;
   runStatus: ChatRunStatus;
@@ -600,6 +608,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [baseSessionError, setBaseSessionError] = useState<string | null>(null);
   const [latestSessionsError, setLatestSessionsError] = useState<string | null>(null);
   const [latestSessionsAgentFilterId, setLatestSessionsAgentFilterId] = useState<number | null>(null);
+  const [latestSessionsRefreshNonce, setLatestSessionsRefreshNonce] = useState(0);
   const [sessionToolsBySessionId, setSessionToolsBySessionId] = useState<
     Record<string, SessionToolsSnapshot>
   >({});
@@ -612,6 +621,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [isLoadingSessionTools, setIsLoadingSessionTools] = useState(false);
   const [sessionToolsError, setSessionToolsError] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const [pendingSessionHandoff, setPendingSessionHandoff] =
+    useState<PendingSessionHandoff | null>(null);
   const [sessionSelectionMode, setSessionSelectionMode] = useState<"auto" | "explicit">("auto");
   const shouldSignalNewChatRef = useRef(true);
   const pendingNewChatRequestRef = useRef(false);
@@ -1150,6 +1161,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, [
     latestSessionsAgentFilterId,
+    latestSessionsRefreshNonce,
     sessionToken,
     sessionTokenType,
     sessionUserId,
@@ -1782,6 +1794,49 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setCurrentSessionId(nextSessionId);
   }, []);
 
+  const stageCrossAgentSessionHandoff = useCallback(
+    (streamSession: StreamCreatedAgentSession, agentId: string | null) => {
+      const nextSessionId = streamSession.agentSessionId;
+
+      setAgentSessions((currentSessions) => {
+        const existingSession = currentSessions.find((session) => session.id === nextSessionId);
+        const handoffSession = createAgentSessionFromStreamHandoff(
+          streamSession,
+          existingSession,
+        );
+
+        return sortAgentSessions([
+          handoffSession,
+          ...currentSessions.filter((session) => session.id !== nextSessionId),
+        ]);
+      });
+      setPendingSessionHandoff({
+        agentId,
+        sessionId: nextSessionId,
+      });
+      setLatestSessionsAgentFilterId(null);
+      setLatestSessionsRefreshNonce((current) => current + 1);
+      setSessionNotice(
+        `A new agent session was created by agent ${agentId ?? "unknown"}: ${nextSessionId}.`,
+      );
+    },
+    [],
+  );
+
+  const activateSessionHandoff = useCallback(() => {
+    const handoff = pendingSessionHandoff;
+
+    if (!handoff) {
+      return;
+    }
+
+    persistSessionMessages();
+    setSessionSelectionMode("explicit");
+    setCurrentSessionId(handoff.sessionId);
+    setPendingSessionHandoff(null);
+    setSessionNotice(null);
+  }, [pendingSessionHandoff, persistSessionMessages]);
+
   const selectAgentSession = useCallback(
     (sessionId: string) => {
       if (currentSessionIdRef.current === sessionId) {
@@ -1790,6 +1845,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       persistSessionMessages();
       setSessionSelectionMode("explicit");
+      setPendingSessionHandoff(null);
+      setSessionNotice(null);
       setCurrentSessionId(sessionId);
     },
     [persistSessionMessages],
@@ -2305,9 +2362,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           pendingNewChatRequestRef.current = false;
           setSessionNotice(null);
         } else {
-          setSessionNotice(
-            `A new agent session was created by agent ${chunkAgentId}. Cross-agent session handoff is not implemented yet.`,
-          );
+          stageCrossAgentSessionHandoff(streamSession, chunkAgentId);
         }
 
         return;
@@ -2643,6 +2698,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeSessionDisplayId,
       activeSessionPreview,
       activeSessionUpdatedAt,
+      activateSessionHandoff,
       availableModels,
       availableModelsError,
       availableProviders,
@@ -2668,6 +2724,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       isLoadingSessionTools,
       latestSessionsError,
       minimizeToRail,
+      pendingSessionHandoff,
       railMode,
       refreshSessionInsights,
       runStatus,
@@ -2697,6 +2754,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeSessionDisplayId,
       activeSessionPreview,
       activeSessionUpdatedAt,
+      activateSessionHandoff,
       availableModels,
       availableModelsError,
       availableProviders,
@@ -2723,6 +2781,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       isLoadingSessionTools,
       latestSessionsError,
       minimizeToRail,
+      pendingSessionHandoff,
       railMode,
       refreshSessionInsights,
       runStatus,
