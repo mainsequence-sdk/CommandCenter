@@ -209,7 +209,7 @@ Examples:
 - supported target modes and auth strategies for `app-component`
 - transform support, parser behavior, or aggregation options where relevant
 
-### 6. `agentHints`
+### 6. `usageGuidance`
 
 Required for every widget:
 
@@ -282,7 +282,7 @@ Before a widget type can be published, it must have:
 - a runtime classification
 - a configuration mode
 - an IO mode
-- non-empty agent hints
+- non-empty usage guidance
 - capability summaries where applicable
 
 ## Widget Class Templates
@@ -297,7 +297,7 @@ Must define:
 
 - `runtime.workspaceRuntimeMode = "local-ui"`
 - `configuration`
-- `agentHints`
+- `usageGuidance`
 
 IO and execution sections can be minimal.
 
@@ -382,7 +382,7 @@ This ADR is not complete until every task below is done.
 
 - [x] Add `widgetVersion` to the shared widget definition contract in [src/widgets/types.ts](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/types.ts)
 - [x] Add explicit widget registry contract types to [src/widgets/types.ts](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/types.ts)
-- [x] Add standardized sections for `identity`, `runtime`, `configuration`, `io`, `capabilities`, `agentHints`, and `examples`
+- [x] Add standardized sections for `identity`, `runtime`, `configuration`, `io`, `capabilities`, `usageGuidance`, and `examples`
 - [x] Update [src/app/registry/widget-type-sync.ts](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/app/registry/widget-type-sync.ts) to serialize the explicit registry contract
 - [x] Bump `WIDGET_REGISTRY_VERSION` because the backend-visible manifest contract changed
 - [x] Keep safe fallback derivation for simple static widgets

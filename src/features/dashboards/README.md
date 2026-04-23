@@ -60,6 +60,8 @@ These flows are all part of one app surface, with instance state selected throug
 - Opening workspace settings adds `?workspace=<id>&view=settings`.
 - Opening widget-instance settings adds `?workspace=<id>&view=widget-settings&widget=<instanceId>`.
 - Opening the direct bindings inspector adds `?workspace=<id>&view=widget-settings&widget=<instanceId>&tab=bindings`.
+- Widget-instance settings include a direct `Widget type details` link to the canonical catalog
+  detail route for the underlying widget definition.
 - Persistence is browser-local and user-scoped through `localStorage` by default.
 - If `workspaces.list_url` and `workspaces.detail_url` are configured in `config/command-center.yaml`, the studio switches to backend persistence instead of browser-local storage.
 - Saved widget instances and groups require the four `saved_widgets.*` endpoints in `config/command-center.yaml`.
@@ -233,12 +235,39 @@ These flows are all part of one app surface, with instance state selected throug
 - Snapshot-capable widgets now auto-show their synthetic `Agent context` output in the workspace
   graph even before any edge exists. That keeps `Agent Terminal` bindings discoverable without
   forcing users to manually reveal the hidden context port first.
+- Collapsed graph nodes now keep their edge handles visible so users can still drag connections to
+  and from compact cards instead of having to expand the node first just to discover the port hit
+  target.
 - The graph node `Add output` chooser now opens as a floating panel outside the node card instead
   of a cramped inline form. The chooser keeps its own scrollable output list so browsing hidden
   outputs does not fight the main graph pan/zoom surface.
 - Workspace graph node expansion is now page-owned and height-aware. Expanding one card remeasures
   that node and repacks its column so cards below it move down instead of overlapping the expanded
   content.
+- Manual graph drag now wins for existing nodes. Once a user repositions a node, graph refresh and
+  regrouping should preserve that dragged position and should also preserve the node's selected
+  state instead of silently resetting it on the next derived-node pass.
+- Graph panning is now modifier-gated in the workspace graph. Plain click/drag is reserved for
+  node interaction, while canvas pan requires `Ctrl` or `Command` during drag so node selection
+  and node dragging are not stolen by the pane.
+- Workspace graph selection is page-owned instead of relying on React Flow's built-in element
+  selection. Plain click selects a single node or edge in the graph page state, pane clicks clear
+  that selection, and edge deletion is handled explicitly from that page-owned active edge.
+- Unbound source widgets are now easier to wire in graph mode. Widgets with exactly one output keep
+  that output visible even before any edge exists, and the graph uses a larger connection snap
+  radius so bindings such as `WorkspaceReference -> Agent Terminal` do not require perfect
+  placement just to start authoring.
+- The graph layout now also uses layout-only compatibility ordering for unbound pure source widgets.
+  A widget with outputs but no inputs, such as `WorkspaceReference`, is placed ahead of unbound
+  widgets whose inputs accept its contract so the first authoring pass does not leave both widgets
+  buried in one flat unconnected column.
+- Graph handles keep pointer interactivity forced on, but the visible handle size stays compact.
+  The graph should remain visually quiet while still allowing first-pass drag-to-connect authoring
+  on unbound widgets.
+- The workspace graph no longer mirrors React Flow `nodes` and `edges` through extra local state.
+  It now derives flow props directly from the dependency model plus minimal page-owned drag and
+  selection state. That avoids timer-driven and effect-driven re-sync loops that caused visual
+  blink and cursor instability in the graph surface.
 - The widget settings header now scopes its saved/unsaved badge and save-button enabled state to the
   selected workspace only. It must not reflect unrelated unsaved changes elsewhere in the workspace
   collection.

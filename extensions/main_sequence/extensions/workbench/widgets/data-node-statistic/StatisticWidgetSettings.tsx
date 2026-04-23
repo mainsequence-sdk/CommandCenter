@@ -294,6 +294,26 @@ export function StatisticWidgetSettings({
           </div>
 
           <div className={fieldClass}>
+            <label className={labelClass}>Value display label</label>
+            <Input
+              value={resolvedDraft.valueFieldLabel ?? ""}
+              onChange={(event) => {
+                onDraftPropsChange({
+                  ...draftProps,
+                  valueFieldLabel: event.target.value || undefined,
+                });
+              }}
+              placeholder={
+                resolvedDraft.valueField
+                  ? "Use source field label"
+                  : "Select a value field first"
+              }
+              className="h-8 text-xs"
+              disabled={!editable || resolvedDraft.statisticMode === "count"}
+            />
+          </div>
+
+          <div className={fieldClass}>
             <label className={labelClass}>Group by</label>
             <PickerField
               value={resolvedDraft.groupField ?? ""}

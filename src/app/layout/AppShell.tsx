@@ -66,6 +66,9 @@ export function AppShell() {
   const routeApp = routeSegments[1] ? getAppById(routeSegments[1]) : undefined;
   const routeSurface =
     routeApp && routeSegments[2] ? getAppSurfaceById(routeApp.id, routeSegments[2]) : undefined;
+  const widgetCatalogRoute =
+    routeSegments[1] === "workspace-studio" &&
+    routeSegments[2] === "widget-catalog";
   const workspaceCanvasRoute = isWorkspaceCanvasRoute(location.pathname, location.search);
   const kioskEligibleRoute =
     routeSurface?.kind === "dashboard" ||
@@ -197,13 +200,24 @@ export function AppShell() {
             className={cn(
               "min-h-0",
               fullBleedSurface
-                ? "overflow-hidden p-0"
+                ? widgetCatalogRoute
+                  ? "overflow-auto p-0"
+                  : "overflow-hidden p-0"
                 : kioskMode
                   ? "overflow-auto px-3 py-3 md:px-4 md:py-4"
                   : "overflow-auto px-2 py-3 md:px-3 md:py-4",
             )}
           >
-            <div className={cn("w-full", fullBleedSurface ? "h-full" : undefined)}>
+            <div
+              className={cn(
+                "w-full",
+                fullBleedSurface
+                  ? widgetCatalogRoute
+                    ? "min-h-full"
+                    : "h-full"
+                  : undefined,
+              )}
+            >
               <Outlet />
             </div>
           </main>

@@ -9,6 +9,7 @@ import {
   updateWidgetFieldExposure,
   useVisibleWidgetSchemaFields,
 } from "@/widgets/shared/widget-schema";
+import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import type {
   WidgetDefinition,
   WidgetInstancePresentation,
@@ -95,12 +96,12 @@ export function WidgetSchemaForm<
                     )}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-foreground">{field.label}</div>
-                        {field.description ? (
-                          <p className="text-sm text-muted-foreground">{field.description}</p>
-                        ) : null}
-                      </div>
+                      <WidgetSettingFieldLabel
+                        className="text-sm font-medium text-foreground"
+                        help={field.description}
+                      >
+                        {field.label}
+                      </WidgetSettingFieldLabel>
 
                       {canPop ? (
                         <Button

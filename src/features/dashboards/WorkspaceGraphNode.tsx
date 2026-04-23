@@ -54,7 +54,6 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   availableOutputs: WorkspaceGraphOutputPortData[];
   executionStatus?: "idle" | "running" | "success" | "error";
   executionFinishedAtMs?: number;
-  animationNowMs?: number;
   expanded?: boolean;
   dependencyHighlighted?: boolean;
   dependencyRoot?: boolean;
@@ -103,7 +102,7 @@ function GraphPortHandle({
       isConnectableEnd
       style={style}
       className={cn(
-        "!h-3 !w-3 !border-2 !border-background !bg-primary shadow-sm",
+        "!z-20 !pointer-events-auto !h-3 !w-3 !border-2 !border-background !bg-primary shadow-sm",
         highlighted &&
           "!bg-primary !ring-4 !ring-primary/25 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_35%,transparent),0_0_16px_-4px_color-mix(in_srgb,var(--primary)_65%,transparent)]",
         kind === "input" ? "!-left-1.5" : "!-right-1.5",
@@ -154,12 +153,6 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
       title: data.title,
       kind: data.widgetKind,
     },
-  );
-  const recentlyCompleted = Boolean(
-    data.executionStatus === "success" &&
-      data.executionFinishedAtMs &&
-      data.animationNowMs &&
-      data.animationNowMs - data.executionFinishedAtMs < 1800,
   );
   const selectedAvailableOutput = useMemo(
     () =>
@@ -333,9 +326,6 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
           data.executionStatus === "error"
             ? "border-danger/70 ring-2 ring-danger/15"
             : undefined,
-          recentlyCompleted
-            ? "border-success/75 ring-2 ring-success/15 shadow-[0_0_0_1px_color-mix(in_srgb,var(--success)_20%,transparent),0_18px_34px_-24px_color-mix(in_srgb,var(--success)_55%,transparent)]"
-            : undefined,
           data.dependencyHighlighted
             ? "border-primary/55 bg-primary/5 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent),0_18px_34px_-24px_color-mix(in_srgb,var(--primary)_32%,transparent)]"
             : undefined,
@@ -375,7 +365,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
               kind="input"
               portId={input.id}
               position={Position.Left}
-              className="!opacity-0"
+              className="!opacity-100"
               highlighted={input.dependencyHighlighted}
               style={{ top: resolveCollapsedHandleTop(index, data.inputs.length) }}
             />
@@ -386,7 +376,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
               kind="output"
               portId={output.id}
               position={Position.Right}
-              className="!opacity-0"
+              className="!opacity-100"
               highlighted={output.dependencyHighlighted}
               style={{ top: resolveCollapsedHandleTop(index, data.outputs.length) }}
             />

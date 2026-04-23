@@ -9,12 +9,16 @@ This directory contains reusable widget presentation primitives that are shared 
 - `widget-settings.tsx`: shared settings trigger plus the reusable full-page settings panel used to edit widget instances outside the old modal flow. It also exports the shared duplicate trigger used by workspace widget chrome.
 - `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, preview, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors.
 - `tabular-frame-source.ts`: shared generic tabular-frame contract and normalization helpers used when widgets bind table-like datasets across extension boundaries. It defines the platform-level `columns + rows + fields + source` shape so widget families do not invent incompatible table payloads.
-- `widget-description.ts`: normalizes raw `DESCRIPTION.md` content into the short catalog
-  description assigned to `WidgetDefinition.description` and published by backend widget-type sync.
+- `widget-usage-guidance.ts`: parses raw `USAGE_GUIDANCE.md` content into the short catalog
+  description assigned to `WidgetDefinition.description` and the structured `usageGuidance` payload
+  published by backend widget-type sync.
 - `widget-schema.ts`: shared helpers for widget schema visibility, controller context resolution, and exposed-field presentation state.
 - `widget-schema-form.tsx`: generic settings form renderer for schema-based widget fields. The form
   now supports per-field layout width through `WidgetFieldDefinition.settingsColumnSpan`, so shared
   schemas can place small controls side by side instead of forcing every field onto its own row.
+- `widget-setting-help.tsx`: shared `(i)` field-help tooltip primitives for widget settings and
+  generated input forms. Use this instead of local tooltip implementations when a widget field needs
+  concise inline guidance.
 - `widget-canvas-controls.tsx`: host for schema fields that are exposed as external companion cards beside a widget instance. The workspace studio still uses it to edit exposed-field state, while the shared dashboard viewer now renders companion fields through the dashboard canvas-item/runtime layout path instead of widget-local overlays.
 - `form-density.ts`: shared spacing and control-density classes for widget settings forms that need a tighter configuration surface.
   It also exposes reusable compact table-density classes for settings previews.
@@ -67,6 +71,9 @@ This directory contains reusable widget presentation primitives that are shared 
   `settingsColumnSpan` take the full section width, while fields that set `settingsColumnSpan: 1`
   share a row on medium+ viewports.
 - Dense widget settings should reuse the shared classes from `form-density.ts` instead of hand-rolling one-off compact control styles.
+- Widget settings fields should expose `(i)` help through `widget-setting-help.tsx` when the field
+  is not self-explanatory, especially for persisted props, binding-dependent controls, formatting
+  behavior, and controls with validation constraints.
 - Host surfaces should treat widget settings as a dedicated view or panel, not a narrow modal. The shared settings UI is intentionally layout-agnostic so workspace-style surfaces can give schema-heavy widgets a full-width editing experience.
 - The settings trigger should only be treated as the affordance for configurable widget instances. Preconfigured app-owned instances may choose to hide or lock that affordance at the surface level.
 - Header actions belong in the shared widget chrome when the control should live beside title/settings instead of consuming space inside the widget body.

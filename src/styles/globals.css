@@ -466,25 +466,7 @@ html[data-theme="cyberpunk"] :is(
   position: relative;
   isolation: isolate;
   border: 1px solid transparent;
-  background:
-    linear-gradient(
-        135deg,
-        rgba(255, 88, 186, 0.34) 0%,
-        rgba(143, 99, 255, 0.18) 18%,
-        rgba(18, 14, 32, 0.14) 48%,
-        rgba(17, 22, 38, 0.16) 78%,
-        rgba(70, 207, 255, 0.34) 100%
-      )
-      border-box,
-    linear-gradient(
-        90deg,
-        rgba(255, 88, 186, 0.05) 0%,
-        rgba(13, 11, 24, 0.96) 16%,
-        rgba(10, 9, 18, 0.98) 50%,
-        rgba(7, 12, 24, 0.96) 84%,
-        rgba(70, 207, 255, 0.05) 100%
-      )
-      padding-box;
+  background: color-mix(in srgb, var(--card) 94%, var(--background) 6%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.03),
     -8px 0 22px -20px rgba(255, 88, 186, 0.20),
@@ -531,25 +513,7 @@ html[data-theme="cyberpunk"] :is(
   [data-card-variant="default"],
   [data-widget-shell="default"][data-widget-surface="card"]
 ):hover {
-  background:
-    linear-gradient(
-        135deg,
-        rgba(255, 88, 186, 0.42) 0%,
-        rgba(143, 99, 255, 0.22) 18%,
-        rgba(20, 15, 36, 0.16) 48%,
-        rgba(18, 24, 42, 0.18) 78%,
-        rgba(70, 207, 255, 0.42) 100%
-      )
-      border-box,
-    linear-gradient(
-        90deg,
-        rgba(255, 88, 186, 0.06) 0%,
-        rgba(13, 11, 24, 0.97) 16%,
-        rgba(10, 9, 18, 0.99) 50%,
-        rgba(7, 12, 24, 0.97) 84%,
-        rgba(70, 207, 255, 0.06) 100%
-      )
-      padding-box;
+  background: color-mix(in srgb, var(--card) 96%, var(--background) 4%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     -10px 0 26px -22px rgba(255, 88, 186, 0.26),

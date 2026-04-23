@@ -1,9 +1,9 @@
 import { BarChart3 } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
   MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT,
   normalizeMainSequenceDataSourceBundle,
@@ -38,7 +38,7 @@ export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNode
   id: "main-sequence-data-node-visualizer",
   widgetVersion: "1.1.0",
   title: "Data Node Graph",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Data Nodes",
   kind: "chart",
   source: "main_sequence_workbench",
@@ -193,27 +193,7 @@ export const mainSequenceDataNodeGraphWidget = defineWidget<MainSequenceDataNode
       supportedTimeAxisModes: ["auto", "date", "datetime"],
       supportedGroupSelectionModes: ["all", "include", "exclude"],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to chart a bound Data Node dataset over time or another selected X-axis field.",
-      whenToUse: [
-        "Use when a Data Node dataset should be rendered as a line, area, or bar chart.",
-      ],
-      whenNotToUse: [
-        "Do not use when the widget should own the source data query or transform pipeline.",
-      ],
-      authoringSteps: [
-        "Bind the widget to a Data Node dataset.",
-        "Choose X and Y fields that match the intended chart.",
-        "Select provider, chart type, and grouping behavior as needed.",
-      ],
-      blockingRequirements: [
-        "A compatible upstream Data Node binding is required before field selectors become meaningful.",
-      ],
-      commonPitfalls: [
-        "Ambiguous date strings can make the inferred time axis behave unexpectedly.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   settingsComponent: MainSequenceDataNodeVisualizerWidgetSettings,
   component: MainSequenceDataNodeVisualizerWidget,

@@ -24,6 +24,7 @@ import {
   widgetTightFormSelectClass,
   widgetTightFormTitleClass,
 } from "@/widgets/shared/form-density";
+import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import { DataNodeFieldSchemaInspector } from "../data-node-shared/DataNodeFieldSchemaInspector";
@@ -69,6 +70,38 @@ const inputClass = widgetTightFormInputClass;
 const selectClass = widgetTightFormSelectClass;
 const colorInputClass = widgetTightFormColorInputClass;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
+const tableFieldHelp = {
+  density: "Controls row and cell spacing in the rendered table.",
+  sourceBinding: "Shows the upstream Data Node widget bound to this table. The binding supplies the canonical dataset; this widget only formats it.",
+  pageSize: "Sets how many rows AG Grid shows per page when pagination is enabled.",
+  surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset.",
+  columnKey: "Maps this table column to an incoming field key from the bound Data Node frame.",
+  columnLabel: "Overrides the header text shown for this column.",
+  columnFormat: "Controls how values are parsed and displayed. Text enables value chips; numeric formats enable decimals, compact numbers, heatmaps, data bars, gauges, and thresholds.",
+  columnDescription: "Optional header tooltip text for this table column.",
+  align: "Controls horizontal cell alignment. Auto chooses a default from the current column format.",
+  pin: "Keeps the column fixed on the left or right side while the table scrolls horizontally.",
+  decimals: "Overrides numeric precision for Number, Currency, Percent, and Bps columns. Leave blank for the inferred default.",
+  prefix: "Adds static text before the formatted value, for example $, USD, or approximately.",
+  suffix: "Adds static text after the formatted value, for example %, bps, kg, or units.",
+  compactNumbers: "Displays large numeric values in compact notation such as 1.2K or 4.5M.",
+  dataBar: "Draws an inline filled bar behind numeric values using the configured numeric bounds.",
+  heatmap: "Tints the full numeric cell background by normalized value intensity.",
+  heatmapPalette: "Selects the color ramp used by the heatmap. Auto uses a diverging ramp for mixed-sign columns and Viridis otherwise.",
+  gauge: "Adds an inline ring gauge for numeric values using the configured numeric bounds.",
+  numericBounds: "Controls the min and max used to normalize heatmaps, data bars, and gauges. Auto derives bounds from current rows; Fixed uses saved min and max values.",
+  minBound: "Saved lower bound used when Numeric bounds is set to Fixed.",
+  maxBound: "Saved upper bound used when Numeric bounds is set to Fixed.",
+  mappingColumn: "Text-formatted column where raw values should be converted into chips.",
+  mappingValue: "Raw source value that triggers this value mapping.",
+  mappingLabel: "Chip text shown instead of the raw value.",
+  tone: "Theme-aware semantic color used for the chip or threshold match.",
+  textColor: "Optional custom text color. Leave the theme color unless a specific override is required.",
+  fillColor: "Optional custom fill color. Leave the theme color unless a specific override is required.",
+  thresholdColumn: "Numeric-formatted column evaluated by this threshold rule.",
+  thresholdOperator: "Comparison used to match numeric cell values.",
+  thresholdValue: "Numeric value compared against each cell.",
+} satisfies Record<string, string>;
 function toColorInputValue(value: string | undefined, fallback: string) {
   if (value && hexColorPattern.test(value.trim())) {
     return value.trim().toLowerCase();
@@ -546,7 +579,9 @@ export function DataNodeTableWidgetSettings({
 
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
-            <label className={labelClass}>Source binding</label>
+            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.sourceBinding}>
+              Source binding
+            </WidgetSettingFieldLabel>
             <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-sm text-muted-foreground">
               {sourceBinding.resolvedSourceWidget ? (
                 <>
@@ -593,9 +628,9 @@ export function DataNodeTableWidgetSettings({
           </div>
 
           <div className={fieldClass}>
-            <label className={labelClass}>
+            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.density}>
               Density
-            </label>
+            </WidgetSettingFieldLabel>
             <Select
               className={selectClass}
               value={resolvedDraft.density}
@@ -616,9 +651,9 @@ export function DataNodeTableWidgetSettings({
           </div>
 
           <div className={fieldClass}>
-            <label className={labelClass}>
+            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.pageSize}>
               Page size
-            </label>
+            </WidgetSettingFieldLabel>
             <Input
               className={inputClass}
               type="number"
@@ -636,9 +671,9 @@ export function DataNodeTableWidgetSettings({
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <label className={labelClass}>
+            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.surfaceToggles}>
               Surface toggles
-            </label>
+            </WidgetSettingFieldLabel>
             <div className={widgetTightFormButtonGroupClass}>
               <Button
                 type="button"
@@ -805,9 +840,9 @@ export function DataNodeTableWidgetSettings({
 
                 <div className="grid gap-3 lg:grid-cols-[1fr,1.1fr,0.9fr,1.3fr]">
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnKey}>
                       Key
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Input
                       className={inputClass}
                       value={column.key}
@@ -822,9 +857,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnLabel}>
                       Label
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Input
                       className={inputClass}
                       value={column.label}
@@ -839,9 +874,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnFormat}>
                       Format
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={column.format}
@@ -864,9 +899,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnDescription}>
                       Description
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Input
                       className={inputClass}
                       value={column.description ?? ""}
@@ -884,9 +919,9 @@ export function DataNodeTableWidgetSettings({
 
                 <div className="grid gap-3 lg:grid-cols-3">
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.align}>
                       Align
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={override.align ?? "auto"}
@@ -907,9 +942,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.pin}>
                       Pin
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={override.pinned ?? "none"}
@@ -930,9 +965,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.decimals}>
                       Decimals
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Input
                       className={inputClass}
                       type="number"
@@ -956,9 +991,9 @@ export function DataNodeTableWidgetSettings({
 
                 <div className="grid gap-3 lg:grid-cols-4">
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.prefix}>
                       Prefix
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Input
                       className={inputClass}
                       value={override.prefix ?? ""}
@@ -974,9 +1009,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.suffix}>
                       Suffix
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Input
                       className={inputClass}
                       value={override.suffix ?? ""}
@@ -992,9 +1027,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className="space-y-2">
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.compactNumbers}>
                       Compact numbers
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <div className={widgetTightFormButtonGroupClass}>
                       <Button
                         type="button"
@@ -1028,9 +1063,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.dataBar}>
                       Data bar
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={override.barMode ?? "none"}
@@ -1051,9 +1086,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.heatmap}>
                       Heatmap
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={override.gradientMode ?? (override.heatmap ? "fill" : "none")}
@@ -1076,9 +1111,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.heatmapPalette}>
                       Heatmap palette
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={override.heatmapPalette ?? "auto"}
@@ -1103,9 +1138,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.gauge}>
                       Gauge
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={override.gaugeMode ?? "none"}
@@ -1129,9 +1164,9 @@ export function DataNodeTableWidgetSettings({
 
                 <div className="grid gap-3 lg:grid-cols-3">
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.numericBounds}>
                       Numeric bounds
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={override.visualRangeMode ?? "auto"}
@@ -1159,9 +1194,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.minBound}>
                       Min bound
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Input
                       className={inputClass}
                       type="number"
@@ -1185,9 +1220,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.maxBound}>
                       Max bound
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Input
                       className={inputClass}
                       type="number"
@@ -1274,9 +1309,9 @@ export function DataNodeTableWidgetSettings({
                   className="grid gap-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3 lg:grid-cols-[1.1fr,1.1fr,1.2fr,1fr,auto,auto,auto]"
                 >
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.mappingColumn}>
                       Column
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={entry.columnKey}
@@ -1301,9 +1336,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.mappingValue}>
                       Value
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={entry.value}
@@ -1325,9 +1360,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.mappingLabel}>
                       Display label
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Input
                       className={inputClass}
                       value={entry.label ?? ""}
@@ -1343,9 +1378,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.tone}>
                       Tone
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <Select
                       className={selectClass}
                       value={entry.tone ?? "primary"}
@@ -1366,9 +1401,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.textColor}>
                       Text
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <input
                       type="color"
                       value={toColorInputValue(entry.textColor, fallbackTextColor)}
@@ -1384,9 +1419,9 @@ export function DataNodeTableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <label className={labelClass}>
+                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.fillColor}>
                       Fill
-                    </label>
+                    </WidgetSettingFieldLabel>
                     <input
                       type="color"
                       value={toColorInputValue(entry.backgroundColor, fallbackFillColor)}
@@ -1482,9 +1517,9 @@ export function DataNodeTableWidgetSettings({
                   className="grid gap-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3 lg:grid-cols-[1.1fr,1fr,1fr,1fr,auto,auto,auto]"
                 >
                 <div className={fieldClass}>
-                  <label className={labelClass}>
+                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.thresholdColumn}>
                     Column
-                  </label>
+                  </WidgetSettingFieldLabel>
                   <Select
                     className={selectClass}
                     value={rule.columnKey}
@@ -1505,9 +1540,9 @@ export function DataNodeTableWidgetSettings({
                 </div>
 
                 <div className={fieldClass}>
-                  <label className={labelClass}>
+                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.thresholdOperator}>
                     Operator
-                  </label>
+                  </WidgetSettingFieldLabel>
                   <Select
                     className={selectClass}
                     value={rule.operator}
@@ -1528,9 +1563,9 @@ export function DataNodeTableWidgetSettings({
                 </div>
 
                 <div className={fieldClass}>
-                  <label className={labelClass}>
+                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.thresholdValue}>
                     Threshold
-                  </label>
+                  </WidgetSettingFieldLabel>
                   <Input
                     className={inputClass}
                     type="number"
@@ -1546,9 +1581,9 @@ export function DataNodeTableWidgetSettings({
                 </div>
 
                 <div className={fieldClass}>
-                  <label className={labelClass}>
+                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.tone}>
                     Tone
-                  </label>
+                  </WidgetSettingFieldLabel>
                   <Select
                     className={selectClass}
                     value={rule.tone ?? "primary"}
@@ -1569,9 +1604,9 @@ export function DataNodeTableWidgetSettings({
                 </div>
 
                 <div className={fieldClass}>
-                  <label className={labelClass}>
+                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.textColor}>
                     Text
-                  </label>
+                  </WidgetSettingFieldLabel>
                   <input
                     type="color"
                     value={toColorInputValue(rule.textColor, fallbackTextColor)}
@@ -1587,9 +1622,9 @@ export function DataNodeTableWidgetSettings({
                 </div>
 
                 <div className={fieldClass}>
-                  <label className={labelClass}>
+                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.fillColor}>
                     Fill
-                  </label>
+                  </WidgetSettingFieldLabel>
                   <input
                     type="color"
                     value={toColorInputValue(rule.backgroundColor, fallbackFillColor)}

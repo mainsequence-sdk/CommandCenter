@@ -5,6 +5,11 @@ import type {
   ResolvedWidgetInputs,
 } from "@/widgets/types";
 
+import {
+  isWorkspaceReferenceValue,
+  type WorkspaceReferenceValue,
+} from "../workspace/workspaceReference";
+
 export type AgentTerminalHistoryRefreshMode = "workspace" | "never" | "interval";
 
 export const DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_MODE = "workspace";
@@ -17,8 +22,10 @@ export const AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_RUNTIME_KEY = "latestAssis
 export const AGENT_TERMINAL_LATEST_ASSISTANT_UPDATED_AT_RUNTIME_KEY = "latestAssistantUpdatedAt";
 
 export type AgentTerminalWidgetProps = Record<string, unknown> & {
+  agentId?: string;
   agentName?: string;
   agentSessionId?: string;
+  blockUserInput?: boolean;
   loadInitialHistory?: boolean;
   historyRefreshMode?: AgentTerminalHistoryRefreshMode;
   historyRefreshIntervalSeconds?: number;
@@ -37,10 +44,22 @@ export interface AgentTerminalLine {
 
 export interface AgentTerminalSessionState {
   agentName: string;
+  llmModel?: string | null;
+  llmProvider?: string | null;
   requestAgentName: string | null;
   sessionId: string;
   threadId: string | null;
 }
+
+export type AgentTerminalUpstreamSource =
+  | {
+      kind: "widget-context";
+      context: WidgetAgentContextValue;
+    }
+  | {
+      kind: "workspace-reference";
+      reference: WorkspaceReferenceValue;
+    };
 
 function normalizeOptionalMarkdownString(value: unknown) {
   if (typeof value !== "string") {
@@ -57,6 +76,31 @@ function normalizeOptionalTrimmedString(value: unknown) {
 
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
+}
+
+export function formatAgentTerminalModelLabel({
+  model,
+  provider,
+}: {
+  model?: string | null;
+  provider?: string | null;
+}) {
+  const normalizedProvider = normalizeOptionalTrimmedString(provider) ?? null;
+  const normalizedModel = normalizeOptionalTrimmedString(model) ?? null;
+
+  if (normalizedProvider && normalizedModel) {
+    return `${normalizedProvider} · ${normalizedModel}`;
+  }
+
+  return normalizedModel ?? normalizedProvider ?? null;
+}
+
+function normalizeOptionalIdentifier(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return normalizeOptionalTrimmedString(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,10 +202,12 @@ function flattenThreadMessageText(message: ThreadMessageLike) {
 export function normalizeAgentTerminalWidgetProps(
   props: AgentTerminalWidgetProps,
 ): AgentTerminalWidgetProps {
+  const agentId = normalizeOptionalIdentifier(props.agentId);
   const normalizedSessionId =
     typeof props.agentSessionId === "string" ? props.agentSessionId.trim() : "";
   const agentName = normalizeOptionalTrimmedString(props.agentName);
   const loadInitialHistory = props.loadInitialHistory === true;
+  const blockUserInput = props.blockUserInput === true;
   const historyRefreshMode = normalizeAgentTerminalHistoryRefreshMode(props.historyRefreshMode);
   const historyRefreshIntervalSeconds = normalizeAgentTerminalHistoryRefreshIntervalSeconds(
     props.historyRefreshIntervalSeconds,
@@ -169,8 +215,10 @@ export function normalizeAgentTerminalWidgetProps(
   const promptOnRefresh = normalizeOptionalMarkdownString(props.promptOnRefresh);
 
   return {
+    ...(agentId ? { agentId } : {}),
     ...(agentName ? { agentName } : {}),
     ...(normalizedSessionId ? { agentSessionId: normalizedSessionId } : {}),
+    ...(blockUserInput ? { blockUserInput: true } : {}),
     ...(loadInitialHistory ? { loadInitialHistory: true } : {}),
     historyRefreshMode,
     ...(historyRefreshMode === "interval" || props.historyRefreshIntervalSeconds != null
@@ -186,11 +234,27 @@ export function resolveAgentTerminalRefreshPrompt(
   return normalizeOptionalMarkdownString(props.promptOnRefresh) ?? null;
 }
 
-export function resolveAgentTerminalUpstreamContexts(
+export function resolveAgentTerminalUpstreamSources(
   resolvedInputs?: ResolvedWidgetInputs,
 ) {
   return resolveValidResolvedInputs(resolvedInputs?.[AGENT_TERMINAL_UPSTREAM_CONTEXT_INPUT_ID])
-    .flatMap((entry) => (isWidgetAgentContextValue(entry.value) ? [entry.value] : []));
+    .flatMap((entry): AgentTerminalUpstreamSource[] => {
+      if (isWidgetAgentContextValue(entry.value)) {
+        return [{
+          kind: "widget-context",
+          context: entry.value,
+        }];
+      }
+
+      if (isWorkspaceReferenceValue(entry.value)) {
+        return [{
+          kind: "workspace-reference",
+          reference: entry.value,
+        }];
+      }
+
+      return [];
+    });
 }
 
 function formatAgentTerminalContextData(data: Record<string, unknown> | undefined) {
@@ -206,7 +270,7 @@ function formatAgentTerminalContextSection(
   index: number,
 ) {
   const lines = [
-    `## Widget ${index + 1}: ${context.title}`,
+    `## Source ${index + 1}: Widget ${context.title}`,
     `Widget id: ${context.widgetId}`,
     `Instance id: ${context.instanceId}`,
     `Display kind: ${context.snapshot.displayKind}`,
@@ -222,12 +286,33 @@ function formatAgentTerminalContextSection(
   return lines.join("\n");
 }
 
+function formatAgentTerminalWorkspaceReferenceSection(
+  reference: WorkspaceReferenceValue,
+  index: number,
+) {
+  return [
+    `## Source ${index + 1}: Workspace reference`,
+    `Workspace id: ${reference.id}`,
+  ].join("\n");
+}
+
+function formatAgentTerminalUpstreamSourceSection(
+  source: AgentTerminalUpstreamSource,
+  index: number,
+) {
+  if (source.kind === "workspace-reference") {
+    return formatAgentTerminalWorkspaceReferenceSection(source.reference, index);
+  }
+
+  return formatAgentTerminalContextSection(source.context, index);
+}
+
 export function buildAgentTerminalRefreshRequest({
   prompt,
-  upstreamContexts,
+  upstreamSources,
 }: {
   prompt: string | null;
-  upstreamContexts: WidgetAgentContextValue[];
+  upstreamSources: AgentTerminalUpstreamSource[];
 }) {
   const normalizedPrompt = normalizeOptionalMarkdownString(prompt);
 
@@ -235,17 +320,17 @@ export function buildAgentTerminalRefreshRequest({
     return null;
   }
 
-  if (upstreamContexts.length === 0) {
+  if (upstreamSources.length === 0) {
     return normalizedPrompt;
   }
 
   return [
     normalizedPrompt,
     "",
-    "Use the live widget context below as evidence for your answer.",
+    "Use the live widget context and workspace references below as evidence for your answer.",
     "",
-    ...upstreamContexts.map((context, index) =>
-      formatAgentTerminalContextSection(context, index),
+    ...upstreamSources.map((source, index) =>
+      formatAgentTerminalUpstreamSourceSection(source, index),
     ),
   ].join("\n");
 }
@@ -328,7 +413,7 @@ export function createAgentTerminalOutputLine({
 export function buildAgentTerminalPlaceholderLines() {
   return [
     createAgentTerminalOutputLine({
-      text: "[configure] Select an agent session in widget settings or add this terminal from Agents Monitor.",
+      text: "[configure] Select a supported agent in widget settings or add this terminal from Agents Monitor.",
       tone: "muted",
     }),
   ];
@@ -355,7 +440,7 @@ export function buildAgentTerminalValidationLines(sessionId: string) {
 export function buildAgentTerminalSessionNotFoundLines(sessionId: string) {
   return [
     createAgentTerminalOutputLine({
-      text: `[session-not-found] AgentSession ${sessionId} was not found in the backend. Reselect a valid session in widget settings.`,
+      text: `[session-not-found] AgentSession ${sessionId} was not found in the backend. Select the agent again or recycle the session from widget settings.`,
       tone: "danger",
     }),
   ];
@@ -375,11 +460,13 @@ export function buildAgentTerminalSessionLines({
   prompt,
   session,
   sessionError,
+  userInputBlocked = false,
 }: {
   messages: readonly ThreadMessageLike[];
   prompt: string;
   session: AgentTerminalSessionState;
   sessionError?: string | null;
+  userInputBlocked?: boolean;
 }) {
   const lines: AgentTerminalLine[] = [
     createAgentTerminalOutputLine({
@@ -423,12 +510,23 @@ export function buildAgentTerminalSessionLines({
   if (historyLines.length === 0) {
     lines.push(
       createAgentTerminalOutputLine({
-        text: "[ready] Session attached. Type a command to continue the conversation.",
+        text: userInputBlocked
+          ? "[ready] Session attached. Manual typing is blocked; refresh actions may still send the saved prompt."
+          : "[ready] Session attached. Type a command to continue the conversation.",
         tone: "muted",
       }),
     );
   } else {
     lines.push(...historyLines);
+  }
+
+  if (historyLines.length > 0 && userInputBlocked) {
+    lines.push(
+      createAgentTerminalOutputLine({
+        text: "[input-blocked] Manual typing is disabled for this terminal. Refresh actions may still send the saved prompt.",
+        tone: "muted",
+      }),
+    );
   }
 
   if (sessionError) {

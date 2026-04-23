@@ -1,7 +1,7 @@
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import type { WidgetDefinition } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
   YieldCurvePlotWidget,
   type YieldCurvePlotWidgetProps,
@@ -12,7 +12,7 @@ export const yieldCurvePlotWidget: WidgetDefinition<YieldCurvePlotWidgetProps> =
   id: "yield-curve-plot",
   widgetVersion: "1.0.0",
   title: "Yield Curve Plot",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Market",
   kind: "chart",
   source: "demo",
@@ -35,14 +35,7 @@ export const yieldCurvePlotWidget: WidgetDefinition<YieldCurvePlotWidgetProps> =
       mode: "none",
       summary: "This demo widget does not participate in the standardized typed IO model.",
     },
-    agentHints: {
-      buildPurpose: "Use this widget only for demo yield-curve visualizations backed by mock data.",
-      whenToUse: ["Use in demo dashboards where mock curve scenarios are acceptable."],
-      whenNotToUse: ["Do not use for production typed workspace authoring."],
-      authoringSteps: ["Set the market and comparison mode."],
-      blockingRequirements: [],
-      commonPitfalls: ["This is demo-only and not part of the Main Sequence Data Node runtime pipeline."],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: YieldCurvePlotWidget,
 };

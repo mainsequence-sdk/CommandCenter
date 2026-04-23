@@ -97,6 +97,7 @@ Files outside this folder that are intentionally touched:
 - `extensions/main_sequence_ai/app.ts`
 - `extensions/main_sequence_ai/features/chat/`
 - `extensions/main_sequence_ai/index.ts`
+- `extensions/main_sequence_ai/agent-session-detail/`
 - `extensions/main_sequence_ai/surfaces/chat/ChatPage.tsx`
 
 Files intentionally not modified by the feature runtime:
@@ -127,6 +128,8 @@ Responsibilities:
 - resolve the canonical Command Center base session from
   `/orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`
 - bind dynamic assistant-runtime access from that same bootstrap for AgentSession runtime calls
+- consume the shared `agent-session-detail/` controller instead of owning full AgentSession detail
+  composition inline
 - treat `activeSession` as a real backend-attached session only; local drafts/placeholders are
   selected sessions, but not active backend sessions
 - fail fast when the backend cannot provide the canonical base session and there is no explicit
@@ -161,6 +164,8 @@ This boundary owns a feature-local session layer that:
   inferring continuity from the latest `astro-orchestrator` session by name
 - exposes the selected session summary to the page shell so static session metadata can live in a
   dedicated rail instead of above the transcript
+- exposes the active shared AgentSession detail snapshot so chat chrome can render core detail
+  without duplicating fetch state
 - restores cached messages when the user switches sessions through the shared page explorer
 - rehydrates the selected session from `/api/chat/history?sessionId=<AgentSession.id>` when the
   user selects a backend session, then replaces the local cached transcript with the backend

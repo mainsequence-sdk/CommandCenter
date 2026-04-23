@@ -7,10 +7,10 @@ import {
   CORE_VALUE_NUMBER_CONTRACT,
   CORE_VALUE_STRING_CONTRACT,
 } from "@/widgets/shared/value-contracts";
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
   UPSTREAM_INSPECTOR_INPUT_ID,
   UpstreamInspectorWidget,
@@ -24,7 +24,7 @@ export const upstreamInspectorWidget = defineWidget<UpstreamInspectorWidgetProps
   id: UPSTREAM_INSPECTOR_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Upstream Inspector",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence AI",
   kind: "custom",
   source: "main_sequence_ai",
@@ -89,24 +89,7 @@ export const upstreamInspectorWidget = defineWidget<UpstreamInspectorWidgetProps
       ],
       supportedDisplayModes: ["markdown", "text"],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to inspect one bound upstream widget output during authoring or debugging.",
-      whenToUse: [
-        "Use when a workspace needs to show one upstream binding value directly.",
-      ],
-      whenNotToUse: [
-        "Do not use when the goal is to create a production data visualization instead of an inspection surface.",
-      ],
-      authoringSteps: [
-        "Bind one upstream output.",
-        "Choose how the value should be rendered.",
-      ],
-      blockingRequirements: [],
-      commonPitfalls: [
-        "Without a binding, the widget only shows fallback content from props.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: UpstreamInspectorWidget,
 });

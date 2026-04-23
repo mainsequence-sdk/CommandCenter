@@ -18,6 +18,14 @@ function normalizeAgentName(value: string | null | undefined) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function normalizeAgentId(value: string | number | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 function normalizeAgentSessionId(value: string | null | undefined) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -112,13 +120,16 @@ export function findAgentTerminalWidgetForSession(
 export function upsertAgentTerminalWidgetForSession(
   dashboard: DashboardDefinition,
   {
+    agentId,
     agentName,
     sessionId,
   }: {
+    agentId?: string | number | null;
     agentName?: string | null;
     sessionId: string;
   },
 ) {
+  const normalizedAgentId = normalizeAgentId(agentId);
   const normalizedSessionId = normalizeAgentSessionId(sessionId);
   const normalizedAgentName = normalizeAgentName(agentName);
 
@@ -138,6 +149,7 @@ export function upsertAgentTerminalWidgetForSession(
     );
     const nextProps = normalizeAgentTerminalWidgetProps({
       ...currentProps,
+      ...(normalizedAgentId ? { agentId: normalizedAgentId } : {}),
       ...(normalizedAgentName ? { agentName: normalizedAgentName } : {}),
       agentSessionId: normalizedSessionId,
     });
@@ -166,6 +178,7 @@ export function upsertAgentTerminalWidgetForSession(
       ...(
         appendedDashboard.widgets.find((widget) => widget.id === instanceId)?.props ?? {}
       ),
+      ...(normalizedAgentId ? { agentId: normalizedAgentId } : {}),
       ...(normalizedAgentName ? { agentName: normalizedAgentName } : {}),
       agentSessionId: normalizedSessionId,
     }),

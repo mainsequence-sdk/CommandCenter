@@ -20,7 +20,6 @@ import {
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import {
-  hasAnyPermission,
   hasOrganizationAdminAccess,
   hasPlatformAdminAccess,
 } from "@/auth/permissions";
@@ -153,12 +152,6 @@ export function Topbar() {
       to: getSurfacePath(surface),
       visible: true,
     })),
-    {
-      title: t("searchResults.widgetCatalogTitle"),
-      subtitle: t("searchResults.widgetCatalogSubtitle"),
-      to: "/app/widgets",
-      visible: hasAnyPermission(permissions, ["widget.catalog:view"]),
-    },
   ].filter((item) => item.visible ?? true);
 
   const filteredSearchItems = searchItems

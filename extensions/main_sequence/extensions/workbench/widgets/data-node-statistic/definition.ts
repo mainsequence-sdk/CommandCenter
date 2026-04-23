@@ -1,9 +1,9 @@
 import { Calculator } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../widget-contracts/mainSequenceDataSourceBundle";
 import { DATA_NODE_SOURCE_INPUT_ID } from "../data-node-shared/widgetBindings";
 import { StatisticWidget } from "./StatisticWidget";
@@ -12,9 +12,9 @@ import type { MainSequenceDataNodeStatisticWidgetProps } from "./statisticModel"
 
 export const mainSequenceDataNodeStatisticWidget = defineWidget<MainSequenceDataNodeStatisticWidgetProps>({
   id: "main-sequence-data-node-statistic",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: "Statistic",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Data Nodes",
   kind: "custom",
   source: "main_sequence_workbench",
@@ -83,27 +83,16 @@ export const mainSequenceDataNodeStatisticWidget = defineWidget<MainSequenceData
     },
     capabilities: {
       acceptedContracts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
-      supportedStatisticModes: ["last", "first", "sum", "average", "min", "max", "count"],
+      supportedStatisticModes: ["last", "first", "sum", "mean", "min", "max", "count"],
+      supportedColorModes: ["none", "range-rules", "change-from-last"],
+      supportedRangeOperators: ["gt", "gte", "lt", "lte", "eq"],
+      supportsSingleFieldGrouping: true,
+      supportsOrderField: true,
+      supportsValueFieldDisplayLabel: true,
+      supportsPrefixSuffixFormatting: true,
+      supportsSourceLabelDisplay: true,
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to surface one or more KPI-style values from a bound Data Node dataset.",
-      whenToUse: [
-        "Use when a Data Node dataset should be summarized into compact statistic cards.",
-      ],
-      whenNotToUse: [
-        "Do not use when the user needs the full table or a chart instead of reduced KPIs.",
-      ],
-      authoringSteps: [
-        "Bind the widget to a Data Node dataset.",
-        "Select the value field and statistic mode.",
-        "Optionally configure grouping and card presentation.",
-      ],
-      blockingRequirements: ["A compatible upstream Data Node binding is required."],
-      commonPitfalls: [
-        "Choosing a non-numeric value field limits which statistic modes are meaningful.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   settingsComponent: StatisticWidgetSettings,
   component: StatisticWidget,

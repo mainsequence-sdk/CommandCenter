@@ -17,10 +17,9 @@ explorer without moving presentational shell chrome into the runtime boundary.
   Reusable agent-first, session-second picker used by the Agent Terminal widget settings and the
   Agents Monitor workspace launcher. It now also surfaces backend session handles when present.
 - `SessionDetailRail.tsx`
-  Shared right-side session metadata rail for the selected `AgentSession` on the chat page. The
-  verbose session metadata is intentionally collapsed behind an in-rail disclosure. Session
-  insights now open in a modal instead of expanding inline, so the rail stays compact and tool
-  availability remains visible.
+  Shared right-side session rail for the selected `AgentSession` on the chat page. It renders the
+  session-summary launcher into the standalone AgentSession detail surface and still surfaces
+  runtime tool availability.
 - `repo-diff-api.ts`
   Tool-specific fetch/normalization layer for the `repo_diff` session tool. It validates the
   backend diff payload before the UI renders it.
@@ -28,10 +27,13 @@ explorer without moving presentational shell chrome into the runtime boundary.
 ## Dependencies
 
 - `extensions/main_sequence_ai/assistant-ui/ChatProvider.tsx`
-  Supplies the shared session list, active session state, normalized active session summary, and
-  session-start/select actions.
+  Supplies the shared session list, active session state, normalized active session summary,
+  shared detail snapshot, and session-start/select actions.
 - `extensions/main_sequence_ai/agent-search.ts`
   Supplies the shared quick-search transport helpers and result-label formatting.
+- `extensions/main_sequence_ai/agent-session-detail/`
+  Supplies the canonical AgentSession detail model/controller and the reusable detail sections that
+  the rail renders.
 - `extensions/main_sequence_ai/runtime/agent-sessions-api.ts`
   Supplies the shared backend session-list transport used outside the assistant-ui runtime.
 
@@ -43,12 +45,10 @@ explorer without moving presentational shell chrome into the runtime boundary.
   workspace launchers should stay in `runtime/`, not in assistant-ui.
 - If the explorer behavior changes for both chat and agents, update this module first so the two
   surfaces do not drift apart.
-- Session metadata presentation for the chat page lives here, not in the transcript pane.
-- `SessionDetailRail.tsx` now owns the presentational rendering for provider-owned session insights
-  fetched from `/api/chat/session-insights`, including the on-demand modal presentation and the
-  writable session-config editor for the backend-supported editable subset.
-- session-insights `info` metadata is used there as optional label/help text; missing info nodes
-  fall back to the frontend’s existing labels instead of blocking rendering.
+- Full AgentSession detail ownership does not live here. This directory only owns the chat-page
+  presentation of the shared detail capability.
+- `SessionDetailRail.tsx` must stay thin. The full AgentSession shell now lives on the dedicated
+  `surfaces/session/` page, and the rail should only summarize and deep-link there.
 - `repo_diff` uses the backend-provided tool `url` directly. The UI uses `diff.files` for the
   changed-file selector and `diff.patch` for the rendered unified diff body. The actual diff
   explorer opens in a modal instead of expanding inside the session rail.

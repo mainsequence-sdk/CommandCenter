@@ -11,10 +11,13 @@ The page itself is intentionally thin. It renders the full-page assistant surfac
 - `ChatPage.tsx`
   Full-page chat surface registered by `extensions/main_sequence_ai/app.ts`. It now owns the
   top-level page layout for the chat shell, including the left icon-only action rail, the optional
-  AgentSession explorer column, the optional session-detail rail, and the optional right-side
+  AgentSession explorer column, the optional session-summary rail, and the optional right-side
   raw-context panel.
 - `extensions/main_sequence_ai/features/chat/`
   Shared page-level AgentSession explorer UI reused by both the chat and agents surfaces.
+- `extensions/main_sequence_ai/surfaces/session/`
+  Dedicated standalone AgentSession page surface that the chat rail links into for full detail and
+  insights.
 
 ## Dependencies
 
@@ -33,9 +36,11 @@ The page itself is intentionally thin. It renders the full-page assistant surfac
   `features/chat/AgentSessionExplorer.tsx`. It should stay outside the global shell chat rail and
   outside assistant-ui runtime wiring.
 - Static selected-session metadata should not be rendered above the transcript. That information
-  now belongs in the dedicated session-detail rail.
+  now belongs in the dedicated AgentSession page surface.
 - The visible AgentSession list is backend-bootstrapped from the current latest-sessions endpoint,
   while local cached transcripts still live under the assistant-ui boundary.
+- The right-side rail is intentionally not the full detail shell anymore. It should summarize and
+  deep-link rather than duplicate the standalone session page.
 - If more AI surfaces are added later, add them as siblings under `surfaces/` instead of mixing them into the assistant-ui integration layer.
 - The sibling `surfaces/agents/` directory now reuses the same shared AgentSession explorer in a
   canvas layout instead of duplicating its own search UI.

@@ -7,7 +7,8 @@ This directory owns reusable presentational subcomponents for the shared page-le
 ## Entry Points
 
 - `../SessionDetailRail.tsx`
-  Read-only session metadata rail for the selected `AgentSession`.
+  Chat-page session rail for the selected `AgentSession`. It consumes shared AgentSession detail
+  sections and keeps chat-specific presentations like insights and tool rendering nearby.
 - `RepoDiffTool.tsx`
   Specialized renderer for the `repo_diff` session tool. It keeps the session rail compact and
   opens the backend-provided diff URL in a dedicated modal with changed-file navigation and a
@@ -16,7 +17,7 @@ This directory owns reusable presentational subcomponents for the shared page-le
 ## Dependencies
 
 - `extensions/main_sequence_ai/assistant-ui/ChatProvider.tsx`
-  Supplies the normalized active session summary and session-tool state.
+  Supplies the normalized active session summary and shared session detail state.
 - `../repo-diff-api.ts`
   Provides the typed backend diff adapter used by `RepoDiffTool.tsx`.
 

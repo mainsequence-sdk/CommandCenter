@@ -1,9 +1,9 @@
 import { Braces } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { resolveAppComponentWidgetIo } from "./appComponentDynamicIo";
 import { appComponentExecutionDefinition } from "./appComponentExecution";
 import { AppComponentRailSummary } from "./AppComponentRailSummary";
@@ -18,7 +18,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   id: "app-component",
   widgetVersion: "1.1.0",
   title: "AppComponent",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
   kind: "custom",
   source: "core",
@@ -296,30 +296,7 @@ export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
         "response:x-ui-role=editable-form with x-ui-widget=definition-v1",
       ],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget when a workspace needs to call one HTTP endpoint from an OpenAPI-described service and expose the result to users or downstream bindings.",
-      whenToUse: [
-        "Use when the service is OpenAPI-described and one selected operation is the unit of work.",
-        "Use when the request should be executable from the workspace refresh/runtime layer.",
-      ],
-      whenNotToUse: [
-        "Do not use when the request is a static data source better modeled as a Data Node.",
-        "Do not use when the service has no stable OpenAPI discovery path or release target.",
-      ],
-      authoringSteps: [
-        "Select target mode and valid service target or mock definition.",
-        "Discover OpenAPI and choose one operation.",
-        "Review generated request inputs and save the compiled binding spec.",
-      ],
-      blockingRequirements: [
-        "A saved bindingSpec is required before the widget can execute meaningfully at runtime.",
-      ],
-      commonPitfalls: [
-        "Changing the target or operation without recompiling the binding spec leaves the runtime contract stale.",
-        "Request-side and response-side UI metadata only apply when the selected OpenAPI operation or primary response schema advertises a supported UI contract.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
     examples: [
       {
         label: "Manual service request",

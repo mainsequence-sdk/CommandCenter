@@ -1,14 +1,14 @@
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import type { WidgetDefinition } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { HeatmapMatrixWidget } from "./HeatmapMatrixWidget";
 
 export const heatmapMatrixWidget: WidgetDefinition<{ desk?: string }> = {
   id: "heatmap-matrix-chart",
   widgetVersion: "1.0.0",
   title: "Heatmap Matrix",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Market",
   kind: "chart",
   source: "demo",
@@ -26,14 +26,7 @@ export const heatmapMatrixWidget: WidgetDefinition<{ desk?: string }> = {
       mode: "none",
       summary: "This demo widget does not participate in the standardized typed IO model.",
     },
-    agentHints: {
-      buildPurpose: "Use this widget only for demo heatmap layouts and mock market storytelling.",
-      whenToUse: ["Use in demo surfaces where mock heatmap data is acceptable."],
-      whenNotToUse: ["Do not use for production typed workspace authoring."],
-      authoringSteps: ["Optionally set the desk label."],
-      blockingRequirements: [],
-      commonPitfalls: ["This is demo-only and not a production data contract widget."],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: HeatmapMatrixWidget,
 };

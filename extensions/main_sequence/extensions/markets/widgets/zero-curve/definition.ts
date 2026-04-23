@@ -1,9 +1,9 @@
 import { LineChart } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../../workbench/widget-contracts/mainSequenceDataSourceBundle";
 import { DATA_NODE_SOURCE_INPUT_ID } from "../../../workbench/widgets/data-node-shared/widgetBindings";
 import { mainSequenceZeroCurveWidgetController } from "./controller";
@@ -15,7 +15,7 @@ export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWid
   id: "main-sequence-zero-curve",
   widgetVersion: "1.0.0",
   title: "Zero Curve",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",
@@ -79,24 +79,7 @@ export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWid
       acceptedContracts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
       renderer: "echarts",
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to visualize compressed curve data on a days-based zero-curve axis.",
-      whenToUse: [
-        "Use when the dataset is already shaped for zero-curve style rendering.",
-      ],
-      whenNotToUse: [
-        "Do not use when the source data should be visualized as a time series or generic table.",
-      ],
-      authoringSteps: [
-        "Bind the widget to a Data Node dataset.",
-        "Choose the fields that identify the curve values to render.",
-      ],
-      blockingRequirements: ["A compatible upstream Data Node binding is required."],
-      commonPitfalls: [
-        "This widget assumes a curve-oriented shape, not a generic time series schema.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: ZeroCurveWidget,
 });

@@ -21,7 +21,11 @@ export function isWidgetPreviewMode() {
 }
 
 export function getWidgetExplorerPath(widgetId: string) {
-  return `/app/widgets/${encodeURIComponent(widgetId)}`;
+  return getWidgetDetailsPath(widgetId);
+}
+
+export function getWidgetDetailsPath(widgetId: string) {
+  return `/app/workspace-studio/widget-catalog/${encodeURIComponent(widgetId)}`;
 }
 
 export function resolveWidgetMockProps<TProps extends Record<string, unknown>>(

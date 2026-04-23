@@ -1,10 +1,10 @@
 import { LineChart } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
   LIGHTWEIGHT_CHARTS_WIDGET_ORGANIZATION_CONFIGURATION,
   LightweightChartsSpecWidget,
@@ -18,7 +18,7 @@ export const priceChartWidget = defineWidget<{ symbol?: string }>({
   id: "price-chart",
   widgetVersion: "1.0.0",
   title: "Price Chart",
-  description: resolveWidgetDescription(descriptionMarkdown, "price-chart"),
+  description: resolveWidgetDescription(usageGuidanceMarkdown, "price-chart"),
   category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",
@@ -42,14 +42,7 @@ export const priceChartWidget = defineWidget<{ symbol?: string }>({
       mode: "none",
       summary: "This legacy chart widget owns its own local query behavior and does not use typed widget IO.",
     },
-    agentHints: {
-      buildPurpose: "Use this widget for a legacy simple market price chart.",
-      whenToUse: ["Use only when this legacy lightweight-charts widget is explicitly desired."],
-      whenNotToUse: ["Do not use when a newer data-node-backed chart should own the visualization."],
-      authoringSteps: ["Set the symbol to chart."],
-      blockingRequirements: [],
-      commonPitfalls: ["This widget is not part of the canonical typed Data Node chart pipeline."],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown, "price-chart"),
   },
   component: PriceChartWidget,
 });
@@ -58,7 +51,7 @@ export const lightweightChartsSpecWidget = defineWidget<LightweightChartsSpecWid
   id: "lightweight-charts-spec",
   widgetVersion: "1.0.0",
   title: "Lightweight Charts Spec",
-  description: resolveWidgetDescription(descriptionMarkdown, "lightweight-charts-spec"),
+  description: resolveWidgetDescription(usageGuidanceMarkdown, "lightweight-charts-spec"),
   category: "Visualization",
   kind: "chart",
   source: "lightweight-charts",
@@ -139,29 +132,7 @@ export const lightweightChartsSpecWidget = defineWidget<LightweightChartsSpecWid
         "{ \"$paletteScale\": \"diverging.default\", \"index\": 2, \"steps\": 5 }",
       ],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to render declarative time-series and financial charts directly through Lightweight Charts when a fixed-purpose chart widget would be too restrictive.",
-      whenToUse: [
-        "Use when the chart should be authored as a full Lightweight Charts spec instead of a tiny typed DSL.",
-        "Use when the visualization is time-series-native and fits Lightweight Charts better than ECharts.",
-        "Use when an upstream AppComponent or other JSON-producing widget should publish the chart props dynamically.",
-      ],
-      whenNotToUse: [
-        "Do not use for arbitrary graph, sankey, or layout-heavy visualizations that belong in ECharts.",
-        "Do not expect arbitrary JavaScript execution in this first version; the widget is safe JSON only.",
-      ],
-      authoringSteps: [
-        "Author the chartOptions and series definitions in JSON.",
-        "Attach the series data, markers, and price lines in the same spec.",
-        "Use theme tokens and palette references instead of hardcoded colors.",
-      ],
-      commonPitfalls: [
-        "The spec is declarative. It does not run arbitrary chart lifecycle code.",
-        "Bound props JSON overrides matching local widget props when both are present.",
-        "Series data still needs to match the chosen series type, for example OHLC objects for candlestick/bar series.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown, "lightweight-charts-spec"),
     examples: [
       {
         label: "Safe starter",

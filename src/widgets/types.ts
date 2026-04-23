@@ -374,7 +374,7 @@ export interface WidgetRegistryIoContract {
   ioNotes?: string[];
 }
 
-export interface WidgetRegistryAgentHints {
+export interface WidgetRegistryUsageGuidance {
   buildPurpose: string;
   whenToUse: string[];
   whenNotToUse: string[];
@@ -406,7 +406,7 @@ export interface WidgetRegistryContractInput {
   >;
   io?: Partial<WidgetRegistryIoContract>;
   capabilities?: Record<string, unknown>;
-  agentHints: WidgetRegistryAgentHints;
+  usageGuidance: WidgetRegistryUsageGuidance;
   examples?: WidgetRegistryExample[];
 }
 

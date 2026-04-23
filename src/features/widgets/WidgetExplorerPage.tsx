@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useMemo, type ReactNode } from "react";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { getWidgetById } from "@/app/registry";
@@ -10,57 +9,99 @@ import { hasAllPermissions } from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import {
-  DashboardControlsProvider,
-  DashboardDataControls,
-} from "@/dashboards/DashboardControls";
-import type { DashboardControlsConfig } from "@/dashboards/types";
-import { cn } from "@/lib/utils";
+import { cn, titleCase } from "@/lib/utils";
 import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
-import { WidgetFrame } from "@/widgets/shared/widget-frame";
-import type { WidgetDefinition, WidgetHeaderActionsProps } from "@/widgets/types";
+import type { WidgetDefinition, WidgetFieldDefinition } from "@/widgets/types";
 
-import {
-  WidgetPreviewModeBoundary,
-  resolveWidgetMockProps,
-  resolveWidgetMockRuntimeState,
-} from "./widget-explorer";
+const catalogPath = "/app/workspace-studio/widget-catalog";
 
-const widgetExplorerControls: DashboardControlsConfig = {
-  enabled: true,
-  timeRange: {
-    enabled: true,
-    defaultRange: "30d",
-    options: ["15m", "1h", "6h", "24h", "7d", "30d", "90d"],
-  },
-  refresh: {
-    enabled: true,
-    defaultIntervalMs: 300_000,
-    intervals: [null, 30_000, 60_000, 300_000, 600_000, 3_600_000],
-  },
-  actions: {
-    enabled: false,
-    share: false,
-    view: false,
-  },
-};
+function WidgetDetailsShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-h-full px-4 py-4 md:px-6 md:py-6">
+      <div className="mx-auto max-w-[1500px] pb-8">{children}</div>
+    </div>
+  );
+}
+
+function formatSource(source: string) {
+  return titleCase(source.replace(/[_-]+/g, " "));
+}
+
+function formatPermissions(permissions: string[] | undefined) {
+  return permissions?.length ? permissions.join(", ") : "None";
+}
+
+function resolveRuntimeMode(widget: WidgetDefinition) {
+  if (widget.workspaceRuntimeMode) {
+    return widget.workspaceRuntimeMode;
+  }
+
+  return widget.execution ? "execution-owner" : "local-ui";
+}
+
+function resolveConfigurationMode(widget: WidgetDefinition) {
+  if (widget.registryContract?.configuration?.mode) {
+    return widget.registryContract.configuration.mode;
+  }
+
+  if (widget.schema && widget.settingsComponent) {
+    return "hybrid";
+  }
+
+  if (widget.schema) {
+    return "static-schema";
+  }
+
+  if (widget.settingsComponent) {
+    return "custom-settings";
+  }
+
+  return "none";
+}
+
+function resolveRefreshPolicy(widget: WidgetDefinition) {
+  return widget.registryContract?.runtime?.refreshPolicy ?? (widget.execution ? "allow-refresh" : "not-applicable");
+}
 
 function PrettyJsonBlock({
   className,
   value,
 }: {
   className?: string;
-  value: Record<string, unknown>;
+  value: unknown;
 }) {
   return (
     <pre
       className={cn(
-        "overflow-x-auto rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/55 p-4 text-xs text-foreground",
+        "max-h-[360px] overflow-auto rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/55 p-4 text-xs text-foreground",
         className,
       )}
     >
       {JSON.stringify(value, null, 2)}
     </pre>
+  );
+}
+
+function KeyValueTable({
+  rows,
+}: {
+  rows: Array<{ label: string; value: string }>;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[620px] border-collapse text-sm">
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className="border-b border-border/60 last:border-b-0">
+              <th className="w-[220px] px-4 py-3 text-left text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                {row.label}
+              </th>
+              <td className="px-4 py-3 text-foreground">{row.value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -79,32 +120,25 @@ function groupSchemaFieldsBySection(widget: WidgetDefinition<Record<string, unkn
     .filter((entry) => entry.fields.length > 0);
 }
 
+function formatFieldMeta(field: WidgetFieldDefinition<Record<string, unknown>, unknown>) {
+  const items = [field.id];
+
+  if (field.category) {
+    items.push(`category: ${field.category}`);
+  }
+
+  if (field.pop?.canPop) {
+    items.push(field.pop.defaultPopped ? "canvas default" : "canvas available");
+  }
+
+  return items.join(" | ");
+}
+
 export function WidgetExplorerPage() {
   const { widgetId = "" } = useParams();
   const widget = widgetId ? getWidgetById(widgetId) : undefined;
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
   const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
-  const queryClient = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 0,
-          },
-        },
-      }),
-  )[0];
-
-  const previewProps = useMemo(
-    () =>
-      widget
-        ? resolveWidgetMockProps(widget as WidgetDefinition<Record<string, unknown>>)
-        : {},
-    [widget],
-  );
-  const [runtimeState, setRuntimeState] = useState<Record<string, unknown>>(() =>
-    widget ? resolveWidgetMockRuntimeState(widget) : {},
-  );
   const schemaSections = useMemo(
     () =>
       widget
@@ -119,21 +153,12 @@ export function WidgetExplorerPage() {
     !registeredWidgetTypes.endpointConfigured ||
     (widget ? registeredWidgetTypes.activeWidgetIdSet.has(widget.id) : false);
 
-  useEffect(() => {
-    return () => {
-      queryClient.clear();
-    };
-  }, [queryClient]);
-
-  useEffect(() => {
-    setRuntimeState(widget ? resolveWidgetMockRuntimeState(widget) : {});
-  }, [widget]);
-
   if (widget && registeredWidgetTypes.endpointConfigured && registeredWidgetTypes.isLoading) {
     return (
-      <div className="space-y-6">
+      <WidgetDetailsShell>
+        <div className="space-y-6">
         <PageHeader
-          eyebrow="Widget Explorer"
+          eyebrow="Widget Details"
           title="Loading widget registry"
           description="Waiting for the backend registered widget catalog before resolving this widget."
         />
@@ -144,20 +169,22 @@ export function WidgetExplorerPage() {
             Loading backend-registered widget types.
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </WidgetDetailsShell>
     );
   }
 
   if (!widget || !backendRegistered) {
     return (
-      <div className="space-y-6">
+      <WidgetDetailsShell>
+        <div className="space-y-6">
         <PageHeader
-          eyebrow="Widget Explorer"
+          eyebrow="Widget Details"
           title="Widget not found"
           description="The requested widget id is not available in the current registered widget catalog."
           actions={
             <Link
-              to="/app/widgets"
+              to={catalogPath}
               className="inline-flex h-10 items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border bg-card/80 px-4 text-sm font-medium text-card-foreground transition-colors hover:bg-muted/60"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -172,188 +199,170 @@ export function WidgetExplorerPage() {
             in the current registered widget catalog.
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </WidgetDetailsShell>
     );
   }
 
-  const Component = widget.component as ComponentType<{
-    widget: typeof widget;
-    instanceTitle?: string;
-    props: Record<string, unknown>;
-    runtimeState?: Record<string, unknown>;
-    onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-  }>;
-  const HeaderActions =
-    widget.headerActions as
-      | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
-      | undefined;
+  const inputs = widget.io?.inputs ?? [];
+  const outputs = widget.io?.outputs ?? [];
+  const registryContract = widget.registryContract;
+  const usageGuidance = registryContract?.usageGuidance;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Widget Explorer"
-        title={widget.title}
-        description={widget.description}
-        actions={
-          <>
+    <WidgetDetailsShell>
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Widget Details"
+          title={widget.title}
+          description={widget.description}
+          actions={
             <Link
-              to="/app/widgets"
+              to={catalogPath}
               className="inline-flex h-10 items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border bg-card/80 px-4 text-sm font-medium text-card-foreground transition-colors hover:bg-muted/60"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to catalog
             </Link>
-          </>
-        }
-      />
+          }
+        />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_360px]">
-        <div className="space-y-6">
+        {usageGuidance ? (
           <Card>
-            <CardHeader className="border-b border-border/70">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="neutral">{widget.kind}</Badge>
-                    <Badge variant="neutral">{widget.category}</Badge>
-                    <Badge variant="neutral">{widget.source}</Badge>
-                    <Badge variant={allowed ? "success" : "warning"}>
-                      {allowed ? "allowed" : "restricted"}
-                    </Badge>
-                  </div>
-                  <CardTitle>Interactive preview</CardTitle>
-                  <CardDescription>
-                    This route mounts the real widget component with isolated mock data, isolated
-                    query cache, and local-only runtime state.
-                  </CardDescription>
-                </div>
-
-                <div className="rounded-[calc(var(--radius)-6px)] border border-primary/20 bg-primary/8 px-4 py-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2 font-medium text-foreground">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    Mock explorer mode
-                  </div>
-                  <div className="mt-1">
-                    Runtime changes here do not touch the live dashboard instance.
-                  </div>
-                </div>
-              </div>
+            <CardHeader>
+              <CardTitle>Usage Guidance</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-5 pt-5">
-              <WidgetPreviewModeBoundary
-                fallback={
-                  <div className="flex min-h-[480px] items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 text-sm text-muted-foreground">
-                    Preparing widget preview…
-                  </div>
-                }
-              >
-                <QueryClientProvider client={queryClient}>
-                  <DashboardControlsProvider controls={widgetExplorerControls}>
-                    <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 p-3">
-                      <DashboardDataControls controls={widgetExplorerControls} />
-                    </div>
-                    <WidgetFrame
-                      widget={widget}
-                      instance={{ title: widget.title }}
-                      showExplorerTrigger={false}
-                      headerActions={
-                        HeaderActions ? (
-                          <HeaderActions
-                            widget={widget}
-                            props={previewProps}
-                            runtimeState={runtimeState}
-                            onRuntimeStateChange={(state) => {
-                              setRuntimeState(state ?? {});
-                            }}
-                          />
-                        ) : undefined
-                      }
-                    >
-                      <div className="min-h-[520px]">
-                        <Component
-                          widget={widget}
-                          instanceTitle={widget.title}
-                          props={previewProps}
-                          runtimeState={runtimeState}
-                          onRuntimeStateChange={(state) => {
-                            setRuntimeState(state ?? {});
-                          }}
-                        />
-                      </div>
-                    </WidgetFrame>
-                  </DashboardControlsProvider>
-                </QueryClientProvider>
-              </WidgetPreviewModeBoundary>
+            <CardContent className="space-y-5 text-sm">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Purpose</div>
+                <p className="mt-1 text-foreground">{usageGuidance.buildPurpose}</p>
+              </div>
+              <GuidanceList title="When to use" values={usageGuidance.whenToUse} />
+              <GuidanceList title="When not to use" values={usageGuidance.whenNotToUse} />
+              <GuidanceList title="Authoring steps" values={usageGuidance.authoringSteps} />
+              <GuidanceList title="Requirements" values={usageGuidance.blockingRequirements ?? []} />
+              <GuidanceList title="Common pitfalls" values={usageGuidance.commonPitfalls ?? []} />
             </CardContent>
           </Card>
-        </div>
+        ) : null}
 
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_420px]">
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Widget profile</CardTitle>
-              <CardDescription>Registry metadata, access rules, and default layout.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 text-sm">
-              <div className="grid gap-1">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">ID</div>
-                <div className="font-mono text-foreground">{widget.id}</div>
-              </div>
-              <div className="grid gap-1 sm:grid-cols-2">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Category</div>
-                  <div className="mt-1 text-foreground">{widget.category}</div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Kind</div>
-                  <div className="mt-1 text-foreground">{widget.kind}</div>
-                </div>
-              </div>
-              <div className="grid gap-1 sm:grid-cols-2">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Source</div>
-                  <div className="mt-1 text-foreground">{widget.source}</div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Default size</div>
-                  <div className="mt-1 text-foreground">
-                    {widget.defaultSize.w} × {widget.defaultSize.h}
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-1">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Permissions</div>
-                <div className="mt-1 text-foreground">
-                  {(widget.requiredPermissions ?? ["none"]).join(", ")}
-                </div>
-              </div>
-              <div className="grid gap-1">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Tags</div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(widget.tags ?? ["preview"]).map((tag) => (
-                    <Badge key={tag} variant="neutral">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Preview payload</CardTitle>
+              <CardTitle>Catalog Profile</CardTitle>
               <CardDescription>
-                Props injected into the explorer preview instead of a live workspace instance.
+                Stable registry fields used to choose and place this widget in a workspace.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <PrettyJsonBlock value={previewProps} />
+            <CardContent className="p-0">
+              <KeyValueTable
+                rows={[
+                  { label: "Widget ID", value: widget.id },
+                  { label: "Application / Source", value: formatSource(widget.source) },
+                  { label: "Category", value: titleCase(widget.category) },
+                  { label: "Type", value: widget.kind },
+                  { label: "Version", value: widget.widgetVersion },
+                  { label: "Runtime", value: resolveRuntimeMode(widget) },
+                  { label: "Configuration", value: resolveConfigurationMode(widget) },
+                  { label: "Refresh policy", value: resolveRefreshPolicy(widget) },
+                  { label: "Default size", value: `${widget.defaultSize.w} x ${widget.defaultSize.h}` },
+                  { label: "Required permissions", value: formatPermissions(widget.requiredPermissions) },
+                  { label: "Current user access", value: allowed ? "Allowed" : "Restricted" },
+                ]}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Ports</CardTitle>
+              <CardDescription>
+                Typed widget bindings this widget can consume or publish.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
               <div>
-                <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Runtime state
+                <div className="mb-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Inbound ports
                 </div>
-                <PrettyJsonBlock value={runtimeState} />
+                {inputs.length > 0 ? (
+                  <div className="overflow-x-auto rounded-[calc(var(--radius)-6px)] border border-border/70">
+                    <table className="w-full min-w-[760px] border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-border/70 bg-muted/35 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium">Port ID</th>
+                          <th className="px-4 py-3 text-left font-medium">Label</th>
+                          <th className="px-4 py-3 text-left font-medium">Accepted contracts</th>
+                          <th className="px-4 py-3 text-left font-medium">Cardinality</th>
+                          <th className="px-4 py-3 text-left font-medium">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {inputs.map((input) => (
+                          <tr key={input.id} className="border-b border-border/60 last:border-b-0 align-top">
+                            <td className="px-4 py-3 font-mono text-xs text-foreground">{input.id}</td>
+                            <td className="px-4 py-3 text-foreground">{input.label}</td>
+                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                              {input.accepts.join(", ")}
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {input.cardinality ?? "one"}
+                              {input.required ? " required" : ""}
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {input.description ??
+                                input.effects?.map((effect) => effect.description).filter(Boolean).join(" ") ??
+                                "No description provided."}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-sm text-muted-foreground">
+                    This widget does not declare inbound typed ports.
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="mb-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Outbound ports
+                </div>
+                {outputs.length > 0 ? (
+                  <div className="overflow-x-auto rounded-[calc(var(--radius)-6px)] border border-border/70">
+                    <table className="w-full min-w-[700px] border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-border/70 bg-muted/35 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium">Port ID</th>
+                          <th className="px-4 py-3 text-left font-medium">Label</th>
+                          <th className="px-4 py-3 text-left font-medium">Published contract</th>
+                          <th className="px-4 py-3 text-left font-medium">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {outputs.map((output) => (
+                          <tr key={output.id} className="border-b border-border/60 last:border-b-0 align-top">
+                            <td className="px-4 py-3 font-mono text-xs text-foreground">{output.id}</td>
+                            <td className="px-4 py-3 text-foreground">{output.label}</td>
+                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                              {output.contract}
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {output.description ?? "No description provided."}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-sm text-muted-foreground">
+                    This widget does not declare outbound typed ports.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -361,78 +370,119 @@ export function WidgetExplorerPage() {
           {schemaSections.length > 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Configuration schema</CardTitle>
+                <CardTitle>Configuration Fields</CardTitle>
                 <CardDescription>
-                  Field sections, descriptions, and which controls can be exposed on canvas.
+                  Settings fields exposed by this widget definition.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {schemaSections.map(({ section, fields }) => (
-                  <div
-                    key={section.id}
-                    className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 p-4"
-                  >
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium text-foreground">{section.title}</div>
-                      {section.description ? (
-                        <p className="text-sm text-muted-foreground">{section.description}</p>
-                      ) : null}
-                    </div>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-border/70 bg-muted/35 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        <th className="px-4 py-3 text-left font-medium">Section</th>
+                        <th className="px-4 py-3 text-left font-medium">Field</th>
+                        <th className="px-4 py-3 text-left font-medium">Description</th>
+                        <th className="px-4 py-3 text-left font-medium">Metadata</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {schemaSections.flatMap(({ section, fields }) =>
+                        fields.map((field) => (
+                          <tr key={field.id} className="border-b border-border/60 last:border-b-0 align-top">
+                            <td className="px-4 py-3 text-foreground">{section.title}</td>
+                            <td className="px-4 py-3 text-foreground">{field.label}</td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {field.description ?? section.description ?? "No description provided."}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                              {formatFieldMeta(field)}
+                            </td>
+                          </tr>
+                        )),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
 
-                    <div className="space-y-3">
-                      {fields.map((field) => (
-                        <div
-                          key={field.id}
-                          className="space-y-2 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-card/70 p-3"
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium text-foreground">{field.label}</div>
-                              {field.description ? (
-                                <p className="text-sm text-muted-foreground">{field.description}</p>
-                              ) : null}
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <Badge variant="neutral">{field.id}</Badge>
-                              {field.category ? <Badge variant="neutral">{field.category}</Badge> : null}
-                              {field.pop?.canPop ? (
-                                <Badge variant="success">
-                                  {field.pop.defaultPopped ? "canvas default" : "canvas available"}
-                                </Badge>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Tags</CardTitle>
+              <CardDescription>Search and grouping hints attached to the widget type.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {(widget.tags ?? []).length > 0 ? (
+                  widget.tags?.map((tag) => (
+                    <Badge key={tag} variant="neutral">
+                      {tag}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground">No tags declared.</span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {widget.exampleProps ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Example Props</CardTitle>
+                <CardDescription>
+                  Type-level example configuration shipped with this widget.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PrettyJsonBlock value={widget.exampleProps} />
               </CardContent>
             </Card>
           ) : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Explorer behavior</CardTitle>
-              <CardDescription>What this documentation tab guarantees.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                The explorer runs the widget in a fresh React Query cache, so previews do not reuse
-                data that may already be cached by the live application.
-              </p>
-              <p>
-                Data-backed widgets are forced onto mock adapters here, including chart streams and
-                the registered Main Sequence widgets used in the current build.
-              </p>
-              <p>
-                Runtime interactions such as selected cells, chart toggles, zoom, and node
-                selection remain local to this page and are discarded when the tab closes.
-              </p>
-            </CardContent>
-          </Card>
+          {registryContract?.capabilities ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Capabilities</CardTitle>
+                <CardDescription>
+                  Supported modes and behaviors declared by the widget type.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PrettyJsonBlock value={registryContract.capabilities} />
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </div>
+      </div>
+    </WidgetDetailsShell>
+  );
+}
+
+function GuidanceList({
+  title,
+  values,
+}: {
+  title: string;
+  values: string[];
+}) {
+  if (values.length === 0) {
+    return null;
+  }
+
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{title}</div>
+      <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+        {values.map((value) => (
+          <li key={value}>{value}</li>
+        ))}
+      </ul>
     </div>
   );
 }

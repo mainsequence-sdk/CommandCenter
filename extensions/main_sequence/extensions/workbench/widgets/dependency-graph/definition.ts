@@ -1,7 +1,7 @@
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { dependencyGraphExecutionDefinition } from "./dependencyGraphExecution";
 import {
   MainSequenceDependencyGraphWidget,
@@ -13,7 +13,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
   id: "main-sequence-dependency-graph",
   widgetVersion: "1.0.0",
   title: "Dependency Graph",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Infrastructure",
   kind: "chart",
   source: "main_sequence_workbench",
@@ -81,24 +81,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
       supportedSourceKinds: ["data_node", "simple_table"],
       supportedDirections: ["downstream", "upstream"],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to explore dependency relationships around one Main Sequence source resource.",
-      whenToUse: [
-        "Use when the user needs to inspect upstream or downstream update relationships.",
-      ],
-      whenNotToUse: [
-        "Do not use when the goal is to visualize a tabular Data Node dataset or time series chart.",
-      ],
-      authoringSteps: [
-        "Pick the source kind and source id.",
-        "Choose the graph direction to explore.",
-      ],
-      blockingRequirements: ["A valid source resource id is required."],
-      commonPitfalls: [
-        "The selected source kind determines which id field is relevant.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: MainSequenceDependencyGraphWidget,
 });

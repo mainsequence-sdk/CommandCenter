@@ -1,7 +1,7 @@
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { portfolioWeightsExecutionDefinition } from "./portfolioWeightsExecution";
 import {
   PortfolioWeightsWidget,
@@ -13,7 +13,7 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
   id: "portfolio-weights-table",
   widgetVersion: "1.0.0",
   title: "Portfolio Weights",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
   kind: "table",
   source: "main_sequence_markets",
@@ -67,24 +67,7 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
     capabilities: {
       supportedVariants: ["summary", "positions"],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to show target portfolio weights in summary or positions form for one portfolio.",
-      whenToUse: [
-        "Use when portfolio weights should be fetched directly from the Markets portfolio weights endpoint.",
-      ],
-      whenNotToUse: [
-        "Do not use when the source data already exists as a reusable Data Node dataset.",
-      ],
-      authoringSteps: [
-        "Set the portfolio id or target portfolio id.",
-        "Choose whether the table should show summary or positions.",
-      ],
-      blockingRequirements: ["A valid portfolio identifier is required."],
-      commonPitfalls: [
-        "The variant changes which columns and row shape the runtime payload exposes.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: PortfolioWeightsWidget,
 });

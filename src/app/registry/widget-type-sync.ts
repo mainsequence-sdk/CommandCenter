@@ -9,7 +9,7 @@ import type {
   WidgetInputEffect,
   WidgetInstancePresentation,
   WidgetIoDefinition,
-  WidgetRegistryAgentHints,
+  WidgetRegistryUsageGuidance,
   WidgetRegistryConfigurationContract,
   WidgetRegistryConfigurationFieldDescriptor,
   WidgetRegistryConfigurationMode,
@@ -28,7 +28,7 @@ import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
 const devAuthProxyPrefix = "/__command_center_auth__";
 
 // Bump when the JSON manifest contract changes in a backend-visible way.
-export const WIDGET_REGISTRY_VERSION = "2026-04-16";
+export const WIDGET_REGISTRY_VERSION = "2026-04-23";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -37,6 +37,7 @@ export interface SyncedWidgetTypePayload {
   widgetId: string;
   title: string;
   description: string;
+  widgetVersion: string;
   category: string;
   kind: WidgetDefinition["kind"];
   source: string;
@@ -44,7 +45,12 @@ export interface SyncedWidgetTypePayload {
   requiredPermissions: string[];
   schema: JsonValue;
   io: JsonValue;
+  defaultSize: JsonValue;
   defaultPresentation: JsonValue;
+  responsive: JsonValue;
+  usageGuidance: JsonValue;
+  capabilities: JsonValue;
+  examples: JsonValue;
   organizationConfigurationSchema: JsonValue;
   defaultOrganizationConfiguration: JsonValue;
   organizationConfigurationVersion: number | null;
@@ -390,8 +396,8 @@ function resolveIoContract(widget: WidgetDefinition): WidgetRegistryIoContract {
   };
 }
 
-function resolveAgentHints(widget: WidgetDefinition): WidgetRegistryAgentHints {
-  return widget.registryContract?.agentHints ?? {
+function resolveUsageGuidance(widget: WidgetDefinition): WidgetRegistryUsageGuidance {
+  return widget.registryContract?.usageGuidance ?? {
     buildPurpose: widget.description,
     whenToUse: [`Use when you need ${widget.title.toLowerCase()} behavior.`],
     whenNotToUse: ["Do not use when a more specific widget type already matches the use case."],
@@ -422,17 +428,11 @@ function resolveExamples(widget: WidgetDefinition): WidgetRegistryExample[] {
 function resolveWidgetSchemaPayload(widget: WidgetDefinition): JsonValue {
   const configuration = resolveConfigurationContract(widget);
   const runtime = resolveRuntimeContract(widget);
-  const agentHints = resolveAgentHints(widget);
-  const examples = resolveExamples(widget);
 
   return toJsonValue({
     contractVersion: 1,
-    widgetVersion: widget.widgetVersion,
     configuration,
     runtime,
-    capabilities: widget.registryContract?.capabilities ?? {},
-    agentHints,
-    examples,
   });
 }
 
@@ -477,6 +477,26 @@ function projectDefaultPresentation(
   return defaultPresentation ? toJsonValue(defaultPresentation) : {};
 }
 
+function projectDefaultSize(widget: WidgetDefinition): JsonValue {
+  return toJsonValue(widget.defaultSize);
+}
+
+function projectResponsive(widget: WidgetDefinition): JsonValue {
+  return widget.responsive ? toJsonValue(widget.responsive) : null;
+}
+
+function projectUsageGuidance(widget: WidgetDefinition): JsonValue {
+  return toJsonValue(resolveUsageGuidance(widget));
+}
+
+function projectCapabilities(widget: WidgetDefinition): JsonValue {
+  return toJsonValue(widget.registryContract?.capabilities ?? {});
+}
+
+function projectExamples(widget: WidgetDefinition): JsonValue {
+  return toJsonValue(resolveExamples(widget));
+}
+
 function projectOrganizationConfigurationSchema(
   widget: WidgetDefinition,
 ): JsonValue {
@@ -498,7 +518,7 @@ function validateWidgetType(widget: WidgetDefinition): WidgetTypeSyncValidationI
   const configuration = resolveConfigurationContract(widget);
   const runtime = resolveRuntimeContract(widget);
   const io = resolveIoContract(widget);
-  const agentHints = resolveAgentHints(widget);
+  const usageGuidance = resolveUsageGuidance(widget);
 
   if (!widget.widgetVersion.trim()) {
     issues.push({
@@ -540,34 +560,34 @@ function validateWidgetType(widget: WidgetDefinition): WidgetTypeSyncValidationI
     });
   }
 
-  if (!agentHints.buildPurpose.trim()) {
+  if (!usageGuidance.buildPurpose.trim()) {
     issues.push({
       widgetId: widget.id,
-      section: "agentHints",
+      section: "usage_guidance",
       message: "buildPurpose is required.",
     });
   }
 
-  if ((agentHints.whenToUse?.length ?? 0) === 0) {
+  if ((usageGuidance.whenToUse?.length ?? 0) === 0) {
     issues.push({
       widgetId: widget.id,
-      section: "agentHints",
+      section: "usage_guidance",
       message: "At least one whenToUse hint is required.",
     });
   }
 
-  if ((agentHints.whenNotToUse?.length ?? 0) === 0) {
+  if ((usageGuidance.whenNotToUse?.length ?? 0) === 0) {
     issues.push({
       widgetId: widget.id,
-      section: "agentHints",
+      section: "usage_guidance",
       message: "At least one whenNotToUse hint is required.",
     });
   }
 
-  if ((agentHints.authoringSteps?.length ?? 0) === 0) {
+  if ((usageGuidance.authoringSteps?.length ?? 0) === 0) {
     issues.push({
       widgetId: widget.id,
-      section: "agentHints",
+      section: "usage_guidance",
       message: "At least one authoring step is required.",
     });
   }
@@ -618,6 +638,7 @@ function projectWidgetType(widget: WidgetDefinition): SyncedWidgetTypePayload {
     widgetId: widget.id,
     title: widget.title,
     description: widget.description,
+    widgetVersion: widget.widgetVersion,
     category: widget.category,
     kind: widget.kind,
     source: widget.source,
@@ -625,7 +646,12 @@ function projectWidgetType(widget: WidgetDefinition): SyncedWidgetTypePayload {
     requiredPermissions: widget.requiredPermissions ?? [],
     schema: resolveWidgetSchemaPayload(widget),
     io: projectWidgetIo(effectiveIo, typeof widget.resolveIo === "function", ioContract),
+    defaultSize: projectDefaultSize(widget),
     defaultPresentation: projectDefaultPresentation(widget.defaultPresentation),
+    responsive: projectResponsive(widget),
+    usageGuidance: projectUsageGuidance(widget),
+    capabilities: projectCapabilities(widget),
+    examples: projectExamples(widget),
     organizationConfigurationSchema: projectOrganizationConfigurationSchema(widget),
     defaultOrganizationConfiguration: projectDefaultOrganizationConfiguration(widget),
     organizationConfigurationVersion: widget.organizationConfiguration?.version ?? null,

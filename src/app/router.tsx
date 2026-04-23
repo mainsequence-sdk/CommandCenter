@@ -1,4 +1,4 @@
-import { Navigate, createBrowserRouter } from "react-router-dom";
+import { Navigate, createBrowserRouter, useParams } from "react-router-dom";
 
 import { PermissionRoute } from "@/app/guards/PermissionRoute";
 import { ProtectedRoute } from "@/app/guards/ProtectedRoute";
@@ -15,7 +15,6 @@ import { ResetPasswordPage } from "@/features/auth/ResetPasswordPage";
 import { ExtensionsGalleryPage } from "@/features/extensions/ExtensionsGalleryPage";
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
-import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
 import { WidgetExplorerPage } from "@/features/widgets/WidgetExplorerPage";
 import { AccessRbacTeamDetailPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamDetailPage";
 import { LegacyDemoRedirect } from "../../extensions/demo/LegacyDemoRedirect";
@@ -25,6 +24,17 @@ import { MainSequenceExecutionVenueDetailPage } from "../../extensions/main_sequ
 import { MainSequencePortfolioGroupDetailPage } from "../../extensions/main_sequence/extensions/markets/features/portfolio-groups/MainSequencePortfolioGroupDetailPage";
 import { MainSequenceClusterDetailPage } from "../../extensions/main_sequence/extensions/workbench/features/clusters/MainSequenceClusterDetailPage";
 import { CHAT_PAGE_PATH } from "../../extensions/main_sequence_ai/assistant-ui/chat-ui-store";
+
+function LegacyWidgetDetailsRedirect() {
+  const { widgetId = "" } = useParams();
+
+  return (
+    <Navigate
+      to={`/app/workspace-studio/widget-catalog/${encodeURIComponent(widgetId)}`}
+      replace
+    />
+  );
+}
 
 export const router = createBrowserRouter([
   {
@@ -63,13 +73,25 @@ export const router = createBrowserRouter([
         path: "widgets",
         element: (
           <PermissionRoute anyOf={["widget.catalog:view"]}>
-            <WidgetCatalogPage />
+            <Navigate to="/app/workspace-studio/widget-catalog" replace />
           </PermissionRoute>
         ),
       },
       {
         path: "widgets/:widgetId",
-        element: <WidgetExplorerPage />,
+        element: (
+          <PermissionRoute anyOf={["widget.catalog:view"]}>
+            <LegacyWidgetDetailsRedirect />
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: "workspace-studio/widget-catalog/:widgetId",
+        element: (
+          <PermissionRoute anyOf={["widget.catalog:view"]}>
+            <WidgetExplorerPage />
+          </PermissionRoute>
+        ),
       },
       {
         path: "themes",

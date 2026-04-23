@@ -1,7 +1,7 @@
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import type { WidgetDefinition } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { OrderBookDepthWidget } from "./OrderBookDepthWidget";
 import { OrderBookWidget } from "./OrderBookWidget";
 
@@ -9,7 +9,7 @@ export const orderBookWidget: WidgetDefinition<{ symbol?: string }> = {
   id: "order-book",
   widgetVersion: "1.0.0",
   title: "Order Book",
-  description: resolveWidgetDescription(descriptionMarkdown, "order-book"),
+  description: resolveWidgetDescription(usageGuidanceMarkdown, "order-book"),
   category: "Execution",
   kind: "custom",
   source: "flow-lab",
@@ -27,14 +27,7 @@ export const orderBookWidget: WidgetDefinition<{ symbol?: string }> = {
       mode: "none",
       summary: "This extension widget does not expose a standardized typed IO contract.",
     },
-    agentHints: {
-      buildPurpose: "Use this widget to show a side-by-side bid and ask order book for one symbol.",
-      whenToUse: ["Use when an extension surface needs a compact order book view."],
-      whenNotToUse: ["Do not use when the workflow needs typed bindings or shared execution."],
-      authoringSteps: ["Set the target symbol."],
-      blockingRequirements: [],
-      commonPitfalls: ["This widget is an extension demo surface, not part of the typed workspace runtime model."],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown, "order-book"),
   },
   component: OrderBookWidget,
 };
@@ -43,7 +36,7 @@ export const orderBookDepthWidget: WidgetDefinition<{ symbol?: string }> = {
   id: "order-book-depth",
   widgetVersion: "1.0.0",
   title: "Order Book Depth",
-  description: resolveWidgetDescription(descriptionMarkdown, "order-book-depth"),
+  description: resolveWidgetDescription(usageGuidanceMarkdown, "order-book-depth"),
   category: "Execution",
   kind: "custom",
   source: "flow-lab",
@@ -61,14 +54,7 @@ export const orderBookDepthWidget: WidgetDefinition<{ symbol?: string }> = {
       mode: "none",
       summary: "This extension widget does not expose a standardized typed IO contract.",
     },
-    agentHints: {
-      buildPurpose: "Use this widget to show depth-oriented order book distribution for one symbol.",
-      whenToUse: ["Use when an extension surface needs a compact depth visualization."],
-      whenNotToUse: ["Do not use when the workflow needs typed bindings or shared execution."],
-      authoringSteps: ["Set the target symbol."],
-      blockingRequirements: [],
-      commonPitfalls: ["This widget is an extension demo surface, not part of the typed workspace runtime model."],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown, "order-book-depth"),
   },
   component: OrderBookDepthWidget,
 };

@@ -1,9 +1,9 @@
 import { Database } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { dataNodeFilterWidgetController } from "./controller";
 import { dataNodeFilterExecutionDefinition } from "./dataNodeFilterExecution";
 import { MainSequenceDataNodeFilterWidget } from "./MainSequenceDataNodeFilterWidget";
@@ -25,7 +25,7 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
   id: "main-sequence-data-node",
   widgetVersion: "1.1.0",
   title: "Data Node",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Data Nodes",
   kind: "custom",
   source: "main_sequence_workbench",
@@ -185,29 +185,7 @@ export const mainSequenceDataNodeFilterWidget = defineWidget<MainSequenceDataNod
       supportedTransformModes: ["none", "aggregate", "pivot", "unpivot"],
       publishesContract: MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT,
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget as the canonical tabular data source when other widgets need to consume one reusable Main Sequence dataset bundle.",
-      whenToUse: [
-        "Use when a workspace needs one shared dataset that drives tables, charts, or statistics.",
-        "Use when the source may come from a direct data node, another bound Data Node, or a manual table.",
-      ],
-      whenNotToUse: [
-        "Do not use when the widget only needs to render an existing upstream dataset without owning execution.",
-      ],
-      authoringSteps: [
-        "Select the source mode and source dataset.",
-        "Set date range behavior and any unique identifier filters.",
-        "Configure transform mode or output projection if the downstream shape needs to change.",
-      ],
-      blockingRequirements: [
-        "Direct mode requires a valid data node id.",
-        "Filter widget mode requires a valid bound upstream Data Node.",
-      ],
-      commonPitfalls: [
-        "Pivot and unpivot modes need their key fields configured or the output shape will not match expectations.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
     examples: [
       {
         label: "Canonical bound dataset",

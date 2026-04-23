@@ -1,9 +1,9 @@
 import { LineChart } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../../workbench/widget-contracts/mainSequenceDataSourceBundle";
 import { DATA_NODE_SOURCE_INPUT_ID } from "../../../workbench/widgets/data-node-shared/widgetBindings";
 import { mainSequenceCurvePlotWidgetController } from "./controller";
@@ -15,7 +15,7 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
   id: "main-sequence-curve-plot",
   widgetVersion: "1.0.0",
   title: "Curve Plot",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
   kind: "chart",
   source: "main_sequence_markets",
@@ -87,24 +87,7 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
       acceptedContracts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
       supportedMaturityUnits: ["auto", "months", "years"],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to render a yield-curve style chart from a bound Data Node dataset.",
-      whenToUse: [
-        "Use when the dataset has one maturity axis field and one numeric value field.",
-      ],
-      whenNotToUse: [
-        "Do not use when the desired chart is time-based instead of curve-based.",
-      ],
-      authoringSteps: [
-        "Bind the widget to a Data Node dataset.",
-        "Choose the maturity and value fields.",
-      ],
-      blockingRequirements: ["A compatible upstream Data Node binding is required."],
-      commonPitfalls: [
-        "The maturity field must contain values that can be interpreted as curve tenors.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: CurvePlotWidget,
 });

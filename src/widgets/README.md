@@ -45,9 +45,11 @@ Use these local docs before reading the implementation in code:
   work and publish outputs through runtime-state patches.
 - Widget definitions now also carry `widgetVersion` plus an explicit `registryContract` used for
   backend widget-type publication and agent-facing authoring metadata.
-- Widget catalog descriptions are sourced from each widget module's `DESCRIPTION.md` file through
-  `resolveWidgetDescription(...)`. The resolved `WidgetDefinition.description` string is what the
-  backend widget-type sync publishes.
+- Widget catalog descriptions and registry usage guidance are sourced from each widget module's
+  `USAGE_GUIDANCE.md` file through `resolveWidgetDescription(...)` and
+  `resolveWidgetUsageGuidance(...)`. The `buildPurpose` section becomes
+  `WidgetDefinition.description`, and the full structured guidance becomes backend-synced
+  `usageGuidance`.
 - Widget definitions can now also declare optional `organizationConfiguration` metadata. This is an
   opt-in widget capability used when one widget type supports organization-scoped defaults or
   guardrails. Widgets that omit it behave exactly as they do today.
@@ -81,7 +83,7 @@ Use these local docs before reading the implementation in code:
   gate. When the registered-widget-types list endpoint is configured, unsynced widget definitions
   must stay hidden even if they exist in the local frontend build.
 - `registryContract` is the backend-facing explanation layer for widget behavior. Use it to publish
-  configuration summary, runtime ownership, IO semantics, capabilities, agent hints, and examples.
+  configuration summary, runtime ownership, IO semantics, capabilities, usage guidance, and examples.
 - Simple widgets may still rely on safe fallback derivation from `schema`, `io`, `execution`, and
   `workspaceRuntimeMode`, but dynamic or non-trivial widgets should define an explicit
   `registryContract`.
@@ -140,8 +142,9 @@ Use these local docs before reading the implementation in code:
 
 - Prefer wiring new widget-level configuration through the shared settings modal before adding page-specific controls.
 - Keep this index updated when a new widget folder adds its own `README.md`.
-- Add a colocated `DESCRIPTION.md` for every widget type and import it with `?raw`; do not hardcode
-  top-level `WidgetDefinition.description` text inline in `definition.ts`.
+- Add a colocated `USAGE_GUIDANCE.md` for every widget type and import it with `?raw`; do not
+  hardcode top-level `WidgetDefinition.description` text or `registryContract.usageGuidance` inline in
+  `definition.ts`.
 - Bump `widgetVersion` whenever widget authoring semantics change materially, including changes to
   configuration model, accepted inputs, published outputs, runtime ownership, or capability modes.
 - Treat `organizationConfiguration` as widget-type metadata, not instance content. Put

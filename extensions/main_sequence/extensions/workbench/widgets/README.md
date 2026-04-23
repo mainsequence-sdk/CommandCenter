@@ -24,8 +24,9 @@ widget family in the live widget catalog.
 - Main Sequence apps may mount preconfigured widget instances, while dashboard/workspace builders may expose instance settings for the same widget definition.
 - Each widget listed above must keep its own local `README.md` current; do not rely on this folder
   index as the only documentation.
-- Each registered widget must keep a colocated `DESCRIPTION.md` as the source of
-  `WidgetDefinition.description`; that resolved string is what backend widget-type sync publishes.
+- Each registered widget must keep a colocated `USAGE_GUIDANCE.md` as the source of
+  `WidgetDefinition.description` and `registryContract.usageGuidance`; those resolved values are what
+  backend widget-type sync publishes.
 - Current widget folders include `dependency-graph/` for mixed update dependency-graph rendering,
   `project-infra-graph/` for project-scoped infrastructure graph exploration in the project detail
   shell and reusable workspace widget,

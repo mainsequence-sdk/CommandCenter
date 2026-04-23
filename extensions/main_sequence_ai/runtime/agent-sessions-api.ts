@@ -36,6 +36,19 @@ export interface AgentSessionApiRecord {
   }>;
 }
 
+export interface StartedAgentSessionResult {
+  sessionId: string;
+  record: AgentSessionApiRecord | null;
+}
+
+function createClientThreadId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `thread-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export class AgentSessionNotFoundError extends Error {
   readonly status = 404;
   readonly sessionId: string;
@@ -79,11 +92,130 @@ function buildDeleteAgentSessionUrl(sessionId: string | number) {
 }
 
 function buildAgentSessionDetailUrl(sessionId: string | number) {
-  return new URL(`/orm/api/agents/v1/agent_sessions/${sessionId}/`, env.apiBaseUrl).toString();
+  return new URL(`/orm/api/agents/v1/sessions/${sessionId}/`, env.apiBaseUrl).toString();
 }
 
 function buildAgentSessionModelConfigUrl(sessionId: string | number) {
   return new URL(`/orm/api/agents/v1/sessions/${sessionId}/`, env.apiBaseUrl).toString();
+}
+
+function buildStartNewAgentSessionUrl(agentId: string | number) {
+  return new URL(`/orm/api/agents/v1/agents/${agentId}/start_new_session/`, env.apiBaseUrl).toString();
+}
+
+function normalizeIdentifier(value: unknown) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return null;
+}
+
+function isAgentSessionApiRecord(value: unknown): value is AgentSessionApiRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    normalizeIdentifier(candidate.id) !== null &&
+    (
+      normalizeIdentifier(candidate.agent_session) !== null ||
+      typeof candidate.status === "string" ||
+      typeof candidate.started_at === "string"
+    )
+  );
+}
+
+function extractStartedAgentSessionRecord(value: unknown): AgentSessionApiRecord | null {
+  if (isAgentSessionApiRecord(value)) {
+    return value;
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    extractStartedAgentSessionRecord(candidate.session) ??
+    extractStartedAgentSessionRecord(candidate.result) ??
+    extractStartedAgentSessionRecord(candidate.data)
+  );
+}
+
+function extractStartedAgentSessionId(value: unknown): string | null {
+  const record = extractStartedAgentSessionRecord(value);
+
+  if (record) {
+    return getAgentSessionRecordSessionId(record);
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    normalizeIdentifier(candidate.agent_session_id) ??
+    normalizeIdentifier(candidate.session_id) ??
+    extractStartedAgentSessionId(candidate.session) ??
+    extractStartedAgentSessionId(candidate.result) ??
+    extractStartedAgentSessionId(candidate.data)
+  );
+}
+
+function collectBackendErrorMessages(
+  value: unknown,
+  fieldLabel?: string,
+): string[] {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [fieldLabel ? `${fieldLabel}: ${trimmed}` : trimmed] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => collectBackendErrorMessages(entry, fieldLabel));
+  }
+
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const directMessage = [
+    ...collectBackendErrorMessages(candidate.message),
+    ...collectBackendErrorMessages(candidate.detail),
+    ...collectBackendErrorMessages(candidate.error),
+  ];
+
+  if (directMessage.length > 0) {
+    return directMessage;
+  }
+
+  return Object.entries(candidate).flatMap(([key, entry]) =>
+    collectBackendErrorMessages(entry, key === "non_field_errors" ? fieldLabel : key),
+  );
+}
+
+function buildAgentSessionCreationErrorMessage(payload: unknown) {
+  const messages = collectBackendErrorMessages(payload)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  if (messages.length === 0) {
+    return "Unable to create a new session for this agent.";
+  }
+
+  return messages.join(" ");
 }
 
 export function getAgentSessionRecordSessionId(record: AgentSessionApiRecord) {
@@ -235,6 +367,75 @@ export async function fetchAgentSessionDetail({
   }
 
   return (await response.json()) as AgentSessionApiRecord;
+}
+
+export async function startNewAgentSessionRequest({
+  agentId,
+  createdByUser,
+  signal,
+  threadId,
+  token,
+  tokenType = "Bearer",
+}: {
+  agentId: string | number;
+  createdByUser: string | number;
+  signal?: AbortSignal;
+  threadId?: string | null;
+  token?: string | null;
+  tokenType?: string;
+}): Promise<StartedAgentSessionResult> {
+  const headers = new Headers({
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  });
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
+  const normalizedCreatedByUser = normalizeIdentifier(createdByUser);
+  const normalizedThreadId = normalizeIdentifier(threadId) ?? createClientThreadId();
+
+  if (!normalizedCreatedByUser) {
+    throw new Error("Unable to create a session because no signed-in user id is available.");
+  }
+
+  const response = await fetch(buildStartNewAgentSessionUrl(agentId), {
+    method: "POST",
+    body: JSON.stringify({
+      created_by_user: normalizedCreatedByUser,
+      thread_id: normalizedThreadId,
+    }),
+    headers,
+    signal,
+  });
+
+  const rawBody = await response.text().catch(() => "");
+  let payload: unknown = null;
+
+  if (rawBody.trim()) {
+    try {
+      payload = JSON.parse(rawBody) as unknown;
+    } catch {
+      payload = rawBody;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(buildAgentSessionCreationErrorMessage(payload));
+  }
+
+  const record = extractStartedAgentSessionRecord(payload);
+  const sessionId = extractStartedAgentSessionId(payload);
+
+  if (!sessionId) {
+    throw new Error("Session creation succeeded but no AgentSession id was returned.");
+  }
+
+  return {
+    sessionId,
+    record,
+  };
 }
 
 export async function patchAgentSessionModelConfig({

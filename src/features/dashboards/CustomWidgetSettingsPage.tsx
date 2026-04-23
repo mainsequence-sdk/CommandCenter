@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, BookOpenText, Save } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { getWidgetById } from "@/app/registry";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidge
 import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { WidgetBindingPanel } from "@/widgets/shared/WidgetBindingPanel";
+import { getWidgetDetailsPath } from "@/features/widgets/widget-explorer";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
 import { fetchAppComponentOpenApiDocument } from "@/widgets/core/app-component/appComponentApi";
 import {
@@ -345,6 +347,13 @@ export function CustomWidgetSettingsPage({
                     ) : (
                       <Badge variant="success">Workspace saved</Badge>
                     )}
+                    <Link
+                      to={getWidgetDetailsPath(widget.id)}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border bg-card/80 px-4 py-2 text-sm font-medium text-card-foreground transition-all hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+                    >
+                      <BookOpenText className="h-4 w-4" />
+                      Widget type details
+                    </Link>
                     <Button
                       onClick={() => void saveWorkspaceDraft()}
                       disabled={isSaving || !selectedWorkspaceDirty}

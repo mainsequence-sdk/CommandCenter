@@ -52,6 +52,9 @@ their own transport format on top of the Data Node pipeline.
   directly in the statistic value.
 - The card header now shows `Statistic · Field`, so the user can tell both the reduction being
   applied and which column it is using.
+- The value field label can be overridden per instance with `valueFieldLabel`. When set, it replaces
+  the full displayed metric label instead of showing `Statistic · Field`; it does not rename the
+  source field or affect the reduction calculation.
 - The source widget title can optionally render in the lower-left corner of each statistic card.
   That display is instance-owned and defaults to hidden.
 - The suffix/unit is rendered smaller than the main value so units stay readable without competing

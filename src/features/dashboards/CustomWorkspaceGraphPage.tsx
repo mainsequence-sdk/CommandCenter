@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
-  applyEdgeChanges,
-  applyNodeChanges,
   Background,
   ConnectionMode,
   Controls,
   MarkerType,
   ReactFlow,
+  type ReactFlowInstance,
   type Connection,
   type Edge,
   type EdgeChange,
@@ -71,7 +70,6 @@ import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-conf
 
 const GRAPH_NODE_HORIZONTAL_GAP = 420;
 const GRAPH_NODE_VERTICAL_GAP = 28;
-const GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS = 1800;
 const GRAPH_NODE_COLLAPSED_HEIGHT_PX = 118;
 const GRAPH_NODE_EXPANDED_ESTIMATED_HEIGHT_PX = 360;
 const GRAPH_NODE_TYPES = {
@@ -144,11 +142,21 @@ function layoutGraphNodes(
   const indegree = new Map(nodeIds.map((nodeId) => [nodeId, 0]));
   const expandedNodeIds = options?.expandedNodeIds ?? new Set<string>();
   const measuredHeightByNodeId = options?.measuredHeightByNodeId ?? {};
+  const incidentEdgeCountByNodeId = new Map(nodeIds.map((nodeId) => [nodeId, 0]));
 
   for (const edge of graph.edges) {
     if (!nodeIdSet.has(edge.from) || !nodeIdSet.has(edge.to) || edge.from === edge.to) {
       continue;
     }
+
+    incidentEdgeCountByNodeId.set(
+      edge.from,
+      (incidentEdgeCountByNodeId.get(edge.from) ?? 0) + 1,
+    );
+    incidentEdgeCountByNodeId.set(
+      edge.to,
+      (incidentEdgeCountByNodeId.get(edge.to) ?? 0) + 1,
+    );
 
     const targets = outgoing.get(edge.from);
 
@@ -158,6 +166,45 @@ function layoutGraphNodes(
 
     targets.add(edge.to);
     indegree.set(edge.to, (indegree.get(edge.to) ?? 0) + 1);
+  }
+
+  const unboundPureSources = graph.nodes.filter(
+    (node) =>
+      (incidentEdgeCountByNodeId.get(node.id) ?? 0) === 0 &&
+      node.inputs.length === 0 &&
+      node.outputs.length > 0,
+  );
+  const unboundConsumers = graph.nodes.filter(
+    (node) =>
+      (incidentEdgeCountByNodeId.get(node.id) ?? 0) === 0 &&
+      node.inputs.length > 0,
+  );
+
+  for (const sourceNode of unboundPureSources) {
+    const sourceContracts = new Set(sourceNode.outputs.map((output) => output.contract));
+
+    for (const targetNode of unboundConsumers) {
+      if (sourceNode.id === targetNode.id) {
+        continue;
+      }
+
+      const compatible = targetNode.inputs.some((input) =>
+        input.accepts.some((contractId) => sourceContracts.has(contractId)),
+      );
+
+      if (!compatible) {
+        continue;
+      }
+
+      const targets = outgoing.get(sourceNode.id);
+
+      if (!targets || targets.has(targetNode.id)) {
+        continue;
+      }
+
+      targets.add(targetNode.id);
+      indegree.set(targetNode.id, (indegree.get(targetNode.id) ?? 0) + 1);
+    }
   }
 
   const depth = new Map(nodeIds.map((nodeId) => [nodeId, 0]));
@@ -235,18 +282,23 @@ function WorkspaceGraphCanvas({
 }) {
   const dependencyModel = useDashboardWidgetDependencies();
   const widgetExecution = useDashboardWidgetExecution();
-  const [nodes, setNodes] = useState<WorkspaceGraphFlowNode[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [activeEdgeId, setActiveEdgeId] = useState<string | null>(null);
   const [dependencyFocusNodeId, setDependencyFocusNodeId] = useState<string | null>(null);
   const [visibleOutputIdsByNodeId, setVisibleOutputIdsByNodeId] = useState<Record<string, string[]>>(
     {},
   );
   const [expandedNodeIds, setExpandedNodeIds] = useState<Record<string, true>>({});
+  const [pinnedNodePositionsById, setPinnedNodePositionsById] = useState<Record<string, XYPosition>>(
+    {},
+  );
   const [measuredNodeHeightsById, setMeasuredNodeHeightsById] = useState<Record<string, number>>(
     {},
   );
-  const [animationNowMs, setAnimationNowMs] = useState(() => Date.now());
-  const lastAppliedLayoutSignatureRef = useRef<string | null>(null);
+  const reactFlowInstanceRef = useRef<ReactFlowInstance<WorkspaceGraphFlowNode, Edge> | null>(
+    null,
+  );
+  const lastAutoFitGraphSignatureRef = useRef<string | null>(null);
 
   const instanceIndex = useMemo(
     () => createDashboardWidgetEntryIndex(dependencyModel?.entries ?? []),
@@ -271,12 +323,13 @@ function WorkspaceGraphCanvas({
       }),
     [expandedNodeIds, measuredNodeHeightsById, visibleGraph],
   );
-  const layoutSignature = useMemo(
+  const graphStructureSignature = useMemo(
     () =>
-      JSON.stringify(
-        Array.from(layoutedPositions.entries()).sort(([left], [right]) => left.localeCompare(right)),
-      ),
-    [layoutedPositions],
+      JSON.stringify({
+        nodeIds: visibleGraph.nodes.map((node) => node.id).sort(),
+        edgeIds: visibleGraph.edges.map((edge) => edge.id).sort(),
+      }),
+    [visibleGraph.edges, visibleGraph.nodes],
   );
   const executionStateByNodeId = useMemo(
     () =>
@@ -290,38 +343,6 @@ function WorkspaceGraphCanvas({
   );
 
   useEffect(() => {
-    const now = Date.now();
-    const shouldAnimate = Object.values(executionStateByNodeId).some((state) => {
-      if (!state) {
-        return false;
-      }
-
-      if (state.status === "running") {
-        return true;
-      }
-
-      return Boolean(
-        state.finishedAtMs &&
-          now - state.finishedAtMs < GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS,
-      );
-    });
-
-    if (!shouldAnimate) {
-      setAnimationNowMs(now);
-      return undefined;
-    }
-
-    setAnimationNowMs(now);
-    const intervalId = window.setInterval(() => {
-      setAnimationNowMs(Date.now());
-    }, 120);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [executionStateByNodeId]);
-
-  useEffect(() => {
     if (!dependencyModel || !dependencyFocusNodeId) {
       return;
     }
@@ -330,6 +351,26 @@ function WorkspaceGraphCanvas({
       setDependencyFocusNodeId(null);
     }
   }, [dependencyFocusNodeId, dependencyModel, visibleGraph.nodes]);
+
+  useEffect(() => {
+    if (!activeNodeId) {
+      return;
+    }
+
+    if (!visibleGraph.nodes.some((node) => node.id === activeNodeId)) {
+      setActiveNodeId(null);
+    }
+  }, [activeNodeId, visibleGraph.nodes]);
+
+  useEffect(() => {
+    if (!activeEdgeId) {
+      return;
+    }
+
+    if (!visibleGraph.edges.some((edge) => edge.id === activeEdgeId)) {
+      setActiveEdgeId(null);
+    }
+  }, [activeEdgeId, visibleGraph.edges]);
 
   useEffect(() => {
     if (!dependencyModel) {
@@ -499,6 +540,7 @@ function WorkspaceGraphCanvas({
       const locallyVisibleOutputIds = new Set(visibleOutputIdsByNodeId[node.id] ?? []);
       const visibleOutputs = outputs.filter(
         (output) =>
+          outputs.length === 1 ||
           output.connectionCount > 0 ||
           locallyVisibleOutputIds.has(output.id) ||
           output.id === WIDGET_AGENT_CONTEXT_OUTPUT_ID,
@@ -511,6 +553,7 @@ function WorkspaceGraphCanvas({
       }));
       const availableOutputs = outputs.filter(
         (output) =>
+          outputs.length !== 1 &&
           output.connectionCount === 0 &&
           !locallyVisibleOutputIds.has(output.id) &&
           output.id !== WIDGET_AGENT_CONTEXT_OUTPUT_ID,
@@ -522,6 +565,9 @@ function WorkspaceGraphCanvas({
         type: "workspaceWidget",
         position: layoutedPositions.get(node.id) ?? { x: 0, y: 0 },
         draggable: true,
+        style: {
+          cursor: "default",
+        },
         data: {
           title: node.title,
           widgetId: node.widgetId,
@@ -536,7 +582,6 @@ function WorkspaceGraphCanvas({
           availableOutputs,
           executionStatus: executionState?.status,
           executionFinishedAtMs: executionState?.finishedAtMs,
-          animationNowMs,
           dependencyHighlighted:
             dependencyHighlight.highlightedNodeIds.has(node.id) && node.id !== dependencyFocusNodeId,
           dependencyRoot: node.id === dependencyFocusNodeId,
@@ -608,7 +653,6 @@ function WorkspaceGraphCanvas({
       } satisfies WorkspaceGraphFlowNode;
     });
   }, [
-    animationNowMs,
     dependencyFocusNodeId,
     dependencyHighlight,
     dependencyModel,
@@ -646,25 +690,14 @@ function WorkspaceGraphCanvas({
       const broken = edge.status !== "valid";
       const sourceExecutionState = executionStateByNodeId[edge.from];
       const targetExecutionState = executionStateByNodeId[edge.to];
-      const sourceRecentlyCompleted = Boolean(
-        sourceExecutionState?.finishedAtMs &&
-          animationNowMs - sourceExecutionState.finishedAtMs < GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS,
-      );
-      const targetRecentlyCompleted = Boolean(
-        targetExecutionState?.finishedAtMs &&
-          animationNowMs - targetExecutionState.finishedAtMs < GRAPH_EXECUTION_HIGHLIGHT_WINDOW_MS,
-      );
       const edgeRunning =
         sourceExecutionState?.status === "running" ||
         targetExecutionState?.status === "running";
-      const edgeRecentlyCompleted = !edgeRunning && (sourceRecentlyCompleted || targetRecentlyCompleted);
       const edgeStroke = broken
         ? "var(--color-danger)"
         : edgeRunning
           ? "var(--color-primary)"
-          : edgeRecentlyCompleted
-            ? "var(--color-success)"
-            : "color-mix(in srgb, var(--border) 82%, transparent)";
+          : "color-mix(in srgb, var(--border) 82%, transparent)";
       const dependencyHighlighted = dependencyHighlight.highlightedEdgeIds.has(edge.id);
       const highlightedStroke = broken
         ? "color-mix(in srgb, var(--color-danger) 82%, white 18%)"
@@ -689,9 +722,7 @@ function WorkspaceGraphCanvas({
                 ? 2
                 : edgeRunning
                   ? 3.5
-                  : edgeRecentlyCompleted
-                    ? 3
-                    : 2.5,
+                  : 2.5,
             strokeDasharray: broken ? "8 6" : undefined,
             filter: dependencyHighlighted
               ? "drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 40%, transparent))"
@@ -704,7 +735,6 @@ function WorkspaceGraphCanvas({
       ];
     });
   }, [
-    animationNowMs,
     dependencyHighlight.highlightedEdgeIds,
     dependencyModel,
     executionStateByNodeId,
@@ -712,40 +742,96 @@ function WorkspaceGraphCanvas({
     visibleGraph.nodes,
   ]);
 
+  const flowNodes = useMemo<WorkspaceGraphFlowNode[]>(() => {
+    return derivedNodes.map((node) => ({
+      ...node,
+      position: pinnedNodePositionsById[node.id] ?? node.position,
+      dragHandle: ".workspace-graph-node-drag-handle",
+      selected: node.id === activeNodeId,
+      style: {
+        cursor: "default",
+      },
+    }));
+  }, [activeNodeId, derivedNodes, pinnedNodePositionsById]);
+
   useEffect(() => {
-    setNodes((currentNodes) => {
-      const currentPositions = new Map(currentNodes.map((node) => [node.id, node.position] as const));
-      const shouldApplyLayout = lastAppliedLayoutSignatureRef.current !== layoutSignature;
+    const visibleNodeIds = new Set(flowNodes.map((node) => node.id));
 
-      lastAppliedLayoutSignatureRef.current = layoutSignature;
+    setPinnedNodePositionsById((current) => {
+      const nextEntries = Object.entries(current).filter(([nodeId]) => visibleNodeIds.has(nodeId));
 
-      return derivedNodes.map((node) => ({
-        ...node,
-        position: shouldApplyLayout ? node.position : currentPositions.get(node.id) ?? node.position,
-      }));
+      if (nextEntries.length === Object.keys(current).length) {
+        return current;
+      }
+
+      return Object.fromEntries(nextEntries);
     });
-  }, [derivedNodes, layoutSignature]);
+  }, [flowNodes]);
 
   useEffect(() => {
-    setEdges((currentEdges) => {
-      const selectedEdgeIds = new Set(
-        currentEdges.filter((edge) => edge.selected).map((edge) => edge.id),
-      );
+    if (flowNodes.length === 0) {
+      lastAutoFitGraphSignatureRef.current = null;
+      return;
+    }
 
-      return derivedEdges.map((edge) => ({
+    if (!reactFlowInstanceRef.current) {
+      return;
+    }
+
+    if (lastAutoFitGraphSignatureRef.current === graphStructureSignature) {
+      return;
+    }
+
+    lastAutoFitGraphSignatureRef.current = graphStructureSignature;
+    void reactFlowInstanceRef.current.fitView({ padding: 0.18 });
+  }, [flowNodes.length, graphStructureSignature]);
+
+  const flowEdges = useMemo<Edge[]>(
+    () =>
+      derivedEdges.map((edge) => ({
         ...edge,
-        selected: selectedEdgeIds.has(edge.id),
-      }));
-    });
-  }, [derivedEdges]);
+        selected: edge.id === activeEdgeId,
+      })),
+    [activeEdgeId, derivedEdges],
+  );
 
   const onNodesChange = useCallback((changes: NodeChange<WorkspaceGraphFlowNode>[]) => {
-    setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
+    setPinnedNodePositionsById((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      for (const change of changes) {
+        if (change.type === "remove") {
+          if (change.id in next) {
+            delete next[change.id];
+            changed = true;
+          }
+          continue;
+        }
+
+        if (change.type !== "position" || !change.position) {
+          continue;
+        }
+
+        const previous = next[change.id];
+
+        if (
+          previous &&
+          previous.x === change.position.x &&
+          previous.y === change.position.y
+        ) {
+          continue;
+        }
+
+        next[change.id] = change.position;
+        changed = true;
+      }
+
+      return changed ? next : current;
+    });
   }, []);
 
-  const onEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
-    setEdges((currentEdges) => applyEdgeChanges(changes, currentEdges));
-  }, []);
+  const onEdgesChange = useCallback((_changes: EdgeChange<Edge>[]) => {}, []);
 
   const handleConnect = useCallback((connection: Connection) => {
     if (!dependencyModel) {
@@ -830,6 +916,42 @@ function WorkspaceGraphCanvas({
     );
   }, [dependencyModel, instanceIndex]);
 
+  useEffect(() => {
+    if (!activeEdgeId) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Backspace" && event.key !== "Delete") {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+
+      if (
+        target?.closest("input, textarea, select, [contenteditable='true'], [role='textbox']")
+      ) {
+        return;
+      }
+
+      const selectedEdge = flowEdges.find((edge) => edge.id === activeEdgeId);
+
+      if (!selectedEdge) {
+        return;
+      }
+
+      event.preventDefault();
+      handleEdgesDelete([selectedEdge]);
+      setActiveEdgeId(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeEdgeId, flowEdges, handleEdgesDelete]);
+
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
       {visibleGraph.hiddenNodeCount > 0 ? (
@@ -846,27 +968,41 @@ function WorkspaceGraphCanvas({
         </div>
       ) : null}
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={flowNodes}
+        edges={flowEdges}
         nodeTypes={GRAPH_NODE_TYPES}
+        onInit={(instance) => {
+          reactFlowInstanceRef.current = instance;
+        }}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
         onEdgesDelete={handleEdgesDelete}
+        onEdgeClick={(_event, edge) => {
+          setActiveEdgeId(edge.id);
+          setActiveNodeId(null);
+        }}
         isValidConnection={isValidConnection}
         connectionMode={ConnectionMode.Loose}
-        fitView
-        fitViewOptions={{ padding: 0.18 }}
-        deleteKeyCode={["Backspace", "Delete"]}
-        elementsSelectable
+        elementsSelectable={false}
+        selectNodesOnDrag={false}
         nodesDraggable
         nodesConnectable
         edgesReconnectable={false}
+        nodeDragThreshold={4}
+        nodeClickDistance={2}
+        connectionRadius={28}
+        panOnDrag={false}
+        panActivationKeyCode={["Meta", "Control"]}
         className="workspace-graph-flow bg-transparent"
         onNodeClick={(_event, node) => {
+          setActiveNodeId(node.id);
+          setActiveEdgeId(null);
           setDependencyFocusNodeId(node.id);
         }}
         onPaneClick={() => {
+          setActiveNodeId(null);
+          setActiveEdgeId(null);
           setDependencyFocusNodeId(null);
         }}
       >

@@ -272,7 +272,7 @@ Current behavior is now:
 - [x] Upgrade the shared widget bindings panel so `cardinality: "many"` inputs can add, list, edit, remove, and preserve multiple bindings.
 - [x] Show clearer previews for multi-bound agent-context inputs so users can see which widget summaries will be sent to the terminal.
 - [x] Decide whether multi-binding order should be user-reorderable in the generic bindings UI or simply preserve insertion order in the first slice.
-- [x] Update `Agent Terminal` docs and registry/agent hints to explain that the saved prompt is no longer bindable and upstream widget context is the bindable input.
+- [x] Update `Agent Terminal` docs and registry/usage guidance to explain that the saved prompt is no longer bindable and upstream widget context is the bindable input.
 - [x] Update platform widget docs so `buildAgentSnapshot(...)` is documented as the source for both archive capture and bindable agent context.
 - [x] If the intended workflow must work inside `/app/main_sequence_ai/monitor`, widen that surface allowlist beyond `Agent Terminal` and `Upstream Inspector`, or document explicitly that richer agent-context authoring belongs in general workspaces.
 - [ ] Add verification coverage for:

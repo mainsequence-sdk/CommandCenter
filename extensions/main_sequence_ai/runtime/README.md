@@ -27,9 +27,11 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `agent-sessions-api.ts`
   Shared backend AgentSession list/detail/delete transport used by assistant-ui, workspace
   launchers, and widget settings. Detail reads use
-  `GET /orm/api/agents/v1/agent_sessions/{agent_session_id}/` and expose a typed `404` not-found
+  `GET /orm/api/agents/v1/sessions/{agent_session_id}/` and expose a typed `404` not-found
   error so callers can invalidate stale session-bound UI before touching the assistant runtime. It
-  also owns the AgentSession model-binding PATCH for `llm_provider` / `llm_model`.
+  also owns managed session creation through
+  `POST /orm/api/agents/v1/agents/{agent_id}/start_new_session/` plus the AgentSession
+  model-binding PATCH for `llm_provider` / `llm_model`.
 - `available-models-api.ts`
   Shared assistant-backend model catalog fetch helper used by the page chat composer.
 - `model-catalog-api.ts`
@@ -69,6 +71,10 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   `401` / `403` can reacquire runtime access once and retry consistently.
 - Session catalog transport shared by widgets or workspace surfaces belongs here, not under
   `assistant-ui/`.
+- Managed Agent Terminal session creation also belongs here. Settings and launchers should not hand
+  roll `start_new_session` fetches or parse response payloads themselves.
+- `start_new_session` currently sends a minimal JSON body with `created_by_user` plus a generated
+  `thread_id`, because the backend contract requires both fields even for a fresh session.
 - If the backend assistant request shape changes, update `agent-session-request.ts` first so the
   page chat and terminal widget stay aligned.
 - Chat picker provider/model changes are persisted through

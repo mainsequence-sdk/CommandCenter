@@ -113,21 +113,23 @@ function resolveLinkedSurfaceContext(
 function resolveSpecialRouteContext(
   input: ResolveChatSurfaceContextInput,
 ): ResolvedChatSurfaceContext | null {
-  const widgetExplorerMatch = matchPath("/app/widgets/:widgetId", input.pathname);
+  const widgetDetailsMatch =
+    matchPath("/app/workspace-studio/widget-catalog/:widgetId", input.pathname) ??
+    matchPath("/app/widgets/:widgetId", input.pathname);
 
-  if (widgetExplorerMatch) {
+  if (widgetDetailsMatch) {
     return {
       availableActions: [
-        "Preview the widget in isolation",
-        "Inspect widget props and metadata",
-        "Use the widget explorer controls",
+        "Inspect widget metadata",
+        "Review widget ports and contracts",
+        "Review usage guidance",
       ],
       details: normalizeDetails({
-        "Widget ID": widgetExplorerMatch.params.widgetId,
+        "Widget ID": widgetDetailsMatch.params.widgetId,
       }),
       source: "route",
       summary:
-        "User is in the Widget Explorer. This page previews one widget definition in isolation and exposes its runtime metadata.",
+        "User is in Widget Details. This page explains one widget definition, its ports, metadata, and usage guidance.",
     };
   }
 

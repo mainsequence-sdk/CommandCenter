@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode, useLayoutEffect, useRef, useState } from "react";
 
-import { Boxes, ChevronLeft, LogOut, Palette, Users2 } from "lucide-react";
+import { ChevronLeft, LogOut, Palette, Users2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
@@ -184,7 +184,6 @@ export function Sidebar() {
     typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
       ? "⌘J"
       : "⌃J";
-  const widgetCatalogAllowed = hasAnyPermission(permissions, ["widget.catalog:view"]);
   const themeStudioAllowed = hasAnyPermission(permissions, ["theme:manage"]);
 
   const accessibleApps = getAccessiblePrimaryApps(permissions);
@@ -200,18 +199,6 @@ export function Sidebar() {
         navigate("/app/teams");
       },
     },
-    ...(widgetCatalogAllowed
-      ? [
-          {
-            icon: Boxes,
-            label: t("searchResults.widgetCatalogTitle"),
-            onSelect: () => {
-              closeAppPanel();
-              navigate("/app/widgets");
-            },
-          },
-        ]
-      : []),
     ...(themeStudioAllowed
       ? [
           {

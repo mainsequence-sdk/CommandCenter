@@ -1722,7 +1722,7 @@ function buildWidgetPreviewDataNodeDetail(dataNodeId: number): DataNodeDetail {
     data_source: null,
     data_source_open_for_everyone: false,
     identifier: "UST Curve Preview Node",
-    description: "Synthetic rates observations for widget explorer previews.",
+    description: "Synthetic rates observations for widget preview data.",
     data_frequency_id: "daily",
     build_configuration: null,
     build_meta_data: null,

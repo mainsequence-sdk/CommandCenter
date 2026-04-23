@@ -2,17 +2,13 @@ import { getAppPath } from "@/apps/utils";
 import { createBlankDashboard } from "@/features/dashboards/custom-dashboard-storage";
 import type { WorkspaceListItemSummary } from "@/features/dashboards/workspace-list-summary";
 import type { WorkspaceStudioSurfaceConfig } from "@/features/dashboards/workspace-studio-surface-config";
-import { appComponentWidget } from "@/widgets/core/app-component/definition";
-import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
-import { mainSequenceDataNodeFilterWidget } from "../main_sequence/extensions/workbench/widgets/data-node-filter/definition";
-import { mainSequenceDataNodeTableWidget } from "../main_sequence/extensions/workbench/widgets/data-node-table/definition";
-import { mainSequenceDataNodeGraphWidget } from "../main_sequence/extensions/workbench/widgets/data-node-visualizer/definition";
 import {
   AGENT_TERMINAL_WIDGET_ID,
   appendAgentTerminalWidget,
   upsertAgentTerminalWidgetForSession,
 } from "./widgets/agent-terminal/agentTerminalWorkspace";
 import { UPSTREAM_INSPECTOR_WIDGET_ID } from "./widgets/upstream-inspector/definition";
+import { WORKSPACE_WIDGET_ID } from "./widgets/workspace/definition";
 
 const MAIN_SEQUENCE_AI_WORKSPACE_LABEL = "main-sequence-ai";
 const AGENT_MONITOR_WORKSPACE_LABEL = "agent-monitor";
@@ -24,6 +20,14 @@ function normalizeAgentSessionId(value: string | null | undefined) {
 }
 
 function normalizeAgentName(value: string | null | undefined) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeAgentId(value: string | number | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
@@ -86,12 +90,15 @@ export function buildAgentMonitorWorkspaceTitle({
 }
 
 export function createAgentMonitorWorkspaceDefinition({
+  agentId,
   agentName,
   sessionId,
 }: {
+  agentId?: string | number | null;
   agentName?: string | null;
   sessionId?: string | null;
 } = {}) {
+  const normalizedAgentId = normalizeAgentId(agentId);
   const normalizedSessionId = normalizeAgentSessionId(sessionId);
   const normalizedAgentName = normalizeAgentName(agentName);
 
@@ -119,6 +126,7 @@ export function createAgentMonitorWorkspaceDefinition({
   }
 
   return upsertAgentTerminalWidgetForSession(dashboard, {
+    agentId: normalizedAgentId,
     agentName: normalizedAgentName,
     sessionId: normalizedSessionId,
   }).dashboard;
@@ -128,15 +136,11 @@ export const agentMonitorWorkspaceStudioConfig: WorkspaceStudioSurfaceConfig = {
   allowedWidgetIds: [
     AGENT_TERMINAL_WIDGET_ID,
     UPSTREAM_INSPECTOR_WIDGET_ID,
-    markdownNoteWidget.id,
-    appComponentWidget.id,
-    mainSequenceDataNodeFilterWidget.id,
-    mainSequenceDataNodeTableWidget.id,
-    mainSequenceDataNodeGraphWidget.id,
+    WORKSPACE_WIDGET_ID,
   ],
   catalogTitle: "Agent Widgets",
   catalogDescription:
-    "Build monitor workspaces with Agent Terminal plus snapshot-capable context widgets such as Data Nodes, Data Node Table, Data Node Graph, AppComponent, and Markdown.",
+    "Build monitor workspaces with Agent Terminal, WorkspaceReference, and Upstream Inspector only.",
   savedWidgetsPath: undefined,
   workspaceFilter: isAgentMonitorWorkspace,
   workspaceListPath: AGENTS_MONITOR_SURFACE_PATH,

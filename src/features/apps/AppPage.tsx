@@ -1,7 +1,8 @@
 import { Navigate, useParams } from "react-router-dom";
 
 import { getAppById, getAppSurfaceById } from "@/app/registry";
-import { getAccessibleApps, getAccessibleSurfaces, getAppPath, getDefaultSurface } from "@/apps/utils";
+import { canAccessApp, getAccessibleApps, getAppPath, getDefaultSurface } from "@/apps/utils";
+import { hasAllPermissions } from "@/auth/permissions";
 import { useAuthStore } from "@/auth/auth-store";
 import { DashboardCanvas } from "@/features/dashboards/DashboardCanvas";
 
@@ -25,7 +26,6 @@ export function AppPage() {
     return <Navigate to={getAppPath(accessibleApps[0]!.id)} replace />;
   }
 
-  const visibleSurfaces = getAccessibleSurfaces(app, permissions);
   const defaultSurface = getDefaultSurface(app, permissions);
 
   if (!defaultSurface) {
@@ -41,15 +41,21 @@ export function AppPage() {
   }
 
   const surface = getAppSurfaceById(app.id, surfaceId);
+  const surfaceRouteAccessible =
+    Boolean(surface) &&
+    canAccessApp(app, permissions) &&
+    hasAllPermissions(permissions, surface?.requiredPermissions ?? []);
 
-  if (!surface || !visibleSurfaces.some((candidate) => candidate.id === surface.id)) {
+  if (!surface || !surfaceRouteAccessible) {
     return <Navigate to={getAppPath(app.id, defaultSurface.id)} replace />;
   }
 
-  const SurfaceComponent = surface.kind === "dashboard" ? null : surface.component;
+  const resolvedSurface = surface;
+  const SurfaceComponent =
+    resolvedSurface.kind === "dashboard" ? null : resolvedSurface.component;
 
-  if (surface.kind === "dashboard") {
-    return <DashboardCanvas dashboard={surface.dashboard} />;
+  if (resolvedSurface.kind === "dashboard") {
+    return <DashboardCanvas dashboard={resolvedSurface.dashboard} />;
   }
 
   return SurfaceComponent ? <SurfaceComponent /> : null;

@@ -52,6 +52,7 @@ export interface MainSequenceDataNodeStatisticWidgetProps
   statisticMode?: DataNodeStatisticMode;
   suffix?: string;
   valueField?: string;
+  valueFieldLabel?: string;
 }
 
 export interface ResolvedDataNodeStatisticConfig {
@@ -69,6 +70,7 @@ export interface ResolvedDataNodeStatisticConfig {
   statisticMode: DataNodeStatisticMode;
   suffix?: string;
   valueField?: string;
+  valueFieldLabel?: string;
 }
 
 export interface DataNodeStatisticResolvedCardStyle extends DataNodeStatisticColorStyle {
@@ -545,8 +547,15 @@ function resolveStatisticModeLabel(mode: DataNodeStatisticMode) {
 }
 
 function resolveCardMetricLabel(
-  config: Pick<ResolvedDataNodeStatisticConfig, "statisticMode" | "valueField" | "availableFields">,
+  config: Pick<
+    ResolvedDataNodeStatisticConfig,
+    "statisticMode" | "valueField" | "valueFieldLabel" | "availableFields"
+  >,
 ) {
+  if (config.valueFieldLabel?.trim()) {
+    return config.valueFieldLabel.trim();
+  }
+
   const statisticLabel = resolveStatisticModeLabel(config.statisticMode);
 
   if (config.statisticMode === "count") {
@@ -558,7 +567,7 @@ function resolveCardMetricLabel(
   }
 
   const field = config.availableFields.find((entry) => entry.key === config.valueField);
-  const fieldLabel = field?.label?.trim() || config.valueField;
+  const fieldLabel = config.valueFieldLabel?.trim() || field?.label?.trim() || config.valueField;
   return `${statisticLabel} · ${fieldLabel}`;
 }
 
@@ -683,6 +692,7 @@ export function resolveDataNodeStatisticConfig(
     sourceWidgetId: sourceReference.sourceWidgetId,
     statisticMode,
     suffix: normalizeText(props.suffix),
+    valueFieldLabel: normalizeText(props.valueFieldLabel),
     valueField:
       statisticMode === "count"
         ? normalizeFieldKey(props.valueField, availableFields)
@@ -710,6 +720,7 @@ export function normalizeDataNodeStatisticProps(
     rangeRules: resolved.rangeRules,
     showSourceLabel: resolved.showSourceLabel,
     suffix: resolved.suffix,
+    valueFieldLabel: resolved.valueFieldLabel,
   } satisfies MainSequenceDataNodeStatisticWidgetProps;
 }
 

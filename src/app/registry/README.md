@@ -16,10 +16,10 @@ This directory owns runtime registry assembly for apps, dashboards, themes, and 
 - App definitions can now also contribute shell settings sections through
   `shellMenuContributions`. The registry flattens those into audience- and permission-filtered
   shell menu entries for the shared settings dialog.
-- Widget-type sync intentionally does not send raw `WidgetDefinition` objects. It projects an explicit JSON-safe contract instead, including the resolved `description`, per-widget `widgetVersion`, runtime ownership, configuration summary, IO summary, capabilities, agent hints, and examples.
-- Widget descriptions are authored in colocated widget `DESCRIPTION.md` files and imported by the
-  widget definitions before sync; the backend still receives a plain string in the existing
-  description field.
+- Widget-type sync intentionally does not send raw `WidgetDefinition` objects. It projects an explicit JSON-safe contract instead, including the resolved `description`, per-widget `widgetVersion`, runtime ownership, configuration summary, IO summary, capabilities, usage guidance, and examples.
+- Widget usage guidance is authored in colocated widget `USAGE_GUIDANCE.md` files and imported by
+  the widget definitions before sync. `buildPurpose` becomes the plain backend `description` field,
+  and the full structured guidance becomes `usageGuidance`.
 - Widget-type sync now also projects optional organization-configuration capability metadata when a
   widget definition declares `organizationConfiguration`. That metadata is type-level only:
   schema, defaults, and version.
@@ -35,8 +35,8 @@ This directory owns runtime registry assembly for apps, dashboards, themes, and 
 ## Maintenance Notes
 
 - Keep widget-type sync aligned with backend catalog expectations whenever `WidgetDefinition` metadata changes materially.
-- Keep widget `DESCRIPTION.md` files aligned with the catalog meaning of each widget type; that
-  Markdown content is the source for the backend-synced description.
+- Keep widget `USAGE_GUIDANCE.md` files aligned with the catalog meaning of each widget type; that
+  Markdown content is the source for the backend-synced description and usage guidance.
 - Widget authors must bump `widgetVersion` when configuration model, IO contract, execution behavior, or other agent-relevant authoring semantics change materially.
 - If a widget starts supporting organization-scoped configuration, keep the synced widget-type
   metadata aligned with the widget definition's declared schema, defaults, and version.

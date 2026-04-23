@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { ArrowUpRight } from "lucide-react";
 import Terminal, { ColorMode, TerminalInput, TerminalOutput } from "react-terminal-ui";
+import { Link } from "react-router-dom";
 
 import { useAuthStore } from "@/auth/auth-store";
 import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
 
+import { getAgentSessionDetailPath } from "../../agent-session-detail/routes";
 import {
   buildAgentSessionLiveRequestBody,
 } from "../../runtime/agent-session-request";
@@ -39,10 +42,11 @@ import {
   buildAgentTerminalValidationLines,
   createAgentTerminalInputLine,
   createAgentTerminalOutputLine,
+  formatAgentTerminalModelLabel,
   normalizeAgentTerminalWidgetProps,
   resolveAgentTerminalLatestAssistantMarkdown,
   resolveAgentTerminalRefreshPrompt,
-  resolveAgentTerminalUpstreamContexts,
+  resolveAgentTerminalUpstreamSources,
   type AgentTerminalLine,
   type AgentTerminalLineTone,
   type AgentTerminalSessionState,
@@ -209,6 +213,8 @@ function buildValidatedSessionState({
 
   return {
     agentName: displayAgentName,
+    llmModel: record.llm_model?.trim() || null,
+    llmProvider: record.llm_provider?.trim() || null,
     requestAgentName,
     sessionId,
     threadId: null,
@@ -216,6 +222,7 @@ function buildValidatedSessionState({
 }
 
 export function AgentTerminalWidget({
+  editable,
   instanceId,
   instanceTitle,
   onRuntimeStateChange,
@@ -275,6 +282,7 @@ export function AgentTerminalWidget({
     [instanceTitle, normalizedProps.agentName, sessionId],
   );
   const loadInitialHistory = normalizedProps.loadInitialHistory === true;
+  const blockUserInput = normalizedProps.blockUserInput === true;
   const historyRefreshMode = normalizedProps.historyRefreshMode ?? "workspace";
   const historyRefreshIntervalSeconds =
     normalizedProps.historyRefreshIntervalSeconds ??
@@ -283,17 +291,17 @@ export function AgentTerminalWidget({
     () => resolveAgentTerminalRefreshPrompt(normalizedProps),
     [normalizedProps],
   );
-  const upstreamContexts = useMemo(
-    () => resolveAgentTerminalUpstreamContexts(resolvedInputs),
+  const upstreamSources = useMemo(
+    () => resolveAgentTerminalUpstreamSources(resolvedInputs),
     [resolvedInputs],
   );
   const automatedRefreshInput = useMemo(
     () =>
       buildAgentTerminalRefreshRequest({
         prompt: promptOnRefresh,
-        upstreamContexts,
+        upstreamSources,
       }),
-    [promptOnRefresh, upstreamContexts],
+    [promptOnRefresh, upstreamSources],
   );
   const terminalTitle = useMemo(() => {
     if (instanceTitle?.trim()) {
@@ -305,6 +313,15 @@ export function AgentTerminalWidget({
       sessionId: sessionState?.sessionId ?? sessionId,
     });
   }, [instanceTitle, sessionId, sessionState?.agentName, sessionState?.sessionId]);
+  const terminalAgentLabel = sessionState?.agentName ?? configuredAgentName ?? null;
+  const terminalModelLabel = useMemo(
+    () =>
+      formatAgentTerminalModelLabel({
+        model: sessionState?.llmModel,
+        provider: sessionState?.llmProvider,
+      }),
+    [sessionState?.llmModel, sessionState?.llmProvider],
+  );
 
   const commitRuntimeState = useCallback(
     (patch: Record<string, unknown> | undefined) => {
@@ -532,6 +549,8 @@ export function AgentTerminalWidget({
             currentSessionState?.agentName ||
             requestAgentName ||
             "Agent session",
+          llmModel: currentSessionState?.llmModel ?? null,
+          llmProvider: currentSessionState?.llmProvider ?? null,
           requestAgentName,
           sessionId: targetSessionId,
           threadId: history.session.threadId ?? currentSessionState?.threadId ?? null,
@@ -545,6 +564,7 @@ export function AgentTerminalWidget({
             prompt: buildAgentTerminalPrompt(targetSessionId),
             session: nextSessionState,
             sessionError: history.session.status === "error" ? history.session.error : null,
+            userInputBlocked: blockUserInput,
           }),
         );
         await publishLatestAssistantMarkdown({
@@ -602,14 +622,14 @@ export function AgentTerminalWidget({
       return;
     }
 
-    input.disabled = isStreaming || !sessionReady;
+    input.disabled = isStreaming || !sessionReady || blockUserInput;
 
     if (isStreaming) {
       input.blur();
       return;
     }
 
-    if (!sessionReady) {
+    if (!sessionReady || blockUserInput) {
       return;
     }
 
@@ -678,6 +698,7 @@ export function AgentTerminalWidget({
             messages: [],
             prompt,
             session: validatedSessionState,
+            userInputBlocked: blockUserInput,
           }),
         );
         void publishLatestAssistantMarkdownRef.current?.({
@@ -714,6 +735,7 @@ export function AgentTerminalWidget({
     };
   }, [
     configuredAgentName,
+    blockUserInput,
     focusPromptInput,
     loadInitialHistory,
     prompt,
@@ -745,6 +767,16 @@ export function AgentTerminalWidget({
         appendLine(
           createAgentTerminalOutputLine({
             text: "[busy] Wait for the current response to finish.",
+            tone: "muted",
+          }),
+        );
+        return;
+      }
+
+      if (blockUserInput && !automated) {
+        appendLine(
+          createAgentTerminalOutputLine({
+            text: "[input-blocked] Manual typing is disabled for this terminal. Use refresh actions to run the saved prompt.",
             tone: "muted",
           }),
         );
@@ -959,6 +991,7 @@ export function AgentTerminalWidget({
       appendLine,
       appendOutputDelta,
       assistantProtocol,
+      blockUserInput,
       hydrateSession,
       instanceId,
       isStreaming,
@@ -1108,11 +1141,34 @@ export function AgentTerminalWidget({
   return (
     <div ref={containerRef} className="ms-agent-terminal-widget">
       <div className="ms-agent-terminal-window">
+        {editable && (terminalAgentLabel || sessionId) ? (
+          <div className="ms-agent-terminal-toolbar">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-foreground">
+                {terminalAgentLabel || "Agent Terminal"}
+              </div>
+              {terminalModelLabel ? (
+                <div className="truncate text-[11px] text-muted-foreground">
+                  {terminalModelLabel}
+                </div>
+              ) : null}
+            </div>
+            {sessionId ? (
+              <Link
+                to={getAgentSessionDetailPath(sessionId)}
+                className="ms-agent-terminal-session-link"
+              >
+                Session {sessionId}
+                <ArrowUpRight className="h-3 w-3" />
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
         <Terminal
           colorMode={ColorMode.Dark}
           height="100%"
           prompt={prompt}
-          onInput={handleInput}
+          onInput={blockUserInput ? undefined : handleInput}
           TopButtonsPanel={TerminalChromeHidden}
         >
           {renderedLines}

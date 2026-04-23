@@ -156,6 +156,19 @@ function normalizeBoolean(value: unknown) {
   return typeof value === "boolean" ? value : null;
 }
 
+function readCandidateValue(
+  candidate: Record<string, unknown>,
+  ...keys: readonly string[]
+) {
+  for (const key of keys) {
+    if (key in candidate) {
+      return candidate[key];
+    }
+  }
+
+  return undefined;
+}
+
 function normalizeEditableField(value: unknown) {
   const candidate = asRecord(value);
 
@@ -192,11 +205,11 @@ function normalizeTokenTotals(value: unknown): SessionInsightsTokenTotals {
   const candidate = asRecord(value);
 
   return {
-    cacheRead: normalizeNumber(candidate.cacheRead),
-    cacheWrite: normalizeNumber(candidate.cacheWrite),
-    input: normalizeNumber(candidate.input),
-    output: normalizeNumber(candidate.output),
-    total: normalizeNumber(candidate.total),
+    cacheRead: normalizeNumber(readCandidateValue(candidate, "cacheRead", "cache_read")),
+    cacheWrite: normalizeNumber(readCandidateValue(candidate, "cacheWrite", "cache_write")),
+    input: normalizeNumber(readCandidateValue(candidate, "input")),
+    output: normalizeNumber(readCandidateValue(candidate, "output")),
+    total: normalizeNumber(readCandidateValue(candidate, "total")),
   };
 }
 
@@ -205,18 +218,20 @@ function normalizeSession(value: unknown): SessionInsightsSession {
   const rawStatus = candidate.status;
 
   return {
-    agentId: normalizeNumber(candidate.agentId),
-    agentName: normalizeString(candidate.agentName),
-    agentSessionId: normalizeString(candidate.agentSessionId),
-    lastError: normalizeString(candidate.lastError),
-    sessionId: normalizeString(candidate.sessionId),
-    startedAt: normalizeString(candidate.startedAt),
+    agentId: normalizeNumber(readCandidateValue(candidate, "agentId", "agent_id")),
+    agentName: normalizeString(readCandidateValue(candidate, "agentName", "agent_name")),
+    agentSessionId: normalizeString(
+      readCandidateValue(candidate, "agentSessionId", "agent_session_id"),
+    ),
+    lastError: normalizeString(readCandidateValue(candidate, "lastError", "last_error")),
+    sessionId: normalizeString(readCandidateValue(candidate, "sessionId", "session_id")),
+    startedAt: normalizeString(readCandidateValue(candidate, "startedAt", "started_at")),
     status:
       rawStatus === "running" || rawStatus === "completed" || rawStatus === "error"
         ? rawStatus
         : "completed",
-    threadId: normalizeString(candidate.threadId),
-    updatedAt: normalizeString(candidate.updatedAt),
+    threadId: normalizeString(readCandidateValue(candidate, "threadId", "thread_id")),
+    updatedAt: normalizeString(readCandidateValue(candidate, "updatedAt", "updated_at")),
   };
 }
 
@@ -228,11 +243,15 @@ function normalizeModel(value: unknown): SessionInsightsModel | null {
   }
 
   return {
-    contextWindow: normalizeNumber(candidate.contextWindow),
-    maxOutputTokens: normalizeNumber(candidate.maxOutputTokens),
-    model: normalizeString(candidate.model),
-    provider: normalizeString(candidate.provider),
-    reasoningEffort: normalizeString(candidate.reasoningEffort),
+    contextWindow: normalizeNumber(readCandidateValue(candidate, "contextWindow", "context_window")),
+    maxOutputTokens: normalizeNumber(
+      readCandidateValue(candidate, "maxOutputTokens", "max_output_tokens"),
+    ),
+    model: normalizeString(readCandidateValue(candidate, "model")),
+    provider: normalizeString(readCandidateValue(candidate, "provider")),
+    reasoningEffort: normalizeString(
+      readCandidateValue(candidate, "reasoningEffort", "reasoning_effort"),
+    ),
   };
 }
 
@@ -244,14 +263,20 @@ function normalizeUsage(value: unknown): SessionInsightsUsage | null {
   }
 
   return {
-    assistantMessages: normalizeNumber(candidate.assistantMessages),
-    assistantTurns: normalizeNumber(candidate.assistantTurns),
-    estimatedCostUsd: normalizeNumber(candidate.estimatedCostUsd),
-    tokens: normalizeTokenTotals(candidate.tokens),
-    toolCalls: normalizeNumber(candidate.toolCalls),
-    toolResults: normalizeNumber(candidate.toolResults),
-    totalMessages: normalizeNumber(candidate.totalMessages),
-    userMessages: normalizeNumber(candidate.userMessages),
+    assistantMessages: normalizeNumber(
+      readCandidateValue(candidate, "assistantMessages", "assistant_messages"),
+    ),
+    assistantTurns: normalizeNumber(
+      readCandidateValue(candidate, "assistantTurns", "assistant_turns"),
+    ),
+    estimatedCostUsd: normalizeNumber(
+      readCandidateValue(candidate, "estimatedCostUsd", "estimated_cost_usd"),
+    ),
+    tokens: normalizeTokenTotals(readCandidateValue(candidate, "tokens")),
+    toolCalls: normalizeNumber(readCandidateValue(candidate, "toolCalls", "tool_calls")),
+    toolResults: normalizeNumber(readCandidateValue(candidate, "toolResults", "tool_results")),
+    totalMessages: normalizeNumber(readCandidateValue(candidate, "totalMessages", "total_messages")),
+    userMessages: normalizeNumber(readCandidateValue(candidate, "userMessages", "user_messages")),
   };
 }
 
@@ -263,18 +288,42 @@ function normalizeContext(value: unknown): SessionInsightsContext | null {
   }
 
   return {
-    compactionEnabled: normalizeBoolean(candidate.compactionEnabled),
-    compactionReserveTokens: normalizeNumber(candidate.compactionReserveTokens),
-    compactionThresholdPercent: normalizeNumber(candidate.compactionThresholdPercent),
-    compactionThresholdTokens: normalizeNumber(candidate.compactionThresholdTokens),
-    contextWindow: normalizeNumber(candidate.contextWindow),
-    latestCompaction: normalizeString(candidate.latestCompaction),
-    percentOfContextWindow: normalizeNumber(candidate.percentOfContextWindow),
-    source: normalizeString(candidate.source),
-    status: normalizeString(candidate.status),
-    tokens: normalizeNumber(candidate.tokens),
-    tokensRemainingBeforeCompaction: normalizeNumber(candidate.tokensRemainingBeforeCompaction),
-    tokensRemainingBeforeContextLimit: normalizeNumber(candidate.tokensRemainingBeforeContextLimit),
+    compactionEnabled: normalizeBoolean(
+      readCandidateValue(candidate, "compactionEnabled", "compaction_enabled"),
+    ),
+    compactionReserveTokens: normalizeNumber(
+      readCandidateValue(candidate, "compactionReserveTokens", "compaction_reserve_tokens"),
+    ),
+    compactionThresholdPercent: normalizeNumber(
+      readCandidateValue(candidate, "compactionThresholdPercent", "compaction_threshold_percent"),
+    ),
+    compactionThresholdTokens: normalizeNumber(
+      readCandidateValue(candidate, "compactionThresholdTokens", "compaction_threshold_tokens"),
+    ),
+    contextWindow: normalizeNumber(readCandidateValue(candidate, "contextWindow", "context_window")),
+    latestCompaction: normalizeString(
+      readCandidateValue(candidate, "latestCompaction", "latest_compaction"),
+    ),
+    percentOfContextWindow: normalizeNumber(
+      readCandidateValue(candidate, "percentOfContextWindow", "percent_of_context_window"),
+    ),
+    source: normalizeString(readCandidateValue(candidate, "source")),
+    status: normalizeString(readCandidateValue(candidate, "status")),
+    tokens: normalizeNumber(readCandidateValue(candidate, "tokens")),
+    tokensRemainingBeforeCompaction: normalizeNumber(
+      readCandidateValue(
+        candidate,
+        "tokensRemainingBeforeCompaction",
+        "tokens_remaining_before_compaction",
+      ),
+    ),
+    tokensRemainingBeforeContextLimit: normalizeNumber(
+      readCandidateValue(
+        candidate,
+        "tokensRemainingBeforeContextLimit",
+        "tokens_remaining_before_context_limit",
+      ),
+    ),
   };
 }
 
@@ -292,20 +341,32 @@ function normalizeConfig(value: unknown) {
     compaction:
       Object.keys(compaction).length > 0
         ? {
-            enabled: normalizeBoolean(compaction.enabled),
-            reserveTokens: normalizeNumber(compaction.reserveTokens),
-            thresholdPercent: normalizeNumber(compaction.thresholdPercent),
-            thresholdTokens: normalizeNumber(compaction.thresholdTokens),
+            enabled: normalizeBoolean(readCandidateValue(compaction, "enabled")),
+            reserveTokens: normalizeNumber(
+              readCandidateValue(compaction, "reserveTokens", "reserve_tokens"),
+            ),
+            thresholdPercent: normalizeNumber(
+              readCandidateValue(compaction, "thresholdPercent", "threshold_percent"),
+            ),
+            thresholdTokens: normalizeNumber(
+              readCandidateValue(compaction, "thresholdTokens", "threshold_tokens"),
+            ),
           }
         : null,
     model:
       Object.keys(model).length > 0
         ? {
-            contextWindow: normalizeNumber(model.contextWindow),
-            maxOutputTokens: normalizeNumber(model.maxOutputTokens),
-            model: normalizeString(model.model),
-            provider: normalizeString(model.provider),
-            reasoningEffort: normalizeString(model.reasoningEffort),
+            contextWindow: normalizeNumber(
+              readCandidateValue(model, "contextWindow", "context_window"),
+            ),
+            maxOutputTokens: normalizeNumber(
+              readCandidateValue(model, "maxOutputTokens", "max_output_tokens"),
+            ),
+            model: normalizeString(readCandidateValue(model, "model")),
+            provider: normalizeString(readCandidateValue(model, "provider")),
+            reasoningEffort: normalizeString(
+              readCandidateValue(model, "reasoningEffort", "reasoning_effort"),
+            ),
           }
         : null,
   };
@@ -329,20 +390,34 @@ function normalizeEditable(value: unknown) {
             compaction:
               Object.keys(compaction).length > 0
                 ? {
-                    enabled: normalizeEditableField(compaction.enabled) as SessionInsightsEditableBooleanField | null,
-                    reserveTokens: normalizeEditableField(compaction.reserveTokens) as SessionInsightsEditableNumberField | null,
-                    thresholdPercent: normalizeEditableField(compaction.thresholdPercent) as SessionInsightsEditableNumberField | null,
-                    thresholdTokens: normalizeEditableField(compaction.thresholdTokens) as SessionInsightsEditableNumberField | null,
+                    enabled: normalizeEditableField(
+                      readCandidateValue(compaction, "enabled"),
+                    ) as SessionInsightsEditableBooleanField | null,
+                    reserveTokens: normalizeEditableField(
+                      readCandidateValue(compaction, "reserveTokens", "reserve_tokens"),
+                    ) as SessionInsightsEditableNumberField | null,
+                    thresholdPercent: normalizeEditableField(
+                      readCandidateValue(compaction, "thresholdPercent", "threshold_percent"),
+                    ) as SessionInsightsEditableNumberField | null,
+                    thresholdTokens: normalizeEditableField(
+                      readCandidateValue(compaction, "thresholdTokens", "threshold_tokens"),
+                    ) as SessionInsightsEditableNumberField | null,
                   }
                 : null,
             model:
               Object.keys(model).length > 0
                 ? {
-                    contextWindow: normalizeEditableField(model.contextWindow) as SessionInsightsEditableNumberField | null,
-                    maxOutputTokens: normalizeEditableField(model.maxOutputTokens) as SessionInsightsEditableNumberField | null,
-                    model: normalizeEditableField(model.model),
-                    provider: normalizeEditableField(model.provider),
-                    reasoningEffort: normalizeEditableField(model.reasoningEffort),
+                    contextWindow: normalizeEditableField(
+                      readCandidateValue(model, "contextWindow", "context_window"),
+                    ) as SessionInsightsEditableNumberField | null,
+                    maxOutputTokens: normalizeEditableField(
+                      readCandidateValue(model, "maxOutputTokens", "max_output_tokens"),
+                    ) as SessionInsightsEditableNumberField | null,
+                    model: normalizeEditableField(readCandidateValue(model, "model")),
+                    provider: normalizeEditableField(readCandidateValue(model, "provider")),
+                    reasoningEffort: normalizeEditableField(
+                      readCandidateValue(model, "reasoningEffort", "reasoning_effort"),
+                    ),
                   }
                 : null,
           }
@@ -423,14 +498,14 @@ function normalizeLastTurn(value: unknown): SessionInsightsLastTurn | null {
   const model = asRecord(candidate.model);
 
   return {
-    completedAt: normalizeString(candidate.completedAt),
-    errorMessage: normalizeString(candidate.errorMessage),
-    finishReason: normalizeString(candidate.finishReason),
+    completedAt: normalizeString(readCandidateValue(candidate, "completedAt", "completed_at")),
+    errorMessage: normalizeString(readCandidateValue(candidate, "errorMessage", "error_message")),
+    finishReason: normalizeString(readCandidateValue(candidate, "finishReason", "finish_reason")),
     model: {
-      model: normalizeString(model.model),
-      provider: normalizeString(model.provider),
+      model: normalizeString(readCandidateValue(model, "model")),
+      provider: normalizeString(readCandidateValue(model, "provider")),
     },
-    tokens: normalizeTokenTotals(candidate.tokens),
+    tokens: normalizeTokenTotals(readCandidateValue(candidate, "tokens")),
   };
 }
 
@@ -439,16 +514,19 @@ export function normalizeSessionInsightsSnapshot(payload: unknown) {
     throw new Error("Session insights response is not an object.");
   }
 
-  const candidate = payload as Record<string, unknown>;
-  const config = normalizeConfig(candidate.config);
-  const editable = normalizeEditable(candidate.editable);
-  const model = normalizeModel(candidate.model);
-  const context = normalizeContext(candidate.context);
+  const rootCandidate = payload as Record<string, unknown>;
+  const wrappedInsights = asRecord(readCandidateValue(rootCandidate, "insights"));
+  const candidate =
+    Object.keys(wrappedInsights).length > 0 ? wrappedInsights : rootCandidate;
+  const config = normalizeConfig(readCandidateValue(candidate, "config"));
+  const editable = normalizeEditable(readCandidateValue(candidate, "editable"));
+  const model = normalizeModel(readCandidateValue(candidate, "model"));
+  const context = normalizeContext(readCandidateValue(candidate, "context"));
 
   return {
     config,
     editable,
-    info: normalizeInfoTree(candidate.info),
+    info: normalizeInfoTree(readCandidateValue(candidate, "info")),
     context:
       context || config?.compaction || config?.model
         ? {
@@ -469,7 +547,7 @@ export function normalizeSessionInsightsSnapshot(payload: unknown) {
             tokensRemainingBeforeContextLimit: context?.tokensRemainingBeforeContextLimit ?? null,
           }
         : null,
-    lastTurn: normalizeLastTurn(candidate.lastTurn),
+    lastTurn: normalizeLastTurn(readCandidateValue(candidate, "lastTurn", "last_turn")),
     model:
       model || config?.model
         ? {
@@ -480,11 +558,12 @@ export function normalizeSessionInsightsSnapshot(payload: unknown) {
             reasoningEffort: model?.reasoningEffort ?? config?.model?.reasoningEffort ?? null,
           }
         : null,
-    session: normalizeSession(candidate.session),
-    usage: normalizeUsage(candidate.usage),
+    session: normalizeSession(readCandidateValue(candidate, "session")),
+    usage: normalizeUsage(readCandidateValue(candidate, "usage")),
     version:
-      typeof candidate.version === "number" && Number.isFinite(candidate.version)
-        ? candidate.version
+      typeof readCandidateValue(candidate, "version") === "number" &&
+      Number.isFinite(readCandidateValue(candidate, "version"))
+        ? (readCandidateValue(candidate, "version") as number)
         : 1,
   } satisfies SessionInsightsSnapshot;
 }

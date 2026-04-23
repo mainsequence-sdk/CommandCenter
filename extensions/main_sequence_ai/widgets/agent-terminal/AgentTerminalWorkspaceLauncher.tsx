@@ -9,8 +9,10 @@ import { WorkspaceToolbarButton } from "@/features/dashboards/WorkspaceChrome";
 import { useCustomWorkspaceStudio } from "@/features/dashboards/useCustomWorkspaceStudio";
 
 import { createAgentMonitorWorkspaceDefinition } from "../../agent-monitor-workspaces";
-import { AgentSessionCatalogPicker } from "../../features/chat/AgentSessionCatalogPicker";
-import { getAgentSessionRecordSessionId } from "../../runtime/agent-sessions-api";
+import { useAuthStore } from "@/auth/auth-store";
+import type { AgentSearchResult } from "../../agent-search";
+import { startNewAgentSessionRequest } from "../../runtime/agent-sessions-api";
+import { AgentTerminalAgentPicker } from "./AgentTerminalAgentPicker";
 import {
   findAgentTerminalWidgetForSession,
   upsertAgentTerminalWidgetForSession,
@@ -32,25 +34,29 @@ export function AgentTerminalWorkspaceLauncher({
     setSelectedWorkspaceEditing,
     updateSelectedWorkspace,
   } = useCustomWorkspaceStudio();
+  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionToken = useAuthStore((state) => state.session?.token ?? null);
+  const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedWorkspaceAvailable = Boolean(selectedDashboard);
 
-  async function handleSessionSelect({
-    agentName,
-    sessionId,
-  }: {
-    agentName: string;
-    sessionId: string;
-  }) {
-    if (!sessionId || isSubmitting) {
+  async function handleAgentSelect(agent: AgentSearchResult) {
+    if (isSubmitting) {
       return;
     }
 
     setIsSubmitting(true);
 
     try {
+      const { sessionId } = await startNewAgentSessionRequest({
+        agentId: agent.id,
+        createdByUser: sessionUserId ?? "",
+        token: sessionToken,
+        tokenType: sessionTokenType,
+      });
+
       if (selectedWorkspaceAvailable) {
         const created = selectedDashboard
           ? !findAgentTerminalWidgetForSession(selectedDashboard, sessionId)
@@ -59,7 +65,8 @@ export function AgentTerminalWorkspaceLauncher({
         setSelectedWorkspaceEditing(true);
         updateSelectedWorkspace((dashboard) => {
           return upsertAgentTerminalWidgetForSession(dashboard, {
-            agentName,
+            agentId: agent.id,
+            agentName: agent.name,
             sessionId,
           }).dashboard;
         });
@@ -67,14 +74,15 @@ export function AgentTerminalWorkspaceLauncher({
         toast({
           title: created ? "Agent terminal added" : "Agent terminal already present",
           description: created
-            ? `${agentName} session ${sessionId} was added to the current workspace.`
-            : `${agentName} session ${sessionId} is already on this workspace canvas.`,
+            ? `Created ${agent.name} session ${sessionId} and added it to the current workspace.`
+            : `${agent.name} session ${sessionId} is already on this workspace canvas.`,
           variant: "success",
         });
       } else if (createWorkspaceWhenMissing) {
         const createdDashboard = await createWorkspaceFromDefinition(
           createAgentMonitorWorkspaceDefinition({
-            agentName,
+            agentId: agent.id,
+            agentName: agent.name,
             sessionId,
           }),
         );
@@ -85,7 +93,7 @@ export function AgentTerminalWorkspaceLauncher({
 
         toast({
           title: "Agent monitor created",
-          description: `${agentName} session ${sessionId} opened in a new monitor workspace.`,
+          description: `Created ${agent.name} session ${sessionId} and opened it in a new monitor workspace.`,
           variant: "success",
         });
       } else {
@@ -96,7 +104,7 @@ export function AgentTerminalWorkspaceLauncher({
     } catch (error) {
       toast({
         title: "Agent terminal action failed",
-        description: error instanceof Error ? error.message : "Unable to apply the selected session.",
+        description: error instanceof Error ? error.message : "Unable to create the selected session.",
         variant: "error",
       });
     } finally {
@@ -138,8 +146,8 @@ export function AgentTerminalWorkspaceLauncher({
         title={selectedWorkspaceAvailable ? "Add Agent Terminal" : "Create Agent Monitor"}
         description={
           selectedWorkspaceAvailable
-            ? "Pick an agent session and the terminal widget will be inserted into the current workspace."
-            : "Pick an agent session and a new monitor workspace will be created automatically."
+            ? "Pick a supported agent. The launcher creates a fresh session automatically and inserts the terminal into the current workspace."
+            : "Pick a supported agent. The launcher creates a fresh session automatically and opens it in a new monitor workspace."
         }
         closeOnBackdropClick={!isSubmitting}
         className="max-w-[880px]"
@@ -150,17 +158,14 @@ export function AgentTerminalWorkspaceLauncher({
           {isSubmitting ? (
             <div className="mb-4 flex items-center gap-2 rounded-[16px] border border-border/70 bg-background/35 px-3 py-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Applying session selection
+              Creating a fresh agent session
             </div>
           ) : null}
 
-          <AgentSessionCatalogPicker
+          <AgentTerminalAgentPicker
             editable={!isSubmitting}
-            onSelect={({ agent, session }) => {
-              void handleSessionSelect({
-                agentName: agent.name,
-                sessionId: getAgentSessionRecordSessionId(session),
-              });
+            onSelect={(agent) => {
+              void handleAgentSelect(agent);
             }}
           />
         </div>

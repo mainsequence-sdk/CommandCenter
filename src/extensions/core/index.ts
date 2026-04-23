@@ -21,6 +21,7 @@ import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOr
 import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
 import { SavedWidgetsPage } from "@/features/dashboards/SavedWidgetsPage";
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
+import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
 import { cyberpunkTheme } from "@/themes/presets/cyberpunk";
 import { draculaTheme } from "@/themes/presets/dracula";
 import { grandpaTheme } from "@/themes/presets/grandpa";
@@ -156,6 +157,26 @@ const workspaceStudioApp: AppDefinition = {
       fullBleed: true,
       requiredPermissions: ["workspaces:view"],
       component: WorkspacesPage,
+    },
+    {
+      id: "widget-catalog",
+      title: "Widget Catalog",
+      navLabel: "Widget Catalog",
+      description:
+        "Browse the registered widget catalog available for workspace design.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the Widget Catalog surface inside Workspaces. This view lists registered widgets available for workspace design.",
+        availableActions: [
+          "Browse available widget types",
+          "Inspect widget descriptions and permissions",
+          "Open widget detail screens",
+        ],
+      }),
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["widget.catalog:view"],
+      component: WidgetCatalogPage,
     },
     {
       id: "widgets",

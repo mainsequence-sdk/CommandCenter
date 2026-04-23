@@ -774,26 +774,45 @@ function Composer({
 
 function PageComposerFooter() {
   const { activeSessionSummary } = useChatFeature();
-  const context =
+  const insights =
     activeSessionSummary &&
     !activeSessionSummary.isLoadingInsights &&
     !activeSessionSummary.insightsError
-      ? activeSessionSummary.sessionInsights?.context ?? null
+      ? activeSessionSummary.sessionInsights ?? null
+      : null;
+  const context = insights?.context ?? null;
+  const model = insights?.model ?? null;
+  const usage = insights?.usage ?? null;
+  const resolvedTokens = usage?.tokens?.total ?? context?.tokens ?? null;
+  const resolvedContextWindow = model?.contextWindow ?? context?.contextWindow ?? null;
+  const windowTokens = formatContextUsageNumber(resolvedContextWindow);
+  const derivedPercentUsed =
+    resolvedTokens !== null &&
+    resolvedTokens !== undefined &&
+    resolvedContextWindow !== null &&
+    resolvedContextWindow !== undefined &&
+    Number.isFinite(resolvedTokens) &&
+    Number.isFinite(resolvedContextWindow) &&
+    resolvedContextWindow > 0
+      ? (resolvedTokens / resolvedContextWindow) * 100
       : null;
   const percentUsed =
     context?.percentOfContextWindow !== null &&
     context?.percentOfContextWindow !== undefined &&
     Number.isFinite(context.percentOfContextWindow)
       ? Math.min(Math.max(context.percentOfContextWindow, 0), 100)
-      : null;
-  const usedTokens = formatContextUsageNumber(context?.tokens ?? null);
-  const windowTokens = formatContextUsageNumber(context?.contextWindow ?? null);
+      : derivedPercentUsed !== null
+        ? Math.min(Math.max(derivedPercentUsed, 0), 100)
+        : null;
+  const resolvedUsedTokensLabel = formatContextUsageNumber(resolvedTokens);
   const usageLabel =
     percentUsed !== null
       ? `${percentUsed}%`
       : null;
   const usageDetail =
-    usedTokens && windowTokens ? `${usedTokens} / ${windowTokens} tokens` : null;
+    resolvedUsedTokensLabel && windowTokens
+      ? `${resolvedUsedTokensLabel} / ${windowTokens} tokens`
+      : null;
 
   return (
     <div className="mt-3 space-y-3">
@@ -972,6 +991,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   sessionUnavailableMessage={sessionUnavailableMessage}
                   surface={surface}
                 />
+                <PageComposerFooter />
               </div>
             </div>
           </div>

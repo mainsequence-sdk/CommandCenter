@@ -18,6 +18,8 @@
 .ms-agent-terminal-widget .ms-agent-terminal-window {
   height: 100%;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   border-radius: calc(var(--radius) - 2px);
@@ -32,8 +34,39 @@
     0 18px 44px -30px color-mix(in srgb, var(--foreground) 32%, transparent);
 }
 
+.ms-agent-terminal-widget .ms-agent-terminal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card) 96%, transparent),
+      color-mix(in srgb, var(--background) 90%, transparent)
+    );
+}
+
+.ms-agent-terminal-widget .ms-agent-terminal-session-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.ms-agent-terminal-widget .ms-agent-terminal-session-link:hover {
+  text-decoration: underline;
+}
+
 .ms-agent-terminal-widget .react-terminal-wrapper {
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   border: none;

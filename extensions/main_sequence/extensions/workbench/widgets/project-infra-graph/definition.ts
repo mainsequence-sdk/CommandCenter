@@ -1,9 +1,9 @@
 import { Network } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { MainSequenceProjectInfraGraphWidget } from "./MainSequenceProjectInfraGraphWidget";
 import { MainSequenceProjectInfraGraphWidgetSettings } from "./MainSequenceProjectInfraGraphWidgetSettings";
 import type { MainSequenceProjectInfraGraphWidgetProps } from "./projectInfraGraphRuntime";
@@ -12,7 +12,7 @@ export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProj
   id: "main-sequence-project-infra-graph",
   widgetVersion: "1.0.0",
   title: "Project Infrastructure Graph",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Infrastructure",
   kind: "chart",
   source: "main_sequence_workbench",
@@ -56,23 +56,7 @@ export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProj
       renderingModel: "project-centered-infra-graph",
       supportedVariants: ["widget", "page"],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to inspect infrastructure relationships around one Main Sequence project.",
-      whenToUse: [
-        "Use when the user needs a project-centric view of resources, jobs, releases, and secrets.",
-      ],
-      whenNotToUse: [
-        "Do not use when the user needs a dependency graph around one data source or a dataset chart.",
-      ],
-      authoringSteps: [
-        "Set the target project id.",
-      ],
-      blockingRequirements: ["A valid project id is required."],
-      commonPitfalls: [
-        "This widget is project-scoped and does not accept upstream dataset bindings.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: MainSequenceProjectInfraGraphWidget,
 });

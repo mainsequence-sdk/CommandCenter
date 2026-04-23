@@ -1,9 +1,9 @@
 import { Table } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
   MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT,
   normalizeMainSequenceDataSourceBundle,
@@ -32,9 +32,9 @@ function resolveSourceDataset(
 
 export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisualizerProps>({
   id: "data-node-table-visualizer",
-  widgetVersion: "1.1.0",
+  widgetVersion: "1.2.0",
   title: "Data Node Table",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Data Nodes",
   kind: "table",
   source: "main_sequence_workbench",
@@ -170,25 +170,44 @@ export const mainSequenceDataNodeTableWidget = defineWidget<DataNodeTableVisuali
     capabilities: {
       acceptedContracts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
       renderingSurface: "table",
+      columnConfiguration: [
+        "visibility",
+        "key",
+        "label",
+        "description",
+        "format",
+        "alignment",
+        "pinning",
+        "decimals",
+        "prefix",
+        "suffix",
+        "compactNumbers",
+      ],
+      numericVisuals: [
+        "heatmap",
+        "heatmapPalette",
+        "dataBar",
+        "ringGauge",
+        "autoBounds",
+        "fixedBounds",
+        "thresholdRules",
+      ],
+      categoricalDisplay: [
+        "valueLabelMappings",
+        "semanticTones",
+        "customTextColor",
+        "customFillColor",
+      ],
+      tableControls: [
+        "toolbar",
+        "search",
+        "zebraRows",
+        "pagination",
+        "pageSize",
+        "density",
+      ],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to show a bound Data Node dataset as a formatted interactive table.",
-      whenToUse: [
-        "Use when users need row-level inspection, sorting, and table-style presentation of a Data Node output.",
-      ],
-      whenNotToUse: [
-        "Do not use when the widget must own data loading or transformation.",
-      ],
-      authoringSteps: [
-        "Bind the widget to an upstream Data Node dataset.",
-        "Configure table presentation and field visibility.",
-      ],
-      blockingRequirements: ["An upstream Data Node dataset binding is required."],
-      commonPitfalls: [
-        "This widget will stay empty until it is bound to a compatible Data Node source.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   settingsComponent: DataNodeTableWidgetSettings,
   component: DataNodeTableWidget,

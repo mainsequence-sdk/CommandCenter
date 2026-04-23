@@ -1,10 +1,10 @@
 import { LineChart } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
   ECHARTS_WIDGET_ORGANIZATION_CONFIGURATION,
   EChartsSpecWidget,
@@ -18,7 +18,7 @@ export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
   id: "echarts-spec",
   widgetVersion: "1.2.0",
   title: "ECharts Spec",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Visualization",
   kind: "chart",
   source: "echarts",
@@ -123,30 +123,7 @@ export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
         "{ \"$paletteScale\": \"diverging.default\", \"index\": 2, \"steps\": 5 }",
       ],
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget to render arbitrary ECharts option payloads when a fixed-purpose chart widget would be too restrictive.",
-      whenToUse: [
-        "Use when the chart structure should be authored directly as an ECharts option payload.",
-        "Use when an organization needs widget-type-specific ECharts capability ceilings or defaults.",
-        "Use when an upstream AppComponent or other JSON-producing widget should publish the chart props dynamically.",
-      ],
-      whenNotToUse: [
-        "Do not use when an existing typed chart widget already owns the desired dataset and interaction model.",
-        "Do not use unsafe JavaScript mode unless the organization explicitly permits it.",
-      ],
-      authoringSteps: [
-        "Choose JSON or JavaScript source mode.",
-        "Author the ECharts option payload or bind a JSON props payload from another widget.",
-        "Verify that the payload fits the current organization capability mode.",
-      ],
-      commonPitfalls: [
-        "JSON mode does not parse functions from payload strings.",
-        "Bound props JSON overrides matching local widget props when both are present.",
-        "Unsafe JavaScript mode may be blocked by organization configuration and will then fall back to JSON mode.",
-        "Theme and palette tokens in JavaScript mode are only resolved inside plain returned option objects; already-instantiated ECharts helper objects must still use final colors.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
     examples: [
       {
         label: "JSON starter",

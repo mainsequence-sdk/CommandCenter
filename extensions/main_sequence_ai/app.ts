@@ -10,6 +10,7 @@ import { AgentSettingsSection } from "./features/settings/AgentSettingsSection";
 import { ModelProviderSettingsSection } from "./features/settings/ModelProviderSettingsSection";
 import { ChatPage } from "./surfaces/chat/ChatPage";
 import { AgentsMonitorPage } from "./surfaces/monitor/AgentsMonitorPage";
+import { AgentSessionDetailPage } from "./surfaces/session/AgentSessionDetailPage";
 
 export const mainSequenceAiApp: AppDefinition = {
   id: "main_sequence_ai",
@@ -81,19 +82,38 @@ export const mainSequenceAiApp: AppDefinition = {
       title: "Agents Monitor",
       navLabel: "Agents Monitor",
       icon: LayoutTemplate,
-      description: "Workspace-studio-backed monitor canvas restricted to Agent Terminal widgets.",
+      description:
+        "Workspace-studio-backed monitor canvas limited to Agent Terminal, WorkspaceReference, and Upstream Inspector.",
       ...defineSurfaceAssistantContext({
         summary:
           "User is on the Agents Monitor surface inside Main Sequence AI. This page reuses the workspace studio canvas for agent-monitor workspaces.",
         availableActions: [
           "Open an existing agent monitor workspace",
           "Create a new session-bound monitor workspace",
-          "Insert Agent Terminal widgets from existing agent sessions",
+          "Insert Agent Terminal widgets backed by a fresh managed session",
         ],
       }),
       kind: "page",
       fullBleed: true,
       component: AgentsMonitorPage,
+    },
+    {
+      id: "session",
+      title: "Agent Session",
+      description: "Standalone AgentSession detail shell for one backend session id.",
+      icon: Bot,
+      hidden: true,
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the standalone AgentSession detail surface inside Main Sequence AI. This page inspects one backend session independently from chat.",
+        availableActions: [
+          "Inspect core AgentSession detail",
+          "Inspect session insights",
+          "Update the session provider and model",
+        ],
+      }),
+      kind: "page",
+      component: AgentSessionDetailPage,
     },
   ],
 };

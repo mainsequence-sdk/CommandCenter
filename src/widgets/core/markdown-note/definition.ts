@@ -1,9 +1,9 @@
 import { FileText } from "lucide-react";
 
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { MarkdownNoteWidget, type MarkdownNoteWidgetProps } from "./MarkdownNoteWidget";
 import { MarkdownNoteWidgetSettings } from "./MarkdownNoteWidgetSettings";
 
@@ -27,7 +27,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
   id: "markdown-note",
   widgetVersion: "1.2.0",
   title: "Markdown",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
   kind: "custom",
   source: "core",
@@ -83,24 +83,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
       mode: "none",
       summary: "This widget renders local authored content and does not participate in typed widget IO.",
     },
-    agentHints: {
-      buildPurpose:
-        "Use this widget for narrative context, runbooks, instructions, and other rich text inside a workspace.",
-      whenToUse: [
-        "Use when the content is static authored documentation or commentary.",
-      ],
-      whenNotToUse: [
-        "Do not use when the content should come from structured upstream data or execution outputs.",
-      ],
-      authoringSteps: [
-        "Add the widget and write the Markdown body.",
-        "Adjust width, vertical alignment, and link behavior if needed.",
-      ],
-      blockingRequirements: [],
-      commonPitfalls: [
-        "Large operational datasets should not be embedded as Markdown tables when a data widget exists.",
-      ],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
     examples: [
       {
         label: "Runbook panel",

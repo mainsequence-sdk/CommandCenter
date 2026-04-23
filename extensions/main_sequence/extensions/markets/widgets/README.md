@@ -29,8 +29,9 @@ This folder contains widget definitions and widget-owned presentation components
   extension.
 - Shared low-level UI primitives belong in `../../common/components/`.
 - Add a local `README.md` for each widget folder with entry points and usage notes.
-- Add a local `DESCRIPTION.md` for each widget type and import it into `definition.ts`; the resolved
-  description string is part of the backend widget-type sync payload.
+- Add a local `USAGE_GUIDANCE.md` for each widget type and import it into `definition.ts`; the
+  resolved `buildPurpose` description and full usage guidance are part of the backend widget-type
+  sync payload.
 - Every registered widget definition in this folder now publishes `widgetVersion` plus an explicit
   backend-facing `registryContract` so the widget registry can describe consumer vs execution-owner
   behavior, configuration surface, and agent authoring guidance consistently.

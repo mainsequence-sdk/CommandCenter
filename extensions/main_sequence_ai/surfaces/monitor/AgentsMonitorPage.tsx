@@ -177,7 +177,7 @@ function AgentsMonitorPageContent() {
               </h1>
               <p className="max-w-2xl text-sm text-muted-foreground">
                 Open agent-monitor workspaces powered by the shared workspace studio. This surface
-                exposes only the Agent Terminal widget.
+                exposes only Agent Terminal, WorkspaceReference, and Upstream Inspector.
               </p>
             </div>
           </div>

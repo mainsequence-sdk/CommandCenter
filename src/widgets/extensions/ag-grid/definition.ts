@@ -1,14 +1,14 @@
 import { PositionsTableWidget } from "@/widgets/extensions/ag-grid/PositionsTableWidget";
-import { resolveWidgetDescription } from "@/widgets/shared/widget-description";
+import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
-import descriptionMarkdown from "./DESCRIPTION.md?raw";
+import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 
 export const positionsTableWidget = defineWidget<Record<string, unknown>>({
   id: "positions-table",
   widgetVersion: "1.0.0",
   title: "Positions Table",
-  description: resolveWidgetDescription(descriptionMarkdown),
+  description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
   kind: "table",
   source: "main_sequence_markets",
@@ -24,14 +24,7 @@ export const positionsTableWidget = defineWidget<Record<string, unknown>>({
       mode: "none",
       summary: "This widget does not publish a standardized typed IO contract.",
     },
-    agentHints: {
-      buildPurpose: "Use this widget to show a legacy AG Grid positions table.",
-      whenToUse: ["Use only when this legacy extension widget is explicitly required."],
-      whenNotToUse: ["Do not use when the newer typed portfolio widgets cover the same need."],
-      authoringSteps: ["Add the widget to a surface that already knows how to provide its data."],
-      blockingRequirements: [],
-      commonPitfalls: ["This widget is not part of the modern typed workspace runtime model."],
-    },
+    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: PositionsTableWidget,
 });
