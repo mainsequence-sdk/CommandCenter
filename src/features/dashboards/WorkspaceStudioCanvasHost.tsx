@@ -41,6 +41,7 @@ export function WorkspaceStudioCanvasHost() {
     <DashboardControlsProvider
       key={selectedDashboard.id}
       controls={selectedDashboard.controls}
+      refreshProgressUpdateIntervalMs={selectedWorkspaceView === "graph" ? 1000 : 120}
       onStateChange={(state) => {
         updateSelectedWorkspaceUserState((dashboard) =>
           updateDashboardControlsState(dashboard, state),

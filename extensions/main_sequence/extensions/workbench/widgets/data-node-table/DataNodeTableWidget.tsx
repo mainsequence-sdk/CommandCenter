@@ -355,6 +355,14 @@ function resolveConditionalToneStyle(
   };
 }
 
+function getValueLabelChipClass(
+  density: ResolvedDataNodeTableVisualizerProps["density"],
+) {
+  return density === "compact"
+    ? "inline-flex max-w-full min-h-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-[0.08em] overflow-hidden"
+    : "inline-flex max-w-full min-h-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase leading-none tracking-[0.12em] overflow-hidden";
+}
+
 function createTableCellStyle({
   value,
   columnConfig,
@@ -449,13 +457,14 @@ function DataNodeTableVisualizerCellRenderer({
   if (valueLabel) {
     const toneStyle = resolveLabelToneStyle(valueLabel, tokens);
     return (
-      <div className={`flex h-full w-full items-center ${alignmentClasses}`}>
+      <div className={`flex h-full w-full items-center overflow-hidden ${alignmentClasses}`}>
         <span
-          className="inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]"
+          className={getValueLabelChipClass(resolvedProps.density)}
           style={{
             color: toneStyle.textColor,
             backgroundColor: toneStyle.backgroundColor,
             borderColor: toneStyle.borderColor,
+            maxHeight: resolvedProps.density === "compact" ? "calc(100% - 6px)" : "calc(100% - 8px)",
           }}
         >
           <span className="truncate">{valueLabel.label ?? formattedValue}</span>

@@ -879,10 +879,12 @@ export function DashboardControlsProvider({
   children,
   controls,
   onStateChange,
+  refreshProgressUpdateIntervalMs = 120,
 }: {
   children: ReactNode;
   controls?: DashboardControlsConfig;
   onStateChange?: (state: DashboardControlsState) => void;
+  refreshProgressUpdateIntervalMs?: number;
 }) {
   const location = useLocation();
   const refreshLockRef = useRef(false);
@@ -1046,12 +1048,20 @@ export function DashboardControlsProvider({
 
     updateRefreshProgress();
 
-    const timerId = window.setInterval(updateRefreshProgress, 120);
+    const timerId = window.setInterval(
+      updateRefreshProgress,
+      Math.max(120, Math.round(refreshProgressUpdateIntervalMs)),
+    );
 
     return () => {
       window.clearInterval(timerId);
     };
-  }, [refreshCycleStartedAt, refreshIntervalMs, resolvedConfig.refresh.enabled]);
+  }, [
+    refreshCycleStartedAt,
+    refreshIntervalMs,
+    refreshProgressUpdateIntervalMs,
+    resolvedConfig.refresh.enabled,
+  ]);
 
   async function refreshNow() {
     if (refreshLockRef.current) {

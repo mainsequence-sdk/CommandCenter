@@ -268,6 +268,10 @@ These flows are all part of one app surface, with instance state selected throug
   It now derives flow props directly from the dependency model plus minimal page-owned drag and
   selection state. That avoids timer-driven and effect-driven re-sync loops that caused visual
   blink and cursor instability in the graph surface.
+- The shared dashboard controls provider now supports a configurable refresh-progress animation
+  tick. Graph mode keeps the same real refresh cadence, but samples the animated refresh progress
+  line more slowly so React Flow hover/drag interactions are not churned by `120ms` context
+  updates.
 - The widget settings header now scopes its saved/unsaved badge and save-button enabled state to the
   selected workspace only. It must not reflect unrelated unsaved changes elsewhere in the workspace
   collection.
