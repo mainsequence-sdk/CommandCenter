@@ -67,9 +67,9 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
     configuration: {
       mode: "static-schema",
       summary:
-        "Maps a bound Data Node dataset into a tenor curve chart using maturity and yield fields.",
+        "Maps a bound tabular curve dataset into a tenor curve chart using maturity and yield fields.",
       requiredSetupSteps: [
-        "Bind the widget to an upstream Data Node dataset.",
+        "Bind the widget to an upstream Connection Query or Tabular Transform dataset.",
         "Select maturity and value fields.",
       ],
     },
@@ -77,7 +77,7 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
       refreshPolicy: "not-applicable",
       executionTriggers: [],
       executionSummary:
-        "Consumes a bound Data Node dataset and renders a curve chart without owning execution.",
+        "Consumes a bound dataset and renders a curve chart without owning execution.",
     },
     io: {
       mode: "consumer",

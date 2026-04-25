@@ -9,6 +9,7 @@ import {
 import {
   TIMESERIES_FRAME_SOURCE_CONTRACTS,
   TIMESERIES_FRAME_SOURCE_VALUE_DESCRIPTOR,
+  CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
   normalizeTimeSeriesFrameSource,
 } from "@/widgets/shared/timeseries-frame-source";
 import { defineWidget, type WidgetIoDefinition } from "@/widgets/types";
@@ -21,20 +22,35 @@ import {
   executeConnectionQueryWidgetRequest,
   normalizeConnectionQueryProps,
   normalizeConnectionQueryRuntimeState,
+  resolveConnectionQueryRequestedOutputContract,
   type ConnectionQueryWidgetProps,
 } from "./connectionQueryModel";
 
 export const CONNECTION_QUERY_DATASET_OUTPUT_ID = "dataset";
 
-function resolveConfiguredOutputContract(props: ConnectionQueryWidgetProps) {
+function resolveConfiguredQueryModel(props: ConnectionQueryWidgetProps) {
   const normalizedProps = normalizeConnectionQueryProps(props);
   const connectionType = normalizedProps.connectionRef?.typeId
     ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
     : undefined;
-  const queryModel = connectionType?.queryModels?.find(
+
+  return connectionType?.queryModels?.find(
     (model) => model.id === normalizedProps.queryModelId,
   );
+}
+
+function resolveConfiguredOutputContract(props: ConnectionQueryWidgetProps) {
+  const queryModel = resolveConfiguredQueryModel(props);
   const advertisedContracts = queryModel?.outputContracts ?? [];
+  const requestedOutputContract = resolveConnectionQueryRequestedOutputContract(queryModel);
+
+  if (requestedOutputContract && advertisedContracts.includes(requestedOutputContract)) {
+    return requestedOutputContract;
+  }
+
+  if (advertisedContracts.length === 1) {
+    return advertisedContracts[0]!;
+  }
 
   return advertisedContracts.find((contract) =>
     TIMESERIES_FRAME_SOURCE_CONTRACTS.includes(
@@ -43,25 +59,41 @@ function resolveConfiguredOutputContract(props: ConnectionQueryWidgetProps) {
   ) ?? CORE_TABULAR_FRAME_SOURCE_CONTRACT;
 }
 
+function formatConnectionQueryOutputContract(contract: string) {
+  if (contract === CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT) {
+    return "Time series";
+  }
+
+  if (contract === CORE_TABULAR_FRAME_SOURCE_CONTRACT) {
+    return "Tabular";
+  }
+
+  return contract;
+}
+
 function resolveConnectionQueryIo(
   props: ConnectionQueryWidgetProps,
   runtimeState?: Record<string, unknown>,
 ): WidgetIoDefinition<ConnectionQueryWidgetProps> {
   const runtimeTimeSeries = normalizeTimeSeriesFrameSource(runtimeState);
+  const queryModel = resolveConfiguredQueryModel(props);
   const outputContract = runtimeTimeSeries?.contract ?? resolveConfiguredOutputContract(props);
   const publishesTimeSeries = TIMESERIES_FRAME_SOURCE_CONTRACTS.includes(
     outputContract as (typeof TIMESERIES_FRAME_SOURCE_CONTRACTS)[number],
   );
+  const outputLabel = queryModel
+    ? `${queryModel.label} (${formatConnectionQueryOutputContract(outputContract)})`
+    : "Unconfigured dataset";
 
   return {
     outputs: [
       {
         id: CONNECTION_QUERY_DATASET_OUTPUT_ID,
-        label: "Dataset",
+        label: outputLabel,
         contract: outputContract,
         description: publishesTimeSeries
-          ? "Publishes the selected connection response frame as a time-series dataset."
-          : "Publishes the selected connection response frame as a tabular dataset.",
+          ? `Publishes the ${queryModel?.id ?? "selected"} connection path as a time-series dataset.`
+          : `Publishes the ${queryModel?.id ?? "selected"} connection path as a tabular dataset.`,
         valueDescriptor: publishesTimeSeries
           ? TIMESERIES_FRAME_SOURCE_VALUE_DESCRIPTOR
           : TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
@@ -91,7 +123,7 @@ function resolveConnectionQueryIo(
 
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   id: "connection-query",
-  widgetVersion: "1.1.0",
+  widgetVersion: "1.3.0",
   title: "Connection Query",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -145,11 +177,13 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       const props = normalizeConnectionQueryProps(
         (context.targetOverrides?.props ?? context.props) as ConnectionQueryWidgetProps,
       );
+      const queryModel = resolveConfiguredQueryModel(props);
 
       try {
         const runtimeStatePatch = await executeConnectionQueryWidgetRequest(
           props,
           context.dashboardState,
+          queryModel,
         );
 
         return {
@@ -183,12 +217,16 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
         "Selects a backend-owned connection instance, query model, query payload, range behavior, variables, and selected response frame.",
       requiredSetupSteps: [
         "Select a configured connection instance.",
-        "Choose a query model exposed by the connection type.",
-        "Configure the query payload and runtime range behavior.",
+        "Choose the connection path exposed by the connection type.",
+        "Configure the query payload and, when the path is time-range-aware, whether runtime uses workspace dates, custom dates, or no dates.",
+        "Test the draft query in settings before binding consumers.",
         "Bind downstream widgets to the dataset output.",
       ],
       configurationNotes: [
         "The widget stores a stable ConnectionRef and query config, not credentials or endpoint URLs.",
+        "The selected connection path is authoritative and is sent as query.kind.",
+        "The connection path metadata owns any fixed/default requestedOutputContract; users do not choose output type.",
+        "Date runtime controls are only shown for time-range-aware connection paths.",
         "Connection-specific query editors are used when the connection type provides one.",
         "The widget is fixed to sidebar placement because it is a source/execution node, not a canvas presentation widget.",
       ],
@@ -203,7 +241,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       mode: "dynamic",
       summary: "Publishes one canonical tabular or time-series dataset from a connection query response.",
       dynamicIoSummary:
-        "The selected query model controls whether the dataset output advertises a time-series or tabular contract.",
+        "The selected connection path metadata controls whether the dataset output advertises a time-series or tabular contract.",
       outputContracts: [...TIMESERIES_FRAME_SOURCE_CONTRACTS, CORE_TABULAR_FRAME_SOURCE_CONTRACT],
     },
     capabilities: {
@@ -220,7 +258,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
     examples: [
       {
         label: "Tabular connection source",
-        summary: "Runs one connection query and publishes rows for downstream widgets.",
+        summary: "Runs one explicit connection path and publishes rows for downstream widgets.",
         props: {
           timeRangeMode: "dashboard",
           selectedFrame: 0,

@@ -1114,6 +1114,7 @@ function ExploreContent({
       return queryConnection({
         connectionUid: selectedUid,
         query: parsedQuery,
+        requestedOutputContract: selectedQueryModel?.outputContracts[0],
       });
     },
     onSuccess: (result) => {

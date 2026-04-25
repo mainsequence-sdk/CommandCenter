@@ -490,25 +490,9 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
           <Database className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
+          <div className="text-sm font-medium text-foreground">Bind a compressed curve dataset</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and use the Bindings tab to connect this zero curve widget to a Data Node widget.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!resolvedConfig.dataNodeId) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
-          <Database className="h-5 w-5" />
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Configure the linked Data Node</div>
-          <p className="text-sm text-muted-foreground">
-            This zero curve widget only renders the compressed curve dataset coming from its linked Data Node widget.
+            Connect this zero curve widget to a Connection Query or Tabular Transform dataset.
           </p>
         </div>
       </div>
@@ -522,7 +506,7 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
   if (linkedDataset.status === "error") {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-        {linkedDataset.error ?? "The linked Data Node failed to load rows."}
+        {linkedDataset.error ?? "The bound compressed curve dataset failed to load rows."}
       </div>
     );
   }

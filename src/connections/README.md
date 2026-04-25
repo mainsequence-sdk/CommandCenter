@@ -13,6 +13,8 @@ connection ADR. Connections are platform data-access resources, not widgets.
 - `hooks.ts`: React Query wrappers for connection catalogs, instances, queries, and resources.
 - `components/ConnectionPicker.tsx`: reusable widget/settings picker for selecting a configured
   connection instance by stable `ConnectionRef`.
+- `components/ConnectionQueryEditorFields.tsx`: reusable controls for connection-specific
+  `queryEditor` components rendered by the Connection Query widget.
 - `assets/`: shared connector logo assets used by connection type definitions and generic
   connection UI.
 
@@ -29,5 +31,9 @@ connection ADR. Connections are platform data-access resources, not widgets.
   The core Connection Query widget is the generic workspace source for tabular connection data and
   publishes `core.tabular_frame@v1`; downstream table, chart, statistic, and transform widgets
   should bind to that output rather than storing connection ids or query endpoints themselves.
+- Connection type `queryEditor` components receive the selected connection instance and selected
+  query model. Use them for per-connection query kwargs such as Data Node columns, SQL parameters,
+  PromQL matchers, or PostgreSQL time-series field mapping instead of forcing users through a
+  generic JSON object.
 - System fallback helpers are limited to explicit legacy runtime defaults. They must not appear in
   connection management, Explore, or any API response that represents backend-owned instances.

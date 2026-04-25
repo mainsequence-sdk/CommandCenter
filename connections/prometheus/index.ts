@@ -4,6 +4,7 @@ import { CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/timeser
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
 import { PrometheusConnectionExplore } from "./PrometheusConnectionExplore";
+import { PrometheusConnectionQueryEditor } from "./PrometheusConnectionQueryEditor";
 
 export const PROMETHEUS_CONNECTION_TYPE_ID = "prometheus.remote";
 
@@ -461,6 +462,7 @@ export const prometheusConnection: ConnectionTypeDefinition<
   ],
   requiredPermissions: ["prometheus:query"],
   exploreComponent: PrometheusConnectionExplore,
+  queryEditor: PrometheusConnectionQueryEditor,
   usageGuidance:
     "Use this connection type for backend-managed Prometheus data sources. Configure a data source instance, then use Connections > Explore to validate PromQL before wiring widgets to the shared connection runtime.",
   examples: [

@@ -1,10 +1,11 @@
 ## buildPurpose
 
-Days-based zero-curve visualization for compressed curve data.
+Days-based zero-curve visualization for a bound compressed curve dataset.
 
 ## whenToUse
 
-- Use when the dataset is already shaped for zero-curve style rendering.
+- Use when an upstream Connection Query or Tabular Transform publishes compressed Main Sequence
+  curve rows.
 
 ## whenNotToUse
 
@@ -12,12 +13,12 @@ Days-based zero-curve visualization for compressed curve data.
 
 ## authoringSteps
 
-- Bind the widget to a Data Node dataset.
+- Bind the widget to a compatible upstream dataset.
 - Choose the fields that identify the curve values to render.
 
 ## blockingRequirements
 
-- A compatible upstream Data Node binding is required.
+- A compatible upstream `core.tabular_frame@v1` binding is required.
 
 ## commonPitfalls
 

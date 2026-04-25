@@ -46,6 +46,7 @@ export interface ConnectionQueryModel {
   label: string;
   description?: string;
   outputContracts: WidgetContractId[];
+  defaultOutputContract?: WidgetContractId;
   timeRangeAware?: boolean;
   supportsVariables?: boolean;
 }
@@ -64,6 +65,8 @@ export interface ConnectionQueryEditorProps<
   value: TQuery;
   onChange: (value: TQuery) => void;
   disabled?: boolean;
+  connectionInstance?: ConnectionInstance;
+  connectionType?: ConnectionTypeDefinition<any, any>;
   queryModel?: ConnectionQueryModel;
 }
 
@@ -145,6 +148,7 @@ export type ConnectionQueryCacheMode = "default" | "bypass" | "refresh";
 export interface ConnectionQueryRequest<TQuery = Record<string, unknown>> {
   connectionUid: string;
   query: TQuery;
+  requestedOutputContract?: WidgetContractId;
   timeRange?: {
     from: string;
     to: string;

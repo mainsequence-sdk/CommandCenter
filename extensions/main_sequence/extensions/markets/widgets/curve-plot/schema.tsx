@@ -120,8 +120,8 @@ export const curvePlotSettingsSchema: WidgetSettingsSchema<
   filterWidgetOnly: true,
   dataNodeCanvasQueryScope: "curve_plot_canvas",
   dataSourceSectionDescription:
-    "Use the Bindings tab to connect this curve plot to the Data Node widget that owns the canonical row dataset.",
-  selectionHelpText: "Bind this curve plot to the Data Node widget that should feed it.",
+    "Use the Bindings tab to connect this curve plot to the upstream dataset that owns the canonical curve rows.",
+  selectionHelpText: "Bind this curve plot to a Connection Query or Tabular Transform dataset.",
   additionalSections: [
     {
       id: "field-mapping",

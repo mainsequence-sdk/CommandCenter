@@ -59,9 +59,9 @@ export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWid
     configuration: {
       mode: "static-schema",
       summary:
-        "Maps a bound Data Node dataset into a zero-curve chart rendered on a numeric days axis.",
+        "Maps a bound compressed curve dataset into a zero-curve chart rendered on a numeric days axis.",
       requiredSetupSteps: [
-        "Bind the widget to an upstream Data Node dataset.",
+        "Bind the widget to an upstream Connection Query or Tabular Transform dataset.",
         "Select the curve and value dimensions used by the chart.",
       ],
     },
@@ -69,7 +69,7 @@ export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWid
       refreshPolicy: "not-applicable",
       executionTriggers: [],
       executionSummary:
-        "Consumes a bound Data Node dataset and renders a zero-curve chart without owning execution.",
+        "Consumes a bound compressed curve dataset and renders a zero-curve chart without owning execution.",
     },
     io: {
       mode: "consumer",

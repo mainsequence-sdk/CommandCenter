@@ -1,9 +1,10 @@
 import type { ConnectionTypeDefinition } from "@/connections/types";
+import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import mainSequenceLogoMarkUrl from "../../../../../config/branding/logo_mark.png";
 
-import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../widget-contracts/mainSequenceDataSourceBundle";
 import { SimpleTableConnectionConfigEditor } from "./SimpleTableConnectionConfigEditor";
 import { SimpleTableConnectionExplore } from "./SimpleTableConnectionExplore";
+import { SimpleTableConnectionQueryEditor } from "./SimpleTableConnectionQueryEditor";
 
 export const MAIN_SEQUENCE_SIMPLE_TABLE_CONNECTION_TYPE_ID = "mainsequence.simple-table";
 export const DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_CONNECTION_UID = "mainsequence-simple-table-default";
@@ -145,13 +146,14 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
   },
   configEditor: SimpleTableConnectionConfigEditor,
   exploreComponent: SimpleTableConnectionExplore,
+  queryEditor: SimpleTableConnectionQueryEditor,
   queryModels: [
     {
       id: "simple-table-sql",
       label: "Simple Table SQL",
       description:
         "Executes read-only SQL against the configured Main Sequence Simple Table and returns a core.tabular_frame@v1 result.",
-      outputContracts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
+      outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       supportsVariables: true,
     },
   ],

@@ -5,6 +5,7 @@ import type {
   ConnectionTypeDefinition,
 } from "@/connections/types";
 import type { DashboardRequestTraceMeta } from "@/dashboards/dashboard-request-trace";
+import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import {
   type DataNodeDetail,
   type DataNodeLastObservation,
@@ -18,6 +19,7 @@ import mainSequenceLogoMarkUrl from "../../../../../config/branding/logo_mark.pn
 
 import { DataNodeConnectionConfigEditor } from "./DataNodeConnectionConfigEditor";
 import { DataNodeConnectionExplore } from "./DataNodeConnectionExplore";
+import { DataNodeConnectionQueryEditor } from "./DataNodeConnectionQueryEditor";
 
 export const MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID = "mainsequence.data-node";
 export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_UID = "mainsequence-data-node-default";
@@ -35,7 +37,7 @@ export type MainSequenceDataNodeConnectionQuery =
   | ({
       kind: "data-node-rows-between-dates";
       dataNodeId?: number;
-    } & DataNodeRemoteDataRequest)
+    } & Partial<DataNodeRemoteDataRequest>)
   | {
       kind: "data-node-last-observation";
       dataNodeId?: number;
@@ -168,6 +170,7 @@ export async function queryMainSequenceDataNodeRowsBetweenDates(
       kind: "data-node-rows-between-dates",
       dataNodeId: resolvedDataNodeId,
     },
+    requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
     maxRows: input.limit,
   });
 
@@ -195,6 +198,7 @@ export async function queryMainSequenceDataNodeLastObservation(
       kind: "data-node-last-observation",
       dataNodeId: resolvedDataNodeId,
     },
+    requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   });
 
   return (frameToRows(response)[0] ?? null) satisfies DataNodeLastObservation;
@@ -297,6 +301,7 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
   },
   configEditor: DataNodeConnectionConfigEditor,
   exploreComponent: DataNodeConnectionExplore,
+  queryEditor: DataNodeConnectionQueryEditor,
   queryModels: [
     {
       id: "data-node-rows-between-dates",
@@ -331,8 +336,6 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
       },
       query: {
         kind: "data-node-rows-between-dates",
-        start_date: 1776988800,
-        end_date: 1777075200,
         columns: ["unique_identifier", "value", "asof"],
         limit: 500,
       },

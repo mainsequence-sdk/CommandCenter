@@ -102,12 +102,12 @@ export const zeroCurveSettingsSchema: WidgetSettingsSchema<
   filterWidgetOnly: true,
   dataNodeCanvasQueryScope: "zero_curve_canvas",
   dataSourceSectionDescription:
-    "Use the Bindings tab to connect this zero curve widget to the Data Node widget that owns the canonical compressed curve rows.",
-  selectionHelpText: "Bind this zero curve widget to the Data Node widget that should feed it.",
+    "Use the Bindings tab to connect this zero curve widget to the upstream dataset that owns the canonical compressed curve rows.",
+  selectionHelpText: "Bind this zero curve widget to a Connection Query or Tabular Transform dataset.",
   additionalSections: [
     {
       id: "zero-curve-contract",
-      title: "Curve Data Node",
+      title: "Compressed Curve Contract",
       description: "Zero Curve expects the standard compressed Main Sequence curve payload contract.",
     },
     {
@@ -119,13 +119,13 @@ export const zeroCurveSettingsSchema: WidgetSettingsSchema<
   additionalFields: [
     {
       id: "curveDataNodeInfo",
-      label: "Curve Data Node",
+      label: "Compressed curve rows",
       description:
-        "Curve Data Nodes have 3 indices: time_index, unique_identifier, and curve.",
+        "Compressed curve datasets must include time_index, unique_identifier, and curve fields.",
       sectionId: "zero-curve-contract",
       renderSettings: () => (
         <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3 text-sm text-muted-foreground">
-          Curve Data Nodes have 3 indices: <code>time_index</code>, <code>unique_identifier</code>,
+          Compressed curve datasets include <code>time_index</code>, <code>unique_identifier</code>,
           {" "}and <code>curve</code>. The <code>curve</code> payload is decompressed and plotted on a
           numeric days axis.
         </div>

@@ -4,6 +4,7 @@ import { CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/timeser
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
 import { PostgreSqlConnectionExplore } from "./PostgreSqlConnectionExplore";
+import { PostgreSqlConnectionQueryEditor } from "./PostgreSqlConnectionQueryEditor";
 
 export const POSTGRESQL_CONNECTION_TYPE_ID = "postgresql.database";
 
@@ -283,6 +284,7 @@ export const postgreSqlConnection: ConnectionTypeDefinition<
   ],
   requiredPermissions: ["postgresql:query"],
   exploreComponent: PostgreSqlConnectionExplore,
+  queryEditor: PostgreSqlConnectionQueryEditor,
   usageGuidance:
     "Use this connection type for backend-managed live PostgreSQL query access. Configure a read-only database user, set data-source-level row limits, timeouts, cache defaults, and in-flight de-duplication, validate SQL in Connections > Explore, and return normalized frames to widgets through the shared connection runtime.",
   examples: [

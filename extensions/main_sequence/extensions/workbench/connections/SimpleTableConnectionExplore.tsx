@@ -16,6 +16,7 @@ import {
   summarizeConnectionQueryResponse,
 } from "@/connections/query-explore-utils";
 import type { ConnectionExploreProps } from "@/connections/types";
+import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
 import { fetchSimpleTableDetail } from "../../../common/api";
 import {
@@ -132,6 +133,7 @@ export function SimpleTableConnectionExplore({
       return queryConnection<MainSequenceSimpleTableConnectionQuery>({
         connectionUid: connectionInstance.uid,
         query,
+        requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
         maxRows,
         cacheMode: queryCachePolicy === "disabled" ? "bypass" : "default",
         cacheTtlMs: queryCachePolicy === "disabled" ? undefined : queryCacheTtlMs,

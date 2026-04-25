@@ -530,7 +530,7 @@ export function WidgetSettingsPanel<
   const [internalDraftPresentation, setInternalDraftPresentation] = useState<WidgetInstancePresentation>(
     initialPresentation,
   );
-  const [useDemoData, setUseDemoData] = useState(hasDemoPreview);
+  const [useDemoData, setUseDemoData] = useState(false);
   const [demoDraftTitle, setDemoDraftTitle] = useState(mockTitle);
   const [demoDraftProps, setDemoDraftProps] = useState<TProps>(mockProps);
   const [demoDraftPresentation, setDemoDraftPresentation] = useState<WidgetInstancePresentation>(
@@ -608,7 +608,7 @@ export function WidgetSettingsPanel<
     setDemoDraftProps(mockProps);
     setDemoDraftPresentation(mockPresentation);
     setDemoDraftRuntimeState(mockRuntimeState);
-    setUseDemoData(hasDemoPreview);
+    setUseDemoData(false);
   }, [
     hasDemoPreview,
     instance.id,

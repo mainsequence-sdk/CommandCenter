@@ -445,7 +445,7 @@ function toBase64Bytes(base64Value: string) {
 
 async function decompressStringToCurve(b64String: string) {
   if (typeof DecompressionStream !== "function") {
-    throw new Error("This browser does not support gzip decompression for Curve Data Nodes.");
+    throw new Error("This browser does not support gzip decompression for compressed curve payloads.");
   }
 
   const compressedBytes = toBase64Bytes(b64String.trim());

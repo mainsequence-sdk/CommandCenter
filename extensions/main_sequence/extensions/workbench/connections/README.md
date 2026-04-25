@@ -206,12 +206,12 @@ for the resolved Data Node still apply.
 
 `query.kind = "data-node-rows-between-dates"`:
 
-- Required query payload:
-  - `start_date: number`
-  - `end_date: number`
+- Required effective inputs:
+  - date window from the top-level connection request `timeRange`
   - `columns: string[]`
 - Optional query payload:
   - `dataNodeId?: number`
+  - `start_date?: number` and `end_date?: number` only as legacy adapter compatibility inputs
   - `unique_identifier_list?: string[]`
   - `unique_identifier_range_map?: Record<string, [number, number]>`
   - `great_or_equal?: boolean`
@@ -219,6 +219,10 @@ for the resolved Data Node still apply.
   - `limit?: number`
   - `offset?: number`
 - Resolve and validate the Data Node id.
+- Normalize the date window by mapping `request.timeRange.from` and `request.timeRange.to` to the
+  Data Node API's `start_date` and `end_date` Unix-second fields. The generic Connection Query
+  widget owns the path and runtime date mode; it must not inject Data Node-specific date fields into
+  query JSON.
 - Validate `columns` is non-empty. Do not silently convert an empty list to all columns on the
   backend, because output shape should be explicit for widgets.
 - Compute `effective_limit` from `query.limit`, then `request.maxRows`, then
@@ -330,8 +334,10 @@ Build the key after validation/defaulting, not directly from the raw request bod
 
 For `data-node-rows-between-dates`, the normalized payload portion must include:
 
-- `start_date`
-- `end_date`
+- `start_date`, derived from top-level `request.timeRange.from` unless a legacy query payload field
+  was accepted
+- `end_date`, derived from top-level `request.timeRange.to` unless a legacy query payload field was
+  accepted
 - `columns` in the requested order
 - `unique_identifier_list` in the requested order
 - `unique_identifier_range_map`

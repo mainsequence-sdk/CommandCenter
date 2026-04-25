@@ -1,10 +1,11 @@
 ## buildPurpose
 
-Yield-curve style chart for a bound Data Node dataset.
+Yield-curve style chart for a bound tabular curve dataset.
 
 ## whenToUse
 
-- Use when the dataset has one maturity axis field and one numeric value field.
+- Use when an upstream Connection Query or Tabular Transform publishes rows with one maturity axis
+  field and one numeric value field.
 
 ## whenNotToUse
 
@@ -12,12 +13,12 @@ Yield-curve style chart for a bound Data Node dataset.
 
 ## authoringSteps
 
-- Bind the widget to a Data Node dataset.
+- Bind the widget to a compatible upstream dataset.
 - Choose the maturity and value fields.
 
 ## blockingRequirements
 
-- A compatible upstream Data Node binding is required.
+- A compatible upstream `core.tabular_frame@v1` binding is required.
 
 ## commonPitfalls
 

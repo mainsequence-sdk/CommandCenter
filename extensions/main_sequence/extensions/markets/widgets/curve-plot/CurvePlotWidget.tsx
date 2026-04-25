@@ -148,7 +148,7 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
           error:
             error instanceof Error
               ? error.message
-              : "Curve Data Node rows could not be decompressed.",
+              : "Compressed curve rows could not be decompressed.",
           loading: false,
           result: null,
         });
@@ -272,25 +272,9 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
           <Database className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Select a Data Node source</div>
+          <div className="text-sm font-medium text-foreground">Bind a curve dataset</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and use the Bindings tab to connect this curve plot to a Data Node widget.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!resolvedConfig.dataNodeId) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
-          <Database className="h-5 w-5" />
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Configure the linked Data Node</div>
-          <p className="text-sm text-muted-foreground">
-            This curve plot only renders the dataset coming from its linked Data Node widget.
+            Connect this curve plot to a Connection Query or Tabular Transform dataset.
           </p>
         </div>
       </div>
@@ -320,7 +304,7 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
   if (linkedDataset.status === "error") {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-        {linkedDataset.error ?? "The linked Data Node failed to load rows."}
+        {linkedDataset.error ?? "The bound dataset failed to load rows."}
       </div>
     );
   }

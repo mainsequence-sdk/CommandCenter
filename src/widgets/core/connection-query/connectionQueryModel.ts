@@ -2,6 +2,7 @@ import { queryConnection } from "@/connections/api";
 import type {
   CommandCenterFrame,
   CommandCenterFrameFieldType,
+  ConnectionQueryModel,
   ConnectionQueryRequest,
   ConnectionQueryResponse,
   ConnectionRef,
@@ -15,9 +16,11 @@ import {
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
 import {
+  CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
   normalizeTimeSeriesFrameSource,
   type TimeSeriesFrameSourceV1,
 } from "@/widgets/shared/timeseries-frame-source";
+import type { WidgetContractId } from "@/widgets/types";
 
 export type ConnectionQueryTimeRangeMode = "dashboard" | "fixed" | "none";
 
@@ -34,6 +37,30 @@ export interface ConnectionQueryWidgetProps extends Record<string, unknown> {
 }
 
 export type ConnectionQueryRuntimeState = TabularFrameSourceV1 | TimeSeriesFrameSourceV1;
+
+export function resolveConnectionQueryRequestedOutputContract(
+  queryModel: ConnectionQueryModel | undefined,
+) {
+  const outputContracts = queryModel?.outputContracts ?? [];
+
+  if (
+    queryModel?.defaultOutputContract &&
+    outputContracts.includes(queryModel.defaultOutputContract)
+  ) {
+    return queryModel.defaultOutputContract;
+  }
+
+  return outputContracts[0];
+}
+
+function resolveConnectionQueryAllowedOutputContracts(
+  queryModel: ConnectionQueryModel | undefined,
+) {
+  return queryModel?.outputContracts ?? [
+    CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
+    CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  ];
+}
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -177,6 +204,7 @@ function frameToTabularSource(
       context: {
         connectionRef: input.connectionRef,
         queryModelId: input.queryModelId,
+        requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
         selectedFrame: input.selectedFrame,
         traceId: input.traceId,
         warnings: input.warnings,
@@ -206,6 +234,7 @@ function frameToTimeSeriesSource(
       context: {
         connectionRef: input.connectionRef,
         queryModelId: input.queryModelId,
+        requestedOutputContract: CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
         selectedFrame: input.selectedFrame,
         traceId: input.traceId,
         warnings: input.warnings,
@@ -223,12 +252,30 @@ function frameToPublishedSource(
   input: {
     connectionRef: ConnectionRef;
     queryModelId: string;
+    requestedOutputContract?: WidgetContractId;
+    allowedOutputContracts: WidgetContractId[];
     selectedFrame: number;
     traceId?: string;
     warnings?: string[];
   },
 ) {
-  return frameToTimeSeriesSource(frame, input) ?? frameToTabularSource(frame, input);
+  const frameAllowed = input.requestedOutputContract
+    ? frame.contract === input.requestedOutputContract
+    : input.allowedOutputContracts.includes(frame.contract);
+
+  if (!frameAllowed) {
+    return null;
+  }
+
+  if (frame.contract === CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT) {
+    return frameToTimeSeriesSource(frame, input);
+  }
+
+  if (frame.contract === CORE_TABULAR_FRAME_SOURCE_CONTRACT) {
+    return frameToTabularSource(frame, input);
+  }
+
+  return null;
 }
 
 function firstConnectionFramePayload(
@@ -236,10 +283,47 @@ function firstConnectionFramePayload(
   input: {
     connectionRef: ConnectionRef;
     queryModelId: string;
+    requestedOutputContract?: WidgetContractId;
+    allowedOutputContracts: WidgetContractId[];
     selectedFrame: number;
   },
 ) {
-  const normalizedTimeSeriesSource = normalizeTimeSeriesFrameSource(payload);
+  if (isPlainRecord(payload) && Array.isArray(payload.frames)) {
+    const response = payload as unknown as ConnectionQueryResponse;
+
+    if (response.frames.length === 0) {
+      return null;
+    }
+
+    const matchingFrames = response.frames.filter((frame) =>
+      input.requestedOutputContract
+        ? frame.contract === input.requestedOutputContract
+        : input.allowedOutputContracts.includes(frame.contract),
+    );
+
+    if (matchingFrames.length === 0) {
+      return null;
+    }
+
+    const selectedFrame = Math.min(input.selectedFrame, matchingFrames.length - 1);
+    const frame = matchingFrames[selectedFrame];
+
+    return frame
+      ? frameToPublishedSource(frame, {
+          ...input,
+          selectedFrame,
+          traceId: response.traceId,
+          warnings: response.warnings,
+        })
+      : null;
+  }
+
+  const normalizedTimeSeriesSource =
+    (!input.requestedOutputContract ||
+      input.requestedOutputContract === CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT) &&
+    input.allowedOutputContracts.includes(CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT)
+      ? normalizeTimeSeriesFrameSource(payload)
+      : null;
 
   if (normalizedTimeSeriesSource) {
     return {
@@ -258,7 +342,12 @@ function firstConnectionFramePayload(
     };
   }
 
-  const normalizedSource = normalizeTabularFrameSource(payload);
+  const normalizedSource =
+    (!input.requestedOutputContract ||
+      input.requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT) &&
+    input.allowedOutputContracts.includes(CORE_TABULAR_FRAME_SOURCE_CONTRACT)
+      ? normalizeTabularFrameSource(payload)
+      : null;
 
   if (normalizedSource) {
     return {
@@ -281,23 +370,7 @@ function firstConnectionFramePayload(
     return null;
   }
 
-  const response = payload as unknown as ConnectionQueryResponse;
-
-  if (!Array.isArray(response.frames) || response.frames.length === 0) {
-    return null;
-  }
-
-  const selectedFrame = Math.min(input.selectedFrame, response.frames.length - 1);
-  const frame = response.frames[selectedFrame];
-
-  return frame
-    ? frameToPublishedSource(frame, {
-        ...input,
-        selectedFrame,
-        traceId: response.traceId,
-        warnings: response.warnings,
-      })
-    : null;
+  return null;
 }
 
 function resolveDashboardRange(dashboardState?: WidgetExecutionDashboardState) {
@@ -333,25 +406,12 @@ function buildEffectiveRange(
   return mode === "fixed" ? resolveFixedRange(props) : resolveDashboardRange(dashboardState);
 }
 
-function buildEffectiveQuery(
-  props: ConnectionQueryWidgetProps,
-  range: { fromMs: number; toMs: number } | null,
-) {
+function buildEffectiveQuery(props: ConnectionQueryWidgetProps) {
   const queryModelId = normalizeString(props.queryModelId);
   const query = isPlainRecord(props.query) ? { ...props.query } : {};
 
-  if (queryModelId && typeof query.kind !== "string") {
+  if (queryModelId) {
     query.kind = queryModelId;
-  }
-
-  if (range && query.kind === "data-node-rows-between-dates") {
-    if (typeof query.start_date !== "number") {
-      query.start_date = Math.floor(range.fromMs / 1000);
-    }
-
-    if (typeof query.end_date !== "number") {
-      query.end_date = Math.floor(range.toMs / 1000);
-    }
   }
 
   return query;
@@ -360,10 +420,12 @@ function buildEffectiveQuery(
 export function buildConnectionQueryRequest(
   props: ConnectionQueryWidgetProps,
   dashboardState?: WidgetExecutionDashboardState,
+  queryModel?: ConnectionQueryModel,
 ): ConnectionQueryRequest<Record<string, unknown>> | null {
   const normalizedProps = normalizeConnectionQueryProps(props);
   const connectionRef = normalizedProps.connectionRef;
   const queryModelId = normalizedProps.queryModelId;
+  const requestedOutputContract = resolveConnectionQueryRequestedOutputContract(queryModel);
 
   if (!connectionRef || !queryModelId) {
     return null;
@@ -373,7 +435,8 @@ export function buildConnectionQueryRequest(
 
   return {
     connectionUid: connectionRef.uid,
-    query: buildEffectiveQuery(normalizedProps, range),
+    query: buildEffectiveQuery(normalizedProps),
+    requestedOutputContract,
     timeRange: range
       ? {
           from: new Date(range.fromMs).toISOString(),
@@ -412,20 +475,23 @@ export function buildConnectionQueryErrorFrame(
 export async function executeConnectionQueryWidgetRequest(
   props: ConnectionQueryWidgetProps,
   dashboardState?: WidgetExecutionDashboardState,
+  queryModel?: ConnectionQueryModel,
 ): Promise<ConnectionQueryRuntimeState> {
   const normalizedProps = normalizeConnectionQueryProps(props);
   const connectionRef = normalizedProps.connectionRef;
   const queryModelId = normalizedProps.queryModelId;
+  const requestedOutputContract = resolveConnectionQueryRequestedOutputContract(queryModel);
+  const allowedOutputContracts = resolveConnectionQueryAllowedOutputContracts(queryModel);
 
   if (!connectionRef) {
     throw new Error("Select a connection before running this query.");
   }
 
   if (!queryModelId) {
-    throw new Error("Select a query model before running this query.");
+    throw new Error("Select a connection path before running this query.");
   }
 
-  const request = buildConnectionQueryRequest(normalizedProps, dashboardState);
+  const request = buildConnectionQueryRequest(normalizedProps, dashboardState, queryModel);
 
   if (!request) {
     throw new Error("Connection query request is incomplete.");
@@ -435,12 +501,16 @@ export async function executeConnectionQueryWidgetRequest(
   const frame = firstConnectionFramePayload(payload, {
     connectionRef,
     queryModelId,
+    requestedOutputContract,
+    allowedOutputContracts,
     selectedFrame: normalizedProps.selectedFrame ?? 0,
   });
 
   if (!frame) {
     throw new Error(
-      `Connection query did not return a ${CORE_TABULAR_FRAME_SOURCE_CONTRACT} or time-series frame.`,
+      requestedOutputContract
+        ? `Connection query did not return a ${requestedOutputContract} frame.`
+        : `Connection query did not return an advertised frame contract.`,
     );
   }
 

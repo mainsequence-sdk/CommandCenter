@@ -1,19 +1,19 @@
 # Zero Curve Widget
 
-This folder owns the Markets `Zero Curve` widget. It renders compressed Main Sequence curve Data
-Node payloads on a numeric days axis using ECharts.
+This folder owns the Markets `Zero Curve` widget. It renders compressed Main Sequence curve
+payloads from a bound upstream dataset on a numeric days axis using ECharts.
 
 ## Entry Points
 
 - `definition.ts`: registry definition for the stable `main-sequence-zero-curve` widget id.
 - `ZeroCurveWidget.tsx`: runtime renderer built on ECharts numeric x/y axes.
 - `zeroCurveModel.ts`: compressed curve decompression, selection filtering, and series construction.
-- `controller.ts`: schema controller context built on the shared DataNode-source layer.
-- `schema.tsx`: settings schema for DataNode source selection and unique-identifier filtering.
+- `controller.ts`: schema controller context for bound compressed curve dataset options.
+- `schema.tsx`: settings schema for source binding and unique-identifier filtering.
 
 ## Data Contract
 
-- The widget expects rows coming from a linked `Data Node` widget runtime.
+- The widget expects rows from a bound `core.tabular_frame@v1` dataset.
 - On workspace runtime surfaces it now behaves as a `consumer`: it reads the canonical published dataset and asks the shared execution layer to resolve upstream executable sources when needed.
 - The linked dataset must expose the standard compressed curve contract:
   - `time_index`
@@ -40,15 +40,14 @@ Node payloads on a numeric days axis using ECharts.
 
 ## Maintenance Notes
 
-- This widget intentionally depends on the existing Workbench DataNode-source helpers under
-  `../../../workbench/widgets/data-node-shared/` so it can bind to a `Data Node` widget runtime.
-  If more Markets widgets need the same binding model, move that shared layer into
-  `extensions/main_sequence/common/`.
+- This widget still reuses existing Workbench source-binding helpers under
+  `../../../workbench/widgets/data-node-shared/` as a maintenance shortcut. If more Markets widgets
+  need the same binding model, move that shared layer into `extensions/main_sequence/common/`.
 - `Zero Curve` owns the compressed curve payload contract. The sibling `curve-plot/` widget should
   stay focused on generic mapped maturity/value datasets.
-- Runtime fetch ownership should stay with upstream execution owners such as `main-sequence-data-node`.
-  This widget may decompress and transform published rows locally, but it must not create its own
-  canonical backend data fetch path on workspace surfaces.
+- Runtime fetch ownership should stay with upstream execution owners such as Connection Query or
+  Tabular Transform. This widget may decompress and transform published rows locally, but it must
+  not create its own canonical backend data fetch path on workspace surfaces.
 - `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
   `registryContract`.
 - Keep that registry contract aligned with the real consumer behavior here: compressed curve input

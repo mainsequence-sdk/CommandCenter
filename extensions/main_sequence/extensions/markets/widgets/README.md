@@ -4,11 +4,12 @@ This folder contains widget definitions and widget-owned presentation components
 
 ## Widgets
 
-- [`curve-plot/`](./curve-plot/README.md): live `Curve Plot` widget that renders yield-curve style datasets from a linked
-  Main Sequence `Data Node` widget with mapped maturity/value fields and Lightweight Charts. It is
-  now tagged as a workspace runtime `consumer`.
-- [`zero-curve/`](./zero-curve/README.md): live `Zero Curve` widget that renders compressed Main Sequence curve payloads on
-  a numeric days axis with ECharts. It is now tagged as a workspace runtime `consumer`.
+- [`curve-plot/`](./curve-plot/README.md): live `Curve Plot` widget that renders bound tabular
+  curve datasets with mapped maturity/value fields and Lightweight Charts. It is tagged as a
+  workspace runtime `consumer`.
+- [`zero-curve/`](./zero-curve/README.md): live `Zero Curve` widget that renders bound compressed
+  Main Sequence curve payloads on a numeric days axis with ECharts. It is tagged as a workspace
+  runtime `consumer`.
 - [`price-chart`](../../../../../src/widgets/extensions/lightweight-charts/README.md): the stable `price-chart` widget id is classified as `main_sequence_markets`, even
   though its Lightweight Charts renderer implementation still lives in
   `src/widgets/extensions/lightweight-charts/`.
@@ -37,6 +38,6 @@ This folder contains widget definitions and widget-owned presentation components
   behavior, configuration surface, and agent authoring guidance consistently.
 - Widget authors must bump `widgetVersion` when a Markets widget's configuration semantics,
   accepted upstream contract, or runtime behavior changes materially.
-- The current `curve-plot/` widget temporarily reuses the Workbench DataNode-source helpers as a
-  maintenance shortcut. If another Markets widget needs the same source contract, move that shared
-  layer into `../../common/` instead of duplicating or extending the cross-extension dependency.
+- The current curve widgets temporarily reuse the Workbench source-binding helpers as a maintenance
+  shortcut. If another Markets widget needs the same source contract, move that shared layer into
+  `../../common/` instead of duplicating or extending the cross-extension dependency.

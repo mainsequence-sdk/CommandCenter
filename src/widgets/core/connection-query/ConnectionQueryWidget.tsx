@@ -1,5 +1,6 @@
 import { AlertTriangle, Database, Loader2 } from "lucide-react";
 
+import { getConnectionTypeById } from "@/app/registry";
 import {
   normalizeConnectionQueryProps,
   normalizeConnectionQueryRuntimeState,
@@ -12,6 +13,12 @@ type Props = WidgetComponentProps<ConnectionQueryWidgetProps>;
 
 export function ConnectionQueryWidget({ props, runtimeState }: Props) {
   const normalizedProps = normalizeConnectionQueryProps(props);
+  const connectionType = normalizedProps.connectionRef?.typeId
+    ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
+    : undefined;
+  const selectedQueryModel = normalizedProps.queryModelId
+    ? connectionType?.queryModels?.find((model) => model.id === normalizedProps.queryModelId)
+    : undefined;
   const frame = normalizeConnectionQueryRuntimeState(runtimeState);
   const status = frame?.status ?? "idle";
   const isTimeSeriesFrame = Boolean(
@@ -29,6 +36,10 @@ export function ConnectionQueryWidget({ props, runtimeState }: Props) {
   const columnCount = frame && "columns" in frame
     ? frame.columns.length
     : frame?.fields.length ?? 0;
+  const errorMessage =
+    frame && "error" in frame && typeof frame.error === "string"
+      ? frame.error
+      : "Connection query failed.";
 
   return (
     <div className="flex h-full min-h-[160px] flex-col justify-between gap-4 p-4">
@@ -44,7 +55,7 @@ export function ConnectionQueryWidget({ props, runtimeState }: Props) {
         </div>
         <div className="min-w-0">
           <div className="truncate text-sm font-medium text-foreground">
-            {normalizedProps.queryModelId ?? "Connection query"}
+            {selectedQueryModel?.label ?? normalizedProps.queryModelId ?? "Select connection path"}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
             {normalizedProps.connectionRef?.typeId ?? "No connection selected"}
@@ -54,7 +65,7 @@ export function ConnectionQueryWidget({ props, runtimeState }: Props) {
 
       {status === "error" ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/8 px-3 py-2 text-xs text-danger">
-          {frame?.error ?? "Connection query failed."}
+          {errorMessage}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">

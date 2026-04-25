@@ -133,7 +133,11 @@ export function ConnectionPicker({
   const selectedInstance = instances.find((instance) => instance.uid === selectedUid);
   const selectedType = selectedInstance
     ? getTypeForInstance(selectedInstance, typesById)
-    : undefined;
+    : value?.typeId
+      ? typesById.get(value.typeId) ?? getConnectionRuntimeDefinition(value.typeId)
+      : undefined;
+  const selectedLabel = selectedInstance?.name ?? value?.uid;
+  const selectedTypeId = selectedInstance?.typeId ?? value?.typeId;
   const normalizedSearch = searchValue.trim().toLowerCase();
   const filteredInstances = normalizedSearch
     ? instances.filter((instance) =>
@@ -198,9 +202,9 @@ export function ConnectionPicker({
           }}
         >
           <span className="flex min-w-0 items-center gap-3">
-            {selectedInstance ? (
+            {selectedTypeId ? (
               <ConnectionTypeIcon
-                title={selectedType?.title ?? selectedInstance.typeId}
+                title={selectedType?.title ?? selectedTypeId}
                 iconUrl={getConnectionIconUrl(selectedType)}
                 className="h-8 w-8"
               />
@@ -209,14 +213,14 @@ export function ConnectionPicker({
               <span
                 className={cn(
                   "block truncate",
-                  selectedInstance ? "text-foreground" : "text-muted-foreground",
+                  selectedLabel ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                {loading ? "Loading connections" : selectedInstance?.name ?? placeholder}
+                {loading && !selectedLabel ? "Loading connections" : selectedLabel ?? placeholder}
               </span>
-              {selectedInstance ? (
+              {selectedTypeId ? (
                 <span className="block truncate text-xs text-muted-foreground">
-                  {selectedType?.title ?? selectedInstance.typeId} · {selectedInstance.typeId}
+                  {selectedType?.title ?? selectedTypeId} · {selectedTypeId}
                 </span>
               ) : null}
             </span>
@@ -307,19 +311,27 @@ export function ConnectionPicker({
         ) : null}
       </div>
 
-      {selectedInstance ? (
+      {selectedLabel ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <ConnectionTypeIcon
-            title={selectedType?.title ?? selectedInstance.typeId}
-            iconUrl={getConnectionIconUrl(selectedType)}
-            className="h-6 w-6"
-          />
-          <Badge variant="neutral">{selectedType?.title ?? selectedInstance.typeId}</Badge>
-          <Badge variant={selectedInstance.status === "ok" ? "primary" : "neutral"}>
-            {formatConnectionStatus(selectedInstance)}
-          </Badge>
-          {selectedInstance.isDefault ? <Badge variant="neutral">Default</Badge> : null}
-          {selectedInstance.isSystem ? <Badge variant="neutral">System</Badge> : null}
+          {selectedTypeId ? (
+            <ConnectionTypeIcon
+              title={selectedType?.title ?? selectedTypeId}
+              iconUrl={getConnectionIconUrl(selectedType)}
+              className="h-6 w-6"
+            />
+          ) : null}
+          {selectedTypeId ? (
+            <Badge variant="neutral">{selectedType?.title ?? selectedTypeId}</Badge>
+          ) : null}
+          {selectedInstance ? (
+            <Badge variant={selectedInstance.status === "ok" ? "primary" : "neutral"}>
+              {formatConnectionStatus(selectedInstance)}
+            </Badge>
+          ) : (
+            <Badge variant="neutral">Saved reference</Badge>
+          )}
+          {selectedInstance?.isDefault ? <Badge variant="neutral">Default</Badge> : null}
+          {selectedInstance?.isSystem ? <Badge variant="neutral">System</Badge> : null}
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">
