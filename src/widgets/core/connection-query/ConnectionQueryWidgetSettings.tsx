@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 
 import { getConnectionTypeById } from "@/app/registry";
 import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
@@ -6,10 +6,10 @@ import { getSystemConnectionInstances } from "@/connections/api";
 import { useConnectionInstances } from "@/connections/hooks";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import type { ConnectionQueryEditorProps } from "@/connections/types";
+import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 import {
   AlertTriangle,
-  Ban,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
@@ -45,11 +45,13 @@ function parseJsonObject(value: string) {
 function JsonObjectEditor({
   disabled,
   label,
+  help,
   value,
   onChange,
 }: {
   disabled: boolean;
   label: string;
+  help?: ReactNode;
   value: Record<string, unknown> | undefined;
   onChange: (value: Record<string, unknown>) => void;
 }) {
@@ -73,7 +75,9 @@ function JsonObjectEditor({
 
   return (
     <label className="block space-y-2">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <WidgetSettingFieldLabel help={help} textClassName="text-xs font-medium text-muted-foreground">
+        {label}
+      </WidgetSettingFieldLabel>
       <textarea
         value={draft}
         onChange={(event) => {
@@ -122,6 +126,85 @@ function NumberInput({
   );
 }
 
+function isValidTimestampMs(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function formatDateTimeInputValue(valueMs: number | undefined) {
+  if (!isValidTimestampMs(valueMs)) {
+    return "";
+  }
+
+  const date = new Date(valueMs);
+  const year = String(date.getFullYear()).padStart(4, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function parseDateTimeInputValue(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+
+  if (!match) {
+    return undefined;
+  }
+
+  const [, yearValue, monthValue, dayValue, hourValue, minuteValue] = match;
+  const parsed = new Date(
+    Number(yearValue),
+    Number(monthValue) - 1,
+    Number(dayValue),
+    Number(hourValue),
+    Number(minuteValue),
+    0,
+    0,
+  ).getTime();
+
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function resolveDefaultFixedRange(input: { rangeStartMs: number; rangeEndMs: number }) {
+  if (
+    isValidTimestampMs(input.rangeStartMs) &&
+    isValidTimestampMs(input.rangeEndMs) &&
+    input.rangeStartMs < input.rangeEndMs
+  ) {
+    return {
+      fixedStartMs: input.rangeStartMs,
+      fixedEndMs: input.rangeEndMs,
+    };
+  }
+
+  const endMs = Date.now();
+  const startMs = endMs - 365 * 24 * 60 * 60 * 1000;
+
+  return {
+    fixedStartMs: startMs,
+    fixedEndMs: endMs,
+  };
+}
+
+function resolveEffectiveFixedRange(
+  props: ConnectionQueryWidgetProps,
+  dashboardRange: { rangeStartMs: number; rangeEndMs: number },
+) {
+  if (
+    isValidTimestampMs(props.fixedStartMs) &&
+    isValidTimestampMs(props.fixedEndMs) &&
+    props.fixedStartMs < props.fixedEndMs
+  ) {
+    return {
+      fixedStartMs: props.fixedStartMs,
+      fixedEndMs: props.fixedEndMs,
+    };
+  }
+
+  return resolveDefaultFixedRange(dashboardRange);
+}
+
 function DateTimeInput({
   disabled,
   label,
@@ -133,20 +216,57 @@ function DateTimeInput({
   valueMs: number | undefined;
   onChange: (value: number | undefined) => void;
 }) {
-  const value =
-    typeof valueMs === "number" && Number.isFinite(valueMs)
-      ? new Date(valueMs).toISOString().slice(0, 16)
-      : "";
+  const externalValue = formatDateTimeInputValue(valueMs);
+  const [draft, setDraft] = useState(externalValue);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) {
+      setDraft(externalValue);
+    }
+  }, [externalValue, focused]);
+
+  function commit(nextDraft: string) {
+    const parsed = parseDateTimeInputValue(nextDraft);
+
+    if (parsed !== undefined) {
+      onChange(parsed);
+      setDraft(formatDateTimeInputValue(parsed));
+      return;
+    }
+
+    setDraft(externalValue);
+  }
 
   return (
     <label className="block space-y-2">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <input
         type="datetime-local"
-        value={value}
+        value={draft}
+        step={60}
         onChange={(event) => {
-          const parsed = Date.parse(event.target.value);
-          onChange(Number.isNaN(parsed) ? undefined : parsed);
+          const nextDraft = event.target.value;
+          const parsed = parseDateTimeInputValue(nextDraft);
+
+          setDraft(nextDraft);
+
+          if (parsed !== undefined) {
+            onChange(parsed);
+          }
+        }}
+        onFocus={() => {
+          setFocused(true);
+        }}
+        onBlur={(event) => {
+          commit(event.currentTarget.value);
+          setFocused(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            commit(event.currentTarget.value);
+            event.currentTarget.blur();
+          }
         }}
         disabled={disabled}
         className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
@@ -168,12 +288,6 @@ const runtimeDateModeOptions = [
     description: "Store fixed dates on this query.",
     Icon: CalendarRange,
   },
-  {
-    value: "none",
-    label: "No dates",
-    description: "Run without a time range.",
-    Icon: Ban,
-  },
 ] satisfies Array<{
   value: ConnectionQueryTimeRangeMode;
   label: string;
@@ -193,7 +307,7 @@ function RuntimeDateModeControl({
   return (
     <div className="space-y-2 md:col-span-2">
       <span className="text-xs font-medium text-muted-foreground">Date runtime</span>
-      <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Date runtime">
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Date runtime">
         {runtimeDateModeOptions.map((option) => {
           const active = option.value === value;
           const Icon = option.Icon;
@@ -262,7 +376,7 @@ function buildRuntimeRangeSummary(input: {
   fixedEndMs?: number;
 }) {
   if (input.mode === "none") {
-    return "No dates will be sent with the query.";
+    return "This connection path does not consume a date range.";
   }
 
   if (input.mode === "fixed") {
@@ -317,9 +431,30 @@ export function ConnectionQueryWidgetSettings({
     ? queryModels.find((model) => model.id === normalizedProps.queryModelId)
     : undefined;
   const queryPathUsesTimeRange = Boolean(selectedQueryModel?.timeRangeAware);
+  const queryPathSupportsVariables = Boolean(selectedQueryModel?.supportsVariables);
+  const effectiveTimeRangeMode =
+    queryPathUsesTimeRange && normalizedProps.timeRangeMode !== "none"
+      ? normalizedProps.timeRangeMode
+      : queryPathUsesTimeRange
+        ? "dashboard"
+        : "none";
+  const effectiveFixedRange = useMemo(
+    () =>
+      resolveEffectiveFixedRange(normalizedProps, {
+        rangeStartMs: dashboardControls.rangeStartMs,
+        rangeEndMs: dashboardControls.rangeEndMs,
+      }),
+    [
+      dashboardControls.rangeEndMs,
+      dashboardControls.rangeStartMs,
+      normalizedProps.fixedEndMs,
+      normalizedProps.fixedStartMs,
+    ],
+  );
   const effectiveProps: ConnectionQueryWidgetProps = {
     ...normalizedProps,
-    timeRangeMode: queryPathUsesTimeRange ? normalizedProps.timeRangeMode : "none",
+    timeRangeMode: effectiveTimeRangeMode,
+    ...(effectiveTimeRangeMode === "fixed" ? effectiveFixedRange : {}),
   };
   const QueryEditor = connectionType?.queryEditor as
     | ComponentType<ConnectionQueryEditorProps<Record<string, unknown>>>
@@ -360,8 +495,8 @@ export function ConnectionQueryWidgetSettings({
     dashboardLabel: dashboardControls.timeRangeLabel,
     dashboardStartMs: dashboardControls.rangeStartMs,
     dashboardEndMs: dashboardControls.rangeEndMs,
-    fixedStartMs: normalizedProps.fixedStartMs,
-    fixedEndMs: normalizedProps.fixedEndMs,
+    fixedStartMs: effectiveProps.fixedStartMs,
+    fixedEndMs: effectiveProps.fixedEndMs,
   });
   const connectionPath = getConnectionPathLabel({
     typeId: normalizedProps.connectionRef?.typeId,
@@ -428,7 +563,9 @@ export function ConnectionQueryWidgetSettings({
               queryModelId: selectedModelStillValid ? normalizedProps.queryModelId : undefined,
               query: selectedModelStillValid ? normalizedProps.query : {},
               timeRangeMode: nextQueryModel?.timeRangeAware
-                ? normalizedProps.timeRangeMode
+                ? normalizedProps.timeRangeMode === "none"
+                  ? "dashboard"
+                  : normalizedProps.timeRangeMode
                 : "none",
             });
           }}
@@ -545,8 +682,8 @@ export function ConnectionQueryWidgetSettings({
         <div>
           <h3 className="text-sm font-semibold text-foreground">Runtime</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Configure row limits, variables, selected response frame, and date runtime when the
-            connection path supports it.
+            Configure row limits, optional variables, and date runtime when the connection path
+            supports it.
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -558,6 +695,7 @@ export function ConnectionQueryWidgetSettings({
                 onDraftPropsChange({
                   ...draftProps,
                   timeRangeMode,
+                  ...(timeRangeMode === "fixed" ? effectiveFixedRange : {}),
                 });
               }}
             />
@@ -579,7 +717,7 @@ export function ConnectionQueryWidgetSettings({
             <>
               <DateTimeInput
                 label="From"
-                valueMs={normalizedProps.fixedStartMs}
+                valueMs={effectiveProps.fixedStartMs}
                 disabled={!editable}
                 onChange={(fixedStartMs) => {
                   onDraftPropsChange({ ...draftProps, fixedStartMs });
@@ -587,7 +725,7 @@ export function ConnectionQueryWidgetSettings({
               />
               <DateTimeInput
                 label="To"
-                valueMs={normalizedProps.fixedEndMs}
+                valueMs={effectiveProps.fixedEndMs}
                 disabled={!editable}
                 onChange={(fixedEndMs) => {
                   onDraftPropsChange({ ...draftProps, fixedEndMs });
@@ -595,15 +733,6 @@ export function ConnectionQueryWidgetSettings({
               />
             </>
           ) : null}
-          <NumberInput
-            label="Selected frame"
-            value={normalizedProps.selectedFrame ?? 0}
-            min={0}
-            disabled={!editable}
-            onChange={(selectedFrame) => {
-              onDraftPropsChange({ ...draftProps, selectedFrame });
-            }}
-          />
         </div>
         {queryPathUsesTimeRange ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2 text-xs text-muted-foreground">
@@ -611,17 +740,20 @@ export function ConnectionQueryWidgetSettings({
             {runtimeRangeSummary}
           </div>
         ) : null}
-        <JsonObjectEditor
-          label="Variables JSON"
-          value={normalizedProps.variables}
-          onChange={(variables) => {
-            onDraftPropsChange({
-              ...draftProps,
-              variables: variables as Record<string, string | number | boolean>,
-            });
-          }}
-          disabled={!editable}
-        />
+        {queryPathSupportsVariables ? (
+          <JsonObjectEditor
+            label="Variables JSON"
+            help="Optional standard request-envelope variables for backend template expansion. Use connector-specific fields above for query kwargs."
+            value={normalizedProps.variables}
+            onChange={(variables) => {
+              onDraftPropsChange({
+                ...draftProps,
+                variables: variables as Record<string, string | number | boolean>,
+              });
+            }}
+            disabled={!editable}
+          />
+        ) : null}
       </section>
 
       <section className="space-y-3">

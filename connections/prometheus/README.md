@@ -9,6 +9,8 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
   registry's root-level connection loader.
 - `PrometheusConnectionExplore.tsx`: custom Explore shell rendered by `Connections > Explore` when
   the selected data source uses the Prometheus connection type.
+- `PrometheusConnectionQueryEditor.tsx`: typed Connection Query widget editor for PromQL instant,
+  PromQL range, label values, label names, and series metadata payloads.
 
 ## Behavior
 
@@ -24,6 +26,9 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
   connection type defaults. It calls the shared `queryConnection` API with PromQL, label, or series
   query payloads. Backend adapters are responsible for executing requests, applying datasource
   settings, enforcing authorization, and returning normalized connection frames.
+- The Connection Query widget uses the Prometheus `queryEditor` to render PromQL, range step,
+  max data points, label names, and matcher lists. These fields remain Prometheus-specific payload
+  kwargs instead of becoming static fields on the generic widget.
 - `promql-range` advertises `core.time_series_frame@v1`; the backend should normalize Prometheus
   matrix responses into long-shape time-series frames with labels preserved as series metadata.
 - `promql-instant` remains tabular by default unless a request explicitly asks for time-series

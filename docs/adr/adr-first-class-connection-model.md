@@ -181,6 +181,13 @@ export interface ConnectionTypeDefinition<
 This definition is type-level metadata. It must not contain organization-specific config,
 credentials, or runtime health state.
 
+`queryEditor` is a frontend rendering hook for connection-specific query payload fields. It should
+receive the selected backend-owned connection instance, selected query model, requested output
+contract, current typed query value, and `onChange`. Use it to render adapter-specific kwargs such
+as SQL parameters, Data Node column/filter fields, or Prometheus matcher lists. The generic
+Connection Query widget must keep the standard request envelope generic instead of hardcoding those
+fields.
+
 ### Persist connection instances in the backend
 
 Add a backend-owned `ConnectionInstance` model and expose only sanitized data to the frontend:
@@ -480,7 +487,7 @@ The type should expose query and resource models that match the current widget n
 
 - `data-node-detail` returns data node metadata and source table configuration
 - `data-node-rows-between-dates` returns rows for a date range, selected columns, identifiers,
-  bounds, limit, and offset
+  bounds, and limit
 - `data-node-last-observation` returns the latest available row snapshot
 - `data-node-search` or `data-node-list` supports picker/catalog workflows when the backend exposes
   a stable listing endpoint
@@ -533,7 +540,6 @@ queryConnection({
     greatOrEqual,
     lessOrEqual,
     limit,
-    offset: 0,
   },
 });
 ```

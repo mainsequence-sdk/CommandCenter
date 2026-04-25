@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import {
+  isEmptyTabularFrameSource,
   resolveTabularDateRange,
 } from "@/widgets/shared/tabular-widget-source";
 import {
@@ -38,6 +39,7 @@ import {
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
+  resolveTableWidgetSourceDataset,
   validateTableWidgetSchema,
   type ResolvedTableWidgetColumnConfig,
   type ResolvedTableWidgetProps,
@@ -536,7 +538,7 @@ function TableWidgetCellRenderer({
   );
 }
 
-export function TableWidget({ props, instanceId }: Props) {
+export function TableWidget({ props, instanceId, resolvedInputs }: Props) {
   const { rangeStartMs, rangeEndMs } = useDashboardControls();
   const { resolvedTokens, tightness } = useTheme();
   const tightnessMetrics = useMemo(() => getThemeTightnessMetrics(tightness), [tightness]);
@@ -569,10 +571,25 @@ export function TableWidget({ props, instanceId }: Props) {
     props: sourceBindingProps,
     currentWidgetInstanceId: instanceId,
   });
+  const resolvedInputDataset = useMemo(
+    () => resolveTableWidgetSourceDataset(resolvedInputs),
+    [resolvedInputs],
+  );
+  const hasResolvedInputDataset = Boolean(
+    resolvedInputDataset && !isEmptyTabularFrameSource(resolvedInputDataset),
+  );
   useResolveWidgetUpstream(instanceId, {
-    enabled: !isManualTableMode && sourceBinding.requiresUpstreamResolution,
+    enabled:
+      !isManualTableMode &&
+      !hasResolvedInputDataset &&
+      sourceBinding.requiresUpstreamResolution,
   });
-  const linkedDataset = sourceBinding.resolvedSourceDataset;
+  const linkedDataset = hasResolvedInputDataset
+    ? resolvedInputDataset
+    : sourceBinding.resolvedSourceDataset ?? resolvedInputDataset;
+  const hasRenderableLinkedDataset = Boolean(
+    linkedDataset && !isEmptyTabularFrameSource(linkedDataset),
+  );
   const effectiveProps = useMemo(
     () =>
       isManualTableMode
@@ -631,7 +648,9 @@ export function TableWidget({ props, instanceId }: Props) {
       ? linkedDataset.error ?? "The bound source failed to load rows."
       : null;
   const isDataLoading =
-    !isManualTableMode && (linkedDataset?.status === "loading" || linkedDataset == null);
+    !isManualTableMode &&
+    (linkedDataset?.status === "loading" ||
+      (!hasRenderableLinkedDataset && sourceBinding.isAwaitingBoundSourceValue));
   const [quickFilter, setQuickFilter] = useState("");
   const deferredQuickFilter = useDeferredValue(quickFilter);
 
@@ -712,36 +731,45 @@ export function TableWidget({ props, instanceId }: Props) {
     }
   }, [quickFilter, resolvedProps.showSearch]);
 
-  if (!isManualTableMode && sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
+  if (
+    !isManualTableMode &&
+    !hasResolvedInputDataset &&
+    sourceBinding.isFilterWidgetSource &&
+    !sourceBinding.hasResolvedFilterWidgetSource
+  ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
           <Database className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Select a tabular source</div>
+          <div className="text-sm font-medium text-foreground">Select a dataset source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and use the Bindings tab to connect this table to a tabular source.
+            Open widget settings and use the Bindings tab to connect this table to a tabular or time-series source.
           </p>
         </div>
       </div>
     );
   }
 
-  if (!isManualTableMode && sourceBinding.isAwaitingBoundSourceValue) {
+  if (!isManualTableMode && !hasResolvedInputDataset && sourceBinding.isAwaitingBoundSourceValue) {
     return <Skeleton className="h-full" />;
   }
 
-  if (!isManualTableMode && (!sourceBinding.hasResolvedFilterWidgetSource || !linkedDataset)) {
+  if (
+    !isManualTableMode &&
+    !hasResolvedInputDataset &&
+    (!sourceBinding.hasResolvedFilterWidgetSource || !hasRenderableLinkedDataset)
+  ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
           <Database className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Select a tabular source</div>
+          <div className="text-sm font-medium text-foreground">Select a dataset source</div>
           <p className="text-sm text-muted-foreground">
-            This table only renders the canonical dataset coming from a bound source.
+            This table renders the canonical dataset coming from a bound tabular or time-series source.
           </p>
         </div>
       </div>
@@ -755,7 +783,7 @@ export function TableWidget({ props, instanceId }: Props) {
           <CalendarClock className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Fix the tabular source date range</div>
+          <div className="text-sm font-medium text-foreground">Fix the dataset source date range</div>
           <p className="text-sm text-muted-foreground">
             The bound source needs both a start and end date for its fixed dataset window.
           </p>

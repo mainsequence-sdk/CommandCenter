@@ -7,7 +7,7 @@ This directory contains reusable widget presentation primitives that are shared 
 - `widget-frame.tsx`: standard card shell for registered widget instances, including the header chrome, optional widget-defined header actions, and state placeholders.
 - `chrome.ts`: shared helpers for widget chrome options such as per-instance header visibility, plus shared widget-shell markers used by themes to style widget containers consistently.
 - `widget-settings.tsx`: shared settings trigger plus the reusable full-page settings panel used to edit widget instances outside the old modal flow. It also exports the shared duplicate trigger used by workspace widget chrome.
-- `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, preview, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors.
+- `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, preview, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors. Binding panels should only pass live source widgets that expose at least one output compatible with the target input directly or through a supported structured-output transform.
 - `picker-field.tsx`: shared picker/listbox field used by widget settings that need searchable
   option sets without depending on an extension-specific component.
 - `tabular-frame-source.ts`: shared generic tabular-frame contract, value descriptor, and
@@ -15,7 +15,8 @@ This directory contains reusable widget presentation primitives that are shared 
   It defines the platform-level `columns + rows + fields + source` shape so widget families do not
   invent incompatible table payloads.
 - `tabular-widget-source.tsx`: shared source-binding helpers for widgets that consume
-  `core.tabular_frame@v1`, including field inference, manual table normalization, source-widget
+  `core.tabular_frame@v1` or table-compatible `core.time_series_frame@v1`, including field
+  inference, manual table normalization, connection response/frame normalization, source-widget
   binding resolution, and settings-schema helper glue.
 - `tabular-field-schema-inspector.tsx`: reusable settings inspector for declared or inferred
   tabular fields, including provenance, warnings, and sample-row context.
@@ -25,7 +26,7 @@ This directory contains reusable widget presentation primitives that are shared 
   configuration surfaces.
 - `timeseries-frame-source.ts`: shared time-series frame contract helper for
   `core.time_series_frame@v1`, including value-descriptor metadata, frame normalization, and
-  conversion into chart-ready tabular rows for generic graph consumers.
+  conversion into tabular rows for generic graph and table consumers.
 - `chart-data-source.ts`: shared renderer-neutral chart-data contract helper for
   `core.chart_data@v1`, including value-descriptor metadata and frame normalization for backend
   adapters that return chart-ready data rather than source time-series data.

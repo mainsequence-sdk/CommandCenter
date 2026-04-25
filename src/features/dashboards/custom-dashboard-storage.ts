@@ -1165,6 +1165,58 @@ function removeDashboardCompanionsForInstanceIds(
   };
 }
 
+function removeDashboardWidgetFromTree(
+  widgets: DashboardWidgetInstance[],
+  instanceId: string,
+): {
+  found: boolean;
+  removedIds: Set<string>;
+  widgets: DashboardWidgetInstance[];
+} {
+  let found = false;
+  const removedIds = new Set<string>();
+  const nextWidgets = widgets.flatMap((widget) => {
+    if (widget.id === instanceId) {
+      found = true;
+
+      if (isWorkspaceRowCollapsed(widget)) {
+        removedIds.add(widget.id);
+        return expandCollapsedRowChildrenIntoTopLevel(widget);
+      }
+
+      collectDashboardWidgetTreeIds(widget).forEach((id) => removedIds.add(id));
+      return [];
+    }
+
+    if (!widget.row?.children?.length) {
+      return [widget];
+    }
+
+    const childResult = removeDashboardWidgetFromTree(widget.row.children, instanceId);
+
+    if (!childResult.found) {
+      return [widget];
+    }
+
+    found = true;
+    childResult.removedIds.forEach((id) => removedIds.add(id));
+
+    return [{
+      ...widget,
+      row: {
+        ...widget.row,
+        children: childResult.widgets,
+      },
+    }];
+  });
+
+  return {
+    found,
+    removedIds,
+    widgets: nextWidgets,
+  };
+}
+
 export function collapseDashboardRow(
   dashboard: DashboardDefinition,
   instanceId: string,
@@ -1760,40 +1812,19 @@ export function updateDashboardWidgetSettings(
 }
 
 export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId: string) {
-  const removeIndex = dashboard.widgets.findIndex((widget) => widget.id === instanceId);
+  const removal = removeDashboardWidgetFromTree(dashboard.widgets, instanceId);
 
-  if (removeIndex < 0) {
+  if (!removal.found) {
     return dashboard;
   }
-
-  const widget = dashboard.widgets[removeIndex];
-
-  if (isWorkspaceRowCollapsed(widget)) {
-    const restoredChildren = expandCollapsedRowChildrenIntoTopLevel(widget);
-    const nextDashboard = removeDashboardCompanionsForInstanceIds(
-      {
-        ...dashboard,
-        widgets: [
-          ...dashboard.widgets.slice(0, removeIndex),
-          ...restoredChildren,
-          ...dashboard.widgets.slice(removeIndex + 1),
-        ],
-      },
-      new Set([widget.id]),
-    );
-
-    return materializeDashboardLayout(nextDashboard);
-  }
-
-  const removedIds = new Set(collectDashboardWidgetTreeIds(widget));
 
   return materializeDashboardLayout(
     removeDashboardCompanionsForInstanceIds(
       {
         ...dashboard,
-        widgets: dashboard.widgets.filter((entry) => entry.id !== instanceId),
+        widgets: removal.widgets,
       },
-      removedIds,
+      removal.removedIds,
     ),
   );
 }

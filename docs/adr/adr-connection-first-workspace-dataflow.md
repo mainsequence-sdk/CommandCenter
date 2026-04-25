@@ -81,12 +81,12 @@ interface ConnectionQueryWidgetProps {
   connectionRef: ConnectionRef;
   queryModelId: string;
   query: Record<string, unknown>;
+  requestedOutputContract?: ConnectionResponseContractId;
   timeRangeMode?: "dashboard" | "fixed" | "none";
   fixedStartMs?: number;
   fixedEndMs?: number;
   variables?: Record<string, string | number | boolean>;
   maxRows?: number;
-  selectedFrame?: number;
 }
 ```
 
@@ -94,14 +94,21 @@ Runtime behavior:
 
 - resolve the selected connection instance by `connectionRef`
 - resolve the selected query model by `queryModelId`
-- pass dashboard or fixed time range into `queryConnection(...)` when the query model is time-range
-  aware
-- normalize `ConnectionQueryResponse.frames[selectedFrame]` into `core.tabular_frame@v1`
-- publish a canonical `dataset` output with contract `core.tabular_frame@v1`
-- optionally publish a raw response output for debugging or advanced consumers
+- pass dashboard or fixed time range into `queryConnection(...)` as top-level `timeRange` ISO
+  strings when the query model is time-range aware
+- pass `requestedOutputContract` through the standard connection request envelope when the selected
+  query model can return more than one frame contract
+- normalize the selected matching `ConnectionQueryResponse.frames[]` entry into
+  `core.tabular_frame@v1` or `core.time_series_frame@v1`
+- publish a canonical `dataset` output with the resolved frame contract
+- optionally publish a raw response output later for debugging or advanced consumers
 
 The widget should use a connection type's custom `queryEditor` when available and fall back to a
-generic JSON query editor only when the connection type does not provide one.
+generic JSON query editor only when the connection type does not provide one. The `queryEditor`
+receives the selected connection instance, connection type, query model, requested output contract,
+current typed query payload, and `onChange`. Connection-specific kwargs such as Data Node columns,
+identifier filters, SQL parameters, PostgreSQL time-series field mapping, Prometheus matchers, and
+adapter-specific limits must be rendered there rather than as static fields in the generic widget.
 
 ### Tabular Transform Widget
 
@@ -230,12 +237,15 @@ ADR when the corresponding implementation has landed.
 ### Widget Refactor
 
 - [x] Implement the Connection Query widget as an execution-owner source.
+- [x] Pass selected connection instance context into Connection Query `queryEditor` components.
+- [x] Add typed Connection Query editors for Data Node, Simple Table, PostgreSQL, and Prometheus
+  query payload kwargs.
 - [x] Implement the Tabular Transform widget as an execution-owner transform.
 - [x] Move aggregate, pivot, unpivot, and projection logic into the generic transform module.
 - [x] Convert Data Node Table into a generic tabular table consumer.
 - [x] Convert Data Node Graph into a generic tabular chart consumer.
 - [x] Convert Data Node Statistic into a generic statistic consumer.
-- [ ] Update curve plot and zero-curve widgets to describe their input as tabular curve datasets
+- [x] Update curve plot and zero-curve widgets to describe their input as tabular curve datasets
   instead of Data Node widget outputs.
 - [x] Remove `main-sequence-data-node` from the live widget registry.
 - [x] Remove Data Node-specific source helpers from generic consumer widgets.

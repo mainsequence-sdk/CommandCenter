@@ -10,6 +10,7 @@ import {
 import { Copy, Loader2, Settings2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useResolvedWidgetInputs } from "@/dashboards/DashboardWidgetDependencies";
 import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import {
   WidgetPreviewModeBoundary,
@@ -143,6 +144,7 @@ interface WidgetSettingsPanelProps<
     title?: string;
     props?: TProps;
     presentation?: WidgetInstancePresentation;
+    runtimeState?: Record<string, unknown>;
   };
   onClose: () => void;
   onDraftPresentationChange?: (presentation: WidgetInstancePresentation) => void;
@@ -548,6 +550,7 @@ export function WidgetSettingsPanel<
     ? draftPresentation
     : internalDraftPresentation;
   const demoModeActive = useDemoData && hasDemoPreview;
+  const liveResolvedInputs = useResolvedWidgetInputs(instance.id);
   const activeInstanceTitle = demoModeActive ? demoDraftTitle : instanceTitle;
   const activeDraftProps = demoModeActive ? demoDraftProps : resolvedDraftProps;
   const activeDraftPresentation = demoModeActive
@@ -561,10 +564,11 @@ export function WidgetSettingsPanel<
         placementMode: fixedPlacementMode,
       }
     : activeDraftPresentation;
-  const activeResolvedInputs = demoModeActive ? mockResolvedInputs : undefined;
-  const activePreviewRuntimeState = demoModeActive ? demoDraftRuntimeState : undefined;
+  const activeResolvedInputs = demoModeActive ? mockResolvedInputs : liveResolvedInputs;
+  const activePreviewRuntimeState = demoModeActive ? demoDraftRuntimeState : instance.runtimeState;
   const [rawPropsValue, setRawPropsValue] = useState(() => serializeWidgetProps(activeDraftProps));
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [rawPropsEditorOpen, setRawPropsEditorOpen] = useState(false);
   const SettingsComponent =
     widget.settingsComponent as
       | ComponentType<WidgetSettingsComponentProps<TProps>>
@@ -973,24 +977,37 @@ export function WidgetSettingsPanel<
 
         {showRawPropsEditor ? (
           <section className="space-y-3">
-            <div>
-              <div className="text-sm font-medium text-topbar-foreground">Props JSON</div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Advanced editor for the widget instance props object.
-              </p>
-            </div>
-            <Textarea
-              value={rawPropsValue}
-              onChange={(event) => {
-                handleRawPropsChange(event.target.value);
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setRawPropsEditorOpen((open) => !open);
               }}
-              className="min-h-[240px] font-mono text-xs leading-6"
-              readOnly={!editable}
-              spellCheck={false}
-            />
-            <p className={cn("text-sm", jsonError ? "text-danger" : "text-muted-foreground")}>
-              {jsonError ?? "Props must stay a JSON object."}
-            </p>
+            >
+              {rawPropsEditorOpen ? "Hide Props JSON" : "Show Props JSON"}
+            </Button>
+            {rawPropsEditorOpen ? (
+              <div className="space-y-3 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/35 p-3">
+                <div>
+                  <div className="text-sm font-medium text-topbar-foreground">Props JSON</div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Advanced editor for the widget instance props object.
+                  </p>
+                </div>
+                <Textarea
+                  value={rawPropsValue}
+                  onChange={(event) => {
+                    handleRawPropsChange(event.target.value);
+                  }}
+                  className="min-h-[240px] font-mono text-xs leading-6"
+                  readOnly={!editable}
+                  spellCheck={false}
+                />
+                <p className={cn("text-sm", jsonError ? "text-danger" : "text-muted-foreground")}>
+                  {jsonError ?? "Props must stay a JSON object."}
+                </p>
+              </div>
+            ) : null}
           </section>
         ) : null}
 

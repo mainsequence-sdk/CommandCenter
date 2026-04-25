@@ -1,7 +1,11 @@
+import type { ResolvedWidgetInputs } from "@/widgets/types";
+import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { TabularSourceDetail, TabularDataRow } from "@/widgets/shared/tabular-widget-source";
 import {
   buildTabularFieldOptions,
   formatTabularSourceLabel,
+  normalizeAnyTabularFrameSource,
+  TABULAR_SOURCE_INPUT_ID,
   type TabularFieldOption,
 } from "@/widgets/shared/tabular-widget-source";
 import {
@@ -126,6 +130,19 @@ export interface TableWidgetProps
   columnOverrides?: Record<string, TableWidgetColumnOverride>;
   valueLabels?: TableWidgetValueLabel[];
   conditionalRules?: TableWidgetConditionalRule[];
+}
+
+export function resolveTableWidgetSourceDataset(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+): TabularFrameSourceV1 | null {
+  const resolvedEntry = resolvedInputs?.[TABULAR_SOURCE_INPUT_ID];
+  const candidate = Array.isArray(resolvedEntry)
+    ? resolvedEntry.find((entry) => entry.status === "valid")
+    : resolvedEntry;
+
+  return candidate?.status === "valid"
+    ? normalizeAnyTabularFrameSource(candidate.value)
+    : null;
 }
 
 export interface ResolvedTableWidgetColumnConfig extends TableWidgetColumnSchema {

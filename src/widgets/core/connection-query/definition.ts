@@ -134,7 +134,6 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   exampleProps: {
     query: {},
     timeRangeMode: "dashboard",
-    selectedFrame: 0,
   },
   mockProps: {
     queryModelId: "example-query",
@@ -142,7 +141,6 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       kind: "example-query",
     },
     timeRangeMode: "dashboard",
-    selectedFrame: 0,
   },
   mockRuntimeState: {
     status: "ready",
@@ -214,18 +212,18 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Selects a backend-owned connection instance, query model, query payload, range behavior, variables, and selected response frame.",
+        "Selects a backend-owned connection instance, query model, query payload, range behavior, optional variables, and row limit.",
       requiredSetupSteps: [
         "Select a configured connection instance.",
         "Choose the connection path exposed by the connection type.",
-        "Configure the query payload and, when the path is time-range-aware, whether runtime uses workspace dates, custom dates, or no dates.",
+        "Configure the query payload and, when the path is time-range-aware, choose workspace dates or custom dates.",
         "Test the draft query in settings before binding consumers.",
         "Bind downstream widgets to the dataset output.",
       ],
       configurationNotes: [
         "The widget stores a stable ConnectionRef and query config, not credentials or endpoint URLs.",
         "The selected connection path is authoritative and is sent as query.kind.",
-        "The connection path metadata owns any fixed/default requestedOutputContract; users do not choose output type.",
+        "The connection path metadata and backend adapter own output frame type; users do not choose output type.",
         "Date runtime controls are only shown for time-range-aware connection paths.",
         "Connection-specific query editors are used when the connection type provides one.",
         "The widget is fixed to sidebar placement because it is a source/execution node, not a canvas presentation widget.",
@@ -235,7 +233,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-recalculate", "upstream-update"],
       executionSummary:
-        "Calls the selected connection query through the shared connection API and publishes the selected response frame as a tabular or time-series dataset.",
+        "Calls the selected connection query through the shared connection API and publishes the first matching response frame as a tabular or time-series dataset.",
     },
     io: {
       mode: "dynamic",
@@ -252,7 +250,6 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       supportsDashboardTimeRange: true,
       supportsFixedTimeRange: true,
       supportsVariables: true,
-      supportsSelectedFrame: true,
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
     examples: [
@@ -261,7 +258,6 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
         summary: "Runs one explicit connection path and publishes rows for downstream widgets.",
         props: {
           timeRangeMode: "dashboard",
-          selectedFrame: 0,
         },
       },
     ],

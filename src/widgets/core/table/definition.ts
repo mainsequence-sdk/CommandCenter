@@ -1,39 +1,32 @@
 import { Table } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
-import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
+import { defineWidget } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
-  normalizeTabularFrameSource,
+  isEmptyTabularFrameSource,
   TABULAR_SOURCE_CONTRACT,
 } from "@/widgets/shared/tabular-widget-source";
+import {
+  CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
+} from "@/widgets/shared/timeseries-frame-source";
 import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import { TableWidget } from "./TableWidget";
 import { TableWidgetSettings } from "./TableWidgetSettings";
 import {
   type TableWidgetCellValue,
   buildTableWidgetRowObjects,
+  resolveTableWidgetSourceDataset,
   tableWidgetDefaultProps,
   resolveTableWidgetColumns,
   resolveTableWidgetPropsWithFrame,
   type TableWidgetProps,
 } from "./tableModel";
 
-function resolveSourceDataset(
-  resolvedInputs: ResolvedWidgetInputs | undefined,
-) {
-  const resolvedEntry = resolvedInputs?.[TABULAR_SOURCE_INPUT_ID];
-  const candidate = Array.isArray(resolvedEntry) ? resolvedEntry.find((entry) => entry.status === "valid") : resolvedEntry;
-
-  return candidate?.status === "valid"
-    ? normalizeTabularFrameSource(candidate.value)
-    : null;
-}
-
 export const tableWidget = defineWidget<TableWidgetProps>({
   id: "table",
-  widgetVersion: "2.0.0",
+  widgetVersion: "2.1.0",
   title: "Table",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -60,7 +53,7 @@ export const tableWidget = defineWidget<TableWidgetProps>({
       {
         id: TABULAR_SOURCE_INPUT_ID,
         label: "Source data",
-        accepts: [TABULAR_SOURCE_CONTRACT],
+        accepts: [TABULAR_SOURCE_CONTRACT, CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT],
         required: false,
         effects: [
           {
@@ -82,7 +75,11 @@ export const tableWidget = defineWidget<TableWidgetProps>({
   workspaceRuntimeMode: "consumer",
   workspaceIcon: Table,
   buildAgentSnapshot: ({ props, resolvedInputs, snapshotProfile }) => {
-    const sourceDataset = resolveSourceDataset(resolvedInputs);
+    const resolvedSourceDataset = resolveTableWidgetSourceDataset(resolvedInputs);
+    const sourceDataset =
+      resolvedSourceDataset && !isEmptyTabularFrameSource(resolvedSourceDataset)
+        ? resolvedSourceDataset
+        : null;
     const resolvedProps = resolveTableWidgetPropsWithFrame(props, sourceDataset
       ? {
           columns: sourceDataset.columns,
@@ -175,10 +172,10 @@ export const tableWidget = defineWidget<TableWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Formats either a bound tabular dataset or a manually authored table into a user-facing table with saved field formatting and visibility preferences.",
+        "Formats either a bound tabular or time-series dataset, or a manually authored table, into a user-facing table with saved field formatting and visibility preferences.",
       requiredSetupSteps: [
         "Choose Bound dataset or Manual table in settings.",
-        "For Bound dataset, bind the widget to one upstream tabular dataset.",
+        "For Bound dataset, bind the widget to one upstream tabular or time-series dataset.",
         "For Manual table, add columns and rows in the table editor.",
         "Adjust visible fields and formatting options in settings.",
       ],
@@ -191,14 +188,14 @@ export const tableWidget = defineWidget<TableWidgetProps>({
     },
     io: {
       mode: "consumer",
-      summary: "Consumes one tabular frame and renders its rows as a table.",
+      summary: "Consumes one tabular or time-series frame and renders its rows as a table.",
       ioNotes: [
         "The sourceData input is optional because manual table mode stores rows on this table widget.",
         "The widget does not publish a new canonical runtime contract.",
       ],
     },
     capabilities: {
-      acceptedContracts: [TABULAR_SOURCE_CONTRACT],
+      acceptedContracts: [TABULAR_SOURCE_CONTRACT, CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT],
       supportedSourceModes: ["bound", "manual"],
       renderingSurface: "table",
       columnConfiguration: [

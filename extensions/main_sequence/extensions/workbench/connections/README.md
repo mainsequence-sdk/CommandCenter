@@ -10,9 +10,13 @@ Workbench data access.
 - `DataNodeConnectionConfigEditor.tsx`: connection-specific create/edit UI that reuses the
   workbench Data Node quick-search picker so a configured data source represents one concrete
   Data Node.
-- `DataNodeConnectionExplore.tsx`: structured Explore UI for Data Node detail, row-range, and
-  latest-observation queries. It replaces the generic raw JSON query editor for this connection
-  type.
+- `DataNodeConnectionExplore.tsx`: structured Explore UI that uses the same query models, typed
+  query editor, standard request envelope, fixed runtime range, and runtime-frame normalization as
+  the core Connection Query widget.
+- `DataNodeConnectionQueryEditor.tsx`: typed Connection Query widget editor for Data Node row and
+  latest-observation payloads. It renders columns, unique identifier filters, inclusive range
+  flags, limits, and legacy Data Node id fallback only when the selected instance has no
+  configured Data Node.
 - `simpleTableConnection.ts`: registers the `mainsequence.simple-table` connection type and the
   `simple-table-sql` query model for backend-scoped SQL against one configured Simple Table.
 - `SimpleTableConnectionConfigEditor.tsx`: connection-specific create/edit UI that asks the user
@@ -21,6 +25,8 @@ Workbench data access.
 - `SimpleTableConnectionExplore.tsx`: SQL-only Explore UI for the configured Simple Table. It
   sends `simple-table-sql` queries through the connection backend and previews the normalized
   tabular frame response.
+- `SimpleTableConnectionQueryEditor.tsx`: typed Connection Query widget editor for Simple Table
+  SQL, row limits, and parameter objects.
 
 ## Behavior
 
@@ -40,8 +46,19 @@ Workbench data access.
 - Until the backend connection endpoints are available, the default system Data Node connection
   falls back to the existing authenticated Main Sequence API helpers. Widgets call this connection
   module instead of importing dynamic-table fetch helpers directly.
-- The Explore shell should remain form-driven. Do not regress it to the generic JSON query editor
-  unless the connection type no longer owns Data Node-specific query semantics.
+- The Connection Query widget uses the Data Node connection's typed `queryEditor` for per-query
+  kwargs. The generic widget owns the standard envelope (`connectionUid`, `query`, `timeRange`,
+  variables, and row limits); Data Node-specific fields stay in the Data Node connection module.
+- Data Node query models do not advertise `supportsVariables`, so the generic variables editor is
+  hidden and variables are omitted from Data Node connection requests.
+- The Data Node Explore shell should stay aligned with the core Connection Query widget: select a
+  connection path, edit that path through `DataNodeConnectionQueryEditor`, build the standard
+  `ConnectionQueryRequest`, and preview the normalized runtime frame. Do not reintroduce separate
+  Data Node pickers, Unix-second inputs, or direct row helper calls here.
+- When a Data Node Explore response normalizes as `core.time_series_frame@v1`, the preview exposes
+  Graph and Table views. The Graph view must reuse the core graph model and TradingView chart
+  renderer so Explore matches bound workspace graph behavior; the Table view remains the raw
+  field-array row inspection fallback.
 - A Main Sequence Simple Table connection instance is configured by selecting one concrete Simple
   Table. Its public config stores `simpleTableId`, optional display metadata
   (`simpleTableLabel`, `simpleTableStorageHash`, `simpleTableIdentifier`), `defaultLimit`,
@@ -49,6 +66,8 @@ Workbench data access.
 - Simple Table Explore intentionally exposes one path: read-only SQL. The frontend sends
   `query.kind = "simple-table-sql"` with `sql`, optional `parameters`, and `maxRows`; the backend
   adapter owns SQL validation, placeholder expansion, execution, and response normalization.
+- The Simple Table Connection Query editor renders the same SQL payload shape inside the generic
+  widget so saved source widgets are not forced to edit raw JSON.
 
 ## Maintenance Constraints
 
@@ -211,13 +230,11 @@ for the resolved Data Node still apply.
   - `columns: string[]`
 - Optional query payload:
   - `dataNodeId?: number`
-  - `start_date?: number` and `end_date?: number` only as legacy adapter compatibility inputs
   - `unique_identifier_list?: string[]`
   - `unique_identifier_range_map?: Record<string, [number, number]>`
   - `great_or_equal?: boolean`
   - `less_or_equal?: boolean`
   - `limit?: number`
-  - `offset?: number`
 - Resolve and validate the Data Node id.
 - Normalize the date window by mapping `request.timeRange.from` and `request.timeRange.to` to the
   Data Node API's `start_date` and `end_date` Unix-second fields. The generic Connection Query
@@ -334,17 +351,14 @@ Build the key after validation/defaulting, not directly from the raw request bod
 
 For `data-node-rows-between-dates`, the normalized payload portion must include:
 
-- `start_date`, derived from top-level `request.timeRange.from` unless a legacy query payload field
-  was accepted
-- `end_date`, derived from top-level `request.timeRange.to` unless a legacy query payload field was
-  accepted
+- `start_date`, derived from top-level `request.timeRange.from`
+- `end_date`, derived from top-level `request.timeRange.to`
 - `columns` in the requested order
 - `unique_identifier_list` in the requested order
 - `unique_identifier_range_map`
 - `great_or_equal`
 - `less_or_equal`
 - `limit`
-- `offset`
 
 The key builder should use canonical JSON for objects with sorted keys, while preserving array
 order. Drop only non-semantic `null`/missing values consistently; do not drop empty arrays except

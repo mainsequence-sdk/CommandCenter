@@ -79,6 +79,51 @@ function toColorInputValue(value: string | undefined, fallback: string) {
   return fallback;
 }
 
+function buildSourceSchemaEmptyMessage(input: {
+  hasBoundSource: boolean;
+  isAwaitingBoundSourceValue: boolean;
+  sourceStatus?: string;
+}) {
+  if (!input.hasBoundSource) {
+    return "Bind this graph to a tabular or time-series source to inspect its source schema.";
+  }
+
+  if (input.isAwaitingBoundSourceValue || input.sourceStatus === "idle" || input.sourceStatus === "loading") {
+    return "The source binding is valid, but the bound widget has not published a runtime frame yet.";
+  }
+
+  if (input.sourceStatus === "error") {
+    return "The source binding is valid, but the bound widget published an error instead of a schema.";
+  }
+
+  return "The source binding is valid, but the resolved frame does not include fields or rows to inspect.";
+}
+
+function buildSeriesStylingEmptyMessage(input: {
+  hasBoundSource: boolean;
+  isAwaitingBoundSourceValue: boolean;
+  previewRows: number;
+  sourceStatus?: string;
+}) {
+  if (!input.hasBoundSource) {
+    return "Bind a chartable tabular or time-series source before configuring per-series styling.";
+  }
+
+  if (input.isAwaitingBoundSourceValue || input.sourceStatus === "idle" || input.sourceStatus === "loading") {
+    return "The source binding is valid, but the bound widget has not published a runtime frame yet.";
+  }
+
+  if (input.sourceStatus === "error") {
+    return "The source binding is valid, but the bound widget returned an error.";
+  }
+
+  if (input.previewRows === 0) {
+    return "The bound source returned no rows, so there are no series to style yet.";
+  }
+
+  return "Rows are loaded, but the graph cannot derive chartable series from the current time and value fields.";
+}
+
 export function GraphWidgetSettings({
   draftProps,
   editable,
@@ -91,7 +136,8 @@ export function GraphWidgetSettings({
   const resolvedConfig = context?.resolvedConfig;
   const hasNoData = context?.hasNoData ?? false;
   const linkedDataset = context?.resolvedSourceDataset ?? null;
-  const hasPreviewSource = Boolean(resolvedConfig?.sourceId || context?.isFilterWidgetSource);
+  const hasBoundSource = Boolean(context?.sourceWidgetId || context?.resolvedSourceWidget);
+  const hasPreviewSource = Boolean(resolvedConfig?.sourceId || hasBoundSource);
   const [previewModeOverride, setPreviewModeOverride] = useState<GraphViewMode | null>(
     null,
   );
@@ -102,14 +148,14 @@ export function GraphWidgetSettings({
   const activePreviewMode = previewModeOverride ?? "chart";
   const previewRange = { hasValidRange: true, rangeStartMs: null, rangeEndMs: null };
   const previewRows = linkedDataset?.rows ?? [];
+  const sourceStatus = linkedDataset?.status;
   const previewErrorMessage =
     linkedDataset?.status === "error"
       ? linkedDataset.error ?? "The bound source failed to load rows."
       : null;
   const previewIsLoading =
     Boolean(context?.isAwaitingBoundSourceValue) ||
-    linkedDataset?.status === "loading" ||
-    linkedDataset == null;
+    linkedDataset?.status === "loading";
 
   const previewSeriesResult = useMemo(
     () =>
@@ -261,7 +307,11 @@ export function GraphWidgetSettings({
         description="Inspect the resolved field schema this graph is using for axis selection, grouping, and date parsing."
         fields={resolvedConfig.availableFields}
         rows={previewRows}
-        emptyMessage="Bind this graph to a tabular or time-series source to inspect its source schema."
+        emptyMessage={buildSourceSchemaEmptyMessage({
+          hasBoundSource,
+          isAwaitingBoundSourceValue: Boolean(context?.isAwaitingBoundSourceValue),
+          sourceStatus,
+        })}
       />
 
       <SettingsSection
@@ -270,11 +320,20 @@ export function GraphWidgetSettings({
       >
         {!hasPreviewSource || hasNoData ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Select a chartable tabular or time-series dataset to configure per-series styling.
+            {buildSeriesStylingEmptyMessage({
+              hasBoundSource,
+              isAwaitingBoundSourceValue: Boolean(context?.isAwaitingBoundSourceValue),
+              previewRows: previewRows.length,
+              sourceStatus,
+            })}
           </div>
         ) : context?.isAwaitingBoundSourceValue ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Resolving the bound source widget before series-specific styling becomes available.
+            The source binding is valid, but the bound widget has not published a runtime frame yet.
+          </div>
+        ) : previewErrorMessage ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-danger/50 bg-danger/8 px-4 py-5 text-sm text-danger">
+            {previewErrorMessage}
           </div>
         ) : previewIsLoading ? (
           <div className="grid gap-3 md:grid-cols-2">
@@ -335,7 +394,12 @@ export function GraphWidgetSettings({
           </div>
         ) : (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
-            Load a valid date range to discover the series that can be styled.
+            {buildSeriesStylingEmptyMessage({
+              hasBoundSource,
+              isAwaitingBoundSourceValue: Boolean(context?.isAwaitingBoundSourceValue),
+              previewRows: previewRows.length,
+              sourceStatus,
+            })}
           </div>
         )}
       </SettingsSection>

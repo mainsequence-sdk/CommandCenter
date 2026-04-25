@@ -9,17 +9,17 @@ backend-owned connection instances.
 - `connectionQueryModel.ts`: props normalization, connection response normalization, and execution helpers.
 - `ConnectionQueryWidget.tsx`: compact runtime renderer for the latest published frame status.
 - `ConnectionQueryWidgetSettings.tsx`: instance settings UI with connection picker, explicit
-  connection path selection, query editor, runtime date controls, variables, selected frame
-  controls, and a draft test runner.
+  connection path selection, query editor, runtime date controls, optional variables, row limits,
+  and a draft test runner.
 - `USAGE_GUIDANCE.md`: user-facing registry guidance imported by the widget definition.
 
 ## Behavior
 
 - The widget stores a stable `ConnectionRef`, selected `queryModelId` connection path, query
-  payload, optional variables, date runtime behavior, row limit, and selected response frame.
+  payload, optional variables, date runtime behavior, and row limit.
 - The selected `queryModelId` is authoritative and is always sent as `query.kind`; the generic JSON
   editor cannot redirect a saved widget to another connection path.
-- Runtime execution calls `queryConnection(...)` and publishes one dataset from the selected
+- Runtime execution calls `queryConnection(...)` and publishes one dataset from the first matching
   response frame. Tabular frames publish `core.tabular_frame@v1`; time-series frames publish
   `core.time_series_frame@v1`.
 - The settings test action uses the same request builder as runtime execution. Workspace dates are
@@ -28,8 +28,12 @@ backend-owned connection instances.
   one. They receive the selected connection instance, connection type, selected query model, and
   current query payload so each connection can render its own kwargs. The generic JSON editor is
   the fallback only for connection types that do not provide an editor.
-- Runtime date windows are sent through the top-level connection request `timeRange`; do not add
-  connection-specific date-field injection in this generic widget.
+- The standard `variables` request envelope is only shown and sent when the selected query model
+  advertises `supportsVariables: true`. Connector-specific query kwargs must stay in the selected
+  connection editor.
+- Time-range-aware connection paths always send the top-level connection request `timeRange` as
+  ISO strings. Authors choose either the workspace date range or a saved custom date range. Do not
+  add connection-specific date-field injection in this generic widget.
 - The widget is fixed to sidebar placement. It is a source/execution node, not a canvas
   visualization.
 - The widget is an `execution-owner`; mounted runtime UI renders the latest `runtimeState` and does

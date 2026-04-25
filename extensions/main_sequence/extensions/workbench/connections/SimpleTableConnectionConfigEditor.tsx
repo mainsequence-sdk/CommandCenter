@@ -125,7 +125,7 @@ export function SimpleTableConnectionConfigEditor({
   const deferredSearchValue = useDeferredValue(searchValue);
   const simpleTablesQuery = useQuery({
     queryKey: ["main_sequence", "connections", "simple_table", "list"],
-    queryFn: () => listSimpleTables({ limit: 100, offset: 0 }),
+    queryFn: () => listSimpleTables({ limit: 100 }),
     staleTime: 300_000,
   });
   const simpleTableDetailQuery = useQuery({

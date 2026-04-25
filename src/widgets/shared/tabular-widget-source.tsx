@@ -11,7 +11,10 @@ import {
   type TabularFrameFieldType,
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
-import { timeSeriesFrameToTabularFrameSource } from "@/widgets/shared/timeseries-frame-source";
+import {
+  CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
+  timeSeriesFrameToTabularFrameSource,
+} from "@/widgets/shared/timeseries-frame-source";
 import type {
   WidgetFieldDefinition,
   WidgetFieldSection,
@@ -579,6 +582,119 @@ export function resolveTabularFieldOptionsFromDataset(input: {
   });
 }
 
+function normalizeTimeSeriesFieldTypeForTabular(value: unknown): TabularFrameFieldType {
+  if (value === "time") {
+    return "datetime";
+  }
+
+  if (
+    value === "string" ||
+    value === "number" ||
+    value === "integer" ||
+    value === "boolean" ||
+    value === "datetime" ||
+    value === "date" ||
+    value === "json"
+  ) {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function timeSeriesFieldArrayToTabularFrameSource(value: unknown): TabularFrameSourceV1 | null {
+  if (!isPlainRecord(value) || value.contract !== CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT) {
+    return null;
+  }
+
+  const rawFields = Array.isArray(value.fields) ? value.fields : [];
+  const fields = rawFields.flatMap((field) => {
+    if (!isPlainRecord(field) || typeof field.name !== "string" || !field.name.trim()) {
+      return [];
+    }
+
+    return [{
+      name: field.name.trim(),
+      type: field.type,
+      values: Array.isArray(field.values) ? field.values : [],
+      config: isPlainRecord(field.config) ? field.config : undefined,
+    }];
+  });
+
+  if (fields.length === 0) {
+    return null;
+  }
+
+  const columns = fields.map((field) => field.name);
+  const rowCount = Math.max(0, ...fields.map((field) => field.values.length));
+  const rows = Array.from({ length: rowCount }, (_entry, rowIndex) =>
+    Object.fromEntries(fields.map((field) => [field.name, field.values[rowIndex] ?? null])),
+  );
+
+  return {
+    status:
+      value.status === "error" || value.status === "loading" || value.status === "idle"
+        ? value.status
+        : "ready",
+    error: typeof value.error === "string" ? value.error : undefined,
+    columns,
+    rows,
+    fields: fields.map((field) => ({
+      key: field.name,
+      label:
+        typeof field.config?.displayName === "string" && field.config.displayName.trim()
+          ? field.config.displayName.trim()
+          : field.name,
+      type: normalizeTimeSeriesFieldTypeForTabular(field.type),
+      nullable: true,
+      nativeType: typeof field.type === "string" ? field.type : null,
+      provenance: "backend",
+      reason: "Converted from a time-series frame field array for table rendering.",
+    })),
+    source: {
+      kind: "time-series-frame",
+      label: typeof value.name === "string" ? value.name : undefined,
+      context: {
+        sourceContract: CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
+      },
+    },
+  };
+}
+
+export function normalizeAnyTabularFrameSource(value: unknown): TabularFrameSourceV1 | null {
+  const directFrame =
+    normalizeTabularFrameSource(value) ??
+    timeSeriesFrameToTabularFrameSource(value) ??
+    timeSeriesFieldArrayToTabularFrameSource(value);
+
+  if (directFrame) {
+    return directFrame;
+  }
+
+  if (!isPlainRecord(value) || !Array.isArray(value.frames)) {
+    return null;
+  }
+
+  for (const frame of value.frames) {
+    const normalizedFrame = normalizeAnyTabularFrameSource(frame);
+
+    if (normalizedFrame) {
+      return normalizedFrame;
+    }
+  }
+
+  return null;
+}
+
+export function isEmptyTabularFrameSource(frame: TabularFrameSourceV1 | null | undefined) {
+  return Boolean(
+    frame &&
+      frame.columns.length === 0 &&
+      frame.rows.length === 0 &&
+      (!frame.fields || frame.fields.length === 0),
+  );
+}
+
 function normalizeManualColumnType(value: unknown): TabularFrameFieldType {
   return value === "string" ||
     value === "number" ||
@@ -783,12 +899,16 @@ export function useResolvedTabularWidgetSourceBinding<
         : null,
     [currentWidgetInstanceId, resolvedSourceWidgetId, widgetRegistry],
   );
-  const sourceDatasetValue = resolvedInputBinding?.value ?? resolvedSourceWidget?.runtimeState;
   const resolvedSourceFrame = useMemo(
-    () =>
-      normalizeTabularFrameSource(sourceDatasetValue) ??
-      timeSeriesFrameToTabularFrameSource(sourceDatasetValue),
-    [sourceDatasetValue],
+    () => {
+      const inputFrame = normalizeAnyTabularFrameSource(resolvedInputBinding?.value);
+      const runtimeFrame = normalizeAnyTabularFrameSource(resolvedSourceWidget?.runtimeState);
+
+      return inputFrame && !isEmptyTabularFrameSource(inputFrame)
+        ? inputFrame
+        : runtimeFrame ?? inputFrame;
+    },
+    [resolvedInputBinding?.value, resolvedSourceWidget?.runtimeState],
   );
   const resolvedSourceDataset = resolvedSourceFrame;
   const hasCanonicalSourceBinding = resolvedInputBinding?.sourceWidgetId != null;

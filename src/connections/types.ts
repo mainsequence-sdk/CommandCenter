@@ -2,6 +2,24 @@ import type { ComponentType } from "react";
 
 import type { WidgetContractId } from "@/widgets/types";
 
+export const CONNECTION_RESPONSE_CONTRACT_IDS = [
+  "core.tabular_frame@v1",
+  "core.time_series_frame@v1",
+  "core.chart_data@v1",
+] as const satisfies readonly WidgetContractId[];
+
+export type ConnectionResponseContractId =
+  (typeof CONNECTION_RESPONSE_CONTRACT_IDS)[number];
+
+export function isConnectionResponseContractId(
+  value: unknown,
+): value is ConnectionResponseContractId {
+  return (
+    typeof value === "string" &&
+    CONNECTION_RESPONSE_CONTRACT_IDS.includes(value as ConnectionResponseContractId)
+  );
+}
+
 export type ConnectionCapability =
   | "query"
   | "stream"
@@ -46,7 +64,7 @@ export interface ConnectionQueryModel {
   label: string;
   description?: string;
   outputContracts: WidgetContractId[];
-  defaultOutputContract?: WidgetContractId;
+  defaultOutputContract?: ConnectionResponseContractId;
   timeRangeAware?: boolean;
   supportsVariables?: boolean;
 }
@@ -148,7 +166,7 @@ export type ConnectionQueryCacheMode = "default" | "bypass" | "refresh";
 export interface ConnectionQueryRequest<TQuery = Record<string, unknown>> {
   connectionUid: string;
   query: TQuery;
-  requestedOutputContract?: WidgetContractId;
+  requestedOutputContract?: ConnectionResponseContractId;
   timeRange?: {
     from: string;
     to: string;
@@ -180,7 +198,7 @@ export interface CommandCenterFrameField {
 
 export interface CommandCenterFrame {
   name?: string;
-  contract: WidgetContractId;
+  contract: ConnectionResponseContractId;
   fields: CommandCenterFrameField[];
   meta?: Record<string, unknown>;
 }

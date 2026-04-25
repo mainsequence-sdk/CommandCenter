@@ -7,13 +7,19 @@ import {
   useResolvedWidgetIo,
 } from "@/dashboards/DashboardWidgetDependencies";
 import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
+import {
+  inferWidgetValueDescriptor,
+  listWidgetValueDescriptorPaths,
+} from "@/dashboards/widget-binding-transforms";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
 import type {
+  WidgetContractId,
   WidgetDefinition,
   WidgetInputPortDefinition,
   WidgetInstanceBindings,
   WidgetPortBinding,
+  WidgetValueDescriptor,
 } from "@/widgets/types";
 import {
   WidgetSourceExplorer,
@@ -127,6 +133,44 @@ function buildBindingsFromDraftRows(
   );
 }
 
+function descriptorCanProduceAcceptedContract(
+  descriptor: WidgetValueDescriptor | undefined,
+  acceptedContracts: WidgetContractId[],
+): boolean {
+  if (!descriptor) {
+    return false;
+  }
+
+  if (acceptedContracts.includes(descriptor.contract)) {
+    return true;
+  }
+
+  if (descriptor.kind === "array") {
+    return descriptorCanProduceAcceptedContract(descriptor.items, acceptedContracts);
+  }
+
+  return listWidgetValueDescriptorPaths(descriptor).some((option) =>
+    acceptedContracts.includes(option.contractId),
+  );
+}
+
+function isBindableSourceOutput(
+  output: WidgetSourceExplorerWidgetOption["outputs"][number],
+  acceptedContracts: WidgetContractId[],
+) {
+  if (acceptedContracts.includes(output.contract)) {
+    return true;
+  }
+
+  const descriptor =
+    output.valueDescriptor ??
+    (output.value === undefined
+      ? undefined
+      : inferWidgetValueDescriptor(output.value, output.contract));
+
+  return descriptorCanProduceAcceptedContract(descriptor, acceptedContracts);
+}
+
 export function WidgetBindingPanel({
   editable,
   instance,
@@ -193,14 +237,8 @@ export function WidgetBindingPanel({
           const sourceDefinition = dependencies.getWidgetDefinition(sourceInstance.widgetId);
           const declaredOutputs = dependencies.resolveIo(sourceInstance.id)?.outputs ?? [];
           const resolvedOutputs = dependencies.resolveOutputs(sourceInstance.id) ?? {};
-
-          return [{
-            id: sourceInstance.id,
-            label: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
-            title: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
-            widgetTypeLabel: sourceDefinition?.title ?? sourceInstance.widgetId,
-            instanceLabel: sourceInstance.id,
-            outputs: declaredOutputs.map((output) => ({
+          const bindableOutputs = declaredOutputs
+            .map((output) => ({
               id: output.id,
               label: output.label,
               contract: output.contract,
@@ -208,7 +246,20 @@ export function WidgetBindingPanel({
               value: resolvedOutputs[output.id]?.value,
               valueDescriptor:
                 resolvedOutputs[output.id]?.valueDescriptor ?? output.valueDescriptor,
-            })),
+            }))
+            .filter((output) => isBindableSourceOutput(output, input.accepts));
+
+          if (bindableOutputs.length === 0) {
+            return [];
+          }
+
+          return [{
+            id: sourceInstance.id,
+            label: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
+            title: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
+            widgetTypeLabel: sourceDefinition?.title ?? sourceInstance.widgetId,
+            instanceLabel: sourceInstance.id,
+            outputs: bindableOutputs,
           } satisfies WidgetSourceExplorerWidgetOption];
         });
 

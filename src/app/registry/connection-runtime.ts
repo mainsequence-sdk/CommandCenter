@@ -123,6 +123,9 @@ export function hydrateConnectionRuntime(
     secureConfigSchema: shouldUseRuntimeConfig
       ? runtimeDefinition.secureConfigSchema
       : connection.secureConfigSchema,
+    queryModels: shouldUseRuntimeConfig
+      ? runtimeDefinition.queryModels
+      : connection.queryModels,
     configEditor: runtimeDefinition.configEditor,
     queryEditor: runtimeDefinition.queryEditor,
     exploreComponent: runtimeDefinition.exploreComponent,

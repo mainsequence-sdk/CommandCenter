@@ -34,6 +34,7 @@ import type {
   ConnectionInstance,
   ConnectionQueryModel,
 } from "@/connections/types";
+import { isConnectionResponseContractId } from "@/connections/types";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 
 type ConnectionsPageMode = "add-new" | "data-sources" | "explore";
@@ -869,6 +870,18 @@ function buildExploreQueryTemplate(
   return "{}";
 }
 
+function resolveExploreRequestedOutputContract(queryModel: ConnectionQueryModel | undefined) {
+  if (
+    queryModel?.defaultOutputContract &&
+    queryModel.outputContracts.includes(queryModel.defaultOutputContract) &&
+    isConnectionResponseContractId(queryModel.defaultOutputContract)
+  ) {
+    return queryModel.defaultOutputContract;
+  }
+
+  return queryModel?.outputContracts.find(isConnectionResponseContractId);
+}
+
 function AddNewConnectionContent() {
   const typesQuery = useConnectionTypes();
   const [searchValue, setSearchValue] = useState("");
@@ -1114,7 +1127,7 @@ function ExploreContent({
       return queryConnection({
         connectionUid: selectedUid,
         query: parsedQuery,
-        requestedOutputContract: selectedQueryModel?.outputContracts[0],
+        requestedOutputContract: resolveExploreRequestedOutputContract(selectedQueryModel),
       });
     },
     onSuccess: (result) => {

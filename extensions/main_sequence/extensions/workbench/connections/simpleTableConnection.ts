@@ -154,6 +154,7 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
       description:
         "Executes read-only SQL against the configured Main Sequence Simple Table and returns a core.tabular_frame@v1 result.",
       outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+      defaultOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
       supportsVariables: true,
     },
   ],

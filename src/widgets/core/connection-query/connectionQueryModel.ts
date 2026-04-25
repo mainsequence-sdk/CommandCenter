@@ -1,4 +1,8 @@
 import { queryConnection } from "@/connections/api";
+import {
+  isConnectionResponseContractId,
+  type ConnectionResponseContractId,
+} from "@/connections/types";
 import type {
   CommandCenterFrame,
   CommandCenterFrameFieldType,
@@ -33,24 +37,24 @@ export interface ConnectionQueryWidgetProps extends Record<string, unknown> {
   fixedEndMs?: number;
   variables?: Record<string, string | number | boolean>;
   maxRows?: number;
-  selectedFrame?: number;
 }
 
 export type ConnectionQueryRuntimeState = TabularFrameSourceV1 | TimeSeriesFrameSourceV1;
 
 export function resolveConnectionQueryRequestedOutputContract(
   queryModel: ConnectionQueryModel | undefined,
-) {
+): ConnectionResponseContractId | undefined {
   const outputContracts = queryModel?.outputContracts ?? [];
 
   if (
     queryModel?.defaultOutputContract &&
-    outputContracts.includes(queryModel.defaultOutputContract)
+    outputContracts.includes(queryModel.defaultOutputContract) &&
+    isConnectionResponseContractId(queryModel.defaultOutputContract)
   ) {
     return queryModel.defaultOutputContract;
   }
 
-  return outputContracts[0];
+  return outputContracts.find(isConnectionResponseContractId);
 }
 
 function resolveConnectionQueryAllowedOutputContracts(
@@ -75,16 +79,6 @@ function normalizePositiveInteger(value: unknown) {
 
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return undefined;
-  }
-
-  return Math.trunc(parsed);
-}
-
-function normalizeNonNegativeInteger(value: unknown) {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    return 0;
   }
 
   return Math.trunc(parsed);
@@ -137,6 +131,18 @@ function normalizeVariables(value: unknown) {
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const entries = value.flatMap((entry) =>
+    typeof entry === "string" && entry.trim() ? [entry.trim()] : [],
+  );
+
+  return entries.length > 0 ? entries : undefined;
+}
+
 function normalizeTimeRangeMode(value: unknown): ConnectionQueryTimeRangeMode {
   return value === "fixed" || value === "none" ? value : "dashboard";
 }
@@ -154,7 +160,6 @@ export function normalizeConnectionQueryProps(
     fixedEndMs: normalizeTimestampMs(props.fixedEndMs),
     variables: normalizeVariables(props.variables),
     maxRows: normalizePositiveInteger(props.maxRows),
-    selectedFrame: normalizeNonNegativeInteger(props.selectedFrame),
   };
 }
 
@@ -171,7 +176,6 @@ function frameToTabularSource(
   input: {
     connectionRef: ConnectionRef;
     queryModelId: string;
-    selectedFrame: number;
     traceId?: string;
     warnings?: string[];
   },
@@ -205,7 +209,6 @@ function frameToTabularSource(
         connectionRef: input.connectionRef,
         queryModelId: input.queryModelId,
         requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
-        selectedFrame: input.selectedFrame,
         traceId: input.traceId,
         warnings: input.warnings,
       },
@@ -218,7 +221,6 @@ function frameToTimeSeriesSource(
   input: {
     connectionRef: ConnectionRef;
     queryModelId: string;
-    selectedFrame: number;
     traceId?: string;
     warnings?: string[];
   },
@@ -235,7 +237,6 @@ function frameToTimeSeriesSource(
         connectionRef: input.connectionRef,
         queryModelId: input.queryModelId,
         requestedOutputContract: CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-        selectedFrame: input.selectedFrame,
         traceId: input.traceId,
         warnings: input.warnings,
       },
@@ -252,9 +253,8 @@ function frameToPublishedSource(
   input: {
     connectionRef: ConnectionRef;
     queryModelId: string;
-    requestedOutputContract?: WidgetContractId;
+    requestedOutputContract?: ConnectionResponseContractId;
     allowedOutputContracts: WidgetContractId[];
-    selectedFrame: number;
     traceId?: string;
     warnings?: string[];
   },
@@ -283,9 +283,8 @@ function firstConnectionFramePayload(
   input: {
     connectionRef: ConnectionRef;
     queryModelId: string;
-    requestedOutputContract?: WidgetContractId;
+    requestedOutputContract?: ConnectionResponseContractId;
     allowedOutputContracts: WidgetContractId[];
-    selectedFrame: number;
   },
 ) {
   if (isPlainRecord(payload) && Array.isArray(payload.frames)) {
@@ -305,13 +304,11 @@ function firstConnectionFramePayload(
       return null;
     }
 
-    const selectedFrame = Math.min(input.selectedFrame, matchingFrames.length - 1);
-    const frame = matchingFrames[selectedFrame];
+    const frame = matchingFrames[0];
 
     return frame
       ? frameToPublishedSource(frame, {
           ...input,
-          selectedFrame,
           traceId: response.traceId,
           warnings: response.warnings,
         })
@@ -336,7 +333,6 @@ function firstConnectionFramePayload(
         context: {
           connectionRef: input.connectionRef,
           queryModelId: input.queryModelId,
-          selectedFrame: input.selectedFrame,
         },
       },
     };
@@ -360,7 +356,6 @@ function firstConnectionFramePayload(
         context: {
           connectionRef: input.connectionRef,
           queryModelId: input.queryModelId,
-          selectedFrame: input.selectedFrame,
         },
       },
     };
@@ -378,10 +373,12 @@ function resolveDashboardRange(dashboardState?: WidgetExecutionDashboardState) {
     return null;
   }
 
-  return {
-    fromMs: dashboardState.rangeStartMs,
-    toMs: dashboardState.rangeEndMs,
-  };
+  const fromMs = normalizeTimestampMs(dashboardState.rangeStartMs);
+  const toMs = normalizeTimestampMs(dashboardState.rangeEndMs);
+
+  return fromMs !== undefined && toMs !== undefined && fromMs < toMs
+    ? { fromMs, toMs }
+    : null;
 }
 
 function resolveFixedRange(props: ConnectionQueryWidgetProps) {
@@ -391,6 +388,19 @@ function resolveFixedRange(props: ConnectionQueryWidgetProps) {
   return fromMs !== undefined && toMs !== undefined && fromMs < toMs
     ? { fromMs, toMs }
     : null;
+}
+
+function resolveDefaultRange(dashboardState?: WidgetExecutionDashboardState) {
+  const dashboardRange = resolveDashboardRange(dashboardState);
+
+  if (dashboardRange) {
+    return dashboardRange;
+  }
+
+  const toMs = Date.now();
+  const fromMs = toMs - 365 * 24 * 60 * 60 * 1000;
+
+  return { fromMs, toMs };
 }
 
 function buildEffectiveRange(
@@ -403,7 +413,9 @@ function buildEffectiveRange(
     return null;
   }
 
-  return mode === "fixed" ? resolveFixedRange(props) : resolveDashboardRange(dashboardState);
+  return mode === "fixed"
+    ? (resolveFixedRange(props) ?? resolveDefaultRange(dashboardState))
+    : resolveDefaultRange(dashboardState);
 }
 
 function buildEffectiveQuery(props: ConnectionQueryWidgetProps) {
@@ -412,6 +424,46 @@ function buildEffectiveQuery(props: ConnectionQueryWidgetProps) {
 
   if (queryModelId) {
     query.kind = queryModelId;
+  }
+
+  if (queryModelId === "data-node-rows-between-dates") {
+    const normalizedQuery: Record<string, unknown> = {
+      kind: queryModelId,
+    };
+    const dataNodeId = normalizePositiveInteger(query.dataNodeId);
+    const columns = normalizeStringArray(query.columns);
+    const uniqueIdentifierList = normalizeStringArray(query.unique_identifier_list);
+    const limit = normalizePositiveInteger(query.limit);
+
+    if (dataNodeId !== undefined) {
+      normalizedQuery.dataNodeId = dataNodeId;
+    }
+
+    if (columns) {
+      normalizedQuery.columns = columns;
+    }
+
+    if (uniqueIdentifierList) {
+      normalizedQuery.unique_identifier_list = uniqueIdentifierList;
+    }
+
+    if (isPlainRecord(query.unique_identifier_range_map)) {
+      normalizedQuery.unique_identifier_range_map = query.unique_identifier_range_map;
+    }
+
+    if (typeof query.great_or_equal === "boolean") {
+      normalizedQuery.great_or_equal = query.great_or_equal;
+    }
+
+    if (typeof query.less_or_equal === "boolean") {
+      normalizedQuery.less_or_equal = query.less_or_equal;
+    }
+
+    if (limit !== undefined) {
+      normalizedQuery.limit = limit;
+    }
+
+    return normalizedQuery;
   }
 
   return query;
@@ -431,7 +483,17 @@ export function buildConnectionQueryRequest(
     return null;
   }
 
-  const range = buildEffectiveRange(normalizedProps, dashboardState);
+  const timeRangeProps =
+    queryModel?.timeRangeAware && normalizedProps.timeRangeMode === "none"
+      ? { ...normalizedProps, timeRangeMode: "dashboard" as const }
+      : normalizedProps;
+  const range = queryModel?.timeRangeAware
+    ? buildEffectiveRange(timeRangeProps, dashboardState)
+    : null;
+
+  if (queryModel?.timeRangeAware && !range) {
+    return null;
+  }
 
   return {
     connectionUid: connectionRef.uid,
@@ -443,7 +505,7 @@ export function buildConnectionQueryRequest(
           to: new Date(range.toMs).toISOString(),
         }
       : undefined,
-    variables: normalizedProps.variables,
+    variables: queryModel?.supportsVariables ? normalizedProps.variables : undefined,
     maxRows: normalizedProps.maxRows,
   };
 }
@@ -503,7 +565,6 @@ export async function executeConnectionQueryWidgetRequest(
     queryModelId,
     requestedOutputContract,
     allowedOutputContracts,
-    selectedFrame: normalizedProps.selectedFrame ?? 0,
   });
 
   if (!frame) {

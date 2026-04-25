@@ -10,6 +10,8 @@ sidebar entry.
   registry's root-level custom connection loader.
 - `PostgreSqlConnectionExplore.tsx`: adaptive PostgreSQL Explore shell rendered by
   `Connections > Explore` when the selected data source uses the PostgreSQL connection type.
+- `PostgreSqlConnectionQueryEditor.tsx`: typed Connection Query widget editor for SQL table,
+  SQL time-series, schema table, and schema column query payloads.
 
 ## Behavior
 
@@ -25,6 +27,9 @@ sidebar entry.
   shared `queryConnection` endpoint with `sql-table` or `sql-timeseries` payloads. The backend
   adapter owns SQL macro expansion, connection pooling, query execution, row limits, health checks,
   and normalized frame conversion.
+- The Connection Query widget uses the PostgreSQL `queryEditor` to render SQL, parameters,
+  schema/table metadata kwargs, and time-series field mapping. These fields are connection-specific
+  payload fields and should not become static fields on the generic widget.
 
 ## Backend Query Contract
 

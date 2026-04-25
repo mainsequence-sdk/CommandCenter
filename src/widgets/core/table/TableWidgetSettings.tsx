@@ -23,6 +23,7 @@ import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import { TabularFieldSchemaInspector } from "@/widgets/shared/tabular-field-schema-inspector";
 import {
+  isEmptyTabularFrameSource,
   normalizeManualTableColumns,
   normalizeManualTableRows,
   useResolvedTabularWidgetSourceBinding,
@@ -38,6 +39,7 @@ import {
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
+  resolveTableWidgetSourceDataset,
   validateTableWidgetSchema,
   tableWidgetAlignOptions,
   tableWidgetBarModeOptions,
@@ -72,8 +74,8 @@ const colorInputClass = widgetTightFormColorInputClass;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
 const tableFieldHelp = {
   density: "Controls row and cell spacing in the rendered table.",
-  tableSourceMode: "Selects whether this table formats a bound dataset dataset or renders manually authored rows stored on this table widget.",
-  sourceBinding: "Shows the upstream Connection Query or Tabular Transform widget bound to this table. The binding supplies the canonical dataset; this widget only formats it.",
+  tableSourceMode: "Selects whether this table formats a bound dataset or renders manually authored rows stored on this table widget.",
+  sourceBinding: "Shows the upstream Connection Query or Tabular Transform widget bound to this table. The binding supplies a canonical tabular or time-series dataset; this widget only formats it.",
   pageSize: "Sets how many rows AG Grid shows per page when pagination is enabled.",
   surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset.",
   columnKey: "Maps this table column to an incoming field key from the bound dataset frame.",
@@ -277,6 +279,7 @@ export function TableWidgetSettings({
   editable,
   instanceId,
   onDraftPropsChange,
+  resolvedInputs,
 }: WidgetSettingsComponentProps<TableWidgetProps>) {
   const { resolvedTokens } = useTheme();
   const resolvedDraft = resolveTableWidgetProps(draftProps);
@@ -305,10 +308,25 @@ export function TableWidgetSettings({
     props: sourceBindingProps,
     currentWidgetInstanceId: instanceId,
   });
+  const resolvedInputDataset = useMemo(
+    () => resolveTableWidgetSourceDataset(resolvedInputs),
+    [resolvedInputs],
+  );
+  const hasResolvedInputDataset = Boolean(
+    resolvedInputDataset && !isEmptyTabularFrameSource(resolvedInputDataset),
+  );
   useResolveWidgetUpstream(instanceId, {
-    enabled: !isManualTableMode && sourceBinding.requiresUpstreamResolution,
+    enabled:
+      !isManualTableMode &&
+      !hasResolvedInputDataset &&
+      sourceBinding.requiresUpstreamResolution,
   });
-  const linkedDataset = sourceBinding.resolvedSourceDataset;
+  const linkedDataset = hasResolvedInputDataset
+    ? resolvedInputDataset
+    : sourceBinding.resolvedSourceDataset ?? resolvedInputDataset;
+  const hasRenderableLinkedDataset = Boolean(
+    linkedDataset && !isEmptyTabularFrameSource(linkedDataset),
+  );
   const frameColumnsSource = linkedDataset?.columns ?? [];
   const frameRowsSource = linkedDataset?.rows ?? [];
 
@@ -369,7 +387,7 @@ export function TableWidgetSettings({
   const resolvedColumns = resolveTableWidgetColumns(resolvedScopedDraft);
   const hasResolvedSource = isManualTableMode
     ? resolvedScopedDraft.columns.length > 0
-    : sourceBinding.hasResolvedFilterWidgetSource;
+    : hasRenderableLinkedDataset;
   const displayedColumns = hasResolvedSource ? resolvedColumns : [];
   const textFormattedColumns = displayedColumns.filter((column) => column.format === "text");
   const numericFormattedColumns = displayedColumns.filter((column) => column.format !== "text");
@@ -542,9 +560,9 @@ export function TableWidgetSettings({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <p className="max-w-3xl text-xs leading-5 text-muted-foreground">
-            Configure a frame-to-table view around a live tabular source. The widget consumes remote
-            `columns[] + rows[][]`, then lets each instance define fields, mappings, thresholds, and
-            display behavior.
+            Configure a frame-to-table view around a live tabular or time-series source. The widget
+            consumes canonical frame rows, then lets each instance define fields, mappings,
+            thresholds, and display behavior.
           </p>
         </div>
 
@@ -579,7 +597,7 @@ export function TableWidgetSettings({
         <div>
           <div className={titleClass}>Table options</div>
           <p className={descriptionClass}>
-            Point the table at a tabular source, then control how the incoming fields
+            Point the table at a tabular or time-series source, then control how the incoming fields
             should render.
           </p>
         </div>
@@ -657,13 +675,15 @@ export function TableWidgetSettings({
                   </div>
                 ) : null}
 
-                {sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource ? (
+                {sourceBinding.isFilterWidgetSource &&
+                !hasResolvedInputDataset &&
+                !sourceBinding.hasResolvedFilterWidgetSource ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
                     Use the Bindings tab to connect this table to a source widget in this dashboard.
                   </div>
                 ) : null}
 
-                {sourceBinding.isAwaitingBoundSourceValue ? (
+                {!hasResolvedInputDataset && sourceBinding.isAwaitingBoundSourceValue ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
                     Refreshing the bound source widget so the table preview can load its dataset.
                   </div>
@@ -794,7 +814,7 @@ export function TableWidgetSettings({
         emptyMessage={
           isManualTableMode
             ? "Add manual table columns to inspect the schema."
-            : "Bind this table to a tabular source to inspect its incoming schema."
+            : "Bind this table to a tabular or time-series source to inspect its incoming schema."
         }
       />
 
@@ -836,7 +856,7 @@ export function TableWidgetSettings({
             <p className={descriptionClass}>
               {isManualTableMode
                 ? "No manual fields are available yet. Open the editor and add at least one column."
-                : "No source fields are available yet. Select a tabular source to load the current frame."}
+                : "No source fields are available yet. Select a tabular or time-series source to load the current frame."}
             </p>
           ) : displayedColumns.map((column, index) => {
             const override = scopedDraft.columnOverrides?.[column.key] ?? {};

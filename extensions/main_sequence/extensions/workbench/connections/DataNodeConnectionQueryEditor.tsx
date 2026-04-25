@@ -132,20 +132,6 @@ export function DataNodeConnectionQueryEditor({
             placeholder={String(defaultLimit)}
             help="Optional Data Node API row limit. If omitted, the request maxRows and connection default are used by the backend."
           />
-          <QueryNumberField
-            label="Offset"
-            value={"offset" in query ? query.offset : undefined}
-            min={0}
-            onChange={(offset) => {
-              updateQuery({
-                ...query,
-                offset,
-              } as MainSequenceDataNodeConnectionQuery);
-            }}
-            disabled={disabled}
-            placeholder="0"
-            help="Optional Data Node API row offset."
-          />
           <QueryBooleanField
             label="Inclusive start"
             checked={!("great_or_equal" in query) || query.great_or_equal !== false}

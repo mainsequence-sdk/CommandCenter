@@ -32,12 +32,23 @@ export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF: ConnectionRef = {
 };
 
 export type MainSequenceDataNodeQueryCachePolicy = "disabled" | "read";
+export type MainSequenceDataNodeRowsBetweenDatesQuery = Partial<
+  Pick<
+    DataNodeRemoteDataRequest,
+    | "columns"
+    | "unique_identifier_list"
+    | "unique_identifier_range_map"
+    | "great_or_equal"
+    | "less_or_equal"
+    | "limit"
+  >
+> & {
+  kind: "data-node-rows-between-dates";
+  dataNodeId?: number;
+};
 
 export type MainSequenceDataNodeConnectionQuery =
-  | ({
-      kind: "data-node-rows-between-dates";
-      dataNodeId?: number;
-    } & Partial<DataNodeRemoteDataRequest>)
+  | MainSequenceDataNodeRowsBetweenDatesQuery
   | {
       kind: "data-node-last-observation";
       dataNodeId?: number;
@@ -309,8 +320,8 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
       description:
         "Fetches rows for the configured Data Node across a time range and returns a time-series or tabular frame.",
       outputContracts: ["core.time_series_frame@v1", "core.tabular_frame@v1"],
+      defaultOutputContract: "core.time_series_frame@v1",
       timeRangeAware: true,
-      supportsVariables: true,
     },
     {
       id: "data-node-last-observation",
@@ -318,6 +329,7 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
       description:
         "Fetches the latest available row snapshot for the configured Data Node as a tabular frame.",
       outputContracts: ["core.tabular_frame@v1"],
+      defaultOutputContract: "core.tabular_frame@v1",
     },
   ],
   requiredPermissions: ["main_sequence_foundry:view"],
