@@ -6,7 +6,6 @@ import {
   normalizeConnectionQueryRuntimeState,
   type ConnectionQueryWidgetProps,
 } from "./connectionQueryModel";
-import { TIMESERIES_FRAME_SOURCE_CONTRACTS } from "@/widgets/shared/timeseries-frame-source";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 type Props = WidgetComponentProps<ConnectionQueryWidgetProps>;
@@ -21,21 +20,8 @@ export function ConnectionQueryWidget({ props, runtimeState }: Props) {
     : undefined;
   const frame = normalizeConnectionQueryRuntimeState(runtimeState);
   const status = frame?.status ?? "idle";
-  const isTimeSeriesFrame = Boolean(
-    frame &&
-      "contract" in frame &&
-      TIMESERIES_FRAME_SOURCE_CONTRACTS.includes(
-        frame.contract as (typeof TIMESERIES_FRAME_SOURCE_CONTRACTS)[number],
-      ),
-  );
-  const rowCount = frame && "rows" in frame
-    ? frame.rows.length
-    : frame
-      ? Math.max(0, ...frame.fields.map((field) => field.values.length))
-      : 0;
-  const columnCount = frame && "columns" in frame
-    ? frame.columns.length
-    : frame?.fields.length ?? 0;
+  const rowCount = frame && "rows" in frame ? frame.rows.length : 0;
+  const columnCount = frame && "columns" in frame ? frame.columns.length : 0;
   const errorMessage =
     frame && "error" in frame && typeof frame.error === "string"
       ? frame.error
@@ -70,17 +56,13 @@ export function ConnectionQueryWidget({ props, runtimeState }: Props) {
       ) : (
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              {isTimeSeriesFrame ? "Points" : "Rows"}
-            </div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Rows</div>
             <div className="mt-1 text-lg font-semibold text-foreground">
               {rowCount.toLocaleString()}
             </div>
           </div>
           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              {isTimeSeriesFrame ? "Fields" : "Columns"}
-            </div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Columns</div>
             <div className="mt-1 text-lg font-semibold text-foreground">
               {columnCount.toLocaleString()}
             </div>

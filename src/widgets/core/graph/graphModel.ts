@@ -2,7 +2,11 @@ import type {
   TabularSourceDetail,
   TabularDataRow,
 } from "@/widgets/shared/tabular-widget-source";
-import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
+import {
+  buildGraphDefaultsFromTimeSeriesMeta,
+  resolveTabularTimeSeriesMeta,
+  type TabularFrameSourceV1,
+} from "@/widgets/shared/tabular-frame-source";
 import {
   buildTabularFieldOptions,
   resolveTabularFieldOptionsFromDataset,
@@ -23,6 +27,7 @@ export type GraphChartType = "line" | "area" | "bar";
 export type GraphViewMode = "chart" | "table";
 export type GraphSeriesAxisMode = "shared" | "separate";
 export type GraphTimeAxisMode = "auto" | "date" | "datetime";
+export type GraphNormalizationAnchor = number | "series-start" | null;
 export type GraphLineStyle =
   | "solid"
   | "dotted"
@@ -30,7 +35,6 @@ export type GraphLineStyle =
   | "large_dashed"
   | "sparse_dotted";
 export type GraphDateRangeMode = ResolvedTabularWidgetSourceConfig["dateRangeMode"];
-export type GraphGroupSelectionMode = "all" | "include" | "exclude";
 
 export interface GraphSeriesOverride {
   color?: string;
@@ -44,8 +48,6 @@ export interface GraphWidgetProps
     TabularWidgetSourceReferenceProps {
   chartType?: GraphChartType;
   groupField?: string;
-  groupSelectionMode?: GraphGroupSelectionMode;
-  selectedGroupValues?: string[];
   limit?: number;
   minBarSpacingPx?: number;
   normalizeAtMs?: number;
@@ -63,8 +65,6 @@ export type GraphFieldOption = TabularFieldOption;
 export interface ResolvedGraphConfig extends ResolvedTabularWidgetSourceConfig {
   chartType: GraphChartType;
   groupField?: string;
-  groupSelectionMode: GraphGroupSelectionMode;
-  selectedGroupValues?: string[];
   limit: number;
   minBarSpacingPx: number;
   normalizeAtMs?: number;
@@ -140,10 +140,6 @@ function normalizeNonNegativeNumber(value: unknown) {
   return parsed;
 }
 
-function normalizeGroupSelectionMode(value: unknown): GraphGroupSelectionMode {
-  return value === "include" || value === "exclude" ? value : "all";
-}
-
 function normalizeTimeAxisMode(value: unknown): GraphTimeAxisMode {
   return value === "date" || value === "datetime" ? value : "auto";
 }
@@ -159,18 +155,6 @@ export function normalizeGraphLineStyle(value: unknown): GraphLineStyle {
     value === "sparse_dotted"
     ? value
     : "solid";
-}
-
-function normalizeSelectedGroupValues(value: unknown) {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-
-  const normalized = uniqueStrings(
-    value.map((entry) => (typeof entry === "string" ? entry.trim() : "")),
-  );
-
-  return normalized.length > 0 ? normalized : undefined;
 }
 
 function normalizeHexColor(value: unknown) {
@@ -265,8 +249,6 @@ export function resolveGraphConfig(
   const xField = getValidFieldKey(props.xField, availableFields);
   const groupField = getValidFieldKey(props.groupField, availableFields);
   const yField = getValidFieldKey(props.yField, availableFields);
-  const groupSelectionMode = normalizeGroupSelectionMode(props.groupSelectionMode);
-  const selectedGroupValues = normalizeSelectedGroupValues(props.selectedGroupValues);
 
   return {
     ...sourceConfig,
@@ -278,8 +260,6 @@ export function resolveGraphConfig(
     xField,
     yField,
     groupField,
-    groupSelectionMode,
-    selectedGroupValues,
     limit,
     minBarSpacingPx,
     normalizeSeries,
@@ -307,8 +287,6 @@ export function normalizeGraphProps(
     xField: resolved.xField,
     yField: resolved.yField,
     groupField: resolved.groupField,
-    groupSelectionMode: resolved.groupSelectionMode,
-    selectedGroupValues: resolved.selectedGroupValues,
     limit: resolved.limit,
     minBarSpacingPx: resolved.minBarSpacingPx,
     normalizeSeries: resolved.normalizeSeries,
@@ -335,8 +313,7 @@ export function buildGraphRequestedColumns(
 
 export function resolveGraphNormalizationTimeMs(
   config: Pick<ResolvedGraphConfig, "normalizeAtMs" | "normalizeSeries">,
-  fallbackStartMs?: number | null,
-) {
+): GraphNormalizationAnchor {
   if (!config.normalizeSeries) {
     return null;
   }
@@ -345,11 +322,7 @@ export function resolveGraphNormalizationTimeMs(
     return config.normalizeAtMs;
   }
 
-  if (typeof fallbackStartMs === "number" && Number.isFinite(fallbackStartMs)) {
-    return Math.trunc(fallbackStartMs);
-  }
-
-  return null;
+  return "series-start";
 }
 
 export function formatGraphValue(value: unknown) {
@@ -496,13 +469,117 @@ export function buildGraphFieldOptionsFromRuntime(
   });
 }
 
+export function resolveGraphDatasetFrame(
+  sourceFrame?: TabularFrameSourceV1 | null,
+): TabularFrameSourceV1 | null {
+  const timeSeries = resolveTabularTimeSeriesMeta(sourceFrame);
+
+  if (
+    !sourceFrame ||
+    !timeSeries ||
+    timeSeries.shape !== "wide" ||
+    !timeSeries.valueFields?.length
+  ) {
+    return sourceFrame ?? null;
+  }
+
+  const rows = timeSeries.valueFields.flatMap((fieldName) =>
+    sourceFrame.rows.map((row) => ({
+      [timeSeries.timeField]: row[timeSeries.timeField] ?? null,
+      series: fieldName,
+      value: row[fieldName] ?? null,
+      sourceField: fieldName,
+    })),
+  );
+
+  return {
+    ...sourceFrame,
+    columns: [timeSeries.timeField, "series", "value", "sourceField"],
+    rows,
+    fields: [
+      ...(sourceFrame.fields?.filter((field) => field.key === timeSeries.timeField) ?? [{
+        key: timeSeries.timeField,
+        label: timeSeries.timeField,
+        type: "datetime" as const,
+        provenance: "derived" as const,
+      }]),
+      {
+        key: "series",
+        label: "Series",
+        type: "string",
+        nullable: false,
+        nativeType: "string",
+        provenance: "derived",
+        reason: "Derived from wide time-series value fields for graph rendering.",
+      },
+      {
+        key: "value",
+        label: "Value",
+        type: "number",
+        nullable: true,
+        nativeType: "number",
+        provenance: "derived",
+        reason: "Derived from wide time-series value fields for graph rendering.",
+        derivedFrom: timeSeries.valueFields,
+      },
+      {
+        key: "sourceField",
+        label: "Source field",
+        type: "string",
+        nullable: false,
+        nativeType: "string",
+        provenance: "derived",
+        reason: "Identifies which original wide value field produced the graph row.",
+      },
+    ],
+    meta: {
+      ...(sourceFrame.meta ?? {}),
+      timeSeries: {
+        shape: "long",
+        timeField: timeSeries.timeField,
+        timeUnit: timeSeries.timeUnit,
+        timezone: timeSeries.timezone,
+        sorted: timeSeries.sorted,
+        valueField: "value",
+        seriesField: "series",
+        duplicatePolicy: timeSeries.duplicatePolicy,
+        gapPolicy: timeSeries.gapPolicy,
+      },
+    },
+    source: {
+      kind: sourceFrame.source?.kind ?? "tabular-frame",
+      id: sourceFrame.source?.id,
+      label: sourceFrame.source?.label,
+      updatedAtMs: sourceFrame.source?.updatedAtMs,
+      context: {
+        ...(sourceFrame.source?.context ?? {}),
+        graphDefaults: buildGraphDefaultsFromTimeSeriesMeta({
+          shape: "long",
+          timeField: timeSeries.timeField,
+          timeUnit: timeSeries.timeUnit,
+          timezone: timeSeries.timezone,
+          sorted: timeSeries.sorted,
+          valueField: "value",
+          seriesField: "series",
+          duplicatePolicy: timeSeries.duplicatePolicy,
+          gapPolicy: timeSeries.gapPolicy,
+        }),
+      },
+    },
+  };
+}
+
 export function resolveGraphSourceFieldDefaults(
   sourceFrame?: TabularFrameSourceV1 | null,
 ) {
+  const timeSeriesDefaults = buildGraphDefaultsFromTimeSeriesMeta(
+    resolveTabularTimeSeriesMeta(resolveGraphDatasetFrame(sourceFrame)),
+  );
+
   const defaults = sourceFrame?.source?.context?.graphDefaults;
 
   if (!defaults || typeof defaults !== "object" || Array.isArray(defaults)) {
-    return {};
+    return timeSeriesDefaults;
   }
 
   const record = defaults as Record<string, unknown>;
@@ -510,13 +587,13 @@ export function resolveGraphSourceFieldDefaults(
   return {
     xField: typeof record.xField === "string" && record.xField.trim()
       ? record.xField.trim()
-      : undefined,
+      : timeSeriesDefaults.xField,
     yField: typeof record.yField === "string" && record.yField.trim()
       ? record.yField.trim()
-      : undefined,
+      : timeSeriesDefaults.yField,
     groupField: typeof record.groupField === "string" && record.groupField.trim()
       ? record.groupField.trim()
-      : undefined,
+      : timeSeriesDefaults.groupField,
   };
 }
 
@@ -577,7 +654,7 @@ export function buildGraphSeries(
   rows: TabularDataRow[],
   config: Pick<
     ResolvedGraphConfig,
-    "groupField" | "groupSelectionMode" | "selectedGroupValues" | "seriesOverrides" | "xField" | "yField"
+    "groupField" | "seriesOverrides" | "xField" | "yField"
   >,
   maxSeries = 8,
 ): GraphSeriesResult {
@@ -588,7 +665,6 @@ export function buildGraphSeries(
   const xField = config.xField;
   const yField = config.yField;
   const groupField = config.groupField;
-  const selectedGroups = new Set(config.selectedGroupValues ?? []);
   const groupedPoints = new Map<
     string,
     {
@@ -615,25 +691,6 @@ export function buildGraphSeries(
     const groupKey = groupField
       ? String(row[groupField] ?? "__empty__")
       : yField;
-    const selectedGroupMatch = selectedGroups.has(groupKey);
-
-    if (
-      groupField &&
-      config.groupSelectionMode === "include" &&
-      selectedGroups.size > 0 &&
-      !selectedGroupMatch
-    ) {
-      return;
-    }
-
-    if (
-      groupField &&
-      config.groupSelectionMode === "exclude" &&
-      selectedGroups.size > 0 &&
-      selectedGroupMatch
-    ) {
-      return;
-    }
     const current =
       groupedPoints.get(groupKey) ??
       {
@@ -663,43 +720,13 @@ export function buildGraphSeries(
   const totalGroups = groupField
     ? uniqueStrings(rows.map((row) => String(row[groupField] ?? "__empty__"))).length
     : sortedGroups.length;
-  const filteredGroups = Math.max(totalGroups - sortedGroups.length, 0);
 
   return {
     series: sortedGroups.slice(0, maxSeries),
     droppedGroups: Math.max(sortedGroups.length - maxSeries, 0),
-    filteredGroups,
+    filteredGroups: 0,
     totalGroups,
   };
-}
-
-export function buildGraphGroupValueOptions(
-  rows: TabularDataRow[],
-  config: Pick<ResolvedGraphConfig, "groupField">,
-) {
-  if (!config.groupField) {
-    return [];
-  }
-
-  const seen = new Set<string>();
-
-  return rows.flatMap((row) => {
-    const rawValue = row[config.groupField!];
-    const value = String(rawValue ?? "__empty__");
-
-    if (seen.has(value)) {
-      return [];
-    }
-
-    seen.add(value);
-
-    return [{
-      value,
-      label: formatGraphValue(rawValue),
-      description: value === "__empty__" ? "Empty value" : undefined,
-      keywords: [value, formatGraphValue(rawValue)],
-    }];
-  });
 }
 
 export function buildGraphChartSeries(
@@ -772,30 +799,32 @@ function isUsableNormalizationBase(value: number) {
 
 function findNormalizationBasePoint(
   points: Array<{ time: number; value: number }>,
-  normalizeAtMs: number,
+  normalizationAnchor: Exclude<GraphNormalizationAnchor, null>,
 ) {
+  if (normalizationAnchor === "series-start") {
+    return points.find((point) => isUsableNormalizationBase(point.value)) ?? null;
+  }
+
   const nextPoint = points.find(
-    (point) => point.time >= normalizeAtMs && isUsableNormalizationBase(point.value),
+    (point) => point.time >= normalizationAnchor && isUsableNormalizationBase(point.value),
   );
 
   if (nextPoint) {
     return nextPoint;
   }
 
-  for (let index = points.length - 1; index >= 0; index -= 1) {
-    if (isUsableNormalizationBase(points[index]!.value)) {
-      return points[index]!;
-    }
-  }
-
-  return null;
+  return points.find((point) => isUsableNormalizationBase(point.value)) ?? null;
 }
 
 export function normalizeGraphSeries(
   series: GraphSeries[],
-  normalizeAtMs: number | null | undefined,
+  normalizationAnchor: GraphNormalizationAnchor | undefined,
 ) {
-  if (normalizeAtMs === null || normalizeAtMs === undefined || !Number.isFinite(normalizeAtMs)) {
+  if (
+    normalizationAnchor === null ||
+    normalizationAnchor === undefined ||
+    (normalizationAnchor !== "series-start" && !Number.isFinite(normalizationAnchor))
+  ) {
     return series;
   }
 
@@ -804,7 +833,7 @@ export function normalizeGraphSeries(
       return entry;
     }
 
-    const basePoint = findNormalizationBasePoint(entry.points, normalizeAtMs);
+    const basePoint = findNormalizationBasePoint(entry.points, normalizationAnchor);
 
     if (!basePoint) {
       return {

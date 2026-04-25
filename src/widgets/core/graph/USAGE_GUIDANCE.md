@@ -1,13 +1,12 @@
 ## buildPurpose
 
-Line, area, or bar chart for a bound `core.time_series_frame@v1` or `core.tabular_frame@v1` dataset.
+Line, area, or bar chart for a bound `core.tabular_frame@v1` dataset.
 
 ## whenToUse
 
-- Use when a time-series frame or tabular dataset should be rendered as a line, area, or bar chart.
-- Use when the upstream source already declares time-series semantics and the graph should auto-map time, value, and series fields.
+- Use when a tabular dataset should be rendered as a line, area, or bar chart.
 - Use when rows can be mapped to an X field, a numeric Y field, and an optional grouping field.
-- Use when the chart needs local provider choice, chart type, grouping filters, series normalization, axis mode, or per-series color and line-style overrides.
+- Use when the chart needs local provider choice, chart type, series normalization, axis mode, or per-series color and line-style overrides.
 
 ## whenNotToUse
 
@@ -17,10 +16,9 @@ Line, area, or bar chart for a bound `core.time_series_frame@v1` or `core.tabula
 
 ## authoringSteps
 
-- Bind `sourceData` to an upstream `core.time_series_frame@v1` or `core.tabular_frame@v1` output.
-- For time-series sources, review the metadata-derived defaults.
-- For tabular sources, choose X and Y fields that match the intended chart.
-- Optionally choose a grouping field, provider, chart type, normalization, series-axis mode, and visible group filters.
+- Bind `sourceData` to an upstream `core.tabular_frame@v1` output.
+- Choose X and Y fields that match the intended chart.
+- Optionally choose a grouping field, provider, chart type, normalization, and series-axis mode. Leave `Normalize at` blank to rebase each series from its first visible usable point.
 - Inspect the resolved source schema before finalizing field mappings.
 
 ## blockingRequirements
@@ -31,6 +29,6 @@ Line, area, or bar chart for a bound `core.time_series_frame@v1` or `core.tabula
 
 ## commonPitfalls
 
+- The graph does not auto-map fields from upstream time-series metadata; you must set the field mapping explicitly.
 - Ambiguous date strings can make the inferred time axis behave unexpectedly.
 - Several rows at the same chart timestamp collapse to the latest point for that timestamp.
-- Group filters only affect this chart; they do not modify the upstream dataset.

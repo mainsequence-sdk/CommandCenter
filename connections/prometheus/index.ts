@@ -1,6 +1,5 @@
 import type { ConnectionTypeDefinition } from "@/connections/types";
 import prometheusLogoUrl from "@/connections/assets/prometheus-logo.svg";
-import { CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/timeseries-frame-source";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
 import { PrometheusConnectionExplore } from "./PrometheusConnectionExplore";
@@ -434,7 +433,6 @@ export const prometheusConnection: ConnectionTypeDefinition<
       label: "PromQL range query",
       outputContracts: [
         "prometheus.matrix@v1",
-        CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
         CORE_TABULAR_FRAME_SOURCE_CONTRACT,
       ],
       timeRangeAware: true,

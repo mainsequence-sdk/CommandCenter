@@ -12,21 +12,18 @@ This directory contains reusable widget presentation primitives that are shared 
   option sets without depending on an extension-specific component.
 - `tabular-frame-source.ts`: shared generic tabular-frame contract, value descriptor, and
   normalization helpers used when widgets bind table-like datasets across extension boundaries.
-  It defines the platform-level `columns + rows + fields + source` shape so widget families do not
-  invent incompatible table payloads.
+  It defines the platform-level `columns + rows + fields + meta + source` shape so widget families
+  do not invent incompatible dataset payloads. It also owns compatibility coercion from older
+  backend series-shaped responses into the canonical tabular frame plus `meta.timeSeries` hints.
 - `tabular-widget-source.tsx`: shared source-binding helpers for widgets that consume
-  `core.tabular_frame@v1` or table-compatible `core.time_series_frame@v1`, including field
-  inference, manual table normalization, connection response/frame normalization, source-widget
-  binding resolution, and settings-schema helper glue.
+  `core.tabular_frame@v1`, including field inference, manual table normalization, connection
+  response/frame normalization, source-widget binding resolution, and settings-schema helper glue.
 - `tabular-field-schema-inspector.tsx`: reusable settings inspector for declared or inferred
   tabular fields, including provenance, warnings, and sample-row context.
 - `tabular-preview-table.tsx`: lightweight preview table for settings and connection explorers
   that need to display a small tabular frame without mounting the full table widget.
 - `tabular-date-time-field.tsx`: compact date/time input field shared by source and connection
   configuration surfaces.
-- `timeseries-frame-source.ts`: shared time-series frame contract helper for
-  `core.time_series_frame@v1`, including value-descriptor metadata, frame normalization, and
-  conversion into tabular rows for generic graph and table consumers.
 - `chart-data-source.ts`: shared renderer-neutral chart-data contract helper for
   `core.chart_data@v1`, including value-descriptor metadata and frame normalization for backend
   adapters that return chart-ready data rather than source time-series data.
@@ -94,6 +91,25 @@ This directory contains reusable widget presentation primitives that are shared 
       derivedFrom?: string[],
       warnings?: string[],
     }>,
+    meta?: {
+      timeSeries?: {
+        shape: "long" | "wide",
+        timeField: string,
+        timeUnit: "ms",
+        timezone: "UTC",
+        sorted: boolean,
+        valueField?: string,
+        seriesField?: string,
+        seriesLabelFields?: string[],
+        valueFields?: string[],
+        frequency?: string,
+        calendar?: string,
+        gapPolicy?: "preserve_nulls" | "drop_nulls",
+        duplicatePolicy?: "error" | "first" | "latest" | "aggregate" | "preserve",
+        unitByField?: Record<string, string>,
+      },
+      [key: string]: unknown,
+    },
     source?: {
       kind: string,
       id?: string | number,
@@ -103,12 +119,15 @@ This directory contains reusable widget presentation primitives that are shared 
     },
   }
   ```
-  Required fields are `columns` and `rows`. `status`, `fields`, `error`, and `source` are optional.
+  Required fields are `columns` and `rows`. `status`, `fields`, `meta`, `error`, and `source`
+  are optional.
   When `status` is omitted, the shared normalizer infers `ready` if rows or columns are present,
   `error` if an error message exists, and `idle` otherwise.
   When `fields` are present, widget families should preserve declared metadata where possible and
   use `provenance`, `reason`, `derivedFrom`, and `warnings` to explain how runtime typing was
   resolved instead of silently overwriting the schema with row-only inference.
+  When chartable time/value/series semantics are known, publish them inside `meta.timeSeries`
+  rather than introducing a second widget-facing frame contract.
 - Widget definitions can also set `showRawPropsEditor: false` when the shared raw JSON props editor should stay hidden and the widget should be configured only through structured settings controls.
 - The shared settings panel can also expose an optional remove action from the host surface. This is important for sidebar-only widgets, because they may not have an on-canvas card chrome with a delete button.
 - Schema-backed fields can optionally be exposed on the canvas through instance-level presentation state as companion cards outside the widget frame instead of being trapped inside the widget settings page.

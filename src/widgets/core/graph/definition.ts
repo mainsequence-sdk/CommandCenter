@@ -5,13 +5,9 @@ import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
-  normalizeTabularFrameSource,
+  normalizeAnyTabularFrameSource,
   TABULAR_SOURCE_CONTRACT,
 } from "@/widgets/shared/tabular-widget-source";
-import {
-  CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-  timeSeriesFrameToTabularFrameSource,
-} from "@/widgets/shared/timeseries-frame-source";
 import { resolveTabularFieldOptionsFromDataset } from "@/widgets/shared/tabular-widget-source";
 import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import { GraphWidget } from "./GraphWidget";
@@ -21,7 +17,6 @@ import {
   buildGraphChartSeries,
   buildGraphSeries,
   resolveGraphConfig,
-  resolveGraphSourceFieldDefaults,
   type GraphWidgetProps,
 } from "./graphModel";
 import { graphSettingsSchema } from "./schema";
@@ -35,21 +30,20 @@ function resolveSourceDataset(
     : resolvedEntry;
 
   return candidate?.status === "valid"
-    ? normalizeTabularFrameSource(candidate.value) ??
-        timeSeriesFrameToTabularFrameSource(candidate.value)
+    ? normalizeAnyTabularFrameSource(candidate.value)
     : null;
 }
 
 export const graphWidget = defineWidget<GraphWidgetProps>({
   id: "graph",
-  widgetVersion: "2.0.0",
+  widgetVersion: "2.1.0",
   title: "Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
   kind: "chart",
   source: "core",
   requiredPermissions: ["workspaces:view"],
-  tags: ["tabular", "time-series", "visualization", "tradingview", "echarts", "graph", "chart"],
+  tags: ["tabular", "visualization", "tradingview", "echarts", "graph", "chart"],
   exampleProps: {
     sourceMode: "filter_widget",
     provider: "tradingview",
@@ -69,10 +63,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
       {
         id: TABULAR_SOURCE_INPUT_ID,
         label: "Source data",
-        accepts: [
-          CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-          TABULAR_SOURCE_CONTRACT,
-        ],
+        accepts: [TABULAR_SOURCE_CONTRACT],
         required: true,
         effects: [
           {
@@ -94,16 +85,10 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
             description: "Upstream fields populate grouping choices.",
           },
           {
-            kind: "drives-options",
-            sourcePath: "rows",
-            target: { kind: "schema-field", id: "selectedGroupValues" },
-            description: "Distinct upstream group values populate visible-group choices.",
-          },
-          {
             kind: "drives-render",
             sourcePath: "rows",
             target: { kind: "render", id: "chart" },
-            description: "Incoming rows or time-series points drive the rendered chart series.",
+            description: "Incoming rows drive the rendered chart series.",
           },
         ],
       },
@@ -113,18 +98,12 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
   workspaceRuntimeMode: "consumer",
   buildAgentSnapshot: ({ props, resolvedInputs, snapshotProfile }) => {
     const sourceDataset = resolveSourceDataset(resolvedInputs);
-    const sourceDefaults = resolveGraphSourceFieldDefaults(sourceDataset);
     const fieldOptions = resolveTabularFieldOptionsFromDataset({
       columns: sourceDataset?.columns,
       rows: sourceDataset?.rows,
       fields: sourceDataset?.fields,
     });
-    const config = resolveGraphConfig({
-      ...props,
-      xField: props.xField ?? sourceDefaults.xField,
-      yField: props.yField ?? sourceDefaults.yField,
-      groupField: props.groupField ?? sourceDefaults.groupField,
-    }, null, fieldOptions);
+    const config = resolveGraphConfig(props, null, fieldOptions);
     const rawSeries = buildGraphSeries(sourceDataset?.rows ?? [], config, 12);
     const chartSeries = buildGraphChartSeries(
       rawSeries.series,
@@ -153,8 +132,6 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
         xField: config.xField,
         yField: config.yField,
         groupField: config.groupField,
-        groupSelectionMode: config.groupSelectionMode,
-        selectedGroupValues: config.selectedGroupValues ?? [],
         seriesAxisMode: config.seriesAxisMode,
         timeAxisMode: config.timeAxisMode,
         rowCount: sourceDataset?.rows.length ?? 0,
@@ -182,14 +159,14 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     configuration: {
       mode: "hybrid",
       summary:
-        "Turns a bound time-series frame or tabular dataset into a chart by using declared time-series semantics or selected X, Y, grouping, provider, chart type, and series behavior.",
+        "Turns a bound tabular dataset into a chart by using selected X, Y, grouping, provider, chart type, and series behavior.",
       requiredSetupSteps: [
-        "Bind the widget to an upstream time-series frame or tabular dataset.",
-        "For tabular sources, choose X and Y fields.",
+        "Bind the widget to an upstream tabular dataset.",
+        "Choose X and Y fields.",
         "Optionally choose grouping, provider, and chart style settings.",
       ],
       configurationNotes: [
-        "Time-series frames provide default time, value, and series fields through their frame metadata.",
+        "This widget does not infer field mappings from upstream time-series metadata.",
         "The chart provider changes rendering behavior but not the canonical upstream dataset contract.",
       ],
     },
@@ -197,22 +174,18 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
       refreshPolicy: "not-applicable",
       executionTriggers: [],
       executionSummary:
-        "Consumes the canonical upstream time-series or tabular dataset bundle and renders one chart view without owning data execution.",
+        "Consumes the canonical upstream tabular dataset bundle and renders one chart view without owning data execution.",
     },
     io: {
       mode: "consumer",
       summary:
-        "Consumes one time-series frame or tabular frame and derives chart series from declared semantics or selected fields.",
+        "Consumes one canonical tabular frame and derives chart series from selected fields.",
     },
     capabilities: {
-      acceptedContracts: [
-        CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-        TABULAR_SOURCE_CONTRACT,
-      ],
+      acceptedContracts: [TABULAR_SOURCE_CONTRACT],
       supportedProviders: ["tradingview", "echarts"],
       supportedChartTypes: ["line", "area", "bar"],
       supportedTimeAxisModes: ["auto", "date", "datetime"],
-      supportedGroupSelectionModes: ["all", "include", "exclude"],
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },

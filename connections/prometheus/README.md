@@ -7,8 +7,10 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
 
 - `index.ts`: exports the `prometheus.remote` connection type definition consumed by the app
   registry's root-level connection loader.
-- `PrometheusConnectionExplore.tsx`: custom Explore shell rendered by `Connections > Explore` when
-  the selected data source uses the Prometheus connection type.
+- `PrometheusConnectionExplore.tsx`: Prometheus Explore wrapper rendered by
+  `Connections > Explore`. It shows datasource/query-policy metadata and delegates query
+  authoring, generated request preview, test execution, and response preview to the shared
+  `ConnectionQueryWorkbench`.
 - `PrometheusConnectionQueryEditor.tsx`: typed Connection Query widget editor for PromQL instant,
   PromQL range, label values, label names, and series metadata payloads.
 
@@ -23,16 +25,20 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
 - Connection instances remain backend-owned data sources. This implementation contributes type
   metadata and frontend Explore UX only.
 - The Explore shell reads runtime behavior from the selected connection instance and its synced
-  connection type defaults. It calls the shared `queryConnection` API with PromQL, label, or series
-  query payloads. Backend adapters are responsible for executing requests, applying datasource
-  settings, enforcing authorization, and returning normalized connection frames.
+  connection type defaults. It uses the same `ConnectionQueryWorkbench`, `queryModels`, and
+  `queryEditor` path as the workspace Connection Query widget; do not reintroduce an Explore-only
+  `queryConnection` mutation path for standard Prometheus queries.
+- The shared workbench filters authorable source paths to query models that can normalize to
+  runtime frames. Metadata-only option-list paths such as label names and label values remain
+  connection query models for backend/editor use but should not become widget source outputs until
+  a widget runtime contract consumes option lists.
 - The Connection Query widget uses the Prometheus `queryEditor` to render PromQL, range step,
   max data points, label names, and matcher lists. These fields remain Prometheus-specific payload
   kwargs instead of becoming static fields on the generic widget.
-- `promql-range` advertises `core.time_series_frame@v1`; the backend should normalize Prometheus
-  matrix responses into long-shape time-series frames with labels preserved as series metadata.
-- `promql-instant` remains tabular by default unless a request explicitly asks for time-series
-  output.
+- `promql-range` must publish a canonical `core.tabular_frame@v1` for widget/runtime flows. When
+  the backend can identify chart semantics, preserve them in `meta.timeSeries` on that tabular
+  frame while keeping Prometheus labels available as series metadata.
+- `promql-instant` remains tabular for widget/runtime flows.
 
 ## Maintenance Constraints
 

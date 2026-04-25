@@ -10,9 +10,10 @@ Workbench data access.
 - `DataNodeConnectionConfigEditor.tsx`: connection-specific create/edit UI that reuses the
   workbench Data Node quick-search picker so a configured data source represents one concrete
   Data Node.
-- `DataNodeConnectionExplore.tsx`: structured Explore UI that uses the same query models, typed
-  query editor, standard request envelope, fixed runtime range, and runtime-frame normalization as
-  the core Connection Query widget.
+- `DataNodeConnectionExplore.tsx`: Data Node Explore wrapper around the shared
+  `ConnectionQueryWorkbench`. It keeps Data Node source metadata in the connection instance and
+  delegates query authoring, request generation, test execution, and response preview to the same
+  workbench used by the core Connection Query widget.
 - `DataNodeConnectionQueryEditor.tsx`: typed Connection Query widget editor for Data Node row and
   latest-observation payloads. It renders columns, unique identifier filters, inclusive range
   flags, limits, and legacy Data Node id fallback only when the selected instance has no
@@ -22,9 +23,10 @@ Workbench data access.
 - `SimpleTableConnectionConfigEditor.tsx`: connection-specific create/edit UI that asks the user
   to select a Main Sequence Simple Table, then loads detail metadata so columns can be inspected
   before saving the data source.
-- `SimpleTableConnectionExplore.tsx`: SQL-only Explore UI for the configured Simple Table. It
-  sends `simple-table-sql` queries through the connection backend and previews the normalized
-  tabular frame response.
+- `SimpleTableConnectionExplore.tsx`: Simple Table Explore wrapper around the shared
+  `ConnectionQueryWorkbench`. It shows configured table metadata and delegates SQL query
+  authoring, request generation, test execution, and response preview to the same workbench used by
+  the core Connection Query widget.
 - `SimpleTableConnectionQueryEditor.tsx`: typed Connection Query widget editor for Simple Table
   SQL, row limits, and parameter objects.
 
@@ -51,21 +53,23 @@ Workbench data access.
   variables, and row limits); Data Node-specific fields stay in the Data Node connection module.
 - Data Node query models do not advertise `supportsVariables`, so the generic variables editor is
   hidden and variables are omitted from Data Node connection requests.
-- The Data Node Explore shell should stay aligned with the core Connection Query widget: select a
-  connection path, edit that path through `DataNodeConnectionQueryEditor`, build the standard
-  `ConnectionQueryRequest`, and preview the normalized runtime frame. Do not reintroduce separate
-  Data Node pickers, Unix-second inputs, or direct row helper calls here.
-- When a Data Node Explore response normalizes as `core.time_series_frame@v1`, the preview exposes
-  Graph and Table views. The Graph view must reuse the core graph model and TradingView chart
-  renderer so Explore matches bound workspace graph behavior; the Table view remains the raw
-  field-array row inspection fallback.
+- Main Sequence Explore shells should stay aligned with the core Connection Query widget: select a
+  connection path, edit that path through the connection query editor, build the standard
+  `ConnectionQueryRequest`, and preview the normalized runtime frame through
+  `ConnectionQueryWorkbench`. Do not reintroduce separate Data Node pickers, Simple Table SQL run
+  paths, Unix-second inputs, or direct row/helper calls here.
+- Main Sequence connection explorers should render query responses through the shared
+  `ConnectionQueryResponsePreview` path. When a response normalizes as a canonical tabular frame
+  with `meta.timeSeries` hints, that shared preview exposes Graph and Table views using the core
+  graph model and TradingView chart renderer.
 - A Main Sequence Simple Table connection instance is configured by selecting one concrete Simple
   Table. Its public config stores `simpleTableId`, optional display metadata
   (`simpleTableLabel`, `simpleTableStorageHash`, `simpleTableIdentifier`), `defaultLimit`,
   `statementTimeoutMs`, `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight`.
-- Simple Table Explore intentionally exposes one path: read-only SQL. The frontend sends
-  `query.kind = "simple-table-sql"` with `sql`, optional `parameters`, and `maxRows`; the backend
-  adapter owns SQL validation, placeholder expansion, execution, and response normalization.
+- Simple Table Explore intentionally exposes one path: read-only SQL. The shared workbench sends
+  `query.kind = "simple-table-sql"` with `sql`, optional `parameters`, and standard envelope
+  fields such as `maxRows`; the backend adapter owns SQL validation, placeholder expansion,
+  execution, and response normalization.
 - The Simple Table Connection Query editor renders the same SQL payload shape inside the generic
   widget so saved source widgets are not forced to edit raw JSON.
 
@@ -79,8 +83,8 @@ Workbench data access.
   key caches by connection uid, query/resource kind, resolved Data Node id, normalized request
   payload, user/permission context, and effective row limit.
 - Preserve the Data Node row query's semantic contracts when changing connection query response
-  normalization: `data-node-rows-between-dates` can publish `core.time_series_frame@v1` when
-  time/value semantics are known and `core.tabular_frame@v1` as a fallback.
+  normalization: `data-node-rows-between-dates` should publish `core.tabular_frame@v1` and include
+  `meta.timeSeries` when time/value semantics are known.
 - Preserve the same `core.tabular_frame@v1` output contract for Simple Table SQL results. Widgets
   should consume the normalized connection response rather than reaching directly into Simple Table
   API routes.
@@ -246,9 +250,9 @@ for the resolved Data Node still apply.
   `public_config.defaultLimit`, then backend default. Clamp it to the backend maximum.
 - Execute `POST /orm/api/ts_manager/dynamic_table/{resolved_data_node_id}/get_data_between_dates_from_remote/`
   with the normalized snake_case body.
-- Return rows as a normalized `ConnectionQueryResponse`. Prefer a `core.time_series_frame@v1` frame
-  when a time field and numeric value fields are known, and include or fall back to
-  `core.tabular_frame@v1` when the result is only generic rows.
+- Return rows as a normalized `ConnectionQueryResponse` using one `core.tabular_frame@v1` frame.
+  When a time field and numeric value fields are known, populate `meta.timeSeries` on that frame
+  so Graph/Preview defaults can resolve automatically.
 
 `query.kind = "data-node-last-observation"`:
 

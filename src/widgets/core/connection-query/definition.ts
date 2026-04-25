@@ -4,14 +4,9 @@ import { getConnectionTypeById } from "@/app/registry";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
   TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
 } from "@/widgets/shared/tabular-frame-source";
-import {
-  TIMESERIES_FRAME_SOURCE_CONTRACTS,
-  TIMESERIES_FRAME_SOURCE_VALUE_DESCRIPTOR,
-  CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-  normalizeTimeSeriesFrameSource,
-} from "@/widgets/shared/timeseries-frame-source";
 import { defineWidget, type WidgetIoDefinition } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
@@ -42,28 +37,19 @@ function resolveConfiguredQueryModel(props: ConnectionQueryWidgetProps) {
 function resolveConfiguredOutputContract(props: ConnectionQueryWidgetProps) {
   const queryModel = resolveConfiguredQueryModel(props);
   const advertisedContracts = queryModel?.outputContracts ?? [];
+
+  if (
+    advertisedContracts.includes(CORE_TABULAR_FRAME_SOURCE_CONTRACT) ||
+    advertisedContracts.includes(LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT)
+  ) {
+    return CORE_TABULAR_FRAME_SOURCE_CONTRACT;
+  }
+
   const requestedOutputContract = resolveConnectionQueryRequestedOutputContract(queryModel);
-
-  if (requestedOutputContract && advertisedContracts.includes(requestedOutputContract)) {
-    return requestedOutputContract;
-  }
-
-  if (advertisedContracts.length === 1) {
-    return advertisedContracts[0]!;
-  }
-
-  return advertisedContracts.find((contract) =>
-    TIMESERIES_FRAME_SOURCE_CONTRACTS.includes(
-      contract as (typeof TIMESERIES_FRAME_SOURCE_CONTRACTS)[number],
-    ),
-  ) ?? CORE_TABULAR_FRAME_SOURCE_CONTRACT;
+  return requestedOutputContract ?? CORE_TABULAR_FRAME_SOURCE_CONTRACT;
 }
 
 function formatConnectionQueryOutputContract(contract: string) {
-  if (contract === CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT) {
-    return "Time series";
-  }
-
   if (contract === CORE_TABULAR_FRAME_SOURCE_CONTRACT) {
     return "Tabular";
   }
@@ -75,12 +61,8 @@ function resolveConnectionQueryIo(
   props: ConnectionQueryWidgetProps,
   runtimeState?: Record<string, unknown>,
 ): WidgetIoDefinition<ConnectionQueryWidgetProps> {
-  const runtimeTimeSeries = normalizeTimeSeriesFrameSource(runtimeState);
   const queryModel = resolveConfiguredQueryModel(props);
-  const outputContract = runtimeTimeSeries?.contract ?? resolveConfiguredOutputContract(props);
-  const publishesTimeSeries = TIMESERIES_FRAME_SOURCE_CONTRACTS.includes(
-    outputContract as (typeof TIMESERIES_FRAME_SOURCE_CONTRACTS)[number],
-  );
+  const outputContract = resolveConfiguredOutputContract(props);
   const outputLabel = queryModel
     ? `${queryModel.label} (${formatConnectionQueryOutputContract(outputContract)})`
     : "Unconfigured dataset";
@@ -91,26 +73,17 @@ function resolveConnectionQueryIo(
         id: CONNECTION_QUERY_DATASET_OUTPUT_ID,
         label: outputLabel,
         contract: outputContract,
-        description: publishesTimeSeries
-          ? `Publishes the ${queryModel?.id ?? "selected"} connection path as a time-series dataset.`
-          : `Publishes the ${queryModel?.id ?? "selected"} connection path as a tabular dataset.`,
-        valueDescriptor: publishesTimeSeries
-          ? TIMESERIES_FRAME_SOURCE_VALUE_DESCRIPTOR
-          : TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+        description:
+          `Publishes the ${queryModel?.id ?? "selected"} connection path as one canonical tabular dataset.`,
+        valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
         resolveValue: ({ runtimeState: resolvedRuntimeState }) => {
-          const timeSeriesFrame = normalizeTimeSeriesFrameSource(resolvedRuntimeState);
-
-          if (timeSeriesFrame) {
-            return timeSeriesFrame;
-          }
-
           const publishedFrame = normalizeConnectionQueryRuntimeState(resolvedRuntimeState);
 
           if (publishedFrame) {
             return publishedFrame;
           }
 
-          return publishesTimeSeries ? undefined : {
+          return {
             status: "idle",
             columns: [],
             rows: [],
@@ -130,7 +103,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   kind: "custom",
   source: "core",
   requiredPermissions: ["workspaces:view"],
-  tags: ["connection", "query", "source", "tabular", "time-series", "data-source"],
+  tags: ["connection", "query", "source", "tabular", "data-source"],
   exampleProps: {
     query: {},
     timeRangeMode: "dashboard",
@@ -223,7 +196,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       configurationNotes: [
         "The widget stores a stable ConnectionRef and query config, not credentials or endpoint URLs.",
         "The selected connection path is authoritative and is sent as query.kind.",
-        "The connection path metadata and backend adapter own output frame type; users do not choose output type.",
+        "The widget always publishes one canonical tabular frame. Time-series semantics, when present, are carried in tabular metadata.",
         "Date runtime controls are only shown for time-range-aware connection paths.",
         "Connection-specific query editors are used when the connection type provides one.",
         "The widget is fixed to sidebar placement because it is a source/execution node, not a canvas presentation widget.",
@@ -233,18 +206,18 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-recalculate", "upstream-update"],
       executionSummary:
-        "Calls the selected connection query through the shared connection API and publishes the first matching response frame as a tabular or time-series dataset.",
+        "Calls the selected connection query through the shared connection API and publishes the first matching response frame as one canonical tabular dataset.",
     },
     io: {
       mode: "dynamic",
-      summary: "Publishes one canonical tabular or time-series dataset from a connection query response.",
+      summary: "Publishes one canonical tabular dataset from a connection query response.",
       dynamicIoSummary:
-        "The selected connection path metadata controls whether the dataset output advertises a time-series or tabular contract.",
-      outputContracts: [...TIMESERIES_FRAME_SOURCE_CONTRACTS, CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+        "The selected connection path metadata can populate time-series hints inside the canonical tabular frame metadata.",
+      outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
     },
     capabilities: {
       publishesContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
-      publishedContracts: [...TIMESERIES_FRAME_SOURCE_CONTRACTS, CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+      publishedContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       fixedPlacementMode: "sidebar",
       supportsConnectionQueryModels: true,
       supportsDashboardTimeRange: true,

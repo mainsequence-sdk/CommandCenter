@@ -7,20 +7,11 @@ import {
   type ICellRendererParams,
 } from "ag-grid-community";
 import { AgGridProvider, AgGridReact } from "ag-grid-react";
-import { CalendarClock, Database } from "lucide-react";
+import { Database } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDashboardControls } from "@/dashboards/DashboardControls";
-import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
-import {
-  isEmptyTabularFrameSource,
-  resolveTabularDateRange,
-} from "@/widgets/shared/tabular-widget-source";
-import {
-  useResolvedTabularWidgetSourceBinding,
-} from "@/widgets/shared/tabular-widget-source";
 import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
@@ -39,6 +30,7 @@ import {
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
+  resolveTableWidgetSourceInput,
   resolveTableWidgetSourceDataset,
   validateTableWidgetSchema,
   type ResolvedTableWidgetColumnConfig,
@@ -538,8 +530,7 @@ function TableWidgetCellRenderer({
   );
 }
 
-export function TableWidget({ props, instanceId, resolvedInputs }: Props) {
-  const { rangeStartMs, rangeEndMs } = useDashboardControls();
+export function TableWidget({ props, resolvedInputs }: Props) {
   const { resolvedTokens, tightness } = useTheme();
   const tightnessMetrics = useMemo(() => getThemeTightnessMetrics(tightness), [tightness]);
   const normalizedProps = useMemo(
@@ -547,73 +538,15 @@ export function TableWidget({ props, instanceId, resolvedInputs }: Props) {
     [props],
   );
   const isManualTableMode = normalizedProps.tableSourceMode === "manual";
-  const sourceBindingProps = useMemo<TableWidgetProps>(
-    () => ({
-      sourceMode: normalizedProps.sourceMode,
-      sourceWidgetId: normalizedProps.sourceWidgetId,
-      sourceId: normalizedProps.sourceId,
-      dateRangeMode: normalizedProps.dateRangeMode,
-      fixedStartMs: normalizedProps.fixedStartMs,
-      fixedEndMs: normalizedProps.fixedEndMs,
-      uniqueIdentifierList: normalizedProps.uniqueIdentifierList,
-    }),
-    [
-      normalizedProps.sourceId,
-      normalizedProps.dateRangeMode,
-      normalizedProps.fixedEndMs,
-      normalizedProps.fixedStartMs,
-      normalizedProps.sourceMode,
-      normalizedProps.sourceWidgetId,
-      normalizedProps.uniqueIdentifierList,
-    ],
+  const resolvedSourceInput = useMemo(
+    () => resolveTableWidgetSourceInput(resolvedInputs),
+    [resolvedInputs],
   );
-  const sourceBinding = useResolvedTabularWidgetSourceBinding({
-    props: sourceBindingProps,
-    currentWidgetInstanceId: instanceId,
-  });
   const resolvedInputDataset = useMemo(
     () => resolveTableWidgetSourceDataset(resolvedInputs),
     [resolvedInputs],
   );
-  const hasResolvedInputDataset = Boolean(
-    resolvedInputDataset && !isEmptyTabularFrameSource(resolvedInputDataset),
-  );
-  useResolveWidgetUpstream(instanceId, {
-    enabled:
-      !isManualTableMode &&
-      !hasResolvedInputDataset &&
-      sourceBinding.requiresUpstreamResolution,
-  });
-  const linkedDataset = hasResolvedInputDataset
-    ? resolvedInputDataset
-    : sourceBinding.resolvedSourceDataset ?? resolvedInputDataset;
-  const hasRenderableLinkedDataset = Boolean(
-    linkedDataset && !isEmptyTabularFrameSource(linkedDataset),
-  );
-  const effectiveProps = useMemo(
-    () =>
-      isManualTableMode
-        ? props
-        : {
-            ...props,
-            ...sourceBinding.resolvedSourceProps,
-          },
-    [isManualTableMode, props, sourceBinding.resolvedSourceProps],
-  );
-  const baseResolvedProps = useMemo(
-    () => resolveTableWidgetProps(effectiveProps),
-    [effectiveProps],
-  );
-
-  const resolvedRange = useMemo(
-    () =>
-      resolveTabularDateRange(
-        baseResolvedProps,
-        rangeStartMs,
-        rangeEndMs,
-      ),
-    [baseResolvedProps, rangeEndMs, rangeStartMs],
-  );
+  const linkedDataset = resolvedInputDataset;
   const sourceColumns = linkedDataset?.columns ?? [];
   const sourceRows = linkedDataset?.rows ?? [];
 
@@ -628,8 +561,8 @@ export function TableWidget({ props, instanceId, resolvedInputs }: Props) {
     [linkedDataset?.fields, sourceColumns, sourceRows],
   );
   const resolvedProps = useMemo(
-    () => resolveTableWidgetPropsWithFrame(effectiveProps, remoteFrame),
-    [effectiveProps, remoteFrame],
+    () => resolveTableWidgetPropsWithFrame(props, remoteFrame),
+    [props, remoteFrame],
   );
   const rowObjects = useMemo(
     () => buildTableWidgetRowObjects(resolvedProps.columns, resolvedProps.rows),
@@ -649,8 +582,7 @@ export function TableWidget({ props, instanceId, resolvedInputs }: Props) {
       : null;
   const isDataLoading =
     !isManualTableMode &&
-    (linkedDataset?.status === "loading" ||
-      (!hasRenderableLinkedDataset && sourceBinding.isAwaitingBoundSourceValue));
+    (linkedDataset?.status === "loading" || linkedDataset?.status === "idle");
   const [quickFilter, setQuickFilter] = useState("");
   const deferredQuickFilter = useDeferredValue(quickFilter);
 
@@ -733,9 +665,7 @@ export function TableWidget({ props, instanceId, resolvedInputs }: Props) {
 
   if (
     !isManualTableMode &&
-    !hasResolvedInputDataset &&
-    sourceBinding.isFilterWidgetSource &&
-    !sourceBinding.hasResolvedFilterWidgetSource
+    (!resolvedSourceInput || resolvedSourceInput.status === "unbound")
   ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
@@ -745,21 +675,81 @@ export function TableWidget({ props, instanceId, resolvedInputs }: Props) {
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a dataset source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and use the Bindings tab to connect this table to a tabular or time-series source.
+            Open widget settings and use the Bindings tab to connect this table to a tabular source.
           </p>
         </div>
       </div>
     );
   }
 
-  if (!isManualTableMode && !hasResolvedInputDataset && sourceBinding.isAwaitingBoundSourceValue) {
-    return <Skeleton className="h-full" />;
+  if (!isManualTableMode && resolvedSourceInput?.status === "missing-source") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Bound source is missing</div>
+          <p className="text-sm text-muted-foreground">
+            Rebind this table to a source widget because the saved source no longer exists in this workspace.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isManualTableMode && resolvedSourceInput?.status === "missing-output") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Bound output is missing</div>
+          <p className="text-sm text-muted-foreground">
+            The selected source widget no longer publishes the output this table was bound to.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isManualTableMode && resolvedSourceInput?.status === "contract-mismatch") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Incompatible bound dataset</div>
+          <p className="text-sm text-muted-foreground">
+            Bind this table to a widget output that publishes a canonical tabular frame.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isManualTableMode && resolvedSourceInput?.status === "valid" && linkedDataset === null) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Source dataset is invalid</div>
+          <p className="text-sm text-muted-foreground">
+            The bound source did not publish a compatible canonical tabular frame.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (
     !isManualTableMode &&
-    !hasResolvedInputDataset &&
-    (!sourceBinding.hasResolvedFilterWidgetSource || !hasRenderableLinkedDataset)
+    (resolvedSourceInput?.status === "transform-invalid" ||
+      resolvedSourceInput?.status === "self-reference-blocked")
   ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
@@ -767,25 +757,9 @@ export function TableWidget({ props, instanceId, resolvedInputs }: Props) {
           <Database className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Select a dataset source</div>
+          <div className="text-sm font-medium text-foreground">Source binding is invalid</div>
           <p className="text-sm text-muted-foreground">
-            This table renders the canonical dataset coming from a bound tabular or time-series source.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isManualTableMode && resolvedProps.dateRangeMode === "fixed" && !resolvedRange.hasValidRange) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
-          <CalendarClock className="h-5 w-5" />
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Fix the dataset source date range</div>
-          <p className="text-sm text-muted-foreground">
-            The bound source needs both a start and end date for its fixed dataset window.
+            Fix the table binding before this widget can render the published dataset.
           </p>
         </div>
       </div>

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PickerField } from "@/widgets/shared/picker-field";
-import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import {
   widgetTightFormDescriptionClass,
   widgetTightFormFieldClass,
@@ -155,9 +154,6 @@ export function StatisticWidgetSettings({
   const sourceBinding = useResolvedTabularWidgetSourceBinding({
     props: draftProps,
     currentWidgetInstanceId: instanceId,
-  });
-  useResolveWidgetUpstream(instanceId, {
-    enabled: previewDataset == null && sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = previewDataset ?? sourceBinding.resolvedSourceDataset;
   const availableFields = useMemo(

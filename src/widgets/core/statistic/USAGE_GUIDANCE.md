@@ -5,7 +5,7 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset.
 ## whenToUse
 
 - Use when a tabular dataset should be reduced into compact KPI cards instead of rendered as a full table or chart.
-- Use when a workspace needs `last`, `first`, `max`, `min`, `sum`, `mean`, or `count` over a published tabular dataset.
+- Use when a workspace needs `last`, `first`, `max`, `min`, `sum`, `mean`, or `count` over a published table-shaped dataset.
 - Use when one KPI should be shown for the full dataset, or one KPI card should be rendered per value of a selected group field.
 - Use when the statistic value needs presentation formatting such as decimals, prefix, suffix, source label display, or color rules.
 
@@ -17,7 +17,7 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset.
 
 ## authoringSteps
 
-- Bind the required `sourceData` input to an upstream `core.tabular_frame@v1` `dataset` output.
+- Bind the required `sourceData` input to an upstream `core.tabular_frame@v1` output.
 - Inspect the resolved source schema before choosing fields.
 - Choose the statistic mode and value field.
 - Optionally choose one group field and one order field.

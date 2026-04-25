@@ -1,8 +1,17 @@
 import type { WidgetValueDescriptor } from "@/widgets/types";
 
 export const CORE_TABULAR_FRAME_SOURCE_CONTRACT = "core.tabular_frame@v1" as const;
+export const LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT = "core.time_series_frame@v1" as const;
 
 export type TabularFrameSourceStatus = "idle" | "loading" | "ready" | "error";
+export type TabularTimeSeriesShape = "long" | "wide";
+export type TabularTimeSeriesGapPolicy = "preserve_nulls" | "drop_nulls";
+export type TabularTimeSeriesDuplicatePolicy =
+  | "error"
+  | "first"
+  | "latest"
+  | "aggregate"
+  | "preserve";
 
 export type TabularFrameFieldType =
   | "string"
@@ -42,19 +51,55 @@ export interface TabularFrameSourceDescriptor {
   context?: Record<string, unknown>;
 }
 
+export interface TabularTimeSeriesMeta {
+  shape: TabularTimeSeriesShape;
+  timeField: string;
+  timeUnit: "ms";
+  timezone: "UTC";
+  sorted: boolean;
+  valueField?: string;
+  seriesField?: string;
+  seriesLabelFields?: string[];
+  valueFields?: string[];
+  frequency?: string;
+  calendar?: string;
+  gapPolicy?: TabularTimeSeriesGapPolicy;
+  duplicatePolicy?: TabularTimeSeriesDuplicatePolicy;
+  unitByField?: Record<string, string>;
+}
+
+export interface TabularFrameMeta {
+  timeSeries?: TabularTimeSeriesMeta;
+  [key: string]: unknown;
+}
+
 export interface TabularFrameSourceV1 {
   status: TabularFrameSourceStatus;
   error?: string;
   columns: string[];
   rows: Array<Record<string, unknown>>;
   fields?: TabularFrameFieldSchema[];
+  meta?: TabularFrameMeta;
   source?: TabularFrameSourceDescriptor;
+}
+
+interface LegacyTimeSeriesFrameField {
+  name: string;
+  type: "time" | "number" | "string" | "boolean" | "json";
+  values: unknown[];
+  labels?: Record<string, string>;
+  config?: {
+    unit?: string;
+    displayName?: string;
+    decimals?: number;
+  };
 }
 
 export const TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR = {
   kind: "object",
   contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
-  description: "Canonical tabular frame with status, columns, rows, field schema, and source metadata.",
+  description:
+    "Canonical tabular frame with status, columns, rows, field schema, time-series hints, and source metadata.",
   fields: [
     {
       key: "status",
@@ -124,6 +169,15 @@ export const TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR = {
       },
     },
     {
+      key: "meta",
+      label: "Metadata",
+      value: {
+        kind: "object",
+        contract: "core.value.json@v1",
+        fields: [],
+      },
+    },
+    {
       key: "source",
       label: "Source",
       value: {
@@ -147,6 +201,10 @@ export const TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR = {
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function normalizeTimestampMs(value: unknown) {
@@ -188,6 +246,27 @@ function normalizeRows(value: unknown) {
   }
 
   return value.filter((entry): entry is Record<string, unknown> => isPlainRecord(entry));
+}
+
+function hasTabularFieldSchemaShape(value: unknown) {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.some(
+    (entry) =>
+      isPlainRecord(entry) &&
+      typeof entry.key === "string" &&
+      entry.key.trim().length > 0,
+  );
+}
+
+function hasExplicitTabularFrameShape(value: Record<string, unknown>) {
+  return (
+    Array.isArray(value.columns) ||
+    Array.isArray(value.rows) ||
+    hasTabularFieldSchemaShape(value.fields)
+  );
 }
 
 function normalizeFieldType(value: unknown): TabularFrameFieldType {
@@ -236,6 +315,39 @@ function normalizeStringArray(value: unknown) {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function normalizeStringRecord(value: unknown) {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(value).flatMap(([key, entryValue]) => {
+    const normalizedKey = key.trim();
+    const normalizedValue = normalizeString(entryValue);
+
+    return normalizedKey && normalizedValue ? [[normalizedKey, normalizedValue] as const] : [];
+  });
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function normalizeShape(value: unknown): TabularTimeSeriesShape | undefined {
+  return value === "long" || value === "wide" ? value : undefined;
+}
+
+function normalizeGapPolicy(value: unknown): TabularTimeSeriesGapPolicy | undefined {
+  return value === "preserve_nulls" || value === "drop_nulls" ? value : undefined;
+}
+
+function normalizeDuplicatePolicy(value: unknown): TabularTimeSeriesDuplicatePolicy | undefined {
+  return value === "error" ||
+    value === "first" ||
+    value === "latest" ||
+    value === "aggregate" ||
+    value === "preserve"
+    ? value
+    : undefined;
+}
+
 function normalizeFields(value: unknown) {
   if (!Array.isArray(value)) {
     return undefined;
@@ -281,6 +393,110 @@ function normalizeFields(value: unknown) {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function collectFieldKeys(input: {
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+  fields?: TabularFrameFieldSchema[];
+}) {
+  const keys = new Set<string>(input.columns);
+
+  input.fields?.forEach((field) => {
+    if (field.key.trim()) {
+      keys.add(field.key.trim());
+    }
+  });
+
+  input.rows.forEach((row) => {
+    Object.keys(row).forEach((key) => {
+      if (key.trim()) {
+        keys.add(key.trim());
+      }
+    });
+  });
+
+  return keys;
+}
+
+function fieldExists(fieldKeys: Set<string>, fieldName: string | undefined) {
+  return Boolean(fieldName && fieldKeys.has(fieldName));
+}
+
+function normalizeTabularTimeSeriesMeta(
+  value: unknown,
+  fieldKeys: Set<string>,
+): TabularTimeSeriesMeta | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const shape = normalizeShape(value.shape);
+  const timeField = normalizeString(value.timeField);
+
+  if (!shape || !fieldExists(fieldKeys, timeField)) {
+    return undefined;
+  }
+
+  const valueField = normalizeString(value.valueField);
+  const seriesField = normalizeString(value.seriesField);
+  const valueFields = normalizeStringArray(value.valueFields)?.filter((fieldName) =>
+    fieldExists(fieldKeys, fieldName),
+  );
+
+  if (shape === "long" && !fieldExists(fieldKeys, valueField)) {
+    return undefined;
+  }
+
+  if (shape === "wide" && (!valueFields || valueFields.length === 0)) {
+    return undefined;
+  }
+
+  return {
+    shape,
+    timeField: timeField!,
+    timeUnit: "ms",
+    timezone: "UTC",
+    sorted: value.sorted === true,
+    valueField: shape === "long" ? valueField : undefined,
+    seriesField: fieldExists(fieldKeys, seriesField) ? seriesField : undefined,
+    seriesLabelFields: normalizeStringArray(value.seriesLabelFields)?.filter((fieldName) =>
+      fieldExists(fieldKeys, fieldName),
+    ),
+    valueFields: shape === "wide" ? valueFields : undefined,
+    frequency: normalizeString(value.frequency),
+    calendar: normalizeString(value.calendar),
+    gapPolicy: normalizeGapPolicy(value.gapPolicy),
+    duplicatePolicy: normalizeDuplicatePolicy(value.duplicatePolicy),
+    unitByField: normalizeStringRecord(value.unitByField),
+  } satisfies TabularTimeSeriesMeta;
+}
+
+function normalizeTabularMeta(
+  value: unknown,
+  input: {
+    columns: string[];
+    rows: Array<Record<string, unknown>>;
+    fields?: TabularFrameFieldSchema[];
+  },
+) {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const fieldKeys = collectFieldKeys(input);
+  const normalizedTimeSeries = normalizeTabularTimeSeriesMeta(value.timeSeries, fieldKeys);
+  const normalizedMeta: Record<string, unknown> = { ...value };
+
+  if (normalizedTimeSeries) {
+    normalizedMeta.timeSeries = normalizedTimeSeries;
+  } else {
+    delete normalizedMeta.timeSeries;
+  }
+
+  return Object.keys(normalizedMeta).length > 0
+    ? (normalizedMeta as TabularFrameMeta)
+    : undefined;
+}
+
 function normalizeSourceDescriptor(value: unknown) {
   if (!isPlainRecord(value) || typeof value.kind !== "string" || !value.kind.trim()) {
     return undefined;
@@ -301,6 +517,360 @@ function normalizeSourceDescriptor(value: unknown) {
     updatedAtMs: normalizeTimestampMs(value.updatedAtMs),
     context: isPlainRecord(value.context) ? value.context : undefined,
   } satisfies TabularFrameSourceDescriptor;
+}
+
+function normalizeLegacyTimeSeriesFieldType(value: unknown): LegacyTimeSeriesFrameField["type"] {
+  return value === "time" ||
+    value === "number" ||
+    value === "string" ||
+    value === "boolean" ||
+    value === "json"
+    ? value
+    : "json";
+}
+
+function normalizeLegacyTimeSeriesFrameFields(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+
+  return value.flatMap((entry) => {
+    if (!isPlainRecord(entry)) {
+      return [];
+    }
+
+    const name = normalizeString(entry.name);
+
+    if (!name || seen.has(name) || !Array.isArray(entry.values)) {
+      return [];
+    }
+
+    seen.add(name);
+
+    return [{
+      name,
+      type: normalizeLegacyTimeSeriesFieldType(entry.type),
+      values: entry.values,
+      labels: isPlainRecord(entry.labels)
+        ? Object.fromEntries(
+            Object.entries(entry.labels).flatMap(([key, label]) => {
+              const normalizedLabel = normalizeString(label);
+              return key.trim() && normalizedLabel ? [[key.trim(), normalizedLabel] as const] : [];
+            }),
+          )
+        : undefined,
+      config: isPlainRecord(entry.config)
+        ? {
+            unit: normalizeString(entry.config.unit),
+            displayName: normalizeString(entry.config.displayName),
+            decimals: Number.isFinite(Number(entry.config.decimals))
+              ? Math.trunc(Number(entry.config.decimals))
+              : undefined,
+          }
+        : undefined,
+    } satisfies LegacyTimeSeriesFrameField];
+  });
+}
+
+function normalizeLegacyFieldTypeForTabular(
+  value: LegacyTimeSeriesFrameField["type"],
+): TabularFrameFieldType {
+  return value === "time" ? "datetime" : value;
+}
+
+function fieldToTabularField(field: LegacyTimeSeriesFrameField): TabularFrameFieldSchema {
+  return {
+    key: field.name,
+    label: field.config?.displayName ?? field.name,
+    type: normalizeLegacyFieldTypeForTabular(field.type),
+    nullable: true,
+    nativeType: field.type,
+    provenance: "backend",
+    reason: "Returned by the selected time-series connection query frame.",
+  };
+}
+
+function buildRowsFromLegacyFields(fields: LegacyTimeSeriesFrameField[]) {
+  const rowCount = Math.max(0, ...fields.map((field) => field.values.length));
+
+  return Array.from({ length: rowCount }, (_entry, index) =>
+    Object.fromEntries(fields.map((field) => [field.name, field.values[index] ?? null])),
+  );
+}
+
+export function inferTabularTimeSeriesMetaFromFields(
+  fields: Array<{ name: string; type?: string }>,
+): TabularTimeSeriesMeta | null {
+  const normalizedFields = fields
+    .map((field) => ({
+      name: normalizeString(field.name) ?? "",
+      type: field.type,
+    }))
+    .filter((field) => field.name);
+
+  if (normalizedFields.length === 0) {
+    return null;
+  }
+
+  const timeField =
+    normalizedFields.find((field) => field.type === "time") ??
+    normalizedFields.find((field) => /time|date|timestamp|asof/i.test(field.name)) ??
+    normalizedFields[0];
+
+  if (!timeField) {
+    return null;
+  }
+
+  const valueFields = normalizedFields
+    .filter((field) => field.name !== timeField.name && field.type === "number")
+    .map((field) => field.name);
+  const seriesField = normalizedFields.find(
+    (field) =>
+      field.name !== timeField.name &&
+      !valueFields.includes(field.name) &&
+      /unique_identifier|identifier|series|symbol|ticker|asset/i.test(field.name),
+  )?.name;
+
+  if (valueFields.length > 1) {
+    return {
+      shape: "wide",
+      timeField: timeField.name,
+      timeUnit: "ms",
+      timezone: "UTC",
+      sorted: false,
+      valueFields,
+      duplicatePolicy: "preserve",
+      gapPolicy: "preserve_nulls",
+    };
+  }
+
+  const valueField =
+    valueFields[0] ??
+    normalizedFields.find(
+      (field) => field.name !== timeField.name && field.name !== seriesField,
+    )?.name;
+
+  if (!valueField) {
+    return null;
+  }
+
+  return {
+    shape: "long",
+    timeField: timeField.name,
+    timeUnit: "ms",
+    timezone: "UTC",
+    sorted: false,
+    valueField,
+    seriesField,
+    duplicatePolicy: "preserve",
+    gapPolicy: "preserve_nulls",
+  };
+}
+
+export function buildGraphDefaultsFromTimeSeriesMeta(
+  meta: TabularTimeSeriesMeta | null | undefined,
+) {
+  if (!meta) {
+    return {};
+  }
+
+  if (meta.shape === "wide") {
+    return {
+      xField: meta.timeField,
+      yField: "value",
+      groupField: "series",
+    };
+  }
+
+  return {
+    xField: meta.timeField,
+    yField: meta.valueField,
+    groupField: meta.seriesField,
+  };
+}
+
+function buildWideTimeSeriesRows(frame: {
+  fields: LegacyTimeSeriesFrameField[];
+  meta: TabularTimeSeriesMeta;
+}) {
+  const timeField = frame.fields.find((field) => field.name === frame.meta.timeField);
+  const valueFields = (frame.meta.valueFields ?? []).flatMap((fieldName) => {
+    const field = frame.fields.find((entry) => entry.name === fieldName);
+    return field ? [field] : [];
+  });
+  const rows = valueFields.flatMap((valueField) =>
+    (timeField?.values ?? []).map((timeValue, index) => ({
+      [frame.meta.timeField]: timeValue ?? null,
+      series: valueField.config?.displayName ?? valueField.name,
+      value: valueField.values[index] ?? null,
+      sourceField: valueField.name,
+    })),
+  );
+  const canonicalMeta: TabularTimeSeriesMeta = {
+    shape: "long",
+    timeField: frame.meta.timeField,
+    timeUnit: "ms",
+    timezone: "UTC",
+    sorted: frame.meta.sorted,
+    valueField: "value",
+    seriesField: "series",
+    duplicatePolicy: frame.meta.duplicatePolicy,
+    gapPolicy: frame.meta.gapPolicy,
+  };
+
+  return {
+    columns: [frame.meta.timeField, "series", "value", "sourceField"],
+    rows,
+    fields: [
+      fieldToTabularField(timeField ?? {
+        name: frame.meta.timeField,
+        type: "time",
+        values: [],
+      }),
+      {
+        key: "series",
+        label: "Series",
+        type: "string",
+        nullable: false,
+        nativeType: "string",
+        provenance: "derived",
+        reason: "Derived from the wide time-series value field names.",
+      },
+      {
+        key: "value",
+        label: "Value",
+        type: "number",
+        nullable: true,
+        nativeType: "number",
+        provenance: "derived",
+        reason: "Derived from the wide time-series value fields.",
+        derivedFrom: valueFields.map((field) => field.name),
+      },
+      {
+        key: "sourceField",
+        label: "Source field",
+        type: "string",
+        nullable: false,
+        nativeType: "string",
+        provenance: "derived",
+        reason: "Identifies the original wide value field.",
+      },
+    ] satisfies TabularFrameFieldSchema[],
+    canonicalMeta,
+  };
+}
+
+export function resolveTabularTimeSeriesMeta(
+  frame: TabularFrameSourceV1 | null | undefined,
+) {
+  return frame?.meta?.timeSeries;
+}
+
+export function hasTabularTimeSeriesSemantics(
+  frame: TabularFrameSourceV1 | null | undefined,
+) {
+  return Boolean(resolveTabularTimeSeriesMeta(frame));
+}
+
+export function legacyTimeSeriesFrameToTabularFrameSource(
+  value: unknown,
+): TabularFrameSourceV1 | null {
+  if (
+    !isPlainRecord(value) ||
+    value.contract !== LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT
+  ) {
+    return null;
+  }
+
+  const fields = normalizeLegacyTimeSeriesFrameFields(value.fields);
+
+  if (fields.length === 0) {
+    return null;
+  }
+
+  const rawMeta = isPlainRecord(value.meta) ? value.meta : {};
+  const inferredMeta = inferTabularTimeSeriesMetaFromFields(
+    fields.map((field) => ({ name: field.name, type: field.type })),
+  );
+  const fieldKeys = new Set(fields.map((field) => field.name));
+  const normalizedTimeSeries =
+    normalizeTabularTimeSeriesMeta(rawMeta.timeSeries, fieldKeys) ??
+    inferredMeta ??
+    undefined;
+  const baseStatus =
+    value.status === "loading" || value.status === "ready" || value.status === "error"
+      ? value.status
+      : "ready";
+  const error = normalizeString(value.error);
+  const warnings = normalizeStringArray(value.warnings);
+  const traceId = normalizeString(value.traceId);
+  const source = normalizeSourceDescriptor(value.source);
+  const sourceContext = isPlainRecord(source?.context) ? source.context : {};
+
+  if (!normalizedTimeSeries) {
+    const columns = fields.map((field) => field.name);
+    const rows = buildRowsFromLegacyFields(fields);
+
+    return {
+      status: error ? "error" : baseStatus,
+      error,
+      columns,
+      rows,
+      fields: fields.map(fieldToTabularField),
+      source: {
+        kind: source?.kind ?? "time-series-frame",
+        id: source?.id,
+        label: source?.label ?? normalizeString(value.name),
+        updatedAtMs: source?.updatedAtMs,
+        context: {
+          ...sourceContext,
+          sourceContract: LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
+          warnings,
+          traceId,
+        },
+      },
+    };
+  }
+
+  const normalized =
+    normalizedTimeSeries.shape === "wide"
+      ? buildWideTimeSeriesRows({
+          fields,
+          meta: normalizedTimeSeries,
+        })
+      : {
+          columns: fields.map((field) => field.name),
+          rows: buildRowsFromLegacyFields(fields),
+          fields: fields.map(fieldToTabularField),
+          canonicalMeta: normalizedTimeSeries,
+        };
+
+  return {
+    status: error ? "error" : baseStatus,
+    error,
+    columns: normalized.columns,
+    rows: normalized.rows,
+    fields: normalized.fields,
+    meta: {
+      ...rawMeta,
+      timeSeries: normalized.canonicalMeta,
+    },
+    source: {
+      kind: source?.kind ?? "time-series-frame",
+      id: source?.id,
+      label: source?.label ?? normalizeString(value.name),
+      updatedAtMs: source?.updatedAtMs,
+      context: {
+        ...sourceContext,
+        sourceContract: LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
+        graphDefaults: buildGraphDefaultsFromTimeSeriesMeta(normalized.canonicalMeta),
+        warnings,
+        traceId,
+      },
+    },
+  };
 }
 
 function resolveExplicitStatus(value: unknown): TabularFrameSourceStatus | undefined {
@@ -466,10 +1036,15 @@ export function normalizeTabularFrameSource(value: unknown): TabularFrameSourceV
     return null;
   }
 
+  if (!hasExplicitTabularFrameShape(value)) {
+    return null;
+  }
+
   const error =
     typeof value.error === "string" && value.error.trim() ? value.error.trim() : undefined;
   const columns = normalizeColumns(value.columns);
   const rows = normalizeRows(value.rows);
+  const fields = normalizeFields(value.fields);
 
   return {
     status: normalizeStatus(value.status, {
@@ -480,7 +1055,12 @@ export function normalizeTabularFrameSource(value: unknown): TabularFrameSourceV
     error,
     columns,
     rows,
-    fields: normalizeFields(value.fields),
+    fields,
+    meta: normalizeTabularMeta(value.meta, {
+      columns,
+      rows,
+      fields,
+    }),
     source: normalizeSourceDescriptor(value.source),
   };
 }

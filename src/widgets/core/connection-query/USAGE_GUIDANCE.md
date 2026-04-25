@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Runs one explicit connection path and publishes the selected result frame as a canonical `core.tabular_frame@v1` or `core.time_series_frame@v1` dataset for downstream workspace widgets.
+Runs one explicit connection path and publishes the selected result frame as one canonical `core.tabular_frame@v1` dataset for downstream workspace widgets.
 
 ## whenToUse
 
@@ -34,7 +34,7 @@ Runs one explicit connection path and publishes the selected result frame as a c
 
 - A valid connection instance is required.
 - A connection path/query model id is required.
-- The connection query response must return at least one frame matching the selected path's advertised frame contracts, or a payload that can be normalized into one of those contracts.
+- The connection query response must return at least one publishable frame or payload that can be normalized into the canonical tabular dataset.
 
 ## commonPitfalls
 
@@ -46,6 +46,6 @@ Runs one explicit connection path and publishes the selected result frame as a c
 - Variables are hidden and omitted from requests for query paths that do not advertise
   `supportsVariables: true`.
 - `timeRange` is always sent for query models that advertise `timeRangeAware: true`.
-- Output frame type is owned by the connection path metadata and backend adapter. Users do not choose output frame type in this widget.
+- The widget always publishes one canonical tabular dataset. When the backend knows chart semantics, they are carried in `meta.timeSeries`.
 - Consumers should bind to this widget's `dataset` output rather than repeating the same connection query.
 - This widget is a sidebar-only source. Do not use it as the visible table or chart; bind a presentation widget downstream.

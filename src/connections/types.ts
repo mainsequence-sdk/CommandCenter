@@ -4,12 +4,16 @@ import type { WidgetContractId } from "@/widgets/types";
 
 export const CONNECTION_RESPONSE_CONTRACT_IDS = [
   "core.tabular_frame@v1",
-  "core.time_series_frame@v1",
   "core.chart_data@v1",
 ] as const satisfies readonly WidgetContractId[];
 
+export const LEGACY_CONNECTION_TIME_SERIES_FRAME_CONTRACT = "core.time_series_frame@v1" as const;
+
 export type ConnectionResponseContractId =
   (typeof CONNECTION_RESPONSE_CONTRACT_IDS)[number];
+export type ConnectionRawFrameContractId =
+  | ConnectionResponseContractId
+  | typeof LEGACY_CONNECTION_TIME_SERIES_FRAME_CONTRACT;
 
 export function isConnectionResponseContractId(
   value: unknown,
@@ -67,6 +71,7 @@ export interface ConnectionQueryModel {
   defaultOutputContract?: ConnectionResponseContractId;
   timeRangeAware?: boolean;
   supportsVariables?: boolean;
+  supportsMaxRows?: boolean;
 }
 
 export interface ConnectionConfigEditorProps<
@@ -198,7 +203,7 @@ export interface CommandCenterFrameField {
 
 export interface CommandCenterFrame {
   name?: string;
-  contract: ConnectionResponseContractId;
+  contract: ConnectionRawFrameContractId;
   fields: CommandCenterFrameField[];
   meta?: Record<string, unknown>;
 }

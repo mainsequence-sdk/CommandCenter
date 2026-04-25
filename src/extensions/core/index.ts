@@ -37,6 +37,7 @@ import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
 import { richTextNoteWidget } from "@/widgets/core/rich-text-note/definition";
 import { appComponentWidget } from "@/widgets/core/app-component/definition";
 import { connectionQueryWidget } from "@/widgets/core/connection-query/definition";
+import { debugStreamWidget } from "@/widgets/core/debug-stream/definition";
 import { graphWidget } from "@/widgets/core/graph/definition";
 import { tabularTransformWidget } from "@/widgets/core/tabular-transform/definition";
 import { statisticWidget } from "@/widgets/core/statistic/definition";
@@ -553,6 +554,7 @@ const coreExtension: AppExtension = {
     richTextNoteWidget,
     appComponentWidget,
     connectionQueryWidget,
+    debugStreamWidget,
     tabularTransformWidget,
     tableWidget,
     graphWidget,

@@ -135,16 +135,27 @@ export function QuerySqlField({
 }) {
   return (
     <ConnectionQueryField className="md:col-span-2" help={help} label={label}>
-      <Textarea
-        value={value ?? ""}
-        onChange={(event) => {
-          onChange(event.target.value || undefined);
-        }}
-        disabled={disabled}
-        placeholder={placeholder}
-        spellCheck={false}
-        className="min-h-48 font-mono text-xs"
-      />
+      <div
+        className="overflow-hidden rounded-[calc(var(--radius)-6px)] border border-input bg-background/70 shadow-xs transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
+        data-no-widget-drag="true"
+      >
+        <div className="flex items-center justify-between border-b border-border/70 bg-muted/35 px-3 py-1.5">
+          <span className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">
+            SQL
+          </span>
+        </div>
+        <Textarea
+          value={value ?? ""}
+          onChange={(event) => {
+            onChange(event.target.value || undefined);
+          }}
+          disabled={disabled}
+          placeholder={placeholder}
+          spellCheck={false}
+          className="min-h-[260px] resize-y rounded-none border-0 bg-transparent px-4 py-3 font-mono text-xs leading-6 shadow-none outline-none focus-visible:ring-0"
+          aria-label="SQL editor"
+        />
+      </div>
     </ConnectionQueryField>
   );
 }

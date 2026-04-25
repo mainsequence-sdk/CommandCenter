@@ -1,20 +1,17 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
-import { getWidgetById } from "@/app/registry";
 import { useDashboardWidgetRegistry, type DashboardWidgetRegistryEntry } from "@/dashboards/DashboardWidgetRegistry";
 import { useResolvedWidgetInput } from "@/dashboards/DashboardWidgetDependencies";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
+  legacyTimeSeriesFrameToTabularFrameSource,
   normalizeTabularFrameSource,
   type TabularFrameFieldProvenance,
   type TabularFrameFieldSchema,
   type TabularFrameFieldType,
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
-import {
-  CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-  timeSeriesFrameToTabularFrameSource,
-} from "@/widgets/shared/timeseries-frame-source";
 import type {
   WidgetFieldDefinition,
   WidgetFieldSection,
@@ -213,6 +210,43 @@ function uniqueWarningMessages(values: Array<string | null | undefined>) {
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function summarizeSourceValueForDebug(value: unknown) {
+  if (!isPlainRecord(value)) {
+    return value === undefined ? { kind: "undefined" } : { kind: typeof value };
+  }
+
+  if (typeof value.contract === "string" && Array.isArray(value.fields)) {
+    return {
+      kind: "frame",
+      status: typeof value.status === "string" ? value.status : undefined,
+      contract: value.contract,
+      fieldCount: value.fields.length,
+      fieldNames: value.fields
+        .flatMap((field) =>
+          isPlainRecord(field) && typeof field.name === "string" ? [field.name] : [],
+        )
+        .slice(0, 6),
+      traceId: typeof value.traceId === "string" ? value.traceId : undefined,
+    };
+  }
+
+  if (Array.isArray(value.columns) && Array.isArray(value.rows)) {
+    return {
+      kind: "tabular-frame",
+      status: typeof value.status === "string" ? value.status : undefined,
+      columnCount: value.columns.length,
+      rowCount: value.rows.length,
+      fieldCount: Array.isArray(value.fields) ? value.fields.length : 0,
+    };
+  }
+
+  return {
+    kind: "record",
+    status: typeof value.status === "string" ? value.status : undefined,
+    keys: Object.keys(value).slice(0, 10),
+  };
 }
 
 function normalizePositiveInteger(value: unknown) {
@@ -603,7 +637,7 @@ function normalizeTimeSeriesFieldTypeForTabular(value: unknown): TabularFrameFie
 }
 
 function timeSeriesFieldArrayToTabularFrameSource(value: unknown): TabularFrameSourceV1 | null {
-  if (!isPlainRecord(value) || value.contract !== CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT) {
+  if (!isPlainRecord(value) || value.contract !== LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT) {
     return null;
   }
 
@@ -655,7 +689,7 @@ function timeSeriesFieldArrayToTabularFrameSource(value: unknown): TabularFrameS
       kind: "time-series-frame",
       label: typeof value.name === "string" ? value.name : undefined,
       context: {
-        sourceContract: CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
+        sourceContract: LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
       },
     },
   };
@@ -664,7 +698,7 @@ function timeSeriesFieldArrayToTabularFrameSource(value: unknown): TabularFrameS
 export function normalizeAnyTabularFrameSource(value: unknown): TabularFrameSourceV1 | null {
   const directFrame =
     normalizeTabularFrameSource(value) ??
-    timeSeriesFrameToTabularFrameSource(value) ??
+    legacyTimeSeriesFrameToTabularFrameSource(value) ??
     timeSeriesFieldArrayToTabularFrameSource(value);
 
   if (directFrame) {
@@ -689,6 +723,8 @@ export function normalizeAnyTabularFrameSource(value: unknown): TabularFrameSour
 export function isEmptyTabularFrameSource(frame: TabularFrameSourceV1 | null | undefined) {
   return Boolean(
     frame &&
+      frame.status !== "error" &&
+      frame.status !== "loading" &&
       frame.columns.length === 0 &&
       frame.rows.length === 0 &&
       (!frame.fields || frame.fields.length === 0),
@@ -858,8 +894,7 @@ function buildFilterWidgetOptions(
   return widgets
     .filter((widget) => widget.id !== currentWidgetInstanceId)
     .map((widget) => {
-      const widgetDefinition = getWidgetById(widget.widgetId);
-      const widgetTitle = widget.title?.trim() || widgetDefinition?.title || "Source widget";
+      const widgetTitle = widget.title?.trim() || widget.widgetId || "Source widget";
 
       return {
         value: widget.id,
@@ -920,10 +955,52 @@ export function useResolvedTabularWidgetSourceBinding<
       resolvedInputBinding?.status === "valid" &&
       (resolvedInputBinding.value === undefined ||
         resolvedSourceStatus === "idle" ||
-        resolvedSourceStatus === "loading"),
+        resolvedSourceStatus === "loading" ||
+        isEmptyTabularFrameSource(resolvedSourceDataset)),
   );
   const sourceMode: TabularWidgetSourceMode =
     normalizedReference.sourceMode === "manual" ? "manual" : "filter_widget";
+
+  const debugSnapshot = useMemo(
+    () =>
+      !import.meta.env.DEV || !hasCanonicalSourceBinding
+        ? null
+        : {
+            currentWidgetInstanceId,
+            sourceWidgetId: resolvedSourceWidgetId,
+            inputStatus: resolvedInputBinding?.status,
+            inputContractId: resolvedInputBinding?.contractId,
+            inputValue: summarizeSourceValueForDebug(resolvedInputBinding?.value),
+            sourceRuntimeState: summarizeSourceValueForDebug(resolvedSourceWidget?.runtimeState),
+            resolvedDataset: summarizeSourceValueForDebug(resolvedSourceDataset),
+            resolvedSourceStatus,
+            requiresUpstreamResolution: isAwaitingBoundSourceValue,
+          },
+    [
+      currentWidgetInstanceId,
+      hasCanonicalSourceBinding,
+      isAwaitingBoundSourceValue,
+      resolvedInputBinding?.contractId,
+      resolvedInputBinding?.status,
+      resolvedInputBinding?.value,
+      resolvedSourceDataset,
+      resolvedSourceStatus,
+      resolvedSourceWidget?.runtimeState,
+      resolvedSourceWidgetId,
+    ],
+  );
+  const debugSnapshotJson = useMemo(
+    () => (debugSnapshot ? JSON.stringify(debugSnapshot) : null),
+    [debugSnapshot],
+  );
+
+  useEffect(() => {
+    if (!debugSnapshotJson) {
+      return;
+    }
+
+    console.debug("[tabular-source-binding] consumer snapshot", JSON.parse(debugSnapshotJson));
+  }, [debugSnapshotJson]);
 
   return {
     filterWidgetOptions: buildFilterWidgetOptions(widgetRegistry, currentWidgetInstanceId),

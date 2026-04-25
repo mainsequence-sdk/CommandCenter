@@ -1,6 +1,5 @@
 import type { ConnectionTypeDefinition } from "@/connections/types";
 import postgreSqlLogoUrl from "@/connections/assets/postgresql-logo.svg";
-import { CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/timeseries-frame-source";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
 import { PostgreSqlConnectionExplore } from "./PostgreSqlConnectionExplore";
@@ -28,47 +27,24 @@ export interface PostgreSqlPublicConfig {
 }
 
 export type PostgreSqlConnectionQuery =
-  | {
-      kind: "sql-table";
-      sql: string;
-      maxRows?: number;
-      parameters?: Record<string, string | number | boolean | null>;
-    }
-  | {
-      kind: "sql-timeseries";
-      sql: string;
-      maxRows?: number;
-      parameters?: Record<string, string | number | boolean | null>;
-      timeField?: string;
-      valueField?: string;
-      valueFields?: string[];
-      seriesField?: string;
-      seriesFields?: string[];
-      unit?: string;
-    }
-  | {
-      kind: "schema-tables";
-      schema?: string;
-    }
-  | {
-      kind: "schema-columns";
-      schema?: string;
-      table: string;
-    };
+  {
+    kind: "sql";
+    sql: string;
+  };
 
 export const postgreSqlConnection: ConnectionTypeDefinition<
   PostgreSqlPublicConfig,
   PostgreSqlConnectionQuery
 > = {
   id: POSTGRESQL_CONNECTION_TYPE_ID,
-  version: 2,
+  version: 3,
   title: "PostgreSQL",
   description:
     "Connects Command Center data sources to backend-managed live PostgreSQL query execution.",
   source: "postgresql",
   category: "Databases",
   iconUrl: postgreSqlLogoUrl,
-  tags: ["sql", "database", "timeseries", "table"],
+  tags: ["sql", "database", "table"],
   capabilities: ["query", "resource", "health-check"],
   accessMode: "proxy",
   publicConfigSchema: {
@@ -251,45 +227,22 @@ export const postgreSqlConnection: ConnectionTypeDefinition<
   },
   queryModels: [
     {
-      id: "sql-table",
-      label: "SQL table query",
+      id: "sql",
+      label: "SQL",
       description:
-        "Backend adapter executes query.kind='sql-table' with a SQL string and returns a core.tabular_frame@v1 result. It must apply authorization, variable expansion, statement timeout, and row limits.",
+        "Backend adapter executes query.kind='sql' and returns one canonical tabular frame. When chart semantics are known, they should be published in frame metadata.",
       outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
-      supportsVariables: true,
-    },
-    {
-      id: "sql-timeseries",
-      label: "SQL time-series query",
-      description:
-        "Backend adapter executes query.kind='sql-timeseries' with a SQL string plus request.timeRange, expands time macros, validates time/value fields, and returns core.time_series_frame@v1 when the result can be shaped as time series.",
-      outputContracts: [CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT, CORE_TABULAR_FRAME_SOURCE_CONTRACT],
-      timeRangeAware: true,
-      supportsVariables: true,
-    },
-    {
-      id: "schema-tables",
-      label: "Schema tables",
-      description:
-        "Backend adapter handles query.kind='schema-tables' by reading safe PostgreSQL catalog metadata for the requested or default schema and returning table options for editors.",
-      outputContracts: ["core.option_list@v1"],
-    },
-    {
-      id: "schema-columns",
-      label: "Schema columns",
-      description:
-        "Backend adapter handles query.kind='schema-columns' by reading safe PostgreSQL catalog metadata for a requested schema/table and returning column options for editors.",
-      outputContracts: ["core.option_list@v1"],
+      supportsMaxRows: false,
     },
   ],
   requiredPermissions: ["postgresql:query"],
   exploreComponent: PostgreSqlConnectionExplore,
   queryEditor: PostgreSqlConnectionQueryEditor,
   usageGuidance:
-    "Use this connection type for backend-managed live PostgreSQL query access. Configure a read-only database user, set data-source-level row limits, timeouts, cache defaults, and in-flight de-duplication, validate SQL in Connections > Explore, and return normalized frames to widgets through the shared connection runtime.",
+    "Use this connection type for backend-managed live PostgreSQL query access. Configure the database user, set data-source-level row limits, timeouts, cache defaults, and in-flight de-duplication, validate SQL in Connections > Explore, and return normalized frames to widgets through the shared connection runtime.",
   examples: [
     {
-      title: "Read-only application database",
+      title: "Application database",
       publicConfig: {
         host: "postgres.example.com",
         port: 5432,
@@ -305,9 +258,8 @@ export const postgreSqlConnection: ConnectionTypeDefinition<
         dedupeInFlight: true,
       },
       query: {
-        kind: "sql-table",
+        kind: "sql",
         sql: "select * from public.orders limit 100",
-        maxRows: 100,
       },
     },
   ],

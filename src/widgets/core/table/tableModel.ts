@@ -1,4 +1,4 @@
-import type { ResolvedWidgetInputs } from "@/widgets/types";
+import type { ResolvedWidgetInput, ResolvedWidgetInputs } from "@/widgets/types";
 import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { TabularSourceDetail, TabularDataRow } from "@/widgets/shared/tabular-widget-source";
 import {
@@ -50,6 +50,7 @@ export type TableWidgetTone = "neutral" | "primary" | "success" | "warning" | "d
 export type TableWidgetCellValue = number | string | boolean | null;
 export type TableWidgetRow = Record<string, TableWidgetCellValue>;
 export type TableWidgetFrameRow = TableWidgetCellValue[];
+export const TABLE_WIDGET_DATASET_OUTPUT_ID = "dataset";
 
 export interface TableWidgetColumnSchema {
   key: string;
@@ -132,17 +133,87 @@ export interface TableWidgetProps
   conditionalRules?: TableWidgetConditionalRule[];
 }
 
+export function resolveTableWidgetSourceInput(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+): ResolvedWidgetInput | undefined {
+  const resolvedEntry = resolvedInputs?.[TABULAR_SOURCE_INPUT_ID];
+
+  return Array.isArray(resolvedEntry)
+    ? resolvedEntry.find((entry) => entry.status === "valid") ?? resolvedEntry[0]
+    : resolvedEntry;
+}
+
 export function resolveTableWidgetSourceDataset(
   resolvedInputs: ResolvedWidgetInputs | undefined,
 ): TabularFrameSourceV1 | null {
-  const resolvedEntry = resolvedInputs?.[TABULAR_SOURCE_INPUT_ID];
-  const candidate = Array.isArray(resolvedEntry)
-    ? resolvedEntry.find((entry) => entry.status === "valid")
-    : resolvedEntry;
+  const candidate = resolveTableWidgetSourceInput(resolvedInputs);
 
   return candidate?.status === "valid"
     ? normalizeAnyTabularFrameSource(candidate.value)
     : null;
+}
+
+function mapTableFieldOptionToFrameField(field: TabularFieldOption) {
+  return {
+    key: field.key,
+    label: field.label ?? field.key,
+    description: field.description ?? null,
+    type: field.type,
+    nullable: field.nullable,
+    nativeType: field.nativeType ?? null,
+    provenance: field.provenance,
+    reason: field.reason ?? null,
+    derivedFrom: field.derivedFrom,
+    warnings: field.warnings,
+  };
+}
+
+export function resolveTableWidgetOutput(
+  props: TableWidgetProps,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+): TabularFrameSourceV1 {
+  const migratedProps = stripLegacyTableWidgetDisplayConfig(props);
+  const tableSourceMode = normalizeTableSourceMode(migratedProps.tableSourceMode);
+
+  if (tableSourceMode !== "manual") {
+    return resolveTableWidgetSourceDataset(resolvedInputs) ?? {
+      status: "idle",
+      columns: [],
+      rows: [],
+      source: {
+        kind: "table-widget",
+        context: {
+          tableSourceMode: "bound",
+        },
+      },
+    };
+  }
+
+  const manualFrame = buildTableWidgetFrameFromManualData({
+    manualColumns: migratedProps.manualColumns,
+    manualRows: migratedProps.manualRows,
+  });
+  const manualFields = buildManualTableFieldOptions({
+    columns: migratedProps.manualColumns,
+    rows: migratedProps.manualRows,
+  }).map(mapTableFieldOptionToFrameField);
+
+  return {
+    status:
+      manualFrame.columns.length > 0 || manualFrame.rows.length > 0 || manualFields.length > 0
+        ? "ready"
+        : "idle",
+    columns: manualFrame.columns,
+    rows: buildTableWidgetRowObjects(manualFrame.columns, manualFrame.rows),
+    fields: manualFields,
+    source: {
+      kind: "table-widget",
+      label: "Manual table",
+      context: {
+        tableSourceMode: "manual",
+      },
+    },
+  };
 }
 
 export interface ResolvedTableWidgetColumnConfig extends TableWidgetColumnSchema {
@@ -1552,11 +1623,8 @@ export const tableWidgetToneOptions: Array<{
 
 export const tableWidgetDefaultProps: TableWidgetProps = {
   tableSourceMode: "bound",
-  sourceMode: "filter_widget",
-  dateRangeMode: "dashboard",
   manualColumns: [],
   manualRows: [],
-  limit: defaultRemoteLimit,
   schema: [],
   density: "comfortable",
   showToolbar: true,

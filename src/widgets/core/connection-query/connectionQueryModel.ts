@@ -1,4 +1,4 @@
-import { queryConnection } from "@/connections/api";
+import { fetchConnectionResource, queryConnection } from "@/connections/api";
 import {
   isConnectionResponseContractId,
   type ConnectionResponseContractId,
@@ -14,16 +14,15 @@ import type {
 import type { WidgetExecutionDashboardState } from "@/widgets/types";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
+  buildGraphDefaultsFromTimeSeriesMeta,
+  inferTabularTimeSeriesMetaFromFields,
+  legacyTimeSeriesFrameToTabularFrameSource,
   normalizeTabularFrameSource,
   type TabularFrameFieldSchema,
   type TabularFrameFieldType,
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
-import {
-  CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-  normalizeTimeSeriesFrameSource,
-  type TimeSeriesFrameSourceV1,
-} from "@/widgets/shared/timeseries-frame-source";
 import type { WidgetContractId } from "@/widgets/types";
 
 export type ConnectionQueryTimeRangeMode = "dashboard" | "fixed" | "none";
@@ -39,12 +38,29 @@ export interface ConnectionQueryWidgetProps extends Record<string, unknown> {
   maxRows?: number;
 }
 
-export type ConnectionQueryRuntimeState = TabularFrameSourceV1 | TimeSeriesFrameSourceV1;
+export type ConnectionQueryRawFrameRuntimeState = CommandCenterFrame & {
+  status: "ready" | "loading" | "idle" | "error";
+  error?: string;
+  source?: Record<string, unknown>;
+  traceId?: string;
+  warnings?: string[];
+};
+
+export type ConnectionQueryRuntimeState =
+  | TabularFrameSourceV1
+  | ConnectionQueryRawFrameRuntimeState;
 
 export function resolveConnectionQueryRequestedOutputContract(
   queryModel: ConnectionQueryModel | undefined,
 ): ConnectionResponseContractId | undefined {
   const outputContracts = queryModel?.outputContracts ?? [];
+
+  if (
+    outputContracts.includes(CORE_TABULAR_FRAME_SOURCE_CONTRACT) ||
+    outputContracts.includes(LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT)
+  ) {
+    return CORE_TABULAR_FRAME_SOURCE_CONTRACT;
+  }
 
   if (
     queryModel?.defaultOutputContract &&
@@ -54,20 +70,95 @@ export function resolveConnectionQueryRequestedOutputContract(
     return queryModel.defaultOutputContract;
   }
 
-  return outputContracts.find(isConnectionResponseContractId);
+  const responseContracts = outputContracts.filter(isConnectionResponseContractId);
+
+  return responseContracts.length === 1 ? responseContracts[0] : undefined;
 }
 
 function resolveConnectionQueryAllowedOutputContracts(
   queryModel: ConnectionQueryModel | undefined,
 ) {
   return queryModel?.outputContracts ?? [
-    CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
     CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+    LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
   ];
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function summarizeConnectionQueryValueForDebug(value: unknown) {
+  if (!isPlainRecord(value)) {
+    return value === undefined ? { kind: "undefined" } : { kind: typeof value };
+  }
+
+  if (typeof value.contract === "string" && Array.isArray(value.fields)) {
+    return {
+      kind: "frame",
+      status: typeof value.status === "string" ? value.status : undefined,
+      contract: value.contract,
+      fieldCount: value.fields.length,
+      fieldNames: value.fields
+        .flatMap((field) =>
+          isPlainRecord(field) && typeof field.name === "string" ? [field.name] : [],
+        )
+        .slice(0, 6),
+      traceId: typeof value.traceId === "string" ? value.traceId : undefined,
+    };
+  }
+
+  if (Array.isArray(value.columns) && Array.isArray(value.rows)) {
+    return {
+      kind: "tabular-frame",
+      status: typeof value.status === "string" ? value.status : undefined,
+      columnCount: value.columns.length,
+      rowCount: value.rows.length,
+      fieldCount: Array.isArray(value.fields) ? value.fields.length : 0,
+    };
+  }
+
+  if (Array.isArray(value.frames)) {
+    return {
+      kind: "connection-response",
+      frameCount: value.frames.length,
+      frameContracts: value.frames.flatMap((frame) =>
+        isPlainRecord(frame) && typeof frame.contract === "string" ? [frame.contract] : [],
+      ),
+      traceId: typeof value.traceId === "string" ? value.traceId : undefined,
+      warningCount: Array.isArray(value.warnings) ? value.warnings.length : 0,
+    };
+  }
+
+  return {
+    kind: "record",
+    status: typeof value.status === "string" ? value.status : undefined,
+    keys: Object.keys(value).slice(0, 10),
+  };
+}
+
+function summarizeConnectionQueryRequestForDebug(
+  request: ConnectionQueryRequest<Record<string, unknown>> | null,
+) {
+  if (!request) {
+    return null;
+  }
+
+  return {
+    connectionUid: request.connectionUid,
+    queryKind:
+      isPlainRecord(request.query) && typeof request.query.kind === "string"
+        ? request.query.kind
+        : undefined,
+    queryKeys: isPlainRecord(request.query) ? Object.keys(request.query).sort() : [],
+    requestedOutputContract: request.requestedOutputContract,
+    hasTimeRange: Boolean(request.timeRange),
+    timeRange: request.timeRange,
+    maxRows: request.maxRows,
+    variablesKeys: request.variables ? Object.keys(request.variables).sort() : [],
+    cacheMode: request.cacheMode,
+    cacheTtlMs: request.cacheTtlMs,
+  };
 }
 
 function normalizeString(value: unknown) {
@@ -143,6 +234,37 @@ function normalizeStringArray(value: unknown) {
   return entries.length > 0 ? entries : undefined;
 }
 
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.filter((value) => value.trim()).map((value) => value.trim())));
+}
+
+function extractDataNodeDetailColumns(value: unknown) {
+  if (!isPlainRecord(value)) {
+    return [];
+  }
+
+  const sourceConfig = isPlainRecord(value.sourcetableconfiguration)
+    ? value.sourcetableconfiguration
+    : {};
+  const timeIndexName = normalizeString(sourceConfig.time_index_name);
+  const indexNames = normalizeStringArray(sourceConfig.index_names) ?? [];
+  const metadataColumns = Array.isArray(sourceConfig.columns_metadata)
+    ? sourceConfig.columns_metadata.flatMap((column) =>
+        isPlainRecord(column) ? [normalizeString(column.column_name)].flatMap((name) => name ? [name] : []) : [],
+      )
+    : [];
+  const dtypeColumns = isPlainRecord(sourceConfig.column_dtypes_map)
+    ? Object.keys(sourceConfig.column_dtypes_map)
+    : [];
+
+  return uniqueStrings([
+    timeIndexName ?? "",
+    ...indexNames,
+    ...metadataColumns,
+    ...dtypeColumns,
+  ]);
+}
+
 function normalizeTimeRangeMode(value: unknown): ConnectionQueryTimeRangeMode {
   return value === "fixed" || value === "none" ? value : "dashboard";
 }
@@ -171,6 +293,17 @@ function mapFrameFieldType(type: CommandCenterFrameFieldType): TabularFrameField
   return type;
 }
 
+function inferTimeSeriesMetaFromFrame(
+  frame: Pick<CommandCenterFrame, "fields">,
+) {
+  return inferTabularTimeSeriesMetaFromFields(
+    frame.fields.map((field) => ({
+      name: field.name,
+      type: field.type,
+    })),
+  );
+}
+
 function frameToTabularSource(
   frame: CommandCenterFrame,
   input: {
@@ -194,12 +327,30 @@ function frameToTabularSource(
     nativeType: field.type,
     reason: "Returned by the selected connection query frame.",
   }));
+  const rawMeta = isPlainRecord(frame.meta) ? frame.meta : {};
+  const normalizedMeta = normalizeTabularFrameSource({
+    status: "ready",
+    columns,
+    rows: [],
+    fields,
+    meta: rawMeta,
+  })?.meta;
+  const inferredTimeSeries = inferTimeSeriesMetaFromFrame(frame);
+  const timeSeries = normalizedMeta?.timeSeries ?? inferredTimeSeries ?? undefined;
 
   return {
     status: "ready",
     columns,
     rows,
     fields,
+    meta: timeSeries
+      ? {
+          ...rawMeta,
+          timeSeries,
+        }
+      : Object.keys(rawMeta).length > 0
+        ? rawMeta
+        : undefined,
     source: {
       kind: "connection-query",
       id: input.connectionRef.uid,
@@ -209,6 +360,7 @@ function frameToTabularSource(
         connectionRef: input.connectionRef,
         queryModelId: input.queryModelId,
         requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        graphDefaults: buildGraphDefaultsFromTimeSeriesMeta(timeSeries),
         traceId: input.traceId,
         warnings: input.warnings,
       },
@@ -216,36 +368,11 @@ function frameToTabularSource(
   };
 }
 
-function frameToTimeSeriesSource(
-  frame: CommandCenterFrame,
-  input: {
-    connectionRef: ConnectionRef;
-    queryModelId: string;
-    traceId?: string;
-    warnings?: string[];
-  },
-): TimeSeriesFrameSourceV1 | null {
-  const normalized = normalizeTimeSeriesFrameSource({
-    ...frame,
-    status: "ready",
-    source: {
-      kind: "connection-query",
-      id: input.connectionRef.uid,
-      label: frame.name || input.queryModelId,
-      updatedAtMs: Date.now(),
-      context: {
-        connectionRef: input.connectionRef,
-        queryModelId: input.queryModelId,
-        requestedOutputContract: CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-        traceId: input.traceId,
-        warnings: input.warnings,
-      },
-    },
-    traceId: input.traceId,
-    warnings: input.warnings,
-  });
-
-  return normalized;
+function isTabularCompatibleFrameContract(contract: string) {
+  return (
+    contract === CORE_TABULAR_FRAME_SOURCE_CONTRACT ||
+    contract === LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT
+  );
 }
 
 function frameToPublishedSource(
@@ -260,15 +387,43 @@ function frameToPublishedSource(
   },
 ) {
   const frameAllowed = input.requestedOutputContract
-    ? frame.contract === input.requestedOutputContract
-    : input.allowedOutputContracts.includes(frame.contract);
+    ? input.requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT
+      ? isTabularCompatibleFrameContract(frame.contract)
+      : frame.contract === input.requestedOutputContract
+    : isTabularCompatibleFrameContract(frame.contract)
+      ? input.allowedOutputContracts.some(isTabularCompatibleFrameContract)
+      : input.allowedOutputContracts.includes(frame.contract);
 
   if (!frameAllowed) {
     return null;
   }
 
-  if (frame.contract === CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT) {
-    return frameToTimeSeriesSource(frame, input);
+  if (frame.contract === LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT) {
+    const inferredMeta = inferTimeSeriesMetaFromFrame(frame);
+
+    return legacyTimeSeriesFrameToTabularFrameSource({
+      ...frame,
+      status: "ready",
+      source: {
+        kind: "connection-query",
+        id: input.connectionRef.uid,
+        label: frame.name || input.queryModelId,
+        updatedAtMs: Date.now(),
+        context: {
+          connectionRef: input.connectionRef,
+          queryModelId: input.queryModelId,
+          requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          traceId: input.traceId,
+          warnings: input.warnings,
+        },
+      },
+      traceId: input.traceId,
+      warnings: input.warnings,
+      meta: {
+        ...(isPlainRecord(frame.meta) ? frame.meta : {}),
+        ...(inferredMeta ? { timeSeries: inferredMeta } : {}),
+      },
+    });
   }
 
   if (frame.contract === CORE_TABULAR_FRAME_SOURCE_CONTRACT) {
@@ -296,8 +451,12 @@ function firstConnectionFramePayload(
 
     const matchingFrames = response.frames.filter((frame) =>
       input.requestedOutputContract
-        ? frame.contract === input.requestedOutputContract
-        : input.allowedOutputContracts.includes(frame.contract),
+        ? input.requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT
+          ? isTabularCompatibleFrameContract(frame.contract)
+          : frame.contract === input.requestedOutputContract
+        : isTabularCompatibleFrameContract(frame.contract)
+          ? input.allowedOutputContracts.some(isTabularCompatibleFrameContract)
+          : input.allowedOutputContracts.includes(frame.contract),
     );
 
     if (matchingFrames.length === 0) {
@@ -315,17 +474,17 @@ function firstConnectionFramePayload(
       : null;
   }
 
-  const normalizedTimeSeriesSource =
+  const normalizedLegacyTimeSeriesSource =
     (!input.requestedOutputContract ||
-      input.requestedOutputContract === CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT) &&
-    input.allowedOutputContracts.includes(CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT)
-      ? normalizeTimeSeriesFrameSource(payload)
+      input.requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT) &&
+    input.allowedOutputContracts.some(isTabularCompatibleFrameContract)
+      ? legacyTimeSeriesFrameToTabularFrameSource(payload)
       : null;
 
-  if (normalizedTimeSeriesSource) {
+  if (normalizedLegacyTimeSeriesSource) {
     return {
-      ...normalizedTimeSeriesSource,
-      source: normalizedTimeSeriesSource.source ?? {
+      ...normalizedLegacyTimeSeriesSource,
+      source: normalizedLegacyTimeSeriesSource.source ?? {
         kind: "connection-query",
         id: input.connectionRef.uid,
         label: input.queryModelId,
@@ -426,6 +585,13 @@ function buildEffectiveQuery(props: ConnectionQueryWidgetProps) {
     query.kind = queryModelId;
   }
 
+  if (queryModelId === "sql") {
+    return {
+      ...query,
+      kind: queryModelId,
+    };
+  }
+
   if (queryModelId === "data-node-rows-between-dates") {
     const normalizedQuery: Record<string, unknown> = {
       kind: queryModelId,
@@ -469,6 +635,77 @@ function buildEffectiveQuery(props: ConnectionQueryWidgetProps) {
   return query;
 }
 
+async function enrichConnectionQueryRequest(
+  request: ConnectionQueryRequest<Record<string, unknown>>,
+  props: ConnectionQueryWidgetProps,
+) {
+  const connectionRef = props.connectionRef;
+  const query = isPlainRecord(request.query) ? request.query : {};
+
+  if (
+    connectionRef?.typeId !== "mainsequence.data-node" ||
+    query.kind !== "data-node-rows-between-dates" ||
+    normalizeStringArray(query.columns)?.length
+  ) {
+    return request;
+  }
+
+  const dataNodeId = normalizePositiveInteger(query.dataNodeId);
+
+  try {
+    if (import.meta.env.DEV) {
+      console.debug("[connection-query] enrich request start", {
+        request: summarizeConnectionQueryRequestForDebug(request),
+        dataNodeId,
+      });
+    }
+
+    const detail = await fetchConnectionResource({
+      connectionUid: request.connectionUid,
+      resource: "data-node-detail",
+      params: dataNodeId ? { dataNodeId } : {},
+    });
+    const columns = extractDataNodeDetailColumns(detail);
+
+    if (columns.length === 0) {
+      if (import.meta.env.DEV) {
+        console.debug("[connection-query] enrich request no columns derived", {
+          request: summarizeConnectionQueryRequestForDebug(request),
+          detail: summarizeConnectionQueryValueForDebug(detail),
+        });
+      }
+      return request;
+    }
+
+    const enrichedRequest = {
+      ...request,
+      query: {
+        ...query,
+        columns,
+      },
+    };
+
+    if (import.meta.env.DEV) {
+      console.debug("[connection-query] enrich request applied", {
+        before: summarizeConnectionQueryRequestForDebug(request),
+        after: summarizeConnectionQueryRequestForDebug(enrichedRequest),
+        derivedColumnCount: columns.length,
+        derivedColumnsSample: columns.slice(0, 8),
+      });
+    }
+
+    return enrichedRequest;
+  } catch {
+    if (import.meta.env.DEV) {
+      console.warn("[connection-query] enrich request failed", {
+        request: summarizeConnectionQueryRequestForDebug(request),
+        dataNodeId,
+      });
+    }
+    return request;
+  }
+}
+
 export function buildConnectionQueryRequest(
   props: ConnectionQueryWidgetProps,
   dashboardState?: WidgetExecutionDashboardState,
@@ -506,7 +743,7 @@ export function buildConnectionQueryRequest(
         }
       : undefined,
     variables: queryModel?.supportsVariables ? normalizedProps.variables : undefined,
-    maxRows: normalizedProps.maxRows,
+    maxRows: queryModel?.supportsMaxRows === false ? undefined : normalizedProps.maxRows,
   };
 }
 
@@ -559,7 +796,30 @@ export async function executeConnectionQueryWidgetRequest(
     throw new Error("Connection query request is incomplete.");
   }
 
-  const payload = await queryConnection(request);
+  if (import.meta.env.DEV) {
+    console.debug("[connection-query] execute start", {
+      connectionRef,
+      queryModelId,
+      requestedOutputContract,
+      allowedOutputContracts,
+      request: summarizeConnectionQueryRequestForDebug(request),
+    });
+  }
+
+  const enrichedRequest = await enrichConnectionQueryRequest(request, normalizedProps);
+  if (import.meta.env.DEV) {
+    console.debug("[connection-query] execute request ready", {
+      originalRequest: summarizeConnectionQueryRequestForDebug(request),
+      enrichedRequest: summarizeConnectionQueryRequestForDebug(enrichedRequest),
+    });
+  }
+  const payload = await queryConnection(enrichedRequest);
+  if (import.meta.env.DEV) {
+    console.debug("[connection-query] execute payload received", {
+      request: summarizeConnectionQueryRequestForDebug(enrichedRequest),
+      payload: summarizeConnectionQueryValueForDebug(payload),
+    });
+  }
   const frame = firstConnectionFramePayload(payload, {
     connectionRef,
     queryModelId,
@@ -568,11 +828,26 @@ export async function executeConnectionQueryWidgetRequest(
   });
 
   if (!frame) {
+    if (import.meta.env.DEV) {
+      console.error("[connection-query] execute no publishable frame", {
+        request: summarizeConnectionQueryRequestForDebug(enrichedRequest),
+        payload: summarizeConnectionQueryValueForDebug(payload),
+      });
+    }
     throw new Error(
-      requestedOutputContract
-        ? `Connection query did not return a ${requestedOutputContract} frame.`
-        : `Connection query did not return an advertised frame contract.`,
+      requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT
+        ? "Connection query did not return a canonical tabular frame."
+        : requestedOutputContract
+          ? `Connection query did not return a ${requestedOutputContract} frame.`
+          : "Connection query did not return a publishable frame.",
     );
+  }
+
+  if (import.meta.env.DEV) {
+    console.debug("[connection-query] execute published frame", {
+      request: summarizeConnectionQueryRequestForDebug(enrichedRequest),
+      frame: summarizeConnectionQueryValueForDebug(frame),
+    });
   }
 
   return frame;
@@ -581,5 +856,20 @@ export async function executeConnectionQueryWidgetRequest(
 export function normalizeConnectionQueryRuntimeState(
   value: unknown,
 ): ConnectionQueryRuntimeState | null {
-  return normalizeTimeSeriesFrameSource(value) ?? normalizeTabularFrameSource(value);
+  const normalizedFrame =
+    normalizeTabularFrameSource(value) ?? legacyTimeSeriesFrameToTabularFrameSource(value);
+
+  if (normalizedFrame) {
+    return normalizedFrame;
+  }
+
+  if (
+    isPlainRecord(value) &&
+    isConnectionResponseContractId(value.contract) &&
+    Array.isArray(value.fields)
+  ) {
+    return value as unknown as ConnectionQueryRawFrameRuntimeState;
+  }
+
+  return null;
 }

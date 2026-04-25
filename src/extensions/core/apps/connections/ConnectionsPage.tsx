@@ -21,20 +21,19 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createConnectionInstance,
-  queryConnection,
   testConnection,
   updateConnectionInstance,
 } from "@/connections/api";
 import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
 import { ConnectionTypeIcon } from "@/connections/components/ConnectionTypeIcon";
+import { ConnectionQueryWorkbench } from "@/connections/ConnectionQueryWorkbench";
 import { useConnectionInstances, useConnectionTypes } from "@/connections/hooks";
 import type {
   AnyConnectionTypeDefinition,
   ConnectionConfigSchema,
   ConnectionInstance,
-  ConnectionQueryModel,
 } from "@/connections/types";
-import { isConnectionResponseContractId } from "@/connections/types";
+import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 
 type ConnectionsPageMode = "add-new" | "data-sources" | "explore";
@@ -853,33 +852,11 @@ function ConnectionInstanceRow({
   );
 }
 
-function buildExploreQueryTemplate(
-  selectedType: AnyConnectionTypeDefinition | undefined,
-  queryModel: ConnectionQueryModel | undefined,
-) {
-  const exampleQuery = selectedType?.examples?.find((example) => example.query)?.query;
+function buildConnectionExploreDefaultRange() {
+  const rangeEndMs = Date.now();
+  const rangeStartMs = rangeEndMs - 24 * 60 * 60 * 1000;
 
-  if (exampleQuery) {
-    return JSON.stringify(exampleQuery, null, 2);
-  }
-
-  if (queryModel) {
-    return JSON.stringify({ kind: queryModel.id }, null, 2);
-  }
-
-  return "{}";
-}
-
-function resolveExploreRequestedOutputContract(queryModel: ConnectionQueryModel | undefined) {
-  if (
-    queryModel?.defaultOutputContract &&
-    queryModel.outputContracts.includes(queryModel.defaultOutputContract) &&
-    isConnectionResponseContractId(queryModel.defaultOutputContract)
-  ) {
-    return queryModel.defaultOutputContract;
-  }
-
-  return queryModel?.outputContracts.find(isConnectionResponseContractId);
+  return { rangeStartMs, rangeEndMs };
 }
 
 function AddNewConnectionContent() {
@@ -1089,18 +1066,15 @@ function ExploreContent({
   const instancesQuery = useConnectionInstances();
   const instances = instancesQuery.data ?? [];
   const [selectedUid, setSelectedUid] = useState("");
-  const [queryModelId, setQueryModelId] = useState("");
-  const [queryText, setQueryText] = useState("{}");
-  const [resultText, setResultText] = useState("");
 
   const selectedInstance = instances.find((instance) => instance.uid === selectedUid);
   const selectedType = selectedInstance
     ? getConnectionTypeForInstance(typesById, selectedInstance)
     : undefined;
   const queryModels = useMemo(() => selectedType?.queryModels ?? [], [selectedType]);
-  const selectedQueryModel =
-    queryModels.find((model) => model.id === queryModelId) ?? queryModels[0];
   const CustomExplore = selectedType?.exploreComponent;
+  const defaultRange = useMemo(() => buildConnectionExploreDefaultRange(), [selectedUid]);
+  const [exploreQueryProps, setExploreQueryProps] = useState<ConnectionQueryWidgetProps>({});
 
   useEffect(() => {
     if (!selectedUid && instances.length > 0) {
@@ -1109,31 +1083,31 @@ function ExploreContent({
   }, [instances, selectedUid]);
 
   useEffect(() => {
-    setQueryModelId(queryModels[0]?.id ?? "");
-  }, [selectedInstance?.uid, selectedType?.id, queryModels]);
+    if (!selectedInstance) {
+      setExploreQueryProps({});
+      return;
+    }
 
-  useEffect(() => {
-    setQueryText(buildExploreQueryTemplate(selectedType, selectedQueryModel));
-    setResultText("");
-  }, [selectedInstance?.uid, selectedQueryModel?.id, selectedType]);
+    const defaultQueryModel = queryModels[0];
 
-  const queryMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedUid) {
-        throw new Error("Select a data source first.");
-      }
-
-      const parsedQuery = queryText.trim() ? JSON.parse(queryText) as Record<string, unknown> : {};
-      return queryConnection({
-        connectionUid: selectedUid,
-        query: parsedQuery,
-        requestedOutputContract: resolveExploreRequestedOutputContract(selectedQueryModel),
-      });
-    },
-    onSuccess: (result) => {
-      setResultText(JSON.stringify(result, null, 2));
-    },
-  });
+    setExploreQueryProps({
+      connectionRef: {
+        uid: selectedInstance.uid,
+        typeId: selectedInstance.typeId,
+      },
+      queryModelId: defaultQueryModel?.id,
+      query: defaultQueryModel ? { kind: defaultQueryModel.id } : {},
+      timeRangeMode: defaultQueryModel?.timeRangeAware ? "fixed" : "none",
+      fixedStartMs: defaultRange.rangeStartMs,
+      fixedEndMs: defaultRange.rangeEndMs,
+    });
+  }, [
+    defaultRange.rangeEndMs,
+    defaultRange.rangeStartMs,
+    queryModels,
+    selectedInstance?.typeId,
+    selectedInstance?.uid,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -1170,76 +1144,31 @@ function ExploreContent({
 
           {CustomExplore && selectedInstance && selectedType ? (
             <CustomExplore connectionInstance={selectedInstance} connectionType={selectedType} />
-          ) : (
-            <div className="relative z-0 grid gap-4 xl:grid-cols-[minmax(0,520px)_1fr]">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Explore connection</CardTitle>
-                  <CardDescription>
-                    Send a live query request to a configured data source.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">Query model</span>
-                    <Select
-                      value={selectedQueryModel?.id ?? ""}
-                      onChange={(event) => setQueryModelId(event.target.value)}
-                      disabled={queryModels.length === 0}
-                    >
-                      {queryModels.length > 0 ? (
-                        queryModels.map((model) => (
-                          <option key={model.id} value={model.id}>
-                            {model.label}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="">Raw query</option>
-                      )}
-                    </Select>
-                  </label>
-
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">Query JSON</span>
-                    <Textarea
-                      className="min-h-56 font-mono text-xs"
-                      value={queryText}
-                      onChange={(event) => setQueryText(event.target.value)}
-                    />
-                  </label>
-
-                  <Button
-                    type="button"
-                    disabled={queryMutation.isPending || !selectedUid}
-                    onClick={() => queryMutation.mutate()}
-                  >
-                    {queryMutation.isPending ? "Running query" : "Run query"}
-                  </Button>
-                  {queryMutation.error ? (
-                    <p className="text-sm text-destructive">
-                      {queryMutation.error instanceof Error
-                        ? queryMutation.error.message
-                        : "Connection query failed."}
-                    </p>
-                  ) : null}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Result</CardTitle>
-                  <CardDescription>
-                    Normalized connection response returned by the backend.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <pre className="max-h-[620px] overflow-auto rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/50 p-4 font-mono text-xs leading-6 text-foreground">
-                    <code>{resultText || "Run a query to see the response."}</code>
-                  </pre>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          ) : selectedInstance && selectedType ? (
+            <Card className="relative z-0">
+              <CardHeader>
+                <CardTitle>Explore connection</CardTitle>
+                <CardDescription>
+                  Build and run the same generated connection query request used by workspace
+                  source widgets.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ConnectionQueryWorkbench
+                  value={exploreQueryProps}
+                  onChange={setExploreQueryProps}
+                  editable
+                  connectionInstance={selectedInstance}
+                  connectionType={selectedType}
+                  fixedRangeFallback={defaultRange}
+                  showConnectionPicker={false}
+                  autoSelectFirstQueryModel
+                  runButtonLabel="Run query"
+                  resultDescription="Preview of the normalized connection runtime frame."
+                />
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       ) : null}
     </div>

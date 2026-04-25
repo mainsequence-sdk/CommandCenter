@@ -8,49 +8,43 @@ sidebar entry.
 
 - `index.ts`: exports the `postgresql.database` connection type definition loaded by the app
   registry's root-level custom connection loader.
-- `PostgreSqlConnectionExplore.tsx`: adaptive PostgreSQL Explore shell rendered by
-  `Connections > Explore` when the selected data source uses the PostgreSQL connection type.
-- `PostgreSqlConnectionQueryEditor.tsx`: typed Connection Query widget editor for SQL table,
-  SQL time-series, schema table, and schema column query payloads.
+- `PostgreSqlConnectionExplore.tsx`: PostgreSQL Explore wrapper rendered by
+  `Connections > Explore`. It shows source/query-policy metadata and delegates query authoring,
+  generated request preview, test execution, and response preview to the shared
+  `ConnectionQueryWorkbench`.
+- `PostgreSqlConnectionQueryEditor.tsx`: typed Connection Query widget editor for one SQL payload.
 
 ## Behavior
 
 - The connection type exposes database target fields, SSL mode, backend pool settings, write-only
-  password and TLS material, data-source-level query policy fields, table query models,
-  time-series query models, and schema metadata query models.
+  password and TLS material, and data-source-level query policy fields. PostgreSQL has one
+  user-facing query model: SQL.
 - Connection instances are backend-owned data sources. The frontend sends secret values only during
   create/update and expects to read only `secureFields` indicators back.
 - Query caching is configured on the data source through public config. `cacheTtlMs` on individual
   query requests is only an override; backend adapters should default to the instance-level
   `queryCachePolicy`, `queryCacheTtlMs`, `metadataCacheTtlMs`, and `dedupeInFlight` settings.
-- The Explore shell provides a PostgreSQL-owned query builder plus a direct SQL editor. It calls the
-  shared `queryConnection` endpoint with `sql-table` or `sql-timeseries` payloads. The backend
+- The Explore shell uses `src/connections/ConnectionQueryWorkbench.tsx`, the same PostgreSQL
+  `queryModels`, and the same `queryEditor` as the Connection Query widget. Because PostgreSQL has
+  one SQL model, the workbench auto-selects it and does not show a path selector. SQL authoring,
+  generated request preview, test execution, and normalized frame preview must not fork from the
+  widget path.
+- SQL query payloads use the shared CodeMirror-backed `QuerySqlField` from connection components.
+  Keep SQL editing behavior there rather than adding PostgreSQL-only text areas.
+- Explore and widget settings both call the shared Connection Query workbench, which builds the
+  standard `ConnectionQueryRequest` and executes it through the widget runtime helper. The backend
   adapter owns SQL macro expansion, connection pooling, query execution, row limits, health checks,
   and normalized frame conversion.
-- The Connection Query widget uses the PostgreSQL `queryEditor` to render SQL, parameters,
-  schema/table metadata kwargs, and time-series field mapping. These fields are connection-specific
-  payload fields and should not become static fields on the generic widget.
 
 ## Backend Query Contract
 
-The backend adapter must switch on `request.query.kind`; query model labels are UI/catalog metadata
-only and are not a runtime protocol by themselves.
+The backend adapter must switch on `request.query.kind`; PostgreSQL accepts one query kind.
 
-- `sql-table`: accepts
-  `{ kind: "sql-table", sql: string, maxRows?: number, parameters?: Record<string, unknown> }`.
-  Execute the SQL through the configured backend pool, apply authorization, bound parameters,
-  variable expansion, statement timeout, and row limits, then return `core.tabular_frame@v1`.
-- `sql-timeseries`: accepts
-  `{ kind: "sql-timeseries", sql: string, maxRows?: number, parameters?: Record<string, unknown>, timeField?: string, valueField?: string, valueFields?: string[], seriesFields?: string[] }`
-  plus `ConnectionQueryRequest.timeRange`. Expand PostgreSQL time macros, validate declared or
-  inferable time/value fields, and return `core.time_series_frame@v1` when the result can be shaped
-  as time series. The builder sends `timeField: "time"` and `valueField: "value"` because
-  `$__timeGroupAlias(...)` expands to `AS time` and the value expression is aliased as `value`.
-- `schema-tables`: accepts `{ kind: "schema-tables", schema?: string }`. Read safe catalog
-  metadata for the requested schema or configured default schema and return table options for
-  editors.
-- `schema-columns`: accepts `{ kind: "schema-columns", schema?: string, table: string }`. Read safe
-  catalog metadata for the table and return column options for editors.
+- `sql`: accepts
+  `{ kind: "sql", sql: string }`. Execute the SQL through the configured backend pool, apply
+  authorization, statement timeout, and data-source-level row limits. Return one
+  `core.tabular_frame@v1`. When the backend can validate chart semantics, publish them inside
+  `meta.timeSeries` on that tabular frame instead of switching contracts.
 
 Backend implementations should reject unknown `kind` values with a typed bad-request error and
 should include the query kind in audit logs and response metadata.
@@ -61,6 +55,7 @@ should include the query kind in audit logs and response metadata.
 - Do not connect to PostgreSQL directly from the browser. Use `accessMode: "proxy"` and execute SQL
   through the backend adapter.
 - Treat SQL as trusted user-authored input executed by the configured database identity. Production
-  data sources should use dedicated read-only database users and database-side permissions.
+  data sources should use database-side permissions appropriate for the connection's intended
+  scope.
 - If query models, macros, or result frame semantics change, update the backend adapter contract and
   the connection ADR in the same change.

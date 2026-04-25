@@ -96,6 +96,47 @@ interface DashboardWidgetExecutionContextValue {
 const DashboardWidgetExecutionContext =
   createContext<DashboardWidgetExecutionContextValue | null>(null);
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function summarizeRuntimeStateForDebug(value: unknown) {
+  if (!isPlainRecord(value)) {
+    return value === undefined ? { kind: "undefined" } : { kind: typeof value };
+  }
+
+  if (typeof value.contract === "string" && Array.isArray(value.fields)) {
+    return {
+      kind: "frame",
+      status: typeof value.status === "string" ? value.status : undefined,
+      contract: value.contract,
+      fieldCount: value.fields.length,
+      fieldNames: value.fields
+        .flatMap((field) =>
+          isPlainRecord(field) && typeof field.name === "string" ? [field.name] : [],
+        )
+        .slice(0, 6),
+      traceId: typeof value.traceId === "string" ? value.traceId : undefined,
+    };
+  }
+
+  if (Array.isArray(value.columns) && Array.isArray(value.rows)) {
+    return {
+      kind: "tabular-frame",
+      status: typeof value.status === "string" ? value.status : undefined,
+      columnCount: value.columns.length,
+      rowCount: value.rows.length,
+      fieldCount: Array.isArray(value.fields) ? value.fields.length : 0,
+    };
+  }
+
+  return {
+    kind: "record",
+    status: typeof value.status === "string" ? value.status : undefined,
+    keys: Object.keys(value).slice(0, 10),
+  };
+}
+
 function serializeExecutionOverrides(value: WidgetExecutionTargetOverrides | undefined) {
   if (!value) {
     return "";
@@ -662,9 +703,44 @@ export function useResolveWidgetUpstream(
     }
 
     lastRequestKeyRef.current = nextRequestKey;
-    void context.resolveUpstream(instanceId, { targetOverrides }).catch(() => {
-      // Passive consumers surface their own loading/error states from the source binding.
-    });
+    if (import.meta.env.DEV) {
+      console.debug("[upstream] resolve requested", {
+        instanceId,
+        requestKey: nextRequestKey,
+        executableInstanceIds: upstreamRequirement.executableInstanceIds,
+        hasTargetOverrides: Boolean(targetOverrides),
+      });
+    }
+    void context.resolveUpstream(instanceId, { targetOverrides })
+      .then((result) => {
+        if (!import.meta.env.DEV) {
+          return;
+        }
+
+        console.debug("[upstream] resolve completed", {
+          instanceId,
+          requestKey: nextRequestKey,
+          status: result.status,
+          error: result.error,
+          targetRuntimeState: summarizeRuntimeStateForDebug(result.targetRuntimeState),
+          nodeResults: result.nodeResults.map((node) => ({
+            instanceId: node.instanceId,
+            status: node.status,
+            reason: node.reason,
+            error: node.error,
+            runtimeState: summarizeRuntimeStateForDebug(node.runtimeState),
+          })),
+        });
+      })
+      .catch((error) => {
+        if (import.meta.env.DEV) {
+          console.error("[upstream] resolve failed", {
+            instanceId,
+            requestKey: nextRequestKey,
+            error: error instanceof Error ? error.message : "Unknown upstream resolution error.",
+          });
+        }
+      });
   }, [context, enabled, instanceId, targetOverrides, upstreamRequirement?.needsResolution, upstreamRequirement?.requestKey]);
 
   return upstreamRequirement;

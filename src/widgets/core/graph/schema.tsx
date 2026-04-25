@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { WidgetSettingsSchema } from "@/widgets/types";
-import { X } from "lucide-react";
 
 import { PickerField, type PickerOption } from "@/widgets/shared/picker-field";
 import type { GraphControllerContext } from "./controller";
@@ -10,7 +9,7 @@ import { TabularDateTimeField } from "@/widgets/shared/tabular-date-time-field";
 import { createTabularWidgetSourceSettingsSchema } from "@/widgets/shared/tabular-widget-source";
 
 const chartTypeOptions: PickerOption[] = [
-  { value: "line", label: "Line", description: "Standard time-series line chart." },
+  { value: "line", label: "Line", description: "Standard line chart." },
   { value: "area", label: "Area", description: "Filled area chart." },
   { value: "bar", label: "Bar", description: "Bar-style time series." },
 ];
@@ -52,24 +51,6 @@ const timeAxisModeOptions: PickerOption[] = [
     value: "datetime",
     label: "DateTime",
     description: "Treat the X axis as timestamped intraday data.",
-  },
-];
-
-const groupSelectionModeOptions: PickerOption[] = [
-  {
-    value: "all",
-    label: "All groups",
-    description: "Render every resolved group from the incoming dataset.",
-  },
-  {
-    value: "include",
-    label: "Include groups",
-    description: "Render only the selected groups.",
-  },
-  {
-    value: "exclude",
-    label: "Exclude groups",
-    description: "Render every group except the selected ones.",
   },
 ];
 
@@ -138,43 +119,6 @@ function ToggleButtonField({
   );
 }
 
-function renderGroupValueChips({
-  values,
-  labelsByValue,
-  editable,
-  onRemove,
-}: {
-  values: string[];
-  labelsByValue: Map<string, string>;
-  editable: boolean;
-  onRemove: (value: string) => void;
-}) {
-  if (values.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {values.map((value) => (
-        <span
-          key={value}
-          className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card/70 px-2.5 py-1 text-xs text-foreground"
-        >
-          <span>{labelsByValue.get(value) ?? value}</span>
-          <button
-            type="button"
-            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
-            onClick={() => onRemove(value)}
-            disabled={!editable}
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </span>
-      ))}
-    </div>
-  );
-}
-
 export const graphSettingsSchema: WidgetSettingsSchema<
   GraphWidgetProps,
   GraphControllerContext
@@ -186,7 +130,7 @@ export const graphSettingsSchema: WidgetSettingsSchema<
   filterWidgetOnly: true,
   canvasQueryScope: "graph_canvas",
   dataSourceSectionDescription:
-    "Use the Bindings tab to connect this chart to a time-series or tabular source that owns the canonical dataset.",
+    "Use the Bindings tab to connect this chart to a tabular source that owns the canonical dataset.",
   selectionHelpText: "Bind this chart to the source you want to visualize.",
   additionalSections: [
     {
@@ -197,7 +141,7 @@ export const graphSettingsSchema: WidgetSettingsSchema<
     {
       id: "field-mapping",
       title: "Field mapping",
-      description: "Map table fields to chart axes and grouping. Time-series sources provide these defaults from metadata.",
+      description: "Map tabular fields to the chart X axis, Y axis, and optional grouping field.",
     },
   ],
   additionalFields: [
@@ -287,7 +231,7 @@ export const graphSettingsSchema: WidgetSettingsSchema<
     {
       id: "normalizeAtMs",
       label: "Normalize at",
-      description: "Leave blank to use the first date in the selected range.",
+      description: "Leave blank to use the first visible point in each series.",
       sectionId: "visualization",
       isVisible: ({ context }) => context.resolvedConfig.normalizeSeries,
       renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
@@ -319,7 +263,7 @@ export const graphSettingsSchema: WidgetSettingsSchema<
             });
           }}
           options={context.xAxisOptions}
-          placeholder="Auto"
+          placeholder="Select X field"
           searchPlaceholder="Search X-axis fields"
           disabled={!editable || context.resolvedConfig.availableFields.length === 0}
         />
@@ -387,8 +331,6 @@ export const graphSettingsSchema: WidgetSettingsSchema<
             onDraftPropsChange({
               ...draftProps,
               groupField: value || undefined,
-              groupSelectionMode: "all",
-              selectedGroupValues: undefined,
             });
           }}
           options={context.groupOptions}
@@ -397,112 +339,6 @@ export const graphSettingsSchema: WidgetSettingsSchema<
           disabled={!editable || context.resolvedConfig.availableFields.length === 0}
         />
       ),
-    },
-    {
-      id: "groupSelectionMode",
-      label: "Visible groups",
-      description: "Optionally include or exclude specific groups from the rendered series list.",
-      sectionId: "field-mapping",
-      isVisible: ({ context }) => !context.hasNoData && Boolean(context.resolvedConfig.groupField),
-      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
-        <PickerFieldSetting
-          value={context.resolvedConfig.groupSelectionMode}
-          onChange={(value) => {
-            const nextMode =
-              value === "include" || value === "exclude" ? value : "all";
-
-            onDraftPropsChange({
-              ...draftProps,
-              groupSelectionMode: nextMode,
-              selectedGroupValues:
-                nextMode === "all" ? undefined : draftProps.selectedGroupValues,
-            });
-          }}
-          options={groupSelectionModeOptions}
-          placeholder="All groups"
-          disabled={!editable || context.groupValueOptions.length === 0}
-        />
-      ),
-    },
-    {
-      id: "selectedGroupValues",
-      label: "Group values",
-      description: "Choose the group values this chart should include or exclude from the incoming dataset.",
-      sectionId: "field-mapping",
-      isVisible: ({ context }) =>
-        !context.hasNoData &&
-        Boolean(context.resolvedConfig.groupField) &&
-        context.resolvedConfig.groupSelectionMode !== "all",
-      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => {
-        const selectedValues = Array.isArray(draftProps.selectedGroupValues)
-          ? draftProps.selectedGroupValues.filter((value): value is string => typeof value === "string")
-          : [];
-        const availableOptions = context.groupValueOptions.filter(
-          (option) => !selectedValues.includes(option.value),
-        );
-        const labelsByValue = new Map(
-          context.groupValueOptions.map((option) => [option.value, option.label] as const),
-        );
-
-        return (
-          <div className="space-y-2">
-            {renderGroupValueChips({
-              values: selectedValues,
-              labelsByValue,
-              editable,
-              onRemove: (value) => {
-                const nextValues = selectedValues.filter((entry) => entry !== value);
-                onDraftPropsChange({
-                  ...draftProps,
-                  selectedGroupValues: nextValues.length > 0 ? nextValues : undefined,
-                });
-              },
-            })}
-            {selectedValues.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                No group values selected yet.
-              </div>
-            ) : null}
-            <PickerFieldSetting
-              value=""
-              onChange={(value) => {
-                if (!value) {
-                  return;
-                }
-
-                onDraftPropsChange({
-                  ...draftProps,
-                  selectedGroupValues: [...selectedValues, value],
-                });
-              }}
-              options={availableOptions}
-              placeholder={
-                availableOptions.length > 0
-                  ? "Add a group value"
-                  : "No more groups available"
-              }
-              searchPlaceholder="Search group values"
-              disabled={!editable || availableOptions.length === 0}
-            />
-            {selectedValues.length > 0 ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!editable}
-                onClick={() => {
-                  onDraftPropsChange({
-                    ...draftProps,
-                    selectedGroupValues: undefined,
-                  });
-                }}
-              >
-                Clear group values
-              </Button>
-            ) : null}
-          </div>
-        );
-      },
     },
     {
       id: "yField",
@@ -520,7 +356,7 @@ export const graphSettingsSchema: WidgetSettingsSchema<
             });
           }}
           options={context.yAxisOptions}
-          placeholder="Auto"
+          placeholder="Select Y field"
           searchPlaceholder="Search Y-axis fields"
           disabled={!editable || context.resolvedConfig.availableFields.length === 0}
         />

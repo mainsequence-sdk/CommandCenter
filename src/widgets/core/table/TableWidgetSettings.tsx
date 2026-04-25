@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
 import { PickerField } from "@/widgets/shared/picker-field";
-import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { useTheme } from "@/themes/ThemeProvider";
 import {
   widgetTightFormButtonGroupClass,
@@ -26,7 +26,6 @@ import {
   isEmptyTabularFrameSource,
   normalizeManualTableColumns,
   normalizeManualTableRows,
-  useResolvedTabularWidgetSourceBinding,
 } from "@/widgets/shared/tabular-widget-source";
 import { ManualTableEditor } from "./ManualTableEditor";
 import {
@@ -39,6 +38,7 @@ import {
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
+  resolveTableWidgetSourceInput,
   resolveTableWidgetSourceDataset,
   validateTableWidgetSchema,
   tableWidgetAlignOptions,
@@ -75,7 +75,7 @@ const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
 const tableFieldHelp = {
   density: "Controls row and cell spacing in the rendered table.",
   tableSourceMode: "Selects whether this table formats a bound dataset or renders manually authored rows stored on this table widget.",
-  sourceBinding: "Shows the upstream Connection Query or Tabular Transform widget bound to this table. The binding supplies a canonical tabular or time-series dataset; this widget only formats it.",
+  sourceBinding: "Shows the upstream Connection Query or transform widget bound to this table. The binding supplies one canonical tabular dataset; this widget only formats it.",
   pageSize: "Sets how many rows AG Grid shows per page when pagination is enabled.",
   surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset.",
   columnKey: "Maps this table column to an incoming field key from the bound dataset frame.",
@@ -266,48 +266,41 @@ function stripLegacyTableSourceFields(
     rows?: unknown;
     datasetId?: unknown;
     sourceMode?: unknown;
+    sourceWidgetId?: unknown;
+    sourceId?: unknown;
+    dateRangeMode?: unknown;
+    fixedStartMs?: unknown;
+    fixedEndMs?: unknown;
+    uniqueIdentifierList?: unknown;
   };
 
   delete nextValue.columns;
   delete nextValue.rows;
   delete nextValue.datasetId;
+  delete nextValue.sourceMode;
+  delete nextValue.sourceWidgetId;
+  delete nextValue.sourceId;
+  delete nextValue.dateRangeMode;
+  delete nextValue.fixedStartMs;
+  delete nextValue.fixedEndMs;
+  delete nextValue.uniqueIdentifierList;
   return nextValue;
 }
 
 export function TableWidgetSettings({
   draftProps,
   editable,
-  instanceId,
   onDraftPropsChange,
   resolvedInputs,
 }: WidgetSettingsComponentProps<TableWidgetProps>) {
   const { resolvedTokens } = useTheme();
+  const widgetRegistry = useDashboardWidgetRegistry();
   const resolvedDraft = resolveTableWidgetProps(draftProps);
   const isManualTableMode = resolvedDraft.tableSourceMode === "manual";
-  const sourceBindingProps = useMemo(
-    () => ({
-      sourceMode: resolvedDraft.sourceMode,
-      sourceWidgetId: resolvedDraft.sourceWidgetId,
-      sourceId: resolvedDraft.sourceId,
-      dateRangeMode: resolvedDraft.dateRangeMode,
-      fixedStartMs: resolvedDraft.fixedStartMs,
-      fixedEndMs: resolvedDraft.fixedEndMs,
-      uniqueIdentifierList: resolvedDraft.uniqueIdentifierList,
-    }),
-    [
-      resolvedDraft.sourceId,
-      resolvedDraft.dateRangeMode,
-      resolvedDraft.fixedEndMs,
-      resolvedDraft.fixedStartMs,
-      resolvedDraft.sourceMode,
-      resolvedDraft.sourceWidgetId,
-      resolvedDraft.uniqueIdentifierList,
-    ],
+  const resolvedSourceInput = useMemo(
+    () => resolveTableWidgetSourceInput(resolvedInputs),
+    [resolvedInputs],
   );
-  const sourceBinding = useResolvedTabularWidgetSourceBinding({
-    props: sourceBindingProps,
-    currentWidgetInstanceId: instanceId,
-  });
   const resolvedInputDataset = useMemo(
     () => resolveTableWidgetSourceDataset(resolvedInputs),
     [resolvedInputs],
@@ -315,18 +308,16 @@ export function TableWidgetSettings({
   const hasResolvedInputDataset = Boolean(
     resolvedInputDataset && !isEmptyTabularFrameSource(resolvedInputDataset),
   );
-  useResolveWidgetUpstream(instanceId, {
-    enabled:
-      !isManualTableMode &&
-      !hasResolvedInputDataset &&
-      sourceBinding.requiresUpstreamResolution,
-  });
-  const linkedDataset = hasResolvedInputDataset
-    ? resolvedInputDataset
-    : sourceBinding.resolvedSourceDataset ?? resolvedInputDataset;
+  const linkedDataset = resolvedInputDataset;
   const hasRenderableLinkedDataset = Boolean(
     linkedDataset && !isEmptyTabularFrameSource(linkedDataset),
   );
+  const boundSourceWidget = useMemo(() => {
+    const sourceWidgetId = resolvedSourceInput?.sourceWidgetId;
+    return sourceWidgetId
+      ? widgetRegistry.find((widget) => widget.id === sourceWidgetId) ?? null
+      : null;
+  }, [resolvedSourceInput?.sourceWidgetId, widgetRegistry]);
   const frameColumnsSource = linkedDataset?.columns ?? [];
   const frameRowsSource = linkedDataset?.rows ?? [];
 
@@ -362,22 +353,8 @@ export function TableWidgetSettings({
   );
   const activeFrameInput = isManualTableMode ? manualFrameInput : remoteFrameInput;
   const resolvedScopedDraft = useMemo(
-    () =>
-      resolveTableWidgetPropsWithFrame(
-        isManualTableMode
-          ? scopedDraft
-          : {
-              ...scopedDraft,
-              ...sourceBinding.resolvedSourceProps,
-            },
-        activeFrameInput,
-      ),
-    [
-      activeFrameInput,
-      isManualTableMode,
-      scopedDraft,
-      sourceBinding.resolvedSourceProps,
-    ],
+    () => resolveTableWidgetPropsWithFrame(scopedDraft, activeFrameInput),
+    [activeFrameInput, scopedDraft],
   );
   const frameRows = buildTableWidgetRowObjects(
     resolvedScopedDraft.columns,
@@ -560,7 +537,7 @@ export function TableWidgetSettings({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <p className="max-w-3xl text-xs leading-5 text-muted-foreground">
-            Configure a frame-to-table view around a live tabular or time-series source. The widget
+            Configure a frame-to-table view around a live tabular source. The widget
             consumes canonical frame rows, then lets each instance define fields, mappings,
             thresholds, and display behavior.
           </p>
@@ -597,7 +574,7 @@ export function TableWidgetSettings({
         <div>
           <div className={titleClass}>Table options</div>
           <p className={descriptionClass}>
-            Point the table at a tabular or time-series source, then control how the incoming fields
+            Point the table at a tabular source, then control how the incoming fields
             should render.
           </p>
         </div>
@@ -617,7 +594,6 @@ export function TableWidgetSettings({
                 commit({
                   ...scopedDraft,
                   tableSourceMode: nextSourceMode,
-                  sourceMode: nextSourceMode === "manual" ? "direct" : "filter_widget",
                   schema: [],
                   columnOverrides: {},
                   valueLabels: [],
@@ -640,27 +616,26 @@ export function TableWidgetSettings({
                   commit({
                     ...scopedDraft,
                     tableSourceMode: "manual",
-                    sourceMode: "direct",
                     manualColumns: nextColumns,
                     manualRows: nextRows,
                   });
                 }}
               />
             ) : (
-              <>
-                <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.sourceBinding}>
+              <div className="space-y-2">
+                <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp["sourceBinding"]}>
                   Source binding
                 </WidgetSettingFieldLabel>
                 <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-sm text-muted-foreground">
-                  {sourceBinding.resolvedSourceWidget ? (
-                    <>
+                  {boundSourceWidget ? (
+                    <div>
                       <div className="font-medium text-foreground">
-                        {sourceBinding.resolvedSourceWidget.title?.trim() || "Bound source widget"}
+                        {boundSourceWidget.title?.trim() || "Bound source widget"}
                       </div>
                       <div className="mt-1">
                         This table reads the published dataset from the selected source widget.
                       </div>
-                    </>
+                    </div>
                   ) : (
                     "Use the Bindings tab to connect this table to a source widget in the dashboard."
                   )}
@@ -669,27 +644,57 @@ export function TableWidgetSettings({
                   The linked source widget owns dataset publication. This table only formats the incoming rows.
                 </p>
 
-                {sourceBinding.isFilterWidgetSource && linkedDataset?.status === "error" ? (
+                {linkedDataset?.status === "error" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
                     {linkedDataset.error ?? "The bound source failed to load rows."}
                   </div>
                 ) : null}
 
-                {sourceBinding.isFilterWidgetSource &&
-                !hasResolvedInputDataset &&
-                !sourceBinding.hasResolvedFilterWidgetSource ? (
+                {resolvedSourceInput?.status === "missing-source" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
-                    Use the Bindings tab to connect this table to a source widget in this dashboard.
+                    The saved source widget no longer exists. Rebind this table in the Bindings tab.
                   </div>
                 ) : null}
 
-                {!hasResolvedInputDataset && sourceBinding.isAwaitingBoundSourceValue ? (
+                {resolvedSourceInput?.status === "missing-output" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
-                    Refreshing the bound source widget so the table preview can load its dataset.
+                    The selected source output is no longer available. Rebind this table in the Bindings tab.
                   </div>
                 ) : null}
 
-              </>
+                {resolvedSourceInput?.status === "contract-mismatch" ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                    The current binding does not publish a canonical tabular frame compatible with this table.
+                  </div>
+                ) : null}
+
+                {resolvedSourceInput?.status === "valid" && linkedDataset === null ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                    The bound source output is malformed and does not normalize to a canonical tabular frame.
+                  </div>
+                ) : null}
+
+                {resolvedSourceInput?.status === "transform-invalid" ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                    The binding transform is invalid. Fix it in the Bindings tab before previewing this table.
+                  </div>
+                ) : null}
+
+                {resolvedSourceInput?.status === "self-reference-blocked" ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                    This table cannot bind to its own published output. Select another source widget in the Bindings tab.
+                  </div>
+                ) : null}
+
+                {!hasResolvedInputDataset &&
+                resolvedSourceInput?.status === "valid" &&
+                (linkedDataset?.status === "loading" || linkedDataset?.status === "idle") ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                    Waiting for the bound source widget to publish its dataset.
+                  </div>
+                ) : null}
+
+              </div>
             )}
           </div>
 
@@ -814,7 +819,7 @@ export function TableWidgetSettings({
         emptyMessage={
           isManualTableMode
             ? "Add manual table columns to inspect the schema."
-            : "Bind this table to a tabular or time-series source to inspect its incoming schema."
+            : "Bind this table to a tabular source to inspect its incoming schema."
         }
       />
 
@@ -856,7 +861,7 @@ export function TableWidgetSettings({
             <p className={descriptionClass}>
               {isManualTableMode
                 ? "No manual fields are available yet. Open the editor and add at least one column."
-                : "No source fields are available yet. Select a tabular or time-series source to load the current frame."}
+                : "No source fields are available yet. Select a tabular source to load the current frame."}
             </p>
           ) : displayedColumns.map((column, index) => {
             const override = scopedDraft.columnOverrides?.[column.key] ?? {};

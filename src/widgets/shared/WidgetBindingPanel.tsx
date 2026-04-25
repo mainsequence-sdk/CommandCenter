@@ -6,7 +6,6 @@ import {
   useDashboardWidgetDependencies,
   useResolvedWidgetIo,
 } from "@/dashboards/DashboardWidgetDependencies";
-import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
 import {
   inferWidgetValueDescriptor,
   listWidgetValueDescriptorPaths,
@@ -183,7 +182,6 @@ export function WidgetBindingPanel({
   widget: WidgetDefinition;
 }) {
   const dependencies = useDashboardWidgetDependencies();
-  const widgetExecution = useDashboardWidgetExecution();
   const resolvedIo = useResolvedWidgetIo(instance.id);
   const initialBindings = useMemo(
     () => normalizeWidgetInstanceBindings(instance.bindings),
@@ -195,26 +193,10 @@ export function WidgetBindingPanel({
   );
   const [draftBindingRowsByInputId, setDraftBindingRowsByInputId] =
     useState<Record<string, BindingDraftRow[]>>(initialBindingDraftRows);
-  const [pendingExecutionBindingsJson, setPendingExecutionBindingsJson] = useState<string | null>(null);
 
   useEffect(() => {
     setDraftBindingRowsByInputId(initialBindingDraftRows);
   }, [initialBindingDraftRows, instance.id]);
-
-  useEffect(() => {
-    const currentBindingsJson = JSON.stringify(initialBindings ?? null);
-
-    if (!widgetExecution || !pendingExecutionBindingsJson || currentBindingsJson !== pendingExecutionBindingsJson) {
-      return;
-    }
-
-    setPendingExecutionBindingsJson(null);
-    void widgetExecution.executeWidgetGraph(instance.id, {
-      reason: "manual-recalculate",
-    }).catch(() => {
-      // Binding application should not fail if upstream execution is unavailable.
-    });
-  }, [initialBindings, instance.id, pendingExecutionBindingsJson, widgetExecution]);
 
   const inputs = resolvedIo?.inputs ?? widget.io?.inputs ?? [];
   const draftBindings = useMemo(
@@ -437,7 +419,6 @@ export function WidgetBindingPanel({
               onClick={() => {
                 const normalizedBindings = normalizeWidgetInstanceBindings(draftBindings);
                 onBindingsChange(normalizedBindings);
-                setPendingExecutionBindingsJson(JSON.stringify(normalizedBindings ?? null));
               }}
               disabled={!editable || !dirty}
             >

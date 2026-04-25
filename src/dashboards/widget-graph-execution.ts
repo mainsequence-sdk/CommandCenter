@@ -24,6 +24,58 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function summarizeExecutionValueForDebug(value: unknown) {
+  if (!isPlainRecord(value)) {
+    return value === undefined ? { kind: "undefined" } : { kind: typeof value };
+  }
+
+  if (typeof value.contract === "string" && Array.isArray(value.fields)) {
+    return {
+      kind: "frame",
+      status: typeof value.status === "string" ? value.status : undefined,
+      contract: value.contract,
+      fieldCount: value.fields.length,
+      fieldNames: value.fields
+        .flatMap((field) =>
+          isPlainRecord(field) && typeof field.name === "string" ? [field.name] : [],
+        )
+        .slice(0, 6),
+      traceId: typeof value.traceId === "string" ? value.traceId : undefined,
+    };
+  }
+
+  if (Array.isArray(value.columns) && Array.isArray(value.rows)) {
+    return {
+      kind: "tabular-frame",
+      status: typeof value.status === "string" ? value.status : undefined,
+      columnCount: value.columns.length,
+      rowCount: value.rows.length,
+      fieldCount: Array.isArray(value.fields) ? value.fields.length : 0,
+    };
+  }
+
+  return {
+    kind: "record",
+    status: typeof value.status === "string" ? value.status : undefined,
+    keys: Object.keys(value).slice(0, 10),
+  };
+}
+
+function summarizeExecutionContextForDebug(context: WidgetExecutionContext) {
+  return {
+    scopeId: context.scopeId,
+    widgetId: context.widgetId,
+    instanceId: context.instanceId,
+    reason: context.reason,
+    refreshCycleId: context.refreshCycleId,
+    dashboardState: context.dashboardState,
+    hasTargetOverrides: Boolean(context.targetOverrides),
+    propsKeys: isPlainRecord(context.props) ? Object.keys(context.props).sort() : [],
+    runtimeState: summarizeExecutionValueForDebug(context.runtimeState),
+    resolvedInputIds: context.resolvedInputs ? Object.keys(context.resolvedInputs).sort() : [],
+  };
+}
+
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -156,6 +208,10 @@ function applyTargetOverridesToTree(
         "props" in targetOverrides
           ? cloneJson(targetOverrides.props ?? {})
           : widget.props,
+      bindings:
+        "bindings" in targetOverrides
+          ? normalizeWidgetInstanceBindings(targetOverrides.bindings)
+          : widget.bindings,
       runtimeState:
         "runtimeState" in targetOverrides
           ? cloneJson(targetOverrides.runtimeState ?? {})
@@ -740,6 +796,10 @@ export async function executeDashboardWidgetGraph(
       targetInstanceId: args.targetInstanceId,
     });
 
+    if (import.meta.env.DEV) {
+      console.debug("[widget-exec] node start", summarizeExecutionContextForDebug(executionContext));
+    }
+
     let result: WidgetExecutionResult;
 
     try {
@@ -760,6 +820,20 @@ export async function executeDashboardWidgetGraph(
     );
     const shouldPersistRuntimeState =
       !(instanceId === args.targetInstanceId && args.targetOverrides);
+
+    if (import.meta.env.DEV) {
+      console.debug("[widget-exec] node result", {
+        instanceId,
+        widgetId: instance.widgetId,
+        targetInstanceId: args.targetInstanceId,
+        reason: nodeReason,
+        resultStatus: result.status,
+        resultError: result.error,
+        runtimeStatePatch: summarizeExecutionValueForDebug(result.runtimeStatePatch),
+        nextRuntimeState: summarizeExecutionValueForDebug(nextRuntimeState),
+        shouldPersistRuntimeState,
+      });
+    }
 
     if (instanceId === args.targetInstanceId) {
       targetRuntimeState = nextRuntimeState;

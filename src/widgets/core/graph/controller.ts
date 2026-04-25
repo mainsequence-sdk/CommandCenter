@@ -8,11 +8,9 @@ import {
   type TabularFieldOption,
 } from "@/widgets/shared/tabular-widget-source";
 import {
-  buildGraphGroupValueOptions,
   buildGraphFieldOptionsFromRuntime,
   normalizeGraphProps,
   resolveGraphConfig,
-  resolveGraphSourceFieldDefaults,
   type GraphWidgetProps,
 } from "./graphModel";
 import {
@@ -22,7 +20,6 @@ import {
 
 export interface GraphControllerContext
   extends TabularWidgetSourceControllerContext<ReturnType<typeof resolveGraphConfig>> {
-  groupValueOptions: PickerOption[];
   xAxisOptions: PickerOption[];
   yAxisOptions: PickerOption[];
   groupOptions: PickerOption[];
@@ -56,10 +53,9 @@ export function useGraphControllerContext({
     queryKeyScope: "data_node_visualizer",
     resolveConfig: resolveGraphConfig,
   });
-  const linkedDataset = sourceContext.resolvedSourceDataset;
-  const sourceFieldDefaults = useMemo(
-    () => resolveGraphSourceFieldDefaults(linkedDataset),
-    [linkedDataset],
+  const linkedDataset = useMemo(
+    () => sourceContext.resolvedSourceDataset,
+    [sourceContext.resolvedSourceDataset],
   );
   const runtimeFieldOptions = useMemo(
     () => buildGraphFieldOptionsFromRuntime(linkedDataset),
@@ -71,9 +67,6 @@ export function useGraphControllerContext({
         {
           ...normalizedProps,
           ...sourceContext.resolvedSourceProps,
-          xField: normalizedProps.xField ?? sourceFieldDefaults.xField,
-          yField: normalizedProps.yField ?? sourceFieldDefaults.yField,
-          groupField: normalizedProps.groupField ?? sourceFieldDefaults.groupField,
         },
         sourceContext.selectedTabularSourceDetailQuery.data,
         runtimeFieldOptions.length > 0 ? runtimeFieldOptions : undefined,
@@ -83,25 +76,18 @@ export function useGraphControllerContext({
       runtimeFieldOptions,
       sourceContext.resolvedSourceProps,
       sourceContext.selectedTabularSourceDetailQuery.data,
-      sourceFieldDefaults.groupField,
-      sourceFieldDefaults.xField,
-      sourceFieldDefaults.yField,
     ],
   );
-  const fieldPickerOptions = useMemo<PickerOption[]>(
+  const fieldPickerOptions = useMemo(
     () => resolvedConfig.availableFields.map(toPickerOption),
     [resolvedConfig.availableFields],
-  );
-  const groupValueOptions = useMemo<PickerOption[]>(
-    () => buildGraphGroupValueOptions(linkedDataset?.rows ?? [], resolvedConfig),
-    [linkedDataset?.rows, resolvedConfig],
   );
   const xAxisOptions = useMemo<PickerOption[]>(
     () => [
       {
         value: "",
-        label: "Auto",
-        description: "Use the default time field.",
+        label: "Not set",
+        description: "Select the field to use for the X axis.",
       },
       ...fieldPickerOptions,
     ],
@@ -111,8 +97,8 @@ export function useGraphControllerContext({
     () => [
       {
         value: "",
-        label: "Auto",
-        description: "Use the default value field.",
+        label: "Not set",
+        description: "Select the field to use for the Y axis.",
       },
       ...fieldPickerOptions,
     ],
@@ -134,7 +120,6 @@ export function useGraphControllerContext({
     ...sourceContext,
     fieldPickerOptions,
     resolvedConfig,
-    groupValueOptions,
     xAxisOptions,
     yAxisOptions,
     groupOptions,

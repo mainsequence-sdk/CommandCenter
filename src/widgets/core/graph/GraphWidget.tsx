@@ -16,7 +16,6 @@ import {
   resolveGraphEffectiveTimeAxisMode,
   resolveGraphNormalizationTimeMs,
   resolveGraphConfig,
-  resolveGraphSourceFieldDefaults,
   type GraphWidgetProps,
 } from "./graphModel";
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
@@ -45,26 +44,19 @@ export function GraphWidget({
   useResolveWidgetUpstream(instanceId, {
     enabled: sourceBinding.requiresUpstreamResolution,
   });
-  const linkedDataset = sourceBinding.resolvedSourceDataset;
-  const sourceFieldDefaults = useMemo(
-    () => resolveGraphSourceFieldDefaults(linkedDataset),
-    [linkedDataset],
+  const linkedDataset = useMemo(
+    () => sourceBinding.resolvedSourceDataset,
+    [sourceBinding.resolvedSourceDataset],
   );
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
   const effectiveProps = useMemo(
     () => ({
       ...normalizedProps,
       ...effectiveSourceProps,
-      xField: normalizedProps.xField ?? sourceFieldDefaults.xField,
-      yField: normalizedProps.yField ?? sourceFieldDefaults.yField,
-      groupField: normalizedProps.groupField ?? sourceFieldDefaults.groupField,
     }),
     [
       effectiveSourceProps,
       normalizedProps,
-      sourceFieldDefaults.groupField,
-      sourceFieldDefaults.xField,
-      sourceFieldDefaults.yField,
     ],
   );
   const runtimeFieldOptions = useMemo(
@@ -104,50 +96,26 @@ export function GraphWidget({
     [effectiveTimeAxisMode, seriesResult.series],
   );
   const normalizationTimeMs = useMemo(
-    () =>
-      resolveGraphNormalizationTimeMs(
-        resolvedConfig,
-        resolvedRange.rangeStartMs,
-      ),
-    [resolvedConfig, resolvedRange.rangeStartMs],
+    () => resolveGraphNormalizationTimeMs(resolvedConfig),
+    [resolvedConfig],
   );
   const chartEmptyMessage =
     sourceRows.length > 0
       ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
       : "No chartable rows are available for the selected range.";
-  const suggestedGroupField = useMemo(() => {
-    if (resolvedConfig.groupField) {
-      return null;
-    }
-
-    const fallbackGroupField = runtimeFieldOptions.find(
-      (field) => field.key !== resolvedConfig.xField && field.key !== resolvedConfig.yField,
-    )?.key;
-
-    return typeof fallbackGroupField === "string" && fallbackGroupField.trim()
-      ? fallbackGroupField
-      : null;
-  }, [resolvedConfig.groupField, resolvedConfig.xField, resolvedConfig.yField, runtimeFieldOptions]);
   const chartCollisionMessage = useMemo(() => {
     if (chartSeriesResult.collapsedPointCount <= 0) {
       return null;
     }
 
-    const baseMessage = `Merged ${chartSeriesResult.collapsedPointCount.toLocaleString()} row ${
+    return `Merged ${chartSeriesResult.collapsedPointCount.toLocaleString()} row ${
       chartSeriesResult.collapsedPointCount === 1 ? "collision" : "collisions"
     } that resolved to the same chart second across ${chartSeriesResult.affectedSeriesCount.toLocaleString()} ${
       chartSeriesResult.affectedSeriesCount === 1 ? "series" : "series"
     }. The chart keeps the latest point per second.`;
-
-    if (suggestedGroupField) {
-      return `${baseMessage} Consider grouping by ${suggestedGroupField}.`;
-    }
-
-    return baseMessage;
   }, [
     chartSeriesResult.affectedSeriesCount,
     chartSeriesResult.collapsedPointCount,
-    suggestedGroupField,
   ]);
   const isDataLoading = linkedDataset?.status === "loading" || linkedDataset == null;
   const dataErrorMessage =
@@ -164,7 +132,7 @@ export function GraphWidget({
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a source</div>
           <p className="text-sm text-muted-foreground">
-            Open widget settings and use the Bindings tab to connect this graph to a tabular or time-series source.
+            Open widget settings and use the Bindings tab to connect this graph to a tabular source.
           </p>
         </div>
       </div>
@@ -196,7 +164,7 @@ export function GraphWidget({
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Select a source</div>
           <p className="text-sm text-muted-foreground">
-            This chart renders the canonical dataset or time-series frame coming from a bound source.
+            This chart renders the canonical dataset coming from a bound source.
           </p>
         </div>
       </div>
@@ -261,7 +229,7 @@ export function GraphWidget({
             <GraphChartErrorBoundary
               fallback={(
                 <div className="flex h-full min-h-0 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/10 px-4 py-6 text-center text-sm text-danger">
-                  The chart could not be rendered. Try grouping the rows into separate series or choosing a different time field.
+                  The chart could not be rendered. Check the selected X field, Y field, and provider.
                 </div>
               )}
                       >

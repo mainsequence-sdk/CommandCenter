@@ -19,6 +19,7 @@ import { normalizeGraphSeries } from "./graphModel";
 import type {
   GraphChartType,
   GraphLineStyle,
+  GraphNormalizationAnchor,
   GraphSeriesAxisMode,
   GraphSeries,
   GraphTimeAxisMode,
@@ -47,7 +48,7 @@ export function TradingViewSeriesChart({
   className?: string;
   emptyMessage?: string;
   minBarSpacingPx?: number;
-  normalizationTimeMs?: number | null;
+  normalizationTimeMs?: GraphNormalizationAnchor;
   series: GraphSeries[];
   seriesAxisMode?: GraphSeriesAxisMode;
   timeAxisMode?: Exclude<GraphTimeAxisMode, "auto">;

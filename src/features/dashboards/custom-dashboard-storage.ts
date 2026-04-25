@@ -1662,26 +1662,98 @@ export function updateDashboardWidgetRuntimeState(
   runtimeState: Record<string, unknown> | undefined,
 ) {
   const nextRuntimeState = normalizeWidgetRuntimeState(runtimeState);
-  let changed = false;
-
-  const nextWidgets = dashboard.widgets.map((widget) => {
-    if (widget.id !== instanceId) {
-      return widget;
+  const summarizeRuntimeStateForDebug = (value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return value === undefined ? { kind: "undefined" } : { kind: typeof value };
     }
 
-    if (
-      JSON.stringify(widget.runtimeState ?? null) === JSON.stringify(nextRuntimeState ?? null)
-    ) {
-      return widget;
+    const record = value as Record<string, unknown>;
+
+    if (typeof record.contract === "string" && Array.isArray(record.fields)) {
+      return {
+        kind: "frame",
+        status: typeof record.status === "string" ? record.status : undefined,
+        contract: record.contract,
+        fieldCount: record.fields.length,
+      };
     }
 
-    changed = true;
+    if (Array.isArray(record.columns) && Array.isArray(record.rows)) {
+      return {
+        kind: "tabular-frame",
+        status: typeof record.status === "string" ? record.status : undefined,
+        columnCount: record.columns.length,
+        rowCount: record.rows.length,
+        fieldCount: Array.isArray(record.fields) ? record.fields.length : 0,
+      };
+    }
 
     return {
-      ...widget,
-      runtimeState: nextRuntimeState,
+      kind: "record",
+      status: typeof record.status === "string" ? record.status : undefined,
+      keys: Object.keys(record).slice(0, 10),
     };
+  };
+  const updateRuntimeStateInWidgetTree = (
+    widget: DashboardWidgetInstance,
+  ): [DashboardWidgetInstance, boolean] => {
+    let changed = false;
+    let nextWidget = widget;
+
+    if (widget.id === instanceId) {
+      if (
+        JSON.stringify(widget.runtimeState ?? null) !== JSON.stringify(nextRuntimeState ?? null)
+      ) {
+        changed = true;
+        nextWidget = {
+          ...widget,
+          runtimeState: nextRuntimeState,
+        };
+      }
+    }
+
+    if (!nextWidget.row?.children?.length) {
+      return [nextWidget, changed];
+    }
+
+    let childChanged = false;
+    const nextChildren = nextWidget.row.children.map((child) => {
+      const [nextChild, nextChildChanged] = updateRuntimeStateInWidgetTree(child);
+      childChanged ||= nextChildChanged;
+      return nextChild;
+    });
+
+    if (!childChanged) {
+      return [nextWidget, changed];
+    }
+
+    return [
+      {
+        ...nextWidget,
+        row: {
+          ...nextWidget.row,
+          children: nextChildren,
+        },
+      },
+      true,
+    ];
+  };
+
+  let changed = false;
+  const nextWidgets = dashboard.widgets.map((widget) => {
+    const [nextWidget, widgetChanged] = updateRuntimeStateInWidgetTree(widget);
+    changed ||= widgetChanged;
+    return nextWidget;
   });
+
+  if (import.meta.env.DEV) {
+    console.debug("[workspace-runtime] apply runtime state", {
+      dashboardId: dashboard.id,
+      instanceId,
+      changed,
+      runtimeState: summarizeRuntimeStateForDebug(nextRuntimeState),
+    });
+  }
 
   return changed
     ? {

@@ -11,6 +11,7 @@ import { normalizeGraphSeries } from "./graphModel";
 import type {
   GraphChartType,
   GraphLineStyle,
+  GraphNormalizationAnchor,
   GraphSeries,
   GraphSeriesAxisMode,
   GraphTimeAxisMode,
@@ -330,7 +331,7 @@ export function EChartsSeriesChart({
   chartType: GraphChartType;
   className?: string;
   emptyMessage?: string;
-  normalizationTimeMs?: number | null;
+  normalizationTimeMs?: GraphNormalizationAnchor;
   series: GraphSeries[];
   seriesAxisMode?: GraphSeriesAxisMode;
   timeAxisMode?: Exclude<GraphTimeAxisMode, "auto">;

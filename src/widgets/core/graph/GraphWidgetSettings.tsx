@@ -3,7 +3,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
@@ -85,7 +84,7 @@ function buildSourceSchemaEmptyMessage(input: {
   sourceStatus?: string;
 }) {
   if (!input.hasBoundSource) {
-    return "Bind this graph to a tabular or time-series source to inspect its source schema.";
+    return "Bind this graph to a tabular source to inspect its source schema.";
   }
 
   if (input.isAwaitingBoundSourceValue || input.sourceStatus === "idle" || input.sourceStatus === "loading") {
@@ -106,7 +105,7 @@ function buildSeriesStylingEmptyMessage(input: {
   sourceStatus?: string;
 }) {
   if (!input.hasBoundSource) {
-    return "Bind a chartable tabular or time-series source before configuring per-series styling.";
+    return "Bind a chartable tabular source before configuring per-series styling.";
   }
 
   if (input.isAwaitingBoundSourceValue || input.sourceStatus === "idle" || input.sourceStatus === "loading") {
@@ -127,7 +126,6 @@ function buildSeriesStylingEmptyMessage(input: {
 export function GraphWidgetSettings({
   draftProps,
   editable,
-  instanceId,
   onDraftPropsChange,
   controllerContext,
 }: WidgetSettingsComponentProps<GraphWidgetProps>) {
@@ -135,15 +133,15 @@ export function GraphWidgetSettings({
   const context = controllerContext as GraphControllerContext | undefined;
   const resolvedConfig = context?.resolvedConfig;
   const hasNoData = context?.hasNoData ?? false;
-  const linkedDataset = context?.resolvedSourceDataset ?? null;
+  const linkedDataset = useMemo(
+    () => context?.resolvedSourceDataset ?? null,
+    [context?.resolvedSourceDataset],
+  );
   const hasBoundSource = Boolean(context?.sourceWidgetId || context?.resolvedSourceWidget);
   const hasPreviewSource = Boolean(resolvedConfig?.sourceId || hasBoundSource);
   const [previewModeOverride, setPreviewModeOverride] = useState<GraphViewMode | null>(
     null,
   );
-  useResolveWidgetUpstream(instanceId, {
-    enabled: context?.requiresUpstreamResolution ?? false,
-  });
 
   const activePreviewMode = previewModeOverride ?? "chart";
   const previewRange = { hasValidRange: true, rangeStartMs: null, rangeEndMs: null };
@@ -185,12 +183,9 @@ export function GraphWidgetSettings({
   const previewNormalizationTimeMs = useMemo(
     () =>
       resolvedConfig
-        ? resolveGraphNormalizationTimeMs(
-            resolvedConfig,
-            previewRange.rangeStartMs,
-          )
+        ? resolveGraphNormalizationTimeMs(resolvedConfig)
         : null,
-    [previewRange.rangeStartMs, resolvedConfig],
+    [resolvedConfig],
   );
   const previewRangeSummary =
     previewRange.rangeStartMs && previewRange.rangeEndMs

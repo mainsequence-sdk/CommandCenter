@@ -1,6 +1,10 @@
 import { Table } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
+import {
+  CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+} from "@/widgets/shared/tabular-frame-source";
 import { defineWidget } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
@@ -8,15 +12,14 @@ import {
   isEmptyTabularFrameSource,
   TABULAR_SOURCE_CONTRACT,
 } from "@/widgets/shared/tabular-widget-source";
-import {
-  CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-} from "@/widgets/shared/timeseries-frame-source";
 import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import { TableWidget } from "./TableWidget";
 import { TableWidgetSettings } from "./TableWidgetSettings";
 import {
+  TABLE_WIDGET_DATASET_OUTPUT_ID,
   type TableWidgetCellValue,
   buildTableWidgetRowObjects,
+  resolveTableWidgetOutput,
   resolveTableWidgetSourceDataset,
   tableWidgetDefaultProps,
   resolveTableWidgetColumns,
@@ -26,7 +29,7 @@ import {
 
 export const tableWidget = defineWidget<TableWidgetProps>({
   id: "table",
-  widgetVersion: "2.1.0",
+  widgetVersion: "2.3.0",
   title: "Table",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -53,7 +56,7 @@ export const tableWidget = defineWidget<TableWidgetProps>({
       {
         id: TABULAR_SOURCE_INPUT_ID,
         label: "Source data",
-        accepts: [TABULAR_SOURCE_CONTRACT, CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT],
+        accepts: [TABULAR_SOURCE_CONTRACT],
         required: false,
         effects: [
           {
@@ -69,6 +72,18 @@ export const tableWidget = defineWidget<TableWidgetProps>({
             description: "Upstream fields define the table schema and formatter choices.",
           },
         ],
+      },
+    ],
+    outputs: [
+      {
+        id: TABLE_WIDGET_DATASET_OUTPUT_ID,
+        label: "Dataset",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        description:
+          "Publishes the table's canonical tabular dataset so downstream widgets can consume either a bound or manual table source.",
+        valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+        resolveValue: ({ props, resolvedInputs }) =>
+          resolveTableWidgetOutput(props as TableWidgetProps, resolvedInputs),
       },
     ],
   },
@@ -172,10 +187,10 @@ export const tableWidget = defineWidget<TableWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Formats either a bound tabular or time-series dataset, or a manually authored table, into a user-facing table with saved field formatting and visibility preferences.",
+        "Formats either a bound tabular dataset or a manually authored table into a user-facing table with saved field formatting and visibility preferences.",
       requiredSetupSteps: [
         "Choose Bound dataset or Manual table in settings.",
-        "For Bound dataset, bind the widget to one upstream tabular or time-series dataset.",
+        "For Bound dataset, bind the widget to one upstream tabular dataset.",
         "For Manual table, add columns and rows in the table editor.",
         "Adjust visible fields and formatting options in settings.",
       ],
@@ -184,18 +199,22 @@ export const tableWidget = defineWidget<TableWidgetProps>({
       refreshPolicy: "not-applicable",
       executionTriggers: [],
       executionSummary:
-        "Consumes the canonical upstream dataset bundle when bound, or renders saved manual rows directly, without publishing a new dataset.",
+        "Consumes the canonical upstream dataset bundle when bound, or materializes saved manual rows directly, and republishes one canonical tabular frame for downstream widgets without owning execution.",
     },
     io: {
-      mode: "consumer",
-      summary: "Consumes one tabular or time-series frame and renders its rows as a table.",
+      mode: "static",
+      summary:
+        "Consumes one canonical tabular frame and always publishes one canonical tabular frame that downstream widgets can bind to.",
+      inputContracts: [TABULAR_SOURCE_CONTRACT],
+      outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       ioNotes: [
         "The sourceData input is optional because manual table mode stores rows on this table widget.",
-        "The widget does not publish a new canonical runtime contract.",
+        "Display formatting, hidden columns, and value styling do not mutate the published dataset.",
       ],
     },
     capabilities: {
-      acceptedContracts: [TABULAR_SOURCE_CONTRACT, CORE_TIME_SERIES_FRAME_SOURCE_CONTRACT],
+      acceptedContracts: [TABULAR_SOURCE_CONTRACT],
+      publishesContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
       supportedSourceModes: ["bound", "manual"],
       renderingSurface: "table",
       columnConfiguration: [

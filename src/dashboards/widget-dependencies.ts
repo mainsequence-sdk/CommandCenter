@@ -282,6 +282,60 @@ function getOutputDefinition(
     | undefined;
 }
 
+function summarizeResolvedValueForDebug(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value === undefined ? { kind: "undefined" } : { kind: typeof value };
+  }
+
+  const record = value as Record<string, unknown>;
+
+  if (typeof record.contract === "string" && Array.isArray(record.fields)) {
+    return {
+      kind: "frame",
+      status: typeof record.status === "string" ? record.status : undefined,
+      contract: record.contract,
+      fieldCount: record.fields.length,
+      fieldNames: record.fields
+        .flatMap((field) =>
+          field && typeof field === "object" && !Array.isArray(field) && typeof (field as { name?: unknown }).name === "string"
+            ? [(field as { name: string }).name]
+            : [],
+        )
+        .slice(0, 6),
+      traceId: typeof record.traceId === "string" ? record.traceId : undefined,
+    };
+  }
+
+  if (Array.isArray(record.columns) && Array.isArray(record.rows)) {
+    return {
+      kind: "tabular-frame",
+      status: typeof record.status === "string" ? record.status : undefined,
+      columnCount: record.columns.length,
+      rowCount: record.rows.length,
+      fieldCount: Array.isArray(record.fields) ? record.fields.length : 0,
+    };
+  }
+
+  return {
+    kind: "record",
+    status: typeof record.status === "string" ? record.status : undefined,
+    keys: Object.keys(record).slice(0, 10),
+  };
+}
+
+function summarizeResolvedInputForDebug(value: ResolvedWidgetInput | ResolvedWidgetInput[] | undefined) {
+  const entries = Array.isArray(value) ? value : value ? [value] : [];
+
+  return entries.map((entry) => ({
+    inputId: entry.inputId,
+    status: entry.status,
+    sourceWidgetId: entry.sourceWidgetId,
+    sourceOutputId: entry.sourceOutputId,
+    contractId: entry.contractId,
+    value: summarizeResolvedValueForDebug(entry.value),
+  }));
+}
+
 function getInputDefinition(
   io: WidgetIoDefinition | undefined,
   inputId: string,
@@ -721,6 +775,20 @@ export function createDashboardWidgetDependencyModel(
       outputs.map((output) => [output.id, resolveSingleOutput(instance, output, resolvedInputs)]),
     ) satisfies ResolvedWidgetOutputs;
 
+    if (import.meta.env.DEV) {
+      const datasetOutput = resolvedOutputs.dataset;
+
+      if (datasetOutput) {
+        console.debug("[widget-deps] outputs resolved", {
+          instanceId,
+          widgetId: instance.widgetId,
+          outputId: datasetOutput.outputId,
+          contractId: datasetOutput.contractId,
+          value: summarizeResolvedValueForDebug(datasetOutput.value),
+        });
+      }
+    }
+
     resolvedOutputCache.set(instanceId, resolvedOutputs);
     return resolvedOutputs;
   };
@@ -761,6 +829,19 @@ export function createDashboardWidgetDependencyModel(
         ),
       ]),
     ) satisfies ResolvedWidgetInputs;
+
+    if (import.meta.env.DEV) {
+      console.debug("[widget-deps] inputs resolved", {
+        instanceId,
+        widgetId: instance.widgetId,
+        inputs: Object.fromEntries(
+          Object.entries(resolvedInputs).map(([inputId, inputValue]) => [
+            inputId,
+            summarizeResolvedInputForDebug(inputValue),
+          ]),
+        ),
+      });
+    }
 
     resolvedInputCache.set(instanceId, resolvedInputs);
     return resolvedInputs;

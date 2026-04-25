@@ -318,9 +318,9 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
       id: "data-node-rows-between-dates",
       label: "Rows between dates",
       description:
-        "Fetches rows for the configured Data Node across a time range and returns a time-series or tabular frame.",
-      outputContracts: ["core.time_series_frame@v1", "core.tabular_frame@v1"],
-      defaultOutputContract: "core.time_series_frame@v1",
+        "Fetches rows for the configured Data Node across a time range and returns one canonical tabular frame with optional time-series hints.",
+      outputContracts: ["core.tabular_frame@v1"],
+      defaultOutputContract: "core.tabular_frame@v1",
       timeRangeAware: true,
     },
     {

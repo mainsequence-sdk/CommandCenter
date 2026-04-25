@@ -60,13 +60,20 @@ preserved as the canonical source widget. Its source and transform responsibilit
 into generic graph nodes:
 
 1. a generic `Connection Query` execution-owner widget that calls configured connection query
-   models and publishes `core.tabular_frame@v1`
+   models and publishes `core.tabular_frame@v1` or `core.time_series_frame@v1`
 2. a generic `Tabular Transform` execution-owner widget that consumes `core.tabular_frame@v1`,
    applies analytical transforms, and republishes `core.tabular_frame@v1`
 
 Data Node access continues through the `mainsequence.data-node` connection type. A configured Data
 Node connection instance owns the selected Data Node in its public config. Workspace widgets should
 not store direct Data Node ids as the canonical source selector.
+
+Connection query authoring must have one frontend implementation. The workspace Connection Query
+widget settings and Data Sources Explore both use the same query workbench, request builder, typed
+connection query editors, runtime range controls, generated request preview, execution helper, and
+normalized frame preview. The only semantic difference is ownership of the draft: a workspace
+widget persists `ConnectionQueryWidgetProps` in a workspace document, while Explore owns a local
+draft unless the user saves it as a reusable backend query.
 
 ## Target Contracts
 
@@ -81,7 +88,6 @@ interface ConnectionQueryWidgetProps {
   connectionRef: ConnectionRef;
   queryModelId: string;
   query: Record<string, unknown>;
-  requestedOutputContract?: ConnectionResponseContractId;
   timeRangeMode?: "dashboard" | "fixed" | "none";
   fixedStartMs?: number;
   fixedEndMs?: number;
@@ -96,8 +102,8 @@ Runtime behavior:
 - resolve the selected query model by `queryModelId`
 - pass dashboard or fixed time range into `queryConnection(...)` as top-level `timeRange` ISO
   strings when the query model is time-range aware
-- pass `requestedOutputContract` through the standard connection request envelope when the selected
-  query model can return more than one frame contract
+- derive the requested output contract from the selected connection query model metadata; users do
+  not select output frame type manually
 - normalize the selected matching `ConnectionQueryResponse.frames[]` entry into
   `core.tabular_frame@v1` or `core.time_series_frame@v1`
 - publish a canonical `dataset` output with the resolved frame contract
@@ -105,10 +111,51 @@ Runtime behavior:
 
 The widget should use a connection type's custom `queryEditor` when available and fall back to a
 generic JSON query editor only when the connection type does not provide one. The `queryEditor`
-receives the selected connection instance, connection type, query model, requested output contract,
-current typed query payload, and `onChange`. Connection-specific kwargs such as Data Node columns,
-identifier filters, SQL parameters, PostgreSQL time-series field mapping, Prometheus matchers, and
-adapter-specific limits must be rendered there rather than as static fields in the generic widget.
+receives the selected connection instance, connection type, query model, current typed query
+payload, and `onChange`. Connection-specific kwargs such as Data Node columns, identifier filters,
+SQL parameters, PostgreSQL time-series field mapping, Prometheus matchers, and adapter-specific
+limits must be rendered there rather than as static fields in the generic widget.
+
+### Shared Query Workbench
+
+`ConnectionQueryWorkbench` is the shared authoring and test surface for connection query drafts.
+It is used by:
+
+- workspace Connection Query widget settings
+- generic Data Sources Explore fallback
+- connection-specific Explore shells that need source metadata around the same query form
+
+The workbench is responsible for selecting the connection path, invoking typed connection
+`queryEditor` components, building the exact `ConnectionQueryRequest`, showing the generated
+request preview, executing test queries through the same helper used by widget runtime execution,
+and rendering the normalized frame response. Do not add per-connection Explore code that calls
+`queryConnection(...)` directly unless the connection is explicitly outside the standard query
+contract.
+
+### Reusable Saved Connection Queries
+
+The platform needs a backend-owned saved query model per data source so Explore and workspace
+widgets can reuse the same authored query. This is separate from extension-owned connection
+`queryModels`: connection `queryModels` define available operation kinds, while saved connection
+queries are user/org-authored instances of one operation against one connection instance.
+
+A saved connection query backend record should store at least:
+
+- stable id and display name
+- owner or organization scope and permission metadata
+- `connectionUid` and `connectionTypeId`
+- selected `queryModelId`
+- typed query payload, including `query.kind`
+- `timeRangeMode`, fixed date defaults when applicable, and any future relative range default
+- standard `variables` and `maxRows`
+- derived output contract metadata from the selected query model, for validation and display
+- audit timestamps and the connection instance version marker if needed for invalidation
+
+It must not store endpoint URLs, route fragments, tokens, credentials, or mutable connection
+display labels as authoritative runtime data. Backend APIs must validate the saved query against
+the current connection type metadata, the connection instance, and the caller permissions before
+reuse. Frontend workspaces may persist an inline query draft or a future `savedQueryId`, but the
+saved backend record is the reusable source of truth when the author chooses to save a query.
 
 ### Tabular Transform Widget
 
@@ -155,6 +202,8 @@ Workspace storage impact:
   direct source props
 - persist `connectionRef`, query model id, query config, time range config, and transform config on
   the new generic source and transform widgets
+- later allow workspace source widgets to reference a backend saved connection query id when the
+  backend saved-query model lands
 - keep widget bindings as the canonical graph edge model
 - continue using `runtimeState` for execution-owned published datasets
 
@@ -164,6 +213,8 @@ Backend contract impact:
 - old Data Node widget type rows should be deactivated or removed from normal catalogs
 - backend workspace validation must understand the new widget ids and props
 - saved-widget validation must understand the new widget ids and props
+- backend must add a reusable saved connection query model/API per data source before saved query
+  reuse can be considered complete
 - connection query adapters must return normalized `ConnectionQueryResponse` frames for tabular
   data
 - `mainsequence.data-node` should resolve the Data Node from the connection instance public config
@@ -217,6 +268,8 @@ ADR when the corresponding implementation has landed.
 - [x] Define the generic Tabular Transform widget props, IO, execution contract, and registry
   contract.
 - [x] Decide the final widget ids for generic table, generic chart, and generic statistic widgets.
+- [x] Share one frontend Connection Query workbench between workspace widget settings and Data
+  Sources Explore.
 - [x] Add or update value descriptors for `core.tabular_frame@v1` outputs so graph binding tools
   can inspect fields consistently.
 - [x] Keep binding-level transforms limited to structural extraction and array item selection.
@@ -273,6 +326,10 @@ ADR when the corresponding implementation has landed.
   dedupe.
 - [ ] Confirm backend connection query adapters never trust frontend-provided endpoint paths or
   credentials.
+- [ ] Add a backend saved connection query model/API scoped per data source for reusable authored
+  queries.
+- [ ] Let Explore and Connection Query widgets load, apply, and save backend saved connection
+  queries by id.
 
 ### Documentation And UI Language
 

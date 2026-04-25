@@ -13,7 +13,7 @@ import type { StatisticWidgetProps } from "./statisticModel";
 
 export const statisticWidget = defineWidget<StatisticWidgetProps>({
   id: "statistic",
-  widgetVersion: "2.0.0",
+  widgetVersion: "2.1.0",
   title: "Statistic",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -90,7 +90,8 @@ export const statisticWidget = defineWidget<StatisticWidgetProps>({
     },
     io: {
       mode: "consumer",
-      summary: "Consumes one tabular frame and derives statistic cards from its rows.",
+      summary:
+        "Consumes one canonical tabular frame and derives statistic cards from its rows.",
     },
     capabilities: {
       acceptedContracts: [TABULAR_SOURCE_CONTRACT],

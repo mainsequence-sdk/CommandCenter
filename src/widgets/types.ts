@@ -285,6 +285,7 @@ export interface WidgetExecutionTargetOverrides<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
   props?: TProps;
+  bindings?: WidgetInstanceBindings;
   runtimeState?: Record<string, unknown>;
   draftValues?: Record<string, string>;
 }

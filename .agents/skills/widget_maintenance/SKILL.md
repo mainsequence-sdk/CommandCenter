@@ -1,6 +1,6 @@
 ---
 name: widget_maintenance
-description: Use when building, modifying, refactoring, reviewing, or documenting Command Center widgets, widget definitions, widget settings, widget IO ports, registry contracts, runtime execution behavior, or USAGE_GUIDANCE.md files. Ensures widget maintenance tasks are completed, especially keeping the backend-synced widget usage guidance accurate.
+description: Use after building, modifying, refactoring, reviewing, or documenting Command Center widgets, widget definitions, widget settings, widget IO ports, registry contracts, runtime execution behavior, or USAGE_GUIDANCE.md files. Ensures widget maintenance tasks are completed, especially keeping the backend-synced widget usage guidance accurate. Do not use consantly on every modificaiton as this shoudl be only maintence cycle
 ---
 
 # Widget Maintenance

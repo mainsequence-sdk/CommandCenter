@@ -2,7 +2,7 @@ import type { ResolvedWidgetInputs } from "@/widgets/types";
 
 import {
   buildTabularSourceDescriptor,
-  normalizeTabularFrameSource,
+  normalizeAnyTabularFrameSource,
   TABULAR_SOURCE_CONTRACT,
 } from "@/widgets/shared/tabular-widget-source";
 import {
@@ -111,6 +111,6 @@ export function resolveStatisticSourceDataset(
     : resolvedEntry;
 
   return candidate?.status === "valid"
-    ? normalizeTabularFrameSource(candidate.value)
+    ? normalizeAnyTabularFrameSource(candidate.value)
     : null;
 }
