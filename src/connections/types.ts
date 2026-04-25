@@ -69,6 +69,8 @@ export interface ConnectionQueryModel {
   description?: string;
   outputContracts: WidgetContractId[];
   defaultOutputContract?: ConnectionResponseContractId;
+  defaultQuery?: Record<string, unknown>;
+  controls?: string[];
   timeRangeAware?: boolean;
   supportsVariables?: boolean;
   supportsMaxRows?: boolean;

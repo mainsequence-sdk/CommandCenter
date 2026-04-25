@@ -74,13 +74,45 @@ async function readResponsePayload(response: Response) {
   return text.trim() ? text : null;
 }
 
+function formatErrorValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(formatErrorValue).filter(Boolean).join(" ");
+  }
+
+  if (isRecord(value)) {
+    return Object.entries(value)
+      .map(([key, entry]) => {
+        const message = formatErrorValue(entry);
+        return message ? `${key}: ${message}` : "";
+      })
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
 function readErrorMessage(payload: unknown) {
   if (typeof payload === "string" && payload.trim()) {
     return payload.trim();
   }
 
-  if (isRecord(payload) && typeof payload.detail === "string" && payload.detail.trim()) {
-    return payload.detail.trim();
+  if (isRecord(payload)) {
+    for (const key of ["exception_detail", "detail", "message", "error", "errors"]) {
+      const message = formatErrorValue(payload[key]);
+
+      if (message) {
+        return message;
+      }
+    }
   }
 
   return "";

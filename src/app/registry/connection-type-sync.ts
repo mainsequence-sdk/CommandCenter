@@ -12,7 +12,7 @@ import type {
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 
-export const CONNECTION_REGISTRY_VERSION = "2026-04-25";
+export const CONNECTION_REGISTRY_VERSION = "2026-04-26";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };

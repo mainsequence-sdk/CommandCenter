@@ -432,6 +432,13 @@ function isRuntimeFrameQueryModel(model: { outputContracts?: readonly string[] }
   );
 }
 
+function buildDefaultQueryForModel(model: { id: string; defaultQuery?: Record<string, unknown> }) {
+  return {
+    ...(model.defaultQuery ?? {}),
+    kind: model.id,
+  };
+}
+
 export function ConnectionQueryWorkbench({
   autoSelectFirstQueryModel = false,
   connectionInstance,
@@ -552,7 +559,7 @@ export function ConnectionQueryWorkbench({
     onChange({
       ...value,
       queryModelId: nextQueryModel.id,
-      query: { kind: nextQueryModel.id },
+      query: buildDefaultQueryForModel(nextQueryModel),
       timeRangeMode: nextQueryModel.timeRangeAware
         ? workspaceDateRuntimeAvailable
           ? "dashboard"
@@ -646,7 +653,7 @@ export function ConnectionQueryWorkbench({
                 query: nextQueryModel
                   ? selectedModelStillValid
                     ? normalizedProps.query
-                    : { kind: nextQueryModel.id }
+                    : buildDefaultQueryForModel(nextQueryModel)
                   : {},
                 timeRangeMode: nextQueryModel?.timeRangeAware
                   ? workspaceDateRuntimeAvailable
@@ -685,8 +692,8 @@ export function ConnectionQueryWorkbench({
               const nextQuery =
                 nextQueryModelId && nextQueryModelId === normalizedProps.queryModelId
                   ? { ...(normalizedProps.query ?? {}), kind: nextQueryModelId }
-                  : nextQueryModelId
-                    ? { kind: nextQueryModelId }
+                  : nextQueryModel
+                    ? buildDefaultQueryForModel(nextQueryModel)
                     : {};
 
               updateValue({

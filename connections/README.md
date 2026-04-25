@@ -8,6 +8,10 @@ API clients, hooks, and picker components.
 
 - `*/index.ts`: each custom connection entrypoint exports a `ConnectionTypeDefinition`, an array of
   definitions, or an object with a `connections` array.
+- `alpaca/`: Alpaca Market Data connection metadata, config editor, query editor, Explore shell,
+  and official brand icon.
+- `binance/`: Binance Market Data connection metadata, config editor, query editor, Explore shell,
+  and square logo asset.
 - `prometheus/`: Prometheus connection metadata and its custom Explore shell.
 - `postgresql/`: PostgreSQL connection metadata and its custom SQL Explore shell.
 
