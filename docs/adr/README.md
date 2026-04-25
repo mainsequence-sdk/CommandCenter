@@ -21,6 +21,7 @@ feature folder.
 - [ADR: Single Runtime Owner for Workspace Widgets](./adr-single-runtime-owner-workspace-widgets.md)
 - [ADR: Connection-First Workspace Dataflow](./adr-connection-first-workspace-dataflow.md)
 - [ADR: Incremental Workspace Normalization and Resource-Scoped Save](./adr-incremental-workspace-normalization.md)
+- [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
 - [ADR: Live Workspace Agent Snapshot Archive](./adr-live-workspace-agent-snapshot-archive.md)
 - [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](./adr-widget-agent-context-bindings.md)
 - [ADR: Workspace Widget Referenced Workspace Graph Expansion](./adr-workspace-widget-referenced-graph-expansion.md)
@@ -30,6 +31,7 @@ feature folder.
 - [ADR: First-Class Widget Bindings and Dependency Graph](./adr-widget-bindings-and-dependency-graph.md)
 - [ADR: Binding-Level Output Transforms for Structured Widget Outputs](./adr-binding-output-transforms.md)
 - [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
+- [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
 - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
 - [ADR: Source-Driven Downstream Execution After Manual Widget Actions](./adr-source-driven-downstream-execution.md)
 - [ADR: Connection-First Workspace Dataflow](./adr-connection-first-workspace-dataflow.md)
@@ -51,6 +53,7 @@ feature folder.
 - [ADR: Runtime Credential Browser Auth](./adr-runtime-credential-browser-auth.md)
 - [ADR: First-Class Connection Model](./adr-first-class-connection-model.md)
 - [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
+- [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
 - [ADR: Main Sequence Simple Table Connection](./adr-main-sequence-simple-table-connection.md)
 - [ADR: PostgreSQL Custom Connection](./adr-postgresql-connection.md)
 

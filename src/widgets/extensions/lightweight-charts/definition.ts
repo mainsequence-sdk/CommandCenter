@@ -12,40 +12,6 @@ import {
   type LightweightChartsSpecWidgetProps,
 } from "./LightweightChartsSpecWidget";
 import { LightweightChartsSpecWidgetSettings } from "./LightweightChartsSpecWidgetSettings";
-import { PriceChartWidget } from "./PriceChartWidget";
-
-export const priceChartWidget = defineWidget<{ symbol?: string }>({
-  id: "price-chart",
-  widgetVersion: "1.0.0",
-  title: "Price Chart",
-  description: resolveWidgetDescription(usageGuidanceMarkdown, "price-chart"),
-  category: "Main Sequence Markets",
-  kind: "chart",
-  source: "main_sequence_markets",
-  requiredPermissions: ["main_sequence_markets:view"],
-  tags: ["main-sequence", "markets", "market", "price-chart", "lightweight-charts"],
-  exampleProps: { symbol: "AAPL" },
-  registryContract: {
-    configuration: {
-      mode: "custom-settings",
-      summary: "Configures a simple symbol-driven legacy price chart widget.",
-      fields: [
-        {
-          id: "symbol",
-          label: "Symbol",
-          type: "string",
-          source: "custom-settings",
-        },
-      ],
-    },
-    io: {
-      mode: "none",
-      summary: "This legacy chart widget owns its own local query behavior and does not use typed widget IO.",
-    },
-    usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown, "price-chart"),
-  },
-  component: PriceChartWidget,
-});
 
 export const lightweightChartsSpecWidget = defineWidget<LightweightChartsSpecWidgetProps>({
   id: "lightweight-charts-spec",

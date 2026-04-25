@@ -42,6 +42,7 @@ export interface StatisticWidgetProps
   extends Record<string, unknown>,
     TabularWidgetSourceReferenceProps {
   changeStyles?: StatisticChangeStyles;
+  columnCount?: number;
   colorMode?: StatisticColorMode;
   decimals?: number;
   groupField?: string;
@@ -58,6 +59,7 @@ export interface StatisticWidgetProps
 export interface ResolvedStatisticConfig {
   availableFields: TabularFieldOption[];
   changeStyles?: StatisticChangeStyles;
+  columnCount?: number;
   colorMode: StatisticColorMode;
   decimals?: number;
   groupField?: string;
@@ -155,6 +157,16 @@ function normalizeDecimals(value: unknown) {
   }
 
   return Math.max(0, Math.min(Math.trunc(parsed), 6));
+}
+
+function normalizeColumnCount(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return undefined;
+  }
+
+  return Math.max(1, Math.min(Math.trunc(parsed), 8));
 }
 
 function normalizeText(value: unknown) {
@@ -681,6 +693,7 @@ export function resolveStatisticConfig(
   return {
     availableFields: [...availableFields],
     changeStyles: normalizeStatisticChangeStyles(props.changeStyles),
+    columnCount: normalizeColumnCount(props.columnCount),
     colorMode: normalizeColorMode(props.colorMode),
     decimals: normalizeDecimals(props.decimals),
     groupField: normalizeFieldKey(props.groupField, availableFields),
@@ -708,6 +721,7 @@ export function normalizeStatisticProps(
 
   return {
     changeStyles: resolved.changeStyles,
+    columnCount: resolved.columnCount,
     colorMode: resolved.colorMode,
     sourceMode: "filter_widget",
     sourceWidgetId: resolved.sourceWidgetId,
@@ -786,18 +800,12 @@ export function buildStatisticCards(
 
   if (cards.length === 1) {
     return {
-      cards: cards.map((card) => ({
-        ...card,
-        chartPoints: card.chartPoints,
-      })),
+      cards,
     };
   }
 
   return {
-    cards: cards.map((card) => ({
-      ...card,
-      chartPoints: undefined,
-    })),
+    cards,
   };
 }
 

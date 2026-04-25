@@ -36,13 +36,6 @@ const financialMarketsMonitorDashboard: DashboardDefinition = {
   requiredPermissions: ["main_sequence_markets:view"],
   widgets: [
     {
-      id: "overview-price",
-      widgetId: "price-chart",
-      title: "NVDA Tape",
-      props: { symbol: "NVDA" },
-      layout: { cols: 12, rows: 4 },
-    },
-    {
       id: "overview-positions",
       widgetId: "positions-table",
       title: "Book Snapshot",

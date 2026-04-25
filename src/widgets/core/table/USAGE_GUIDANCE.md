@@ -21,7 +21,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, or manually authore
 - For bound mode, bind the inbound `sourceData` port to a Connection Query or Tabular Transform `dataset` output.
 - For manual mode, define columns and rows in the table editor. Manual rows are stored in this table widget's props and are published as the table `dataset` output.
 - Inspect the incoming field schema before editing columns. Prefer upstream `fields` metadata when available; otherwise the table infers labels, types, and numeric eligibility from the current row sample.
-- Configure table-level presentation, column formatting, value mappings, and numeric visual treatments.
+- Configure table-level presentation first. In the per-column editor, the default row keeps only key, label, format, and visibility inline; expand `Advanced` only when a column needs descriptions, pinning, numeric visuals, or display overrides.
 - Bind downstream widgets to the table `dataset` output when they should consume the same canonical tabular frame.
 
 ## blockingRequirements

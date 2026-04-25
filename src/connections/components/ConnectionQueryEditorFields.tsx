@@ -1,4 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+
+import { X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,12 +42,12 @@ export function ConnectionQueryField({
   label: ReactNode;
 }) {
   return (
-    <label className={["block space-y-1.5", className].filter(Boolean).join(" ")}>
+    <div className={["block space-y-1.5", className].filter(Boolean).join(" ")}>
       <WidgetSettingFieldLabel help={help} textClassName="text-xs font-medium text-muted-foreground">
         {label}
       </WidgetSettingFieldLabel>
       {children}
-    </label>
+    </div>
   );
 }
 
@@ -160,10 +162,27 @@ export function QuerySqlField({
   );
 }
 
-function stringifyStringList(value: unknown) {
-  return Array.isArray(value)
-    ? value.flatMap((entry) => (typeof entry === "string" ? [entry] : [])).join("\n")
-    : "";
+function normalizeStringList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+
+  return value.flatMap((entry) => {
+    if (typeof entry !== "string") {
+      return [];
+    }
+
+    const trimmed = entry.trim();
+
+    if (!trimmed || seen.has(trimmed)) {
+      return [];
+    }
+
+    seen.add(trimmed);
+    return [trimmed];
+  });
 }
 
 function parseStringList(value: string) {
@@ -197,32 +216,111 @@ export function QueryStringListField({
   placeholder?: string;
   value?: unknown;
 }) {
-  const [draft, setDraft] = useState(() => stringifyStringList(value));
+  const entries = useMemo(() => normalizeStringList(value), [value]);
+  const [draft, setDraft] = useState("");
 
   useEffect(() => {
-    setDraft(stringifyStringList(value));
+    if (normalizeStringList(value).length === 0) {
+      setDraft("");
+    }
   }, [value]);
 
-  function commit(nextDraft = draft) {
-    const nextList = parseStringList(nextDraft);
-    onChange(nextList.length > 0 ? nextList : undefined);
+  function updateEntries(nextEntries: string[]) {
+    onChange(nextEntries.length > 0 ? nextEntries : undefined);
+  }
+
+  function appendEntries(nextDraft = draft) {
+    const parsedEntries = parseStringList(nextDraft);
+
+    if (parsedEntries.length === 0) {
+      setDraft("");
+      return;
+    }
+
+    const seen = new Set(entries);
+    const nextEntries = [...entries];
+
+    parsedEntries.forEach((entry) => {
+      if (!seen.has(entry)) {
+        seen.add(entry);
+        nextEntries.push(entry);
+      }
+    });
+
+    updateEntries(nextEntries);
+    setDraft("");
+  }
+
+  function removeEntry(entryToRemove: string) {
+    updateEntries(entries.filter((entry) => entry !== entryToRemove));
   }
 
   return (
     <ConnectionQueryField help={help} label={label}>
-      <Textarea
-        value={draft}
-        onChange={(event) => {
-          setDraft(event.target.value);
-        }}
-        onBlur={() => {
-          commit();
-        }}
-        disabled={disabled}
-        placeholder={placeholder}
-        spellCheck={false}
-        className="min-h-28 font-mono text-xs"
-      />
+      <div
+        className={[
+          "min-h-24 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-2 py-2 shadow-sm transition-colors focus-within:border-primary/70 focus-within:ring-2 focus-within:ring-ring/30",
+          disabled ? "cursor-not-allowed opacity-50" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        data-no-widget-drag="true"
+      >
+        <div className="flex flex-wrap gap-1.5">
+          {entries.map((entry) => (
+            <span
+              key={entry}
+              className="inline-flex max-w-full items-center gap-1 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-muted/55 px-2 py-1 font-mono text-xs text-foreground"
+            >
+              <span className="truncate">{entry}</span>
+              <button
+                type="button"
+                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none"
+                onClick={(event) => {
+                  event.preventDefault();
+                  removeEntry(entry);
+                }}
+                disabled={disabled}
+                aria-label={`Remove ${entry}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          <Input
+            value={draft}
+            onChange={(event) => {
+              const nextDraft = event.target.value;
+
+              if (/[\n,]/.test(nextDraft)) {
+                appendEntries(nextDraft);
+                return;
+              }
+
+              setDraft(nextDraft);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === ",") {
+                event.preventDefault();
+                appendEntries();
+                return;
+              }
+
+              if (event.key === "Backspace" && draft.length === 0 && entries.length > 0) {
+                event.preventDefault();
+                updateEntries(entries.slice(0, -1));
+              }
+            }}
+            onBlur={() => {
+              appendEntries();
+            }}
+            disabled={disabled}
+            placeholder={entries.length === 0 ? placeholder?.split(/\n|,/)[0] : "Add value"}
+            spellCheck={false}
+            className="h-7 min-w-40 flex-1 border-0 bg-transparent px-1 py-0 font-mono text-xs shadow-none focus:border-0 focus:ring-0"
+          />
+        </div>
+      </div>
     </ConnectionQueryField>
   );
 }

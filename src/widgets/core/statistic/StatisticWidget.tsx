@@ -48,6 +48,18 @@ export function StatisticWidget({ props, instanceId, resolvedInputs }: Props) {
     () => buildStatisticCards(linkedDataset?.rows ?? [], resolvedConfig),
     [linkedDataset?.rows, resolvedConfig],
   );
+  const resolvedColumnCount = Math.max(
+    1,
+    Math.min(
+      statisticResult.cards.length,
+      resolvedConfig.columnCount ?? Math.min(statisticResult.cards.length, 4),
+    ),
+  );
+  const rowCount =
+    statisticResult.cards.length === 0
+      ? 0
+      : Math.ceil(statisticResult.cards.length / resolvedColumnCount);
+  const shouldFillHeight = rowCount <= 1;
   const sourceLabel =
     previewDataset?.source?.label?.trim() ||
     sourceBinding.resolvedSourceWidget?.title?.trim() ||
@@ -130,10 +142,11 @@ export function StatisticWidget({ props, instanceId, resolvedInputs }: Props) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col justify-center">
+    <div className="h-full min-h-0 overflow-auto">
       <StatisticCardGrid
         cards={statisticResult.cards}
-        fillHeight
+        columnCount={resolvedConfig.columnCount}
+        fillHeight={shouldFillHeight}
         showSourceLabel={resolvedConfig.showSourceLabel}
         sourceLabel={sourceLabel}
       />

@@ -11,8 +11,10 @@ Reusable UI components for connection-aware settings and app surfaces.
 - `ConnectionQueryEditorFields.tsx`: shared form controls for connection-specific query editors.
   These controls keep SQL, JSON-object, string-list, number, boolean, and source-summary fields
   consistent when a connection type renders its own query kwargs inside the Connection Query widget.
-  SQL fields render a CodeMirror-backed editor so connection Explore screens and widgets share one
-  query authoring surface.
+  SQL fields render a shared editor surface so connection Explore screens and widgets share one
+  query authoring path. String-list fields render committed tokens; pressing Enter or comma
+  adds the typed value to the parent query immediately, so Save actions do not lose in-progress
+  column or identifier edits.
 
 ## Maintenance Constraints
 

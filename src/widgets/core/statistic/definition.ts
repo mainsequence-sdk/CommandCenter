@@ -13,7 +13,7 @@ import type { StatisticWidgetProps } from "./statisticModel";
 
 export const statisticWidget = defineWidget<StatisticWidgetProps>({
   id: "statistic",
-  widgetVersion: "2.1.0",
+  widgetVersion: "2.2.0",
   title: "Statistic",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -34,6 +34,7 @@ export const statisticWidget = defineWidget<StatisticWidgetProps>({
     orderField: "updated_at",
     suffix: "%",
     decimals: 2,
+    columnCount: 3,
     colorMode: "change-from-last",
     showSourceLabel: true,
   },
@@ -75,11 +76,11 @@ export const statisticWidget = defineWidget<StatisticWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Reduces a bound tabular dataset into one or more statistic cards using selected value and grouping fields.",
+        "Reduces a bound tabular dataset into one or more statistic cards using selected value and grouping fields, per-card sparklines, and author-controlled columns.",
       requiredSetupSteps: [
         "Bind the widget to an upstream tabular dataset.",
         "Choose a statistic mode and value field.",
-        "Optionally choose grouping and presentation options.",
+        "Optionally choose grouping, column count, and presentation options.",
       ],
     },
     runtime: {
@@ -99,6 +100,8 @@ export const statisticWidget = defineWidget<StatisticWidgetProps>({
       supportedColorModes: ["none", "range-rules", "change-from-last"],
       supportedRangeOperators: ["gt", "gte", "lt", "lte", "eq"],
       supportsSingleFieldGrouping: true,
+      supportsColumnCount: true,
+      supportsPerCardSparklines: true,
       supportsOrderField: true,
       supportsValueFieldDisplayLabel: true,
       supportsPrefixSuffixFormatting: true,

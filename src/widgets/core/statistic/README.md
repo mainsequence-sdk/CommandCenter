@@ -18,7 +18,9 @@ into one or more KPI-style cards.
 - The widget consumes one `core.tabular_frame@v1` input on `sourceData`.
 - Supported reductions are `last`, `first`, `max`, `min`, `sum`, `mean`, and `count`.
 - Optional grouping renders one card per group value.
-- Single-card numeric output can render a compact sparkline from the same incoming value field.
+- Numeric cards can render a compact sparkline from the same incoming value field, including multi-card grouped layouts.
+- When the current grouped layout fits in one row, the statistic grid stretches to the full widget height instead of leaving unused space under the cards.
+- Multi-card layouts use an author-controlled column count and scroll instead of compressing every tile to fit the widget height.
 - The widget is a passive `consumer`; source queries and transforms belong upstream to Connection Query and Tabular Transform.
 
 ## Maintenance Constraints

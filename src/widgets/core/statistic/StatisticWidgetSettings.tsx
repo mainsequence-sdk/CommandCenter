@@ -383,6 +383,27 @@ export function StatisticWidgetSettings({
           </div>
 
           <div className={fieldClass}>
+            <label className={labelClass}>Columns</label>
+            <Input
+              type="number"
+              min={1}
+              max={8}
+              step={1}
+              value={resolvedDraft.columnCount ?? ""}
+              onChange={(event) => {
+                const nextValue = event.target.value.trim();
+
+                onDraftPropsChange({
+                  ...draftProps,
+                  columnCount: nextValue === "" ? undefined : Number(nextValue),
+                });
+              }}
+              className="h-8 text-xs"
+              disabled={!editable}
+            />
+          </div>
+
+          <div className={fieldClass}>
             <label className={labelClass}>Source label</label>
             <PickerField
               value={resolvedDraft.showSourceLabel ? "visible" : "hidden"}
@@ -431,6 +452,9 @@ export function StatisticWidgetSettings({
 
         <div className={descriptionClass}>
           `Last` and `First` use the selected order field when present. If no order field is selected, the statistic uses the published row order from the tabular source.
+        </div>
+        <div className={descriptionClass}>
+          Column count only affects grouped or otherwise multi-card statistic layouts. Single-card statistics always render as one tile.
         </div>
       </section>
 

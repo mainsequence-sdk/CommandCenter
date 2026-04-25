@@ -6,7 +6,6 @@ catalog.
 ## Files
 
 - `definition.ts`: widget registration metadata for the chart widgets in this module.
-- `PriceChartWidget.tsx`: realtime price line/area widget backed by the existing market history query and terminal tick stream.
 - `LightweightChartsSpecWidget.tsx`: safe JSON spec-driven Lightweight Charts renderer with
   theme/palette resolution, bound props JSON support, and organization-scoped resource budgets.
 - `LightweightChartsSpecWidgetSettings.tsx`: custom settings surface for authoring the declarative
@@ -15,8 +14,6 @@ catalog.
 ## Notable behavior
 
 - These widgets stay outside the core library so the optional Lightweight Charts dependency remains isolated here.
-- The stable `price-chart` widget id is now classified as `main_sequence_markets` in its widget
-  definition, while the renderer implementation remains in this module.
 - `lightweight-charts-spec` is the spec-driven sibling to `echarts-spec`, but it stays aligned to
   Lightweight Charts' time-series-native runtime model instead of trying to mirror the full ECharts
   option surface.

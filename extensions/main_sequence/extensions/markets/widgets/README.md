@@ -10,9 +10,9 @@ This folder contains widget definitions and widget-owned presentation components
 - [`zero-curve/`](./zero-curve/README.md): live `Zero Curve` widget that renders bound compressed
   Main Sequence curve payloads on a numeric days axis with ECharts. It is tagged as a workspace
   runtime `consumer`.
-- [`price-chart`](../../../../../src/widgets/extensions/lightweight-charts/README.md): the stable `price-chart` widget id is classified as `main_sequence_markets`, even
-  though its Lightweight Charts renderer implementation still lives in
-  `src/widgets/extensions/lightweight-charts/`.
+- [`ohlc-bars/`](./ohlc-bars/README.md): live `OHLC Bars` widget that renders bound tabular market
+  bars with Lightweight Charts. It is tagged as a workspace runtime `consumer` and expects a
+  tabular response with time/open/high/low/close fields or equivalent mapped columns.
 - [`positions-table`](../../../../../src/widgets/extensions/ag-grid/README.md): the stable `positions-table` widget id is classified as
   `main_sequence_markets`, even though its AG Grid renderer implementation still lives in
   `src/widgets/extensions/ag-grid/`.
@@ -20,8 +20,8 @@ This folder contains widget definitions and widget-owned presentation components
 
 ## Browser Grouping
 
-- `Curve Plot`, `Zero Curve`, `Price Chart`, `Positions Table`, and `Portfolio Weights` should all
-  appear under the `Main Sequence Markets` widget-browser category.
+- `Curve Plot`, `Zero Curve`, `OHLC Bars`, `Positions Table`, and `Portfolio
+  Weights` should all appear under the `Main Sequence Markets` widget-browser category.
 
 ## Rules
 

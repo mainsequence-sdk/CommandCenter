@@ -1,25 +1,3 @@
-## price-chart
-
-### buildPurpose
-
-Legacy simple market price chart.
-
-### whenToUse
-
-- Use only when this legacy lightweight-charts widget is explicitly desired.
-
-### whenNotToUse
-
-- Do not use when a newer data-node-backed chart should own the visualization.
-
-### authoringSteps
-
-- Set the symbol to chart.
-
-### commonPitfalls
-
-- This widget is not part of the canonical typed Data Node chart pipeline.
-
 ## lightweight-charts-spec
 
 ### buildPurpose

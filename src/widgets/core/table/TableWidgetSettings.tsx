@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,7 @@ import {
   type TableWidgetColumnSchema,
   type TableWidgetColumnOverride,
   type TableWidgetConditionalRule,
+  type ResolvedTableWidgetColumnConfig,
   type TableWidgetProps,
   type TableWidgetSchemaValidationIssue,
   type TableWidgetTone,
@@ -81,6 +83,7 @@ const tableFieldHelp = {
   columnKey: "Maps this table column to an incoming field key from the bound dataset frame.",
   columnLabel: "Overrides the header text shown for this column.",
   columnFormat: "Controls how values are parsed and displayed. Text enables value chips; numeric formats enable decimals, compact numbers, heatmaps, data bars, gauges, and thresholds.",
+  columnVisibility: "Shows or hides this column in the rendered table without removing it from the saved schema.",
   columnDescription: "Optional header tooltip text for this table column.",
   align: "Controls horizontal cell alignment. Auto chooses a default from the current column format.",
   pin: "Keeps the column fixed on the left or right side while the table scrolls horizontally.",
@@ -194,6 +197,27 @@ function normalizeColumnOverride(override: TableWidgetColumnOverride) {
   }
 
   return Object.keys(nextValue).length > 0 ? nextValue : undefined;
+}
+
+function hasAdvancedColumnConfiguration(
+  column: ResolvedTableWidgetColumnConfig,
+  override: TableWidgetColumnOverride,
+) {
+  return Boolean(
+    (column.description && column.description.trim()) ||
+      column.pinned ||
+      typeof column.decimals === "number" ||
+      (column.prefix && column.prefix.trim()) ||
+      (column.suffix && column.suffix.trim()) ||
+      column.compact ||
+      column.barMode !== "none" ||
+      column.gradientMode !== "none" ||
+      column.gaugeMode !== "none" ||
+      column.visualRangeMode !== "auto" ||
+      typeof column.visualMin === "number" ||
+      typeof column.visualMax === "number" ||
+      (override.align && override.align !== "auto"),
+  );
 }
 
 function normalizeValueLabel(entry: TableWidgetValueLabel) {
@@ -391,6 +415,7 @@ export function TableWidgetSettings({
   const conditionalRules = scopedDraft.conditionalRules ?? [];
   const fallbackTextColor = resolvedTokens.primary;
   const fallbackFillColor = resolvedTokens.primary;
+  const [expandedColumnKeys, setExpandedColumnKeys] = useState<Record<string, boolean>>({});
 
   function commit(nextProps: TableWidgetProps) {
     onDraftPropsChange(stripLegacyTableSourceFields(nextProps));
@@ -530,6 +555,13 @@ export function TableWidgetSettings({
     }
 
     return [currentColumn, ...numericFormattedColumns];
+  }
+
+  function toggleColumnAdvanced(columnKey: string) {
+    setExpandedColumnKeys((current) => ({
+      ...current,
+      [columnKey]: !current[columnKey],
+    }));
   }
 
   return (
@@ -824,7 +856,7 @@ export function TableWidgetSettings({
       />
 
       <section className={sectionClass}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className={titleClass}>Columns</div>
             <p className={descriptionClass}>
@@ -856,7 +888,7 @@ export function TableWidgetSettings({
           </Button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {displayedColumns.length === 0 ? (
             <p className={descriptionClass}>
               {isManualTableMode
@@ -865,45 +897,36 @@ export function TableWidgetSettings({
             </p>
           ) : displayedColumns.map((column, index) => {
             const override = scopedDraft.columnOverrides?.[column.key] ?? {};
+            const advancedExpanded = expandedColumnKeys[column.key] ?? false;
+            const advancedConfigured = hasAdvancedColumnConfiguration(column, override);
+
             return (
               <div
                 key={column.key}
-                className={insetSectionClass}
+                className="space-y-2.5 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3"
               >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className={titleClass}>{column.label}</div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className={widgetTightFormButtonGroupClass}>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={column.visible ? "default" : "outline"}
-                        disabled={!editable}
-                        onClick={() => {
-                          updateColumnOverride(column.key, (current) => ({
-                            ...current,
-                            visible: true,
-                          }));
-                        }}
-                      >
-                        Visible
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={!column.visible ? "default" : "outline"}
-                        disabled={!editable}
-                        onClick={() => {
-                          updateColumnOverride(column.key, (current) => ({
-                            ...current,
-                            visible: false,
-                          }));
-                        }}
-                      >
-                        Hidden
-                      </Button>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className={titleClass}>{column.label}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {column.key}
+                      {advancedConfigured ? " · Advanced configured" : ""}
                     </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={advancedExpanded ? "default" : "outline"}
+                      disabled={!editable}
+                      onClick={() => {
+                        toggleColumnAdvanced(column.key);
+                      }}
+                    >
+                      Advanced
+                      {advancedExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    </Button>
 
                     <Button
                       type="button"
@@ -919,7 +942,7 @@ export function TableWidgetSettings({
                   </div>
                 </div>
 
-                <div className="grid gap-3 lg:grid-cols-[1fr,1.1fr,0.9fr,1.3fr]">
+                <div className="grid items-end gap-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(180px,240px)_72px]">
                   <div className={fieldClass}>
                     <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnKey}>
                       Key
@@ -979,353 +1002,383 @@ export function TableWidgetSettings({
                     </Select>
                   </div>
 
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnDescription}>
-                      Description
+                  <div className={`${fieldClass} flex flex-col items-center`}>
+                    <WidgetSettingFieldLabel
+                      className="flex w-full justify-center text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
+                      help={tableFieldHelp.columnVisibility}
+                    >
+                      Visible
                     </WidgetSettingFieldLabel>
-                    <Input
-                      className={inputClass}
-                      value={column.description ?? ""}
-                      placeholder="Optional"
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant={column.visible ? "default" : "outline"}
+                      className="h-8 w-8"
                       disabled={!editable}
-                      onChange={(event) => {
-                        updateSchemaColumn(index, (current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }));
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-3 lg:grid-cols-3">
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.align}>
-                      Align
-                    </WidgetSettingFieldLabel>
-                    <Select
-                      className={selectClass}
-                      value={override.align ?? "auto"}
-                      disabled={!editable}
-                      onChange={(event) => {
+                      title={column.visible ? "Hide column" : "Show column"}
+                      aria-label={column.visible ? "Hide column" : "Show column"}
+                      onClick={() => {
                         updateColumnOverride(column.key, (current) => ({
                           ...current,
-                          align: event.target.value as TableWidgetColumnOverride["align"],
+                          visible: !column.visible,
                         }));
                       }}
                     >
-                      {tableWidgetAlignOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.pin}>
-                      Pin
-                    </WidgetSettingFieldLabel>
-                    <Select
-                      className={selectClass}
-                      value={override.pinned ?? "none"}
-                      disabled={!editable}
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          pinned: event.target.value as TableWidgetColumnOverride["pinned"],
-                        }));
-                      }}
-                    >
-                      {tableWidgetPinnedOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.decimals}>
-                      Decimals
-                    </WidgetSettingFieldLabel>
-                    <Input
-                      className={inputClass}
-                      type="number"
-                      min={0}
-                      max={6}
-                      value={override.decimals ?? ""}
-                      placeholder={column.decimals == null ? "auto" : String(column.decimals)}
-                      disabled={!editable || column.format === "text"}
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          decimals:
-                            event.target.value === ""
-                              ? undefined
-                              : Number(event.target.value),
-                        }));
-                      }}
-                    />
+                      {column.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    </Button>
                   </div>
                 </div>
 
-                <div className="grid gap-3 lg:grid-cols-4">
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.prefix}>
-                      Prefix
-                    </WidgetSettingFieldLabel>
-                    <Input
-                      className={inputClass}
-                      value={override.prefix ?? ""}
-                      placeholder={column.prefix ?? "none"}
-                      disabled={!editable}
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          prefix: event.target.value || undefined,
-                        }));
-                      }}
-                    />
-                  </div>
-
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.suffix}>
-                      Suffix
-                    </WidgetSettingFieldLabel>
-                    <Input
-                      className={inputClass}
-                      value={override.suffix ?? ""}
-                      placeholder={column.suffix ?? "none"}
-                      disabled={!editable}
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          suffix: event.target.value || undefined,
-                        }));
-                      }}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.compactNumbers}>
-                      Compact numbers
-                    </WidgetSettingFieldLabel>
-                    <div className={widgetTightFormButtonGroupClass}>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={column.compact ? "default" : "outline"}
-                        disabled={!editable || column.format === "text"}
-                        onClick={() => {
-                          updateColumnOverride(column.key, (current) => ({
+                {advancedExpanded ? (
+                  <div className="space-y-3 border-t border-border/60 pt-3">
+                    <div className={fieldClass}>
+                      <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnDescription}>
+                        Description
+                      </WidgetSettingFieldLabel>
+                      <Input
+                        className={inputClass}
+                        value={column.description ?? ""}
+                        placeholder="Optional"
+                        disabled={!editable}
+                        onChange={(event) => {
+                          updateSchemaColumn(index, (current) => ({
                             ...current,
-                            compact: true,
+                            description: event.target.value,
                           }));
                         }}
-                      >
-                        Compact
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={!column.compact ? "default" : "outline"}
-                        disabled={!editable || column.format === "text"}
-                        onClick={() => {
-                          updateColumnOverride(column.key, (current) => ({
-                            ...current,
-                            compact: false,
-                          }));
-                        }}
-                      >
-                        Standard
-                      </Button>
+                      />
+                    </div>
+
+                    <div className="grid gap-3 lg:grid-cols-3">
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.align}>
+                          Align
+                        </WidgetSettingFieldLabel>
+                        <Select
+                          className={selectClass}
+                          value={override.align ?? "auto"}
+                          disabled={!editable}
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              align: event.target.value as TableWidgetColumnOverride["align"],
+                            }));
+                          }}
+                        >
+                          {tableWidgetAlignOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.pin}>
+                          Pin
+                        </WidgetSettingFieldLabel>
+                        <Select
+                          className={selectClass}
+                          value={override.pinned ?? "none"}
+                          disabled={!editable}
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              pinned: event.target.value as TableWidgetColumnOverride["pinned"],
+                            }));
+                          }}
+                        >
+                          {tableWidgetPinnedOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.decimals}>
+                          Decimals
+                        </WidgetSettingFieldLabel>
+                        <Input
+                          className={inputClass}
+                          type="number"
+                          min={0}
+                          max={6}
+                          value={override.decimals ?? ""}
+                          placeholder={column.decimals == null ? "auto" : String(column.decimals)}
+                          disabled={!editable || column.format === "text"}
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              decimals:
+                                event.target.value === ""
+                                  ? undefined
+                                  : Number(event.target.value),
+                            }));
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 lg:grid-cols-4">
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.prefix}>
+                          Prefix
+                        </WidgetSettingFieldLabel>
+                        <Input
+                          className={inputClass}
+                          value={override.prefix ?? ""}
+                          placeholder={column.prefix ?? "none"}
+                          disabled={!editable}
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              prefix: event.target.value || undefined,
+                            }));
+                          }}
+                        />
+                      </div>
+
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.suffix}>
+                          Suffix
+                        </WidgetSettingFieldLabel>
+                        <Input
+                          className={inputClass}
+                          value={override.suffix ?? ""}
+                          placeholder={column.suffix ?? "none"}
+                          disabled={!editable}
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              suffix: event.target.value || undefined,
+                            }));
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.compactNumbers}>
+                          Compact numbers
+                        </WidgetSettingFieldLabel>
+                        <div className={widgetTightFormButtonGroupClass}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={column.compact ? "default" : "outline"}
+                            disabled={!editable || column.format === "text"}
+                            onClick={() => {
+                              updateColumnOverride(column.key, (current) => ({
+                                ...current,
+                                compact: true,
+                              }));
+                            }}
+                          >
+                            Compact
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={!column.compact ? "default" : "outline"}
+                            disabled={!editable || column.format === "text"}
+                            onClick={() => {
+                              updateColumnOverride(column.key, (current) => ({
+                                ...current,
+                                compact: false,
+                              }));
+                            }}
+                          >
+                            Standard
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.dataBar}>
+                          Data bar
+                        </WidgetSettingFieldLabel>
+                        <Select
+                          className={selectClass}
+                          value={override.barMode ?? "none"}
+                          disabled={!editable || column.format === "text"}
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              barMode: event.target.value as TableWidgetColumnOverride["barMode"],
+                            }));
+                          }}
+                        >
+                          {tableWidgetBarModeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.heatmap}>
+                          Heatmap
+                        </WidgetSettingFieldLabel>
+                        <Select
+                          className={selectClass}
+                          value={override.gradientMode ?? (override.heatmap ? "fill" : "none")}
+                          disabled={!editable || column.format === "text"}
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              gradientMode:
+                                event.target.value as TableWidgetColumnOverride["gradientMode"],
+                              heatmap: event.target.value === "fill",
+                            }));
+                          }}
+                        >
+                          {tableWidgetGradientModeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.heatmapPalette}>
+                          Heatmap palette
+                        </WidgetSettingFieldLabel>
+                        <Select
+                          className={selectClass}
+                          value={override.heatmapPalette ?? "auto"}
+                          disabled={
+                            !editable ||
+                            column.format === "text" ||
+                            (override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none"
+                          }
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              heatmapPalette: event.target.value as TableWidgetColumnOverride["heatmapPalette"],
+                            }));
+                          }}
+                        >
+                          {tableWidgetHeatmapPaletteOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.gauge}>
+                          Gauge
+                        </WidgetSettingFieldLabel>
+                        <Select
+                          className={selectClass}
+                          value={override.gaugeMode ?? "none"}
+                          disabled={!editable || column.format === "text"}
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              gaugeMode:
+                                event.target.value as TableWidgetColumnOverride["gaugeMode"],
+                            }));
+                          }}
+                        >
+                          {tableWidgetGaugeModeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 lg:grid-cols-3">
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.numericBounds}>
+                          Numeric bounds
+                        </WidgetSettingFieldLabel>
+                        <Select
+                          className={selectClass}
+                          value={override.visualRangeMode ?? "auto"}
+                          disabled={
+                            !editable ||
+                            column.format === "text" ||
+                            ((override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none" &&
+                              (override.gaugeMode ?? "none") === "none" &&
+                              (override.barMode ?? "none") === "none")
+                          }
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              visualRangeMode:
+                                event.target.value as TableWidgetColumnOverride["visualRangeMode"],
+                            }));
+                          }}
+                        >
+                          {tableWidgetRangeModeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.minBound}>
+                          Min bound
+                        </WidgetSettingFieldLabel>
+                        <Input
+                          className={inputClass}
+                          type="number"
+                          value={override.visualMin ?? ""}
+                          placeholder="auto"
+                          disabled={
+                            !editable ||
+                            column.format === "text" ||
+                            (override.visualRangeMode ?? "auto") !== "fixed"
+                          }
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              visualMin:
+                                event.target.value === ""
+                                  ? undefined
+                                  : Number(event.target.value),
+                            }));
+                          }}
+                        />
+                      </div>
+
+                      <div className={fieldClass}>
+                        <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.maxBound}>
+                          Max bound
+                        </WidgetSettingFieldLabel>
+                        <Input
+                          className={inputClass}
+                          type="number"
+                          value={override.visualMax ?? ""}
+                          placeholder="auto"
+                          disabled={
+                            !editable ||
+                            column.format === "text" ||
+                            (override.visualRangeMode ?? "auto") !== "fixed"
+                          }
+                          onChange={(event) => {
+                            updateColumnOverride(column.key, (current) => ({
+                              ...current,
+                              visualMax:
+                                event.target.value === ""
+                                  ? undefined
+                                  : Number(event.target.value),
+                            }));
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
-
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.dataBar}>
-                      Data bar
-                    </WidgetSettingFieldLabel>
-                    <Select
-                      className={selectClass}
-                      value={override.barMode ?? "none"}
-                      disabled={!editable || column.format === "text"}
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          barMode: event.target.value as TableWidgetColumnOverride["barMode"],
-                        }));
-                      }}
-                    >
-                      {tableWidgetBarModeOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.heatmap}>
-                      Heatmap
-                    </WidgetSettingFieldLabel>
-                    <Select
-                      className={selectClass}
-                      value={override.gradientMode ?? (override.heatmap ? "fill" : "none")}
-                      disabled={!editable || column.format === "text"}
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          gradientMode:
-                            event.target.value as TableWidgetColumnOverride["gradientMode"],
-                          heatmap: event.target.value === "fill",
-                        }));
-                      }}
-                    >
-                      {tableWidgetGradientModeOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.heatmapPalette}>
-                      Heatmap palette
-                    </WidgetSettingFieldLabel>
-                    <Select
-                      className={selectClass}
-                      value={override.heatmapPalette ?? "auto"}
-                      disabled={
-                        !editable ||
-                        column.format === "text" ||
-                        (override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none"
-                      }
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          heatmapPalette: event.target.value as TableWidgetColumnOverride["heatmapPalette"],
-                        }));
-                      }}
-                    >
-                      {tableWidgetHeatmapPaletteOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.gauge}>
-                      Gauge
-                    </WidgetSettingFieldLabel>
-                    <Select
-                      className={selectClass}
-                      value={override.gaugeMode ?? "none"}
-                      disabled={!editable || column.format === "text"}
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          gaugeMode:
-                            event.target.value as TableWidgetColumnOverride["gaugeMode"],
-                        }));
-                      }}
-                    >
-                      {tableWidgetGaugeModeOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid gap-3 lg:grid-cols-3">
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.numericBounds}>
-                      Numeric bounds
-                    </WidgetSettingFieldLabel>
-                    <Select
-                      className={selectClass}
-                      value={override.visualRangeMode ?? "auto"}
-                      disabled={
-                        !editable ||
-                        column.format === "text" ||
-                        ((override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none" &&
-                          (override.gaugeMode ?? "none") === "none" &&
-                          (override.barMode ?? "none") === "none")
-                      }
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          visualRangeMode:
-                            event.target.value as TableWidgetColumnOverride["visualRangeMode"],
-                        }));
-                      }}
-                    >
-                      {tableWidgetRangeModeOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.minBound}>
-                      Min bound
-                    </WidgetSettingFieldLabel>
-                    <Input
-                      className={inputClass}
-                      type="number"
-                      value={override.visualMin ?? ""}
-                      placeholder="auto"
-                      disabled={
-                        !editable ||
-                        column.format === "text" ||
-                        (override.visualRangeMode ?? "auto") !== "fixed"
-                      }
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          visualMin:
-                            event.target.value === ""
-                              ? undefined
-                              : Number(event.target.value),
-                        }));
-                      }}
-                    />
-                  </div>
-
-                  <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.maxBound}>
-                      Max bound
-                    </WidgetSettingFieldLabel>
-                    <Input
-                      className={inputClass}
-                      type="number"
-                      value={override.visualMax ?? ""}
-                      placeholder="auto"
-                      disabled={
-                        !editable ||
-                        column.format === "text" ||
-                        (override.visualRangeMode ?? "auto") !== "fixed"
-                      }
-                      onChange={(event) => {
-                        updateColumnOverride(column.key, (current) => ({
-                          ...current,
-                          visualMax:
-                            event.target.value === ""
-                              ? undefined
-                              : Number(event.target.value),
-                        }));
-                      }}
-                    />
-                  </div>
-                </div>
+                ) : null}
               </div>
             );
           })}

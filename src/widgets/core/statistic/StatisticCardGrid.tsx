@@ -52,10 +52,7 @@ function StatisticMiniChart({
   }
 
   return (
-    <div
-      className="absolute inset-x-0 bottom-0"
-      style={{ height: heightPx ? `${heightPx}px` : "44%" }}
-    >
+    <div className="h-full w-full" style={{ height: heightPx ? `${heightPx}px` : undefined }}>
       <svg
         viewBox="0 0 100 60"
         preserveAspectRatio="none"
@@ -166,7 +163,7 @@ function StatisticCard({
     singleCard && cardSize
       ? Math.max(28, Math.min(cardSize.width * 0.16, cardSize.height * 0.28, 64))
       : undefined;
-  const renderChart = showCharts && singleCard && (card.chartPoints?.length ?? 0) >= 2;
+  const renderChart = showCharts && (card.chartPoints?.length ?? 0) >= 2;
   const toneColor = card.resolvedStyle?.tone
     ? resolveSemanticToneColor(card.resolvedStyle.tone, resolvedTokens)
     : undefined;
@@ -187,20 +184,12 @@ function StatisticCard({
     <div
       ref={cardRef}
       className={cn(
-        "relative overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-[var(--summary-stat-card-padding-x)] py-[var(--summary-stat-card-padding-y)]",
-        fillHeight ? "h-full" : undefined,
-        singleCard ? (fillHeight ? "min-h-0" : "min-h-[180px]") : "min-h-[132px]",
+        "relative overflow-hidden bg-background/24 px-[var(--summary-stat-card-padding-x)] py-[var(--summary-stat-card-padding-y)]",
+        fillHeight ? "h-full min-h-0" : undefined,
+        singleCard ? (fillHeight ? "min-h-0" : "min-h-[180px]") : "min-h-[148px]",
       )}
       style={cardStyle}
     >
-      {renderChart ? (
-        <StatisticMiniChart
-          points={card.chartPoints!}
-          chartColor={chartColor}
-          heightPx={chartHeightPx}
-        />
-      ) : null}
-
       <div className="relative z-10 flex h-full min-h-0 flex-col">
         {card.label ? (
           <div
@@ -262,6 +251,21 @@ function StatisticCard({
           </div>
         </div>
 
+        {renderChart ? (
+          <div
+            className={cn(
+              "mt-3 shrink-0",
+              singleCard ? "h-[88px]" : "h-[52px]",
+            )}
+            style={singleCard && chartHeightPx ? { height: `${chartHeightPx}px` } : undefined}
+          >
+            <StatisticMiniChart
+              points={card.chartPoints!}
+              chartColor={chartColor}
+            />
+          </div>
+        ) : null}
+
         {showSourceLabel && sourceLabel ? (
           <div
             className="mt-2 truncate text-left text-[10px] text-muted-foreground/85"
@@ -278,26 +282,31 @@ function StatisticCard({
 
 export function StatisticCardGrid({
   cards,
+  columnCount,
   fillHeight = false,
   showCharts = true,
   showSourceLabel = false,
   sourceLabel,
 }: {
   cards: readonly StatisticCard[];
+  columnCount?: number;
   fillHeight?: boolean;
   showCharts?: boolean;
   showSourceLabel?: boolean;
   sourceLabel?: string;
 }) {
   const singleCard = cards.length === 1;
-  const multiCardColumnCount = Math.max(1, Math.min(cards.length, 4));
+  const multiCardColumnCount = Math.max(
+    1,
+    Math.min(cards.length, columnCount ?? Math.min(cards.length, 4)),
+  );
 
   return (
     <div
       className={cn(
-        "grid gap-[var(--summary-stat-grid-gap)]",
+        "grid min-h-0 bg-border/70",
+        singleCard ? "grid-cols-1 gap-0" : "gap-px",
         fillHeight ? "h-full" : undefined,
-        singleCard ? "grid-cols-1" : undefined,
       )}
       style={
         singleCard

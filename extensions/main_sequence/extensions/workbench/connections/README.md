@@ -51,6 +51,9 @@ Workbench data access.
 - The Connection Query widget uses the Data Node connection's typed `queryEditor` for per-query
   kwargs. The generic widget owns the standard envelope (`connectionUid`, `query`, `timeRange`,
   variables, and row limits); Data Node-specific fields stay in the Data Node connection module.
+- Data Node column and `unique_identifier_list` editors use the shared tokenized string-list
+  control. Values are committed to the query payload when the user presses Enter or comma, removes a
+  token, or leaves the field; do not replace them with blur-only text areas.
 - Data Node query models do not advertise `supportsVariables`, so the generic variables editor is
   hidden and variables are omitted from Data Node connection requests.
 - Main Sequence Explore shells should stay aligned with the core Connection Query widget: select a
