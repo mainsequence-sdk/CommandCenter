@@ -8,6 +8,9 @@ import { useDashboardWidgetRegistry, type DashboardWidgetRegistryEntry } from "@
 import { useResolvedWidgetInput } from "@/dashboards/DashboardWidgetDependencies";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { normalizeConnectionRef } from "@/connections/api";
+import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
+import type { ConnectionRef } from "@/connections/types";
 import {
   normalizeTabularFrameSource,
   type TabularFrameFieldType,
@@ -22,16 +25,17 @@ import type {
 } from "@/widgets/types";
 
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
-import {
-  buildDataNodeDetailQueryKey,
-  fetchDataNodeDetail,
-  type DataNodeDetail,
-} from "../../../../common/api";
+import type { DataNodeDetail } from "../../../../common/api";
 import { DataNodeDateTimeField } from "./DataNodeDateTimeField";
-import { DataNodeQuickSearchPicker } from "./DataNodeQuickSearchPicker";
 import { normalizeDataNodePublishedDataset, type DataNodePublishedDataset } from "./dataNodePublishedDataset";
 import { DATA_NODE_SOURCE_INPUT_ID } from "./widgetBindings";
 import { resolveMainSequenceDataSourceContext } from "../../widget-contracts/mainSequenceDataSourceBundle";
+import {
+  buildMainSequenceDataNodeDetailQueryKey,
+  DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF,
+  MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
+  queryMainSequenceDataNodeDetail,
+} from "../../connections/dataNodeConnection";
 import {
   buildDataNodeFieldOptionsFromRows,
   buildDataNodeFieldOptions,
@@ -50,6 +54,7 @@ export interface ManualDataNodeColumnDefinition {
 }
 
 export interface DataNodeWidgetSourceProps extends Record<string, unknown> {
+  connectionRef?: ConnectionRef;
   dataNodeId?: number;
   dateRangeMode?: DataNodeDateRangeMode;
   fixedEndMs?: number;
@@ -66,6 +71,7 @@ export interface DataNodeWidgetSourceReferenceProps extends Record<string, unkno
 
 export interface ResolvedDataNodeWidgetSourceConfig {
   availableFields: DataNodeFieldOption[];
+  connectionRef: ConnectionRef;
   dataNodeId?: number;
   dataNodeLabel: string;
   dateRangeMode: DataNodeDateRangeMode;
@@ -137,7 +143,6 @@ interface CreateDataNodeWidgetSourceSchemaOptions<
   enableFilterWidgetSource?: boolean;
   enableManualSource?: boolean;
   filterWidgetOnly?: boolean;
-  mapDataNodeChange?: (nextDataNodeId: number | undefined, currentProps: TProps) => TProps;
   selectionHelpText?: string;
 }
 
@@ -304,7 +309,7 @@ export function buildManualDataNodeFieldOptions(input: {
       type: column.type,
       nullable: true,
       provenance: "manual",
-      reason: "Configured manually in the Data Node editor.",
+      reason: "Configured manually in the table editor.",
     }));
   }
 
@@ -438,6 +443,7 @@ export function resolveDataNodeWidgetPrefilledFixedRange(
 export function buildDataNodeRemoteRowsQueryKey(input: {
   sourceMode?: DataNodeWidgetSourceMode;
   sourceWidgetId?: string;
+  connectionUid?: string;
   dataNodeId?: number;
   columns: string[];
   uniqueIdentifierList?: string[];
@@ -451,6 +457,7 @@ export function buildDataNodeRemoteRowsQueryKey(input: {
     "data_node_remote_data",
     input.sourceMode ?? "direct",
     input.sourceWidgetId ?? "",
+    input.connectionUid ?? "",
     input.dataNodeId ?? 0,
     input.columns.join("|"),
     (input.uniqueIdentifierList ?? []).join("|"),
@@ -529,17 +536,6 @@ function PickerFieldSetting({
       disabled={disabled}
     />
   );
-}
-
-function defaultMapDataNodeChange<TProps extends DataNodeWidgetSourceProps>(
-  nextDataNodeId: number | undefined,
-  currentProps: TProps,
-) {
-  return {
-    ...currentProps,
-    dataNodeId: nextDataNodeId,
-    uniqueIdentifierList: undefined,
-  };
 }
 
 export function normalizeDataNodeWidgetSourceReferenceProps<
@@ -650,6 +646,8 @@ export function useResolvedDataNodeWidgetSourceBinding<
             {
               ...((referencedFilterWidget?.props ?? {}) as DataNodeWidgetSourceProps),
               dataNodeId: resolvedSourceContext?.dataNodeId ?? referencedFilterWidget?.props?.dataNodeId,
+              connectionRef:
+                (referencedFilterWidget?.props as DataNodeWidgetSourceProps | undefined)?.connectionRef,
               dateRangeMode:
                 resolvedSourceContext?.dateRangeMode ??
                 referencedFilterWidget?.props?.dateRangeMode,
@@ -719,7 +717,11 @@ export function resolveDataNodeWidgetSourceConfig(
   const sourceMode = normalizeSourceMode(
     (props as Partial<DataNodeWidgetSourceReferenceProps>).sourceMode,
   );
-  const dataNodeId = normalizePositiveInteger(props.dataNodeId);
+  const dataNodeId =
+    normalizePositiveInteger(props.dataNodeId) ?? normalizePositiveInteger(detail?.id);
+  const connectionRef =
+    normalizeConnectionRef(props.connectionRef, DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF) ??
+    DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF;
   const dateRangeMode: DataNodeDateRangeMode =
     props.dateRangeMode === "fixed" ? "fixed" : "dashboard";
   const fixedStartMs = normalizeTimestampMs(props.fixedStartMs);
@@ -749,6 +751,7 @@ export function resolveDataNodeWidgetSourceConfig(
 
   return {
     availableFields,
+    connectionRef,
     dataNodeId: sourceMode === "manual" ? undefined : dataNodeId,
     dataNodeLabel:
       sourceMode === "manual"
@@ -772,6 +775,7 @@ export function normalizeDataNodeWidgetSourceProps<TProps extends DataNodeWidget
 
   return {
     ...props,
+    connectionRef: resolved.connectionRef,
     dataNodeId: resolved.dataNodeId,
     dateRangeMode: resolved.dateRangeMode,
     fixedStartMs: resolved.fixedStartMs,
@@ -798,13 +802,21 @@ export function useDataNodeWidgetSourceControllerContext<
 }): DataNodeWidgetSourceControllerContext<TResolvedConfig> {
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({ props, currentWidgetInstanceId });
   const selectedDataNodeId = Number(sourceBinding.resolvedSourceProps.dataNodeId ?? 0);
+  const selectedConnectionRef =
+    sourceBinding.resolvedSourceProps.connectionRef ?? DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF;
   const selectedDataNodeDetailQuery = useQuery({
-    queryKey: buildDataNodeDetailQueryKey(selectedDataNodeId),
-    queryFn: () => fetchDataNodeDetail(selectedDataNodeId),
+    queryKey: buildMainSequenceDataNodeDetailQueryKey(
+      selectedDataNodeId > 0 ? selectedDataNodeId : undefined,
+      selectedConnectionRef,
+    ),
+    queryFn: () =>
+      queryMainSequenceDataNodeDetail(
+        selectedDataNodeId > 0 ? selectedDataNodeId : undefined,
+        selectedConnectionRef,
+      ),
     enabled:
       sourceBinding.sourceMode !== "manual" &&
-      Number.isFinite(selectedDataNodeId) &&
-      selectedDataNodeId > 0,
+      Boolean(selectedConnectionRef.uid),
     staleTime: 300_000,
   });
 
@@ -833,10 +845,7 @@ export function useDataNodeWidgetSourceControllerContext<
     filterWidgetOptions: sourceBinding.filterWidgetOptions,
     fieldPickerOptions,
     hasLoadedDataNodeDetail,
-    hasNoData:
-      sourceBinding.sourceMode === "manual"
-        ? false
-        : hasLoadedDataNodeDetail && !hasSourceTableConfiguration,
+    hasNoData: hasLoadedDataNodeDetail && !hasSourceTableConfiguration,
     hasResolvedFilterWidgetSource: sourceBinding.hasResolvedFilterWidgetSource,
     isAwaitingBoundSourceValue: sourceBinding.isAwaitingBoundSourceValue,
     isFilterWidgetSource: sourceBinding.isFilterWidgetSource,
@@ -848,7 +857,7 @@ export function useDataNodeWidgetSourceControllerContext<
     resolvedSourceFrame: sourceBinding.resolvedSourceFrame,
     resolvedSourceProps: sourceBinding.resolvedSourceProps,
     selectedDataNodeDetailQuery,
-    selectedDataNodeId,
+    selectedDataNodeId: Number(resolvedConfig.dataNodeId ?? selectedDataNodeId ?? 0),
     sourceMode: sourceBinding.sourceMode,
     sourceWidgetId: sourceBinding.sourceWidgetId,
     supportsUniqueIdentifierList: resolvedConfig.supportsUniqueIdentifierList,
@@ -861,36 +870,38 @@ export function createDataNodeWidgetSourceSettingsSchema<
 >({
   additionalFields = [],
   additionalSections = [],
-  dataNodeCanvasQueryScope = "data_node_widget_source_canvas",
-  dataSourceSectionDescription = "Pick the data node and optional unique identifiers for this widget instance.",
+  dataSourceSectionDescription = "Pick the configured Data Node connection and optional unique identifiers for this widget instance.",
   dateRangeSectionDescription = "Choose whether this widget follows the dashboard date or keeps its own range.",
   enableFilterWidgetSource = false,
   enableManualSource = false,
   filterWidgetOnly = false,
-  mapDataNodeChange = defaultMapDataNodeChange,
-  selectionHelpText = "Choose the table this widget should read from.",
 }: CreateDataNodeWidgetSourceSchemaOptions<TProps, TContext> = {}): WidgetSettingsSchema<
   TProps,
   TContext
 > {
-  function DataNodePickerField({
+  function DataNodeConnectionPickerField({
     draftProps,
     onDraftPropsChange,
     editable,
-    context,
   }: WidgetFieldSettingsRendererProps<TProps, TContext>) {
     return (
-      <DataNodeQuickSearchPicker
-        value={context.selectedDataNodeId}
-        onChange={(nextId) => {
-          onDraftPropsChange(mapDataNodeChange(nextId, draftProps));
+      <ConnectionPicker
+        value={normalizeConnectionRef(
+          draftProps.connectionRef,
+          DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF,
+        )}
+        onChange={(nextRef) => {
+          onDraftPropsChange({
+            ...draftProps,
+            connectionRef: nextRef ?? DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF,
+          });
         }}
-        editable={editable}
-        queryScope="data_node_widget_source"
-        selectedDataNode={context.selectedDataNodeDetailQuery.data}
-        detailError={context.selectedDataNodeDetailQuery.error}
-        hasNoData={context.hasNoData}
-        selectionHelpText={selectionHelpText}
+        accepts={{
+          typeIds: [MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID],
+          capabilities: ["query", "resource"],
+        }}
+        disabled={!editable}
+        placeholder="Select a Data Node connection"
       />
     );
   }
@@ -946,8 +957,8 @@ export function createDataNodeWidgetSourceSettingsSchema<
         options={[
           {
             value: "direct",
-            label: "Direct query",
-            description: "This widget owns its own data node and date-range source.",
+            label: "Connection query",
+            description: "Read the Data Node configured on the selected connection.",
           },
           ...(enableFilterWidgetSource
             ? [{
@@ -967,31 +978,6 @@ export function createDataNodeWidgetSourceSettingsSchema<
         placeholder="Select a source mode"
         disabled={!editable}
       />
-    );
-  }
-
-  function DataNodePickerCanvasField({
-    props,
-    onPropsChange,
-    editable,
-    context,
-  }: WidgetFieldCanvasRendererProps<TProps, TContext>) {
-    return (
-      <div className="space-y-2">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Data node
-        </div>
-        <DataNodeQuickSearchPicker
-          value={context.selectedDataNodeId}
-          onChange={(nextId) => {
-            onPropsChange(mapDataNodeChange(nextId, props));
-          }}
-          editable={editable}
-          queryScope={dataNodeCanvasQueryScope}
-          selectedDataNode={context.selectedDataNodeDetailQuery.data}
-          showStatus={false}
-        />
-      </div>
     );
   }
 
@@ -1223,24 +1209,16 @@ export function createDataNodeWidgetSourceSettingsSchema<
         ]
       : []),
     {
-      id: "dataNodeId",
-      label: "Data node",
-      description: selectionHelpText,
+      id: "connectionRef",
+      label: "Connection",
+      description:
+        "Backend-owned Main Sequence Data Node connection. The connection instance owns the concrete Data Node.",
       sectionId: "data-source",
-      pop: {
-        canPop: true,
-        defaultPopped: false,
-        anchor: "top",
-        mode: "inline",
-        defaultWidth: 340,
-        defaultHeight: 96,
-      },
       isVisible: ({ context }) =>
         !filterWidgetOnly &&
         context.sourceMode !== "filter_widget" &&
         context.sourceMode !== "manual",
-      renderSettings: DataNodePickerField,
-      renderCanvas: DataNodePickerCanvasField,
+      renderSettings: DataNodeConnectionPickerField,
     },
     {
       id: "uniqueIdentifierList",

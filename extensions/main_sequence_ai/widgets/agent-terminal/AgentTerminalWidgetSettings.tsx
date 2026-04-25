@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { ArrowUpRight, Bot, Loader2, RefreshCcw } from "lucide-react";
+import { ArrowUpRight, Loader2, RefreshCcw } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +50,6 @@ export function AgentTerminalWidgetSettings({
   const agentId = normalizedProps.agentId ?? "";
   const agentName = normalizedProps.agentName ?? "";
   const sessionId = normalizedProps.agentSessionId ?? "";
-  const previewPrompt = buildAgentTerminalPrompt(sessionId || "session");
   const blockUserInput = normalizedProps.blockUserInput === true;
   const loadInitialHistory = normalizedProps.loadInitialHistory === true;
   const historyRefreshMode = normalizedProps.historyRefreshMode ?? "workspace";
@@ -420,63 +419,6 @@ export function AgentTerminalWidgetSettings({
         />
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <div className="text-sm font-medium text-topbar-foreground">Preview</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Streamed replies render as terminal output blocks while the prompt stays tied to the
-            configured session.
-          </p>
-        </div>
-
-        <div className="overflow-hidden rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/24">
-          <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            <Bot className="h-3.5 w-3.5" />
-            Terminal preview
-          </div>
-          <div className="space-y-2 px-4 py-4 font-mono text-xs leading-6 text-foreground">
-            <div className="text-muted-foreground">
-              {sessionId
-                ? `[session] ${agentName || "AgentSession"} is bound to ${sessionId}`
-                : "[configure] Select a supported agent to create the widget session."}
-            </div>
-            <div className="text-muted-foreground">
-              {loadInitialHistory
-                ? "[initial-load] Session history loads when the widget mounts."
-                : "[initial-load] No runtime request is sent when the widget mounts."}
-            </div>
-            <div className="text-muted-foreground">
-              {blockUserInput
-                ? "[input] Manual typing is blocked; only refresh-driven actions can send prompts."
-                : "[input] Manual typing is enabled."}
-            </div>
-            <div className="text-muted-foreground">
-              {historyRefreshMode === "workspace"
-                ? "[refresh] Session history reloads with workspace refresh."
-                : historyRefreshMode === "interval"
-                  ? `[refresh] Session history reloads every ${historyRefreshIntervalSeconds}s.`
-                  : "[refresh] Automatic session-history reload is disabled."}
-            </div>
-            {effectivePromptOnRefresh ? (
-              <div className="text-muted-foreground">
-                [refresh-prompt] Refresh sends the configured Markdown prompt into the session.
-              </div>
-            ) : null}
-            {upstreamSourceCount > 0 ? (
-              <div className="text-muted-foreground">
-                [bindings] {upstreamSourceCount} bound upstream source
-                {upstreamSourceCount === 1 ? "" : "s"} will be appended on automated refresh.
-              </div>
-            ) : null}
-            <div>
-              {previewPrompt} inspect current workspace status
-            </div>
-            <div className="text-muted-foreground">
-              Streaming output renders inline like a terminal command run.
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

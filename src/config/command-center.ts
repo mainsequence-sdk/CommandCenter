@@ -105,6 +105,21 @@ export interface CommandCenterConfig {
     organizationConfigurationsListUrl: string;
     organizationConfigurationsDetailUrl: string;
   };
+  connections: {
+    types: {
+      listUrl: string;
+      detailUrl: string;
+      syncUrl: string;
+    };
+    instances: {
+      listUrl: string;
+      detailUrl: string;
+      testUrl: string;
+      queryUrl: string;
+      resourceUrl: string;
+      streamUrl: string;
+    };
+  };
   auth: CommandCenterAuthConfig;
   accessRbac: {
     users: {
@@ -197,6 +212,21 @@ interface DefaultCommandCenterConfig {
     sync_url: string;
     organization_configurations_list_url: string;
     organization_configurations_detail_url: string;
+  };
+  connections: {
+    types: {
+      list_url: string;
+      detail_url: string;
+      sync_url: string;
+    };
+    instances: {
+      list_url: string;
+      detail_url: string;
+      test_url: string;
+      query_url: string;
+      resource_url: string;
+      stream_url: string;
+    };
   };
   auth: {
     identifier_label: string;
@@ -343,6 +373,21 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     sync_url: "/api/v1/command_center/widget-types/sync/",
     organization_configurations_list_url: "/api/v1/command_center/org-widget-type-configurations/",
     organization_configurations_detail_url: "/api/v1/command_center/org-widget-type-configurations/{id}/",
+  },
+  connections: {
+    types: {
+      list_url: "/api/v1/command_center/connection-types/",
+      detail_url: "/api/v1/command_center/connection-types/{id}/",
+      sync_url: "/api/v1/command_center/connection-types/sync/",
+    },
+    instances: {
+      list_url: "/api/v1/command_center/connections/",
+      detail_url: "/api/v1/command_center/connections/{uid}/",
+      test_url: "/api/v1/command_center/connections/{uid}/test/",
+      query_url: "/api/v1/command_center/connections/{uid}/query/",
+      resource_url: "/api/v1/command_center/connections/{uid}/resources/{resource}/",
+      stream_url: "/api/v1/command_center/connections/{uid}/stream/",
+    },
   },
   auth: {
     identifier_label: "Email",
@@ -554,6 +599,7 @@ const parsedPreferences = getNestedObject(parsedConfig, "preferences");
 const parsedWorkspaces = getNestedObject(parsedConfig, "workspaces");
 const parsedSavedWidgets = getNestedObject(parsedConfig, "saved_widgets");
 const parsedWidgetTypes = getNestedObject(parsedConfig, "widget_types");
+const parsedConnections = getNestedObject(parsedConfig, "connections");
 const parsedAuth = getNestedObject(parsedConfig, "auth");
 const parsedAccessRbac = getNestedObject(parsedConfig, "access_rbac");
 const parsedCommandCenterAccess = getNestedObject(parsedConfig, "command_center_access");
@@ -572,6 +618,8 @@ const parsedCommandCenterAccessPolicies = getNestedObject(
 );
 const parsedCommandCenterAccessUsers = getNestedObject(parsedCommandCenterAccess, "users");
 const parsedMainSequencePermissions = getNestedObject(parsedMainSequence, "permissions");
+const parsedConnectionTypes = getNestedObject(parsedConnections, "types");
+const parsedConnectionInstances = getNestedObject(parsedConnections, "instances");
 
 const logoLightmodeFile = readString(
   parsedBranding.logo_lightmode,
@@ -684,6 +732,48 @@ export const commandCenterConfig: CommandCenterConfig = {
       parsedWidgetTypes.organization_configurations_detail_url,
       defaultRawConfig.widget_types.organization_configurations_detail_url,
     ),
+  },
+  connections: {
+    types: {
+      listUrl: readString(
+        parsedConnectionTypes.list_url,
+        defaultRawConfig.connections.types.list_url,
+      ),
+      detailUrl: readString(
+        parsedConnectionTypes.detail_url,
+        defaultRawConfig.connections.types.detail_url,
+      ),
+      syncUrl: readString(
+        parsedConnectionTypes.sync_url,
+        defaultRawConfig.connections.types.sync_url,
+      ),
+    },
+    instances: {
+      listUrl: readString(
+        parsedConnectionInstances.list_url,
+        defaultRawConfig.connections.instances.list_url,
+      ),
+      detailUrl: readString(
+        parsedConnectionInstances.detail_url,
+        defaultRawConfig.connections.instances.detail_url,
+      ),
+      testUrl: readString(
+        parsedConnectionInstances.test_url,
+        defaultRawConfig.connections.instances.test_url,
+      ),
+      queryUrl: readString(
+        parsedConnectionInstances.query_url,
+        defaultRawConfig.connections.instances.query_url,
+      ),
+      resourceUrl: readString(
+        parsedConnectionInstances.resource_url,
+        defaultRawConfig.connections.instances.resource_url,
+      ),
+      streamUrl: readString(
+        parsedConnectionInstances.stream_url,
+        defaultRawConfig.connections.instances.stream_url,
+      ),
+    },
   },
   auth: {
     identifierLabel: readString(

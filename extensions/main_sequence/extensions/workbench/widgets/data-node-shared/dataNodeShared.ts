@@ -391,7 +391,7 @@ export function buildDataNodeFieldOptionsFromRows(input: {
     const reason =
       options?.reasonByKey?.[key] ??
       (provenance === "manual"
-        ? "Configured manually in the Data Node editor."
+        ? "Configured manually in the table editor."
         : provenance === "derived"
           ? "Derived from transformed dataset rows."
           : "Inferred from sampled dataset rows.");

@@ -1,7 +1,7 @@
 {
   "id": "adr/adr-main-sequence-ai-runtime-endpoint-resolution",
   "title": "ADR: Main Sequence AI Runtime Endpoint Resolution",
-  "description": "- Status: Proposed",
+  "description": "- Status: Accepted",
   "source": "@site/../docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution.md",
   "sourceDirName": "adr",
   "slug": "/adr/adr-main-sequence-ai-runtime-endpoint-resolution",

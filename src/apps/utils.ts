@@ -49,13 +49,24 @@ export function getDefaultSurface(app: AppDefinition, permissions: string[]) {
 }
 
 export function getAccessibleApps(permissions: string[]) {
-  return appRegistry.apps.filter((app) => {
-    if (!canAccessApp(app, permissions)) {
-      return false;
-    }
+  return appRegistry.apps
+    .filter((app) => {
+      if (!canAccessApp(app, permissions)) {
+        return false;
+      }
 
-    return getAccessibleSurfaces(app, permissions).length > 0;
-  });
+      return getAccessibleSurfaces(app, permissions).length > 0;
+    })
+    .sort((left, right) => {
+      const leftOrder = left.navigationOrder ?? 1000;
+      const rightOrder = right.navigationOrder ?? 1000;
+
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+
+      return left.title.localeCompare(right.title);
+    });
 }
 
 export function getAccessibleAppsByPlacement(

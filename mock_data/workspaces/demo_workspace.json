@@ -100,31 +100,12 @@
         }
       },
       {
-        "id": "custom-widget-c4938c3e-ba3c-497a-a3e7-90c2aa7b54a9",
-        "widgetId": "order-book-depth",
-        "title": "Order Book Depth",
-        "props": {
-          "symbol": "TSLA"
-        },
-        "presentation": {
-          "surfaceMode": "default",
-          "placementMode": "canvas"
-        },
-        "layout": {
-          "cols": 4,
-          "rows": 3
-        },
-        "position": {
-          "x": 0,
-          "y": 4
-        }
-      },
-      {
         "id": "custom-widget-978214c3-53b6-4741-8ce2-995e36c84b00",
-        "widgetId": "main-sequence-data-node-visualizer",
-        "title": "Data Node Graph",
+        "widgetId": "graph",
+        "title": "Graph",
         "props": {
           "sourceMode": "filter_widget",
+          "sourceWidgetId": "custom-widget-26a28e2c-3315-48dd-a719-24b2cb1da530",
           "provider": "tradingview",
           "chartType": "line",
           "dateRangeMode": "dashboard"
@@ -152,44 +133,21 @@
       },
       {
         "id": "custom-widget-26a28e2c-3315-48dd-a719-24b2cb1da530",
-        "widgetId": "main-sequence-data-node",
-        "title": "Raw Data",
+        "widgetId": "connection-query",
+        "title": "Raw Data Source",
         "props": {
-          "chromeMode": "minimal",
-          "dateRangeMode": "dashboard",
+          "timeRangeMode": "dashboard",
           "showHeader": false,
-          "dataNodeId": 714
+          "queryModelId": "data-node-rows-between-dates",
+          "query": {
+            "kind": "data-node-rows-between-dates",
+            "dataNodeId": 714
+          },
+          "selectedFrame": 0
         },
         "presentation": {
           "placementMode": "sidebar",
-          "exposedFields": {
-            "uniqueIdentifierList": {
-              "visible": false,
-              "anchor": "top",
-              "order": 3,
-              "mode": "token-list",
-              "collapsed": false,
-              "x": 744,
-              "y": 0,
-              "width": 360,
-              "height": 116
-            },
-            "dataNodeId": {
-              "visible": true,
-              "anchor": "top",
-              "order": 1,
-              "mode": "inline",
-              "collapsed": false,
-              "x": -92.74432373046875,
-              "y": -72.05608367919922,
-              "width": 340,
-              "height": 96,
-              "gridX": 0,
-              "gridY": 0,
-              "gridW": 12,
-              "gridH": 1
-            }
-          },
+          "exposedFields": {},
           "surfaceMode": "default"
         },
         "layout": {

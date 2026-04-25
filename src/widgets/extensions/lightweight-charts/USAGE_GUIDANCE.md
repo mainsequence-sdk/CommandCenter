@@ -2,7 +2,7 @@
 
 ### buildPurpose
 
-Use this widget for a legacy simple market price chart.
+Legacy simple market price chart.
 
 ### whenToUse
 
@@ -24,7 +24,7 @@ Use this widget for a legacy simple market price chart.
 
 ### buildPurpose
 
-Theme-aware Lightweight Charts renderer for declarative safe-JSON specs. Use it when a workspace needs a custom time-series or financial chart that is too specific for a fixed-purpose widget, while still respecting Command Center theme tokens and data-visualization palettes.
+Theme-aware Lightweight Charts renderer for declarative safe-JSON specs.
 
 ### whenToUse
 

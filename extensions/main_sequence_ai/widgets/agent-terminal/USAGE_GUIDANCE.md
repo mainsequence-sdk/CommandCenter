@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to create and continue one managed Main Sequence AI agent conversation inside a workspace and let the agent reason over bound widget snapshots or bound workspace references during automated refresh.
+Managed Main Sequence AI agent conversation with bound workspace context.
 
 ## whenToUse
 

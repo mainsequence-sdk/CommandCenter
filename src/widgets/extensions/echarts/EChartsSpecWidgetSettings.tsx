@@ -249,29 +249,6 @@ export function EChartsSpecWidgetSettings({
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <div className="text-sm font-medium text-topbar-foreground">Preview</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Preview renders through the same widget component and org-capability path as the canvas
-            widget.
-          </p>
-        </div>
-
-        <div className="overflow-hidden rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/24">
-          <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            {previewProps.sourceMode === "javascript" ? (
-              <Code2 className="h-3.5 w-3.5" />
-            ) : (
-              <LineChart className="h-3.5 w-3.5" />
-            )}
-            Preview
-          </div>
-          <div className="h-[320px] p-3">
-            <EChartsSpecWidget widget={widget} props={previewProps} resolvedInputs={resolvedInputs} />
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

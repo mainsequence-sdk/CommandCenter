@@ -7,6 +7,8 @@ This nested extension owns the administrative and operational Main Sequence Foun
 - `index.ts`: registers the Foundry extension with the shell registry.
 - `app.ts`: declares the `AppDefinition` for `main_sequence_workbench`.
 - `features/`: page surfaces and feature-owned workflows.
+- `connections/`: extension-owned connection type definitions and compatibility helpers for
+  backend Data Node access.
 - `widget-contracts/`: shared versioned data contracts used for widget-to-widget composition inside
   Workbench.
 - `widgets/`: widget definitions and widget-specific rendering code.
@@ -22,10 +24,11 @@ This nested extension owns the administrative and operational Main Sequence Foun
 - Move code into `../../common/` only when it is meant to be reused by another Main Sequence extension.
 - Foundry surfaces in `app.ts` now also carry assistant-facing summaries and action lists through
   `assistantContext`; keep those descriptions aligned with the actual page capabilities.
-- `index.ts` currently registers `main-sequence-dependency-graph`,
-  `main-sequence-project-infra-graph`, `main-sequence-data-node-visualizer`,
-  `main-sequence-data-node`, `main-sequence-data-node-statistic`, and
-  `data-node-table-visualizer` in the live widget catalog.
+- `index.ts` currently registers `main-sequence-dependency-graph` and
+  `main-sequence-project-infra-graph` in the live widget catalog, plus the
+  `mainsequence.data-node` connection type in the connection catalog. The former Data Node source,
+  table, graph, and statistic widgets are no longer registered from Workbench; source querying,
+  reshaping, and generic tabular consumption now live in core widgets.
 
 ## Naming note
 

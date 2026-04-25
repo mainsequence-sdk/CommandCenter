@@ -13,18 +13,13 @@ import {
   isWorkspaceRowWidgetId,
   WORKSPACE_ROW_HEIGHT_ROWS,
 } from "@/dashboards/structural-widgets";
-import {
-  resolveWidgetMinimalChrome,
-  resolveWidgetSidebarOnly,
-} from "@/widgets/shared/chrome";
+import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
 
 const DEFAULT_GRID: ResolvedDashboardGridConfig = {
   columns: 12,
   rowHeight: 78,
   gap: 16,
 };
-const LEGACY_GRID_COLUMNS = 12;
-const LEGACY_COMPACT_WIDGET_HEIGHT_PX = 78;
 
 interface NormalizedWidgetLayout {
   span: {
@@ -62,16 +57,6 @@ function resolveGridConfig(dashboard: DashboardDefinition): ResolvedDashboardGri
   };
 }
 
-function resolveCompactWidgetSpan(grid: ResolvedDashboardGridConfig) {
-  return {
-    w: Math.max(1, Math.round(grid.columns / LEGACY_GRID_COLUMNS)),
-    h: Math.max(
-      1,
-      Math.round((LEGACY_COMPACT_WIDGET_HEIGHT_PX + grid.gap) / (grid.rowHeight + grid.gap)),
-    ),
-  };
-}
-
 function normalizeWidgetLayout(
   instance: DashboardWidgetInstance,
   grid: ResolvedDashboardGridConfig,
@@ -79,10 +64,6 @@ function normalizeWidgetLayout(
 ): NormalizedWidgetLayout {
   const columns = grid.columns;
   const isWorkspaceRow = isWorkspaceRowWidgetId(instance.widgetId);
-  const isMinimalChrome = resolveWidgetMinimalChrome(instance.props);
-  const isCompactFilterWidget =
-    instance.widgetId === "main-sequence-data-node" &&
-    (isMinimalChrome || instance.props?.chromeMode == null);
   const rawSpan: Partial<DashboardWidgetSpan> = isLegacyLayout(instance.layout)
     ? {
         cols: instance.layout.w,
@@ -106,17 +87,12 @@ function normalizeWidgetLayout(
       message: "Widget layout was missing or invalid and was reset to a safe default size.",
     });
   }
-  const compactSpan = resolveCompactWidgetSpan(grid);
   const w = isWorkspaceRow
     ? columns
-    : isCompactFilterWidget
-      ? compactSpan.w
-      : clampInteger(rawSpan.cols, 1, 1);
+    : clampInteger(rawSpan.cols, 1, 1);
   const h = isWorkspaceRow
     ? WORKSPACE_ROW_HEIGHT_ROWS
-    : isCompactFilterWidget
-      ? compactSpan.h
-      : clampInteger(rawSpan.rows, 1, 1);
+    : clampInteger(rawSpan.rows, 1, 1);
   const boundedWidth = isWorkspaceRow ? columns : Math.min(w, columns);
 
   if (!isWorkspaceRow && w !== boundedWidth) {

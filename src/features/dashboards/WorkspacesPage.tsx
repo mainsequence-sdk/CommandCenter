@@ -83,7 +83,7 @@ export function WorkspacesPage() {
                 Opening workspace
               </h1>
               <p className="text-sm text-muted-foreground">
-                Loading workspace {requestedWorkspaceId} and restoring its canvas.
+                Loading the selected workspace and restoring its canvas.
               </p>
             </div>
           </div>
@@ -105,7 +105,7 @@ export function WorkspacesPage() {
                 Unable to open workspace
               </h1>
               <p className="text-sm text-muted-foreground">
-                Workspace {requestedWorkspaceId} is not available in the current draft.
+                The selected workspace is not available in the current session.
               </p>
             </div>
             <div className="mt-5 flex items-center justify-center gap-2">
@@ -139,9 +139,6 @@ export function WorkspacesPage() {
 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
-            <Badge variant="neutral" className="border border-border/70 bg-card/55">
-              {persistenceMode} / {user.id}
-            </Badge>
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 Workspaces
@@ -230,9 +227,6 @@ export function WorkspacesPage() {
                       <div className="min-w-0">
                         <div className="truncate font-medium text-foreground">
                           {workspace.title}
-                        </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {workspace.source || persistenceMode}
                         </div>
                       </div>
                     </td>

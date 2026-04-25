@@ -39,6 +39,7 @@ export const mainSequenceMarketsApp: AppDefinition = {
   description: "Market-facing Main Sequence surfaces that can evolve independently from Workbench.",
   source: "main_sequence_markets",
   icon: LineChart,
+  navigationOrder: 300,
   requiredPermissions: ["main_sequence_markets:view"],
   permissionDefinitions: [
     {

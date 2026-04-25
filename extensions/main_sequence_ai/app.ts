@@ -18,6 +18,7 @@ export const mainSequenceAiApp: AppDefinition = {
   description: "Extension-owned assistant workspace powered by assistant-ui.",
   source: "main_sequence_ai",
   icon: Sparkles,
+  navigationOrder: 400,
   defaultSurfaceId: "chat",
   shellMenuContributions: [
     {

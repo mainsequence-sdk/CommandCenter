@@ -21,8 +21,10 @@ export function WidgetFrame({
   instance,
   headerActions,
   onOpenSettings,
+  showDragHandle,
   showExplorerTrigger,
   showHeader,
+  showHeaderMeta,
   presentation,
   style,
   children,
@@ -31,13 +33,17 @@ export function WidgetFrame({
   instance: { title?: string; props?: Record<string, unknown> };
   headerActions?: ReactNode;
   onOpenSettings?: () => void;
+  showDragHandle?: boolean;
   showExplorerTrigger?: boolean;
   showHeader?: boolean;
+  showHeaderMeta?: boolean;
   presentation?: WidgetInstancePresentation;
   style?: CSSProperties;
   children: ReactNode;
 }) {
   const headerVisible = showHeader ?? true;
+  const headerMetaVisible = showHeaderMeta ?? true;
+  const dragHandleVisible = showDragHandle ?? true;
   const minimalChrome = resolveWidgetMinimalChrome(instance.props);
   const transparentSurface = resolveWidgetTransparentSurface(presentation);
   const dividerPresentation =
@@ -69,14 +75,16 @@ export function WidgetFrame({
             <div className="truncate text-[13px] font-semibold leading-5 text-card-foreground">
               {instance.title ?? widget.title}
             </div>
-            <div className="mt-0.5 flex items-center gap-1.5">
-              <Badge variant="neutral" className="px-1.5 py-0.5 text-[9px] tracking-[0.12em]">
-                {widget.kind}
-              </Badge>
-              <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                {widget.source}
-              </span>
-            </div>
+            {headerMetaVisible ? (
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <Badge variant="neutral" className="px-1.5 py-0.5 text-[9px] tracking-[0.12em]">
+                  {widget.kind}
+                </Badge>
+                <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  {widget.source}
+                </span>
+              </div>
+            ) : null}
           </div>
           <div className="flex items-center gap-1">
             {headerActions}
@@ -92,7 +100,9 @@ export function WidgetFrame({
                 onClick={onOpenSettings}
               />
             ) : null}
-            <GripHorizontal className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            {dragHandleVisible ? (
+              <GripHorizontal className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            ) : null}
           </div>
         </header>
       ) : null}

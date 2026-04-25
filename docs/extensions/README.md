@@ -11,10 +11,9 @@ workflows without turning the shell into a junk drawer.
 
 1. [Extensions Overview](./overview.md)
 2. Platform extension index: `src/extensions/core/README.md`
-3. Flow Lab extension: `src/extensions/flow-lab/README.md`
-4. Main Sequence extension root: `extensions/main_sequence/README.md`
-5. Main Sequence Workbench extension: `extensions/main_sequence/extensions/workbench/README.md`
-6. Main Sequence Markets extension: `extensions/main_sequence/extensions/markets/README.md`
+3. Main Sequence extension root: `extensions/main_sequence/README.md`
+4. Main Sequence Workbench extension: `extensions/main_sequence/extensions/workbench/README.md`
+5. Main Sequence Markets extension: `extensions/main_sequence/extensions/markets/README.md`
 
 ## How To Extend Through Extensions
 

@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-widget-settings-demo-preview-draft" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: Preview-Only Demo Drafts for Widget Settings | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-widget-settings-demo-preview-draft"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Preview-Only Demo Drafts for Widget Settings | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-widget-settings-demo-preview-draft"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-widget-settings-demo-preview-draft" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-widget-settings-demo-preview-draft" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.18191461.js" defer="defer"></script>
+<script src="/docs/assets/js/main.eea687b4.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: Preview-Only Demo Drafts for Widget Settings</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-04-24</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/adr-headless-workspace-settings-runtime">ADR: Headless Workspace Widget Settings Runtime</a></li>
+<li class=""><a class="" href="/docs/adr/adr-app-component-mock-json-target">ADR: AppComponent Mock JSON Target for Pipeline Prototyping</a></li>
+<li class=""><a class="" href="/docs/adr/adr-single-runtime-owner-workspace-widgets">ADR: Single Runtime Owner for Workspace Widgets</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Widget settings now include a shared panel preview at the top of the settings surface. That solved
+the duplication problem where individual widgets were shipping their own inconsistent preview
+sections below the canonical preview.</p>
+<p>The current preview contract is still too shallow.</p>
+<p>Today, the shared settings surface can toggle <code>Demo data for preview</code>, but that toggle only changes
+what the preview component renders. The rest of the settings surface still reads and edits the real
+widget draft.</p>
+<p>That creates a broken authoring model:</p>
+<ul>
+<li class="">the preview can show demo output</li>
+<li class="">the settings controls still describe the real widget instance</li>
+<li class="">data-bound widgets still depend on missing live source contracts</li>
+<li class="">some widgets render empty-state placeholders even though demo mode is enabled</li>
+</ul>
+<p>The <code>Statistic</code> widget is the clearest example. It can receive demo props, but if the demo preview
+does not also provide a compatible source bundle and resolved settings state, the preview still
+lands in:</p>
+<ul>
+<li class=""><code>Select a value field</code></li>
+<li class=""><code>No rows available</code></li>
+<li class="">similar binding-driven empty states</li>
+</ul>
+<p>This is not a <code>Statistic</code>-only bug. It is a contract mismatch between:</p>
+<ul>
+<li class="">preview rendering</li>
+<li class="">settings editing</li>
+<li class="">data/binding resolution</li>
+<li class="">widget-local runtime state</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="problem">Problem<a href="#problem" class="hash-link" aria-label="Direct link to Problem" title="Direct link to Problem" translate="no">​</a></h2>
+<p>If demo mode only swaps render props, the preview is not coherent.</p>
+<p>The user expectation is stronger:</p>
+<ul>
+<li class="">when demo mode is on, the whole settings experience should temporarily behave like a demo widget</li>
+<li class="">the preview should look like a real configured widget panel</li>
+<li class="">settings controls should reflect demo values instead of the persisted widget draft</li>
+<li class="">changes made while demo mode is on must not mutate the real workspace draft</li>
+</ul>
+<p>Without that separation, the product has two persistent failure modes:</p>
+<ol>
+<li class="">visually broken previews for data-bound widgets</li>
+<li class="">confusing settings UIs where the preview and the form describe different widget states</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>We will introduce a preview-only demo draft layer for widget settings.</p>
+<p>When demo mode is enabled:</p>
+<ul>
+<li class="">the settings form reads from a temporary in-memory demo draft</li>
+<li class="">widget-specific settings edit that temporary draft</li>
+<li class="">the shared panel preview renders from that temporary draft</li>
+<li class="">preview-only bindings, resolved inputs, and runtime state may also come from widget-defined mock
+contracts</li>
+<li class="">no real widget draft changes are persisted or emitted upward</li>
+</ul>
+<p>When demo mode is disabled:</p>
+<ul>
+<li class="">the settings form reverts to the real widget draft</li>
+<li class="">the preview reverts to live draft values</li>
+<li class="">the demo draft is discarded unless explicitly preserved for the current open settings session</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope-boundary">Scope Boundary<a href="#scope-boundary" class="hash-link" aria-label="Direct link to Scope Boundary" title="Direct link to Scope Boundary" translate="no">​</a></h2>
+<p>This ADR is frontend-only.</p>
+<p>It does not change:</p>
+<ul>
+<li class="">workspace persistence contracts</li>
+<li class="">backend widget storage shape</li>
+<li class="">saved dashboard schema</li>
+<li class="">runtime execution contracts on workspace surfaces</li>
+</ul>
+<p>The preview-only draft exists only inside the settings UI state for the open editor session.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="core-model">Core Model<a href="#core-model" class="hash-link" aria-label="Direct link to Core Model" title="Direct link to Core Model" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-two-drafts-one-persisted-source-of-truth">1. Two drafts, one persisted source of truth<a href="#1-two-drafts-one-persisted-source-of-truth" class="hash-link" aria-label="Direct link to 1. Two drafts, one persisted source of truth" title="Direct link to 1. Two drafts, one persisted source of truth" translate="no">​</a></h3>
+<p>The settings surface must maintain two independent draft layers:</p>
+<ul>
+<li class=""><code>real draft</code>
+<ul>
+<li class="">the actual widget title, props, presentation, and bindings being edited</li>
+</ul>
+</li>
+<li class=""><code>demo draft</code>
+<ul>
+<li class="">a temporary preview-only draft derived from widget-defined demo contracts</li>
+</ul>
+</li>
+</ul>
+<p>Only the real draft may call:</p>
+<ul>
+<li class=""><code>onDraftPropsChange(...)</code></li>
+<li class=""><code>onDraftPresentationChange(...)</code></li>
+<li class=""><code>onDraftTitleChange(...)</code></li>
+<li class="">binding mutation handlers</li>
+<li class="">save/persist flows</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-demo-mode-switches-the-full-settings-readerwriter">2. Demo mode switches the full settings reader/writer<a href="#2-demo-mode-switches-the-full-settings-readerwriter" class="hash-link" aria-label="Direct link to 2. Demo mode switches the full settings reader/writer" title="Direct link to 2. Demo mode switches the full settings reader/writer" translate="no">​</a></h3>
+<p>Demo mode must not be render-only.</p>
+<p>When enabled:</p>
+<ul>
+<li class="">shared settings controls read from the demo draft</li>
+<li class="">widget-specific settings components read from the demo draft</li>
+<li class="">widget-specific settings handlers write only to the demo draft</li>
+<li class="">the shared top preview renders only from the demo draft</li>
+</ul>
+<p>This is the key architectural change.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-expand-the-demo-contract-beyond-props">3. Expand the demo contract beyond props<a href="#3-expand-the-demo-contract-beyond-props" class="hash-link" aria-label="Direct link to 3. Expand the demo contract beyond props" title="Direct link to 3. Expand the demo contract beyond props" translate="no">​</a></h3>
+<p>Widgets need more than <code>mockProps</code>.</p>
+<p>The shared preview contract should support all of these where needed:</p>
+<ul>
+<li class=""><code>mockProps</code></li>
+<li class=""><code>mockPresentation</code></li>
+<li class=""><code>mockResolvedInputs</code></li>
+<li class=""><code>mockRuntimeState</code></li>
+<li class=""><code>mockTitle</code> where title materially affects the preview</li>
+</ul>
+<p>For data-bound widgets, <code>mockResolvedInputs</code> is the critical missing piece because a realistic demo
+often depends on:</p>
+<ul>
+<li class="">field metadata</li>
+<li class="">rows</li>
+<li class="">source labels</li>
+<li class="">upstream contract-specific bundle structure</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-data-widgets-must-provide-canonical-demo-bundles">4. Data widgets must provide canonical demo bundles<a href="#4-data-widgets-must-provide-canonical-demo-bundles" class="hash-link" aria-label="Direct link to 4. Data widgets must provide canonical demo bundles" title="Direct link to 4. Data widgets must provide canonical demo bundles" translate="no">​</a></h3>
+<p>Widgets that consume structured upstream contracts must define demo payloads that match the real
+contract shape closely enough for the widget to render meaningfully without live bindings.</p>
+<p>For the Main Sequence Data Node family, this means the demo contract must be able to represent:</p>
+<ul>
+<li class="">source schema</li>
+<li class="">fields</li>
+<li class="">rows</li>
+<li class="">relevant source metadata</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-demo-edits-are-sandboxed">5. Demo edits are sandboxed<a href="#5-demo-edits-are-sandboxed" class="hash-link" aria-label="Direct link to 5. Demo edits are sandboxed" title="Direct link to 5. Demo edits are sandboxed" translate="no">​</a></h3>
+<p>Changes made while demo mode is enabled must never leak into the real widget configuration unless
+we later add an explicit <code>Apply demo to widget</code> action.</p>
+<p>That action is out of scope for this ADR.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-the-ui-must-state-that-demo-mode-is-isolated">6. The UI must state that demo mode is isolated<a href="#6-the-ui-must-state-that-demo-mode-is-isolated" class="hash-link" aria-label="Direct link to 6. The UI must state that demo mode is isolated" title="Direct link to 6. The UI must state that demo mode is isolated" translate="no">​</a></h3>
+<p>While demo mode is active, the settings surface should show explicit copy such as:</p>
+<ul>
+<li class=""><code>Editing demo configuration only</code></li>
+</ul>
+<p>The user should never have to infer whether they are editing the real widget.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-this-option">Why This Option<a href="#why-this-option" class="hash-link" aria-label="Direct link to Why This Option" title="Direct link to Why This Option" translate="no">​</a></h2>
+<p>This matches the mental model the settings surface is trying to create.</p>
+<p>The user is not asking for a fake screenshot. They are asking for a temporary but coherent widget
+instance they can inspect and manipulate safely.</p>
+<p>This option keeps the preview system honest:</p>
+<ul>
+<li class="">preview and controls describe the same temporary state</li>
+<li class="">data widgets can render complete examples</li>
+<li class="">the real draft stays untouched</li>
+<li class="">the contract scales across widget families instead of solving <code>Statistic</code> with widget-local hacks</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rejected-alternatives">Rejected Alternatives<a href="#rejected-alternatives" class="hash-link" aria-label="Direct link to Rejected Alternatives" title="Direct link to Rejected Alternatives" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="keep-demo-mode-render-only">Keep demo mode render-only<a href="#keep-demo-mode-render-only" class="hash-link" aria-label="Direct link to Keep demo mode render-only" title="Direct link to Keep demo mode render-only" translate="no">​</a></h3>
+<p>Rejected because it preserves the current mismatch between preview output and settings controls.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fix-each-widget-locally-with-bespoke-preview-logic">Fix each widget locally with bespoke preview logic<a href="#fix-each-widget-locally-with-bespoke-preview-logic" class="hash-link" aria-label="Direct link to Fix each widget locally with bespoke preview logic" title="Direct link to Fix each widget locally with bespoke preview logic" translate="no">​</a></h3>
+<p>Rejected because that recreates the old fragmented preview system and guarantees drift across
+widgets.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="persist-demo-configuration-into-widget-storage">Persist demo configuration into widget storage<a href="#persist-demo-configuration-into-widget-storage" class="hash-link" aria-label="Direct link to Persist demo configuration into widget storage" title="Direct link to Persist demo configuration into widget storage" translate="no">​</a></h3>
+<p>Rejected for the first rollout because demo mode is a settings-surface authoring aid, not part of
+the saved workspace contract.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="add-a-completely-separate-demo-settings-screen">Add a completely separate demo settings screen<a href="#add-a-completely-separate-demo-settings-screen" class="hash-link" aria-label="Direct link to Add a completely separate demo settings screen" title="Direct link to Add a completely separate demo settings screen" translate="no">​</a></h3>
+<p>Rejected because it duplicates the same fields, validation, and layout already owned by the shared
+settings system.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="architecture">Architecture<a href="#architecture" class="hash-link" aria-label="Direct link to Architecture" title="Direct link to Architecture" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-shared-settings-surface-owns-preview-draft-orchestration">1. Shared settings surface owns preview draft orchestration<a href="#1-shared-settings-surface-owns-preview-draft-orchestration" class="hash-link" aria-label="Direct link to 1. Shared settings surface owns preview draft orchestration" title="Direct link to 1. Shared settings surface owns preview draft orchestration" translate="no">​</a></h3>
+<p><code>src/widgets/shared/widget-settings.tsx</code> becomes the orchestration point for:</p>
+<ul>
+<li class="">demo-mode state</li>
+<li class="">demo draft initialization</li>
+<li class="">demo draft mutation</li>
+<li class="">preview contract resolution</li>
+<li class="">switching widget settings children between real draft and demo draft</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-widget-definitions-provide-preview-fixtures-not-ad-hoc-render-branches">2. Widget definitions provide preview fixtures, not ad hoc render branches<a href="#2-widget-definitions-provide-preview-fixtures-not-ad-hoc-render-branches" class="hash-link" aria-label="Direct link to 2. Widget definitions provide preview fixtures, not ad hoc render branches" title="Direct link to 2. Widget definitions provide preview fixtures, not ad hoc render branches" translate="no">​</a></h3>
+<p>Widget definitions remain the canonical place to declare preview fixtures.</p>
+<p>The shared settings surface should resolve demo contracts from the widget definition rather than
+requiring widget components to guess whether they are in demo mode.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-widget-settings-components-stay-mostly-unchanged">3. Widget settings components stay mostly unchanged<a href="#3-widget-settings-components-stay-mostly-unchanged" class="hash-link" aria-label="Direct link to 3. Widget settings components stay mostly unchanged" title="Direct link to 3. Widget settings components stay mostly unchanged" translate="no">​</a></h3>
+<p>Widget-specific settings components should continue to receive the normal
+<code>WidgetSettingsComponentProps&lt;TProps&gt;</code> shape.</p>
+<p>The shared surface should swap the active draft and the active change handlers before those props
+reach the widget settings component.</p>
+<p>That minimizes per-widget migration cost.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-demo-inputs-must-mirror-real-widget-dependency-contracts">4. Demo inputs must mirror real widget dependency contracts<a href="#4-demo-inputs-must-mirror-real-widget-dependency-contracts" class="hash-link" aria-label="Direct link to 4. Demo inputs must mirror real widget dependency contracts" title="Direct link to 4. Demo inputs must mirror real widget dependency contracts" translate="no">​</a></h3>
+<p>Shared preview plumbing must be able to inject preview-only resolved inputs in the same shape used
+by normal runtime/widget dependency resolution.</p>
+<p>Otherwise data widgets will continue to fall back to empty-state logic.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rollout-phases">Rollout Phases<a href="#rollout-phases" class="hash-link" aria-label="Direct link to Rollout Phases" title="Direct link to Rollout Phases" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-1-shared-preview-draft-infrastructure">Phase 1: Shared preview-draft infrastructure<a href="#phase-1-shared-preview-draft-infrastructure" class="hash-link" aria-label="Direct link to Phase 1: Shared preview-draft infrastructure" title="Direct link to Phase 1: Shared preview-draft infrastructure" translate="no">​</a></h3>
+<p>Goal:</p>
+<ul>
+<li class="">make demo mode switch the full settings surface to a preview-only draft</li>
+</ul>
+<p>Tasks:</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add preview-only draft state to <code>src/widgets/shared/widget-settings.tsx</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep real draft and demo draft isolated in memory</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Route shared title, presentation, and schema controls through the active draft</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure demo-mode edits never call real draft mutation callbacks</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add explicit UI copy that demo mode is preview-only</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-2-expand-the-shared-widget-demo-contract">Phase 2: Expand the shared widget demo contract<a href="#phase-2-expand-the-shared-widget-demo-contract" class="hash-link" aria-label="Direct link to Phase 2: Expand the shared widget demo contract" title="Direct link to Phase 2: Expand the shared widget demo contract" translate="no">​</a></h3>
+<p>Goal:</p>
+<ul>
+<li class="">support demo data that is richer than props-only mocks</li>
+</ul>
+<p>Tasks:</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extend widget definition preview helpers to support <code>mockPresentation</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extend widget definition preview helpers to support <code>mockResolvedInputs</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extend widget definition preview helpers to support <code>mockRuntimeState</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <code>mockTitle</code> support where needed for realistic preview headers</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Document the full preview contract in <code>src/widgets/shared/README.md</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update the widget maintenance skill to require the expanded contract instead of props-only
+mocks</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-3-fix-the-main-sequence-data-node-family-first">Phase 3: Fix the Main Sequence Data Node family first<a href="#phase-3-fix-the-main-sequence-data-node-family-first" class="hash-link" aria-label="Direct link to Phase 3: Fix the Main Sequence Data Node family first" title="Direct link to Phase 3: Fix the Main Sequence Data Node family first" translate="no">​</a></h3>
+<p>Goal:</p>
+<ul>
+<li class="">make data-bound widgets render meaningful demos without live bindings</li>
+</ul>
+<p>Tasks:</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement canonical demo bundles for <code>main-sequence-data-node-statistic</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement canonical demo bundles for <code>main-sequence-data-node-visualizer</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement canonical demo bundles for <code>main-sequence-data-node-filter</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Audit <code>data-node-table</code> and related consumers for the same preview dependency gap</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure these widgets no longer render empty-state placeholders in demo mode when fixtures
+are present</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-4-normalize-all-remaining-widgets-to-the-contract">Phase 4: Normalize all remaining widgets to the contract<a href="#phase-4-normalize-all-remaining-widgets-to-the-contract" class="hash-link" aria-label="Direct link to Phase 4: Normalize all remaining widgets to the contract" title="Direct link to Phase 4: Normalize all remaining widgets to the contract" translate="no">​</a></h3>
+<p>Goal:</p>
+<ul>
+<li class="">make the shared preview contract authoritative across the widget catalog</li>
+</ul>
+<p>Tasks:</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Audit every widget definition for explicit demo fixtures</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Replace fallback-only <code>exampleProps</code> usage with authoritative <code>mockProps</code> where needed</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <code>mockRuntimeState</code> for widgets that require local state to preview meaningfully</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add richer demo inputs for widgets that depend on upstream contracts</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove any remaining widget-local legacy preview sections that duplicate the shared preview</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-5-verification-and-regression-guardrails">Phase 5: Verification and regression guardrails<a href="#phase-5-verification-and-regression-guardrails" class="hash-link" aria-label="Direct link to Phase 5: Verification and regression guardrails" title="Direct link to Phase 5: Verification and regression guardrails" translate="no">​</a></h3>
+<p>Goal:</p>
+<ul>
+<li class="">keep preview quality from drifting over time</li>
+</ul>
+<p>Tasks:</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add an audit script or test helper that flags widget definitions missing required demo
+fixtures</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add targeted verification coverage for shared preview draft isolation</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add targeted verification coverage for demo-mode settings writes not mutating the real draft</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add targeted verification coverage for data-widget demo rendering</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Document expected authoring behavior in widget maintenance docs and shared widget docs</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">preview and settings form will describe the same state</li>
+<li class="">demo mode becomes credible for data-bound widgets</li>
+<li class="">the real widget draft stays protected from exploratory demo edits</li>
+<li class="">the preview system becomes a shared platform contract rather than widget-specific folklore</li>
+</ul>
+<p>Negative:</p>
+<ul>
+<li class="">shared settings orchestration becomes more complex</li>
+<li class="">widget definitions need richer preview fixtures</li>
+<li class="">some widget families will require contract-shaped demo bundles rather than trivial props mocks</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="guardrails">Guardrails<a href="#guardrails" class="hash-link" aria-label="Direct link to Guardrails" title="Direct link to Guardrails" translate="no">​</a></h2>
+<ul>
+<li class="">Do not let demo mode mutate the real widget draft.</li>
+<li class="">Do not let widget-local preview code bypass the shared preview contract.</li>
+<li class="">Do not treat <code>exampleProps</code> as a complete demo contract for complex widgets.</li>
+<li class="">Do not persist preview-only draft state into workspace storage.</li>
+<li class="">Do not require live bindings or backend data for a meaningful demo preview when a widget declares
+demo fixtures.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-notes">Implementation Notes<a href="#implementation-notes" class="hash-link" aria-label="Direct link to Implementation Notes" title="Direct link to Implementation Notes" translate="no">​</a></h2>
+<ul>
+<li class="">Start with <code>Statistic</code> as the reference migration because it exposes the current contract gap
+clearly.</li>
+<li class="">Keep the first implementation slice focused on preview coherence, not on adding a demo-to-real
+apply workflow.</li>
+<li class="">Any later feature that copies demo settings into the real widget should be captured in a separate
+ADR because it would change the authoring workflow materially.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-widget-settings-demo-preview-draft.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#problem" class="table-of-contents__link toc-highlight">Problem</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#scope-boundary" class="table-of-contents__link toc-highlight">Scope Boundary</a></li><li><a href="#core-model" class="table-of-contents__link toc-highlight">Core Model</a><ul><li><a href="#1-two-drafts-one-persisted-source-of-truth" class="table-of-contents__link toc-highlight">1. Two drafts, one persisted source of truth</a></li><li><a href="#2-demo-mode-switches-the-full-settings-readerwriter" class="table-of-contents__link toc-highlight">2. Demo mode switches the full settings reader/writer</a></li><li><a href="#3-expand-the-demo-contract-beyond-props" class="table-of-contents__link toc-highlight">3. Expand the demo contract beyond props</a></li><li><a href="#4-data-widgets-must-provide-canonical-demo-bundles" class="table-of-contents__link toc-highlight">4. Data widgets must provide canonical demo bundles</a></li><li><a href="#5-demo-edits-are-sandboxed" class="table-of-contents__link toc-highlight">5. Demo edits are sandboxed</a></li><li><a href="#6-the-ui-must-state-that-demo-mode-is-isolated" class="table-of-contents__link toc-highlight">6. The UI must state that demo mode is isolated</a></li></ul></li><li><a href="#why-this-option" class="table-of-contents__link toc-highlight">Why This Option</a></li><li><a href="#rejected-alternatives" class="table-of-contents__link toc-highlight">Rejected Alternatives</a><ul><li><a href="#keep-demo-mode-render-only" class="table-of-contents__link toc-highlight">Keep demo mode render-only</a></li><li><a href="#fix-each-widget-locally-with-bespoke-preview-logic" class="table-of-contents__link toc-highlight">Fix each widget locally with bespoke preview logic</a></li><li><a href="#persist-demo-configuration-into-widget-storage" class="table-of-contents__link toc-highlight">Persist demo configuration into widget storage</a></li><li><a href="#add-a-completely-separate-demo-settings-screen" class="table-of-contents__link toc-highlight">Add a completely separate demo settings screen</a></li></ul></li><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#1-shared-settings-surface-owns-preview-draft-orchestration" class="table-of-contents__link toc-highlight">1. Shared settings surface owns preview draft orchestration</a></li><li><a href="#2-widget-definitions-provide-preview-fixtures-not-ad-hoc-render-branches" class="table-of-contents__link toc-highlight">2. Widget definitions provide preview fixtures, not ad hoc render branches</a></li><li><a href="#3-widget-settings-components-stay-mostly-unchanged" class="table-of-contents__link toc-highlight">3. Widget settings components stay mostly unchanged</a></li><li><a href="#4-demo-inputs-must-mirror-real-widget-dependency-contracts" class="table-of-contents__link toc-highlight">4. Demo inputs must mirror real widget dependency contracts</a></li></ul></li><li><a href="#rollout-phases" class="table-of-contents__link toc-highlight">Rollout Phases</a><ul><li><a href="#phase-1-shared-preview-draft-infrastructure" class="table-of-contents__link toc-highlight">Phase 1: Shared preview-draft infrastructure</a></li><li><a href="#phase-2-expand-the-shared-widget-demo-contract" class="table-of-contents__link toc-highlight">Phase 2: Expand the shared widget demo contract</a></li><li><a href="#phase-3-fix-the-main-sequence-data-node-family-first" class="table-of-contents__link toc-highlight">Phase 3: Fix the Main Sequence Data Node family first</a></li><li><a href="#phase-4-normalize-all-remaining-widgets-to-the-contract" class="table-of-contents__link toc-highlight">Phase 4: Normalize all remaining widgets to the contract</a></li><li><a href="#phase-5-verification-and-regression-guardrails" class="table-of-contents__link toc-highlight">Phase 5: Verification and regression guardrails</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li><li><a href="#implementation-notes" class="table-of-contents__link toc-highlight">Implementation Notes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

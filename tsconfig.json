@@ -21,5 +21,5 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "extensions", "vite.config.ts"]
+  "include": ["src", "extensions", "connections", "vite.config.ts"]
 }

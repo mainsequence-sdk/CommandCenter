@@ -63,7 +63,7 @@ export function normalizeWidgetPresentation(
 export function resolveDefaultWidgetPresentation<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 >(
-  widget: Pick<WidgetDefinition<TProps>, "schema" | "defaultPresentation">,
+  widget: Pick<WidgetDefinition<TProps>, "schema" | "defaultPresentation" | "fixedPlacementMode">,
 ): WidgetInstancePresentation {
   const basePresentation = normalizeWidgetPresentation(widget.defaultPresentation);
   const fields = widget.schema?.fields ?? [];
@@ -87,6 +87,7 @@ export function resolveDefaultWidgetPresentation<
 
   const nextPresentation: WidgetInstancePresentation = {
     ...basePresentation,
+    placementMode: widget.fixedPlacementMode ?? basePresentation.placementMode,
     exposedFields:
       Object.keys(exposedFields).length > 0
         ? {
@@ -102,7 +103,7 @@ export function resolveDefaultWidgetPresentation<
 export function resolveWidgetInstancePresentation<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 >(
-  widget: Pick<WidgetDefinition<TProps>, "schema" | "defaultPresentation">,
+  widget: Pick<WidgetDefinition<TProps>, "schema" | "defaultPresentation" | "fixedPlacementMode">,
   value?: WidgetInstancePresentation | null,
 ): WidgetInstancePresentation {
   const defaults = resolveDefaultWidgetPresentation(widget);
@@ -111,6 +112,7 @@ export function resolveWidgetInstancePresentation<
   return normalizeWidgetPresentation({
     ...defaults,
     ...current,
+    placementMode: widget.fixedPlacementMode ?? current.placementMode ?? defaults.placementMode,
     exposedFields: {
       ...(defaults.exposedFields ?? {}),
       ...(current.exposedFields ?? {}),

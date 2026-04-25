@@ -66,7 +66,6 @@ The current repository ships with these extensions:
 - `ag-grid`: optional data-grid widget integration
 - `echarts`: optional spec-driven chart integration with organization-scoped widget configuration support
 - `lightweight-charts`: optional market chart integration
-- `flow-lab`: bundled extension that contributes a custom widget and theme to demo surfaces
 - `main_sequence`: repo-root product namespace with separate Workbench and Markets extensions
 
 ## Local Development

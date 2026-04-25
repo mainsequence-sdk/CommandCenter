@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to show a legacy AG Grid positions table.
+Legacy AG Grid positions table.
 
 ## whenToUse
 

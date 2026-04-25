@@ -6,7 +6,7 @@ This directory owns the `Agents Monitor` surface for the `Main Sequence AI` app.
 
 The surface reuses the core workspace studio canvas instead of introducing a second agent-specific
 canvas implementation. It filters that studio down to agent-monitor workspaces and the scoped
-agent-monitor widgets: `Agent Terminal`, `WorkspaceReference`, and `Upstream Inspector`. It also exposes a
+agent-monitor widgets: `Agent Terminal`, `Workspace`, and `Upstream Inspector`. It also exposes a
 direct launcher flow that selects an allowlisted agent, creates a fresh session for it, and
 inserts session-bound terminals without going through the generic widget settings path first. The
 shared studio bindings inspector is also available here through each widget action menu, so
@@ -14,7 +14,7 @@ agent-monitor terminals can be wired through upstream bindings without leaving t
 surface. Open monitor workspaces also auto-enter edit mode on first load so the authoring chrome
 is immediately available. The global saved-widget library link is intentionally hidden here until
 saved-widget browsing can be constrained by the same agent-studio widget allowlist. The
-`WorkspaceReference` widget is included in this curated surface list, but it is also available in the
+`Workspace` widget is included in this curated surface list, but it is also available in the
 broader Main Sequence AI widget catalog.
 
 ## Entry Points
@@ -45,6 +45,6 @@ broader Main Sequence AI widget catalog.
 - Prefer the direct launcher flow here over asking users to add a blank widget and then configure
   the widget manually. The launcher is now the canonical place to create a fresh managed session
   before inserting a terminal.
-- Keep the surface allowlist narrow: `Agent Terminal`, `WorkspaceReference`, and `Upstream Inspector`
+- Keep the surface allowlist narrow: `Agent Terminal`, `Workspace`, and `Upstream Inspector`
   only. Do not reintroduce general-purpose context widgets here unless the monitor workflow
   explicitly requires them.

@@ -11,7 +11,7 @@ surfaces and the editable workspace studio.
 - `canvas-items.ts`: shared derivation for workspace canvas items that are not just normal widgets,
   including companion-card ids, dashboard-owned companion layout resolution, legacy presentation
   fallback, and companion candidate resolution.
-- `responsive-layout.ts`: shared responsive layout helpers. It builds the Grafana-style
+- `responsive-layout.ts`: shared responsive layout helpers. It builds the rules-based responsive
   `grid-template-columns` string for Auto grid and also provides the temporary runtime rewrite used
   when `custom` dashboards collapse to full-width cards on smaller screens.
 - `DashboardControls.tsx`: shared dashboard controls and time-range/refresh coordination.
@@ -124,11 +124,11 @@ surfaces and the editable workspace studio.
 - The route-level workspace graph editor must stay on top of this dependency layer. React Flow owns
   node/edge rendering and local node positions there, but binding validation and canonical binding
   mutation rules stay centralized in `widget-dependencies.ts`.
-- Auto grid now uses Grafana-style CSS Grid behavior. `maxColumns` is an upper bound, not a fixed
+- Auto grid now uses rules-based CSS Grid behavior. `maxColumns` is an upper bound, not a fixed
   reserved set of slots. The container uses `repeat(auto-fit, minmax(..., 1fr))`, so empty tracks
   collapse naturally:
   1 item fills the row, 2 items render as 2 equal columns, and so on up to `maxColumns`.
-- `custom` now also has a Grafana-style mobile runtime rewrite. Below the shared `769px`
+- `custom` now also has a responsive mobile runtime rewrite. Below the shared `769px`
   breakpoint, runtime rendering keeps each item height but temporarily rewrites the layout so every
   item spans the full dashboard width. That rewrite is view/runtime only and must never be written
   back into saved widget geometry.
@@ -143,4 +143,4 @@ surfaces and the editable workspace studio.
   be introduced under a separate `auto-grid` mode instead of changing what `custom` means.
 - Current limitation: `auto-grid` is now layout-rule driven, but it is still a top-level mode
   only. Rows are still special full-width items, and there is not yet a nested layout-mode system
-  like Grafana rows/tabs.
+  with row or tab grouping.

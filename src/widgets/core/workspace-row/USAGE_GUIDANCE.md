@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to create labeled row groupings and collapse sections in a workspace layout.
+Collapsible labeled row section for grouping workspace widgets.
 
 ## whenToUse
 

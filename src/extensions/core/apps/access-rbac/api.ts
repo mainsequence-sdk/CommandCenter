@@ -1,4 +1,5 @@
 import {
+  PROMETHEUS_CONNECTION_PERMISSIONS,
   buildEffectivePermissions,
   getPermissionsForRole,
   normalizeBuiltinRole,
@@ -83,11 +84,12 @@ export const BUILTIN_ACCESS_POLICY_DETAILS = {
     slugifiedName: "dev-user",
     label: "Dev User",
     description:
-      "Developer shell access for users who should see the full Main Sequence Foundry application.",
+      "Developer shell access for users who should see Main Sequence Foundry and use Prometheus data sources.",
     permissions: [
       "workspaces:view",
       "main_sequence_markets:view",
       "main_sequence_foundry:view",
+      ...PROMETHEUS_CONNECTION_PERMISSIONS,
     ],
     isSystem: true,
     isEditable: false,

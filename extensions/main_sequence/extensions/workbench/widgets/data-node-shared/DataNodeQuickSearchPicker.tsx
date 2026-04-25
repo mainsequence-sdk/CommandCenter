@@ -24,6 +24,7 @@ export function DataNodeQuickSearchPicker({
   searchPlaceholder = "Search data nodes",
   selectionHelpText = "Choose the table you want to visualize.",
   showStatus = true,
+  onSelectedDataNodeChange,
   detailError,
   hasNoData = false,
 }: {
@@ -36,6 +37,9 @@ export function DataNodeQuickSearchPicker({
   searchPlaceholder?: string;
   selectionHelpText?: string;
   showStatus?: boolean;
+  onSelectedDataNodeChange?: (
+    dataNode?: Pick<DataNodeQuickSearchRecord, "id" | "identifier" | "storage_hash">,
+  ) => void;
   detailError?: unknown;
   hasNoData?: boolean;
 }) {
@@ -88,7 +92,14 @@ export function DataNodeQuickSearchPicker({
         value={value && value > 0 ? String(value) : ""}
         onChange={(nextValue) => {
           const nextId = Number(nextValue);
-          onChange(Number.isFinite(nextId) && nextId > 0 ? nextId : undefined);
+          const normalizedNextId = Number.isFinite(nextId) && nextId > 0 ? nextId : undefined;
+
+          onChange(normalizedNextId);
+          onSelectedDataNodeChange?.(
+            normalizedNextId
+              ? dataNodeOptions.find((dataNode) => dataNode.id === normalizedNextId)
+              : undefined,
+          );
         }}
         options={pickerOptions}
         placeholder={placeholder}

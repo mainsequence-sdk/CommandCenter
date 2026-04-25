@@ -2,6 +2,7 @@ import type { ThemePreset } from "@/themes/types";
 import type { WidgetDefinition } from "@/widgets/types";
 import type { AppDefinition, AppShellMenuContribution, AppSurfaceEntry } from "@/apps/types";
 import type { DashboardDefinition } from "@/dashboards/types";
+import type { AnyConnectionTypeDefinition } from "@/connections/types";
 
 export interface AppExtension {
   id: string;
@@ -11,6 +12,7 @@ export interface AppExtension {
   widgets?: WidgetDefinition[];
   apps?: AppDefinition[];
   themes?: ThemePreset[];
+  connections?: AnyConnectionTypeDefinition[];
 }
 
 export interface AppRegistry {
@@ -21,6 +23,7 @@ export interface AppRegistry {
   shellMenuEntries: AppShellMenuEntry[];
   dashboards: DashboardDefinition[];
   themes: ThemePreset[];
+  connections: AnyConnectionTypeDefinition[];
 }
 
 export type AppShellMenuEntry = AppShellMenuContribution & {

@@ -113,7 +113,6 @@ Current examples:
 
 - `src/extensions/ag-grid/index.ts`
 - `src/extensions/lightweight-charts/index.ts`
-- `src/extensions/flow-lab/index.ts`
 - `extensions/main_sequence/extensions/workbench/index.ts`
 - `extensions/main_sequence/extensions/markets/index.ts`
 
@@ -128,17 +127,17 @@ Current examples:
 Example:
 
 ```ts
-export const orderBookWidget: WidgetDefinition<{ symbol?: string }> = {
-  id: "order-book",
-  title: "Order Book",
-  description: "Level II style side-by-side bid/ask widget shipped by an extension.",
-  category: "Execution",
+export const priceChartWidget: WidgetDefinition<{ symbol?: string }> = {
+  id: "price-chart",
+  title: "Price Chart",
+  description: "Interactive market chart shipped by an optional charting extension.",
+  category: "Market",
   kind: "custom",
-  source: "flow-lab",
-  defaultSize: { w: 4, h: 5 },
-  requiredPermissions: ["orders:read"],
+  source: "lightweight-charts",
+  defaultSize: { w: 8, h: 5 },
+  requiredPermissions: ["dashboard:view"],
   exampleProps: { symbol: "TSLA" },
-  component: OrderBookWidget,
+  component: PriceChartWidget,
 };
 ```
 
@@ -207,9 +206,9 @@ const deskDashboard: DashboardDefinition = {
       position: { x: 0 },
     },
     {
-      id: "desk-orderbook",
-      widgetId: "order-book",
-      title: "Book",
+      id: "desk-positions",
+      widgetId: "positions-table",
+      title: "Positions",
       props: { symbol: "TSLA" },
       layout: { cols: 4, rows: 5 },
       position: { x: 8 },

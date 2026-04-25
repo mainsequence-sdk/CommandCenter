@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to visualize compressed curve data on a days-based zero-curve axis.
+Days-based zero-curve visualization for compressed curve data.
 
 ## whenToUse
 

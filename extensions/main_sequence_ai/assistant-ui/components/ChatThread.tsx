@@ -612,7 +612,7 @@ function Composer({
   const hasModelOptions = modelOptions.length > 0;
   const hasProviderOptions = (providerOptions?.length ?? 0) > 0;
   const hasReasoningEffortOptions = reasoningEffortOptions.length > 0;
-  const showConfigRow = isPage && hasProviderOptions && hasModelOptions;
+  const showConfigRow = hasProviderOptions || hasModelOptions || hasReasoningEffortOptions;
   const modelsUnavailable = !env.useMockData && !isLoadingAvailableModels && !hasAvailableModels;
   const modelCatalogError = modelsUnavailable && Boolean(availableModelsError?.trim());
   const emptyModelCatalog = modelsUnavailable && !modelCatalogError;
@@ -772,7 +772,7 @@ function Composer({
   return composerBody;
 }
 
-function PageComposerFooter() {
+function ComposerFooter({ surface = "page" }: { surface?: "overlay" | "page" }) {
   const { activeSessionSummary } = useChatFeature();
   const insights =
     activeSessionSummary &&
@@ -815,7 +815,7 @@ function PageComposerFooter() {
       : null;
 
   return (
-    <div className="mt-3 space-y-3">
+    <div className={cn("mt-3 space-y-3", surface === "overlay" ? "px-1" : null)}>
       {percentUsed !== null ? (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
@@ -991,7 +991,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   sessionUnavailableMessage={sessionUnavailableMessage}
                   surface={surface}
                 />
-                <PageComposerFooter />
+                <ComposerFooter surface={surface} />
               </div>
             </div>
           </div>
@@ -1060,7 +1060,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     sessionUnavailableMessage={sessionUnavailableMessage}
                     surface={surface}
                   />
-                  <PageComposerFooter />
+                  <ComposerFooter surface={surface} />
                 </div>
               </div>
             ) : null}
@@ -1095,6 +1095,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     sessionUnavailableMessage={sessionUnavailableMessage}
                     surface={surface}
                   />
+                  <ComposerFooter surface={surface} />
                 </div>
               </div>
             ) : null}

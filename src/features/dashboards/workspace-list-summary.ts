@@ -25,10 +25,44 @@ function normalizeWorkspaceId(value: unknown) {
   return null;
 }
 
+function readWorkspaceId(source: Record<string, unknown>) {
+  return normalizeWorkspaceId(
+    source.id ??
+      source.pk ??
+      source.uuid ??
+      source.workspace_id ??
+      source.workspaceId ??
+      source.dashboard_id ??
+      source.dashboardId,
+  );
+}
+
+function readStringAlias(source: Record<string, unknown>, keys: string[], fallback = "") {
+  for (const key of keys) {
+    const value = source[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
 function coerceStringArray(value: unknown) {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
     : [];
+}
+
+function coerceLabelArray(source: Record<string, unknown>) {
+  return coerceStringArray(source.labels).length > 0
+    ? coerceStringArray(source.labels)
+    : coerceStringArray(source.tags);
+}
+
+function readUpdatedAt(source: Record<string, unknown>) {
+  return readStringAlias(source, ["updatedAt", "updated_at", "modified_at", "modifiedAt"], "") || null;
 }
 
 export function summarizeDashboardForWorkspaceList(
@@ -52,8 +86,28 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
     return null;
   }
 
+  if (isRecord(value.workspace)) {
+    const nestedSummary = coerceWorkspaceListItemSummary(value.workspace);
+    return nestedSummary
+      ? {
+          ...nestedSummary,
+          updatedAt: readUpdatedAt(value) ?? nestedSummary.updatedAt,
+        }
+      : null;
+  }
+
+  if (isRecord(value.dashboard)) {
+    const nestedSummary = coerceWorkspaceListItemSummary(value.dashboard);
+    return nestedSummary
+      ? {
+          ...nestedSummary,
+          updatedAt: readUpdatedAt(value) ?? nestedSummary.updatedAt,
+        }
+      : null;
+  }
+
   if (Array.isArray(value.widgets)) {
-    const id = normalizeWorkspaceId(value.id);
+    const id = readWorkspaceId(value);
 
     if (!id) {
       return null;
@@ -62,23 +116,18 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
     return summarizeDashboardForWorkspaceList(
       {
         id,
-        title: typeof value.title === "string" && value.title.trim() ? value.title : "Workspace",
+        title: readStringAlias(value, ["title", "name", "display_name", "displayName"], "Workspace"),
         description: typeof value.description === "string" ? value.description : "",
-        labels: coerceStringArray(value.labels),
-        source: typeof value.source === "string" && value.source.trim() ? value.source : "user",
+        labels: coerceLabelArray(value),
+        source: readStringAlias(value, ["source", "origin"], "user"),
       },
       {
-        updatedAt:
-          typeof value.updatedAt === "string" && value.updatedAt.trim()
-            ? value.updatedAt
-            : typeof value.updated_at === "string" && value.updated_at.trim()
-              ? value.updated_at
-              : null,
+        updatedAt: readUpdatedAt(value),
       },
     );
   }
 
-  const id = normalizeWorkspaceId(value.id);
+  const id = readWorkspaceId(value);
 
   if (!id) {
     return null;
@@ -86,24 +135,25 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
 
   return {
     id,
-    title: typeof value.title === "string" && value.title.trim() ? value.title : "Workspace",
+    title: readStringAlias(value, ["title", "name", "display_name", "displayName"], "Workspace"),
     description: typeof value.description === "string" ? value.description : "",
-    labels: coerceStringArray(value.labels),
-    source: typeof value.source === "string" && value.source.trim() ? value.source : "user",
-    updatedAt:
-      typeof value.updatedAt === "string" && value.updatedAt.trim()
-        ? value.updatedAt
-        : typeof value.updated_at === "string" && value.updated_at.trim()
-          ? value.updated_at
-          : null,
+    labels: coerceLabelArray(value),
+    source: readStringAlias(value, ["source", "origin"], "user"),
+    updatedAt: readUpdatedAt(value),
   };
+}
+
+function normalizeWorkspaceListEntries(value: unknown) {
+  return Array.isArray(value)
+    ? value
+        .map((entry) => coerceWorkspaceListItemSummary(entry))
+        .filter((entry): entry is WorkspaceListItemSummary => entry !== null)
+    : [];
 }
 
 export function normalizeWorkspaceListSummariesPayload(payload: unknown) {
   if (Array.isArray(payload)) {
-    return payload
-      .map((entry) => coerceWorkspaceListItemSummary(entry))
-      .filter((entry): entry is WorkspaceListItemSummary => entry !== null);
+    return normalizeWorkspaceListEntries(payload);
   }
 
   if (!isRecord(payload)) {
@@ -111,15 +161,23 @@ export function normalizeWorkspaceListSummariesPayload(payload: unknown) {
   }
 
   if (Array.isArray(payload.results)) {
-    return payload.results
-      .map((entry) => coerceWorkspaceListItemSummary(entry))
-      .filter((entry): entry is WorkspaceListItemSummary => entry !== null);
+    return normalizeWorkspaceListEntries(payload.results);
   }
 
   if (Array.isArray(payload.dashboards)) {
-    return payload.dashboards
-      .map((entry) => coerceWorkspaceListItemSummary(entry))
-      .filter((entry): entry is WorkspaceListItemSummary => entry !== null);
+    return normalizeWorkspaceListEntries(payload.dashboards);
+  }
+
+  if (Array.isArray(payload.workspaces)) {
+    return normalizeWorkspaceListEntries(payload.workspaces);
+  }
+
+  if (Array.isArray(payload.items)) {
+    return normalizeWorkspaceListEntries(payload.items);
+  }
+
+  if (Array.isArray(payload.data)) {
+    return normalizeWorkspaceListEntries(payload.data);
   }
 
   return [];

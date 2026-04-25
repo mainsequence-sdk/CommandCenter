@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-agent-monitor-workspace-reference-widget" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: Main Sequence AI Workspace Reference Widget | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-agent-monitor-workspace-reference-widget"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Main Sequence AI Workspace Reference Widget | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-agent-monitor-workspace-reference-widget"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-agent-monitor-workspace-reference-widget" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-agent-monitor-workspace-reference-widget" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.18191461.js" defer="defer"></script>
+<script src="/docs/assets/js/main.eea687b4.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: Main Sequence AI Workspace Reference Widget</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-04-23</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/workspaces/overview">Workspaces</a></li>
+<li class=""><a class="" href="/docs/workspaces/agent-monitor-workspace-widget-plan">Main Sequence AI Workspace Reference Widget Plan</a></li>
+<li class=""><a class="" href="/docs/adr/adr-widget-agent-context-bindings">ADR: Widget Agent Context Bindings for Agent Terminal Consumers</a></li>
+<li class=""><a class="" href="/docs/adr/adr-agent-terminal-managed-session-creation">ADR: Agent Terminal Managed Session Creation and Agent Allowlist</a></li>
+<li class=""><a class="" href="/docs/adr/adr-agent-ready-widget-type-registry-contract">ADR: Agent-Ready Widget Type Registry Contract</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p><code>Main Sequence AI</code> already exposes workspace widgets through the shared workspace studio catalog,
+and <code>Agents Monitor</code> applies an additional curated allowlist through
+<code>agentMonitorWorkspaceStudioConfig.allowedWidgetIds</code>.</p>
+<p>That extension surface area already supports:</p>
+<ul>
+<li class=""><code>Agent Terminal</code></li>
+<li class=""><code>Upstream Inspector</code></li>
+<li class="">the <code>WorkspaceReference</code> widget through both the general Main Sequence AI catalog and the monitor
+allowlist</li>
+</ul>
+<p>Those widgets alone are the wrong abstraction when the authoring goal is simpler:</p>
+<ul>
+<li class="">point at one existing workspace</li>
+<li class="">bind that reference into an agent workflow</li>
+<li class="">publish only the referenced workspace id</li>
+</ul>
+<p>We need an explicit workspace pointer widget instead of forcing users to overload a snapshot widget
+or paste ids into prompt text manually.</p>
+<p>There is also one guardrail that must be first-class:</p>
+<ul>
+<li class="">the widget must not allow selecting its own containing workspace</li>
+</ul>
+<p>Without that rule, the widget becomes a confusing self-reference surface and makes copied/imported
+workspace configurations harder to reason about.</p>
+<p>One more compatibility requirement exists here:</p>
+<ul>
+<li class=""><code>Agent Terminal</code> must accept both snapshot-style widget context and explicit workspace-reference
+inputs</li>
+</ul>
+<p>So a new widget that publishes only <code>{&quot;id&quot;: &quot;&lt;workspace-id&gt;&quot;}</code> requires a companion
+<code>Agent Terminal</code> contract widening rather than an incorrect attempt to disguise the workspace
+pointer as widget snapshot context.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>We will add a new Main Sequence AI widget titled <code>WorkspaceReference</code> that publishes a minimal workspace
+reference contract and is available as a normal Main Sequence AI widget, including within
+<code>Agents Monitor</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-the-widget-is-a-reference-publisher-not-a-snapshot-widget">1. The widget is a reference publisher, not a snapshot widget<a href="#1-the-widget-is-a-reference-publisher-not-a-snapshot-widget" class="hash-link" aria-label="Direct link to 1. The widget is a reference publisher, not a snapshot widget" title="Direct link to 1. The widget is a reference publisher, not a snapshot widget" translate="no">​</a></h3>
+<p>The widget will store one authored target workspace id and publish one minimal structured output:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> </span><span class="token property">&quot;id&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;&lt;workspace-id&gt;&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>It will not attempt to serialize the referenced workspace contents, layout, or live widget state.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-the-widget-is-generally-available-in-main-sequence-ai-workspaces">2. The widget is generally available in Main Sequence AI workspaces<a href="#2-the-widget-is-generally-available-in-main-sequence-ai-workspaces" class="hash-link" aria-label="Direct link to 2. The widget is generally available in Main Sequence AI workspaces" title="Direct link to 2. The widget is generally available in Main Sequence AI workspaces" translate="no">​</a></h3>
+<p>The widget will be registered in the normal <code>Main Sequence AI</code> extension widget list so it appears
+in the broader shared workspace-studio catalog.</p>
+<p><code>Agents Monitor</code> will also include the widget in its curated allowlist, but the widget is not
+monitor-exclusive.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-the-contract-is-extension-local-for-v1">3. The contract is extension-local for v1<a href="#3-the-contract-is-extension-local-for-v1" class="hash-link" aria-label="Direct link to 3. The contract is extension-local for v1" title="Direct link to 3. The contract is extension-local for v1" translate="no">​</a></h3>
+<p>The widget will publish:</p>
+<ul>
+<li class="">contract: <code>main-sequence-ai.workspace-reference@v1</code></li>
+</ul>
+<p>Recommended output id:</p>
+<ul>
+<li class=""><code>workspace-reference</code></li>
+</ul>
+<p>Recommended value descriptor:</p>
+<ul>
+<li class="">object contract with one required string field:<!-- -->
+<ul>
+<li class=""><code>id</code></li>
+</ul>
+</li>
+</ul>
+<p>This contract remains extension-local until more than one product area needs the same semantic
+shape.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-self-selection-is-blocked-in-both-authoring-and-runtime">4. Self-selection is blocked in both authoring and runtime<a href="#4-self-selection-is-blocked-in-both-authoring-and-runtime" class="hash-link" aria-label="Direct link to 4. Self-selection is blocked in both authoring and runtime" title="Direct link to 4. Self-selection is blocked in both authoring and runtime" translate="no">​</a></h3>
+<p>The widget must not allow the current workspace to be selected as its target.</p>
+<p>Enforcement rules:</p>
+<ul>
+<li class="">the settings picker excludes the current workspace id</li>
+<li class="">runtime normalization/output resolution treats a self-target as invalid</li>
+<li class="">invalid or self-targeted widget instances publish no output</li>
+</ul>
+<p>That second rule is required because invalid state can still arrive through raw JSON editing,
+imports, copied workspaces, or stale persisted instances.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-the-widget-stores-only-the-target-id">5. The widget stores only the target id<a href="#5-the-widget-stores-only-the-target-id" class="hash-link" aria-label="Direct link to 5. The widget stores only the target id" title="Direct link to 5. The widget stores only the target id" translate="no">​</a></h3>
+<p>Recommended authored prop:</p>
+<ul>
+<li class=""><code>workspaceId?: string</code></li>
+</ul>
+<p>The widget should not persist duplicated workspace title or label metadata as durable props.</p>
+<p>Display metadata can be resolved from workspace summaries at runtime when available. The canonical
+authored value is the target workspace id only.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-agent-terminal-accepts-both-snapshot-context-and-workspace-references">6. Agent Terminal accepts both snapshot context and workspace references<a href="#6-agent-terminal-accepts-both-snapshot-context-and-workspace-references" class="hash-link" aria-label="Direct link to 6. Agent Terminal accepts both snapshot context and workspace references" title="Direct link to 6. Agent Terminal accepts both snapshot context and workspace references" translate="no">​</a></h3>
+<p>If the intended consumer is <code>Agent Terminal</code>, it accepts:</p>
+<ul>
+<li class=""><code>core.widget-agent-context@v1</code></li>
+<li class=""><code>main-sequence-ai.workspace-reference@v1</code></li>
+</ul>
+<p>The terminal should format workspace references explicitly in its refresh composition path instead
+of pretending they are widget snapshots.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="goals">Goals<a href="#goals" class="hash-link" aria-label="Direct link to Goals" title="Direct link to Goals" translate="no">​</a></h2>
+<ul>
+<li class="">Give Main Sequence AI workspaces a simple widget for passing one workspace id into agent
+workflows.</li>
+<li class="">Keep the published value minimal and stable.</li>
+<li class="">Prevent self-reference from the start.</li>
+<li class="">Keep the authored prop model honest and small.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="non-goals">Non-Goals<a href="#non-goals" class="hash-link" aria-label="Direct link to Non-Goals" title="Direct link to Non-Goals" translate="no">​</a></h2>
+<ul>
+<li class="">Embedding the referenced workspace inside the widget</li>
+<li class="">Publishing live workspace snapshots</li>
+<li class="">Changing the shared workspace persistence schema</li>
+<li class="">Creating a new core workspace contract immediately</li>
+<li class="">Allowing the widget to point to itself</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="design">Design<a href="#design" class="hash-link" aria-label="Direct link to Design" title="Direct link to Design" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-module">Widget module<a href="#widget-module" class="hash-link" aria-label="Direct link to Widget module" title="Direct link to Widget module" translate="no">​</a></h3>
+<p>Recommended module:</p>
+<ul>
+<li class=""><code>extensions/main_sequence_ai/widgets/workspace/</code></li>
+</ul>
+<p>Required files:</p>
+<ul>
+<li class=""><code>README.md</code></li>
+<li class=""><code>USAGE_GUIDANCE.md</code></li>
+<li class=""><code>definition.ts</code></li>
+<li class=""><code>WorkspaceWidget.tsx</code></li>
+<li class=""><code>WorkspaceWidgetSettings.tsx</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ui-behavior">UI behavior<a href="#ui-behavior" class="hash-link" aria-label="Direct link to UI behavior" title="Direct link to UI behavior" translate="no">​</a></h3>
+<p>The runtime card should stay small and explicit:</p>
+<ul>
+<li class="">show the selected workspace title when available</li>
+<li class="">show the raw workspace id</li>
+<li class="">show an empty or invalid state when no usable target is configured</li>
+<li class="">optionally offer an <code>Open workspace</code> link</li>
+</ul>
+<p>The widget does not need special inline editing or execution ownership.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="settings-behavior">Settings behavior<a href="#settings-behavior" class="hash-link" aria-label="Direct link to Settings behavior" title="Direct link to Settings behavior" translate="no">​</a></h3>
+<p>The settings surface should:</p>
+<ol>
+<li class="">resolve the current workspace id</li>
+<li class="">load accessible workspace summaries</li>
+<li class="">exclude the current workspace from candidate options</li>
+<li class="">save only the selected target id</li>
+</ol>
+<p>In backend direct-link flows, the widget settings should not assume the global workspace list is
+already hydrated.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="catalog-placement">Catalog placement<a href="#catalog-placement" class="hash-link" aria-label="Direct link to Catalog placement" title="Direct link to Catalog placement" translate="no">​</a></h3>
+<p>The widget should:</p>
+<ul>
+<li class="">be registered in the normal <code>Main Sequence AI</code> extension widget list</li>
+<li class="">be included in <code>agentMonitorWorkspaceStudioConfig.allowedWidgetIds</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-contract-assessment">Storage Contract Assessment<a href="#storage-contract-assessment" class="hash-link" aria-label="Direct link to Storage Contract Assessment" title="Direct link to Storage Contract Assessment" translate="no">​</a></h2>
+<p>This proposal does not change the shared workspace document model.</p>
+<p>Shared workspace persistence remains:</p>
+<ul>
+<li class="">one workspace with normal widget instances</li>
+<li class="">one widget instance with widget-local props</li>
+</ul>
+<p>This proposal only adds a new widget type whose local authored prop is <code>workspaceId</code>.</p>
+<p>Backend coordination required:</p>
+<ul>
+<li class="">publish the new widget type through the widget registry before relying on backend validation in
+saved backend workspaces</li>
+</ul>
+<p>Backend coordination not required:</p>
+<ul>
+<li class="">no workspace schema migration</li>
+<li class="">no new top-level workspace fields</li>
+<li class="">no change to the binding graph storage model</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">Main Sequence AI workspaces get a purpose-built workspace pointer instead of a prompt hack.</li>
+<li class="">The published value is small and stable.</li>
+<li class="">Self-reference is explicitly forbidden instead of being left to user judgment.</li>
+<li class=""><code>Agents Monitor</code> can include the widget without owning a separate implementation.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">The widget becomes visible outside monitor-specific workflows, so authors can place it in
+workspaces where it may not be immediately useful without an AI consumer.</li>
+<li class=""><code>Agent Terminal</code> now carries a broader binding surface because it accepts both snapshot context
+and explicit workspace references.</li>
+<li class="">Widget settings need workspace-summary access even in backend direct-link flows where the list may
+not already be loaded.</li>
+<li class="">A new extension-local contract adds one more contract surface to document and maintain.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="tasks">Tasks<a href="#tasks" class="hash-link" aria-label="Direct link to Tasks" title="Direct link to Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a new <code>Workspace</code> widget module under <code>extensions/main_sequence_ai/widgets/workspace/</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add <code>README.md</code> and <code>USAGE_GUIDANCE.md</code> for the new widget.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define <code>main-sequence-ai.workspace-reference@v1</code> and its object value descriptor.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Persist only <code>workspaceId</code> in widget props.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Exclude the current workspace from the settings picker.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Block self-targets during runtime normalization/output resolution.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Register the widget in <code>extensions/main_sequence_ai/index.ts</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add the widget id to <code>agentMonitorWorkspaceStudioConfig.allowedWidgetIds</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Widen <code>Agent Terminal</code> to accept the new workspace reference contract and update its request
+composition logic.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update Main Sequence AI widget docs after implementation lands.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rejected-alternative">Rejected Alternative<a href="#rejected-alternative" class="hash-link" aria-label="Direct link to Rejected Alternative" title="Direct link to Rejected Alternative" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="reuse-corewidget-agent-contextv1-for-workspace-ids">Reuse <code>core.widget-agent-context@v1</code> for workspace ids<a href="#reuse-corewidget-agent-contextv1-for-workspace-ids" class="hash-link" aria-label="Direct link to reuse-corewidget-agent-contextv1-for-workspace-ids" title="Direct link to reuse-corewidget-agent-contextv1-for-workspace-ids" translate="no">​</a></h3>
+<p>Rejected.</p>
+<p>Reason:</p>
+<ul>
+<li class="">a workspace pointer is not a live widget snapshot</li>
+<li class="">the user requirement is intentionally minimal: only <code>{&quot;id&quot;: &quot;&lt;workspace-id&gt;&quot;}</code></li>
+<li class="">forcing the workspace pointer into the snapshot contract would add irrelevant wrapper fields and
+blur the difference between &quot;reason over this widget&#x27;s live state&quot; and &quot;use this workspace id&quot;</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-agent-monitor-workspace-reference-widget.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#1-the-widget-is-a-reference-publisher-not-a-snapshot-widget" class="table-of-contents__link toc-highlight">1. The widget is a reference publisher, not a snapshot widget</a></li><li><a href="#2-the-widget-is-generally-available-in-main-sequence-ai-workspaces" class="table-of-contents__link toc-highlight">2. The widget is generally available in Main Sequence AI workspaces</a></li><li><a href="#3-the-contract-is-extension-local-for-v1" class="table-of-contents__link toc-highlight">3. The contract is extension-local for v1</a></li><li><a href="#4-self-selection-is-blocked-in-both-authoring-and-runtime" class="table-of-contents__link toc-highlight">4. Self-selection is blocked in both authoring and runtime</a></li><li><a href="#5-the-widget-stores-only-the-target-id" class="table-of-contents__link toc-highlight">5. The widget stores only the target id</a></li><li><a href="#6-agent-terminal-accepts-both-snapshot-context-and-workspace-references" class="table-of-contents__link toc-highlight">6. Agent Terminal accepts both snapshot context and workspace references</a></li></ul></li><li><a href="#goals" class="table-of-contents__link toc-highlight">Goals</a></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li><li><a href="#design" class="table-of-contents__link toc-highlight">Design</a><ul><li><a href="#widget-module" class="table-of-contents__link toc-highlight">Widget module</a></li><li><a href="#ui-behavior" class="table-of-contents__link toc-highlight">UI behavior</a></li><li><a href="#settings-behavior" class="table-of-contents__link toc-highlight">Settings behavior</a></li><li><a href="#catalog-placement" class="table-of-contents__link toc-highlight">Catalog placement</a></li></ul></li><li><a href="#storage-contract-assessment" class="table-of-contents__link toc-highlight">Storage Contract Assessment</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li><li><a href="#tasks" class="table-of-contents__link toc-highlight">Tasks</a></li><li><a href="#rejected-alternative" class="table-of-contents__link toc-highlight">Rejected Alternative</a><ul><li><a href="#reuse-corewidget-agent-contextv1-for-workspace-ids" class="table-of-contents__link toc-highlight">Reuse <code>core.widget-agent-context@v1</code> for workspace ids</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

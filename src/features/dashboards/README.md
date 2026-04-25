@@ -91,9 +91,10 @@ These flows are all part of one app surface, with instance state selected throug
   `workspaces.list_url`. Only the index/list fetch uses that flag; detail and mutation routes keep
   their existing request shape.
 - The workspace index intentionally shows only lightweight user-facing metadata from the backend
-  summary rows, such as title, description, labels, source, and updated time. It should not expose
-  fields that are not returned by the summary serializer or internal layout-density details that
-  users do not directly manage from the list.
+  summary rows, such as title, description, labels, and updated time. It should not expose fields
+  that are not returned by the summary serializer, persistence mode, user ids, source/origin values,
+  raw workspace ids, or internal layout-density details that users do not directly manage from the
+  list.
 - Collection-level transport metadata such as the draft wrapper `savedAt` is internal store state.
   It must not be presented as workspace metadata in the workspace index or workspace settings UI.
 - In backend mode, the editor keeps a local draft and only persists changes when the user explicitly saves.
@@ -189,7 +190,7 @@ These flows are all part of one app surface, with instance state selected throug
 - In `custom` edit mode, resize uses a single bottom-right `se` handle on purpose. This is the
   current desired UX and should not be expanded back into separate edge-only resize handles unless
   the workspace interaction model is intentionally changed.
-- For `custom` workspaces, smaller screens now follow a Grafana-style runtime mobile rewrite below
+- For `custom` workspaces, smaller screens now follow a responsive runtime mobile rewrite below
   `769px`: cards temporarily stack full width while preserving their stored row spans, and that
   temporary mobile layout is never persisted back into the workspace model.
 - The workspace canvas route now also counts as kiosk-eligible shell content. When a specific
@@ -277,6 +278,17 @@ These flows are all part of one app surface, with instance state selected throug
   tick. Graph mode keeps the same real refresh cadence, but samples the animated refresh progress
   line more slowly so React Flow hover/drag interactions are not churned by `120ms` context
   updates.
+- The graph can expand a Main Sequence AI `Workspace` widget into a read-only referenced workspace
+  subgraph. The expansion lazily loads the referenced workspace detail, builds a separate dependency
+  model for that workspace, and renders namespaced `ref::...` nodes and edges inside a framed
+  read-only workspace cluster to the left of the source `Workspace` node. Referenced widgets keep
+  their internal widget-to-widget edges visible through non-connectable read-only ports, and the
+  frame connects back to the source `Workspace` card through synthetic read-only reference handles.
+  Multiple expanded referenced workspaces are stacked in a dedicated left-side inspection lane so
+  new expansions do not render underneath existing referenced frames.
+  Binding creation, edge deletion, keyboard deletion, and graph validation remain scoped to the
+  selected workspace's local dependency model. Selecting an expandable `Workspace` node shows an
+  explicit `Expand workspace` / `Hide workspace` action above the node.
 - The widget settings header now scopes its saved/unsaved badge and save-button enabled state to the
   selected workspace only. It must not reflect unrelated unsaved changes elsewhere in the workspace
   collection.
@@ -301,9 +313,15 @@ These flows are all part of one app surface, with instance state selected throug
   source rows in the shared settings UI instead of only one hidden array entry in persisted JSON.
 - The dedicated widget settings route now keeps only the shared dashboard provider stack alive.
   It must not hidden-mount the full workspace widget tree again. Runtime-dependent settings should
-  resolve through the dependency and execution providers, and executable source widgets such as
-  `main-sequence-data-node` are now responsible for headless publication through
+  resolve through the dependency and execution providers, and executable source or transform
+  widgets such as `connection-query` and `tabular-transform` are responsible for headless
+  publication through
   `WidgetDefinition.execution`.
+- Workspace dataflow is moving to the connection-first shape described in
+  [ADR: Connection-First Workspace Dataflow](../../docs/adr/adr-connection-first-workspace-dataflow.md).
+  Source widgets should use stable `ConnectionRef` values and publish canonical tabular frames,
+  Tabular Transform widgets should own aggregate/pivot/unpivot/projection work, and table/chart/
+  statistic widgets should stay passive consumers of upstream `core.tabular_frame@v1` outputs.
 - `dashboard` and `widget-settings` now also share one mounted studio/runtime host. Opening widget
   settings must not unmount and recreate the canvas runtime; the settings surface renders as an
   overlay above the still-mounted studio so returning to the workspace stays immediate.
@@ -385,6 +403,8 @@ These flows are all part of one app surface, with instance state selected throug
   any other workspace-owned icon affordances must resolve icons from the shared widget-definition
   field `workspaceIcon` through `resolveWorkspaceWidgetIcon(...)` instead of duplicating widget-id
   heuristics in each surface.
+- Component browser rows show the same resolved widget icon immediately before the widget name, so
+  the add-widget list matches the left widget rail and graph card iconography.
 - The dedicated workspace settings page now uses the same scrollable full-page container model as
   the widget settings view, so long workspace configuration pages can be reached fully.
 - Saving widget-instance settings updates only that instance's title/props/presentation and must
@@ -415,7 +435,7 @@ These flows are all part of one app surface, with instance state selected throug
 - Canvas widget actions now include `Save widget`, and the workspace toolbar now includes
   `Add saved widget` so reusable widgets can round-trip between the live workspace and the saved
   widget library without leaving the canvas flow.
-- The canvas `Components` browser is optimized for large catalogs: dense rows, category/kind/source filters, favorites, recent widgets, and grouped category browse when search is empty.
+- The canvas `Components` browser is optimized for large catalogs: dense two-line rows with widget name and description, category/kind/source filters, favorites, recent widgets, and grouped category browse when search is empty. Row metadata must stay in filters/search rather than inline badges or unlabeled row text.
 - The rail viewport scroller uses a neutral segmented guide and keeps only the active position
   marker in the theme primary color, so the current viewport stands out without washing the whole
   control in accent color.

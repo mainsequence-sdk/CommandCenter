@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to show target portfolio weights in summary or positions form for one portfolio.
+Portfolio target weights table in summary or positions form.
 
 ## whenToUse
 

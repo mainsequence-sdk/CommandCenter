@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to inspect infrastructure relationships around one Main Sequence project.
+Infrastructure relationship graph for one Main Sequence project.
 
 ## whenToUse
 

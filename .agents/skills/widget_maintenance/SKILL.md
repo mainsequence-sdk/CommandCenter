@@ -52,6 +52,12 @@ Use this skill for any Command Center widget work.
      `USAGE_GUIDANCE.md` named by widget id and pass that id to both resolver calls.
    - Keep `registryContract`, `io`, `schema`, `execution`, `widgetVersion`, `README.md`, and
      `USAGE_GUIDANCE.md` consistent with the updated behavior.
+   - Every widget must provide a demoable JSON configuration for settings preview mode through
+     `mockProps` or `exampleProps`. The shared widget settings preview uses that payload when the
+     demo-data toggle is enabled, so widget authors must keep the demo configuration valid,
+     representative, and safe to render without live workspace bindings.
+   - If the widget depends on local preview runtime state, also provide `mockRuntimeState` so the
+     shared demo preview can render a complete representative panel.
    - Put implementation details in `README.md`; put user-facing usage and contract meaning in
      `USAGE_GUIDANCE.md`.
    - Widget settings and input forms should expose concise `(i)` help tooltips for non-obvious
@@ -70,6 +76,8 @@ Use this skill for any Command Center widget work.
    - audit that widget `definition.ts` files use `resolveWidgetDescription` and
      `resolveWidgetUsageGuidance`
    - audit that every widget definition folder has a `USAGE_GUIDANCE.md`
+   - audit that every widget definition exposes a usable demo preview payload through `mockProps`
+     or `exampleProps`, plus `mockRuntimeState` when needed for representative preview rendering
    - mention any check that could not be run
 
 ## USAGE_GUIDANCE.md Style

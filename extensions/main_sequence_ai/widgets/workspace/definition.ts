@@ -21,7 +21,7 @@ export const WORKSPACE_WIDGET_ID = "main-sequence-ai-workspace";
 export const workspaceWidget = defineWidget<WorkspaceWidgetProps>({
   id: WORKSPACE_WIDGET_ID,
   widgetVersion: "1.1.0",
-  title: "WorkspaceReference",
+  title: "Workspace",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence AI",
   kind: "custom",

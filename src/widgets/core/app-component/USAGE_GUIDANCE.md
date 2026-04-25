@@ -1,6 +1,6 @@
 ## buildPurpose
 
-OpenAPI-powered request widget for workspaces. Use it to turn one API operation into a reusable form, execute that request from the canvas or workspace refresh graph, and publish response-derived outputs for downstream widget bindings.
+OpenAPI-powered request form with executable workspace outputs.
 
 ## whenToUse
 

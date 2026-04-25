@@ -31,7 +31,7 @@ import type { WidgetDefinition } from "@/widgets/types";
 const globalMacroWorkspaceId = "workspace-global-macro";
 const globalMacroWorkspacePath = getWorkspacePath(globalMacroWorkspaceId);
 
-const dataNodeSourceWidgetId = "demo-overview-data-node-source";
+const tabularSourceWidgetId = "demo-overview-tabular-source";
 const landingControls = {
   enabled: false,
   timeRange: { enabled: false, defaultRange: "90d" },
@@ -49,32 +49,34 @@ interface EmbeddedWidgetSpec {
   showHeader?: boolean;
 }
 
-const dataNodeWidgetSpecs: EmbeddedWidgetSpec[] = [
+const tabularWidgetSpecs: EmbeddedWidgetSpec[] = [
   {
-    id: dataNodeSourceWidgetId,
-    widgetId: "main-sequence-data-node",
-    title: "Canonical Data Node",
+    id: tabularSourceWidgetId,
+    widgetId: "connection-query",
+    title: "Connection Dataset",
     props: {
-      chromeMode: "minimal",
-      dataNodeId: 714,
-      dateRangeMode: "fixed",
+      queryModelId: "data-node-rows-between-dates",
+      query: {
+        kind: "data-node-rows-between-dates",
+        dataNodeId: 714,
+        uniqueIdentifierList: ["BBG000BBJQV0", "BBG000BS1YV5"],
+      },
+      timeRangeMode: "fixed",
       fixedStartMs: Date.parse("2022-04-01T00:00:00Z"),
       fixedEndMs: Date.parse("2022-06-30T23:59:59Z"),
-      limit: 120,
-      projectFields: ["time_index", "ticker", "name", "close", "volume", "vwap", "high", "low"],
+      maxRows: 120,
+      selectedFrame: 0,
       showHeader: false,
-      transformMode: "none",
-      uniqueIdentifierList: ["BBG000BBJQV0", "BBG000BS1YV5"],
     },
     className: "min-h-[148px]",
   },
   {
-    id: "demo-overview-data-node-last-close",
-    widgetId: "main-sequence-data-node-statistic",
+    id: "demo-overview-tabular-last-close",
+    widgetId: "statistic",
     title: "Last Close By Ticker",
     props: {
       sourceMode: "filter_widget",
-      sourceWidgetId: dataNodeSourceWidgetId,
+      sourceWidgetId: tabularSourceWidgetId,
       groupField: "ticker",
       orderField: "time_index",
       valueField: "close",
@@ -85,12 +87,12 @@ const dataNodeWidgetSpecs: EmbeddedWidgetSpec[] = [
     className: "min-h-[220px]",
   },
   {
-    id: "demo-overview-data-node-last-volume",
-    widgetId: "main-sequence-data-node-statistic",
+    id: "demo-overview-tabular-last-volume",
+    widgetId: "statistic",
     title: "Last Volume By Ticker",
     props: {
       sourceMode: "filter_widget",
-      sourceWidgetId: dataNodeSourceWidgetId,
+      sourceWidgetId: tabularSourceWidgetId,
       groupField: "ticker",
       orderField: "time_index",
       valueField: "volume",
@@ -101,12 +103,12 @@ const dataNodeWidgetSpecs: EmbeddedWidgetSpec[] = [
     className: "min-h-[220px]",
   },
   {
-    id: "demo-overview-data-node-chart",
-    widgetId: "main-sequence-data-node-visualizer",
+    id: "demo-overview-tabular-chart",
+    widgetId: "graph",
     title: "Same Data, Instant Visualization",
     props: {
       sourceMode: "filter_widget",
-      sourceWidgetId: dataNodeSourceWidgetId,
+      sourceWidgetId: tabularSourceWidgetId,
       provider: "tradingview",
       chartType: "line",
       xField: "time_index",
@@ -119,12 +121,12 @@ const dataNodeWidgetSpecs: EmbeddedWidgetSpec[] = [
     className: "min-h-[360px]",
   },
   {
-    id: "demo-overview-data-node-table",
-    widgetId: "data-node-table-visualizer",
+    id: "demo-overview-tabular-table",
+    widgetId: "table",
     title: "Same Data, Application Table",
     props: {
       sourceMode: "filter_widget",
-      sourceWidgetId: dataNodeSourceWidgetId,
+      sourceWidgetId: tabularSourceWidgetId,
       density: "comfortable",
       showSearch: false,
       showToolbar: true,
@@ -209,7 +211,7 @@ function EmbeddedWidgetCard({
   );
 }
 
-function DataNodeShowcase() {
+function TabularDataShowcase() {
   const [runtimeStates, setRuntimeStates] = useState<Record<string, Record<string, unknown> | undefined>>({});
   const updateRuntimeState = useCallback(
     (widgetId: string, nextState: Record<string, unknown> | undefined) => {
@@ -230,7 +232,7 @@ function DataNodeShowcase() {
   );
   const widgetRegistry = useMemo<DashboardWidgetRegistryEntry[]>(
     () =>
-      dataNodeWidgetSpecs.map((spec) => ({
+      tabularWidgetSpecs.map((spec) => ({
         id: spec.id,
         widgetId: spec.widgetId,
         title: spec.title,
@@ -247,19 +249,19 @@ function DataNodeShowcase() {
           <Card className="xl:col-span-4">
             <CardHeader>
               <Badge variant="primary" className="w-fit">
-                Data Node
+                Connection Query
               </Badge>
               <CardTitle>One canonical dataset, many surfaces</CardTitle>
               <CardDescription>
-                The Data Node is the shared object. It exposes one stable API for the underlying dataset,
-                and the rest of the platform can immediately turn that dataset into statistics, charts,
-                tables, and application panels.
+                The source node owns the connection query. Downstream widgets bind to its tabular
+                output and immediately turn that dataset into statistics, charts, tables, and
+                application panels.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3 text-sm text-muted-foreground">
                 <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 p-3">
-                  Query one Data Node instead of wiring separate data code into each surface.
+                  Run one connection query instead of wiring separate data code into each surface.
                 </div>
                 <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 p-3">
                   Apply transformations once, then reuse the published dataset across applications.
@@ -269,17 +271,17 @@ function DataNodeShowcase() {
                 </div>
               </div>
               <EmbeddedWidgetCard
-                spec={dataNodeWidgetSpecs[0]}
+                spec={tabularWidgetSpecs[0]}
                 className="min-h-[148px]"
                 showHeader
-                runtimeState={runtimeStates[dataNodeWidgetSpecs[0].id]}
-                onRuntimeStateChange={(state) => updateRuntimeState(dataNodeWidgetSpecs[0].id, state)}
+                runtimeState={runtimeStates[tabularWidgetSpecs[0].id]}
+                onRuntimeStateChange={(state) => updateRuntimeState(tabularWidgetSpecs[0].id, state)}
               />
             </CardContent>
           </Card>
 
           <div className="grid gap-4 xl:col-span-8 md:grid-cols-2">
-            {dataNodeWidgetSpecs.slice(1, 3).map((spec) => (
+            {tabularWidgetSpecs.slice(1, 3).map((spec) => (
               <EmbeddedWidgetCard
                 key={spec.id}
                 spec={spec}
@@ -290,7 +292,7 @@ function DataNodeShowcase() {
             ))}
           </div>
 
-          {dataNodeWidgetSpecs.slice(3).map((spec, index) => (
+          {tabularWidgetSpecs.slice(3).map((spec, index) => (
             <EmbeddedWidgetCard
               key={spec.id}
               spec={spec}
@@ -389,7 +391,7 @@ export function DemoOverviewPage() {
               </div>
               <div className="rounded-[calc(var(--radius)+2px)] border border-border/70 bg-background/60 p-4">
                 <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Platform story</div>
-                <div className="mt-2 font-medium text-foreground">Widgets, data nodes, and applications</div>
+                <div className="mt-2 font-medium text-foreground">Widgets, connections, and applications</div>
               </div>
             </div>
           </div>
@@ -406,7 +408,7 @@ export function DemoOverviewPage() {
                 <div className="flex items-start gap-3">
                   <Network className="mt-0.5 h-4 w-4 text-primary" />
                   <div>
-                    Main Sequence data exposed through reusable widgets and Data Nodes.
+                    Main Sequence data exposed through reusable widgets and connection-backed datasets.
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -519,18 +521,19 @@ export function DemoOverviewPage() {
       <section className="space-y-4">
         <div className="max-w-3xl space-y-2">
           <Badge variant="primary" className="w-fit">
-            Data Nodes
+            Connections
           </Badge>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">
             Unified data access that turns datasets into applications and visualizations
           </h2>
           <p className="text-base leading-7 text-muted-foreground">
-            Data Nodes expose a unified API for your data, regardless of where the raw data comes from.
-            Once a dataset is published as a Data Node, the platform can immediately reuse it across
-            dashboards, applications, tables, and charts without rebuilding the integration each time.
+            Connections expose a unified way to query your data, regardless of where the raw data
+            comes from. Once a source widget publishes a tabular dataset, the platform can reuse it
+            across dashboards, applications, tables, and charts without rebuilding the integration
+            each time.
           </p>
         </div>
-        <DataNodeShowcase />
+        <TabularDataShowcase />
       </section>
 
       <section className="space-y-4">
@@ -591,7 +594,7 @@ export function DemoOverviewPage() {
             </div>
             <div className="flex items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 p-3">
               <Database className="mt-0.5 h-4 w-4 text-primary" />
-              <div>Data Nodes and platform widgets make the same dataset reusable across multiple UX patterns.</div>
+              <div>Connection-backed datasets and platform widgets make the same data reusable across multiple UX patterns.</div>
             </div>
           </CardContent>
         </Card>

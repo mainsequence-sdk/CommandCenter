@@ -1,15 +1,15 @@
 {
-  "/docs/-344": {
+  "/docs/-c39": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "aba21aa0"
     }
   },
-  "/docs/-f93": {
+  "/docs/-6d1": {
     "__comp": "a7bd4aaa",
     "__props": "11b43341"
   },
-  "/docs/-b2f": {
+  "/docs/-517": {
     "__comp": "a94703ab"
   },
   "/docs/access-control-073": {
@@ -28,9 +28,17 @@
     "__comp": "17896441",
     "content": "b03f83d9"
   },
+  "/docs/adr/adr-agent-monitor-workspace-reference-widget-29b": {
+    "__comp": "17896441",
+    "content": "4e10f2f5"
+  },
   "/docs/adr/adr-agent-ready-widget-type-registry-contract-005": {
     "__comp": "17896441",
     "content": "de2ea857"
+  },
+  "/docs/adr/adr-agent-terminal-managed-session-creation-bfa": {
+    "__comp": "17896441",
+    "content": "7d0fd7d7"
   },
   "/docs/adr/adr-app-component-binding-native-api-widget-7f0": {
     "__comp": "17896441",
@@ -59,6 +67,10 @@
   "/docs/adr/adr-extension-contributed-shell-settings-menus-05f": {
     "__comp": "17896441",
     "content": "9f6e852a"
+  },
+  "/docs/adr/adr-first-class-connection-model-e3f": {
+    "__comp": "17896441",
+    "content": "1325e15d"
   },
   "/docs/adr/adr-headless-workspace-settings-runtime-609": {
     "__comp": "17896441",
@@ -92,6 +104,10 @@
     "__comp": "17896441",
     "content": "0b358b27"
   },
+  "/docs/adr/adr-runtime-credential-browser-auth-4ee": {
+    "__comp": "17896441",
+    "content": "1125c676"
+  },
   "/docs/adr/adr-shared-workspace-state-a15": {
     "__comp": "17896441",
     "content": "0cfbbc03"
@@ -111,6 +127,14 @@
   "/docs/adr/adr-widget-bindings-and-dependency-graph-acd": {
     "__comp": "17896441",
     "content": "f8b77628"
+  },
+  "/docs/adr/adr-widget-settings-demo-preview-draft-a0f": {
+    "__comp": "17896441",
+    "content": "b51b93c5"
+  },
+  "/docs/adr/adr-workspace-widget-referenced-graph-expansion-e3c": {
+    "__comp": "17896441",
+    "content": "4193de41"
   },
   "/docs/apps-6d0": {
     "__comp": "17896441",
@@ -179,6 +203,10 @@
   "/docs/workspaces-b5c": {
     "__comp": "17896441",
     "content": "2e93c54e"
+  },
+  "/docs/workspaces/agent-monitor-workspace-widget-plan-df1": {
+    "__comp": "17896441",
+    "content": "37d26241"
   },
   "/docs/workspaces/backend-model-cf0": {
     "__comp": "17896441",

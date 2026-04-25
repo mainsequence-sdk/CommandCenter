@@ -13,20 +13,15 @@ data-node metadata and remote rows.
   optional normalized `fields`, optional `source`, plus range metadata, identifiers, and update
   timestamps. Published `fields` now carry schema provenance metadata as well:
   `provenance`, `reason`, `derivedFrom`, and `warnings`.
-- `dataNodeWidgetSource.tsx`: reusable source/date-range widget contract used by workbench widgets
-  that select a data node, expose optional `unique_identifier` filters, and save a fixed or
-  dashboard-driven date range. It also resolves latest-observation anchors used to prefill missing
-  fixed dates from a data node's last time index, and it can resolve those source settings from a
-  sibling `Data Node` widget through canonical widget bindings. The shared fixed
-  date controls now mark `From` and `To` as half-width schema fields, so they render on the same
-  row in settings instead of stacking vertically. When a passive consumer is canonically bound to
-  an executable upstream widget and no published source value exists yet, this source layer now
-  exposes `requiresUpstreamResolution` so consumer widgets can delegate that work to the shared
-  dashboard execution coordinator before they render. Canonically bound source values that are
-  present but still publish `status: "idle"` or `status: "loading"` also stay in that pending
-  state, so passive consumers do not treat an empty placeholder dataset as a resolved source. The
-  source layer does not assemble request fingerprints or walk the graph itself. Widget settings
-  should now rely on this provider/execution path instead of hidden sibling widget mounts.
+- `dataNodeWidgetSource.tsx`: reusable source/date-range widget contract used by legacy Main
+  Sequence consumers that bind to Data Node-shaped datasets. It can still resolve source settings
+  from existing bound `main-sequence-data-node` instances in old workspace documents, but new
+  source querying belongs to the `mainsequence.data-node` connection plus core widgets. The shared
+  fixed date controls mark `From` and `To` as half-width schema fields, so they render on the same
+  row in settings instead of stacking vertically. When a passive consumer is canonically bound to an
+  executable upstream widget and no published source value exists yet, this source layer exposes
+  `requiresUpstreamResolution` so consumer widgets can delegate that work to the shared dashboard
+  execution coordinator before they render.
 - `widgetBindings.ts`: shared binding ids for Data Node-family composition.
 - `DataNodePreviewTable.tsx`: reusable simple table preview used inside settings flows that inspect
   fetched data-node rows without mounting the full table formatter widget.
@@ -60,22 +55,22 @@ pattern should hold no matter how many Data Nodes are linked together.
 Recursive upstream execution also follows that same rule now: downstream passive widgets ask the
 shared dashboard execution layer to resolve upstream sources, and the execution layer walks through
 passive hops until it finds executable ancestors. Widgets in this folder should not special-case
-`AppComponent` or any other source type. `main-sequence-data-node` is now one of those executable
-ancestors, so Data Node-family settings no longer need the old offscreen full-workspace mount to
-materialize source runtime.
+`AppComponent` or any other source type. The old `main-sequence-data-node` source widget has been
+removed from code and the live catalog; new source execution should flow through Connection Query.
 
 Keep the consumer contract explicit:
 
-- `Data Node` owns querying and reusable transforms.
+- Connection Query and Tabular Transform own querying and reusable transforms.
 - `Graph`, `Table`, and `Statistic` consume the published tabular frame:
   `columns + rows` plus optional normalized `fields` and `source` metadata.
 - Consumer widgets may derive local series, frames, or KPI cards, but they should not mutate the
   upstream transport shape.
 - Published `fields` should stay honest about origin:
   - preserve backend-declared metadata when a source column survives unchanged
-  - mark authored manual fields as `manual`
   - mark transform-created fields as `derived`
   - use `inferred` only when no authoritative schema is available
+- Table-local manual fields should still be marked as `manual` in table settings/schema
+  inspection, but they are not published by the `Data Node` widget as a reusable dataset.
 - Widget settings that depend on field typing should expose that runtime contract through the shared
   schema inspector instead of silently inferring types with no user visibility.
 

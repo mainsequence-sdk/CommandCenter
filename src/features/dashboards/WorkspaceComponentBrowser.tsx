@@ -17,6 +17,7 @@ import {
   pushRecentWidgetId,
   saveWidgetCatalogPreferences,
 } from "./widget-catalog-preferences";
+import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 
 type CatalogScope = "browse" | "favorites" | "recent";
@@ -154,7 +155,7 @@ function CatalogWidgetRow({
   onToggleFavorite: () => void;
   widget: WidgetDefinition;
 }) {
-  const sizeLabel = `${widget.defaultSize.w} x ${widget.defaultSize.h}`;
+  const WidgetIcon = resolveWorkspaceWidgetIcon(widget);
 
   return (
     <div
@@ -188,17 +189,10 @@ function CatalogWidgetRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {draggable ? <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
+            <WidgetIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <div className="min-w-0 truncate text-sm font-medium text-foreground">{widget.title}</div>
-            <Badge variant="neutral" className="shrink-0 px-2 py-0.5 text-[10px] tracking-[0.12em]">
-              {titleCase(widget.kind)}
-            </Badge>
           </div>
           <div className="mt-1 truncate text-xs text-muted-foreground">{widget.description}</div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            <span>{widget.category}</span>
-            <span>{titleCase(widget.source)}</span>
-            <span>{sizeLabel}</span>
-          </div>
         </div>
 
         <Button

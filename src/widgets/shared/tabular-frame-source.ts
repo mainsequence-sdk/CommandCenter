@@ -51,6 +51,100 @@ export interface TabularFrameSourceV1 {
   source?: TabularFrameSourceDescriptor;
 }
 
+export const TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR = {
+  kind: "object",
+  contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  description: "Canonical tabular frame with status, columns, rows, field schema, and source metadata.",
+  fields: [
+    {
+      key: "status",
+      label: "Status",
+      value: {
+        kind: "primitive",
+        contract: "core.value.string@v1",
+        primitive: "string",
+      },
+    },
+    {
+      key: "columns",
+      label: "Columns",
+      value: {
+        kind: "array",
+        contract: "core.value.json@v1",
+        items: {
+          kind: "primitive",
+          contract: "core.value.string@v1",
+          primitive: "string",
+        },
+      },
+    },
+    {
+      key: "rows",
+      label: "Rows",
+      value: {
+        kind: "array",
+        contract: "core.value.json@v1",
+        items: {
+          kind: "object",
+          contract: "core.value.json@v1",
+          fields: [],
+        },
+      },
+    },
+    {
+      key: "fields",
+      label: "Fields",
+      value: {
+        kind: "array",
+        contract: "core.value.json@v1",
+        items: {
+          kind: "object",
+          contract: "core.value.json@v1",
+          fields: [
+            {
+              key: "key",
+              label: "Key",
+              value: {
+                kind: "primitive",
+                contract: "core.value.string@v1",
+                primitive: "string",
+              },
+            },
+            {
+              key: "type",
+              label: "Type",
+              value: {
+                kind: "primitive",
+                contract: "core.value.string@v1",
+                primitive: "string",
+              },
+            },
+          ],
+        },
+      },
+    },
+    {
+      key: "source",
+      label: "Source",
+      value: {
+        kind: "object",
+        contract: "core.value.json@v1",
+        fields: [
+          {
+            key: "kind",
+            label: "Kind",
+            value: {
+              kind: "primitive",
+              contract: "core.value.string@v1",
+              primitive: "string",
+            },
+          },
+        ],
+      },
+    },
+  ],
+} satisfies WidgetValueDescriptor;
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

@@ -89,7 +89,7 @@ export function WorkspaceWidget({
     <div className="flex h-full min-h-[180px] flex-col overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/60 bg-gradient-to-br from-emerald-500/10 via-background/40 to-sky-500/10">
       <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-2">
-          <Badge variant="primary">WorkspaceReference</Badge>
+          <Badge variant="primary">Workspace</Badge>
         </div>
         <LayoutTemplate className="h-4 w-4 text-muted-foreground" />
       </div>

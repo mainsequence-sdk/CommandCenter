@@ -1,15 +1,11 @@
-import { FileText } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { DEFAULT_WIDGET_SIZE } from "@/widgets/types";
 import { Textarea } from "@/components/ui/textarea";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
-  MarkdownNoteWidget,
   normalizeMarkdownNoteVerticalAlign,
   normalizeMarkdownNoteWidth,
   type MarkdownNoteWidgetProps,
@@ -34,14 +30,6 @@ export function MarkdownNoteWidgetSettings({
   const contentWidth = normalizeMarkdownNoteWidth(draftProps.contentWidth);
   const contentVerticalAlign = normalizeMarkdownNoteVerticalAlign(draftProps.contentVerticalAlign);
   const openLinksInNewTab = draftProps.openLinksInNewTab !== false;
-  const previewProps: MarkdownNoteWidgetProps = {
-    ...draftProps,
-    content: draftProps.content?.trim() || starterMarkdown,
-    emptyState: draftProps.emptyState?.trim() || undefined,
-    contentWidth,
-    contentVerticalAlign,
-    openLinksInNewTab,
-  };
 
   return (
     <div className="space-y-5">
@@ -189,38 +177,6 @@ export function MarkdownNoteWidgetSettings({
           >
             Same tab
           </Button>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <div className="text-sm font-medium text-topbar-foreground">Preview</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Preview uses the same renderer as the widget body.
-          </p>
-        </div>
-
-        <div className="overflow-hidden rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/24">
-          <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            <FileText className="h-3.5 w-3.5" />
-            Preview
-          </div>
-          <div className="max-h-[320px] min-h-[180px] overflow-auto">
-            <MarkdownNoteWidget
-              widget={{
-                id: "markdown-note-preview",
-                widgetVersion: "1.0.0",
-                title: "Markdown Preview",
-                description: "Preview renderer",
-                category: "Content",
-                kind: "custom",
-                source: "core",
-                defaultSize: { ...DEFAULT_WIDGET_SIZE },
-                component: MarkdownNoteWidget,
-              }}
-              props={previewProps}
-            />
-          </div>
         </div>
       </section>
     </div>

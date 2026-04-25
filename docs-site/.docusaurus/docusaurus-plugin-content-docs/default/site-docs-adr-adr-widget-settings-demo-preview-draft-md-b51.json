@@ -1,0 +1,15 @@
+{
+  "id": "adr/adr-widget-settings-demo-preview-draft",
+  "title": "ADR: Preview-Only Demo Drafts for Widget Settings",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/adr-widget-settings-demo-preview-draft.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-widget-settings-demo-preview-draft",
+  "permalink": "/docs/adr/adr-widget-settings-demo-preview-draft",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-widget-settings-demo-preview-draft.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

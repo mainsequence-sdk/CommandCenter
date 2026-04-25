@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget for narrative context, runbooks, instructions, and other rich text inside a workspace.
+Markdown-rendered workspace note for narrative text and runbooks.
 
 ## whenToUse
 

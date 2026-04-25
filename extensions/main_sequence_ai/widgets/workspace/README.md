@@ -1,7 +1,6 @@
-# Main Sequence AI WorkspaceReference Widget
+# Main Sequence AI Workspace Widget
 
-This folder owns the `main-sequence-ai-workspace` widget, displayed in the catalog as
-`WorkspaceReference`.
+This folder owns the `main-sequence-ai-workspace` widget, displayed in the catalog as `Workspace`.
 
 ## Entry Points
 
@@ -31,6 +30,13 @@ This folder owns the `main-sequence-ai-workspace` widget, displayed in the catal
   output until the selection is repaired.
 - The widget does not publish workspace title, labels, description, or a live snapshot. The
   contract is intentionally minimal.
+- In workspace graph mode, the graph page can use the published workspace id to lazily render a
+  read-only framed graph projection of the referenced workspace to the left of this widget's graph
+  node, including the referenced workspace's internal widget connections. That graph expansion does
+  not widen this widget's output payload and does not make referenced workspace nodes editable from
+  the parent workspace. Multiple opened references are stacked in a dedicated left-side lane so
+  they do not render underneath each other. Selecting the graph node shows an explicit
+  `Expand workspace` action when the widget points to another workspace.
 
 ## Maintenance Notes
 
@@ -39,9 +45,13 @@ This folder owns the `main-sequence-ai-workspace` widget, displayed in the catal
 - Keep the sidebar-first presentation aligned with the intended authoring model here. If this widget
   ever needs a meaningful canvas card by default, revisit `defaultPresentation` and the rail
   summary in the same change.
-- `WorkspaceWidget.tsx` derives output validity from accessible workspace summaries. If workspace
-  loading behavior changes in the shared studio store, update `workspaceReference.ts` in the same
-  change.
+- `WorkspaceWidget.tsx` derives output validity from accessible workspace summaries.
+  `workspaceReference.ts` can use the shared studio store when it already has list items, but it
+  also fetches workspace summaries directly when the store is empty so direct workspace/detail
+  routes still populate the target picker. In backend mode this direct fetch is not gated on
+  `session.user.id`; the workspace API adapter attaches the auth token to the configured
+  `workspaces.list_url` request and passes `exclude_ids=<current-workspace-id>` so the backend
+  can omit the workspace currently being authored.
 - `showRawPropsEditor` is intentionally disabled so ordinary authoring cannot bypass the
   self-reference restriction. Runtime validation still exists to guard imported or stale data.
 - Bump `widgetVersion` when the authored prop model, published contract, or validation semantics

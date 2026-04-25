@@ -22,8 +22,13 @@ Use these local docs before reading the implementation in code:
 
 - Core widgets:
   [`core/app-component/README.md`](./core/app-component/README.md),
+  [`core/connection-query/README.md`](./core/connection-query/README.md),
+  [`core/graph/README.md`](./core/graph/README.md),
   [`core/markdown-note/README.md`](./core/markdown-note/README.md),
   [`core/rich-text-note/README.md`](./core/rich-text-note/README.md),
+  [`core/statistic/README.md`](./core/statistic/README.md),
+  [`core/tabular-transform/README.md`](./core/tabular-transform/README.md),
+  [`core/table/README.md`](./core/table/README.md),
   [`core/workspace-row/README.md`](./core/workspace-row/README.md)
 - Platform extension widget families:
   [`extensions/ag-grid/README.md`](./extensions/ag-grid/README.md),
@@ -118,6 +123,9 @@ Use these local docs before reading the implementation in code:
 - Executable widget graphs are coordinated from the dashboard layer, not by widgets calling each
   other directly. Widget execution should return runtime-state patches and let the shared
   dependency model resolve outputs from runtime state.
+- Workspace data access should use the core Connection Query source widget and the core Tabular
+  Transform widget for tabular reshaping. Generic consumers bind to the published
+  `core.tabular_frame@v1` output instead of querying connection instances directly.
 - Output resolvers can also receive the widget's current `resolvedInputs`, so widgets with derived
   outputs do not need to wait for a mounted component to republish runtime state before downstream
   bindings can read the value.

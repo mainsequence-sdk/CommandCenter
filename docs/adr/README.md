@@ -19,19 +19,24 @@ feature folder.
 - [ADR: Use React Grid Layout v2 API in Workspace Studio](./adr-rgl-v2-workspace-studio.md)
 - [ADR: Headless Workspace Widget Settings Runtime](./adr-headless-workspace-settings-runtime.md)
 - [ADR: Single Runtime Owner for Workspace Widgets](./adr-single-runtime-owner-workspace-widgets.md)
+- [ADR: Connection-First Workspace Dataflow](./adr-connection-first-workspace-dataflow.md)
 - [ADR: Incremental Workspace Normalization and Resource-Scoped Save](./adr-incremental-workspace-normalization.md)
 - [ADR: Live Workspace Agent Snapshot Archive](./adr-live-workspace-agent-snapshot-archive.md)
 - [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](./adr-widget-agent-context-bindings.md)
+- [ADR: Workspace Widget Referenced Workspace Graph Expansion](./adr-workspace-widget-referenced-graph-expansion.md)
 
 ## Widget Contract And Execution ADRs
 
 - [ADR: First-Class Widget Bindings and Dependency Graph](./adr-widget-bindings-and-dependency-graph.md)
 - [ADR: Binding-Level Output Transforms for Structured Widget Outputs](./adr-binding-output-transforms.md)
+- [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
 - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
 - [ADR: Source-Driven Downstream Execution After Manual Widget Actions](./adr-source-driven-downstream-execution.md)
+- [ADR: Connection-First Workspace Dataflow](./adr-connection-first-workspace-dataflow.md)
 - [ADR: Agent-Ready Widget Type Registry Contract](./adr-agent-ready-widget-type-registry-contract.md)
 - [ADR: Organization-Scoped Widget Type Configurations](./adr-organization-widget-type-configurations.md)
 - [ADR: Inline Canvas Editing Capability and Rich Text Widget](./adr-inline-canvas-rich-text-widget.md)
+- [ADR: Preview-Only Demo Drafts for Widget Settings](./adr-widget-settings-demo-preview-draft.md)
 
 ## AppComponent And API ADRs
 
@@ -44,6 +49,10 @@ feature folder.
 
 - [ADR: Extension-Contributed Shell Settings Menus](./adr-extension-contributed-shell-settings-menus.md)
 - [ADR: Runtime Credential Browser Auth](./adr-runtime-credential-browser-auth.md)
+- [ADR: First-Class Connection Model](./adr-first-class-connection-model.md)
+- [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
+- [ADR: Main Sequence Simple Table Connection](./adr-main-sequence-simple-table-connection.md)
+- [ADR: PostgreSQL Custom Connection](./adr-postgresql-connection.md)
 
 ## Main Sequence AI ADRs
 

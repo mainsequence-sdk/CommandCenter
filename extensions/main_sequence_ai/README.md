@@ -15,7 +15,7 @@ It currently exposes one app with three visible surfaces plus one hidden deep-li
 It also ships three workspace widgets:
 
 - `Agent Terminal`
-- `WorkspaceReference`
+- `Workspace`
 - `Upstream Inspector`
 
 The same feature also mounts the right-side shell chat rail used across the shell. On wide layouts
@@ -27,7 +27,7 @@ an overlay rail.
 - `index.ts`
   Registers the extension. The app surfaces stay behind `VITE_INCLUDE_AUI`, but the workspace
   widgets are always registered so general workspace studio can place `Agent Terminal`,
-  `WorkspaceReference`, and `Upstream Inspector` even when the full AI shell is hidden.
+  `Workspace`, and `Upstream Inspector` even when the full AI shell is hidden.
 - `app.ts`
   Defines the `Main Sequence AI` app surfaces, including the hidden AgentSession deep-link page.
 - `agent-search.ts`
@@ -94,7 +94,7 @@ chrome, not just a page-local feature.
 - The `main-sequence-ai-agent-terminal` widget is now agent-owned rather than session-picked. It
   persists `agentId`, `agentName`, and its widget-managed `agentSessionId`, then renders the same
   backend session stream as terminal output inside workspaces.
-- The `main-sequence-ai-workspace` widget (`WorkspaceReference`) publishes a minimal workspace reference object shaped as
+- The `main-sequence-ai-workspace` widget (`Workspace`) publishes a minimal workspace reference object shaped as
   `{"id": "<workspace-id>"}` and blocks self-selection so a workspace cannot point to itself.
 - Full AgentSession detail is now a shared extension capability and standalone app surface instead
   of a chat-owned modal. Chat only consumes that shared detail layer for summary and deep-link
@@ -102,8 +102,8 @@ chrome, not just a page-local feature.
 - `Agent Terminal` now keeps its refresh prompt as a saved widget setting and consumes several
   upstream widget contexts through the shared `core.widget-agent-context@v1` binding contract,
   plus explicit workspace references through `main-sequence-ai.workspace-reference@v1`.
-- `Agents Monitor` now limits its widget catalog to `Agent Terminal`, `WorkspaceReference`, and
-  `Upstream Inspector`. The `WorkspaceReference` widget is still available outside monitor-specific
+- `Agents Monitor` now limits its widget catalog to `Agent Terminal`, `Workspace`, and
+  `Upstream Inspector`. The `Workspace` widget is still available outside monitor-specific
   workspaces through the broader Main Sequence AI catalog.
 - Agent/session selection from the agents surface updates shared session state locally; the actual
   reusable workspace canvas lives on the `Agents Monitor` surface.

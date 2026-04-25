@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useAuthStore } from "@/auth/auth-store";
 import { useCustomWorkspaceStudioStore } from "@/features/dashboards/custom-workspace-studio-store";
-import { loadPersistedWorkspaceListSummaries } from "@/features/dashboards/workspace-persistence";
+import {
+  isWorkspaceBackendEnabled,
+  loadPersistedWorkspaceListSummaries,
+} from "@/features/dashboards/workspace-persistence";
 import type { WorkspaceListItemSummary } from "@/features/dashboards/workspace-list-summary";
 import { CORE_VALUE_STRING_CONTRACT } from "@/widgets/shared/value-contracts";
 import type { WidgetValueDescriptor } from "@/widgets/types";
@@ -164,15 +167,56 @@ export function useWorkspaceReferenceCatalog() {
   const selectedWorkspaceId = useCustomWorkspaceStudioStore((state) => state.selectedWorkspaceId);
   const draftWorkspaceById = useCustomWorkspaceStudioStore((state) => state.draftWorkspaceById);
   const workspaceListItems = useCustomWorkspaceStudioStore((state) => state.workspaceListItems);
-  const workspaceListHydrated = useCustomWorkspaceStudioStore((state) => state.workspaceListHydrated);
-  const [fetchedWorkspaceListItems, setFetchedWorkspaceListItems] = useState<WorkspaceListItemSummary[]>([]);
+  const [fetchedWorkspaceCatalog, setFetchedWorkspaceCatalog] = useState<{
+    attempted: boolean;
+    items: WorkspaceListItemSummary[];
+    excludeKey: string;
+    scopeId: string | null;
+  }>({
+    attempted: false,
+    items: [],
+    excludeKey: "",
+    scopeId: null,
+  });
   const [workspaceListLoading, setWorkspaceListLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const workspaceCatalogScopeId = userId ?? (isWorkspaceBackendEnabled() ? "__backend__" : null);
+  const workspaceCatalogExcludeIds = useMemo(
+    () => (selectedWorkspaceId ? [selectedWorkspaceId] : []),
+    [selectedWorkspaceId],
+  );
+  const workspaceCatalogExcludeKey = workspaceCatalogExcludeIds.join(",");
+  const fetchedWorkspaceListItems =
+    fetchedWorkspaceCatalog.scopeId === workspaceCatalogScopeId &&
+    fetchedWorkspaceCatalog.excludeKey === workspaceCatalogExcludeKey
+      ? fetchedWorkspaceCatalog.items
+      : [];
+  const fetchedWorkspaceListAttempted =
+    fetchedWorkspaceCatalog.scopeId === workspaceCatalogScopeId &&
+    fetchedWorkspaceCatalog.excludeKey === workspaceCatalogExcludeKey &&
+    fetchedWorkspaceCatalog.attempted;
 
   useEffect(() => {
-    if (!userId || workspaceListHydrated || workspaceListItems.length > 0) {
+    if (!workspaceCatalogScopeId) {
+      setFetchedWorkspaceCatalog({
+        attempted: false,
+        items: [],
+        excludeKey: "",
+        scopeId: null,
+      });
       setWorkspaceListLoading(false);
       setError(null);
+      return;
+    }
+
+    if (workspaceListItems.length > 0) {
+      setWorkspaceListLoading(false);
+      setError(null);
+      return;
+    }
+
+    if (fetchedWorkspaceListAttempted) {
+      setWorkspaceListLoading(false);
       return;
     }
 
@@ -180,13 +224,20 @@ export function useWorkspaceReferenceCatalog() {
     setWorkspaceListLoading(true);
     setError(null);
 
-    void loadPersistedWorkspaceListSummaries(userId)
+    void loadPersistedWorkspaceListSummaries(userId ?? "anonymous", {
+      excludeIds: workspaceCatalogExcludeIds,
+    })
       .then((nextItems) => {
         if (cancelled) {
           return;
         }
 
-        setFetchedWorkspaceListItems(nextItems);
+        setFetchedWorkspaceCatalog({
+          attempted: true,
+          items: nextItems,
+          excludeKey: workspaceCatalogExcludeKey,
+          scopeId: workspaceCatalogScopeId,
+        });
         setWorkspaceListLoading(false);
       })
       .catch((nextError) => {
@@ -194,7 +245,12 @@ export function useWorkspaceReferenceCatalog() {
           return;
         }
 
-        setFetchedWorkspaceListItems([]);
+        setFetchedWorkspaceCatalog({
+          attempted: true,
+          items: [],
+          excludeKey: workspaceCatalogExcludeKey,
+          scopeId: workspaceCatalogScopeId,
+        });
         setWorkspaceListLoading(false);
         setError(nextError instanceof Error ? nextError.message : "Unable to load workspaces.");
       });
@@ -202,10 +258,17 @@ export function useWorkspaceReferenceCatalog() {
     return () => {
       cancelled = true;
     };
-  }, [userId, workspaceListHydrated, workspaceListItems]);
+  }, [
+    fetchedWorkspaceListAttempted,
+    userId,
+    workspaceCatalogExcludeIds,
+    workspaceCatalogExcludeKey,
+    workspaceCatalogScopeId,
+    workspaceListItems.length,
+  ]);
 
   const workspaceOptions =
-    workspaceListItems.length > 0 || workspaceListHydrated
+    workspaceListItems.length > 0
       ? workspaceListItems
       : fetchedWorkspaceListItems;
   const workspaceMap = useMemo(
@@ -220,8 +283,7 @@ export function useWorkspaceReferenceCatalog() {
       : null,
     error,
     workspaceListLoading,
-    workspaceListReady:
-      workspaceListHydrated || workspaceListItems.length > 0 || fetchedWorkspaceListItems.length > 0,
+    workspaceListReady: workspaceListItems.length > 0 || fetchedWorkspaceListAttempted,
     workspaceMap,
     workspaceOptions,
   };

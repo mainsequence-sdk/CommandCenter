@@ -13,10 +13,14 @@ import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import {
   ChevronDown,
   ChevronRight,
+  ExternalLink,
+  Loader2,
+  Network,
   Plus,
   SlidersHorizontal,
   X,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
 
 export type WorkspaceGraphPortStatus = "connected" | "unbound" | "broken";
@@ -41,6 +45,9 @@ export interface WorkspaceGraphOutputPortData {
   dependencyHighlighted?: boolean;
 }
 
+export const WORKSPACE_GRAPH_REFERENCE_FRAME_OUTPUT_ID = "__workspace-reference-frame__";
+export const WORKSPACE_GRAPH_REFERENCE_SOURCE_INPUT_ID = "__workspace-reference-source__";
+
 export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   title: string;
   widgetId: string;
@@ -55,8 +62,25 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   executionStatus?: "idle" | "running" | "success" | "error";
   executionFinishedAtMs?: number;
   expanded?: boolean;
+  readOnly?: boolean;
   dependencyHighlighted?: boolean;
   dependencyRoot?: boolean;
+  referenceFrame?: {
+    childCount?: number;
+    error?: string;
+    height: number;
+    openPath?: string;
+    status: "loading" | "ready" | "missing" | "error";
+    width: number;
+    workspaceId: string;
+    workspaceTitle?: string;
+  };
+  referenceExpansion?: {
+    expanded: boolean;
+    status: "idle" | "loading" | "ready" | "missing" | "error";
+    targetWorkspaceId: string;
+    onToggle: () => void;
+  };
   onHeightChange?: (height: number) => void;
   onToggleExpanded?: () => void;
   onRevealOutput?: (outputId: string) => void;
@@ -78,6 +102,7 @@ function getPortStatusClassName(status: WorkspaceGraphPortStatus) {
 }
 
 function GraphPortHandle({
+  connectable = true,
   kind,
   portId,
   position,
@@ -85,6 +110,7 @@ function GraphPortHandle({
   style,
   highlighted = false,
 }: {
+  connectable?: boolean;
   kind: WidgetGraphPortKind;
   portId: string;
   position: Position;
@@ -97,12 +123,13 @@ function GraphPortHandle({
       id={buildWidgetGraphHandleId(kind, portId)}
       type={kind === "output" ? "source" : "target"}
       position={position}
-      isConnectable
-      isConnectableStart
-      isConnectableEnd
+      isConnectable={connectable}
+      isConnectableStart={connectable}
+      isConnectableEnd={connectable}
       style={style}
       className={cn(
-        "!z-20 !pointer-events-auto !h-3 !w-3 !border-2 !border-background !bg-primary shadow-sm",
+        "!z-20 !h-3 !w-3 !border-2 !border-background !bg-primary shadow-sm",
+        connectable ? "!pointer-events-auto" : "!pointer-events-none !bg-muted-foreground",
         highlighted &&
           "!bg-primary !ring-4 !ring-primary/25 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_35%,transparent),0_0_16px_-4px_color-mix(in_srgb,var(--primary)_65%,transparent)]",
         kind === "input" ? "!-left-1.5" : "!-right-1.5",
@@ -147,6 +174,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
   const nodeContainerRef = useRef<HTMLDivElement | null>(null);
   const widgetDefinition = getWidgetById(data.widgetId);
   const expanded = Boolean(data.expanded);
+  const readOnly = Boolean(data.readOnly);
   const WidgetIcon = resolveWorkspaceWidgetIcon(
     widgetDefinition ?? {
       id: data.widgetId,
@@ -314,6 +342,80 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
     };
   }, [addOutputOpen]);
 
+  if (data.referenceFrame) {
+    return (
+      <div
+        className="relative rounded-[18px] border border-primary/25 bg-background/18 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_10%,transparent),0_18px_44px_-30px_rgba(0,0,0,0.65)] backdrop-blur-sm"
+        style={{
+          height: data.referenceFrame.height,
+          width: data.referenceFrame.width,
+        }}
+      >
+        <GraphPortHandle
+          connectable={false}
+          kind="output"
+          portId={WORKSPACE_GRAPH_REFERENCE_FRAME_OUTPUT_ID}
+          position={Position.Right}
+          className="!bg-primary"
+          style={{ top: 62 }}
+        />
+        <div className="h-full w-full overflow-hidden rounded-[18px]">
+          <div className="flex items-center justify-between gap-4 border-b border-primary/20 bg-primary/6 px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Referenced workspace
+              </div>
+              <div className="mt-1 truncate text-sm font-semibold text-foreground">
+                {data.referenceFrame.workspaceTitle ?? data.referenceFrame.workspaceId}
+              </div>
+              <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                {data.referenceFrame.workspaceId}
+              </div>
+            </div>
+            <Badge
+              variant={
+                data.referenceFrame.status === "error"
+                  ? "danger"
+                  : data.referenceFrame.status === "missing"
+                    ? "warning"
+                    : data.referenceFrame.status === "loading"
+                      ? "neutral"
+                      : "success"
+              }
+              className="shrink-0 px-2 py-0.5 text-[9px] tracking-[0.12em]"
+            >
+              {data.referenceFrame.status}
+            </Badge>
+          </div>
+          <div className="px-4 py-3 text-[11px] text-muted-foreground">
+            {data.referenceFrame.error ? (
+              <span className="text-danger">{data.referenceFrame.error}</span>
+            ) : data.referenceFrame.status === "ready" ? (
+              <span>
+                {data.referenceFrame.childCount ?? 0} graph node
+                {(data.referenceFrame.childCount ?? 0) === 1 ? "" : "s"} shown
+              </span>
+            ) : data.referenceFrame.status === "loading" ? (
+              <span>Loading workspace graph...</span>
+            ) : null}
+            {data.referenceFrame.openPath ? (
+              <Link
+                to={data.referenceFrame.openPath}
+                className="ml-3 inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                Open workspace
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div
@@ -339,29 +441,61 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
               : "border-border/75",
         )}
       >
-      {data.dependencyRoot && data.onOpenSettings ? (
-        <div className="pointer-events-none absolute -top-10 right-2 z-20">
-          <Button
-            variant="outline"
-            size="sm"
-            className="pointer-events-auto nodrag nopan h-8 rounded-full border-primary/35 bg-background/96 px-3 text-[11px] font-medium shadow-[var(--shadow-panel)] backdrop-blur-md hover:border-primary/55 hover:bg-background"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              data.onOpenSettings?.();
-            }}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Open settings
-          </Button>
+      {data.dependencyRoot && !readOnly && (data.onOpenSettings || data.referenceExpansion) ? (
+        <div className="pointer-events-none absolute -top-10 left-2 z-20 flex items-center gap-2">
+          {data.referenceExpansion ? (
+            <Button
+              variant={data.referenceExpansion.expanded ? "outline" : "default"}
+              size="sm"
+              className="pointer-events-auto nodrag nopan h-8 rounded-full px-3 text-[11px] font-medium shadow-[var(--shadow-panel)] backdrop-blur-md"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                data.referenceExpansion?.onToggle();
+              }}
+            >
+              {data.referenceExpansion.status === "loading" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Network className="h-3.5 w-3.5" />
+              )}
+              {data.referenceExpansion.expanded ? "Hide workspace" : "Expand workspace"}
+            </Button>
+          ) : null}
+          {data.onOpenSettings ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="pointer-events-auto nodrag nopan h-8 rounded-full border-primary/35 bg-background/96 px-3 text-[11px] font-medium shadow-[var(--shadow-panel)] backdrop-blur-md hover:border-primary/55 hover:bg-background"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                data.onOpenSettings?.();
+              }}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Open settings
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
       {!expanded ? (
         <>
+          {data.referenceExpansion?.expanded ? (
+            <GraphPortHandle
+              connectable={false}
+              kind="input"
+              portId={WORKSPACE_GRAPH_REFERENCE_SOURCE_INPUT_ID}
+              position={Position.Left}
+              className="!bg-primary"
+              style={{ top: 56 }}
+            />
+          ) : null}
           {data.inputs.map((input, index) => (
             <GraphPortHandle
               key={`collapsed-input-${input.id}`}
+              connectable={!readOnly}
               kind="input"
               portId={input.id}
               position={Position.Left}
@@ -373,6 +507,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
           {data.outputs.map((output, index) => (
             <GraphPortHandle
               key={`collapsed-output-${output.id}`}
+              connectable={!readOnly}
               kind="output"
               portId={output.id}
               position={Position.Right}
@@ -384,7 +519,12 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
         </>
       ) : null}
 
-      <div className="workspace-graph-node-drag-handle cursor-grab select-none border-b border-border/70 px-3.5 py-2.5 active:cursor-grabbing">
+      <div
+        className={cn(
+          "workspace-graph-node-drag-handle select-none border-b border-border/70 px-3.5 py-2.5",
+          readOnly ? "cursor-default" : "cursor-grab active:cursor-grabbing",
+        )}
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex items-start gap-2.5">
             <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-border/70 bg-background/55 text-muted-foreground">
@@ -423,9 +563,37 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                     Hidden row
                   </Badge>
                 ) : null}
+                {readOnly ? (
+                  <Badge variant="neutral" className="px-1.5 py-0.5 text-[8px] tracking-[0.12em]">
+                    Read-only
+                  </Badge>
+                ) : null}
               </div>
             </div>
           </div>
+          {data.referenceExpansion ? (
+            <Button
+              variant={data.referenceExpansion.expanded ? "outline" : "ghost"}
+              size="sm"
+              className="nodrag nopan h-7 w-7 shrink-0 rounded-[10px] px-0 text-muted-foreground hover:text-foreground"
+              aria-label={
+                data.referenceExpansion.expanded
+                  ? `Hide referenced workspace ${data.referenceExpansion.targetWorkspaceId}`
+                  : `Show referenced workspace ${data.referenceExpansion.targetWorkspaceId}`
+              }
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                data.referenceExpansion?.onToggle();
+              }}
+            >
+              {data.referenceExpansion.status === "loading" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Network className="h-4 w-4" />
+              )}
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="sm"
@@ -456,6 +624,16 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
           </div>
         ) : (
           <div className="grid gap-2.5 p-3 md:grid-cols-2">
+            {data.referenceExpansion?.expanded ? (
+              <GraphPortHandle
+                connectable={false}
+                kind="input"
+                portId={WORKSPACE_GRAPH_REFERENCE_SOURCE_INPUT_ID}
+                position={Position.Left}
+                className="!bg-primary"
+                style={{ top: 56 }}
+              />
+            ) : null}
             <section className="space-y-2">
               <div className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Inputs
@@ -472,6 +650,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                     )}
                   >
                     <GraphPortHandle
+                      connectable={!readOnly}
                       kind="input"
                       portId={input.id}
                       position={Position.Left}
@@ -534,6 +713,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                     )}
                   >
                     <GraphPortHandle
+                      connectable={!readOnly}
                       kind="output"
                       portId={output.id}
                       position={Position.Right}
@@ -556,7 +736,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                           </div>
                         ) : null}
                       </div>
-                      {output.removable ? (
+                      {output.removable && !readOnly ? (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -581,7 +761,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                   No output ports
                 </div>
               )}
-              {data.availableOutputs.length > 0 ? (
+              {data.availableOutputs.length > 0 && !readOnly ? (
                 <div ref={addOutputTriggerRef}>
                   <Button
                     variant="outline"

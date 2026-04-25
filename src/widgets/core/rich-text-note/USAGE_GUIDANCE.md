@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget for friendly rich text authoring directly on the workspace canvas when Markdown source editing would be too technical or too slow.
+Inline rich-text workspace note with direct canvas editing.
 
 ## whenToUse
 

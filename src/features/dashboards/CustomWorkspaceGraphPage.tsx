@@ -36,12 +36,13 @@ import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetReg
 import {
   addWidgetGraphConnectionToBindings,
   buildWidgetGraphHandleId,
+  createDashboardWidgetDependencyModel,
   createDashboardWidgetEntryIndex,
   removeWidgetGraphConnectionFromBindings,
   resolveWidgetGraphConnection,
   type DashboardWidgetDependencyGraph,
 } from "@/dashboards/widget-dependencies";
-import type { DashboardWidgetInstance } from "@/dashboards/types";
+import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
 import type { ResolvedWidgetInputs } from "@/widgets/types";
 import { WIDGET_AGENT_CONTEXT_OUTPUT_ID } from "@/widgets/shared/agent-context";
 
@@ -54,6 +55,8 @@ import {
 import { WorkspaceComponentBrowser } from "./WorkspaceComponentBrowser";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import {
+  WORKSPACE_GRAPH_REFERENCE_FRAME_OUTPUT_ID,
+  WORKSPACE_GRAPH_REFERENCE_SOURCE_INPUT_ID,
   WorkspaceGraphNode,
   type WorkspaceGraphFlowNode,
   type WorkspaceGraphInputPortData,
@@ -66,15 +69,94 @@ import {
   WorkspaceWidgetRail,
 } from "./WorkspaceChrome";
 import { WorkspaceRequestDebugPanel } from "./WorkspaceRequestDebugPanel";
-import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
+import { loadPersistedWorkspaceDetail } from "./workspace-persistence";
+import {
+  buildWorkspaceStudioCanvasPath,
+  useWorkspaceStudioSurfaceConfig,
+} from "./workspace-studio-surface-config";
 
 const GRAPH_NODE_HORIZONTAL_GAP = 420;
 const GRAPH_NODE_VERTICAL_GAP = 28;
 const GRAPH_NODE_COLLAPSED_HEIGHT_PX = 118;
 const GRAPH_NODE_EXPANDED_ESTIMATED_HEIGHT_PX = 360;
+const REFERENCED_GRAPH_NODE_PREFIX = "ref::";
+const REFERENCED_WORKSPACE_BOUNDARY_WIDGET_ID = "workspace-reference-boundary";
+const REFERENCED_WORKSPACE_FRAME_GAP_X = 96;
+const REFERENCED_WORKSPACE_FRAME_HEADER_HEIGHT = 112;
+const REFERENCED_WORKSPACE_FRAME_PADDING_X = 28;
+const REFERENCED_WORKSPACE_FRAME_PADDING_Y = 24;
+const REFERENCED_WORKSPACE_FRAME_MIN_HEIGHT = 220;
+const REFERENCED_WORKSPACE_FRAME_MIN_WIDTH = 380;
+const REFERENCED_WORKSPACE_NODE_WIDTH = 300;
+const REFERENCED_WORKSPACE_STACK_GAP_Y = 40;
+const WORKSPACE_REFERENCE_WIDGET_ID = "main-sequence-ai-workspace";
+const WORKSPACE_REFERENCE_OUTPUT_ID = "workspace-reference";
 const GRAPH_NODE_TYPES = {
   workspaceWidget: WorkspaceGraphNode,
 };
+
+type ReferencedWorkspaceLoadState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; workspace: DashboardDefinition }
+  | { status: "missing" }
+  | { status: "error"; error: string };
+
+interface WorkspaceReferenceExpansionTarget {
+  workspaceId: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeWorkspaceId(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeWorkspaceReferenceId(value: unknown) {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return normalizeWorkspaceId(value.id);
+}
+
+function isReferencedGraphElementId(id: string | null | undefined) {
+  return Boolean(id?.startsWith(REFERENCED_GRAPH_NODE_PREFIX));
+}
+
+function buildReferencedGraphNodeId(
+  sourceNodeId: string,
+  workspaceId: string,
+  referencedNodeId: string,
+) {
+  return `${REFERENCED_GRAPH_NODE_PREFIX}${sourceNodeId}::${workspaceId}::${referencedNodeId}`;
+}
+
+function buildReferencedWorkspaceBoundaryNodeId(sourceNodeId: string, workspaceId: string) {
+  return buildReferencedGraphNodeId(sourceNodeId, workspaceId, "__boundary__");
+}
+
+function resolveGraphNodeTitle(
+  node: DashboardWidgetDependencyGraph["nodes"][number],
+  widgetDefinition: ReturnType<typeof getWidgetById>,
+) {
+  if (node.widgetId === WORKSPACE_REFERENCE_WIDGET_ID && node.title === "WorkspaceReference") {
+    return widgetDefinition?.title ?? "Workspace";
+  }
+
+  return node.title;
+}
 
 function resolveVisibleWorkspaceGraph(
   graph: DashboardWidgetDependencyGraph,
@@ -271,14 +353,20 @@ function layoutGraphNodes(
 }
 
 function WorkspaceGraphCanvas({
+  currentWorkspaceId,
   onBindingsChange,
   onOpenWidgetSettings,
+  userId,
+  workspaceListPath,
 }: {
+  currentWorkspaceId: string;
   onBindingsChange: (
     instanceId: string,
     bindings: DashboardWidgetInstance["bindings"],
   ) => void;
   onOpenWidgetSettings: (instanceId: string) => void;
+  userId: string;
+  workspaceListPath: string;
 }) {
   const dependencyModel = useDashboardWidgetDependencies();
   const widgetExecution = useDashboardWidgetExecution();
@@ -289,6 +377,10 @@ function WorkspaceGraphCanvas({
     {},
   );
   const [expandedNodeIds, setExpandedNodeIds] = useState<Record<string, true>>({});
+  const [expandedReferenceNodeIds, setExpandedReferenceNodeIds] = useState<Record<string, true>>({});
+  const [referencedWorkspaceLoadStateById, setReferencedWorkspaceLoadStateById] = useState<
+    Record<string, ReferencedWorkspaceLoadState>
+  >({});
   const [pinnedNodePositionsById, setPinnedNodePositionsById] = useState<Record<string, XYPosition>>(
     {},
   );
@@ -315,6 +407,31 @@ function WorkspaceGraphCanvas({
           },
     [dependencyModel],
   );
+  const workspaceReferenceTargetByNodeId = useMemo(() => {
+    if (!dependencyModel) {
+      return {} satisfies Record<string, WorkspaceReferenceExpansionTarget>;
+    }
+
+    const entries = visibleGraph.nodes.flatMap((node) => {
+      if (node.widgetId !== WORKSPACE_REFERENCE_WIDGET_ID) {
+        return [];
+      }
+
+      const outputValue = dependencyModel.resolveOutputs(node.id)?.[WORKSPACE_REFERENCE_OUTPUT_ID]?.value;
+      const instance = instanceIndex.get(node.id);
+      const workspaceId =
+        normalizeWorkspaceReferenceId(outputValue) ??
+        normalizeWorkspaceId(instance?.props?.workspaceId);
+
+      if (!workspaceId || workspaceId === currentWorkspaceId) {
+        return [];
+      }
+
+      return [[node.id, { workspaceId }] as const];
+    });
+
+    return Object.fromEntries(entries) satisfies Record<string, WorkspaceReferenceExpansionTarget>;
+  }, [currentWorkspaceId, dependencyModel, instanceIndex, visibleGraph.nodes]);
   const layoutedPositions = useMemo(
     () =>
       layoutGraphNodes(visibleGraph, {
@@ -328,8 +445,23 @@ function WorkspaceGraphCanvas({
       JSON.stringify({
         nodeIds: visibleGraph.nodes.map((node) => node.id).sort(),
         edgeIds: visibleGraph.edges.map((edge) => edge.id).sort(),
+        referencedNodes: Object.keys(expandedReferenceNodeIds).sort(),
+        referencedWorkspaces: Object.entries(referencedWorkspaceLoadStateById)
+          .map(([workspaceId, state]) => ({
+            workspaceId,
+            status: state.status,
+            widgetIds: state.status === "ready"
+              ? state.workspace.widgets.map((widget) => widget.id).sort()
+              : null,
+          }))
+          .sort((left, right) => left.workspaceId.localeCompare(right.workspaceId)),
       }),
-    [visibleGraph.edges, visibleGraph.nodes],
+    [
+      expandedReferenceNodeIds,
+      referencedWorkspaceLoadStateById,
+      visibleGraph.edges,
+      visibleGraph.nodes,
+    ],
   );
   const executionStateByNodeId = useMemo(
     () =>
@@ -357,7 +489,10 @@ function WorkspaceGraphCanvas({
       return;
     }
 
-    if (!visibleGraph.nodes.some((node) => node.id === activeNodeId)) {
+    if (
+      !isReferencedGraphElementId(activeNodeId) &&
+      !visibleGraph.nodes.some((node) => node.id === activeNodeId)
+    ) {
       setActiveNodeId(null);
     }
   }, [activeNodeId, visibleGraph.nodes]);
@@ -367,7 +502,10 @@ function WorkspaceGraphCanvas({
       return;
     }
 
-    if (!visibleGraph.edges.some((edge) => edge.id === activeEdgeId)) {
+    if (
+      !isReferencedGraphElementId(activeEdgeId) &&
+      !visibleGraph.edges.some((edge) => edge.id === activeEdgeId)
+    ) {
       setActiveEdgeId(null);
     }
   }, [activeEdgeId, visibleGraph.edges]);
@@ -432,6 +570,75 @@ function WorkspaceGraphCanvas({
       return Object.fromEntries(nextEntries);
     });
   }, [visibleGraph.nodes]);
+
+  useEffect(() => {
+    const expandableNodeIds = new Set(Object.keys(workspaceReferenceTargetByNodeId));
+
+    setExpandedReferenceNodeIds((current) => {
+      const nextEntries = Object.entries(current).filter(([nodeId]) =>
+        expandableNodeIds.has(nodeId),
+      );
+
+      if (nextEntries.length === Object.keys(current).length) {
+        return current;
+      }
+
+      return Object.fromEntries(nextEntries);
+    });
+  }, [workspaceReferenceTargetByNodeId]);
+
+  const expandedReferenceWorkspaceIds = useMemo(() => {
+    return Array.from(
+      new Set(
+        Object.keys(expandedReferenceNodeIds).flatMap((nodeId) => {
+          const target = workspaceReferenceTargetByNodeId[nodeId];
+          return target ? [target.workspaceId] : [];
+        }),
+      ),
+    );
+  }, [expandedReferenceNodeIds, workspaceReferenceTargetByNodeId]);
+
+  useEffect(() => {
+    const workspaceIdsToLoad = expandedReferenceWorkspaceIds.filter((workspaceId) => {
+      const state = referencedWorkspaceLoadStateById[workspaceId];
+      return !state || state.status === "idle";
+    });
+
+    if (workspaceIdsToLoad.length === 0) {
+      return;
+    }
+
+    setReferencedWorkspaceLoadStateById((current) => ({
+      ...current,
+      ...Object.fromEntries(
+        workspaceIdsToLoad.map((workspaceId) => [
+          workspaceId,
+          { status: "loading" } satisfies ReferencedWorkspaceLoadState,
+        ]),
+      ),
+    }));
+
+    for (const workspaceId of workspaceIdsToLoad) {
+      void loadPersistedWorkspaceDetail(userId, workspaceId)
+        .then((workspace) => {
+          setReferencedWorkspaceLoadStateById((current) => ({
+            ...current,
+            [workspaceId]: workspace
+              ? ({ status: "ready", workspace } satisfies ReferencedWorkspaceLoadState)
+              : ({ status: "missing" } satisfies ReferencedWorkspaceLoadState),
+          }));
+        })
+        .catch((error) => {
+          setReferencedWorkspaceLoadStateById((current) => ({
+            ...current,
+            [workspaceId]: {
+              status: "error",
+              error: error instanceof Error ? error.message : "Unable to load workspace.",
+            } satisfies ReferencedWorkspaceLoadState,
+          }));
+        });
+    }
+  }, [expandedReferenceWorkspaceIds, referencedWorkspaceLoadStateById, userId]);
 
   const dependencyHighlight = useMemo(() => {
     const highlightedNodeIds = new Set<string>();
@@ -559,6 +766,11 @@ function WorkspaceGraphCanvas({
           output.id !== WIDGET_AGENT_CONTEXT_OUTPUT_ID,
       );
       const executionState = executionStateByNodeId[node.id];
+      const referenceTarget = workspaceReferenceTargetByNodeId[node.id];
+      const referenceExpanded = Boolean(expandedReferenceNodeIds[node.id]);
+      const referenceLoadState = referenceTarget
+        ? referencedWorkspaceLoadStateById[referenceTarget.workspaceId]
+        : undefined;
 
       return {
         id: node.id,
@@ -569,7 +781,7 @@ function WorkspaceGraphCanvas({
           cursor: "default",
         },
         data: {
-          title: node.title,
+          title: resolveGraphNodeTitle(node, widgetDefinition),
           widgetId: node.widgetId,
           widgetKind: widgetDefinition?.kind,
           widgetSource: widgetDefinition?.source,
@@ -582,6 +794,27 @@ function WorkspaceGraphCanvas({
           availableOutputs,
           executionStatus: executionState?.status,
           executionFinishedAtMs: executionState?.finishedAtMs,
+          referenceExpansion: referenceTarget
+            ? {
+                expanded: referenceExpanded,
+                status: referenceExpanded ? (referenceLoadState?.status ?? "idle") : "idle",
+                targetWorkspaceId: referenceTarget.workspaceId,
+                onToggle: () => {
+                  setExpandedReferenceNodeIds((current) => {
+                    if (current[node.id]) {
+                      const nextState = { ...current };
+                      delete nextState[node.id];
+                      return nextState;
+                    }
+
+                    return {
+                      ...current,
+                      [node.id]: true,
+                    };
+                  });
+                },
+              }
+            : undefined,
           dependencyHighlighted:
             dependencyHighlight.highlightedNodeIds.has(node.id) && node.id !== dependencyFocusNodeId,
           dependencyRoot: node.id === dependencyFocusNodeId,
@@ -658,11 +891,14 @@ function WorkspaceGraphCanvas({
     dependencyModel,
     executionStateByNodeId,
     expandedNodeIds,
+    expandedReferenceNodeIds,
     layoutedPositions,
     onOpenWidgetSettings,
+    referencedWorkspaceLoadStateById,
     visibleGraph.edges,
     visibleGraph.nodes,
     visibleOutputIdsByNodeId,
+    workspaceReferenceTargetByNodeId,
   ]);
 
   const derivedEdges = useMemo<Edge[]>(() => {
@@ -742,7 +978,7 @@ function WorkspaceGraphCanvas({
     visibleGraph.nodes,
   ]);
 
-  const flowNodes = useMemo<WorkspaceGraphFlowNode[]>(() => {
+  const localFlowNodes = useMemo<WorkspaceGraphFlowNode[]>(() => {
     return derivedNodes.map((node) => ({
       ...node,
       position: pinnedNodePositionsById[node.id] ?? node.position,
@@ -754,8 +990,290 @@ function WorkspaceGraphCanvas({
     }));
   }, [activeNodeId, derivedNodes, pinnedNodePositionsById]);
 
+  const referencedGraphProjection = useMemo(() => {
+    const nodes: WorkspaceGraphFlowNode[] = [];
+    const edges: Edge[] = [];
+    const localNodeById = new Map(localFlowNodes.map((node) => [node.id, node] as const));
+    const localMinX = localFlowNodes.reduce(
+      (min, node) => Math.min(min, node.position.x),
+      Number.POSITIVE_INFINITY,
+    );
+    const frameLaneRightX =
+      (Number.isFinite(localMinX) ? localMinX : 0) - REFERENCED_WORKSPACE_FRAME_GAP_X;
+    const referenceEdgeStyle = {
+      stroke: "color-mix(in srgb, var(--primary) 58%, transparent)",
+      strokeDasharray: "5 6",
+      strokeWidth: 2,
+    };
+    const referencedFrames = Object.entries(workspaceReferenceTargetByNodeId)
+      .flatMap(([sourceNodeId, target]) => {
+        if (!expandedReferenceNodeIds[sourceNodeId]) {
+          return [];
+        }
+
+        const sourceNode = localNodeById.get(sourceNodeId);
+
+        if (!sourceNode) {
+          return [];
+        }
+
+        const workspaceId = target.workspaceId;
+        const loadState = referencedWorkspaceLoadStateById[workspaceId] ?? { status: "loading" };
+        const openPath = buildWorkspaceStudioCanvasPath(workspaceListPath, workspaceId);
+        const readyWorkspace = loadState.status === "ready" ? loadState.workspace : null;
+        const referencedModel = readyWorkspace
+          ? createDashboardWidgetDependencyModel(readyWorkspace.widgets, getWidgetById)
+          : null;
+        const referencedVisibleGraph = referencedModel
+          ? resolveVisibleWorkspaceGraph(referencedModel.graph)
+          : null;
+        const referencedLayout = referencedVisibleGraph
+          ? layoutGraphNodes(referencedVisibleGraph)
+          : new Map<string, XYPosition>();
+        const frameStatus = loadState.status === "idle" ? "loading" : loadState.status;
+        const referencedNodes = referencedVisibleGraph?.nodes ?? [];
+        const maxChildX = referencedNodes.reduce((max, node) => {
+          const position = referencedLayout.get(node.id) ?? { x: 0, y: 0 };
+          return Math.max(max, position.x + REFERENCED_WORKSPACE_NODE_WIDTH);
+        }, 0);
+        const maxChildY = referencedNodes.reduce((max, node) => {
+          const position = referencedLayout.get(node.id) ?? { x: 0, y: 0 };
+          return Math.max(max, position.y + GRAPH_NODE_COLLAPSED_HEIGHT_PX);
+        }, 0);
+        const frameWidth = Math.max(
+          REFERENCED_WORKSPACE_FRAME_MIN_WIDTH,
+          maxChildX + REFERENCED_WORKSPACE_FRAME_PADDING_X * 2,
+        );
+        const frameHeight = Math.max(
+          REFERENCED_WORKSPACE_FRAME_MIN_HEIGHT,
+          REFERENCED_WORKSPACE_FRAME_HEADER_HEIGHT +
+            maxChildY +
+            REFERENCED_WORKSPACE_FRAME_PADDING_Y * 2,
+        );
+
+        return [{
+          frameHeight,
+          frameNodeId: buildReferencedWorkspaceBoundaryNodeId(sourceNodeId, workspaceId),
+          frameStatus,
+          frameWidth,
+          loadState,
+          openPath,
+          readyWorkspace,
+          referencedLayout,
+          referencedModel,
+          referencedVisibleGraph,
+          sourceNode,
+          sourceNodeId,
+          workspaceId,
+        }] as const;
+      })
+      .sort((left, right) => {
+        if (left.sourceNode.position.y !== right.sourceNode.position.y) {
+          return left.sourceNode.position.y - right.sourceNode.position.y;
+        }
+
+        return left.sourceNode.position.x - right.sourceNode.position.x;
+      });
+    let nextAvailableFrameY = Number.NEGATIVE_INFINITY;
+
+    for (const referencedFrame of referencedFrames) {
+      const {
+        frameHeight,
+        frameNodeId,
+        frameStatus,
+        frameWidth,
+        loadState,
+        openPath,
+        readyWorkspace,
+        referencedLayout,
+        referencedModel,
+        referencedVisibleGraph,
+        sourceNode,
+        sourceNodeId,
+        workspaceId,
+      } = referencedFrame;
+      const preferredFrameY = sourceNode.position.y - 24;
+      const framePosition = {
+        x: frameLaneRightX - frameWidth,
+        y: Number.isFinite(nextAvailableFrameY)
+          ? Math.max(preferredFrameY, nextAvailableFrameY)
+          : preferredFrameY,
+      };
+      nextAvailableFrameY = framePosition.y + frameHeight + REFERENCED_WORKSPACE_STACK_GAP_Y;
+
+      nodes.push({
+        id: frameNodeId,
+        type: "workspaceWidget",
+        position: framePosition,
+        draggable: false,
+        selectable: false,
+        zIndex: 0,
+        data: {
+          title: readyWorkspace?.title ?? "Referenced workspace",
+          widgetId: REFERENCED_WORKSPACE_BOUNDARY_WIDGET_ID,
+          widgetKind: "custom",
+          widgetSource: "workspace_reference",
+          hiddenInCollapsedRow: false,
+          inputs: [],
+          outputs: [],
+          availableOutputs: [],
+          expanded: false,
+          readOnly: true,
+          referenceFrame: {
+            childCount: referencedVisibleGraph?.nodes.length ?? 0,
+            error:
+              loadState.status === "error"
+                ? loadState.error
+                : loadState.status === "missing"
+                  ? "Workspace not found."
+                  : undefined,
+            height: frameHeight,
+            openPath,
+            status: frameStatus,
+            width: frameWidth,
+            workspaceId,
+            workspaceTitle: readyWorkspace?.title,
+          },
+        } satisfies WorkspaceGraphNodeData,
+      } satisfies WorkspaceGraphFlowNode);
+
+      edges.push({
+        id: `${frameNodeId}->${sourceNodeId}`,
+        source: frameNodeId,
+        sourceHandle: buildWidgetGraphHandleId("output", WORKSPACE_GRAPH_REFERENCE_FRAME_OUTPUT_ID),
+        target: sourceNodeId,
+        targetHandle: buildWidgetGraphHandleId("input", WORKSPACE_GRAPH_REFERENCE_SOURCE_INPUT_ID),
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: "color-mix(in srgb, var(--primary) 58%, transparent)",
+        },
+        style: referenceEdgeStyle,
+        animated: loadState.status === "loading" || loadState.status === "idle",
+        deletable: false,
+        selectable: false,
+        zIndex: 1,
+      } satisfies Edge);
+
+      if (!referencedModel || !referencedVisibleGraph) {
+        continue;
+      }
+
+      for (const node of referencedVisibleGraph.nodes) {
+        const widgetDefinition = referencedModel.getWidgetDefinition(node.widgetId);
+        const resolvedIo = referencedModel.resolveIo(node.id);
+        const resolvedInputs = referencedModel.resolveInputs(node.id);
+        const outputsByPort = new Map<string, number>();
+
+        for (const edge of referencedVisibleGraph.edges) {
+          if (edge.from !== node.id || edge.status !== "valid") {
+            continue;
+          }
+
+          outputsByPort.set(edge.fromPort, (outputsByPort.get(edge.fromPort) ?? 0) + 1);
+        }
+
+        const inputs: WorkspaceGraphInputPortData[] = node.inputs.map((input) => ({
+          id: input.id,
+          label: input.label,
+          accepts: input.accepts,
+          description:
+            resolvedIo?.inputs?.find((candidate) => candidate.id === input.id)?.description,
+          required:
+            resolvedIo?.inputs?.find((candidate) => candidate.id === input.id)?.required,
+          status: resolveInputPortStatus(resolvedInputs, input.id),
+        }));
+        const outputs: WorkspaceGraphOutputPortData[] = node.outputs.map((output) => ({
+          id: output.id,
+          label: output.label,
+          contract: output.contract,
+          description:
+            resolvedIo?.outputs?.find((candidate) => candidate.id === output.id)?.description,
+          connectionCount: outputsByPort.get(output.id) ?? 0,
+        }));
+        const referencedNodeId = buildReferencedGraphNodeId(sourceNodeId, workspaceId, node.id);
+        const childPosition = referencedLayout.get(node.id) ?? { x: 0, y: 0 };
+
+        nodes.push({
+          id: referencedNodeId,
+          type: "workspaceWidget",
+          parentId: frameNodeId,
+          position: {
+            x: REFERENCED_WORKSPACE_FRAME_PADDING_X + childPosition.x,
+            y:
+              REFERENCED_WORKSPACE_FRAME_HEADER_HEIGHT +
+              REFERENCED_WORKSPACE_FRAME_PADDING_Y +
+              childPosition.y,
+          },
+          extent: "parent",
+          draggable: false,
+          selectable: false,
+          zIndex: 2,
+          data: {
+            title: node.title,
+            widgetId: node.widgetId,
+            widgetKind: widgetDefinition?.kind,
+            widgetSource: widgetDefinition?.source,
+            placementMode: node.placementMode,
+            hiddenInCollapsedRow: node.hiddenInCollapsedRow,
+            parentRowId: node.parentRowId
+              ? buildReferencedGraphNodeId(sourceNodeId, workspaceId, node.parentRowId)
+              : undefined,
+            inputs,
+            outputs,
+            availableOutputs: [],
+            expanded: false,
+            readOnly: true,
+          } satisfies WorkspaceGraphNodeData,
+        } satisfies WorkspaceGraphFlowNode);
+      }
+
+      for (const edge of referencedVisibleGraph.edges) {
+        const source = buildReferencedGraphNodeId(sourceNodeId, workspaceId, edge.from);
+        const targetNode = buildReferencedGraphNodeId(sourceNodeId, workspaceId, edge.to);
+        const broken = edge.status !== "valid";
+
+        edges.push({
+          id: buildReferencedGraphNodeId(sourceNodeId, workspaceId, edge.id),
+          source,
+          sourceHandle: buildWidgetGraphHandleId("output", edge.fromPort),
+          target: targetNode,
+          targetHandle: buildWidgetGraphHandleId("input", edge.toPort),
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: broken
+              ? "var(--color-danger)"
+              : "color-mix(in srgb, var(--border) 78%, transparent)",
+          },
+          style: {
+            stroke: broken
+              ? "var(--color-danger)"
+              : "color-mix(in srgb, var(--border) 78%, transparent)",
+            strokeDasharray: broken ? "8 6" : undefined,
+            strokeWidth: broken ? 2 : 2.25,
+          },
+          deletable: false,
+          selectable: false,
+          zIndex: 4,
+        } satisfies Edge);
+      }
+    }
+
+    return { edges, nodes };
+  }, [
+    expandedReferenceNodeIds,
+    localFlowNodes,
+    referencedWorkspaceLoadStateById,
+    workspaceListPath,
+    workspaceReferenceTargetByNodeId,
+  ]);
+
+  const flowNodes = useMemo<WorkspaceGraphFlowNode[]>(
+    () => [...localFlowNodes, ...referencedGraphProjection.nodes],
+    [localFlowNodes, referencedGraphProjection.nodes],
+  );
+
   useEffect(() => {
-    const visibleNodeIds = new Set(flowNodes.map((node) => node.id));
+    const visibleNodeIds = new Set(localFlowNodes.map((node) => node.id));
 
     setPinnedNodePositionsById((current) => {
       const nextEntries = Object.entries(current).filter(([nodeId]) => visibleNodeIds.has(nodeId));
@@ -766,7 +1284,7 @@ function WorkspaceGraphCanvas({
 
       return Object.fromEntries(nextEntries);
     });
-  }, [flowNodes]);
+  }, [localFlowNodes]);
 
   useEffect(() => {
     if (flowNodes.length === 0) {
@@ -788,12 +1306,32 @@ function WorkspaceGraphCanvas({
 
   const flowEdges = useMemo<Edge[]>(
     () =>
-      derivedEdges.map((edge) => ({
+      [...derivedEdges, ...referencedGraphProjection.edges].map((edge) => ({
         ...edge,
         selected: edge.id === activeEdgeId,
       })),
-    [activeEdgeId, derivedEdges],
+    [activeEdgeId, derivedEdges, referencedGraphProjection.edges],
   );
+
+  useEffect(() => {
+    if (!activeNodeId) {
+      return;
+    }
+
+    if (!flowNodes.some((node) => node.id === activeNodeId)) {
+      setActiveNodeId(null);
+    }
+  }, [activeNodeId, flowNodes]);
+
+  useEffect(() => {
+    if (!activeEdgeId) {
+      return;
+    }
+
+    if (!flowEdges.some((edge) => edge.id === activeEdgeId)) {
+      setActiveEdgeId(null);
+    }
+  }, [activeEdgeId, flowEdges]);
 
   const onNodesChange = useCallback((changes: NodeChange<WorkspaceGraphFlowNode>[]) => {
     setPinnedNodePositionsById((current) => {
@@ -802,6 +1340,10 @@ function WorkspaceGraphCanvas({
 
       for (const change of changes) {
         if (change.type === "remove") {
+          if (isReferencedGraphElementId(change.id)) {
+            continue;
+          }
+
           if (change.id in next) {
             delete next[change.id];
             changed = true;
@@ -810,6 +1352,10 @@ function WorkspaceGraphCanvas({
         }
 
         if (change.type !== "position" || !change.position) {
+          continue;
+        }
+
+        if (isReferencedGraphElementId(change.id)) {
           continue;
         }
 
@@ -835,6 +1381,13 @@ function WorkspaceGraphCanvas({
 
   const handleConnect = useCallback((connection: Connection) => {
     if (!dependencyModel) {
+      return;
+    }
+
+    if (
+      isReferencedGraphElementId(connection.source) ||
+      isReferencedGraphElementId(connection.target)
+    ) {
       return;
     }
 
@@ -867,6 +1420,10 @@ function WorkspaceGraphCanvas({
     const nextBindingsByWidget = new Map<string, DashboardWidgetInstance["bindings"]>();
 
     for (const edge of deletedEdges) {
+      if (isReferencedGraphElementId(edge.id) || isReferencedGraphElementId(edge.source) || isReferencedGraphElementId(edge.target)) {
+        continue;
+      }
+
       const resolvedConnection = resolveWidgetGraphConnection(
         {
           source: edge.source,
@@ -903,6 +1460,13 @@ function WorkspaceGraphCanvas({
 
   const isValidConnection = useCallback((connection: Connection | Edge) => {
     if (!dependencyModel) {
+      return false;
+    }
+
+    if (
+      isReferencedGraphElementId(connection.source) ||
+      isReferencedGraphElementId(connection.target)
+    ) {
       return false;
     }
 
@@ -979,6 +1543,10 @@ function WorkspaceGraphCanvas({
         onConnect={handleConnect}
         onEdgesDelete={handleEdgesDelete}
         onEdgeClick={(_event, edge) => {
+          if (isReferencedGraphElementId(edge.id)) {
+            return;
+          }
+
           setActiveEdgeId(edge.id);
           setActiveNodeId(null);
         }}
@@ -998,7 +1566,7 @@ function WorkspaceGraphCanvas({
         onNodeClick={(_event, node) => {
           setActiveNodeId(node.id);
           setActiveEdgeId(null);
-          setDependencyFocusNodeId(node.id);
+          setDependencyFocusNodeId(isReferencedGraphElementId(node.id) ? null : node.id);
         }}
         onPaneClick={() => {
           setActiveNodeId(null);
@@ -1019,7 +1587,7 @@ export function CustomWorkspaceGraphPage({
   withRuntimeProviders?: boolean;
 } = {}) {
   const navigate = useNavigate();
-  const { savedWidgetsPath } = useWorkspaceStudioSurfaceConfig();
+  const { savedWidgetsPath, workspaceListPath } = useWorkspaceStudioSurfaceConfig();
   const {
     user,
     permissions,
@@ -1169,6 +1737,9 @@ export function CustomWorkspaceGraphPage({
 
         <div className="absolute inset-0 pl-12">
           <WorkspaceGraphCanvas
+            currentWorkspaceId={selectedDashboard.id}
+            userId={user.id}
+            workspaceListPath={workspaceListPath}
             onBindingsChange={(instanceId, bindings) => {
               updateSelectedWorkspace((dashboard) =>
                 updateDashboardWidgetBindings(dashboard, instanceId, bindings),

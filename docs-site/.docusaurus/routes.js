@@ -4,15 +4,15 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 export default [
   {
     path: '/docs/',
-    component: ComponentCreator('/docs/', '344'),
+    component: ComponentCreator('/docs/', 'c39'),
     routes: [
       {
         path: '/docs/',
-        component: ComponentCreator('/docs/', 'f93'),
+        component: ComponentCreator('/docs/', '6d1'),
         routes: [
           {
             path: '/docs/',
-            component: ComponentCreator('/docs/', 'b2f'),
+            component: ComponentCreator('/docs/', '517'),
             routes: [
               {
                 path: '/docs/access-control',
@@ -39,10 +39,20 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
+                path: '/docs/adr/adr-agent-monitor-workspace-reference-widget',
+                component: ComponentCreator('/docs/adr/adr-agent-monitor-workspace-reference-widget', '29b'),
+                exact: true
+              },
+              {
                 path: '/docs/adr/adr-agent-ready-widget-type-registry-contract',
                 component: ComponentCreator('/docs/adr/adr-agent-ready-widget-type-registry-contract', '005'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-agent-terminal-managed-session-creation',
+                component: ComponentCreator('/docs/adr/adr-agent-terminal-managed-session-creation', 'bfa'),
+                exact: true
               },
               {
                 path: '/docs/adr/adr-app-component-binding-native-api-widget',
@@ -85,6 +95,11 @@ export default [
                 component: ComponentCreator('/docs/adr/adr-extension-contributed-shell-settings-menus', '05f'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-first-class-connection-model',
+                component: ComponentCreator('/docs/adr/adr-first-class-connection-model', 'e3f'),
+                exact: true
               },
               {
                 path: '/docs/adr/adr-headless-workspace-settings-runtime',
@@ -135,6 +150,12 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
+                path: '/docs/adr/adr-runtime-credential-browser-auth',
+                component: ComponentCreator('/docs/adr/adr-runtime-credential-browser-auth', '4ee'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
                 path: '/docs/adr/adr-shared-workspace-state',
                 component: ComponentCreator('/docs/adr/adr-shared-workspace-state', 'a15'),
                 exact: true,
@@ -163,6 +184,16 @@ export default [
                 component: ComponentCreator('/docs/adr/adr-widget-bindings-and-dependency-graph', 'acd'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-widget-settings-demo-preview-draft',
+                component: ComponentCreator('/docs/adr/adr-widget-settings-demo-preview-draft', 'a0f'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/adr-workspace-widget-referenced-graph-expansion',
+                component: ComponentCreator('/docs/adr/adr-workspace-widget-referenced-graph-expansion', 'e3c'),
+                exact: true
               },
               {
                 path: '/docs/apps',
@@ -265,6 +296,11 @@ export default [
                 component: ComponentCreator('/docs/workspaces', 'b5c'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/workspaces/agent-monitor-workspace-widget-plan',
+                component: ComponentCreator('/docs/workspaces/agent-monitor-workspace-widget-plan', 'df1'),
+                exact: true
               },
               {
                 path: '/docs/workspaces/backend-model',

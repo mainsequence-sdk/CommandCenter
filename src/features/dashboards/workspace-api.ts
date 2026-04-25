@@ -207,9 +207,37 @@ function buildEndpointUrl(path: string) {
   return url.toString();
 }
 
-function appendWorkspaceListFrontendFlag(path: string) {
+function normalizeWorkspaceIdList(values: readonly string[] | undefined) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      values
+        .map((value) => normalizeWorkspaceId(value))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+}
+
+function appendWorkspaceListFrontendFlag(
+  path: string,
+  options?: {
+    excludeIds?: readonly string[];
+  },
+) {
   const url = new URL(path, env.apiBaseUrl);
   url.searchParams.set("fe_list", "true");
+
+  const normalizedExcludeIds = normalizeWorkspaceIdList(options?.excludeIds);
+
+  if (normalizedExcludeIds.length > 0) {
+    url.searchParams.set("exclude_ids", normalizedExcludeIds.join(","));
+  } else {
+    url.searchParams.delete("exclude_ids");
+  }
+
   return `${url.pathname}${url.search}`;
 }
 
@@ -904,7 +932,9 @@ export function hasConfiguredWorkspaceUserStateBackend() {
   return Boolean(commandCenterConfig.workspaces.userStateListUrl.trim());
 }
 
-export async function fetchWorkspaceListSummariesFromBackend(): Promise<WorkspaceListItemSummary[]> {
+export async function fetchWorkspaceListSummariesFromBackend(options?: {
+  excludeIds?: readonly string[];
+}): Promise<WorkspaceListItemSummary[]> {
   const listPath = commandCenterConfig.workspaces.listUrl.trim();
 
   if (!listPath) {
@@ -917,7 +947,11 @@ export async function fetchWorkspaceListSummariesFromBackend(): Promise<Workspac
     );
   }
 
-  const payload = await requestWorkspaceBackend(appendWorkspaceListFrontendFlag(listPath));
+  const payload = await requestWorkspaceBackend(
+    appendWorkspaceListFrontendFlag(listPath, {
+      excludeIds: options?.excludeIds,
+    }),
+  );
   return normalizeWorkspaceListSummariesPayload(payload);
 }
 

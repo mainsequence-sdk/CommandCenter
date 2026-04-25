@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Theme-aware ECharts renderer for authored option payloads. Use it when a workspace needs a custom chart that is too specific for a fixed-purpose chart widget, while still respecting Command Center theme tokens and data-visualization palettes.
+Theme-aware ECharts renderer for authored option payloads.
 
 ## whenToUse
 

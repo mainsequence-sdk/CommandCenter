@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget only for demo heatmap layouts and mock market storytelling.
+Demo heatmap matrix for mock market layouts and storytelling.
 
 ## whenToUse
 

@@ -25,8 +25,11 @@ where to go when you need the contract for a specific widget family.
 ### Platform Core Widgets
 
 - `src/widgets/core/app-component/README.md`
+- `src/widgets/core/graph/README.md`
 - `src/widgets/core/markdown-note/README.md`
 - `src/widgets/core/rich-text-note/README.md`
+- `src/widgets/core/statistic/README.md`
+- `src/widgets/core/table/README.md`
 - `src/widgets/core/workspace-row/README.md`
 
 ### Platform Extension Widget Families
@@ -40,11 +43,6 @@ where to go when you need the contract for a specific widget family.
 - `extensions/main_sequence/extensions/workbench/widgets/README.md`
 - `extensions/main_sequence/extensions/workbench/widgets/dependency-graph/README.md`
 - `extensions/main_sequence/extensions/workbench/widgets/project-infra-graph/README.md`
-- `extensions/main_sequence/extensions/workbench/widgets/data-node-filter/README.md`
-- `extensions/main_sequence/extensions/workbench/widgets/data-node-statistic/README.md`
-- `extensions/main_sequence/extensions/workbench/widgets/data-node-table/README.md`
-- `extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/README.md`
-- `extensions/main_sequence/extensions/workbench/widgets/data-node-shared/README.md`
 - `extensions/main_sequence/extensions/markets/widgets/README.md`
 - `extensions/main_sequence/extensions/markets/widgets/curve-plot/README.md`
 - `extensions/main_sequence/extensions/markets/widgets/zero-curve/README.md`

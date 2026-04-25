@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to publish one selected workspace id as a minimal bindable reference object from the workspace sidebar.
+Bindable reference to one selected workspace.
 
 ## whenToUse
 
@@ -20,6 +20,8 @@ Use this widget to publish one selected workspace id as a minimal bindable refer
 - Bind the `Workspace reference` output to a downstream widget input.
 - The output uses `main-sequence-ai.workspace-reference@v1` and publishes only `{"id": "<workspace-id>"}`.
 - New instances default to sidebar placement rather than opening as a canvas card.
+- In graph mode, select the widget node and use `Expand workspace` to inspect the referenced
+  workspace's read-only widget graph and internal connections.
 
 ## blockingRequirements
 
@@ -32,3 +34,5 @@ Use this widget to publish one selected workspace id as a minimal bindable refer
 - The current workspace is intentionally excluded from selection and will be blocked if saved manually.
 - This widget has no inputs and no refresh execution path. It only validates the selected workspace and publishes the id when that selection is valid.
 - If you move the widget onto the canvas manually, that is a presentation override for that instance. The default authoring mode is sidebar-only.
+- Graph expansion is inspection-only. Connections shown inside the referenced workspace cannot be
+  edited from the parent workspace graph.

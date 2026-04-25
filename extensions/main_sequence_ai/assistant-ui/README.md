@@ -70,13 +70,14 @@ remaining height. The two shells still differ intentionally:
 - live stream `type: "error"` frames preserve the backend `error` message and surface that message
   in the chat error state instead of falling back to assistant-ui's generic error text
 - the overlay keeps a reduced chrome surface: no context disclosure, no run-status strip, and no
-  in-message thinking/tool detail blocks. The user can expand into the full page for those details
+  in-message thinking/tool detail blocks. The user can expand into the full page for those details,
+  but the overlay composer still exposes the model controls and compact context-window usage footer
 - the right-side rail now warns when it is attached to a non-default session instead of the
   canonical Command Center base orchestrator session
 - thinking blocks on the full page start collapsed by default, with a trimmed one-line preview of
   the latest reasoning/tool activity in the collapsed header
-- the full-page composer footer now shows a compact context-window usage bar when session insights
-  provide `context.percentOfContextWindow`
+- the page and overlay composer footers now show a compact context-window usage bar when session
+  insights provide `context.percentOfContextWindow`
 
 The app surface itself lives separately under `extensions/main_sequence_ai/surfaces/chat/`.
 The shared page explorer UI now lives separately under `extensions/main_sequence_ai/features/chat/`.

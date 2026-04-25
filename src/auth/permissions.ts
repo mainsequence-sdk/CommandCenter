@@ -12,6 +12,12 @@ export const ORGANIZATION_ADMIN_ROLE = "ORG_ADMIN";
 export const ORGANIZATION_ADMIN_PERMISSION = "org_admin:view";
 export const PLATFORM_ADMIN_PERMISSION = "platform_admin:access";
 export const LEGACY_ADMIN_PERMISSION = "rbac:view";
+export const PROMETHEUS_CONNECTION_PERMISSIONS = [
+  "prometheus:query",
+] as const satisfies Permission[];
+export const POSTGRESQL_CONNECTION_PERMISSIONS = [
+  "postgresql:query",
+] as const satisfies Permission[];
 
 export const ROLE_LABELS: Record<BuiltinAppRole, string> = {
   user: "User",
@@ -28,6 +34,7 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
     "orders:read",
     "orders:submit",
     "main_sequence_foundry:view",
+    ...PROMETHEUS_CONNECTION_PERMISSIONS,
   ],
   org_admin: [
     "workspaces:view",
@@ -38,6 +45,7 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
     "orders:read",
     "orders:submit",
     "main_sequence_foundry:view",
+    ...PROMETHEUS_CONNECTION_PERMISSIONS,
   ],
   platform_admin: [
     "workspaces:view",
@@ -50,6 +58,8 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
     "orders:read",
     "orders:submit",
     "main_sequence_foundry:view",
+    ...PROMETHEUS_CONNECTION_PERMISSIONS,
+    ...POSTGRESQL_CONNECTION_PERMISSIONS,
   ],
 };
 
@@ -114,10 +124,26 @@ export const CORE_PERMISSION_DEFINITIONS = [
     description: "Trigger order submission and execution actions.",
     category: "Execution",
   },
+  {
+    id: "prometheus:query",
+    label: "Prometheus / query",
+    description: "Query backend-owned Prometheus data-source instances.",
+    category: "Connections",
+  },
+  {
+    id: "postgresql:query",
+    label: "PostgreSQL / query",
+    description: "Query backend-owned PostgreSQL data-source instances.",
+    category: "Connections",
+  },
 ] as const satisfies PermissionDefinition[];
 
-export const ALL_PERMISSIONS = CORE_PERMISSION_DEFINITIONS.map(
-  (definition) => definition.id,
+export const ALL_PERMISSIONS: Permission[] = Array.from(
+  new Set([
+    ...CORE_PERMISSION_DEFINITIONS.map((definition) => definition.id),
+    ...PROMETHEUS_CONNECTION_PERMISSIONS,
+    ...POSTGRESQL_CONNECTION_PERMISSIONS,
+  ]),
 );
 
 function normalizeRoleToken(value?: string | null) {
@@ -238,6 +264,8 @@ export function buildEffectivePermissions({
   if (platformAdmin) {
     merged.add(PLATFORM_ADMIN_PERMISSION);
     merged.add(ORGANIZATION_ADMIN_PERMISSION);
+    PROMETHEUS_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
+    POSTGRESQL_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
   }
 
   return Array.from(merged);

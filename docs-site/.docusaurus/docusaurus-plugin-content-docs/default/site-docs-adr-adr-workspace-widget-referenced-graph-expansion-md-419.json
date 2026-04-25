@@ -1,0 +1,15 @@
+{
+  "id": "adr/adr-workspace-widget-referenced-graph-expansion",
+  "title": "ADR: Workspace Widget Referenced Workspace Graph Expansion",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/adr-workspace-widget-referenced-graph-expansion.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-workspace-widget-referenced-graph-expansion",
+  "permalink": "/docs/adr/adr-workspace-widget-referenced-graph-expansion",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-workspace-widget-referenced-graph-expansion.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

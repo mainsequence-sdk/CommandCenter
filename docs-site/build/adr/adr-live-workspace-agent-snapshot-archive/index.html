@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">ADR: Live Workspace Agent Snapshot Archive | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-live-workspace-agent-snapshot-archive"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Live Workspace Agent Snapshot Archive | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-live-workspace-agent-snapshot-archive"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-live-workspace-agent-snapshot-archive" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-live-workspace-agent-snapshot-archive" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ADR: Live Workspace Agent Snapshot Archive","item":"https://mainsequence-sdk.github.io/docs/adr/adr-live-workspace-agent-snapshot-archive"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
-<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
-<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+<script src="/docs/assets/js/runtime~main.18191461.js" defer="defer"></script>
+<script src="/docs/assets/js/main.eea687b4.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -28,7 +28,7 @@
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
 <p>The current workspace JSON export is a persistence and recovery artifact.</p>
 <p>It is produced from the saved workspace document in
-<a href="/docs/assets/files/custom-dashboard-storage-9e4187397443db7f3ceac4b7bfa82981.ts" target="_blank" class=""><code>src/features/dashboards/custom-dashboard-storage.ts</code></a>
+<a href="/docs/assets/files/custom-dashboard-storage-b2bc1085d0d7d7924cf6a875ad9fe4e9.ts" target="_blank" class=""><code>src/features/dashboards/custom-dashboard-storage.ts</code></a>
 and intentionally captures the workspace model:</p>
 <ul>
 <li class="">workspace metadata</li>
@@ -50,7 +50,6 @@ and intentionally captures the workspace model:</p>
 <ul>
 <li class="">live widget output and rendered state</li>
 <li class="">visible table rows and chart series</li>
-<li class="">screenshots of the actual rendered dashboard</li>
 <li class="">hidden/sidebar/collapsed widget content that is still part of the workspace state</li>
 <li class="">the current widget relationship graph as a first-class artifact</li>
 </ul>
@@ -65,7 +64,6 @@ workspace, or inspect the live widget tree.</p>
 <p>The current JSON export remains the canonical workspace document export/import format.</p>
 <p>It must not be repurposed into:</p>
 <ul>
-<li class="">a screenshot bundle</li>
 <li class="">a widget data dump</li>
 <li class="">a graph capture archive</li>
 <li class="">a general agent-facing runtime artifact</li>
@@ -75,8 +73,8 @@ workspace, or inspect the live widget tree.</p>
 <ul>
 <li class="">run inside the real mounted client runtime</li>
 <li class="">capture what the workspace is displaying now</li>
-<li class="">include rendered evidence such as screenshots and graph images</li>
 <li class="">include structured per-widget summaries for agents</li>
+<li class="">include JSON relationship, live-state, and widget-output artifacts</li>
 <li class="">bundle everything into one zip file</li>
 </ul>
 <p>The client will generate the archive locally and return it to the caller. It will not upload the
@@ -87,8 +85,7 @@ archive to the backend by default.</p>
 <li class="">route-level snapshot mode with <code>?snapshot=true</code></li>
 <li class="">profile selection with <code>snapshotProfile=evidence|full-data</code></li>
 <li class="">client-side zip assembly</li>
-<li class="">dashboard screenshots and hidden-widget report capture</li>
-<li class="">dependency graph JSON and PNG export</li>
+<li class="">dependency graph JSON export</li>
 <li class="">per-widget structured snapshot files</li>
 <li class="">browser completion contract through <code>window.__COMMAND_CENTER_SNAPSHOT__</code> and
 <code>command-center:snapshot-ready</code></li>
@@ -124,27 +121,40 @@ archive to the backend by default.</p>
 <ul>
 <li class="">suppress nonessential shell chrome</li>
 <li class="">load the requested workspace and current-user runtime state</li>
-<li class="">wait for widgets to settle or timeout</li>
+<li class="">mount the normal dashboard runtime providers</li>
+<li class="">expand collapsed workspace rows in the mounted snapshot runtime so row-owned widgets are visible
+to automation without persisting that expansion</li>
+<li class="">rely on the shared dashboard execution provider for normal initial refresh and refresh-cycle
+orchestration</li>
+<li class="">wait for active refresh/execution work to settle or timeout</li>
 <li class="">collect structured widget snapshots</li>
-<li class="">collect rendered screenshots</li>
 <li class="">collect the widget relationship graph</li>
 <li class="">assemble the zip archive</li>
 <li class="">expose the result to the external runner</li>
 </ul>
+<p>Snapshot mode does not force a separate manual dashboard refresh. It captures the current mounted
+runtime state after the normal execution layer reports no active refresh cycle and no running widget
+executions.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-authentication-is-bootstrapped-into-the-client-runtime">2. Authentication is bootstrapped into the client runtime<a href="#2-authentication-is-bootstrapped-into-the-client-runtime" class="hash-link" aria-label="Direct link to 2. Authentication is bootstrapped into the client runtime" title="Direct link to 2. Authentication is bootstrapped into the client runtime" translate="no">​</a></h3>
-<p>The caller may have:</p>
+<p>The caller may have either:</p>
 <ul>
-<li class="">access JWT</li>
-<li class="">refresh JWT</li>
+<li class="">canonical interactive JWT auth material: access JWT plus refresh JWT</li>
+<li class="">runtime credential auth material: <code>MAINSEQUENCE_ACCESS_TOKEN</code></li>
 </ul>
 <p>The client already restores authenticated session state from browser local storage through
-<a href="/docs/assets/files/jwt-auth-efe8e7619ad6addf6e6d860cec0d49c1.ts" target="_blank" class=""><code>src/auth/jwt-auth.ts</code></a> and
-<a href="/docs/assets/files/auth-store-df833391f089fc25f05c0ea93081d486.ts" target="_blank" class=""><code>src/auth/auth-store.ts</code></a>.</p>
+<a href="/docs/assets/files/jwt-auth-552fb0aa5f50b50eb447d8215dae6b22.ts" target="_blank" class=""><code>src/auth/jwt-auth.ts</code></a> and
+<a href="/docs/assets/files/auth-store-9729b6fa10bd7b1b55ceced7e946e523.ts" target="_blank" class=""><code>src/auth/auth-store.ts</code></a>.</p>
 <p>The runner should therefore authenticate the SPA by writing:</p>
 <ul>
 <li class="">localStorage key: <code>command-center.jwt-auth</code></li>
 </ul>
-<p>with the same stored token shape the client already understands.</p>
+<p>with one of the stored token shapes the client already understands.</p>
+<p>For normal human-equivalent sessions, use the canonical JWT+refresh payload shape. For
+machine-run browser automation, prefer the runtime credential shape:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;authMode&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;runtime_credential&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;MAINSEQUENCE_ACCESS_TOKEN&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;&lt;runtime access JWT&gt;&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>The runtime credential is still sent as <code>Authorization: Bearer &lt;runtime access JWT&gt;</code>, but the
+client treats it as a scoped machine/runtime identity with no refresh token and no interactive
+logout call.</p>
 <p>This keeps auth aligned with the existing runtime and avoids inventing a special snapshot-only auth
 path.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-a-real-browser-runtime-is-required">3. A real browser runtime is required<a href="#3-a-real-browser-runtime-is-required" class="hash-link" aria-label="Direct link to 3. A real browser runtime is required" title="Direct link to 3. A real browser runtime is required" translate="no">​</a></h3>
@@ -168,7 +178,7 @@ path.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="archive-structure">Archive Structure<a href="#archive-structure" class="hash-link" aria-label="Direct link to Archive Structure" title="Direct link to Archive Structure" translate="no">​</a></h2>
 <p>The artifact will be a zip file with a stable manifest plus per-widget files.</p>
 <p>Recommended shape:</p>
-<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">workspace-agent-snapshot-&lt;workspaceId&gt;-&lt;timestamp&gt;.zip</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  manifest.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  workspace-definition.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  workspace-live-state.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  controls.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  relationships/widget-graph.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  relationships/widget-graph.png</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  screenshots/viewport.png</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  screenshots/full-canvas.png</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  screenshots/hidden-widgets-sheet.png</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/snapshot.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/screenshot.png</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/data.csv.gz</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/data.parquet</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/chart-data.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/chart.png</span><br></span></code></pre></div></div>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">workspace-agent-snapshot-&lt;workspaceId&gt;-&lt;timestamp&gt;.zip</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  manifest.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  workspace-definition.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  workspace-live-state.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  controls.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  relationships/widget-graph.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/snapshot.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/data.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/chart-data.json</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  widgets/&lt;instanceId&gt;/response.json</span><br></span></code></pre></div></div>
 <p>Not every widget will emit every file type. The manifest is the source of truth for which files
 exist.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="snapshot-layers">Snapshot Layers<a href="#snapshot-layers" class="hash-link" aria-label="Direct link to Snapshot Layers" title="Direct link to Snapshot Layers" translate="no">​</a></h2>
@@ -198,20 +208,13 @@ model in <a href="/docs/assets/files/widget-dependencies-82361b82a3a5ce3b947c91b
 <p>The archive should include:</p>
 <ul>
 <li class="">graph JSON</li>
-<li class="">graph image</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-visual-evidence">4. Visual evidence<a href="#4-visual-evidence" class="hash-link" aria-label="Direct link to 4. Visual evidence" title="Direct link to 4. Visual evidence" translate="no">​</a></h3>
-<p>The archive will include:</p>
-<ul>
-<li class="">the current viewport screenshot</li>
-<li class="">a full scrollable dashboard screenshot</li>
-<li class="">a generated image covering hidden/sidebar/collapsed widgets</li>
-<li class="">per-widget screenshots</li>
-</ul>
-<p>This is necessary because a single screenshot cannot represent both &quot;exactly what the user saw&quot;
-and &quot;all hidden content&quot;.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-structured-evidence">4. Structured Evidence<a href="#4-structured-evidence" class="hash-link" aria-label="Direct link to 4. Structured Evidence" title="Direct link to 4. Structured Evidence" translate="no">​</a></h3>
+<p>The archive intentionally does not generate screenshots, rendered graph images, hidden-widget
+report images, or CSV/text exports. Hidden/sidebar/collapsed widgets remain visible to agents
+through the structured widget records in <code>workspace-live-state.json</code> and per-widget JSON files.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-snapshot-contract">Widget Snapshot Contract<a href="#widget-snapshot-contract" class="hash-link" aria-label="Direct link to Widget Snapshot Contract" title="Direct link to Widget Snapshot Contract" translate="no">​</a></h2>
-<p>Each widget family should contribute a structured live snapshot in addition to images.</p>
+<p>Each widget family should contribute a structured live snapshot.</p>
 <p>Minimum contract:</p>
 <ul>
 <li class="">widget identity</li>
@@ -228,11 +231,11 @@ and &quot;all hidden content&quot;.</p>
 <li class="">Data Node table widgets:
 visible columns, row count, visible rows, sort/filter state, optional raw export</li>
 <li class="">Data Node chart widgets:
-chart type, visible series, x/y/group fields, visible range, chart image, chart data</li>
+chart type, visible series, x/y/group fields, visible range, chart data</li>
 <li class="">AppComponent widgets:
-current form values, selected target, last response summary, response preview, screenshot</li>
+current form values, selected target, last response summary, response preview</li>
 <li class="">Markdown/note widgets:
-raw content, rendered text summary, screenshot</li>
+raw content, rendered text summary</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="data-volume-policy">Data Volume Policy<a href="#data-volume-policy" class="hash-link" aria-label="Direct link to Data Volume Policy" title="Direct link to Data Volume Policy" translate="no">​</a></h2>
 <p>Some widgets, especially Data Node families, may produce large data.</p>
@@ -242,9 +245,7 @@ raw content, rendered text summary, screenshot</li>
 <ul>
 <li class="">workspace definition</li>
 <li class="">live state</li>
-<li class="">graph JSON and image</li>
-<li class="">viewport/full/hidden screenshots</li>
-<li class="">per-widget screenshots</li>
+<li class="">graph JSON</li>
 <li class="">visible rows/series and compact structured summaries</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="optional-profile-full-data">Optional profile: <code>full-data</code><a href="#optional-profile-full-data" class="hash-link" aria-label="Direct link to optional-profile-full-data" title="Direct link to optional-profile-full-data" translate="no">​</a></h3>
@@ -263,7 +264,7 @@ needed.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="agent-snapshot-archive-becomes">Agent snapshot archive becomes:<a href="#agent-snapshot-archive-becomes" class="hash-link" aria-label="Direct link to Agent snapshot archive becomes:" title="Direct link to Agent snapshot archive becomes:" translate="no">​</a></h3>
 <ul>
 <li class="">live-runtime-oriented</li>
-<li class="">screenshot- and data-bearing</li>
+<li class="">JSON- and data-bearing</li>
 <li class="">not importable as a workspace document</li>
 <li class="">intended for agent inspection and debugging</li>
 </ul>
@@ -273,9 +274,11 @@ needed.</p>
 <p>Expected flow:</p>
 <ol>
 <li class="">open a browser context</li>
-<li class="">write <code>command-center.jwt-auth</code> into local storage with access and refresh tokens</li>
+<li class="">write <code>command-center.jwt-auth</code> into local storage with canonical JWT+refresh tokens or with
+<code>authMode: &quot;runtime_credential&quot;</code> plus <code>MAINSEQUENCE_ACCESS_TOKEN</code></li>
 <li class="">navigate to <code>/app/workspace-studio/workspaces?workspace=&lt;id&gt;&amp;snapshot=true</code></li>
-<li class="">wait for the page-level snapshot completion event</li>
+<li class="">wait for the page-level snapshot completion event and require <code>status: &quot;ready&quot;</code> in the event
+detail or <code>window.__COMMAND_CENTER_SNAPSHOT__</code></li>
 <li class="">read the archive bytes and persist them locally</li>
 </ol>
 <p>This keeps the archive generation inside the client while keeping orchestration outside it.</p>
@@ -285,7 +288,7 @@ needed.</p>
 <ul>
 <li class="">A new snapshot mode exists for the workspace route.</li>
 <li class="">Snapshot mode is separate from the current JSON export/import flow.</li>
-<li class="">Snapshot mode can authenticate from the existing local-storage JWT session shape.</li>
+<li class="">Snapshot mode can authenticate from the shared local-storage auth session shape.</li>
 <li class="">The page exposes a machine-readable completion signal for automation.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-2-workspace-level-archive-assembly">Phase 2: Workspace-level archive assembly<a href="#phase-2-workspace-level-archive-assembly" class="hash-link" aria-label="Direct link to Phase 2: Workspace-level archive assembly" title="Direct link to Phase 2: Workspace-level archive assembly" translate="no">​</a></h3>
@@ -299,21 +302,18 @@ needed.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-3-relationship-graph-capture">Phase 3: Relationship graph capture<a href="#phase-3-relationship-graph-capture" class="hash-link" aria-label="Direct link to Phase 3: Relationship graph capture" title="Direct link to Phase 3: Relationship graph capture" translate="no">​</a></h3>
 <ul>
 <li class="">The archive includes <code>relationships/widget-graph.json</code>.</li>
-<li class="">The archive includes a rendered graph image.</li>
 <li class="">The graph export reuses the shared dependency model instead of a second graph implementation.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-4-visual-capture">Phase 4: Visual capture<a href="#phase-4-visual-capture" class="hash-link" aria-label="Direct link to Phase 4: Visual capture" title="Direct link to Phase 4: Visual capture" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-4-json-only-evidence">Phase 4: JSON-only evidence<a href="#phase-4-json-only-evidence" class="hash-link" aria-label="Direct link to Phase 4: JSON-only evidence" title="Direct link to Phase 4: JSON-only evidence" translate="no">​</a></h3>
 <ul>
-<li class="">The archive includes <code>screenshots/viewport.png</code>.</li>
-<li class="">The archive includes <code>screenshots/full-canvas.png</code>.</li>
-<li class="">The archive includes <code>screenshots/hidden-widgets-sheet.png</code>.</li>
-<li class="">The archive includes per-widget screenshots for supported widgets.</li>
+<li class="">The archive does not include generated images or screenshots.</li>
+<li class="">Hidden/sidebar/collapsed widgets are represented through structured JSON records.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-5-widget-family-live-snapshots">Phase 5: Widget-family live snapshots<a href="#phase-5-widget-family-live-snapshots" class="hash-link" aria-label="Direct link to Phase 5: Widget-family live snapshots" title="Direct link to Phase 5: Widget-family live snapshots" translate="no">​</a></h3>
 <ul>
 <li class="">Main Sequence Data Node source widgets emit structured live snapshots.</li>
 <li class="">Table widgets emit visible-table snapshots.</li>
-<li class="">Graph/chart widgets emit structured chart snapshots plus chart images.</li>
+<li class="">Graph/chart widgets emit structured chart snapshots.</li>
 <li class="">AppComponent emits structured request/response snapshots.</li>
 <li class="">Markdown/note widgets emit content snapshots.</li>
 </ul>
@@ -325,7 +325,8 @@ needed.</p>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-7-runner-integration">Phase 7: Runner integration<a href="#phase-7-runner-integration" class="hash-link" aria-label="Direct link to Phase 7: Runner integration" title="Direct link to Phase 7: Runner integration" translate="no">​</a></h3>
 <ul>
-<li class="">A browser automation runner can bootstrap auth using access and refresh JWTs.</li>
+<li class="">A browser automation runner can bootstrap auth using canonical JWT+refresh tokens or the runtime
+credential <code>MAINSEQUENCE_ACCESS_TOKEN</code>.</li>
 <li class="">The runner can trigger snapshot mode with only workspace id plus profile inputs.</li>
 <li class="">The runner can persist the generated zip without backend upload.</li>
 </ul>
@@ -342,9 +343,10 @@ needed.</p>
 <ul class="contains-task-list containsTaskList_mC6p">
 <li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Support snapshot runner auth bootstrap through the existing <code>command-center.jwt-auth</code>
 local-storage contract.</li>
-<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Document the bootstrap payload shape for access and refresh JWTs.</li>
-<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Validate that snapshot mode can restore the normal authenticated session without a manual
-login flow.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Document the bootstrap payload shape for canonical access/refresh JWTs and runtime
+credentials.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Validate that snapshot mode can restore canonical JWT and runtime credential sessions without
+a manual login flow in a real machine-run browser.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="archive-contract">Archive contract<a href="#archive-contract" class="hash-link" aria-label="Direct link to Archive contract" title="Direct link to Archive contract" translate="no">​</a></h3>
 <ul class="contains-task-list containsTaskList_mC6p">
@@ -361,15 +363,12 @@ inventing a second workspace export format.</li>
 <ul class="contains-task-list containsTaskList_mC6p">
 <li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reuse <code>src/dashboards/widget-dependencies.ts</code> to export
 <code>relationships/widget-graph.json</code>.</li>
-<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add rendered <code>relationships/widget-graph.png</code>.</li>
 <li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure graph export uses the same dependency model as the normal workspace graph view.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="visual-capture">Visual capture<a href="#visual-capture" class="hash-link" aria-label="Direct link to Visual capture" title="Direct link to Visual capture" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="json-only-evidence">JSON-only evidence<a href="#json-only-evidence" class="hash-link" aria-label="Direct link to JSON-only evidence" title="Direct link to JSON-only evidence" translate="no">​</a></h3>
 <ul class="contains-task-list containsTaskList_mC6p">
-<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add viewport screenshot capture.</li>
-<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add full-canvas screenshot capture.</li>
-<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add hidden/sidebar/collapsed widget sheet capture.</li>
-<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add per-widget screenshot capture.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep generated images and screenshots out of the archive.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Represent hidden/sidebar/collapsed widget state through structured JSON.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-family-snapshots">Widget-family snapshots<a href="#widget-family-snapshots" class="hash-link" aria-label="Direct link to Widget-family snapshots" title="Direct link to Widget-family snapshots" translate="no">​</a></h3>
 <ul class="contains-task-list containsTaskList_mC6p">
@@ -408,6 +407,6 @@ docs.</li>
 <li class="">Do not treat a plain HTTP request client as sufficient to generate a live archive.</li>
 <li class="">Do not duplicate the workspace graph model just for archive generation.</li>
 <li class="">Do not silently export full raw data by default for large widgets.</li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-live-workspace-agent-snapshot-archive.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/adr/adr-incremental-workspace-normalization"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ADR: Incremental Workspace Normalization and Resource-Scoped Save</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/adr/adr-widget-agent-context-bindings"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">ADR: Widget Agent Context Bindings for Agent Terminal Consumers</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#the-existing-json-export-stays-unchanged" class="table-of-contents__link toc-highlight">The existing JSON export stays unchanged</a></li><li><a href="#the-new-archive-is-a-live-runtime-artifact" class="table-of-contents__link toc-highlight">The new archive is a live runtime artifact</a></li></ul></li><li><a href="#implementation-status" class="table-of-contents__link toc-highlight">Implementation Status</a></li><li><a href="#goals" class="table-of-contents__link toc-highlight">Goals</a></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#1-snapshot-mode-is-a-route-level-runtime-mode" class="table-of-contents__link toc-highlight">1. Snapshot mode is a route-level runtime mode</a></li><li><a href="#2-authentication-is-bootstrapped-into-the-client-runtime" class="table-of-contents__link toc-highlight">2. Authentication is bootstrapped into the client runtime</a></li><li><a href="#3-a-real-browser-runtime-is-required" class="table-of-contents__link toc-highlight">3. A real browser runtime is required</a></li><li><a href="#4-the-archive-is-returned-to-the-caller-not-uploaded-by-default" class="table-of-contents__link toc-highlight">4. The archive is returned to the caller, not uploaded by default</a></li></ul></li><li><a href="#archive-structure" class="table-of-contents__link toc-highlight">Archive Structure</a></li><li><a href="#snapshot-layers" class="table-of-contents__link toc-highlight">Snapshot Layers</a><ul><li><a href="#1-workspace-definition" class="table-of-contents__link toc-highlight">1. Workspace definition</a></li><li><a href="#2-live-workspace-state" class="table-of-contents__link toc-highlight">2. Live workspace state</a></li><li><a href="#3-widget-relationship-graph" class="table-of-contents__link toc-highlight">3. Widget relationship graph</a></li><li><a href="#4-visual-evidence" class="table-of-contents__link toc-highlight">4. Visual evidence</a></li></ul></li><li><a href="#widget-snapshot-contract" class="table-of-contents__link toc-highlight">Widget Snapshot Contract</a></li><li><a href="#data-volume-policy" class="table-of-contents__link toc-highlight">Data Volume Policy</a><ul><li><a href="#default-profile-evidence" class="table-of-contents__link toc-highlight">Default profile: <code>evidence</code></a></li><li><a href="#optional-profile-full-data" class="table-of-contents__link toc-highlight">Optional profile: <code>full-data</code></a></li></ul></li><li><a href="#separation-from-json-export" class="table-of-contents__link toc-highlight">Separation From JSON Export</a><ul><li><a href="#json-workspace-export-remains" class="table-of-contents__link toc-highlight">JSON workspace export remains:</a></li><li><a href="#agent-snapshot-archive-becomes" class="table-of-contents__link toc-highlight">Agent snapshot archive becomes:</a></li></ul></li><li><a href="#runner-contract" class="table-of-contents__link toc-highlight">Runner Contract</a></li><li><a href="#completion-criteria" class="table-of-contents__link toc-highlight">Completion Criteria</a><ul><li><a href="#phase-1-core-contract-and-route" class="table-of-contents__link toc-highlight">Phase 1: Core contract and route</a></li><li><a href="#phase-2-workspace-level-archive-assembly" class="table-of-contents__link toc-highlight">Phase 2: Workspace-level archive assembly</a></li><li><a href="#phase-3-relationship-graph-capture" class="table-of-contents__link toc-highlight">Phase 3: Relationship graph capture</a></li><li><a href="#phase-4-visual-capture" class="table-of-contents__link toc-highlight">Phase 4: Visual capture</a></li><li><a href="#phase-5-widget-family-live-snapshots" class="table-of-contents__link toc-highlight">Phase 5: Widget-family live snapshots</a></li><li><a href="#phase-6-volume-controls" class="table-of-contents__link toc-highlight">Phase 6: Volume controls</a></li><li><a href="#phase-7-runner-integration" class="table-of-contents__link toc-highlight">Phase 7: Runner integration</a></li></ul></li><li><a href="#missing-tasks" class="table-of-contents__link toc-highlight">Missing Tasks</a><ul><li><a href="#route-and-runtime" class="table-of-contents__link toc-highlight">Route and runtime</a></li><li><a href="#auth-bootstrap" class="table-of-contents__link toc-highlight">Auth bootstrap</a></li><li><a href="#archive-contract" class="table-of-contents__link toc-highlight">Archive contract</a></li><li><a href="#relationship-graph" class="table-of-contents__link toc-highlight">Relationship graph</a></li><li><a href="#visual-capture" class="table-of-contents__link toc-highlight">Visual capture</a></li><li><a href="#widget-family-snapshots" class="table-of-contents__link toc-highlight">Widget-family snapshots</a></li><li><a href="#data-export-and-volume-control" class="table-of-contents__link toc-highlight">Data export and volume control</a></li><li><a href="#zip-assembly-and-runner-integration" class="table-of-contents__link toc-highlight">Zip assembly and runner integration</a></li><li><a href="#documentation-and-regression-coverage" class="table-of-contents__link toc-highlight">Documentation and regression coverage</a></li></ul></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-live-workspace-agent-snapshot-archive.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/adr/adr-incremental-workspace-normalization"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ADR: Incremental Workspace Normalization and Resource-Scoped Save</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/adr/adr-widget-agent-context-bindings"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">ADR: Widget Agent Context Bindings for Agent Terminal Consumers</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#the-existing-json-export-stays-unchanged" class="table-of-contents__link toc-highlight">The existing JSON export stays unchanged</a></li><li><a href="#the-new-archive-is-a-live-runtime-artifact" class="table-of-contents__link toc-highlight">The new archive is a live runtime artifact</a></li></ul></li><li><a href="#implementation-status" class="table-of-contents__link toc-highlight">Implementation Status</a></li><li><a href="#goals" class="table-of-contents__link toc-highlight">Goals</a></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#1-snapshot-mode-is-a-route-level-runtime-mode" class="table-of-contents__link toc-highlight">1. Snapshot mode is a route-level runtime mode</a></li><li><a href="#2-authentication-is-bootstrapped-into-the-client-runtime" class="table-of-contents__link toc-highlight">2. Authentication is bootstrapped into the client runtime</a></li><li><a href="#3-a-real-browser-runtime-is-required" class="table-of-contents__link toc-highlight">3. A real browser runtime is required</a></li><li><a href="#4-the-archive-is-returned-to-the-caller-not-uploaded-by-default" class="table-of-contents__link toc-highlight">4. The archive is returned to the caller, not uploaded by default</a></li></ul></li><li><a href="#archive-structure" class="table-of-contents__link toc-highlight">Archive Structure</a></li><li><a href="#snapshot-layers" class="table-of-contents__link toc-highlight">Snapshot Layers</a><ul><li><a href="#1-workspace-definition" class="table-of-contents__link toc-highlight">1. Workspace definition</a></li><li><a href="#2-live-workspace-state" class="table-of-contents__link toc-highlight">2. Live workspace state</a></li><li><a href="#3-widget-relationship-graph" class="table-of-contents__link toc-highlight">3. Widget relationship graph</a></li><li><a href="#4-structured-evidence" class="table-of-contents__link toc-highlight">4. Structured Evidence</a></li></ul></li><li><a href="#widget-snapshot-contract" class="table-of-contents__link toc-highlight">Widget Snapshot Contract</a></li><li><a href="#data-volume-policy" class="table-of-contents__link toc-highlight">Data Volume Policy</a><ul><li><a href="#default-profile-evidence" class="table-of-contents__link toc-highlight">Default profile: <code>evidence</code></a></li><li><a href="#optional-profile-full-data" class="table-of-contents__link toc-highlight">Optional profile: <code>full-data</code></a></li></ul></li><li><a href="#separation-from-json-export" class="table-of-contents__link toc-highlight">Separation From JSON Export</a><ul><li><a href="#json-workspace-export-remains" class="table-of-contents__link toc-highlight">JSON workspace export remains:</a></li><li><a href="#agent-snapshot-archive-becomes" class="table-of-contents__link toc-highlight">Agent snapshot archive becomes:</a></li></ul></li><li><a href="#runner-contract" class="table-of-contents__link toc-highlight">Runner Contract</a></li><li><a href="#completion-criteria" class="table-of-contents__link toc-highlight">Completion Criteria</a><ul><li><a href="#phase-1-core-contract-and-route" class="table-of-contents__link toc-highlight">Phase 1: Core contract and route</a></li><li><a href="#phase-2-workspace-level-archive-assembly" class="table-of-contents__link toc-highlight">Phase 2: Workspace-level archive assembly</a></li><li><a href="#phase-3-relationship-graph-capture" class="table-of-contents__link toc-highlight">Phase 3: Relationship graph capture</a></li><li><a href="#phase-4-json-only-evidence" class="table-of-contents__link toc-highlight">Phase 4: JSON-only evidence</a></li><li><a href="#phase-5-widget-family-live-snapshots" class="table-of-contents__link toc-highlight">Phase 5: Widget-family live snapshots</a></li><li><a href="#phase-6-volume-controls" class="table-of-contents__link toc-highlight">Phase 6: Volume controls</a></li><li><a href="#phase-7-runner-integration" class="table-of-contents__link toc-highlight">Phase 7: Runner integration</a></li></ul></li><li><a href="#missing-tasks" class="table-of-contents__link toc-highlight">Missing Tasks</a><ul><li><a href="#route-and-runtime" class="table-of-contents__link toc-highlight">Route and runtime</a></li><li><a href="#auth-bootstrap" class="table-of-contents__link toc-highlight">Auth bootstrap</a></li><li><a href="#archive-contract" class="table-of-contents__link toc-highlight">Archive contract</a></li><li><a href="#relationship-graph" class="table-of-contents__link toc-highlight">Relationship graph</a></li><li><a href="#json-only-evidence" class="table-of-contents__link toc-highlight">JSON-only evidence</a></li><li><a href="#widget-family-snapshots" class="table-of-contents__link toc-highlight">Widget-family snapshots</a></li><li><a href="#data-export-and-volume-control" class="table-of-contents__link toc-highlight">Data export and volume control</a></li><li><a href="#zip-assembly-and-runner-integration" class="table-of-contents__link toc-highlight">Zip assembly and runner integration</a></li><li><a href="#documentation-and-regression-coverage" class="table-of-contents__link toc-highlight">Documentation and regression coverage</a></li></ul></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
 </body>
 </html>

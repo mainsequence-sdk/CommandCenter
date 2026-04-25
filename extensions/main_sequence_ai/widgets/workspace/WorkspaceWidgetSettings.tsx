@@ -1,4 +1,4 @@
-import { Link2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,7 +56,7 @@ export function WorkspaceWidgetSettings({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="primary">Main Sequence AI</Badge>
-        <Badge variant="neutral">WorkspaceReference</Badge>
+        <Badge variant="neutral">Workspace</Badge>
       </div>
 
       <div className="text-sm text-muted-foreground">
@@ -118,6 +118,18 @@ export function WorkspaceWidgetSettings({
           </div>
         ) : null}
 
+        {error ? (
+          <div className="rounded-[16px] border border-danger/30 bg-danger/8 px-3 py-4 text-sm text-danger">
+            {error}
+          </div>
+        ) : null}
+
+        {!workspaceListLoading && workspaceListReady && !error && availableTargets.length === 0 ? (
+          <div className="rounded-[16px] border border-border/70 bg-background/30 px-3 py-4 text-sm text-muted-foreground">
+            No target workspaces were returned by the workspace list endpoint.
+          </div>
+        ) : null}
+
         {selection.status === "self-reference" ? (
           <div className="rounded-[16px] border border-warning/30 bg-warning/10 px-3 py-4 text-sm text-warning">
             This widget cannot publish the current workspace
@@ -132,46 +144,13 @@ export function WorkspaceWidgetSettings({
           </div>
         ) : null}
 
-        {selection.status === "error" ? (
+        {selection.status === "error" && !error ? (
           <div className="rounded-[16px] border border-danger/30 bg-danger/8 px-3 py-4 text-sm text-danger">
             {selection.error ?? "Unable to load workspaces."}
           </div>
         ) : null}
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <div className="text-sm font-medium text-topbar-foreground">Preview</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            This widget publishes only the selected workspace id. It does not publish workspace
-            title, labels, or a live snapshot.
-          </p>
-        </div>
-
-        <div className="overflow-hidden rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/24">
-          <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            <Link2 className="h-3.5 w-3.5" />
-            Output preview
-          </div>
-          <div className="space-y-2 px-4 py-4 font-mono text-xs leading-6 text-foreground">
-            {selection.status === "valid" && selection.targetWorkspaceId ? (
-              <>
-                <div>{selection.targetWorkspace?.title ?? selection.targetWorkspaceId}</div>
-                <div className="text-muted-foreground">
-                  {`{\n  "id": "${selection.targetWorkspaceId}"\n}`}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-muted-foreground">
-                  Select a workspace to publish a reference value.
-                </div>
-                <div className="text-muted-foreground">{`{\n  "id": null\n}`}</div>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

@@ -1,0 +1,15 @@
+{
+  "id": "adr/adr-agent-terminal-managed-session-creation",
+  "title": "ADR: Agent Terminal Managed Session Creation and Agent Allowlist",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/adr-agent-terminal-managed-session-creation.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-agent-terminal-managed-session-creation",
+  "permalink": "/docs/adr/adr-agent-terminal-managed-session-creation",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-agent-terminal-managed-session-creation.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

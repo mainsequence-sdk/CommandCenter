@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to render a yield-curve style chart from a bound Data Node dataset.
+Yield-curve style chart for a bound Data Node dataset.
 
 ## whenToUse
 

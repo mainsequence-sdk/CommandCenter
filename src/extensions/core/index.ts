@@ -36,6 +36,11 @@ import { sapphireTheme } from "@/themes/presets/sapphire";
 import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
 import { richTextNoteWidget } from "@/widgets/core/rich-text-note/definition";
 import { appComponentWidget } from "@/widgets/core/app-component/definition";
+import { connectionQueryWidget } from "@/widgets/core/connection-query/definition";
+import { graphWidget } from "@/widgets/core/graph/definition";
+import { tabularTransformWidget } from "@/widgets/core/tabular-transform/definition";
+import { statisticWidget } from "@/widgets/core/statistic/definition";
+import { tableWidget } from "@/widgets/core/table/definition";
 import { workspaceRowWidget } from "@/widgets/core/workspace-row/definition";
 
 const workspaceStudioApp: AppDefinition = {
@@ -44,6 +49,7 @@ const workspaceStudioApp: AppDefinition = {
   description: "User-scoped workspace builder with local development persistence.",
   source: "core",
   icon: LayoutTemplate,
+  navigationOrder: 100,
   topNavigationStyle: "hidden",
   requiredPermissions: ["workspaces:view"],
   permissionDefinitions: [
@@ -542,7 +548,17 @@ const coreExtension: AppExtension = {
   id: "core",
   title: "Core Extension",
   description: "Built-in terminal apps, dashboard surfaces, and theme presets.",
-  widgets: [markdownNoteWidget, richTextNoteWidget, appComponentWidget, workspaceRowWidget],
+  widgets: [
+    markdownNoteWidget,
+    richTextNoteWidget,
+    appComponentWidget,
+    connectionQueryWidget,
+    tabularTransformWidget,
+    tableWidget,
+    graphWidget,
+    statisticWidget,
+    workspaceRowWidget,
+  ],
   apps: [workspaceStudioApp, adminApp, accessRbacApp],
   themes: [
     mainSequenceSpaceTheme,

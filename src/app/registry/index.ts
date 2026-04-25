@@ -2,6 +2,8 @@ import type { AppExtension, AppRegistry, AppShellMenuEntry } from "@/app/registr
 import type { AppSurfaceEntry } from "@/apps/types";
 import { env } from "@/config/env";
 
+import { connectionRuntimeDefinitions } from "./connection-runtime";
+
 const internalModules = import.meta.glob(
   ["../../extensions/*/index.ts", "../../extensions/*/extensions/*/index.ts"],
   { eager: true },
@@ -38,6 +40,10 @@ const extensions = Object.values(modules)
   .filter(isExtensionEnabled);
 
 const widgets = uniqueById(extensions.flatMap((extension) => extension.widgets ?? []));
+const connections = uniqueById([
+  ...extensions.flatMap((extension) => extension.connections ?? []),
+  ...connectionRuntimeDefinitions,
+]);
 const apps = uniqueById(extensions.flatMap((extension) => extension.apps ?? [])).filter((app) => {
   if (!env.includeWorkspaces && app.id === "workspace-studio") {
     return false;
@@ -81,10 +87,15 @@ export const appRegistry: AppRegistry = {
   shellMenuEntries,
   dashboards,
   themes: uniqueById(extensions.flatMap((extension) => extension.themes ?? [])),
+  connections,
 };
 
 export function getWidgetById(id: string) {
   return appRegistry.widgets.find((widget) => widget.id === id);
+}
+
+export function getConnectionTypeById(id: string) {
+  return appRegistry.connections.find((connection) => connection.id === id);
 }
 
 export function getAppById(id: string) {

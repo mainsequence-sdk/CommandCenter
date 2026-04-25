@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-import type { WidgetDefinition } from "@/widgets/types";
+import type { ResolvedWidgetInputs, WidgetDefinition } from "@/widgets/types";
 
 let widgetPreviewScopeDepth = 0;
 
@@ -34,7 +34,23 @@ export function resolveWidgetMockProps<TProps extends Record<string, unknown>>(
   return clonePreviewValue((widget.mockProps ?? widget.exampleProps ?? {}) as TProps);
 }
 
-export function resolveWidgetMockRuntimeState(widget: WidgetDefinition) {
+export function resolveWidgetMockTitle<TProps extends Record<string, unknown>>(
+  widget: WidgetDefinition<TProps>,
+) {
+  return typeof widget.mockTitle === "string" && widget.mockTitle.trim()
+    ? widget.mockTitle.trim()
+    : widget.title;
+}
+
+export function resolveWidgetMockResolvedInputs<TProps extends Record<string, unknown>>(
+  widget: WidgetDefinition<TProps>,
+): ResolvedWidgetInputs {
+  return clonePreviewValue(widget.mockResolvedInputs ?? {});
+}
+
+export function resolveWidgetMockRuntimeState<TProps extends Record<string, unknown>>(
+  widget: WidgetDefinition<TProps>,
+) {
   return clonePreviewValue(widget.mockRuntimeState ?? {});
 }
 

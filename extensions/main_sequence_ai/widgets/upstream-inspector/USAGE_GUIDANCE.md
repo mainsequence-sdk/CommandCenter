@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to inspect one bound upstream widget output during authoring or debugging.
+Inspector for one bound upstream widget output.
 
 ## whenToUse
 

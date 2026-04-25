@@ -129,6 +129,7 @@ export interface AppDefinition {
   source: string;
   icon: AppIcon;
   navigationPlacement?: AppNavigationPlacement;
+  navigationOrder?: number;
   topNavigationStyle?: AppTopNavigationStyle;
   requiredPermissions?: string[];
   permissionDefinitions?: AppPermissionDefinition[];

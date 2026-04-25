@@ -1,0 +1,15 @@
+{
+  "id": "workspaces/agent-monitor-workspace-widget-plan",
+  "title": "Main Sequence AI Workspace Reference Widget Plan",
+  "description": "Goal",
+  "source": "@site/../docs/workspaces/agent-monitor-workspace-widget-plan.md",
+  "sourceDirName": "workspaces",
+  "slug": "/workspaces/agent-monitor-workspace-widget-plan",
+  "permalink": "/docs/workspaces/agent-monitor-workspace-widget-plan",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/agent-monitor-workspace-widget-plan.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

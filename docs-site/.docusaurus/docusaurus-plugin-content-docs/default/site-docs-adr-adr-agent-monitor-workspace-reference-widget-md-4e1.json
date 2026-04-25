@@ -1,0 +1,15 @@
+{
+  "id": "adr/adr-agent-monitor-workspace-reference-widget",
+  "title": "ADR: Main Sequence AI Workspace Reference Widget",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/adr-agent-monitor-workspace-reference-widget.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-agent-monitor-workspace-reference-widget",
+  "permalink": "/docs/adr/adr-agent-monitor-workspace-reference-widget",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-agent-monitor-workspace-reference-widget.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

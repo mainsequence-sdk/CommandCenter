@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Workspaces | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/workspaces/overview"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Workspaces | Main Sequence Command Center"><meta data-rh="true" name="description" content="Overview"><meta data-rh="true" property="og:description" content="Overview"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/workspaces/overview"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/workspaces/overview" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/workspaces/overview" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Workspaces","item":"https://mainsequence-sdk.github.io/docs/workspaces/overview"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
-<script src="/docs/assets/js/runtime~main.907d2565.js" defer="defer"></script>
-<script src="/docs/assets/js/main.ff7aa72c.js" defer="defer"></script>
+<script src="/docs/assets/js/runtime~main.18191461.js" defer="defer"></script>
+<script src="/docs/assets/js/main.eea687b4.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -225,7 +225,7 @@ the primary <code>Workspace</code> row itself.</p>
 <p>This JSON snapshot is intentionally separate from the live workspace agent snapshot archive. The
 JSON export remains the canonical workspace document export/import format, while the agent snapshot
 archive is a separate live-runtime zip artifact for automation,
-screenshots, graph capture, and widget-output inspection. See
+graph capture, and widget-output inspection. See
 <a class="" href="/docs/adr/adr-live-workspace-agent-snapshot-archive"><code>docs/adr/adr-live-workspace-agent-snapshot-archive.md</code></a>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="live-agent-snapshot-archive">Live Agent Snapshot Archive<a href="#live-agent-snapshot-archive" class="hash-link" aria-label="Direct link to Live Agent Snapshot Archive" title="Direct link to Live Agent Snapshot Archive" translate="no">​</a></h2>
 <p>The live workspace agent snapshot archive is a different artifact from the JSON export.</p>
@@ -233,10 +233,9 @@ screenshots, graph capture, and widget-output inspection. See
 <ul>
 <li class="">current workspace view and controls</li>
 <li class="">widget relationship graph</li>
-<li class="">screenshots</li>
 <li class="">hidden/sidebar/collapsed widget content</li>
 <li class="">per-widget structured live summaries</li>
-<li class="">optional raw data exports for large data widgets</li>
+<li class="">optional JSON data exports for large data widgets</li>
 </ul>
 <p>The current trigger model is the snapshot route:</p>
 <ul>
@@ -247,16 +246,25 @@ client runtime in a browser engine.</p>
 <p>The current client-side behavior is:</p>
 <ul>
 <li class="">snapshot mode forces the selected workspace into dashboard view</li>
-<li class="">the mounted runtime waits for widgets to settle</li>
-<li class="">the client captures structured widget snapshots plus PNG artifacts</li>
+<li class="">collapsed workspace rows are expanded in the mounted snapshot runtime by default so row-owned
+widgets are visible to automation; this does not persist back to the workspace</li>
+<li class="">snapshot mode does not force a manual dashboard refresh; it mounts the normal dashboard runtime
+and lets the shared execution provider own refresh behavior</li>
+<li class="">on a fresh mount, the normal initial refresh may execute refresh-eligible widgets before capture</li>
+<li class="">the capture controller waits for active refresh/execution work to settle, or timeout, before
+reading the mounted runtime state</li>
+<li class="">the client captures structured widget snapshots and JSON artifacts</li>
 <li class="">the client assembles one zip archive locally</li>
 <li class="">the archive is exposed on <code>window.__COMMAND_CENTER_SNAPSHOT__</code></li>
 <li class="">the client dispatches <code>command-center:snapshot-ready</code></li>
 <li class="">the workspace edit toolbar also exposes <code>Create snapshot</code>, which triggers the same archive
 pipeline from the currently open workspace and downloads the generated zip directly</li>
 </ul>
-<p>Authentication for this flow reuses the existing local-storage JWT session contract instead of
-inventing a second snapshot-only auth model.</p>
+<p>Authentication for this flow reuses the shared <code>command-center.jwt-auth</code> local-storage session
+contract instead of inventing a snapshot-only auth model. Human sessions keep using canonical
+JWT+refresh auth. Machine-run browsers may instead inject <code>authMode: &quot;runtime_credential&quot;</code> with
+<code>MAINSEQUENCE_ACCESS_TOKEN</code>; the client still sends <code>Authorization: Bearer &lt;runtime access JWT&gt;</code>
+but skips refresh/logout behavior.</p>
 <p>The current archive includes:</p>
 <ul>
 <li class=""><code>manifest.json</code></li>
@@ -264,13 +272,8 @@ inventing a second snapshot-only auth model.</p>
 <li class=""><code>workspace-live-state.json</code></li>
 <li class=""><code>controls.json</code></li>
 <li class=""><code>relationships/widget-graph.json</code></li>
-<li class=""><code>relationships/widget-graph.png</code></li>
-<li class=""><code>screenshots/viewport.png</code></li>
-<li class=""><code>screenshots/full-canvas.png</code> from the actual workspace canvas root</li>
-<li class=""><code>screenshots/hidden-widgets-sheet.png</code></li>
 <li class=""><code>widgets/&lt;instanceId&gt;/snapshot.json</code></li>
-<li class=""><code>widgets/&lt;instanceId&gt;/screenshot.png</code> when DOM capture succeeds</li>
-<li class="">widget data exports such as <code>data.json</code>, <code>data.csv</code>, <code>chart-data.json</code>, or <code>response.json</code> when
+<li class="">widget data exports such as <code>data.json</code>, <code>chart-data.json</code>, or <code>response.json</code> when
 the widget snapshot exposes that content</li>
 </ul>
 <p>The important structure is:</p>
@@ -285,8 +288,9 @@ the widget snapshot exposes that content</li>
 <li class="">schema: <code>mainsequence.workspace-agent-live-state</code></li>
 <li class="">current live controls</li>
 <li class="">resolved dependency graph</li>
-<li class="">one widget record per workspace instance, including hidden/sidebar state, optional layout,
-screenshot path, artifact paths, and the widget&#x27;s structured live snapshot</li>
+<li class="">one widget record per runtime-mounted workspace instance, including widgets expanded out of
+collapsed rows for snapshot mode, hidden/sidebar state, optional layout, artifact paths, and the
+widget&#x27;s structured live snapshot</li>
 </ul>
 </li>
 <li class=""><code>manifest.json</code>
@@ -301,11 +305,12 @@ screenshot path, artifact paths, and the widget&#x27;s structured live snapshot<
 <p>Per-widget snapshot behavior is intentionally conditional:</p>
 <ul>
 <li class="">every widget gets <code>widgets/&lt;instanceId&gt;/snapshot.json</code></li>
-<li class="">widgets with visible canvas DOM also get <code>widgets/&lt;instanceId&gt;/screenshot.png</code></li>
 <li class="">widgets that expose rows, series, or response payloads through <code>buildAgentSnapshot(...)</code> may also
-emit <code>data.json</code>, <code>data.csv</code>, <code>chart-data.json</code>, or <code>response.json</code></li>
+emit <code>data.json</code>, <code>chart-data.json</code>, or <code>response.json</code></li>
 <li class="">widgets without a custom snapshot builder still emit a generic fallback snapshot with rendered
 text summary when available</li>
+<li class="">the archive contents are JSON-only; screenshots, rendered graph images, hidden-widget report
+images, and CSV/text exports are not generated</li>
 </ul>
 <p>The capture profile controls how much widget data is included:</p>
 <ul>

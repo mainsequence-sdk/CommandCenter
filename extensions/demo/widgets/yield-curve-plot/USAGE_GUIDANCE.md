@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget only for demo yield-curve visualizations backed by mock data.
+Demo yield-curve chart backed by mock market data.
 
 ## whenToUse
 

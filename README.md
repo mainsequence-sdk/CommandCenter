@@ -237,7 +237,6 @@ src/
     core/               built-in widgets, apps, surfaces, themes
     ag-grid/            optional grid integration
     lightweight-charts/ optional chart integration
-    flow-lab/           bundled widget/theme extension
   features/
     applications/       custom page/tool surfaces rendered inside apps
     apps/               app routing, home redirects, legacy redirects
@@ -396,7 +395,7 @@ export interface AppExtension {
 }
 ```
 
-See `src/extensions/flow-lab/index.ts` for the bundled example extension and `src/extensions/core/apps/access-rbac/` for a bundled app implementation.
+See `src/extensions/lightweight-charts/index.ts` for a bundled widget extension and `src/extensions/core/apps/access-rbac/` for a bundled app implementation.
 
 Optional vendor integrations live in their own extensions, for example `src/extensions/ag-grid/index.ts` and `src/extensions/lightweight-charts/index.ts`.
 

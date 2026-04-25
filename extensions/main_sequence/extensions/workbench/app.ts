@@ -56,6 +56,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
   description: "CRUD console for Main Sequence backend resources.",
   source: "main_sequence_workbench",
   icon: Command,
+  navigationOrder: 200,
   requiredPermissions: ["main_sequence_foundry:view"],
   permissionDefinitions: [
     {

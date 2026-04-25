@@ -1,17 +1,14 @@
 # Main Sequence Widgets
 
 This folder contains Main Sequence workbench widget modules. The workbench extension currently
-registers the Dependency Graph, the Project Infrastructure Graph, and the Main Sequence Data Node
-widget family in the live widget catalog.
+registers the Dependency Graph and the Project Infrastructure Graph in the live widget catalog.
+Generic workspace source, transform, table, graph, and statistic behavior now belongs to core
+widgets.
 
 ## Widget Readmes
 
 - [Dependency Graph](./dependency-graph/README.md)
 - [Project Infrastructure Graph](./project-infra-graph/README.md)
-- [Data Node Filter](./data-node-filter/README.md)
-- [Data Node Statistic](./data-node-statistic/README.md)
-- [Data Node Table](./data-node-table/README.md)
-- [Data Node Visualizer](./data-node-visualizer/README.md)
 - [Data Node Shared Contracts](./data-node-shared/README.md)
 
 ## Rules
@@ -29,18 +26,13 @@ widget family in the live widget catalog.
   backend widget-type sync publishes.
 - Current widget folders include `dependency-graph/` for mixed update dependency-graph rendering,
   `project-infra-graph/` for project-scoped infrastructure graph exploration in the project detail
-  shell and reusable workspace widget,
-  `data-node-visualizer/` for the data-node graph widget, `data-node-filter/` for the lightweight
-  source-and-transform Data Node widget, `data-node-statistic/` for the statistic/KPI consumer
-  widget, `data-node-table/` for the data-node table widget, and `data-node-shared/` for reusable
-  picker/date-range primitives plus the shared published-dataset contract reused by those widgets.
-- Treat `data-node-filter/`, `data-node-visualizer/`, `data-node-statistic/`, `data-node-table/`,
-  and the shared `data-node-shared/` contract bundle as the Main Sequence Data Node family.
+  shell and reusable workspace widget, and `data-node-shared/` for reusable Data Node-specific
+  picker/date-range primitives still used by Main Sequence connection and feature surfaces.
+- Treat the shared `data-node-shared/` helper bundle as legacy/Data Node-specific support code.
   `dependency-graph/` and `project-infra-graph/` are separate infrastructure widgets and should
   not be bucketed into the Data Node family just because they can inspect Data Node-related
   backend objects.
-- In the workspace component browser, the Data Node family should appear under
-  `Main Sequence Data Nodes`, while both `dependency-graph/` and `project-infra-graph/` should
+- In the workspace component browser, both `dependency-graph/` and `project-infra-graph/` should
   appear under `Main Sequence Infrastructure`.
 - Main Sequence data-node consumers now adapt the platform-level generic tabular-frame contract
   (`core.tabular_frame@v1`) rather than inventing a widget-local table payload. Keep source-specific
@@ -49,9 +41,10 @@ widget family in the live widget catalog.
 - Shared contract ids and contract payload types that cross widget boundaries now live one level up
   in `../widget-contracts/`. Widget folders should consume those contracts instead of inventing
   local ad hoc runtime shapes for composition.
-- `dependency-graph/`, `project-infra-graph/`, `data-node-visualizer/`, `data-node-filter/`,
-  `data-node-statistic/`, and `data-node-table/` are currently registered in the app-wide widget
-  catalog from `extensions/main_sequence/extensions/workbench/index.ts`.
+- `dependency-graph/` and `project-infra-graph/` are currently registered in the app-wide widget
+  catalog from `extensions/main_sequence/extensions/workbench/index.ts`. The old
+  `main-sequence-data-node` source widget code has been removed; connection-backed source querying
+  now belongs to the `mainsequence.data-node` connection plus core presentation widgets.
 - Every registered widget definition in this folder now publishes `widgetVersion` plus an explicit
   backend-facing `registryContract` so platform-admin registry sync can describe configuration,
   runtime behavior, IO semantics, capabilities, and agent authoring guidance without scraping the

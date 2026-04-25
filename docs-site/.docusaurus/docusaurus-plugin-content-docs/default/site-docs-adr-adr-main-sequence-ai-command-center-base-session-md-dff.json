@@ -14,8 +14,8 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "ADR: Extension-Contributed Shell Settings Menus",
-    "permalink": "/docs/adr/adr-extension-contributed-shell-settings-menus"
+    "title": "ADR: Runtime Credential Browser Auth",
+    "permalink": "/docs/adr/adr-runtime-credential-browser-auth"
   },
   "next": {
     "title": "ADR: Main Sequence AI Runtime Endpoint Resolution",

@@ -25,6 +25,37 @@ import {
 } from "./workspace-user-state";
 
 export type WorkspacePersistenceMode = "backend" | "local";
+export interface LoadPersistedWorkspaceListSummariesOptions {
+  excludeIds?: readonly string[];
+}
+
+function normalizeExcludedWorkspaceIds(excludeIds: readonly string[] | undefined) {
+  if (!Array.isArray(excludeIds)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      excludeIds
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean),
+    ),
+  );
+}
+
+function filterExcludedWorkspaceSummaries(
+  items: WorkspaceListItemSummary[],
+  options?: LoadPersistedWorkspaceListSummariesOptions,
+) {
+  const excludedIds = normalizeExcludedWorkspaceIds(options?.excludeIds);
+
+  if (excludedIds.length === 0) {
+    return items;
+  }
+
+  const excludedIdSet = new Set(excludedIds);
+  return items.filter((item) => !excludedIdSet.has(item.id));
+}
 
 export function getWorkspacePersistenceMode(): WorkspacePersistenceMode {
   if (env.useMockData) {
@@ -40,21 +71,30 @@ export function isWorkspaceBackendEnabled() {
 
 export async function loadPersistedWorkspaceListSummaries(
   userId: string,
+  options?: LoadPersistedWorkspaceListSummariesOptions,
 ): Promise<WorkspaceListItemSummary[]> {
   if (env.useMockData) {
-    return readBundledMockWorkspaceCollection().dashboards.map((dashboard) =>
-      summarizeDashboardForWorkspaceList(dashboard),
+    return filterExcludedWorkspaceSummaries(
+      readBundledMockWorkspaceCollection().dashboards.map((dashboard) =>
+        summarizeDashboardForWorkspaceList(dashboard),
+      ),
+      options,
     );
   }
 
   if (!isWorkspaceBackendEnabled()) {
     const { loadUserDashboardCollection } = await import("./custom-dashboard-storage");
-    return loadUserDashboardCollection(userId).dashboards.map((dashboard) =>
-      summarizeDashboardForWorkspaceList(dashboard),
+    return filterExcludedWorkspaceSummaries(
+      loadUserDashboardCollection(userId).dashboards.map((dashboard) =>
+        summarizeDashboardForWorkspaceList(dashboard),
+      ),
+      options,
     );
   }
 
-  return fetchWorkspaceListSummariesFromBackend();
+  return fetchWorkspaceListSummariesFromBackend({
+    excludeIds: options?.excludeIds,
+  });
 }
 
 export async function loadPersistedWorkspaceCollection(userId: string) {

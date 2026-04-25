@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Use this widget to explore dependency relationships around one Main Sequence source resource.
+Dependency graph for one Main Sequence source resource.
 
 ## whenToUse
 

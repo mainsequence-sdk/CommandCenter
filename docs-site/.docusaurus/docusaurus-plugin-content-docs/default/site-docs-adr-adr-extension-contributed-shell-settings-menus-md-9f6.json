@@ -18,7 +18,7 @@
     "permalink": "/docs/adr/adr-app-component-mock-json-target"
   },
   "next": {
-    "title": "ADR: Main Sequence AI Command Center Base Session",
-    "permalink": "/docs/adr/adr-main-sequence-ai-command-center-base-session"
+    "title": "ADR: Runtime Credential Browser Auth",
+    "permalink": "/docs/adr/adr-runtime-credential-browser-auth"
   }
 }

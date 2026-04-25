@@ -26,9 +26,17 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "adr/adr-agent-monitor-workspace-reference-widget",
+              "path": "/docs/adr/adr-agent-monitor-workspace-reference-widget"
+            },
+            {
               "id": "adr/adr-agent-ready-widget-type-registry-contract",
               "path": "/docs/adr/adr-agent-ready-widget-type-registry-contract",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-agent-terminal-managed-session-creation",
+              "path": "/docs/adr/adr-agent-terminal-managed-session-creation"
             },
             {
               "id": "adr/adr-app-component-binding-native-api-widget",
@@ -64,6 +72,10 @@
               "id": "adr/adr-extension-contributed-shell-settings-menus",
               "path": "/docs/adr/adr-extension-contributed-shell-settings-menus",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-first-class-connection-model",
+              "path": "/docs/adr/adr-first-class-connection-model"
             },
             {
               "id": "adr/adr-headless-workspace-settings-runtime",
@@ -111,6 +123,11 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "adr/adr-runtime-credential-browser-auth",
+              "path": "/docs/adr/adr-runtime-credential-browser-auth",
+              "sidebar": "docsSidebar"
+            },
+            {
               "id": "adr/adr-shared-workspace-state",
               "path": "/docs/adr/adr-shared-workspace-state",
               "sidebar": "docsSidebar"
@@ -134,6 +151,14 @@
               "id": "adr/adr-widget-bindings-and-dependency-graph",
               "path": "/docs/adr/adr-widget-bindings-and-dependency-graph",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-widget-settings-demo-preview-draft",
+              "path": "/docs/adr/adr-widget-settings-demo-preview-draft"
+            },
+            {
+              "id": "adr/adr-workspace-widget-referenced-graph-expansion",
+              "path": "/docs/adr/adr-workspace-widget-referenced-graph-expansion"
             },
             {
               "id": "apps/apps-index",
@@ -219,6 +244,10 @@
               "id": "widgets/widgets-index",
               "path": "/docs/widgets",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "workspaces/agent-monitor-workspace-widget-plan",
+              "path": "/docs/workspaces/agent-monitor-workspace-widget-plan"
             },
             {
               "id": "workspaces/backend-model",
