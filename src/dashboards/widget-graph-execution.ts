@@ -693,6 +693,17 @@ export async function executeDashboardWidgetGraph(
   }
 
   for (const instanceId of executionOrder) {
+    if (args.signal?.aborted) {
+      return {
+        status: "skipped",
+        widgets: workingWidgets,
+        targetInstanceId: args.targetInstanceId,
+        targetRuntimeState,
+        nodeResults,
+        executedInstanceIds,
+      };
+    }
+
     if (executedInstanceIds.has(instanceId)) {
       nodeResults.push({
         instanceId,
@@ -811,6 +822,17 @@ export async function executeDashboardWidgetGraph(
           error instanceof Error
             ? error.message
             : "Widget execution failed before a result was returned.",
+      };
+    }
+
+    if (args.signal?.aborted) {
+      return {
+        status: "skipped",
+        widgets: workingWidgets,
+        targetInstanceId: args.targetInstanceId,
+        targetRuntimeState,
+        nodeResults,
+        executedInstanceIds,
       };
     }
 

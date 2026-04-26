@@ -165,6 +165,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
             scopeId: context.instanceId,
             forceFullRefresh: context.reason === "manual-submit",
             traceMeta: buildDashboardExecutionRequestTraceMeta(context),
+            signal: context.signal,
           },
         );
 

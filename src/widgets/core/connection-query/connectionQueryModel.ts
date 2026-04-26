@@ -899,6 +899,7 @@ export async function executeConnectionQueryWidgetRequest(
     scopeId?: string;
     forceFullRefresh?: boolean;
     traceMeta?: DashboardRequestTraceMeta;
+    signal?: AbortSignal;
   },
 ): Promise<ConnectionQueryRuntimeState> {
   const normalizedProps = normalizeConnectionQueryProps(props);
@@ -970,7 +971,9 @@ export async function executeConnectionQueryWidgetRequest(
   );
   const payload = await runConnectionQueryWithInFlightDedupe(
     incrementalDecision,
-    () => queryConnection(incrementalDecision.request, traceMeta),
+    () => queryConnection(incrementalDecision.request, traceMeta, {
+      signal: options?.signal,
+    }),
   );
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute payload received", {

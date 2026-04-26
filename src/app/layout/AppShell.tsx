@@ -13,7 +13,6 @@ import {
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import { env } from "@/config/env";
-import { terminalSocket } from "@/data/terminal-socket";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import { ChatMount, ChatOverlay, ChatProvider } from "../../../extensions/main_sequence_ai/assistant-ui";
@@ -45,7 +44,6 @@ function isWorkspaceCanvasRoute(pathname: string, search: string) {
 export function AppShell() {
   const location = useLocation();
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
-  const setLiveState = useShellStore((state) => state.setLiveState);
   const sidebarCollapsed = useShellStore((state) => state.sidebarCollapsed);
   const appPanelAppId = useShellStore((state) => state.appPanelAppId);
   const closeAppPanel = useShellStore((state) => state.closeAppPanel);
@@ -82,24 +80,6 @@ export function AppShell() {
     location.pathname !== CHAT_PAGE_PATH &&
     chatRailOpen &&
     chatRailMode === "docked";
-
-  useEffect(() => {
-    if (!env.includeWebsockets) {
-      setLiveState("disconnected");
-      return;
-    }
-
-    const unsubscribe = terminalSocket.onStatusChange((state) => {
-      setLiveState(state);
-    });
-
-    void terminalSocket.connect();
-
-    return () => {
-      unsubscribe();
-      terminalSocket.disconnect();
-    };
-  }, [setLiveState]);
 
   useEffect(() => {
     if (!kioskMode) {

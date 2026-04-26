@@ -118,7 +118,7 @@ The current app already provides a strong foundation for a customizable market-f
 - extension registry for widgets, apps, surfaces, and themes
 - runtime theme overrides with TypeScript export
 - RBAC metadata across routes, apps, surfaces, widgets, and actions
-- mock REST and WebSocket adapters for local development
+- mock REST adapters for local development
 
 ### Optional component integrations
 
@@ -153,11 +153,9 @@ Use `.env.example` as the starting point for data mode:
 cp .env.example .env
 ```
 
-`VITE_USE_MOCK_DATA=true` keeps the shell on local mock adapters and leaves the built-in `Demo` app registered. Set `VITE_USE_MOCK_DATA=false` to route the app through the live REST adapters configured by `VITE_API_BASE_URL`, the terminal/market websocket adapters configured by `VITE_WS_URL`, and the assistant server root configured by `VITE_ASSISTANT_UI_ENDPOINT`, and to remove the `Demo` app from navigation and app redirects. In local dev, the recommended setup is `VITE_ASSISTANT_UI_ENDPOINT=/__assistant__` plus `VITE_ASSISTANT_UI_PROXY_TARGET=http://192.168.1.253:8787`, so the browser talks to Vite and Vite proxies assistant requests to the LAN host.
+`VITE_USE_MOCK_DATA=true` keeps the shell on local mock adapters and leaves the built-in `Demo` app registered. Set `VITE_USE_MOCK_DATA=false` to route the app through the live REST adapters configured by `VITE_API_BASE_URL` and the assistant server root configured by `VITE_ASSISTANT_UI_ENDPOINT`, and to remove the `Demo` app from navigation and app redirects. In local dev, the recommended setup is `VITE_ASSISTANT_UI_ENDPOINT=/__assistant__` plus `VITE_ASSISTANT_UI_PROXY_TARGET=http://192.168.1.253:8787`, so the browser talks to Vite and Vite proxies assistant requests to the LAN host.
 
 `VITE_BYPASS_AUTH=true` bypasses backend authentication for local development and re-enables the built-in role picker.
-
-`VITE_INCLUDE_WEBSOCKETS=true` keeps the websocket layer enabled. Set `VITE_INCLUDE_WEBSOCKETS=false` to stop the shell from opening the terminal socket connection and to disable streaming price subscriptions without changing the rest of the live REST mode.
 
 `VITE_INCLUDE_AUI=true` keeps the detachable `assistant-ui` shell enabled. Set `VITE_INCLUDE_AUI=false` to remove the chat provider, sidebar trigger, overlay rail, and `/app/chat` route at runtime.
 
@@ -214,8 +212,6 @@ Runtime data mode is controlled separately through Vite env vars:
 
 - `VITE_USE_MOCK_DATA=true|false`
 - `VITE_API_BASE_URL=http://127.0.0.1:8000`
-- `VITE_WS_URL=ws://localhost:8000/ws`
-- `VITE_INCLUDE_WEBSOCKETS=true|false`
 - `VITE_INCLUDE_AUI=true|false`
 - `VITE_INCLUDE_WORKSPACES=true|false`
 
@@ -406,17 +402,14 @@ The app selects the active adapter layer through `VITE_USE_MOCK_DATA`.
 Mock mode uses:
 
 - `src/data/demo-api.ts`
-- `src/data/mock/terminal-socket.ts`
 
 Live mode uses:
 
 - `src/data/live/rest-api.ts`
-- `src/data/live/terminal-socket.ts`
 
 Recommended mapping:
 
 - REST for snapshots, search, historical data, and mutations
-- WebSocket for prices, order updates, notifications, and presence
 
 ## Notes
 

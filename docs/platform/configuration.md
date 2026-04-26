@@ -30,7 +30,6 @@ Optional UI feature flags are also controlled through env:
 ```text
 VITE_ASSISTANT_UI_ENDPOINT=/__assistant__
 VITE_ASSISTANT_UI_PROXY_TARGET=http://192.168.1.253:8787
-VITE_INCLUDE_WEBSOCKETS=true
 VITE_INCLUDE_AUI=true
 VITE_INCLUDE_WORKSPACES=true
 ```
@@ -346,7 +345,6 @@ Notes:
 - JWT field mappings support dotted paths such as `user.email` or `data.tokens.access`.
 - Group role mappings use comma-separated strings because the runtime config parser is intentionally simple.
 - `VITE_BYPASS_AUTH=true` bypasses backend auth locally and re-enables the mock role picker.
-- `VITE_INCLUDE_WEBSOCKETS=true` keeps the websocket layer mounted; set it to `false` to stop terminal socket startup and streaming subscriptions without disabling live REST requests.
 - `VITE_INCLUDE_AUI=true` keeps the detachable `assistant-ui` chat integration mounted; set it to `false` to remove the runtime chat surface without uninstalling the dependency.
 - `VITE_INCLUDE_WORKSPACES=true` keeps the `Workspaces` app registered; set it to `false` to remove the `workspace-studio` app from the runtime registry and shell navigation.
 - Relative backend endpoint paths are resolved against `VITE_API_BASE_URL`. Absolute URLs are used as-is.

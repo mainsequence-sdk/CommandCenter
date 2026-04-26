@@ -272,12 +272,11 @@ export function getSystemConnectionInstances(): ConnectionInstance[] {
       typeVersion: 1,
       name: "Command Center system API",
       description:
-        "Hidden system connection that represents the current Command Center backend and websocket runtime.",
+        "Hidden system connection that represents the current Command Center backend runtime.",
       organizationId: undefined,
       workspaceId: null,
       publicConfig: {
         apiBaseUrl: env.apiBaseUrl,
-        wsUrl: env.wsUrl,
       },
       secureFields: {},
       status: "unknown",
@@ -413,6 +412,9 @@ export function queryConnection<
 >(
   request: ConnectionQueryRequest<TQuery>,
   traceMeta?: DashboardRequestTraceMeta,
+  options?: {
+    signal?: AbortSignal;
+  },
 ) {
   const template = commandCenterConfig.connections.instances.queryUrl.trim();
   return requestJson<TResponse>(
@@ -420,6 +422,7 @@ export function queryConnection<
     {
       method: "POST",
       body: JSON.stringify(request),
+      signal: options?.signal,
     },
     traceMeta,
   );

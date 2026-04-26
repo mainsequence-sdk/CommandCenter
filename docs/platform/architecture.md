@@ -139,7 +139,7 @@ The app currently uses:
 
 - `TanStack Query` for async server-style data
 - `Zustand` for local session and shell state
-- mock REST and WebSocket adapters for development
+- mock REST adapters for development
 
 Shell-level durable preferences now have two runtime modes:
 

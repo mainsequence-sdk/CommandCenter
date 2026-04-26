@@ -301,6 +301,38 @@ function buildControlsSelectionKey(selection: DashboardControlsSelectionSnapshot
   return JSON.stringify(selection);
 }
 
+function isIncomingControlsSelectionApplied(
+  selection: DashboardControlsSelectionSnapshot,
+  state: DashboardControlsState,
+) {
+  if (selection.timeRangeKey) {
+    if (state.timeRangeKey !== selection.timeRangeKey) {
+      return false;
+    }
+
+    if (
+      selection.timeRangeKey === "custom" &&
+      (
+        typeof selection.customStartMs !== "number" ||
+        typeof selection.customEndMs !== "number" ||
+        state.rangeStartMs !== selection.customStartMs ||
+        state.rangeEndMs !== selection.customEndMs
+      )
+    ) {
+      return false;
+    }
+  }
+
+  if (
+    selection.hasRefreshInterval &&
+    state.refreshIntervalMs !== (selection.refreshIntervalMs ?? null)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function formatRefreshInterval(value: number | null) {
   if (value === null) {
     return "Off";
@@ -954,7 +986,7 @@ export function DashboardControlsProvider({
     () => buildControlsSelectionKey(incomingSelection),
     [incomingSelection],
   );
-  const syncedSelectionKeyRef = useRef(incomingSelectionKey);
+  const [syncedSelectionKey, setSyncedSelectionKey] = useState(incomingSelectionKey);
   const kioskMode = useShellStore((state) => state.kioskMode);
   const setKioskMode = useShellStore((state) => state.setKioskMode);
   const toggleKioskMode = useShellStore((state) => state.toggleKioskMode);
@@ -980,13 +1012,30 @@ export function DashboardControlsProvider({
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
   const [refreshCycleStartedAt, setRefreshCycleStartedAt] = useState<number | null>(null);
   const [refreshProgress, setRefreshProgress] = useState(0);
+  const controlsReady = useMemo(
+    () =>
+      syncedSelectionKey === incomingSelectionKey &&
+      isIncomingControlsSelectionApplied(incomingSelection, {
+        timeRangeKey,
+        rangeStartMs,
+        rangeEndMs,
+        refreshIntervalMs,
+      }),
+    [
+      incomingSelection,
+      incomingSelectionKey,
+      rangeEndMs,
+      rangeStartMs,
+      refreshIntervalMs,
+      syncedSelectionKey,
+      timeRangeKey,
+    ],
+  );
 
   useEffect(() => {
-    if (syncedSelectionKeyRef.current === incomingSelectionKey) {
+    if (syncedSelectionKey === incomingSelectionKey) {
       return;
     }
-
-    syncedSelectionKeyRef.current = incomingSelectionKey;
 
     if (incomingSelection.timeRangeKey === "custom") {
       const nextStartMs = incomingSelection.customStartMs;
@@ -1007,10 +1056,7 @@ export function DashboardControlsProvider({
         setRangeStartDate(toDateInputValue(new Date(nextStartMs)));
         setRangeEndDate(toDateInputValue(new Date(nextEndMs)));
       }
-    } else if (
-      incomingSelection.timeRangeKey &&
-      incomingSelection.timeRangeKey !== timeRangeKey
-    ) {
+    } else if (incomingSelection.timeRangeKey) {
       const resolvedRange = resolvePresetRange(incomingSelection.timeRangeKey);
 
       setTimeRangeKeyState(incomingSelection.timeRangeKey);
@@ -1026,12 +1072,15 @@ export function DashboardControlsProvider({
     ) {
       setRefreshIntervalMs(incomingSelection.refreshIntervalMs ?? null);
     }
+
+    setSyncedSelectionKey(incomingSelectionKey);
   }, [
     incomingSelection,
     incomingSelectionKey,
     rangeEndMs,
     rangeStartMs,
     refreshIntervalMs,
+    syncedSelectionKey,
     timeRangeKey,
   ]);
 
@@ -1061,13 +1110,24 @@ export function DashboardControlsProvider({
   }, [refreshIntervalMs, resolvedConfig.refresh.defaultIntervalMs, resolvedConfig.refresh.intervals]);
 
   useEffect(() => {
+    if (!controlsReady) {
+      return;
+    }
+
     onStateChange?.({
       timeRangeKey,
       rangeStartMs,
       rangeEndMs,
       refreshIntervalMs,
     });
-  }, [onStateChange, rangeEndMs, rangeStartMs, refreshIntervalMs, timeRangeKey]);
+  }, [
+    controlsReady,
+    onStateChange,
+    rangeEndMs,
+    rangeStartMs,
+    refreshIntervalMs,
+    timeRangeKey,
+  ]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -1323,7 +1383,7 @@ export function DashboardControlsProvider({
 
   return (
     <DashboardControlsContext.Provider value={value}>
-      {children}
+      {controlsReady ? children : null}
     </DashboardControlsContext.Provider>
   );
 }

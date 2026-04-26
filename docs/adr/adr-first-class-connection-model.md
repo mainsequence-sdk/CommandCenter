@@ -14,7 +14,7 @@ the app registry, and the registry becomes the frontend source of truth for avai
 building blocks.
 
 Data access is not first-class yet. The current data layer is mostly a global mode switch between
-mock and live functions such as fixed REST helpers, demo data loaders, and terminal socket adapters.
+mock and live functions such as fixed REST helpers and demo data loaders.
 That is useful for demos and narrow features, but it does not model configured data access as an
 administrator-owned resource.
 
@@ -400,7 +400,7 @@ useConnectionStream({
   connectionUid: props.connectionUid,
   channel: "prices",
   params: { symbol: props.symbol },
-  onMessage: handlePriceTick,
+  onMessage: handleStreamMessage,
 });
 ```
 
@@ -737,8 +737,7 @@ Existing widgets can continue to call current data helpers during this stage.
 
 ### Stage 2: Add a system connection
 
-Create a hidden built-in connection instance for the current Command Center backend and websocket
-configuration.
+Create a hidden built-in connection instance for the current Command Center backend configuration.
 
 Recommended identity:
 
@@ -798,8 +797,8 @@ runtime paths.
 - [x] Add reusable connection picker support for widget settings.
 - [x] Add `useConnectionQuery`, `queryConnection`, `useConnectionStream`, and resource helper
   APIs backed by the shared connection endpoints.
-- [x] Add a hidden `command-center.system-api` system connection for current backend and websocket
-  behavior so existing widgets can migrate incrementally.
+- [x] Add a hidden `command-center.system-api` system connection for current backend behavior so
+  existing widgets can migrate incrementally.
 - [x] Register a `mainsequence.data-node` connection type from the Main Sequence extension.
 - [x] Define `mainsequence.data-node` query models for detail, rows between dates, last observation,
   and picker/list support.

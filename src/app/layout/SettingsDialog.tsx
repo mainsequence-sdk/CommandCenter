@@ -2013,7 +2013,6 @@ export function SettingsDialog({
                     />
                   ) : null}
                   <SettingsRow label={t("settingsDialog.api")} value={env.apiBaseUrl} />
-                  <SettingsRow label={t("settingsDialog.websocket")} value={env.wsUrl} />
                 </>
               ) : null}
             </SettingsSection>

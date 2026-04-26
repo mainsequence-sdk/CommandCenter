@@ -243,6 +243,20 @@ function removeWorkspaceMap(
   return next;
 }
 
+function markWorkspaceUserStateHydratedAfterLocalUpdate(
+  current: Record<string, boolean>,
+  workspaceId: string,
+) {
+  if (isWorkspaceBackendEnabled() && !current[workspaceId]) {
+    return current;
+  }
+
+  return {
+    ...current,
+    [workspaceId]: true,
+  };
+}
+
 export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>((set, get) => ({
   initializedUserId: null,
   hydratingUserId: null,
@@ -390,10 +404,10 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
           ...current.draftWorkspaceById,
           [workspaceId]: nextWorkspace,
         },
-        workspaceUserStateHydratedById: {
-          ...current.workspaceUserStateHydratedById,
-          [workspaceId]: true,
-        },
+        workspaceUserStateHydratedById: markWorkspaceUserStateHydratedAfterLocalUpdate(
+          current.workspaceUserStateHydratedById,
+          workspaceId,
+        ),
         workspaceListItems: isWorkspaceBackendEnabled()
           ? current.workspaceListItems
           : replaceWorkspaceListItem(
@@ -453,10 +467,10 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
                 }),
               }
             : current.draftWorkspaceById,
-        workspaceUserStateHydratedById: {
-          ...current.workspaceUserStateHydratedById,
-          [workspaceId]: true,
-        },
+        workspaceUserStateHydratedById: markWorkspaceUserStateHydratedAfterLocalUpdate(
+          current.workspaceUserStateHydratedById,
+          workspaceId,
+        ),
         workspaceUserStateRevisionById:
           options?.bumpRevision === false
             ? current.workspaceUserStateRevisionById

@@ -50,6 +50,7 @@ export interface ExecuteWidgetGraphOptions {
   reason: WidgetExecutionReason;
   refreshCycleId?: string;
   targetOverrides?: WidgetExecutionTargetOverrides;
+  signal?: AbortSignal;
 }
 
 export interface ResolveWidgetUpstreamOptions {
@@ -191,7 +192,13 @@ export function DashboardWidgetExecutionProvider({
     }),
     [rangeEndMs, rangeStartMs, refreshIntervalMs, timeRangeKey],
   );
+  const dashboardStateKey = useMemo(
+    () => serializeDashboardExecutionState(dashboardState),
+    [dashboardState],
+  );
   const widgetsRef = useRef(widgets);
+  const mountedRef = useRef(true);
+  const dashboardStateKeyRef = useRef(dashboardStateKey);
   const inFlightRef = useRef(new Map<string, Promise<DashboardWidgetGraphExecutionResult>>());
   const inFlightFlowRef = useRef(
     new Map<string, Promise<DashboardWidgetFlowExecutionResult>>(),
@@ -202,8 +209,20 @@ export function DashboardWidgetExecutionProvider({
   const [executionStates, setExecutionStates] = useState<Record<string, WidgetExecutionState>>({});
 
   useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     widgetsRef.current = widgets;
   }, [widgets]);
+
+  useEffect(() => {
+    dashboardStateKeyRef.current = dashboardStateKey;
+  }, [dashboardStateKey]);
 
   function setExecutionState(instanceId: string, nextState: WidgetExecutionState) {
     setExecutionStates((current) => ({
@@ -268,6 +287,13 @@ export function DashboardWidgetExecutionProvider({
       return inFlight;
     }
 
+    const executionDashboardState = dashboardState;
+    const executionDashboardStateKey = serializeDashboardExecutionState(executionDashboardState);
+    const isExecutionCurrent = () =>
+      mountedRef.current &&
+      !options.signal?.aborted &&
+      dashboardStateKeyRef.current === executionDashboardStateKey;
+
     const executionPromise = executeDashboardWidgetGraph({
       scopeId,
       widgets: widgetsRef.current,
@@ -276,12 +302,21 @@ export function DashboardWidgetExecutionProvider({
       reason: options.reason,
       refreshCycleId: options.refreshCycleId,
       targetOverrides: options.targetOverrides,
+      signal: options.signal,
       executedInstanceIds: sharedExecutedInstanceIds,
-      dashboardState,
+      dashboardState: executionDashboardState,
       onRuntimeStateWrite: (instanceId, runtimeState) => {
+        if (!isExecutionCurrent()) {
+          return;
+        }
+
         writeRuntimeState(instanceId, runtimeState);
       },
       onNodeStart: ({ instanceId, reason, targetInstanceId: activeTargetInstanceId }) => {
+        if (!isExecutionCurrent()) {
+          return;
+        }
+
         setExecutionState(instanceId, {
           status: "running",
           reason,
@@ -296,6 +331,10 @@ export function DashboardWidgetExecutionProvider({
         status,
         error,
       }) => {
+        if (!isExecutionCurrent()) {
+          return;
+        }
+
         clearRunningExecutionState(instanceId, {
           status: status === "error" ? "error" : "success",
           reason,
@@ -305,7 +344,9 @@ export function DashboardWidgetExecutionProvider({
         });
       },
     }).then((result) => {
-      widgetsRef.current = result.widgets;
+      if (isExecutionCurrent()) {
+        widgetsRef.current = result.widgets;
+      }
       return result;
     }).finally(() => {
       inFlightRef.current.delete(dedupeKey);
@@ -485,6 +526,7 @@ export function DashboardWidgetExecutionProvider({
     }
 
     const sharedExecutedInstanceIds = new Set<string>();
+    const abortController = new AbortController();
     let cancelled = false;
     let hadExecutionError = false;
 
@@ -514,11 +556,14 @@ export function DashboardWidgetExecutionProvider({
             {
               reason: "dashboard-refresh",
               refreshCycleId,
+              signal: abortController.signal,
             },
             sharedExecutedInstanceIds,
           );
 
-          widgetsRef.current = result.widgets;
+          if (!cancelled) {
+            widgetsRef.current = result.widgets;
+          }
         } catch {
           hadExecutionError = true;
           // Keep initial refresh isolated from rendering.
@@ -539,6 +584,7 @@ export function DashboardWidgetExecutionProvider({
 
     return () => {
       cancelled = true;
+      abortController.abort();
     };
   }, [dashboardState, effectiveResolveWidgetDefinition, scopeId]);
 
@@ -567,6 +613,7 @@ export function DashboardWidgetExecutionProvider({
     }
 
     const sharedExecutedInstanceIds = new Set<string>();
+    const abortController = new AbortController();
     let cancelled = false;
     let hadExecutionError = false;
 
@@ -596,11 +643,14 @@ export function DashboardWidgetExecutionProvider({
             {
               reason: "dashboard-refresh",
               refreshCycleId,
+              signal: abortController.signal,
             },
             sharedExecutedInstanceIds,
           );
 
-          widgetsRef.current = result.widgets;
+          if (!cancelled) {
+            widgetsRef.current = result.widgets;
+          }
         } catch {
           hadExecutionError = true;
           // Keep refresh orchestration isolated from render surfaces.
@@ -621,6 +671,7 @@ export function DashboardWidgetExecutionProvider({
 
     return () => {
       cancelled = true;
+      abortController.abort();
     };
   }, [dashboardState, effectiveResolveWidgetDefinition, lastRefreshedAt, scopeId]);
 

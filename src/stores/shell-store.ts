@@ -4,8 +4,6 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 
-export type LiveState = "connecting" | "connected" | "disconnected";
-
 const backendPreferencesEnabled =
   !env.useMockData && Boolean(commandCenterConfig.preferences.url.trim());
 
@@ -30,7 +28,6 @@ function normalizeFavoriteIds(values: string[] | undefined) {
 }
 
 interface ShellState {
-  liveState: LiveState;
   commandValue: string;
   sidebarCollapsed: boolean;
   appPanelAppId: string | null;
@@ -40,7 +37,6 @@ interface ShellState {
   workspaceCanvasMenuHidden: boolean;
   favoriteSurfaceIds: string[];
   favoriteWorkspaceIds: string[];
-  setLiveState: (value: LiveState) => void;
   setCommandValue: (value: string) => void;
   setSidebarCollapsed: (value: boolean) => void;
   setAppPanelAppId: (value: string | null) => void;
@@ -70,7 +66,6 @@ interface ShellState {
 export const useShellStore = create<ShellState>()(
   persist(
     (set) => ({
-      liveState: "disconnected",
       commandValue: "",
       sidebarCollapsed: true,
       appPanelAppId: null,
@@ -80,9 +75,6 @@ export const useShellStore = create<ShellState>()(
       workspaceCanvasMenuHidden: false,
       favoriteSurfaceIds: [],
       favoriteWorkspaceIds: [],
-      setLiveState(value) {
-        set({ liveState: value });
-      },
       setCommandValue(value) {
         set({ commandValue: value });
       },

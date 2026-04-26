@@ -7,11 +7,8 @@ The repository currently ships with mock data and a configurable JWT auth layer 
 Relevant files:
 
 - `src/data/api.ts`
-- `src/data/terminal-socket.ts`
 - `src/data/demo-api.ts`
-- `src/data/mock/terminal-socket.ts`
 - `src/data/live/rest-api.ts`
-- `src/data/live/terminal-socket.ts`
 - `src/auth/mock-auth.ts`
 - `src/auth/jwt-auth.ts`
 - `src/auth/auth-store.ts`
@@ -25,24 +22,21 @@ Relevant files:
 Runtime data mode is selected with:
 
 - `VITE_USE_MOCK_DATA=true` for local mock adapters
-- `VITE_USE_MOCK_DATA=false` for the live REST/WebSocket adapters and to remove the built-in `Demo` app from the shell registry
+- `VITE_USE_MOCK_DATA=false` for the live REST adapters and to remove the built-in `Demo` app from the shell registry
 - `VITE_BYPASS_AUTH=true` to bypass backend auth locally and use the built-in role picker
-- `VITE_API_BASE_URL` and `VITE_WS_URL` for live transport endpoints
-- `VITE_INCLUDE_WEBSOCKETS=true|false` to enable or disable websocket connection startup and streaming subscriptions without changing REST mode
+- `VITE_API_BASE_URL` for live transport endpoints
 - `VITE_INCLUDE_AUI=true|false` to enable or disable the detachable `assistant-ui` shell integration
 - `VITE_INCLUDE_WORKSPACES=true|false` to enable or disable the `Workspaces` app at the registry level
 
 ## Data integration model
 
-The app already assumes two classes of backend integration:
+The app currently assumes one primary backend integration class:
 
 - REST-style request/response data
-- live streaming updates
 
 The current recommendation is:
 
 - REST for snapshots, lookup data, search, historical series, and mutations
-- WebSocket or stream transport for prices, order updates, alerts, and presence
 
 The shell now also supports an optional authenticated REST endpoint for user preferences such as:
 
@@ -479,7 +473,7 @@ When wiring the shell to your backend:
 - treat frontend permissions as UX hints plus navigation rules
 - keep server authorization authoritative
 - centralize backend adapters under `src/data/`
-- keep `src/data/api.ts` and `src/data/terminal-socket.ts` as the only app-facing entrypoints
+- keep `src/data/api.ts` as the app-facing data entrypoint
 
 For local-only bypass auth:
 
