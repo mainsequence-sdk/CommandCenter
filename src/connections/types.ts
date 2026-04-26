@@ -46,6 +46,11 @@ export interface ConnectionSchemaFieldOption {
   value: string;
 }
 
+export interface ConnectionSchemaFieldVisibilityRule {
+  fieldId: string;
+  equals?: string | number | boolean | Array<string | number | boolean>;
+}
+
 export interface ConnectionSchemaField {
   id: string;
   sectionId?: string;
@@ -55,6 +60,7 @@ export interface ConnectionSchemaField {
   required?: boolean;
   options?: ConnectionSchemaFieldOption[];
   defaultValue?: unknown;
+  visibleWhen?: ConnectionSchemaFieldVisibilityRule | ConnectionSchemaFieldVisibilityRule[];
 }
 
 export interface ConnectionConfigSchema {

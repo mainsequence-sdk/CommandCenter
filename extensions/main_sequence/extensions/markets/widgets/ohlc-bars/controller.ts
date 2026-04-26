@@ -25,6 +25,7 @@ export interface OhlcBarsControllerContext
   lowFieldOptions: PickerOption[];
   openFieldOptions: PickerOption[];
   timeFieldOptions: PickerOption[];
+  volumeFieldOptions: PickerOption[];
 }
 
 function toPickerOption(option: DataNodeFieldOption) {
@@ -102,6 +103,7 @@ export function useOhlcBarsControllerContext({
     openFieldOptions: fieldPickerOptions(pickerOptions, "Auto", "Try to infer the open price field."),
     resolvedConfig,
     timeFieldOptions: fieldPickerOptions(pickerOptions, "Auto", "Try to infer the timestamp or date field."),
+    volumeFieldOptions: fieldPickerOptions(pickerOptions, "No volume", "Do not render a volume pane."),
   };
 }
 

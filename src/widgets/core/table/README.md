@@ -15,6 +15,9 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 ## Behavior
 
 - Bound mode consumes one `core.tabular_frame@v1` input on `sourceData`.
+- Bound mode reads the resolved input's generic `upstreamBase` frame when an incremental upstream
+  source publishes retained base plus delta metadata. The table currently renders the retained
+  snapshot; it does not apply row deltas imperatively.
 - The widget always publishes one `core.tabular_frame@v1` output on `dataset`.
 - The runtime renderer reads the resolved `sourceData` input only. It does not read dashboard
   refresh controls or source widget runtime state directly.

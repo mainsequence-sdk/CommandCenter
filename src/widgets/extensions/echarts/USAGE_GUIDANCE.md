@@ -35,6 +35,8 @@ Theme-aware ECharts renderer for authored option payloads.
 - JSON mode requires a valid JSON object that ECharts can consume as an option payload. It does not revive functions from strings.
 - JavaScript builder mode requires the effective organization capability mode to be `unsafe-custom-js`; otherwise the widget falls back to JSON mode.
 - Bound `props-json` input must resolve to a JSON object compatible with the widget props contract. Non-object values cannot drive the chart spec.
+- Incremental upstream sources expose retained props through `upstreamBase`; this widget recompiles
+  from that retained JSON value instead of applying partial deltas.
 - Theme token and palette references must be placed in plain option objects or arrays before render. They are resolved by the widget after parsing JSON or after the JavaScript builder returns.
 - Palette scale references require a valid scale name and index. Supported sequential scales are `primary`, `success`, `warning`, and `neutral`; supported diverging scales are `default` and `positive-negative`.
 

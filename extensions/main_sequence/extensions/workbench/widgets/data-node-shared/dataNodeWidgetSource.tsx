@@ -100,6 +100,8 @@ export interface DataNodeWidgetSourceControllerContext<
   requiresUpstreamResolution: boolean;
   resolvedSourceWidget: DashboardWidgetRegistryEntry | null;
   resolvedConfig: TResolvedConfig;
+  resolvedSourceDeltaDataset: DataNodePublishedDataset | null;
+  resolvedSourceDeltaFrame: TabularFrameSourceV1 | null;
   resolvedSourceDataset: DataNodePublishedDataset | null;
   resolvedSourceFrame: TabularFrameSourceV1 | null;
   resolvedSourceProps: DataNodeWidgetSourceProps;
@@ -118,6 +120,8 @@ export interface ResolvedDataNodeWidgetSourceBinding {
   isFilterWidgetSource: boolean;
   referencedFilterWidget: DashboardWidgetRegistryEntry | null;
   requiresUpstreamResolution: boolean;
+  resolvedSourceDeltaDataset: DataNodePublishedDataset | null;
+  resolvedSourceDeltaFrame: TabularFrameSourceV1 | null;
   resolvedSourceDataset: DataNodePublishedDataset | null;
   resolvedSourceFrame: TabularFrameSourceV1 | null;
   resolvedSourceInput: ReturnType<typeof useResolvedWidgetInput> extends infer T
@@ -620,10 +624,17 @@ export function useResolvedDataNodeWidgetSourceBinding<
     [currentWidgetInstanceId, resolvedSourceWidgetId, widgetRegistry],
   );
   const sourceDatasetValue =
-    resolvedInputBinding?.value ?? referencedFilterWidget?.runtimeState;
+    resolvedInputBinding?.upstreamBase ??
+    resolvedInputBinding?.value ??
+    referencedFilterWidget?.runtimeState;
+  const sourceDeltaDatasetValue = resolvedInputBinding?.upstreamDelta;
   const resolvedSourceFrame = useMemo(
     () => normalizeTabularFrameSource(sourceDatasetValue),
     [sourceDatasetValue],
+  );
+  const resolvedSourceDeltaFrame = useMemo(
+    () => normalizeTabularFrameSource(sourceDeltaDatasetValue),
+    [sourceDeltaDatasetValue],
   );
   const resolvedSourceContext = useMemo(
     () => resolveMainSequenceDataSourceContext(resolvedSourceFrame?.source),
@@ -632,6 +643,10 @@ export function useResolvedDataNodeWidgetSourceBinding<
   const resolvedSourceDataset = useMemo(
     () => normalizeDataNodePublishedDataset(sourceDatasetValue),
     [sourceDatasetValue],
+  );
+  const resolvedSourceDeltaDataset = useMemo(
+    () => normalizeDataNodePublishedDataset(sourceDeltaDatasetValue),
+    [sourceDeltaDatasetValue],
   );
   const expectsFilterWidgetSource =
     resolvedSourceWidgetId != null || normalizedReference.sourceMode === "filter_widget";
@@ -673,11 +688,11 @@ export function useResolvedDataNodeWidgetSourceBinding<
   const resolvedSourceStatus =
     resolvedSourceDataset?.status ??
     resolvedSourceFrame?.status ??
-    (resolvedInputBinding?.value === undefined ? "idle" : null);
+    (sourceDatasetValue === undefined ? "idle" : null);
   const isAwaitingBoundSourceValue = Boolean(
     hasCanonicalSourceBinding &&
       resolvedInputBinding?.status === "valid" &&
-      (resolvedInputBinding.value === undefined ||
+      (sourceDatasetValue === undefined ||
         resolvedSourceStatus === "idle" ||
         resolvedSourceStatus === "loading"),
   );
@@ -701,6 +716,8 @@ export function useResolvedDataNodeWidgetSourceBinding<
     requiresUpstreamResolution,
     referencedFilterWidget,
     resolvedSourceWidget,
+    resolvedSourceDeltaDataset,
+    resolvedSourceDeltaFrame,
     resolvedSourceDataset,
     resolvedSourceFrame,
     resolvedSourceProps,
@@ -853,6 +870,8 @@ export function useDataNodeWidgetSourceControllerContext<
     referencedFilterWidget: sourceBinding.referencedFilterWidget,
     resolvedSourceWidget: sourceBinding.resolvedSourceWidget,
     resolvedConfig,
+    resolvedSourceDeltaDataset: sourceBinding.resolvedSourceDeltaDataset,
+    resolvedSourceDeltaFrame: sourceBinding.resolvedSourceDeltaFrame,
     resolvedSourceDataset: sourceBinding.resolvedSourceDataset,
     resolvedSourceFrame: sourceBinding.resolvedSourceFrame,
     resolvedSourceProps: sourceBinding.resolvedSourceProps,

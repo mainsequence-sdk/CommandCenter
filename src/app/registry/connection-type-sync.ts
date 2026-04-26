@@ -12,7 +12,8 @@ import type {
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 
-export const CONNECTION_REGISTRY_VERSION = "2026-04-26";
+export const CONNECTION_REGISTRY_VERSION =
+  "2026-04-26-prometheus-service-account-json-visibility-fred-economic-data";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };

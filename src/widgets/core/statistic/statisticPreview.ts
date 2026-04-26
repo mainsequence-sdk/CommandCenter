@@ -111,6 +111,6 @@ export function resolveStatisticSourceDataset(
     : resolvedEntry;
 
   return candidate?.status === "valid"
-    ? normalizeAnyTabularFrameSource(candidate.value)
+    ? normalizeAnyTabularFrameSource(candidate.upstreamBase ?? candidate.value)
     : null;
 }

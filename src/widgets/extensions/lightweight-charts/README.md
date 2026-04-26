@@ -23,6 +23,9 @@ catalog.
 - When the `props-json` input has a valid binding, the bound JSON replaces local starter props
   instead of merging with them. This prevents the default `specJson` template from shadowing a
   dynamic API-provided `spec`, and also allows binding a raw Lightweight Charts spec object directly.
+- When a bound upstream source publishes incremental metadata, the widget reads the retained
+  `upstreamBase` JSON value. It does not apply partial deltas to an existing Lightweight Charts
+  spec.
 - The mock-only heatmap widget was moved into `extensions/demo/widgets/heatmap-matrix/` so
   this module now only owns live-capable Lightweight Charts integrations.
 

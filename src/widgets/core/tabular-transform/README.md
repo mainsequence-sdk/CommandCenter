@@ -17,6 +17,10 @@ for `core.tabular_frame@v1` datasets.
 
 - The widget consumes one `core.tabular_frame@v1` input and republishes one
   `core.tabular_frame@v1` output.
+- When an upstream source publishes incremental metadata, the transform reads the retained
+  `upstreamBase` frame for correctness. Pass-through/projection transforms also publish transformed
+  `upstreamDelta` metadata; aggregate, pivot, and unpivot modes fall back to snapshot output because
+  partial row deltas cannot preserve correctness there.
 - Supported initial transforms are `none`, `aggregate`, `pivot`, `unpivot`, and final projection.
 - Runtime execution is headless and returns a runtime-state patch. The output resolver can also
   derive the current transform from resolved inputs, which keeps downstream graph resolution fresh.

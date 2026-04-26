@@ -28,7 +28,7 @@ import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
 const devAuthProxyPrefix = "/__command_center_auth__";
 
 // Bump when the JSON manifest contract changes in a backend-visible way.
-export const WIDGET_REGISTRY_VERSION = "2026-04-25-core-tabular-consumers";
+export const WIDGET_REGISTRY_VERSION = "2026-04-26-connection-query-companions";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };

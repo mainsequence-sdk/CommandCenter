@@ -4,6 +4,8 @@ import { BarChart3, Database } from "lucide-react";
 import {
   CandlestickSeries,
   ColorType,
+  HistogramSeries,
+  LineSeries,
   createChart,
   type UTCTimestamp,
 } from "lightweight-charts";
@@ -21,15 +23,111 @@ import {
   normalizeOhlcBarsProps,
   resolveOhlcBarsConfig,
   type MainSequenceOhlcBarsWidgetProps,
+  type OhlcBarsStudyConfig,
 } from "./ohlcBarsModel";
 
 type Props = WidgetComponentProps<MainSequenceOhlcBarsWidgetProps>;
+type OhlcChartApi = ReturnType<typeof createChart>;
+type OhlcSeriesApi = Parameters<OhlcChartApi["removeSeries"]>[0];
+type OhlcChartPoint = {
+  close: number;
+  high: number;
+  low: number;
+  open: number;
+  time: UTCTimestamp;
+};
+type OhlcLinePoint = {
+  time: UTCTimestamp;
+  value: number;
+};
+type OhlcVolumePoint = OhlcLinePoint & {
+  color: string;
+};
 
 function getChartSize(container: HTMLDivElement) {
   return {
     width: Math.max(container.clientWidth, 1),
     height: Math.max(container.clientHeight, 1),
   };
+}
+
+function mapOhlcChartPoints(points: ReturnType<typeof buildOhlcBarsSeries>["points"]) {
+  return points.map<OhlcChartPoint>((point) => ({
+    close: point.close,
+    high: point.high,
+    low: point.low,
+    open: point.open,
+    time: point.time as UTCTimestamp,
+  }));
+}
+
+function mapVolumeChartPoints(
+  points: ReturnType<typeof buildOhlcBarsSeries>["points"],
+  resolvedTokens: Record<string, string>,
+) {
+  return points.flatMap<OhlcVolumePoint>((point) => {
+    if (point.volume === undefined) {
+      return [];
+    }
+
+    return [{
+      color: withAlpha(point.close >= point.open ? resolvedTokens.success : resolvedTokens.danger, 0.42),
+      time: point.time as UTCTimestamp,
+      value: point.volume,
+    }];
+  });
+}
+
+function mapStudyChartPoints(
+  points: ReturnType<typeof buildOhlcBarsSeries>["points"],
+  study: Required<OhlcBarsStudyConfig>,
+) {
+  const period = Math.max(2, Math.min(Math.trunc(Number(study.period) || 20), 500));
+  const closes = points.map((point) => point.close);
+
+  if (study.type === "ema") {
+    const multiplier = 2 / (period + 1);
+    let ema: number | null = null;
+    let rollingSum = 0;
+
+    return points.flatMap<OhlcLinePoint>((point, index) => {
+      rollingSum += closes[index] ?? 0;
+
+      if (index < period - 1) {
+        return [];
+      }
+
+      if (ema === null) {
+        ema = rollingSum / period;
+      } else {
+        ema = point.close * multiplier + ema * (1 - multiplier);
+      }
+
+      return [{
+        time: point.time as UTCTimestamp,
+        value: ema,
+      }];
+    });
+  }
+
+  let rollingSum = 0;
+
+  return points.flatMap<OhlcLinePoint>((point, index) => {
+    rollingSum += point.close;
+
+    if (index >= period) {
+      rollingSum -= closes[index - period] ?? 0;
+    }
+
+    if (index < period - 1) {
+      return [];
+    }
+
+    return [{
+      time: point.time as UTCTimestamp,
+      value: rollingSum / period,
+    }];
+  });
 }
 
 function EmptyState({
@@ -58,6 +156,13 @@ function EmptyState({
 
 export function OhlcBarsWidget({ props, instanceId }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<OhlcChartApi | null>(null);
+  const barsRef = useRef<OhlcSeriesApi | null>(null);
+  const volumeRef = useRef<OhlcSeriesApi | null>(null);
+  const studyRefs = useRef<OhlcSeriesApi[]>([]);
+  const hasFittedRef = useRef(false);
+  const lastPointCountRef = useRef(0);
+  const lastShapeKeyRef = useRef<string | null>(null);
   const { resolvedTokens } = useTheme();
 
   const normalizedProps = useMemo(
@@ -96,7 +201,41 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
     () => buildOhlcBarsSeries(linkedDataset?.rows ?? [], resolvedConfig),
     [linkedDataset?.rows, resolvedConfig],
   );
+  const deltaSeriesResult = useMemo(
+    () => buildOhlcBarsSeries(sourceBinding.resolvedSourceDeltaDataset?.rows ?? [], resolvedConfig),
+    [resolvedConfig, sourceBinding.resolvedSourceDeltaDataset?.rows],
+  );
+  const sourceUpdate = sourceBinding.resolvedSourceInput?.upstreamUpdate;
+  const chartUpdateMode =
+    sourceUpdate?.mode === "delta" &&
+    deltaSeriesResult.points.length > 0 &&
+    (sourceUpdate.operations?.pruned ?? 0) === 0
+      ? "delta"
+      : "snapshot";
+  const chartDataShapeKey = useMemo(
+    () =>
+      JSON.stringify({
+        closeField: resolvedConfig.closeField,
+        highField: resolvedConfig.highField,
+        lowField: resolvedConfig.lowField,
+        openField: resolvedConfig.openField,
+        studies: resolvedConfig.studies.map((study) => `${study.type}:${study.period}`).join("|"),
+        timeField: resolvedConfig.timeField,
+        volumeField: resolvedConfig.volumeField,
+      }),
+    [
+      resolvedConfig.closeField,
+      resolvedConfig.highField,
+      resolvedConfig.lowField,
+      resolvedConfig.openField,
+      resolvedConfig.studies,
+      resolvedConfig.timeField,
+      resolvedConfig.volumeField,
+    ],
+  );
   const hasRuntimeRows = (linkedDataset?.rows?.length ?? 0) > 0;
+  const hasChartablePoints = seriesResult.points.length > 0;
+  const hasVolume = Boolean(resolvedConfig.volumeField && seriesResult.volumePointCount > 0);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -140,8 +279,8 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
       },
       ...getChartSize(container),
     });
-
-    const bars = chart.addSeries(CandlestickSeries, {
+    chartRef.current = chart;
+    const priceSeries = chart.addSeries(CandlestickSeries, {
       upColor: resolvedTokens.success,
       downColor: resolvedTokens.danger,
       borderUpColor: resolvedTokens.success,
@@ -153,29 +292,130 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
       priceLineVisible: false,
       lastValueVisible: true,
     });
+    barsRef.current = priceSeries;
 
-    bars.setData(
-      seriesResult.points.map((point) => ({
-        close: point.close,
-        high: point.high,
-        low: point.low,
-        open: point.open,
-        time: point.time as UTCTimestamp,
-      })),
+    if (hasVolume) {
+      while (chart.panes().length <= 1) {
+        chart.addPane();
+      }
+
+      volumeRef.current = chart.addSeries(
+        HistogramSeries,
+        {
+          priceFormat: {
+            type: "volume",
+          },
+          priceLineVisible: false,
+          lastValueVisible: false,
+        },
+        1,
+      );
+      chart.panes()[0]?.setStretchFactor(4);
+      chart.panes()[1]?.setStretchFactor(1);
+    } else {
+      volumeRef.current = null;
+    }
+
+    const studyPalette = [
+      resolvedTokens.primary,
+      resolvedTokens.accent,
+      resolvedTokens.warning,
+      resolvedTokens.foreground,
+      resolvedTokens.success,
+    ];
+    studyRefs.current = resolvedConfig.studies.map((study, index) =>
+      chart.addSeries(LineSeries, {
+        color: studyPalette[index % studyPalette.length] ?? resolvedTokens.primary,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        title: `${study.type.toUpperCase()} ${study.period}`,
+      }),
     );
-    chart.timeScale().fitContent();
+
+    hasFittedRef.current = false;
+    lastPointCountRef.current = 0;
+    lastShapeKeyRef.current = null;
 
     const resizeObserver = new ResizeObserver(() => {
-      chart.applyOptions(getChartSize(container));
+      chartRef.current?.applyOptions(getChartSize(container));
     });
 
     resizeObserver.observe(container);
 
     return () => {
       resizeObserver.disconnect();
-      chart.remove();
+      barsRef.current = null;
+      volumeRef.current = null;
+      studyRefs.current = [];
+      chartRef.current?.remove();
+      chartRef.current = null;
     };
-  }, [resolvedTokens, seriesResult.points]);
+  }, [hasChartablePoints, hasVolume, resolvedConfig.studies, resolvedTokens]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    const bars = barsRef.current;
+    const volume = volumeRef.current;
+
+    if (!chart || !bars || seriesResult.points.length === 0) {
+      return;
+    }
+
+    const visibleRange = chart.timeScale().getVisibleLogicalRange();
+    const wasFollowingRightEdge =
+      !visibleRange || visibleRange.to >= lastPointCountRef.current - 2;
+    const forceSnapshot =
+      chartUpdateMode !== "delta" ||
+      deltaSeriesResult.points.length === 0 ||
+      lastShapeKeyRef.current !== chartDataShapeKey ||
+      resolvedConfig.studies.length > 0;
+
+    if (forceSnapshot) {
+      bars.setData(mapOhlcChartPoints(seriesResult.points));
+      volume?.setData(mapVolumeChartPoints(seriesResult.points, resolvedTokens));
+      studyRefs.current.forEach((studySeries, index) => {
+        const study = resolvedConfig.studies[index];
+
+        if (!study) {
+          studySeries.setData([]);
+          return;
+        }
+
+        studySeries.setData(mapStudyChartPoints(seriesResult.points, study));
+      });
+      lastShapeKeyRef.current = chartDataShapeKey;
+      lastPointCountRef.current = seriesResult.points.length;
+
+      if (!hasFittedRef.current || wasFollowingRightEdge || !visibleRange) {
+        chart.timeScale().fitContent();
+      } else {
+        chart.timeScale().setVisibleLogicalRange(visibleRange);
+      }
+
+      hasFittedRef.current = true;
+      return;
+    }
+
+    mapOhlcChartPoints(deltaSeriesResult.points).forEach((point) => {
+      bars.update(point, true);
+    });
+    mapVolumeChartPoints(deltaSeriesResult.points, resolvedTokens).forEach((point) => {
+      volume?.update(point, true);
+    });
+    lastPointCountRef.current = seriesResult.points.length;
+
+    if (!wasFollowingRightEdge && visibleRange) {
+      chart.timeScale().setVisibleLogicalRange(visibleRange);
+    }
+  }, [
+    chartDataShapeKey,
+    chartUpdateMode,
+    deltaSeriesResult.points,
+    resolvedConfig.studies,
+    resolvedTokens,
+    seriesResult.points,
+  ]);
 
   if (sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
     return (

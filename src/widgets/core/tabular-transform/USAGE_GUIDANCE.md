@@ -26,6 +26,9 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
 ## blockingRequirements
 
 - A compatible upstream tabular frame is required.
+- Incremental upstream sources expose retained rows through `upstreamBase` and changed rows through
+  `upstreamDelta`. Pass-through/projection transforms can publish transformed deltas; aggregate,
+  pivot, and unpivot modes recompute from the retained frame and publish a snapshot result.
 - Aggregate mode requires one or more key fields to reduce rows.
 - Pivot mode requires a pivot field and a value field.
 - Unpivot mode requires at least one value column.

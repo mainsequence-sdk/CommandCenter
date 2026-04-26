@@ -15,6 +15,10 @@ import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query
 import type { PrometheusPublicConfig } from "./index";
 
 interface ResolvedPrometheusConfig {
+  endpointMode: string;
+  authType: string;
+  projectId: string;
+  location: string;
   scrapeInterval: string;
   queryTimeout: string;
   defaultExploreLookback: string;
@@ -124,6 +128,10 @@ function getInitialPromql(connectionType: ConnectionExploreProps["connectionType
 
 function resolvePrometheusConfig(props: ConnectionExploreProps): ResolvedPrometheusConfig {
   return {
+    endpointMode: readConfigString(props, "endpointMode"),
+    authType: readConfigString(props, "authType"),
+    projectId: readConfigString(props, "projectId"),
+    location: readConfigString(props, "location"),
     scrapeInterval: readConfigString(props, "scrapeInterval"),
     queryTimeout: readConfigString(props, "queryTimeout"),
     defaultExploreLookback: readConfigString(props, "defaultExploreLookback"),
@@ -265,6 +273,14 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
             <Badge variant="neutral">timeout {config.queryTimeout}</Badge>
             <Badge variant="neutral">{config.httpMethod}</Badge>
             <Badge variant="neutral">series {config.seriesLimit.toLocaleString()}</Badge>
+            <Badge variant="neutral">{config.endpointMode || "prometheus-compatible"}</Badge>
+            <Badge variant="neutral">auth {config.authType || "none"}</Badge>
+            {config.endpointMode === "google-managed-prometheus" ? (
+              <>
+                <Badge variant="neutral">project {config.projectId || "not set"}</Badge>
+                <Badge variant="neutral">location {config.location || "global"}</Badge>
+              </>
+            ) : null}
             <Badge variant="neutral">{config.prometheusType}</Badge>
             <Badge variant="neutral">cache {config.cacheLevel}</Badge>
             {config.useSeriesEndpoint ? <Badge variant="neutral">series endpoint</Badge> : null}

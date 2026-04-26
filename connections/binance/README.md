@@ -41,7 +41,7 @@ Supported query kinds are:
 - `binance-usdm-futures-recent-trades`
 - `binance-usdm-futures-aggregate-trades`
 
-The backend owns symbol normalization, exchange-info validation, market-type authorization, provider timestamp handling, endpoint-specific limit caps, response normalization, cache-key dimensions, in-flight dedupe, and rejection of unsupported requests. The `symbols` resource returns exchange-info symbols for frontend selectors.
+The backend owns symbol normalization, exchange-info validation, market-type authorization, provider timestamp handling, endpoint-specific limit caps, response normalization, cache-key dimensions, in-flight dedupe, and rejection of unsupported requests. The query editor uses local symbol token entry; the `symbols` resource remains available for backend validation and optional metadata tooling but is not called before every query.
 
 ## Maintenance Constraints
 

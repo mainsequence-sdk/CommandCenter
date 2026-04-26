@@ -16,6 +16,9 @@ into one or more KPI-style cards.
 ## Behavior
 
 - The widget consumes one `core.tabular_frame@v1` input on `sourceData`.
+- The widget reads the resolved input's generic `upstreamBase` frame when an incremental upstream
+  source publishes retained base plus delta metadata. It recomputes cards from the retained
+  snapshot rather than applying row deltas directly.
 - Supported reductions are `last`, `first`, `max`, `min`, `sum`, `mean`, and `count`.
 - Optional grouping renders one card per group value.
 - Numeric cards can render a compact sparkline from the same incoming value field, including multi-card grouped layouts.

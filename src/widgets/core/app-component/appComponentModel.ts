@@ -1,4 +1,5 @@
 import type {
+  ResolvedWidgetInput,
   ResolvedWidgetInputs,
   WidgetContractId,
   WidgetInputResolutionStatus,
@@ -4979,6 +4980,10 @@ export function serializeAppComponentBoundFieldValue(
   }
 }
 
+function resolveWidgetInputBaseValue(input: ResolvedWidgetInput) {
+  return input.upstreamBase ?? input.value;
+}
+
 export function resolveAppComponentBoundInputOverlay(
   form: AppComponentGeneratedForm | null,
   draftValues: Record<string, string>,
@@ -5007,7 +5012,7 @@ export function resolveAppComponentBoundInputOverlay(
       (entry) => entry.binding || entry.status !== "unbound",
     );
     const firstValidValue = resolvedValues.find(
-      (entry) => entry.status === "valid" && entry.value !== undefined,
+      (entry) => entry.status === "valid" && resolveWidgetInputBaseValue(entry) !== undefined,
     );
 
     if (firstBoundEntry) {
@@ -5018,7 +5023,10 @@ export function resolveAppComponentBoundInputOverlay(
       continue;
     }
 
-    nextValues[field.key] = serializeAppComponentBoundFieldValue(field, firstValidValue.value);
+    nextValues[field.key] = serializeAppComponentBoundFieldValue(
+      field,
+      resolveWidgetInputBaseValue(firstValidValue),
+    );
   }
 
   return {
@@ -5049,7 +5057,7 @@ export function resolveAppComponentFieldBindingStates(
         (entry) => entry.binding || entry.status !== "unbound",
       );
       const firstValidValue = resolvedValues.find(
-        (entry) => entry.status === "valid" && entry.value !== undefined,
+        (entry) => entry.status === "valid" && resolveWidgetInputBaseValue(entry) !== undefined,
       );
 
       if (!firstBoundEntry) {
@@ -5066,7 +5074,7 @@ export function resolveAppComponentFieldBindingStates(
         status: firstBoundEntry.status,
         sourceWidgetId: firstBoundEntry.sourceWidgetId,
         sourceOutputId: firstBoundEntry.sourceOutputId,
-        value: firstValidValue?.value,
+        value: firstValidValue ? resolveWidgetInputBaseValue(firstValidValue) : undefined,
       } satisfies AppComponentFieldBindingState] as const;
     }),
   );

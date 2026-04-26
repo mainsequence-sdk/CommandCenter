@@ -127,6 +127,7 @@ export interface TabularWidgetSourceControllerContext<
   resolvedSourceWidget: DashboardWidgetRegistryEntry | null;
   resolvedConfig: TResolvedConfig;
   resolvedSourceDataset: TabularFrameSourceV1 | null;
+  resolvedSourceDeltaFrame: TabularFrameSourceV1 | null;
   resolvedSourceFrame: TabularFrameSourceV1 | null;
   resolvedSourceProps: TabularWidgetSourceProps;
   selectedTabularSourceDetailQuery: MinimalTabularDetailQuery;
@@ -145,6 +146,7 @@ export interface ResolvedTabularWidgetSourceBinding {
   referencedFilterWidget: DashboardWidgetRegistryEntry | null;
   requiresUpstreamResolution: boolean;
   resolvedSourceDataset: TabularFrameSourceV1 | null;
+  resolvedSourceDeltaFrame: TabularFrameSourceV1 | null;
   resolvedSourceFrame: TabularFrameSourceV1 | null;
   resolvedSourceInput: ReturnType<typeof useResolvedWidgetInput> extends infer T
     ? T extends readonly unknown[]
@@ -936,24 +938,35 @@ export function useResolvedTabularWidgetSourceBinding<
   );
   const resolvedSourceFrame = useMemo(
     () => {
-      const inputFrame = normalizeAnyTabularFrameSource(resolvedInputBinding?.value);
+      const inputFrame = normalizeAnyTabularFrameSource(
+        resolvedInputBinding?.upstreamBase ?? resolvedInputBinding?.value,
+      );
       const runtimeFrame = normalizeAnyTabularFrameSource(resolvedSourceWidget?.runtimeState);
 
       return inputFrame && !isEmptyTabularFrameSource(inputFrame)
         ? inputFrame
         : runtimeFrame ?? inputFrame;
     },
-    [resolvedInputBinding?.value, resolvedSourceWidget?.runtimeState],
+    [
+      resolvedInputBinding?.upstreamBase,
+      resolvedInputBinding?.value,
+      resolvedSourceWidget?.runtimeState,
+    ],
+  );
+  const resolvedSourceDeltaFrame = useMemo(
+    () => normalizeAnyTabularFrameSource(resolvedInputBinding?.upstreamDelta),
+    [resolvedInputBinding?.upstreamDelta],
   );
   const resolvedSourceDataset = resolvedSourceFrame;
+  const resolvedInputBaseValue = resolvedInputBinding?.upstreamBase ?? resolvedInputBinding?.value;
   const hasCanonicalSourceBinding = resolvedInputBinding?.sourceWidgetId != null;
   const resolvedSourceStatus =
     resolvedSourceDataset?.status ??
-    (resolvedInputBinding?.value === undefined ? "idle" : null);
+    (resolvedInputBaseValue === undefined ? "idle" : null);
   const isAwaitingBoundSourceValue = Boolean(
     hasCanonicalSourceBinding &&
       resolvedInputBinding?.status === "valid" &&
-      (resolvedInputBinding.value === undefined ||
+      (resolvedInputBaseValue === undefined ||
         resolvedSourceStatus === "idle" ||
         resolvedSourceStatus === "loading" ||
         isEmptyTabularFrameSource(resolvedSourceDataset)),
@@ -970,7 +983,7 @@ export function useResolvedTabularWidgetSourceBinding<
             sourceWidgetId: resolvedSourceWidgetId,
             inputStatus: resolvedInputBinding?.status,
             inputContractId: resolvedInputBinding?.contractId,
-            inputValue: summarizeSourceValueForDebug(resolvedInputBinding?.value),
+            inputValue: summarizeSourceValueForDebug(resolvedInputBaseValue),
             sourceRuntimeState: summarizeSourceValueForDebug(resolvedSourceWidget?.runtimeState),
             resolvedDataset: summarizeSourceValueForDebug(resolvedSourceDataset),
             resolvedSourceStatus,
@@ -982,6 +995,7 @@ export function useResolvedTabularWidgetSourceBinding<
       isAwaitingBoundSourceValue,
       resolvedInputBinding?.contractId,
       resolvedInputBinding?.status,
+      resolvedInputBaseValue,
       resolvedInputBinding?.value,
       resolvedSourceDataset,
       resolvedSourceStatus,
@@ -1017,6 +1031,7 @@ export function useResolvedTabularWidgetSourceBinding<
     requiresUpstreamResolution: isAwaitingBoundSourceValue,
     resolvedSourceWidget,
     resolvedSourceDataset,
+    resolvedSourceDeltaFrame,
     resolvedSourceFrame,
     resolvedSourceInput: resolvedInputBinding,
     resolvedSourceProps: normalizeTabularWidgetSourceProps(props),
@@ -1073,6 +1088,7 @@ export function useTabularWidgetSourceControllerContext<
     resolvedSourceWidget: sourceBinding.resolvedSourceWidget,
     resolvedConfig,
     resolvedSourceDataset: sourceBinding.resolvedSourceDataset,
+    resolvedSourceDeltaFrame: sourceBinding.resolvedSourceDeltaFrame,
     resolvedSourceFrame: sourceBinding.resolvedSourceFrame,
     resolvedSourceProps: sourceBinding.resolvedSourceProps,
     selectedTabularSourceDetailQuery: { data: null, isLoading: false },

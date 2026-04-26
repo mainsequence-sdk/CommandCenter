@@ -6,6 +6,7 @@ import type { EChartsOption, LineSeriesOption, BarSeriesOption } from "echarts";
 import { withAlpha } from "@/lib/color";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/themes/ThemeProvider";
+import type { WidgetRuntimeUpdateMode } from "@/widgets/shared/runtime-update";
 
 import { normalizeGraphSeries } from "./graphModel";
 import type {
@@ -321,23 +322,31 @@ function buildSeparateAxesChartOption(args: {
 export function EChartsSeriesChart({
   chartType,
   className,
+  dataShapeKey,
+  deltaSeries = [],
   emptyMessage = "No chartable rows are available for the selected configuration.",
   normalizationTimeMs,
   series,
   seriesAxisMode = "shared",
   timeAxisMode = "datetime",
   transparentSurface = false,
+  updateMode = "snapshot",
 }: {
   chartType: GraphChartType;
   className?: string;
+  dataShapeKey?: string;
+  deltaSeries?: GraphSeries[];
   emptyMessage?: string;
   normalizationTimeMs?: GraphNormalizationAnchor;
   series: GraphSeries[];
   seriesAxisMode?: GraphSeriesAxisMode;
   timeAxisMode?: Exclude<GraphTimeAxisMode, "auto">;
   transparentSurface?: boolean;
+  updateMode?: WidgetRuntimeUpdateMode;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<echarts.ECharts | null>(null);
+  const lastStructureKeyRef = useRef<string | null>(null);
   const [chartError, setChartError] = useState<string | null>(null);
   const { resolvedTokens } = useTheme();
 
@@ -380,39 +389,22 @@ export function EChartsSeriesChart({
       return;
     }
 
-    let chart: echarts.ECharts | null = null;
     let resizeObserver: ResizeObserver | null = null;
 
     try {
-      chart = echarts.init(container, undefined, {
+      chartRef.current = echarts.init(container, undefined, {
         renderer: "canvas",
       });
 
-      const option = separateAxes
-        ? buildSeparateAxesChartOption({
-            chartType,
-            series: themedSeries,
-            timeAxisMode,
-            tokens: resolvedTokens,
-          })
-        : buildSharedChartOption({
-            chartType,
-            emptyMessage,
-            series: themedSeries,
-            timeAxisMode,
-            tokens: resolvedTokens,
-          });
-
-      chart.setOption(option, true);
-
       resizeObserver = new ResizeObserver(() => {
-        chart?.resize();
+        chartRef.current?.resize();
       });
       resizeObserver.observe(container);
       setChartError(null);
     } catch (error) {
       resizeObserver?.disconnect();
-      chart?.dispose();
+      chartRef.current?.dispose();
+      chartRef.current = null;
       setChartError(
         error instanceof Error
           ? error.message
@@ -423,9 +415,67 @@ export function EChartsSeriesChart({
 
     return () => {
       resizeObserver?.disconnect();
-      chart?.dispose();
+      chartRef.current?.dispose();
+      chartRef.current = null;
+      lastStructureKeyRef.current = null;
     };
-  }, [chartType, emptyMessage, resolvedTokens, separateAxes, themedSeries, timeAxisMode]);
+  }, [themedSeries.length]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+
+    if (!chart || themedSeries.length === 0) {
+      return;
+    }
+
+    const option = separateAxes
+      ? buildSeparateAxesChartOption({
+          chartType,
+          series: themedSeries,
+          timeAxisMode,
+          tokens: resolvedTokens,
+        })
+      : buildSharedChartOption({
+          chartType,
+          emptyMessage,
+          series: themedSeries,
+          timeAxisMode,
+          tokens: resolvedTokens,
+        });
+    const structureKey = JSON.stringify({
+      chartType,
+      dataShapeKey,
+      separateAxes,
+      series: themedSeries.map((entry) => ({
+        color: entry.color,
+        id: entry.id,
+        label: entry.label,
+        lineStyle: entry.lineStyle,
+      })),
+      timeAxisMode,
+    });
+    const canMerge =
+      updateMode === "delta" &&
+      deltaSeries.length > 0 &&
+      lastStructureKeyRef.current === structureKey;
+
+    chart.setOption(option, {
+      lazyUpdate: true,
+      notMerge: !canMerge,
+    });
+    lastStructureKeyRef.current = structureKey;
+    setChartError(null);
+  }, [
+    chartType,
+    dataShapeKey,
+    deltaSeries.length,
+    emptyMessage,
+    resolvedTokens,
+    separateAxes,
+    themedSeries,
+    timeAxisMode,
+    updateMode,
+  ]);
 
   if (themedSeries.length === 0) {
     return (

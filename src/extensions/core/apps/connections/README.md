@@ -20,6 +20,12 @@ registered by `src/extensions/connections/index.ts` as a standalone extension ga
 - The generic Explore surface uses `src/connections/ConnectionQueryWorkbench.tsx`, matching the
   workspace Connection Query widget settings path for connection path selection, typed query
   editors, generated request preview, test execution, and normalized frame preview.
+- The Explore surface renders a shared health-test action next to the selected data source before
+  any connector-specific Explore shell, so all Explore views can validate backend connection health
+  through the same `testConnection` route.
+- The Explore surface also renders a shared connection detail panel. It is opened from the selected
+  data-source header and shows instance metadata, connection type description, query models,
+  examples, and the Markdown `usageGuidance` published by the connection definition.
 - Registry publishing is owned by Admin Settings through
   `src/app/registry/connection-type-sync.ts`.
 - Local fallback records are not part of this app. Data Sources and Explore show only instances

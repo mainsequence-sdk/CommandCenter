@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Database, Search } from "lucide-react";
+import { ArrowLeft, BookOpenText, Database, HeartPulse, Search } from "lucide-react";
 
 import {
   getConnectionRuntimeDefinition,
@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MarkdownContent } from "@/components/ui/markdown-content";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -31,6 +32,7 @@ import { useConnectionInstances, useConnectionTypes } from "@/connections/hooks"
 import type {
   AnyConnectionTypeDefinition,
   ConnectionConfigSchema,
+  ConnectionSchemaField,
   ConnectionInstance,
 } from "@/connections/types";
 import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
@@ -39,12 +41,32 @@ import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 type ConnectionsPageMode = "add-new" | "data-sources" | "explore";
 const dataSourceRowGridClass =
   "lg:grid-cols-[minmax(260px,1.35fr)_minmax(160px,0.9fr)_minmax(180px,1fr)_120px_150px_90px_220px]";
+const multilineSecretFieldIds = new Set([
+  "serviceAccountJson",
+  "caCertificate",
+  "clientCertificate",
+  "clientKey",
+]);
 
 function formatInstanceStatus(instance: ConnectionInstance) {
   if (instance.status === "ok") return "Healthy";
   if (instance.status === "error") return "Error";
   if (instance.status === "disabled") return "Disabled";
   return "Unknown";
+}
+
+function formatConnectionStatus(status: ConnectionInstance["status"]) {
+  if (status === "ok") return "Healthy";
+  if (status === "error") return "Error";
+  if (status === "disabled") return "Disabled";
+  return "Unknown";
+}
+
+function getConnectionStatusBadgeVariant(status: ConnectionInstance["status"]) {
+  if (status === "ok") return "success";
+  if (status === "error") return "danger";
+  if (status === "disabled") return "warning";
+  return "neutral";
 }
 
 function EmptyCard({
@@ -200,11 +222,20 @@ function slugify(value: string) {
 function parseSchemaValues(
   schema: ConnectionConfigSchema | undefined,
   values: Record<string, string>,
-  options: { omitEmpty: boolean; allowEmptyRequired?: boolean },
+  options: {
+    omitEmpty: boolean;
+    allowEmptyRequired?: boolean;
+    visibilityValues?: Record<string, string>;
+  },
 ) {
   const output: Record<string, unknown> = {};
+  const visibilityValues = options.visibilityValues ?? values;
 
   for (const field of schema?.fields ?? []) {
+    if (!isSchemaFieldVisible(field, visibilityValues)) {
+      continue;
+    }
+
     const rawValue = values[field.id]?.trim() ?? "";
 
     if (!rawValue && field.required && !options.allowEmptyRequired) {
@@ -245,6 +276,36 @@ function parseSchemaValues(
   return output;
 }
 
+function normalizeVisibilityValue(value: unknown) {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value;
+  return String(value);
+}
+
+function isSchemaFieldVisible(
+  field: ConnectionSchemaField,
+  values: Record<string, string>,
+) {
+  const rules = field.visibleWhen
+    ? Array.isArray(field.visibleWhen)
+      ? field.visibleWhen
+      : [field.visibleWhen]
+    : [];
+
+  return rules.every((rule) => {
+    const value = normalizeVisibilityValue(values[rule.fieldId]);
+
+    if (rule.equals === undefined) {
+      return true;
+    }
+
+    const expectedValues = Array.isArray(rule.equals) ? rule.equals : [rule.equals];
+    return expectedValues.some(
+      (expected) => value === normalizeVisibilityValue(expected),
+    );
+  });
+}
+
 function ConfigFieldInput({
   field,
   value,
@@ -256,6 +317,18 @@ function ConfigFieldInput({
   onChange: (value: string) => void;
   secret?: boolean;
 }) {
+  if (secret && multilineSecretFieldIds.has(field.id)) {
+    return (
+      <Textarea
+        className="min-h-36 font-mono text-xs"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={field.label}
+        spellCheck={false}
+      />
+    );
+  }
+
   if (field.type === "select") {
     return (
       <Select value={value} onChange={(event) => onChange(event.target.value)}>
@@ -300,8 +373,11 @@ function ConfigFieldInput({
   );
 }
 
-function getSchemaFieldGroups(schema?: ConnectionConfigSchema) {
-  const fields = schema?.fields ?? [];
+function getSchemaFieldGroups(
+  schema: ConnectionConfigSchema | undefined,
+  values: Record<string, string>,
+) {
+  const fields = (schema?.fields ?? []).filter((field) => isSchemaFieldVisible(field, values));
   const sections = schema?.sections ?? [];
   const sectionIds = new Set(sections.map((section) => section.id));
   const groups = sections
@@ -335,6 +411,7 @@ function SchemaFieldsForm({
   onFieldChange,
   secret = false,
   secureFields,
+  visibilityValues,
 }: {
   title: string;
   schema?: ConnectionConfigSchema;
@@ -342,8 +419,9 @@ function SchemaFieldsForm({
   onFieldChange: (fieldId: string, value: string) => void;
   secret?: boolean;
   secureFields?: Record<string, boolean>;
+  visibilityValues?: Record<string, string>;
 }) {
-  const groups = getSchemaFieldGroups(schema);
+  const groups = getSchemaFieldGroups(schema, visibilityValues ?? values);
 
   if (groups.length === 0) {
     return null;
@@ -478,9 +556,11 @@ function CreateConnectionPanel({
         workspaceId: null,
         publicConfig: parseSchemaValues(selectedType.publicConfigSchema, publicValues, {
           omitEmpty: false,
+          visibilityValues: publicValues,
         }),
         secureConfig: parseSchemaValues(selectedType.secureConfigSchema, secureValues, {
           omitEmpty: true,
+          visibilityValues: { ...publicValues, ...secureValues },
         }),
       });
     },
@@ -551,6 +631,7 @@ function CreateConnectionPanel({
               title="Configuration"
               schema={selectedType.publicConfigSchema}
               values={publicValues}
+              visibilityValues={publicValues}
               onFieldChange={(fieldId, value) =>
                 setPublicValues((current) => ({ ...current, [fieldId]: value }))
               }
@@ -562,6 +643,7 @@ function CreateConnectionPanel({
             schema={selectedType.secureConfigSchema}
             values={secureValues}
             secret
+            visibilityValues={{ ...publicValues, ...secureValues }}
             onFieldChange={(fieldId, value) =>
               setSecureValues((current) => ({ ...current, [fieldId]: value }))
             }
@@ -636,10 +718,12 @@ function EditConnectionPanel({
         description: description.trim(),
         publicConfig: parseSchemaValues(selectedType.publicConfigSchema, publicValues, {
           omitEmpty: false,
+          visibilityValues: publicValues,
         }),
         secureConfig: parseSchemaValues(selectedType.secureConfigSchema, secureValues, {
           omitEmpty: true,
           allowEmptyRequired: true,
+          visibilityValues: { ...publicValues, ...secureValues },
         }),
       });
     },
@@ -709,6 +793,7 @@ function EditConnectionPanel({
               title="Configuration"
               schema={selectedType.publicConfigSchema}
               values={publicValues}
+              visibilityValues={publicValues}
               onFieldChange={(fieldId, value) =>
                 setPublicValues((current) => ({ ...current, [fieldId]: value }))
               }
@@ -721,6 +806,7 @@ function EditConnectionPanel({
             values={secureValues}
             secret
             secureFields={instance.secureFields}
+            visibilityValues={{ ...publicValues, ...secureValues }}
             onFieldChange={(fieldId, value) =>
               setSecureValues((current) => ({ ...current, [fieldId]: value }))
             }
@@ -857,6 +943,250 @@ function buildConnectionExploreDefaultRange() {
   const rangeStartMs = rangeEndMs - 24 * 60 * 60 * 1000;
 
   return { rangeStartMs, rangeEndMs };
+}
+
+function ExploreHealthTestControl({ instance }: { instance: ConnectionInstance }) {
+  const queryClient = useQueryClient();
+  const testMutation = useMutation({
+    mutationFn: () => testConnection(instance.uid),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
+    },
+  });
+  const healthResult = testMutation.data;
+  const status = healthResult?.status ?? instance.status;
+  const message =
+    testMutation.error instanceof Error
+      ? testMutation.error.message
+      : healthResult?.message ?? instance.statusMessage;
+  const checkedAt = healthResult?.checkedAt ?? instance.lastHealthCheckAt;
+
+  return (
+    <div className="flex flex-col gap-2 lg:items-end">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={getConnectionStatusBadgeVariant(status)}>
+          {formatConnectionStatus(status)}
+        </Badge>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="min-w-[8.5rem] whitespace-nowrap"
+          disabled={testMutation.isPending}
+          onClick={() => testMutation.mutate()}
+        >
+          <HeartPulse className="h-4 w-4" />
+          {testMutation.isPending ? "Testing" : "Test health"}
+        </Button>
+      </div>
+      <div
+        className={`max-w-xl text-xs leading-5 ${
+          testMutation.error ? "text-danger" : "text-muted-foreground"
+        } lg:text-right`}
+      >
+        {message ? (
+          <span>{message}</span>
+        ) : checkedAt ? (
+          <span>Last checked {checkedAt}</span>
+        ) : (
+          <span>Health has not been checked yet.</span>
+        )}
+        {healthResult?.latencyMs !== undefined ? (
+          <span> · {Math.round(healthResult.latencyMs)} ms</span>
+        ) : null}
+        {healthResult?.traceId ? (
+          <span> · trace {healthResult.traceId}</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function formatJsonForDetails(value: unknown) {
+  try {
+    return JSON.stringify(value ?? {}, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function ConnectionDetailPanel({
+  instance,
+  connectionType,
+  onBack,
+}: {
+  instance: ConnectionInstance;
+  connectionType: AnyConnectionTypeDefinition;
+  onBack: () => void;
+}) {
+  const queryModels = connectionType.queryModels ?? [];
+  const examples = connectionType.examples ?? [];
+
+  return (
+    <Card className="relative z-0">
+      <CardHeader>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <ConnectionTypeIcon
+              title={connectionType.title}
+              iconUrl={getConnectionIconUrl(connectionType)}
+              className="h-10 w-10"
+            />
+            <div className="min-w-0 space-y-2">
+              <CardTitle>Connection details</CardTitle>
+              <CardDescription>
+                {connectionType.title} · <span className="font-mono">{instance.uid}</span>
+              </CardDescription>
+            </div>
+          </div>
+          <Button type="button" variant="outline" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to Explore
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.55fr)]">
+          <div className="min-w-0 space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Description
+            </div>
+            <p className="text-sm leading-6 text-foreground">{connectionType.description}</p>
+            {instance.description ? (
+              <p className="text-sm leading-6 text-muted-foreground">
+                {instance.description}
+              </p>
+            ) : null}
+          </div>
+          <div className="grid gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 p-4 text-xs">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Type</span>
+              <span className="font-mono text-foreground">
+                {connectionType.id}@v{connectionType.version}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Source</span>
+              <span className="font-mono text-foreground">{connectionType.source}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Category</span>
+              <span className="text-foreground">{connectionType.category}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Access</span>
+              <span className="font-mono text-foreground">{connectionType.accessMode}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Status</span>
+              <Badge variant={getConnectionStatusBadgeVariant(instance.status)}>
+                {formatConnectionStatus(instance.status)}
+              </Badge>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Capabilities
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {connectionType.capabilities.map((capability) => (
+              <Badge key={capability} variant="neutral">
+                {capability}
+              </Badge>
+            ))}
+            {(connectionType.tags ?? []).map((tag) => (
+              <Badge key={tag} variant="secondary">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        </section>
+
+        {queryModels.length > 0 ? (
+          <section className="space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Query models
+            </div>
+            <div className="overflow-x-auto rounded-[calc(var(--radius)-6px)] border border-border/70">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead className="bg-muted/45 text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Model</th>
+                    <th className="px-4 py-3 font-medium">Output</th>
+                    <th className="px-4 py-3 font-medium">Behavior</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {queryModels.map((model) => (
+                    <tr key={model.id} className="border-t border-border/70">
+                      <td className="px-4 py-3 align-top">
+                        <div className="font-medium text-foreground">{model.label}</div>
+                        <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+                          {model.id}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 align-top font-mono text-[11px] text-muted-foreground">
+                        {model.outputContracts.join(", ")}
+                      </td>
+                      <td className="px-4 py-3 align-top text-muted-foreground">
+                        {[
+                          model.timeRangeAware ? "time range" : undefined,
+                          model.supportsVariables ? "variables" : undefined,
+                          model.supportsMaxRows ? "max rows" : undefined,
+                        ]
+                          .filter(Boolean)
+                          .join(", ") || "standard"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+
+        {examples.length > 0 ? (
+          <section className="space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Examples
+            </div>
+            <div className="space-y-3">
+              {examples.map((example, index) => (
+                <details
+                  key={`${example.title}-${index}`}
+                  className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35"
+                >
+                  <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-foreground">
+                    {example.title}
+                  </summary>
+                  <pre className="m-0 overflow-x-auto border-t border-border/70 p-4 font-mono text-xs leading-6 text-muted-foreground">
+                    {formatJsonForDetails(example)}
+                  </pre>
+                </details>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <section className="space-y-3">
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            User guide
+          </div>
+          {connectionType.usageGuidance?.trim() ? (
+            <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 p-4">
+              <MarkdownContent content={connectionType.usageGuidance} />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              This connection type does not publish usage guidance.
+            </p>
+          )}
+        </section>
+      </CardContent>
+    </Card>
+  );
 }
 
 function AddNewConnectionContent() {
@@ -1075,12 +1405,17 @@ function ExploreContent({
   const CustomExplore = selectedType?.exploreComponent;
   const defaultRange = useMemo(() => buildConnectionExploreDefaultRange(), [selectedUid]);
   const [exploreQueryProps, setExploreQueryProps] = useState<ConnectionQueryWidgetProps>({});
+  const [showConnectionDetails, setShowConnectionDetails] = useState(false);
 
   useEffect(() => {
     if (!selectedUid && instances.length > 0) {
       setSelectedUid(instances[0]!.uid);
     }
   }, [instances, selectedUid]);
+
+  useEffect(() => {
+    setShowConnectionDetails(false);
+  }, [selectedUid]);
 
   useEffect(() => {
     if (!selectedInstance) {
@@ -1126,23 +1461,51 @@ function ExploreContent({
         <div className="space-y-4">
           <Card className="relative z-30 overflow-visible">
             <CardContent className="pt-5">
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Data source</span>
-                <ConnectionPicker
-                  value={
-                    selectedInstance
-                      ? { uid: selectedInstance.uid, typeId: selectedInstance.typeId }
-                      : undefined
-                  }
-                  onChange={(nextRef) => setSelectedUid(nextRef?.uid ?? "")}
-                  accepts={{ capabilities: ["query"] }}
-                  placeholder="Select a data source"
-                />
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Data source</span>
+                  <ConnectionPicker
+                    value={
+                      selectedInstance
+                        ? { uid: selectedInstance.uid, typeId: selectedInstance.typeId }
+                        : undefined
+                    }
+                    onChange={(nextRef) => setSelectedUid(nextRef?.uid ?? "")}
+                    accepts={{ capabilities: ["query"] }}
+                    placeholder="Select a data source"
+                  />
+                </div>
+                {selectedInstance ? (
+                  <div className="flex flex-col gap-3 lg:items-end">
+                    <ExploreHealthTestControl
+                      key={selectedInstance.uid}
+                      instance={selectedInstance}
+                    />
+                    {selectedType ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={showConnectionDetails ? "default" : "outline"}
+                        className="min-w-[10.5rem] whitespace-nowrap"
+                        onClick={() => setShowConnectionDetails((current) => !current)}
+                      >
+                        <BookOpenText className="h-4 w-4" />
+                        {showConnectionDetails ? "Hide details" : "Connection details"}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </CardContent>
           </Card>
 
-          {CustomExplore && selectedInstance && selectedType ? (
+          {showConnectionDetails && selectedInstance && selectedType ? (
+            <ConnectionDetailPanel
+              instance={selectedInstance}
+              connectionType={selectedType}
+              onBack={() => setShowConnectionDetails(false)}
+            />
+          ) : CustomExplore && selectedInstance && selectedType ? (
             <CustomExplore connectionInstance={selectedInstance} connectionType={selectedType} />
           ) : selectedInstance && selectedType ? (
             <Card className="relative z-0">

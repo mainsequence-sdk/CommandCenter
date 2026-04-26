@@ -86,7 +86,9 @@ export function TabularTransformWidgetSettings({
   const sourceEntry = Array.isArray(sourceInput)
     ? sourceInput.find((entry) => entry.status === "valid")
     : sourceInput;
-  const sourceFrame = normalizeTabularFrameSource(sourceEntry?.value);
+  const sourceFrame = normalizeTabularFrameSource(
+    sourceEntry?.upstreamBase ?? sourceEntry?.value,
+  );
   const availableColumns = useMemo(
     () => sourceFrame?.columns ?? [],
     [sourceFrame?.columns],

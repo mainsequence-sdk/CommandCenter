@@ -18,6 +18,8 @@ This directory contains the ECharts-backed widget modules used by the live widge
   is merged over the saved widget props before the ECharts option is compiled, so AppComponent and
   other JSON-producing widgets can publish a full chart config into this widget. Upstream payloads
   can provide the chart spec either as `optionJson` or directly as a structured `option` object.
+- When a bound upstream source publishes incremental metadata, the widget reads the retained
+  `upstreamBase` JSON value. It does not apply partial deltas to an existing ECharts option.
 - The widget is the first frontend widget to opt into `organizationConfiguration`. It publishes a
   widget-type schema, a default organization configuration, and runtime enforcement of the resolved
   organization override row.

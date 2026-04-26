@@ -80,6 +80,9 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   fields stay full-width and scroll remains the fallback.
 - Dynamic bindings are compiled from the selected endpoint in settings and resolved synchronously
   from saved widget props at graph/binding time.
+- Bound request inputs read the resolved input's generic `upstreamBase` value when an upstream
+  source publishes retained base plus delta metadata. AppComponent does not consume deltas
+  incrementally; request execution uses the current resolved base value.
 - Settings still own endpoint selection and binding compilation, but runtime and shared execution
   now prefer a live OpenAPI-backed generated form when the configured endpoint is reachable. That
   is the upgrade path for stale saved compiled forms that predate newer field-render metadata. If

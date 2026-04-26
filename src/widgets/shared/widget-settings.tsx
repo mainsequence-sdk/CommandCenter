@@ -379,6 +379,7 @@ function WidgetSettingsAdvancedSections<
     widget.settingsComponent as
       | ComponentType<WidgetSettingsComponentProps<TProps>>
       | undefined;
+  const renderSchemaAutomatically = widget.settingsSchemaPlacement !== "custom";
   const controllerContext = useResolvedWidgetControllerContext(widget, {
     props: resolvedDraftProps,
     instanceId: instance.id,
@@ -388,7 +389,7 @@ function WidgetSettingsAdvancedSections<
 
   const content = (
     <>
-      {widget.schema ? (
+      {renderSchemaAutomatically && widget.schema ? (
         <WidgetSchemaForm
           widget={widget}
           draftProps={resolvedDraftProps}
@@ -460,7 +461,6 @@ export function WidgetSettingsPanel<
   onSave,
   panelDescription = "Adjust the display title and widget props for this instance.",
   panelTitle,
-  persistenceNote,
   secondaryActionLabel,
   widget,
 }: WidgetSettingsPanelProps<TProps>) {
@@ -837,28 +837,6 @@ export function WidgetSettingsPanel<
         </div>
       </div>
       <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
-        {persistenceNote ? (
-          <div className="rounded-[calc(var(--radius)-2px)] border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-            {persistenceNote}
-          </div>
-        ) : null}
-
-        {showPanelPreview ? (
-          <WidgetPanelPreview
-            demoMode={demoModeActive}
-            hasDemoPreview={hasDemoPreview}
-            instanceId={instance.id}
-            instanceTitle={activeInstanceTitle.trim() || (demoModeActive ? mockTitle : widget.title)}
-            onDemoModeChange={setUseDemoData}
-            onRuntimeStateChange={demoModeActive ? setDemoDraftRuntimeState : undefined}
-            previewResolvedInputs={activeResolvedInputs}
-            previewRuntimeState={activePreviewRuntimeState}
-            props={activeDraftProps}
-            presentation={effectiveActiveDraftPresentation}
-            widget={widget}
-          />
-        ) : null}
-
         <section className="space-y-3">
           <div>
             <div className="text-sm font-medium text-topbar-foreground">Display title</div>
@@ -929,6 +907,22 @@ export function WidgetSettingsPanel<
             ]}
           />
         </div>
+
+        {showPanelPreview ? (
+          <WidgetPanelPreview
+            demoMode={demoModeActive}
+            hasDemoPreview={hasDemoPreview}
+            instanceId={instance.id}
+            instanceTitle={activeInstanceTitle.trim() || (demoModeActive ? mockTitle : widget.title)}
+            onDemoModeChange={setUseDemoData}
+            onRuntimeStateChange={demoModeActive ? setDemoDraftRuntimeState : undefined}
+            previewResolvedInputs={activeResolvedInputs}
+            previewRuntimeState={activePreviewRuntimeState}
+            props={activeDraftProps}
+            presentation={effectiveActiveDraftPresentation}
+            widget={widget}
+          />
+        ) : null}
 
         {hasAdvancedSections ? (
           heavySectionsReady ? (

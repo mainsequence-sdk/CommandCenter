@@ -243,7 +243,8 @@ Connects widgets and Explore flows to Binance public market data for spot and US
 ### symbols
 
 - Payload: optional backend-owned market metadata filters.
-- Returns: exchange-info symbols for frontend selectors.
+- Returns: exchange-info symbols for backend validation and optional metadata tooling.
+- Notes: query editors use local token entry for symbols and must not prefetch this resource before every query.
 
 ## backendOwnership
 

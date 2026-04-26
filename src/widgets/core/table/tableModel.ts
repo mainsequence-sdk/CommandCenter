@@ -149,7 +149,7 @@ export function resolveTableWidgetSourceDataset(
   const candidate = resolveTableWidgetSourceInput(resolvedInputs);
 
   return candidate?.status === "valid"
-    ? normalizeAnyTabularFrameSource(candidate.value)
+    ? normalizeAnyTabularFrameSource(candidate.upstreamBase ?? candidate.value)
     : null;
 }
 

@@ -27,6 +27,8 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, or manually authore
 ## blockingRequirements
 
 - Bound mode requires a compatible upstream `core.tabular_frame@v1` binding.
+- When the upstream source publishes incremental metadata, the table consumes the retained
+  full `upstreamBase` frame and renders it as a snapshot.
 - Manual mode requires at least one manual column before the table can render a schema.
 - The incoming frame must normalize to table rows. Canonical frames provide `columns: string[]` and `rows: Array<Record<string, unknown>>`.
 - Legacy backend time-series frames are coerced to canonical tabular rows before rendering.

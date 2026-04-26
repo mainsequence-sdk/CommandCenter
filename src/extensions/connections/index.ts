@@ -88,6 +88,8 @@ const connectionsApp: AppDefinition = {
           "User is on Explore. This page runs live query requests against configured data sources.",
         availableActions: [
           "Select a configured data source",
+          "Open the selected connection's detail and usage guide",
+          "Test selected connection health",
           "Use the selected connection type's Explore editor",
           "Run a connection query",
           "Inspect the normalized response",

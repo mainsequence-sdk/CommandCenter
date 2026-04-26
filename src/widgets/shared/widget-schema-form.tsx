@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { Link2, Link2Off } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -91,8 +91,8 @@ export function WidgetSchemaForm<
                   <div
                     key={field.id}
                     className={cn(
-                      "space-y-2 border-border/40 pt-4 first:border-t-0 first:pt-0",
-                      field.settingsColumnSpan === 1 ? "border-t md:col-span-1" : "border-t md:col-span-2",
+                      "min-w-0 space-y-2",
+                      field.settingsColumnSpan === 1 ? "md:col-span-1" : "md:col-span-2",
                     )}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -106,10 +106,25 @@ export function WidgetSchemaForm<
                       {canPop ? (
                         <Button
                           type="button"
-                          size="sm"
-                          variant={fieldState.visible ? "default" : "outline"}
+                          size="icon"
+                          variant="ghost"
                           disabled={!editable}
-                          className="shrink-0"
+                          aria-label={
+                            fieldState.visible
+                              ? `Hide ${field.label} on canvas`
+                              : `Show ${field.label} on canvas`
+                          }
+                          title={
+                            fieldState.visible
+                              ? `Hide ${field.label} on canvas`
+                              : `Show ${field.label} on canvas`
+                          }
+                          className={cn(
+                            "h-8 w-8 shrink-0 border",
+                            fieldState.visible
+                              ? "border-primary/55 bg-primary/12 text-primary hover:bg-primary/16 hover:text-primary"
+                              : "border-border/70 text-muted-foreground hover:border-primary/45 hover:text-foreground",
+                          )}
                           onClick={() => {
                             onDraftPresentationChange(
                               updateWidgetFieldExposure(
@@ -121,12 +136,7 @@ export function WidgetSchemaForm<
                             );
                           }}
                         >
-                          {fieldState.visible ? (
-                            <Link2 className="h-3.5 w-3.5" />
-                          ) : (
-                            <Link2Off className="h-3.5 w-3.5" />
-                          )}
-                          {fieldState.visible ? "Shown on canvas" : "Show on canvas"}
+                          <LayoutDashboard className="h-3.5 w-3.5" />
                         </Button>
                       ) : null}
                     </div>

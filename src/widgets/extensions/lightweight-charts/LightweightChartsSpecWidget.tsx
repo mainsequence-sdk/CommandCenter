@@ -266,10 +266,16 @@ function readResolvedInputValue(
 
   if (Array.isArray(resolvedInput)) {
     const firstValidEntry = resolvedInput.find((entry) => entry.status === "valid");
-    return firstValidEntry?.value;
+    return firstValidEntry
+      ? firstValidEntry.upstreamBase ?? firstValidEntry.value
+      : undefined;
   }
 
-  return (resolvedInput as ResolvedWidgetInput).status === "valid" ? resolvedInput.value : undefined;
+  const singleInput = resolvedInput as ResolvedWidgetInput;
+
+  return singleInput.status === "valid"
+    ? singleInput.upstreamBase ?? singleInput.value
+    : undefined;
 }
 
 function resolveEffectiveWidgetProps(

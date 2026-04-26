@@ -17,6 +17,10 @@ line, area, or bar chart.
 ## Behavior
 
 - The widget consumes one `core.tabular_frame@v1` input on `sourceData`.
+- The shared source binding exposes retained `upstreamBase` frames and optional
+  `upstreamDelta` frames. When the incoming update is delta-safe, the chart renderer keeps its
+  mounted chart instance and appends or updates projected points instead of rebuilding from the
+  retained snapshot.
 - Authors must explicitly choose X and Y fields; grouping is optional and explicit.
 - Provider selection is local to the widget: TradingView Lightweight Charts or ECharts.
 - Normalization, per-series colors, and line styles are chart-local and do not mutate upstream data.

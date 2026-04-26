@@ -24,6 +24,9 @@ Line, area, or bar chart for a bound `core.tabular_frame@v1` dataset.
 ## blockingRequirements
 
 - A compatible upstream binding is required before field selectors become meaningful.
+- Incremental upstream sources expose retained rows through `upstreamBase` and changed rows through
+  `upstreamDelta`. When the update is safe for incremental rendering, the graph appends or replaces
+  projected points while preserving the mounted chart instance and visible range.
 - Tabular sources need a selected Y field with numeric values.
 - Tabular time rendering requires an X field that can be interpreted as date or datetime values.
 

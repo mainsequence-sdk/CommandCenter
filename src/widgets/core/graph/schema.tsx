@@ -134,14 +134,14 @@ export const graphSettingsSchema: WidgetSettingsSchema<
   selectionHelpText: "Bind this chart to the source you want to visualize.",
   additionalSections: [
     {
-      id: "visualization",
-      title: "Visualization",
-      description: "Choose how the mounted chart should render the selected data.",
-    },
-    {
       id: "field-mapping",
       title: "Field mapping",
       description: "Map tabular fields to the chart X axis, Y axis, and optional grouping field.",
+    },
+    {
+      id: "visualization",
+      title: "Visualization",
+      description: "Choose how the mounted chart should render the selected data.",
     },
   ],
   additionalFields: [

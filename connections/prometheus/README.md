@@ -16,9 +16,10 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
 
 ## Behavior
 
-- The connection type exposes datasource configuration for endpoint, authentication mode, TLS,
-  advanced HTTP behavior, alerting flags, interval behavior, editor defaults, performance controls,
-  query transport, series limits, metadata endpoint selection, and Explore defaults.
+- The connection type exposes datasource configuration for endpoint mode, authentication mode,
+  Google Managed Service for Prometheus project/location, TLS, advanced HTTP behavior, alerting
+  flags, interval behavior, editor defaults, performance controls, query transport, series limits,
+  metadata endpoint selection, and Explore defaults.
 - The connection type uses `src/connections/assets/prometheus-logo.svg`, downloaded from the
   official Prometheus docs repository asset
   `static/prometheus_logo_orange_circle.svg` under the Prometheus docs Apache 2.0 license.
@@ -44,7 +45,25 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
 
 - Keep Prometheus out of `extensions/`; it should appear to users only through the shared
   Connections app.
-- Do not render or persist secret values. Bearer tokens are write-only secure config fields on
-  backend-owned connection instances.
+- Do not render or persist returned secret values. Bearer tokens, basic passwords, Google service
+  account JSON keys, and TLS material are write-only secure config fields on backend-owned
+  connection instances. The UI may show only `secureFields` indicators for already configured
+  secrets.
+- The configuration schema uses field visibility rules. Google Managed Service for Prometheus
+  project/location fields are shown only when `endpointMode = "google-managed-prometheus"`;
+  auth secrets are shown only for the selected `authType`; direct endpoint/TLS/proxy fields are
+  shown only for `endpointMode = "prometheus-compatible"`.
+- For Google Managed Service for Prometheus, the frontend contract is:
+  `publicConfig.endpointMode = "google-managed-prometheus"`,
+  `publicConfig.authType = "google-service-account"`, `publicConfig.projectId`,
+  `publicConfig.location` defaulting to `global`, and write-only
+  `secureConfig.serviceAccountJson`.
+- The backend adapter owns the service-account OAuth exchange. It must use the JSON key only to
+  sign and exchange a JWT with Google's OAuth server, cache the short-lived access token in memory,
+  refresh it before expiry, and inject `Authorization: Bearer <access_token>` into Managed Service
+  for Prometheus requests. The frontend never sends the service-account JSON to the Prometheus API.
+- Google Managed Service for Prometheus should resolve the Prometheus API prefix as
+  `https://monitoring.googleapis.com/v1/projects/<project>/location/<location>/prometheus/api/v1/`
+  unless the backend intentionally supports an explicit override.
 - If the config schema or query model changes, update the connection type sync payload expectations
   and backend adapter contract together.

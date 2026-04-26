@@ -12,6 +12,8 @@ API clients, hooks, and picker components.
   and official brand icon.
 - `binance/`: Binance Market Data connection metadata, config editor, query editor, Explore shell,
   and square logo asset.
+- `fred/`: FRED Economic Data connection metadata, config editor, query editor, Explore shell,
+  and economic-data icon.
 - `prometheus/`: Prometheus connection metadata and its custom Explore shell.
 - `postgresql/`: PostgreSQL connection metadata and its custom SQL Explore shell.
 

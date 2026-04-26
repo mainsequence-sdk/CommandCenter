@@ -42,6 +42,8 @@ Theme-aware Lightweight Charts renderer for declarative safe-JSON specs.
 - Series data must match the series type. OHLC series require numeric `open`, `high`, `low`, and `close`; other value series require numeric `value` when a value is present.
 - The spec must fit the effective organization resource budget, including maximum option depth, string length, array length, series count, points per series, markers per series, and price lines per series.
 - Bound `props-json` input must resolve to a JSON object compatible with the widget props contract. Non-object values cannot drive the chart spec.
+- Incremental upstream sources expose retained props through `upstreamBase`; this widget rebuilds
+  from that retained JSON value instead of applying partial deltas.
 - Palette scale references require a valid scale name and index. Supported sequential scales are `primary`, `success`, `warning`, and `neutral`; supported diverging scales are `default` and `positive-negative`.
 
 ### commonPitfalls

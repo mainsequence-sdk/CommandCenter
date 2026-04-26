@@ -14,7 +14,8 @@ Reusable UI components for connection-aware settings and app surfaces.
   SQL fields render a shared editor surface so connection Explore screens and widgets share one
   query authoring path. String-list fields render committed tokens; pressing Enter or comma
   adds the typed value to the parent query immediately, so Save actions do not lose in-progress
-  column or identifier edits.
+  column or identifier edits. They may also render local suggestion tokens and per-connection
+  normalization without making resource calls while the user edits a query.
 
 ## Maintenance Constraints
 

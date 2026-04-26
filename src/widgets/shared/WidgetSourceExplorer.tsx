@@ -14,6 +14,7 @@ import {
   type WidgetValuePathOption,
 } from "@/dashboards/widget-binding-transforms";
 import { cn } from "@/lib/utils";
+import { resolveWidgetRuntimeUpdateParts } from "@/widgets/shared/runtime-update";
 import type {
   WidgetBindingTransformStep,
   WidgetContractId,
@@ -57,10 +58,12 @@ type WidgetSourceExplorerEvaluation = {
 const maxBindingPreviewLines = 100;
 
 function isStructuredOutput(option: WidgetSourceExplorerOutputOption | undefined) {
+  const value = option ? resolveWidgetRuntimeUpdateParts(option.value).upstreamBase : undefined;
+
   return (
     option?.valueDescriptor?.kind === "object" ||
     option?.valueDescriptor?.kind === "array" ||
-    (option?.value !== null && typeof option?.value === "object")
+    (value !== null && typeof value === "object")
   );
 }
 
@@ -73,12 +76,14 @@ function resolveExplorableValueDescriptor(
 
   const descriptor = option.valueDescriptor;
 
-  if (option.value === undefined || option.value === null || typeof option.value !== "object") {
+  const value = resolveWidgetRuntimeUpdateParts(option.value).upstreamBase;
+
+  if (value === undefined || value === null || typeof value !== "object") {
     return descriptor;
   }
 
   const inferredDescriptor = inferWidgetValueDescriptor(
-    option.value,
+    value,
     descriptor?.contract ?? option.contract,
   );
 
@@ -473,6 +478,13 @@ export function WidgetSourceExplorer({
     () => resolveExplorableValueDescriptor(selectedOutput),
     [selectedOutput],
   );
+  const selectedOutputValue = useMemo(
+    () =>
+      selectedOutput
+        ? resolveWidgetRuntimeUpdateParts(selectedOutput.value).upstreamBase
+        : undefined,
+    [selectedOutput],
+  );
   const selectedOutputIsArray = selectedOutputDescriptor?.kind === "array";
   const selectedOutputStructured =
     selectedOutputDescriptor?.kind === "object" ||
@@ -499,11 +511,11 @@ export function WidgetSourceExplorer({
       selectedOutput && collectionOnlyBinding
         ? applyWidgetBindingTransform(collectionOnlyBinding, {
             contractId: selectedOutput.contract,
-            value: selectedOutput.value,
+            value: selectedOutputValue,
             valueDescriptor: selectedOutputDescriptor,
           })
         : undefined,
-    [collectionOnlyBinding, selectedOutput, selectedOutputDescriptor],
+    [collectionOnlyBinding, selectedOutput, selectedOutputDescriptor, selectedOutputValue],
   );
   const pathSourceDescriptor = useMemo(() => {
     if (selectedOutputIsArray) {
@@ -545,11 +557,11 @@ export function WidgetSourceExplorer({
       selectedOutput && bindingForEvaluation
         ? applyWidgetBindingTransform(bindingForEvaluation, {
             contractId: selectedOutput.contract,
-            value: selectedOutput.value,
+            value: selectedOutputValue,
             valueDescriptor: selectedOutputDescriptor,
           })
         : undefined,
-    [bindingForEvaluation, selectedOutput, selectedOutputDescriptor],
+    [bindingForEvaluation, selectedOutput, selectedOutputDescriptor, selectedOutputValue],
   );
   const selectedOutputContractId =
     selectedOutput?.valueDescriptor?.contract ?? selectedOutput?.contract;
@@ -596,7 +608,7 @@ export function WidgetSourceExplorer({
                       ? "Choose which collection item index to bind."
                       : "Choose how to resolve a single item from this collection.",
                   contractId: selectedOutput.contract,
-                  value: selectedOutput.value,
+                  value: selectedOutputValue,
                 }
               : currentValueMappingMode === "extract-path" &&
                   (!extractPathStep?.path || extractPathStep.path.length === 0)
@@ -604,7 +616,7 @@ export function WidgetSourceExplorer({
                   status: "pending",
                   message: "Choose a nested field to continue.",
                   contractId: selectedOutput.contract,
-                  value: selectedOutput.value,
+                  value: selectedOutputValue,
                 }
               : !transformedOutput || transformedOutput.status !== "valid"
                 ? {
@@ -614,9 +626,9 @@ export function WidgetSourceExplorer({
                         ? "The selected nested path could not be resolved from this output."
                         : arraySelectionStep
                           ? "The selected collection item could not be resolved from this output."
-                        : "The selected output could not be transformed.",
+                          : "The selected output could not be transformed.",
                     contractId: selectedOutput.contract,
-                    value: selectedOutput.value,
+                    value: selectedOutputValue,
                   }
                 : acceptedContracts.includes(transformedOutput.contractId)
                   ? {

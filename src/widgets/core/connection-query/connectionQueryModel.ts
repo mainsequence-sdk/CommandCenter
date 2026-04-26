@@ -25,6 +25,15 @@ import {
 } from "@/widgets/shared/tabular-frame-source";
 import type { WidgetContractId } from "@/widgets/types";
 
+import {
+  mergeConnectionQueryIncrementalFrame,
+  resolveConnectionQueryIncrementalDecision,
+  runConnectionQueryWithInFlightDedupe,
+  type ConnectionQueryIncrementalDedupePolicy,
+  type ConnectionQueryIncrementalRefreshMode,
+  type ConnectionQueryIncrementalRefreshSettings,
+} from "./incrementalConnectionRefresh";
+
 export type ConnectionQueryTimeRangeMode = "dashboard" | "fixed" | "none";
 
 export interface ConnectionQueryWidgetProps extends Record<string, unknown> {
@@ -36,6 +45,12 @@ export interface ConnectionQueryWidgetProps extends Record<string, unknown> {
   fixedEndMs?: number;
   variables?: Record<string, string | number | boolean>;
   maxRows?: number;
+  incrementalRefreshMode?: ConnectionQueryIncrementalRefreshMode;
+  incrementalTimeField?: string;
+  incrementalMergeKeyFields?: string[];
+  incrementalOverlapMs?: number;
+  incrementalRetentionMs?: number;
+  incrementalDedupePolicy?: ConnectionQueryIncrementalDedupePolicy;
 }
 
 export type ConnectionQueryRawFrameRuntimeState = CommandCenterFrame & {
@@ -175,6 +190,16 @@ function normalizePositiveInteger(value: unknown) {
   return Math.trunc(parsed);
 }
 
+function normalizeNonNegativeInteger(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return undefined;
+  }
+
+  return Math.trunc(parsed);
+}
+
 function normalizeTimestampMs(value: unknown) {
   const parsed = Number(value);
 
@@ -234,6 +259,31 @@ function normalizeStringArray(value: unknown) {
   return entries.length > 0 ? entries : undefined;
 }
 
+function normalizeIncrementalRefreshMode(value: unknown): ConnectionQueryIncrementalRefreshMode {
+  return value === "incremental" ? "incremental" : "full";
+}
+
+function normalizeIncrementalDedupePolicy(
+  value: unknown,
+): ConnectionQueryIncrementalDedupePolicy {
+  return value === "first" || value === "error" ? value : "latest";
+}
+
+export function resolveConnectionQueryIncrementalSettings(
+  props: ConnectionQueryWidgetProps,
+): ConnectionQueryIncrementalRefreshSettings {
+  const normalizedProps = normalizeConnectionQueryProps(props);
+
+  return {
+    mode: normalizeIncrementalRefreshMode(normalizedProps.incrementalRefreshMode),
+    timeField: normalizeString(normalizedProps.incrementalTimeField),
+    mergeKeyFields: normalizeStringArray(normalizedProps.incrementalMergeKeyFields),
+    overlapMs: normalizeNonNegativeInteger(normalizedProps.incrementalOverlapMs) ?? 60_000,
+    retentionMs: normalizePositiveInteger(normalizedProps.incrementalRetentionMs),
+    dedupePolicy: normalizeIncrementalDedupePolicy(normalizedProps.incrementalDedupePolicy),
+  };
+}
+
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter((value) => value.trim()).map((value) => value.trim())));
 }
@@ -282,6 +332,12 @@ export function normalizeConnectionQueryProps(
     fixedEndMs: normalizeTimestampMs(props.fixedEndMs),
     variables: normalizeVariables(props.variables),
     maxRows: normalizePositiveInteger(props.maxRows),
+    incrementalRefreshMode: normalizeIncrementalRefreshMode(props.incrementalRefreshMode),
+    incrementalTimeField: normalizeString(props.incrementalTimeField),
+    incrementalMergeKeyFields: normalizeStringArray(props.incrementalMergeKeyFields),
+    incrementalOverlapMs: normalizeNonNegativeInteger(props.incrementalOverlapMs),
+    incrementalRetentionMs: normalizePositiveInteger(props.incrementalRetentionMs),
+    incrementalDedupePolicy: normalizeIncrementalDedupePolicy(props.incrementalDedupePolicy),
   };
 }
 
@@ -775,6 +831,10 @@ export async function executeConnectionQueryWidgetRequest(
   props: ConnectionQueryWidgetProps,
   dashboardState?: WidgetExecutionDashboardState,
   queryModel?: ConnectionQueryModel,
+  options?: {
+    scopeId?: string;
+    forceFullRefresh?: boolean;
+  },
 ): Promise<ConnectionQueryRuntimeState> {
   const normalizedProps = normalizeConnectionQueryProps(props);
   const connectionRef = normalizedProps.connectionRef;
@@ -807,16 +867,40 @@ export async function executeConnectionQueryWidgetRequest(
   }
 
   const enrichedRequest = await enrichConnectionQueryRequest(request, normalizedProps);
+  const incrementalSettings = resolveConnectionQueryIncrementalSettings(normalizedProps);
+  const incrementalDecision = options?.forceFullRefresh
+    ? {
+        active: false,
+        request: enrichedRequest,
+        fullRequest: enrichedRequest,
+        reason: "forced-full-refresh",
+      }
+    : resolveConnectionQueryIncrementalDecision({
+        fullRequest: enrichedRequest,
+        settings: incrementalSettings,
+        connectionTypeId: connectionRef.typeId,
+        queryModelId,
+        scopeId: options?.scopeId,
+        eligible:
+          Boolean(queryModel?.timeRangeAware) &&
+          normalizedProps.timeRangeMode === "dashboard" &&
+          requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      });
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute request ready", {
       originalRequest: summarizeConnectionQueryRequestForDebug(request),
       enrichedRequest: summarizeConnectionQueryRequestForDebug(enrichedRequest),
+      incrementalRequest: summarizeConnectionQueryRequestForDebug(incrementalDecision.request),
+      incrementalMode: incrementalDecision.reason,
     });
   }
-  const payload = await queryConnection(enrichedRequest);
+  const payload = await runConnectionQueryWithInFlightDedupe(
+    incrementalDecision,
+    () => queryConnection(incrementalDecision.request),
+  );
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute payload received", {
-      request: summarizeConnectionQueryRequestForDebug(enrichedRequest),
+      request: summarizeConnectionQueryRequestForDebug(incrementalDecision.request),
       payload: summarizeConnectionQueryValueForDebug(payload),
     });
   }
@@ -845,9 +929,17 @@ export async function executeConnectionQueryWidgetRequest(
 
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute published frame", {
-      request: summarizeConnectionQueryRequestForDebug(enrichedRequest),
+      request: summarizeConnectionQueryRequestForDebug(incrementalDecision.request),
       frame: summarizeConnectionQueryValueForDebug(frame),
     });
+  }
+
+  if (frame.status === "ready") {
+    return mergeConnectionQueryIncrementalFrame({
+      incomingFrame: frame,
+      decision: incrementalDecision,
+      settings: incrementalSettings,
+    }).frame;
   }
 
   return frame;

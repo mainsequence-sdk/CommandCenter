@@ -10,6 +10,7 @@ import {
 import { defineWidget, type WidgetIoDefinition } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
+import { ConnectionQueryRailSummary } from "./ConnectionQueryRailSummary";
 import { ConnectionQueryWidget } from "./ConnectionQueryWidget";
 import { ConnectionQueryWidgetSettings } from "./ConnectionQueryWidgetSettings";
 import {
@@ -20,6 +21,7 @@ import {
   resolveConnectionQueryRequestedOutputContract,
   type ConnectionQueryWidgetProps,
 } from "./connectionQueryModel";
+import { connectionQuerySettingsSchema } from "./ConnectionQueryWidgetSchema";
 
 export const CONNECTION_QUERY_DATASET_OUTPUT_ID = "dataset";
 
@@ -96,7 +98,7 @@ function resolveConnectionQueryIo(
 
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   id: "connection-query",
-  widgetVersion: "1.3.0",
+  widgetVersion: "1.5.0",
   title: "Connection Query",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -132,10 +134,13 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
     },
   },
   workspaceIcon: Database,
+  railSummaryComponent: ConnectionQueryRailSummary,
   defaultPresentation: {
     placementMode: "sidebar",
   },
   fixedPlacementMode: "sidebar",
+  schema: connectionQuerySettingsSchema,
+  settingsSchemaPlacement: "custom",
   workspaceRuntimeMode: "execution-owner",
   io: resolveConnectionQueryIo({}),
   resolveIo: ({ props, runtimeState }) => resolveConnectionQueryIo(props, runtimeState),
@@ -155,6 +160,10 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
           props,
           context.dashboardState,
           queryModel,
+          {
+            scopeId: context.instanceId,
+            forceFullRefresh: context.reason === "manual-submit",
+          },
         );
 
         return {
@@ -183,9 +192,9 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   },
   registryContract: {
     configuration: {
-      mode: "custom-settings",
+      mode: "hybrid",
       summary:
-        "Selects a backend-owned connection instance, query model, query payload, range behavior, optional variables, and row limit.",
+        "Selects a backend-owned connection instance, query model, individually poppable connection-specific query fields, range behavior, optional variables, row limit, and optional incremental refresh.",
       requiredSetupSteps: [
         "Select a configured connection instance.",
         "Choose the connection path exposed by the connection type.",
@@ -198,7 +207,10 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
         "The selected connection path is authoritative and is sent as query.kind.",
         "The widget always publishes one canonical tabular frame. Time-series semantics, when present, are carried in tabular metadata.",
         "Date runtime controls are only shown for time-range-aware connection paths.",
+        "Incremental refresh is configured per widget instance. The time field controls tail requests and retention pruning; the merge-key column combination controls dedupe and row replacement.",
+        "Non-delta consumers still receive the retained full dataset as a snapshot and do not force this source to issue a second backend query.",
         "Connection-specific query editors are used when the connection type provides one.",
+        "Connection-specific path settings are schema-backed per field and can be exposed individually as companion cards on the workspace canvas.",
         "The widget is fixed to sidebar placement because it is a source/execution node, not a canvas presentation widget.",
       ],
     },
@@ -206,7 +218,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-recalculate", "upstream-update"],
       executionSummary:
-        "Calls the selected connection query through the shared connection API and publishes the first matching response frame as one canonical tabular dataset.",
+        "Calls the selected connection query through the shared connection API and publishes the first matching response frame as one canonical tabular dataset. When incremental refresh is enabled, follow-up workspace refreshes request the tail range, merge rows in memory, and publish the retained full dataset with the shared widget-runtime-update@v1 envelope.",
     },
     io: {
       mode: "dynamic",
@@ -222,6 +234,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       supportsConnectionQueryModels: true,
       supportsDashboardTimeRange: true,
       supportsFixedTimeRange: true,
+      supportsIncrementalRefresh: true,
       supportsVariables: true,
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),

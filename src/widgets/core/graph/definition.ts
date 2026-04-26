@@ -30,7 +30,7 @@ function resolveSourceDataset(
     : resolvedEntry;
 
   return candidate?.status === "valid"
-    ? normalizeAnyTabularFrameSource(candidate.value)
+    ? normalizeAnyTabularFrameSource(candidate.upstreamBase ?? candidate.value)
     : null;
 }
 

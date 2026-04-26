@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { Input } from "@/components/ui/input";
 import type { ConnectionQueryEditorProps } from "@/connections/types";
 import {
@@ -8,6 +10,19 @@ import {
 } from "@/connections/components/ConnectionQueryEditorFields";
 
 import type { BinanceConnectionQuery, BinanceQueryKind } from "./index";
+
+const commonBinanceBaseAssets = [
+  "BTC",
+  "ETH",
+  "BNB",
+  "SOL",
+  "XRP",
+  "ADA",
+  "DOGE",
+  "LINK",
+  "AVAX",
+  "TRX",
+] as const;
 
 function readKind(
   queryModelId: string | undefined,
@@ -33,6 +48,16 @@ function patchQuery(
   });
 }
 
+function normalizeBinanceSymbol(value: string) {
+  return value.trim().replace(/\s+/g, "").toUpperCase();
+}
+
+function readDefaultQuoteAsset(value: unknown) {
+  return typeof value === "string" && value.trim()
+    ? value.trim().replace(/\s+/g, "").toUpperCase()
+    : "USDT";
+}
+
 export function BinanceConnectionQueryEditor({
   connectionInstance,
   disabled = false,
@@ -43,6 +68,19 @@ export function BinanceConnectionQueryEditor({
   const kind = readKind(queryModel?.id, value);
   const isOhlc = kind.endsWith("-ohlc");
   const isAggregateTrades = kind.endsWith("-aggregate-trades");
+  const symbolSuggestions = useMemo(() => {
+    const quoteAsset = readDefaultQuoteAsset(connectionInstance?.publicConfig.defaultQuoteAsset);
+
+    return commonBinanceBaseAssets.map((baseAsset) => {
+      const symbol = `${baseAsset}${quoteAsset}`;
+
+      return {
+        value: symbol,
+        label: symbol,
+        description: `${baseAsset}/${quoteAsset}`,
+      };
+    });
+  }, [connectionInstance?.publicConfig.defaultQuoteAsset]);
 
   return (
     <div className="space-y-5">
@@ -63,6 +101,8 @@ export function BinanceConnectionQueryEditor({
           onChange={(symbols) => patchQuery(value, onChange, kind, { symbols: symbols ?? [] })}
           disabled={disabled}
           placeholder="BTCUSDT, ETHUSDT"
+          normalizeEntry={normalizeBinanceSymbol}
+          suggestions={symbolSuggestions}
           help="Provider symbols to request. The backend uppercases symbols and rejects unsupported symbols when exchange-info metadata is available."
         />
 

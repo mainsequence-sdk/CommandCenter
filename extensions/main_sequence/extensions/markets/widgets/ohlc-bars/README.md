@@ -8,7 +8,8 @@ Connection Query or Tabular Transform output.
 
 - `definition.ts`: registry definition for the stable `main-sequence-ohlc-bars` widget id.
 - `OhlcBarsWidget.tsx`: runtime renderer built on Lightweight Charts `CandlestickSeries` so each
-  OHLC point has a visible filled body plus high/low wick.
+  OHLC point has a visible filled body plus high/low wick, optional volume histogram, and optional
+  SMA/EMA overlays.
 - `ohlcBarsModel.ts`: widget prop normalization, field inference, timestamp parsing, and OHLC
   series construction.
 - `controller.ts`: schema controller context for bound dataset field options.
@@ -19,7 +20,15 @@ Connection Query or Tabular Transform output.
 - The widget expects rows from a bound `core.tabular_frame@v1` dataset.
 - On workspace runtime surfaces it behaves as a `consumer`: it reads the canonical published
   dataset and asks the shared execution layer to resolve upstream executable sources when needed.
+- Bound inputs are read through the shared upstream contract: retained data comes from the resolved
+  `upstreamBase` frame and optional delta rows are exposed separately. When the upstream update is
+  delta-safe, the chart keeps its mounted Lightweight Charts instance and appends or replaces OHLC
+  bars instead of rebuilding from the retained snapshot.
 - The source table must include one time field plus numeric open, high, low, and close fields.
+- The source table may include a numeric volume field. When `volumeField` is mapped, the widget
+  renders volume in a lower Lightweight Charts histogram pane.
+- Optional studies are saved in `studies` and currently support SMA and EMA overlays calculated from
+  close prices.
 - Time values may be ISO date strings, ISO datetime strings, Unix seconds, Unix milliseconds, Unix
   microseconds, or Unix nanoseconds.
 - Price values may be numbers or numeric strings. Invalid rows are skipped and surfaced as a warning

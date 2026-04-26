@@ -14,6 +14,7 @@ import {
 import { withAlpha } from "@/lib/color";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/themes/ThemeProvider";
+import type { WidgetRuntimeUpdateMode } from "@/widgets/shared/runtime-update";
 
 import { normalizeGraphSeries } from "./graphModel";
 import type {
@@ -33,9 +34,28 @@ function getChartSize(container: HTMLDivElement) {
   };
 }
 
+type TradingViewChartApi = ReturnType<typeof createChart>;
+type TradingViewSeriesApi = Parameters<TradingViewChartApi["removeSeries"]>[0];
+type TradingViewPoint = { time: Time; value: number };
+
+function mapGraphSeriesPoints(
+  entry: GraphSeries,
+  timeAxisMode: Exclude<GraphTimeAxisMode, "auto">,
+): TradingViewPoint[] {
+  return entry.points.map((point) => ({
+    time:
+      timeAxisMode === "date"
+        ? formatGraphUtcDateKey(point.time)
+        : (Math.floor(point.time / 1000) as UTCTimestamp),
+    value: point.value,
+  }));
+}
+
 export function TradingViewSeriesChart({
   chartType,
   className,
+  dataShapeKey,
+  deltaSeries = [],
   emptyMessage = "No chartable rows are available for the selected configuration.",
   minBarSpacingPx = 0.01,
   normalizationTimeMs,
@@ -43,9 +63,12 @@ export function TradingViewSeriesChart({
   seriesAxisMode = "shared",
   timeAxisMode = "datetime",
   transparentSurface = false,
+  updateMode = "snapshot",
 }: {
   chartType: GraphChartType;
   className?: string;
+  dataShapeKey?: string;
+  deltaSeries?: GraphSeries[];
   emptyMessage?: string;
   minBarSpacingPx?: number;
   normalizationTimeMs?: GraphNormalizationAnchor;
@@ -53,8 +76,14 @@ export function TradingViewSeriesChart({
   seriesAxisMode?: GraphSeriesAxisMode;
   timeAxisMode?: Exclude<GraphTimeAxisMode, "auto">;
   transparentSurface?: boolean;
+  updateMode?: WidgetRuntimeUpdateMode;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<TradingViewChartApi | null>(null);
+  const seriesRefs = useRef(new Map<string, TradingViewSeriesApi>());
+  const lastStructureKeyRef = useRef<string | null>(null);
+  const lastPointCountRef = useRef(0);
+  const hasFittedRef = useRef(false);
   const [chartError, setChartError] = useState<string | null>(null);
   const { resolvedTokens } = useTheme();
 
@@ -117,12 +146,10 @@ export function TradingViewSeriesChart({
     }
     setChartError(null);
 
-    let chart: ReturnType<typeof createChart> | null = null;
     let resizeObserver: ResizeObserver | null = null;
-    let hasFittedAtStableSize = false;
 
     try {
-      chart = createChart(container, {
+      const chart = createChart(container, {
         layout: {
           background: { type: ColorType.Solid, color: "transparent" },
           textColor: resolvedTokens["muted-foreground"],
@@ -154,91 +181,13 @@ export function TradingViewSeriesChart({
         },
         ...getChartSize(container),
       });
-
-      themedSeries.forEach((entry, index) => {
-        const normalizedPoints: Array<{ time: Time; value: number }> = entry.points.map((point) => ({
-          time:
-            timeAxisMode === "date"
-              ? formatGraphUtcDateKey(point.time)
-              : (Math.floor(point.time / 1000) as UTCTimestamp),
-          value: point.value,
-        }));
-        const paneIndex = separateAxes ? index : 0;
-
-        while (chart && chart.panes().length <= paneIndex) {
-          chart.addPane();
-        }
-
-        if (!chart) {
-          return;
-        }
-
-        if (chartType === "area") {
-          const areaSeries = chart.addSeries(
-            AreaSeries,
-            {
-              lineColor: entry.color,
-              lineStyle: resolveLineStyle(entry.lineStyle),
-              topColor: withAlpha(entry.color, 0.22),
-              bottomColor: withAlpha(entry.color, 0.03),
-              lineWidth: 2,
-              priceLineVisible: false,
-              lastValueVisible: false,
-              pointMarkersVisible: showPointMarkers,
-              pointMarkersRadius: showPointMarkers ? 5 : undefined,
-              title: entry.label,
-            },
-            paneIndex,
-          );
-
-          areaSeries.setData(normalizedPoints);
-          return;
-        }
-
-        if (chartType === "bar") {
-          const histogramSeries = chart.addSeries(
-            HistogramSeries,
-            {
-              color: withAlpha(entry.color, 0.8),
-              priceLineVisible: false,
-              lastValueVisible: false,
-              title: entry.label,
-            },
-            paneIndex,
-          );
-
-          histogramSeries.setData(normalizedPoints);
-          return;
-        }
-
-        const lineSeries = chart.addSeries(
-          LineSeries,
-          {
-            color: entry.color,
-            lineStyle: resolveLineStyle(entry.lineStyle),
-            lineWidth: 2,
-            priceLineVisible: false,
-            lastValueVisible: false,
-            pointMarkersVisible: showPointMarkers,
-            pointMarkersRadius: showPointMarkers ? 5 : undefined,
-            title: entry.label,
-          },
-          paneIndex,
-        );
-
-        lineSeries.setData(normalizedPoints);
-      });
-
-      if (separateAxes) {
-        chart.panes().forEach((pane) => {
-          pane.setStretchFactor(1);
-        });
-      }
-
-      chart.timeScale().fitContent();
+      chartRef.current = chart;
+      hasFittedRef.current = false;
+      lastStructureKeyRef.current = null;
+      lastPointCountRef.current = 0;
 
       const fitAtStableSize = () => {
-        if (!chart) {
+        if (!chartRef.current) {
           return;
         }
 
@@ -248,9 +197,7 @@ export function TradingViewSeriesChart({
           return;
         }
 
-        chart.applyOptions({ width, height });
-        chart.timeScale().fitContent();
-        hasFittedAtStableSize = true;
+        chartRef.current.applyOptions({ width, height });
       };
 
       requestAnimationFrame(() => {
@@ -258,17 +205,15 @@ export function TradingViewSeriesChart({
       });
 
       resizeObserver = new ResizeObserver(() => {
-        chart?.applyOptions(getChartSize(container));
-
-        if (!hasFittedAtStableSize) {
-          fitAtStableSize();
-        }
+        chartRef.current?.applyOptions(getChartSize(container));
+        fitAtStableSize();
       });
 
       resizeObserver.observe(container);
     } catch (error) {
       resizeObserver?.disconnect();
-      chart?.remove();
+      chartRef.current?.remove();
+      chartRef.current = null;
       setChartError(
         error instanceof Error
           ? error.message
@@ -279,9 +224,166 @@ export function TradingViewSeriesChart({
 
     return () => {
       resizeObserver?.disconnect();
-      chart?.remove();
+      seriesRefs.current.clear();
+      chartRef.current?.remove();
+      chartRef.current = null;
+      lastStructureKeyRef.current = null;
     };
-  }, [chartType, minBarSpacingPx, resolvedTokens, separateAxes, showPointMarkers, themedSeries, timeAxisMode, transparentSurface]);
+  }, [minBarSpacingPx, resolvedTokens, themedSeries.length, timeAxisMode]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+
+    if (!chart || themedSeries.length === 0) {
+      return;
+    }
+
+    const addSeries = (entry: GraphSeries, index: number) => {
+      const paneIndex = separateAxes ? index : 0;
+      const seriesColor = entry.color ?? resolvedTokens.primary;
+
+      while (chart.panes().length <= paneIndex) {
+        chart.addPane();
+      }
+
+      if (chartType === "area") {
+        return chart.addSeries(
+          AreaSeries,
+          {
+            lineColor: seriesColor,
+            lineStyle: resolveLineStyle(entry.lineStyle),
+            topColor: withAlpha(seriesColor, 0.22),
+            bottomColor: withAlpha(seriesColor, 0.03),
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            pointMarkersVisible: showPointMarkers,
+            pointMarkersRadius: showPointMarkers ? 5 : undefined,
+            title: entry.label,
+          },
+          paneIndex,
+        );
+      }
+
+      if (chartType === "bar") {
+        return chart.addSeries(
+          HistogramSeries,
+          {
+            color: withAlpha(seriesColor, 0.8),
+            priceLineVisible: false,
+            lastValueVisible: false,
+            title: entry.label,
+          },
+          paneIndex,
+        );
+      }
+
+      return chart.addSeries(
+        LineSeries,
+        {
+          color: seriesColor,
+          lineStyle: resolveLineStyle(entry.lineStyle),
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          pointMarkersVisible: showPointMarkers,
+          pointMarkersRadius: showPointMarkers ? 5 : undefined,
+          title: entry.label,
+        },
+        paneIndex,
+      );
+    };
+
+    const structureKey = JSON.stringify({
+      chartType,
+      dataShapeKey,
+      separateAxes,
+      series: themedSeries.map((entry) => ({
+        color: entry.color,
+        id: entry.id,
+        label: entry.label,
+        lineStyle: entry.lineStyle,
+      })),
+      showPointMarkers,
+      timeAxisMode,
+    });
+    const forceSnapshot =
+      updateMode !== "delta" ||
+      deltaSeries.length === 0 ||
+      lastStructureKeyRef.current !== structureKey;
+    const visibleRange = chart.timeScale().getVisibleLogicalRange();
+    const wasFollowingRightEdge =
+      !visibleRange || visibleRange.to >= lastPointCountRef.current - 2;
+
+    if (forceSnapshot) {
+      seriesRefs.current.forEach((seriesApi) => {
+        chart.removeSeries(seriesApi);
+      });
+      seriesRefs.current.clear();
+
+      themedSeries.forEach((entry, index) => {
+        const seriesApi = addSeries(entry, index);
+        seriesApi.setData(mapGraphSeriesPoints(entry, timeAxisMode));
+        seriesRefs.current.set(entry.id, seriesApi);
+      });
+
+      if (separateAxes) {
+        chart.panes().forEach((pane) => {
+          pane.setStretchFactor(1);
+        });
+      }
+
+      lastStructureKeyRef.current = structureKey;
+      lastPointCountRef.current = Math.max(0, ...themedSeries.map((entry) => entry.points.length));
+
+      if (!hasFittedRef.current || wasFollowingRightEdge || !visibleRange) {
+        chart.timeScale().fitContent();
+      } else {
+        chart.timeScale().setVisibleLogicalRange(visibleRange);
+      }
+
+      hasFittedRef.current = true;
+      return;
+    }
+
+    const fullSeriesById = new Map(themedSeries.map((entry, index) => [entry.id, { entry, index }]));
+
+    deltaSeries.forEach((entry) => {
+      const fullSeries = fullSeriesById.get(entry.id);
+
+      if (!fullSeries) {
+        return;
+      }
+
+      let seriesApi = seriesRefs.current.get(entry.id);
+
+      if (!seriesApi) {
+        seriesApi = addSeries(fullSeries.entry, fullSeries.index);
+        seriesApi.setData(mapGraphSeriesPoints(fullSeries.entry, timeAxisMode));
+        seriesRefs.current.set(entry.id, seriesApi);
+        return;
+      }
+
+      mapGraphSeriesPoints(entry, timeAxisMode).forEach((point) => {
+        seriesApi.update(point, true);
+      });
+    });
+
+    lastPointCountRef.current = Math.max(0, ...themedSeries.map((entry) => entry.points.length));
+
+    if (!wasFollowingRightEdge && visibleRange) {
+      chart.timeScale().setVisibleLogicalRange(visibleRange);
+    }
+  }, [
+    chartType,
+    dataShapeKey,
+    deltaSeries,
+    separateAxes,
+    showPointMarkers,
+    themedSeries,
+    timeAxisMode,
+    updateMode,
+  ]);
 
   if (themedSeries.length === 0) {
     return (

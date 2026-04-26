@@ -1,5 +1,7 @@
 import type { ComponentType } from "react";
 
+import type { WidgetRuntimeUpdateEnvelope } from "@/widgets/shared/runtime-update";
+
 export type WidgetKind = "kpi" | "chart" | "table" | "feed" | "custom";
 export type WidgetFieldAnchor = "top" | "right" | "bottom" | "left";
 export type WidgetFieldPopMode = "inline" | "chip-group" | "token-list" | "panel";
@@ -212,6 +214,12 @@ export interface ResolvedWidgetInput {
   contractId?: WidgetContractId;
   binding?: WidgetPortBinding;
   value?: unknown;
+  /** Retained/full upstream value after binding transforms, for snapshot-safe consumers. */
+  upstreamBase?: unknown;
+  /** Incremental upstream value after the same binding transforms, when available and safe. */
+  upstreamDelta?: unknown;
+  /** Shared frontend runtime update metadata for snapshot/delta-aware consumers. */
+  upstreamUpdate?: WidgetRuntimeUpdateEnvelope;
   valueDescriptor?: WidgetValueDescriptor;
   effects?: WidgetInputEffect[];
 }
@@ -531,6 +539,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   fixedPlacementMode?: WidgetInstancePresentation["placementMode"];
   bodyMode?: "default" | "none";
   schema?: WidgetSettingsSchema<TProps, any>;
+  settingsSchemaPlacement?: "auto" | "custom";
   controller?: WidgetController<TProps, any>;
   headerComponent?: ComponentType<WidgetHeaderComponentProps<TProps>>;
   headerActions?: ComponentType<WidgetHeaderActionsProps<TProps>>;

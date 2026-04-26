@@ -43,6 +43,8 @@ OpenAPI-powered request form with executable workspace outputs.
 - A selected method and path are required. The widget maps one instance to one OpenAPI operation.
 - A saved `bindingSpec` is required for reliable runtime execution and dynamic IO. Runtime may enrich stale saved forms from live OpenAPI metadata when available, but the saved binding spec remains the binding contract.
 - Required request fields must be satisfiable by a bound input, current draft value, saved prefill, schema default/example, or runtime patch. If the request cannot be built, execution fails before the API call.
+- When an upstream source publishes incremental metadata, bound request inputs use the retained
+  `upstreamBase` value. AppComponent does not execute from partial delta values.
 - Response outputs depend on a successful response. Failed execution clears response-derived outputs for that run and records the error in runtime state.
 - Dashboard refresh only runs this widget when `refreshOnDashboardRefresh` is not disabled and the widget is otherwise executable.
 - Main Sequence resource-release mode requires a valid release reference and a successful exchange-launch response. Launch tokens are kept in memory and refreshed/retried as needed; they are not persisted in widget props.

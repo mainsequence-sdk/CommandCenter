@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { resolveWidgetTransparentSurface } from "@/widgets/shared/chrome";
+import type { WidgetRuntimeUpdateMode } from "@/widgets/shared/runtime-update";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -83,9 +84,23 @@ export function GraphWidget({
     [rangeEndMs, rangeStartMs, resolvedConfig],
   );
   const sourceRows = linkedDataset?.rows ?? [];
+  const sourceDeltaRows = sourceBinding.resolvedSourceDeltaFrame?.rows ?? [];
+  const sourceUpdate = !Array.isArray(sourceBinding.resolvedSourceInput)
+    ? sourceBinding.resolvedSourceInput?.upstreamUpdate
+    : undefined;
+  const canUseDeltaUpdate =
+    sourceUpdate?.mode === "delta" &&
+    sourceDeltaRows.length > 0 &&
+    !resolvedConfig.normalizeSeries &&
+    (sourceUpdate.operations?.pruned ?? 0) === 0;
+  const chartUpdateMode: WidgetRuntimeUpdateMode = canUseDeltaUpdate ? "delta" : "snapshot";
   const seriesResult = useMemo(
     () => buildGraphSeries(sourceRows, resolvedConfig),
     [resolvedConfig, sourceRows],
+  );
+  const deltaSeriesResult = useMemo(
+    () => buildGraphSeries(sourceDeltaRows, resolvedConfig),
+    [resolvedConfig, sourceDeltaRows],
   );
   const effectiveTimeAxisMode = useMemo(
     () => resolveGraphEffectiveTimeAxisMode(resolvedConfig, sourceRows),
@@ -95,9 +110,39 @@ export function GraphWidget({
     () => buildGraphChartSeries(seriesResult.series, effectiveTimeAxisMode),
     [effectiveTimeAxisMode, seriesResult.series],
   );
+  const deltaChartSeriesResult = useMemo(
+    () => buildGraphChartSeries(deltaSeriesResult.series, effectiveTimeAxisMode),
+    [deltaSeriesResult.series, effectiveTimeAxisMode],
+  );
   const normalizationTimeMs = useMemo(
     () => resolveGraphNormalizationTimeMs(resolvedConfig),
     [resolvedConfig],
+  );
+  const chartDataShapeKey = useMemo(
+    () =>
+      JSON.stringify({
+        chartType: resolvedConfig.chartType,
+        groupField: resolvedConfig.groupField,
+        normalizeAtMs: resolvedConfig.normalizeAtMs,
+        normalizeSeries: resolvedConfig.normalizeSeries,
+        provider: resolvedConfig.provider,
+        seriesAxisMode: resolvedConfig.seriesAxisMode,
+        timeAxisMode: effectiveTimeAxisMode,
+        xField: resolvedConfig.xField,
+        yField: resolvedConfig.yField,
+      }),
+    [
+      effectiveTimeAxisMode,
+      resolvedConfig.chartType,
+      resolvedConfig.groupField,
+      resolvedConfig.normalizeAtMs,
+      resolvedConfig.normalizeSeries,
+      resolvedConfig.provider,
+      resolvedConfig.seriesAxisMode,
+      resolvedConfig.timeAxisMode,
+      resolvedConfig.xField,
+      resolvedConfig.yField,
+    ],
   );
   const chartEmptyMessage =
     sourceRows.length > 0
@@ -236,23 +281,29 @@ export function GraphWidget({
               {resolvedConfig.provider === "echarts" ? (
                 <EChartsSeriesChart
                   chartType={resolvedConfig.chartType}
+                  dataShapeKey={chartDataShapeKey}
                   emptyMessage={chartEmptyMessage}
                   normalizationTimeMs={normalizationTimeMs}
                   series={chartSeriesResult.series}
+                  deltaSeries={chartUpdateMode === "delta" ? deltaChartSeriesResult.series : []}
                   seriesAxisMode={resolvedConfig.seriesAxisMode}
                   timeAxisMode={effectiveTimeAxisMode}
                   transparentSurface={transparentSurface}
+                  updateMode={chartUpdateMode}
                 />
               ) : (
                 <TradingViewSeriesChart
                   chartType={resolvedConfig.chartType}
+                  dataShapeKey={chartDataShapeKey}
                   emptyMessage={chartEmptyMessage}
                   minBarSpacingPx={resolvedConfig.minBarSpacingPx}
                   normalizationTimeMs={normalizationTimeMs}
                   series={chartSeriesResult.series}
+                  deltaSeries={chartUpdateMode === "delta" ? deltaChartSeriesResult.series : []}
                   seriesAxisMode={resolvedConfig.seriesAxisMode}
                   timeAxisMode={effectiveTimeAxisMode}
                   transparentSurface={transparentSurface}
+                  updateMode={chartUpdateMode}
                 />
               )}
             </GraphChartErrorBoundary>

@@ -5,6 +5,10 @@ import { CalendarDays, CalendarRange, AlertTriangle, Loader2, Play } from "lucid
 import { getConnectionTypeById } from "@/app/registry";
 import { Button } from "@/components/ui/button";
 import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
+import {
+  QueryStringListField,
+  QueryTextField,
+} from "@/connections/components/ConnectionQueryEditorFields";
 import { ConnectionQueryResponsePreview } from "@/connections/ConnectionQueryResponsePreview";
 import { getSystemConnectionInstances } from "@/connections/api";
 import { useConnectionInstances } from "@/connections/hooks";
@@ -17,10 +21,13 @@ import {
   buildConnectionQueryRequest,
   executeConnectionQueryWidgetRequest,
   normalizeConnectionQueryProps,
+  normalizeConnectionQueryRuntimeState,
+  resolveConnectionQueryIncrementalSettings,
   type ConnectionQueryRuntimeState,
   type ConnectionQueryTimeRangeMode,
   type ConnectionQueryWidgetProps,
 } from "@/widgets/core/connection-query/connectionQueryModel";
+import type { ConnectionQueryIncrementalDedupePolicy } from "@/widgets/core/connection-query/incrementalConnectionRefresh";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import { LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
@@ -46,6 +53,8 @@ export interface ConnectionQueryWorkbenchProps {
   dashboardTimeRangeLabel?: string;
   fixedRangeFallback?: { rangeStartMs: number; rangeEndMs: number };
   showConnectionPicker?: boolean;
+  showQueryEditor?: boolean;
+  connectionPathSettings?: ReactNode;
   autoSelectFirstQueryModel?: boolean;
   titlePrefix?: string;
   runButtonLabel?: string;
@@ -147,6 +156,97 @@ function NumberInput({
         disabled={disabled}
         className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
       />
+    </label>
+  );
+}
+
+function normalizeSuggestionValues(values: Array<string | undefined>) {
+  return Array.from(new Set(values.flatMap((value) => {
+    const normalized = typeof value === "string" ? value.trim() : "";
+    return normalized ? [normalized] : [];
+  })));
+}
+
+function IncrementalRefreshModeControl({
+  disabled,
+  value,
+  onChange,
+}: {
+  disabled: boolean;
+  value: "full" | "incremental";
+  onChange: (value: "full" | "incremental") => void;
+}) {
+  return (
+    <div className="space-y-2 md:col-span-2">
+      <span className="text-xs font-medium text-muted-foreground">Refresh mode</span>
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Refresh mode">
+        {[
+          { value: "full", label: "Full", description: "Replace the dataset on each refresh." },
+          { value: "incremental", label: "Incremental", description: "Merge the new tail into memory." },
+        ].map((option) => {
+          const active = option.value === value;
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={disabled}
+              onClick={() => {
+                onChange(option.value as "full" | "incremental");
+              }}
+              className={[
+                "min-h-[64px] rounded-[calc(var(--radius)-5px)] border px-3 py-2.5 text-left outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-55",
+                active
+                  ? "border-primary/65 bg-primary/12 text-foreground shadow-sm"
+                  : "border-border/70 bg-background/35 text-muted-foreground hover:border-primary/35 hover:bg-muted/25",
+              ].join(" ")}
+            >
+              <span className="block text-sm font-medium text-foreground">{option.label}</span>
+              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                {option.description}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DedupePolicySelect({
+  disabled,
+  value,
+  onChange,
+}: {
+  disabled: boolean;
+  value: ConnectionQueryIncrementalDedupePolicy;
+  onChange: (value: ConnectionQueryIncrementalDedupePolicy) => void;
+}) {
+  return (
+    <label className="block space-y-2">
+      <WidgetSettingFieldLabel
+        help="Controls what happens when a returned row has the same merge-key column values as a retained row."
+        textClassName="text-xs font-medium text-muted-foreground"
+      >
+        Dedupe policy
+      </WidgetSettingFieldLabel>
+      <select
+        value={value}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          onChange(
+            nextValue === "first" || nextValue === "error" ? nextValue : "latest",
+          );
+        }}
+        disabled={disabled}
+        className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <option value="latest">Latest replaces retained row</option>
+        <option value="first">First retained row wins</option>
+        <option value="error">Error on duplicate key</option>
+      </select>
     </label>
   );
 }
@@ -448,10 +548,12 @@ export function ConnectionQueryWorkbench({
   editable = true,
   fixedRangeFallback,
   onChange,
+  connectionPathSettings,
   resultDescription = "Preview of the normalized widget runtime frame.",
   resultTitle = "Query result",
   runButtonLabel = "Test",
   showConnectionPicker = true,
+  showQueryEditor = true,
   titlePrefix = "",
   value,
 }: ConnectionQueryWorkbenchProps) {
@@ -548,6 +650,29 @@ export function ConnectionQueryWorkbench({
     queryModelId: selectedQueryModel?.id,
   });
   const canRunPreview = Boolean(previewRequest && previewState.status !== "loading");
+  const incrementalSettings = resolveConnectionQueryIncrementalSettings(normalizedProps);
+  const incrementalControlsAvailable =
+    queryPathUsesTimeRange && workspaceDateRuntimeAvailable;
+  const incrementalControlsEnabled =
+    incrementalControlsAvailable && effectiveProps.timeRangeMode === "dashboard";
+  const fieldSuggestions = useMemo(() => {
+    const frame =
+      previewState.status === "success"
+        ? normalizeConnectionQueryRuntimeState(previewState.frame)
+        : undefined;
+    const tabularFrame =
+      frame && "columns" in frame && Array.isArray(frame.columns) ? frame : undefined;
+    const fieldNames = normalizeSuggestionValues([
+      ...(tabularFrame?.fields?.flatMap((field) => ("key" in field ? [field.key] : [])) ?? []),
+      ...(tabularFrame?.columns ?? []),
+    ]);
+
+    return fieldNames.map((fieldName) => ({
+      value: fieldName,
+      label: fieldName,
+      description: "Returned by the latest test query.",
+    }));
+  }, [previewState]);
 
   useEffect(() => {
     if (!autoSelectQueryModel || selectedQueryModel || !queryModels[0]) {
@@ -607,6 +732,10 @@ export function ConnectionQueryWorkbench({
         effectiveProps,
         effectiveDashboardState,
         selectedQueryModel,
+        {
+          scopeId: "connection-query-workbench-preview",
+          forceFullRefresh: true,
+        },
       );
       setPreviewState({ status: "success", request, frame });
     } catch (error) {
@@ -735,52 +864,56 @@ export function ConnectionQueryWorkbench({
         </section>
       ) : null}
 
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">{titlePrefix}Query</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Configure the payload passed to the selected connection query model.
-          </p>
-        </div>
-        {QueryEditor && selectedQueryModel ? (
-          <QueryEditor
-            value={normalizedProps.query ?? {}}
-            onChange={(nextQuery) => {
-              updateValue({
-                ...value,
-                query: {
-                  ...nextQuery,
-                  kind: selectedQueryModel.id,
-                },
-              });
-            }}
-            disabled={!editable}
-            connectionInstance={selectedConnectionInstance}
-            connectionType={connectionType}
-            queryModel={selectedQueryModel}
-          />
-        ) : selectedQueryModel ? (
-          <JsonObjectEditor
-            label="Query JSON"
-            value={normalizedProps.query}
-            onChange={(nextQuery) => {
-              updateValue({
-                ...value,
-                query: {
-                  ...nextQuery,
-                  kind: selectedQueryModel.id,
-                },
-              });
-            }}
-            disabled={!editable}
-          />
-        ) : (
-          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-4 text-sm text-muted-foreground">
-            Select a query before editing its payload. The workbench stores the selected query in{" "}
-            <code>query.kind</code>.
+      {connectionPathSettings}
+
+      {showQueryEditor ? (
+        <section className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">{titlePrefix}Query</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Configure the payload passed to the selected connection query model.
+            </p>
           </div>
-        )}
-      </section>
+          {QueryEditor && selectedQueryModel ? (
+            <QueryEditor
+              value={normalizedProps.query ?? {}}
+              onChange={(nextQuery) => {
+                updateValue({
+                  ...value,
+                  query: {
+                    ...nextQuery,
+                    kind: selectedQueryModel.id,
+                  },
+                });
+              }}
+              disabled={!editable}
+              connectionInstance={selectedConnectionInstance}
+              connectionType={connectionType}
+              queryModel={selectedQueryModel}
+            />
+          ) : selectedQueryModel ? (
+            <JsonObjectEditor
+              label="Query JSON"
+              value={normalizedProps.query}
+              onChange={(nextQuery) => {
+                updateValue({
+                  ...value,
+                  query: {
+                    ...nextQuery,
+                    kind: selectedQueryModel.id,
+                  },
+                });
+              }}
+              disabled={!editable}
+            />
+          ) : (
+            <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-4 text-sm text-muted-foreground">
+              Select a query before editing its payload. The workbench stores the selected query in{" "}
+              <code>query.kind</code>.
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {showRuntimeSection ? (
         <section className="space-y-3">
@@ -838,6 +971,90 @@ export function ConnectionQueryWorkbench({
                     updateValue({ ...value, fixedEndMs });
                   }}
                 />
+              </>
+            ) : null}
+            {incrementalControlsAvailable ? (
+              <>
+                <IncrementalRefreshModeControl
+                  value={incrementalSettings.mode}
+                  disabled={!editable}
+                  onChange={(incrementalRefreshMode) => {
+                    updateValue({
+                      ...value,
+                      incrementalRefreshMode,
+                    });
+                  }}
+                />
+                {incrementalSettings.mode === "incremental" ? (
+                  <>
+                    {!incrementalControlsEnabled ? (
+                      <div className="rounded-[calc(var(--radius)-6px)] border border-warning/35 bg-warning/8 px-3 py-2 text-xs text-warning md:col-span-2">
+                        Incremental refresh only runs with the workspace date range.
+                      </div>
+                    ) : null}
+                    <QueryTextField
+                      label="Time field"
+                      value={incrementalSettings.timeField}
+                      onChange={(incrementalTimeField) => {
+                        updateValue({
+                          ...value,
+                          incrementalTimeField,
+                        });
+                      }}
+                      disabled={!editable}
+                      placeholder="timestamp"
+                      help="Column used to compute the next tail request and prune retained rows."
+                    />
+                    <QueryStringListField
+                      label="Merge key columns"
+                      value={incrementalSettings.mergeKeyFields}
+                      onChange={(incrementalMergeKeyFields) => {
+                        updateValue({
+                          ...value,
+                          incrementalMergeKeyFields,
+                        });
+                      }}
+                      disabled={!editable}
+                      placeholder="timestamp, symbol"
+                      suggestions={fieldSuggestions}
+                      help="User-selected column combination used to dedupe and replace retained rows."
+                    />
+                    <NumberInput
+                      label="Overlap ms"
+                      value={incrementalSettings.overlapMs}
+                      min={0}
+                      disabled={!editable}
+                      onChange={(incrementalOverlapMs) => {
+                        updateValue({
+                          ...value,
+                          incrementalOverlapMs,
+                        });
+                      }}
+                    />
+                    <NumberInput
+                      label="Retention ms"
+                      value={incrementalSettings.retentionMs}
+                      min={1}
+                      disabled={!editable}
+                      onChange={(incrementalRetentionMs) => {
+                        updateValue({
+                          ...value,
+                          incrementalRetentionMs,
+                        });
+                      }}
+                    />
+                    <DedupePolicySelect
+                      value={incrementalSettings.dedupePolicy}
+                      disabled={!editable}
+                      onChange={(incrementalDedupePolicy) => {
+                        updateValue({
+                          ...value,
+                          incrementalDedupePolicy,
+                        });
+                      }}
+                    />
+                  </>
+                ) : null}
               </>
             ) : null}
           </div>

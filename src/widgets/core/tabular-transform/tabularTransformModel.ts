@@ -3,11 +3,16 @@ import type {
   ResolvedWidgetInputs,
 } from "@/widgets/types";
 import {
+  CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   normalizeTabularFrameSource,
   type TabularFrameFieldSchema,
   type TabularFrameFieldType,
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
+import {
+  attachWidgetRuntimeUpdateContext,
+  mapWidgetRuntimeUpdateEnvelope,
+} from "@/widgets/shared/runtime-update";
 
 export const TABULAR_TRANSFORM_SOURCE_INPUT_ID = "sourceData";
 export const TABULAR_TRANSFORM_DATASET_OUTPUT_ID = "dataset";
@@ -465,6 +470,10 @@ function transformFrame(
   return projectDataset(base.rows, base.columns, props.projectFields, base.derivedColumns);
 }
 
+function canTransformDeltaFromRows(props: ReturnType<typeof normalizeTabularTransformProps>) {
+  return props.transformMode === "none";
+}
+
 function resolveSourceInput(resolvedInputs: ResolvedWidgetInputs | undefined) {
   const input = resolvedInputs?.[TABULAR_TRANSFORM_SOURCE_INPUT_ID];
   const candidate = Array.isArray(input)
@@ -511,7 +520,7 @@ export function resolveTabularTransformOutput(input: {
   const sourceInput = resolveSourceInput(input.resolvedInputs);
 
   if (sourceInput?.status === "valid") {
-    const source = normalizeTabularFrameSource(sourceInput.value);
+    const source = normalizeTabularFrameSource(sourceInput.upstreamBase ?? sourceInput.value);
 
     if (!source) {
       return {
@@ -561,7 +570,7 @@ export function resolveTabularTransformOutput(input: {
 
     const transformed = transformFrame(source, props);
 
-    return {
+    const outputFrame = {
       status: "ready",
       columns: transformed.columns,
       rows: transformed.rows,
@@ -581,7 +590,56 @@ export function resolveTabularTransformOutput(input: {
           upstreamSource: source.source,
         },
       },
-    };
+    } satisfies TabularTransformRuntimeState;
+
+    if (!sourceInput.upstreamUpdate) {
+      return outputFrame;
+    }
+
+    const deltaSource = normalizeTabularFrameSource(sourceInput.upstreamDelta);
+    const canPublishDelta =
+      sourceInput.upstreamUpdate.mode === "delta" &&
+      canTransformDeltaFromRows(props) &&
+      deltaSource !== null;
+    const transformedDelta = canPublishDelta
+      ? transformFrame(deltaSource, props)
+      : null;
+    const deltaFrame =
+      transformedDelta && canPublishDelta
+        ? {
+            ...outputFrame,
+            rows: transformedDelta.rows,
+            columns: transformedDelta.columns,
+            fields: inferFields(
+              transformedDelta.columns,
+              transformedDelta.rows,
+              deltaSource.fields,
+              transformedDelta.derivedColumns,
+            ),
+            source: {
+              ...outputFrame.source,
+              context: {
+                ...(outputFrame.source?.context ?? {}),
+                incrementalDeltaOnly: true,
+              },
+            },
+          } satisfies TabularTransformRuntimeState
+        : undefined;
+
+    return attachWidgetRuntimeUpdateContext(
+      outputFrame,
+      mapWidgetRuntimeUpdateEnvelope(sourceInput.upstreamUpdate, {
+        mode: deltaFrame ? "delta" : "snapshot",
+        outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        upstreamBase: outputFrame,
+        upstreamDelta: deltaFrame,
+        diagnostics: deltaFrame
+          ? undefined
+          : {
+              tabularTransformDeltaFallback: props.transformMode,
+            },
+      }),
+    );
   }
 
   const runtimeFrame = normalizeTabularFrameSource(input.runtimeState);

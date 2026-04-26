@@ -66,6 +66,12 @@ export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidge
             description: "Upstream fields populate the close price mapping choices.",
           },
           {
+            kind: "drives-options",
+            sourcePath: "fields",
+            target: { kind: "schema-field", id: "volumeField" },
+            description: "Upstream fields populate the optional volume mapping choices.",
+          },
+          {
             kind: "drives-render",
             sourcePath: "rows",
             target: { kind: "render", id: "ohlc-bars" },
@@ -88,6 +94,7 @@ export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidge
       requiredSetupSteps: [
         "Bind the widget to an upstream Connection Query or Tabular Transform dataset.",
         "Ensure the upstream table publishes one time field and numeric open, high, low, and close fields.",
+        "Optionally map a numeric volume field and add SMA or EMA studies in widget settings.",
         "Review or override the inferred field mappings in widget settings.",
       ],
     },
@@ -103,15 +110,19 @@ export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidge
         "Consumes one Main Sequence dataset bundle whose rows can be mapped into time/open/high/low/close bars.",
       inputContracts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
       ioNotes: [
-        "The bound tabular response must expose rows shaped like { time: string | number, open: number, high: number, low: number, close: number } or equivalent column names selected in settings.",
+        "The bound tabular response must expose rows shaped like { time: string | number, open: number, high: number, low: number, close: number, volume?: number } or equivalent column names selected in settings.",
         "Time values may be ISO date strings, ISO datetime strings, Unix seconds, Unix milliseconds, Unix microseconds, or Unix nanoseconds.",
+        "Volume is optional. When volumeField is mapped, numeric volume values render in a lower histogram pane.",
+        "Studies are local visual overlays calculated from close prices. The initial supported studies are SMA and EMA.",
       ],
     },
     capabilities: {
       acceptedContracts: [MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT],
       renderer: "lightweight-charts",
-      supportedSeriesTypes: ["candlestick"],
+      supportedStudies: ["sma", "ema"],
+      supportedSeriesTypes: ["candlestick", "volume-histogram", "line-study"],
       requiredTabularFields: ["time", "open", "high", "low", "close"],
+      optionalTabularFields: ["volume"],
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },

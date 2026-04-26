@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { X } from "lucide-react";
 
@@ -34,18 +34,22 @@ export function ConnectionQueryField({
   children,
   className,
   help,
+  hideLabel = false,
   label,
 }: {
   children: ReactNode;
   className?: string;
   help?: ReactNode;
+  hideLabel?: boolean;
   label: ReactNode;
 }) {
   return (
     <div className={["block space-y-1.5", className].filter(Boolean).join(" ")}>
-      <WidgetSettingFieldLabel help={help} textClassName="text-xs font-medium text-muted-foreground">
-        {label}
-      </WidgetSettingFieldLabel>
+      {hideLabel ? null : (
+        <WidgetSettingFieldLabel help={help} textClassName="text-xs font-medium text-muted-foreground">
+          {label}
+        </WidgetSettingFieldLabel>
+      )}
       {children}
     </div>
   );
@@ -54,6 +58,7 @@ export function ConnectionQueryField({
 export function QueryTextField({
   disabled,
   help,
+  hideLabel,
   label,
   onChange,
   placeholder,
@@ -61,13 +66,14 @@ export function QueryTextField({
 }: {
   disabled?: boolean;
   help?: ReactNode;
+  hideLabel?: boolean;
   label: ReactNode;
   onChange: (value: string | undefined) => void;
   placeholder?: string;
   value?: string;
 }) {
   return (
-    <ConnectionQueryField help={help} label={label}>
+    <ConnectionQueryField help={help} hideLabel={hideLabel} label={label}>
       <Input
         value={value ?? ""}
         onChange={(event) => {
@@ -84,6 +90,7 @@ export function QueryTextField({
 export function QueryNumberField({
   disabled,
   help,
+  hideLabel,
   label,
   min,
   onChange,
@@ -92,6 +99,7 @@ export function QueryNumberField({
 }: {
   disabled?: boolean;
   help?: ReactNode;
+  hideLabel?: boolean;
   label: ReactNode;
   min?: number;
   onChange: (value: number | undefined) => void;
@@ -99,7 +107,7 @@ export function QueryNumberField({
   value?: number;
 }) {
   return (
-    <ConnectionQueryField help={help} label={label}>
+    <ConnectionQueryField help={help} hideLabel={hideLabel} label={label}>
       <Input
         type="number"
         min={min}
@@ -123,6 +131,7 @@ export function QueryNumberField({
 export function QuerySqlField({
   disabled,
   help,
+  hideLabel,
   label,
   onChange,
   placeholder,
@@ -130,13 +139,14 @@ export function QuerySqlField({
 }: {
   disabled?: boolean;
   help?: ReactNode;
+  hideLabel?: boolean;
   label: ReactNode;
   onChange: (value: string | undefined) => void;
   placeholder?: string;
   value?: string;
 }) {
   return (
-    <ConnectionQueryField className="md:col-span-2" help={help} label={label}>
+    <ConnectionQueryField className="md:col-span-2" help={help} hideLabel={hideLabel} label={label}>
       <div
         className="overflow-hidden rounded-[calc(var(--radius)-6px)] border border-input bg-background/70 shadow-xs transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
         data-no-widget-drag="true"
@@ -162,7 +172,16 @@ export function QuerySqlField({
   );
 }
 
-function normalizeStringList(value: unknown) {
+export interface QueryStringListSuggestion {
+  value: string;
+  label?: string;
+  description?: string;
+}
+
+function normalizeStringList(
+  value: unknown,
+  normalizeEntry?: (value: string) => string,
+) {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -174,7 +193,7 @@ function normalizeStringList(value: unknown) {
       return [];
     }
 
-    const trimmed = entry.trim();
+    const trimmed = normalizeEntry ? normalizeEntry(entry.trim()) : entry.trim();
 
     if (!trimmed || seen.has(trimmed)) {
       return [];
@@ -185,12 +204,15 @@ function normalizeStringList(value: unknown) {
   });
 }
 
-function parseStringList(value: string) {
+function parseStringList(
+  value: string,
+  normalizeEntry?: (value: string) => string,
+) {
   const seen = new Set<string>();
 
   return value
     .split(/[\n,]/)
-    .map((entry) => entry.trim())
+    .map((entry) => (normalizeEntry ? normalizeEntry(entry.trim()) : entry.trim()))
     .filter((entry) => {
       if (!entry || seen.has(entry)) {
         return false;
@@ -204,33 +226,64 @@ function parseStringList(value: string) {
 export function QueryStringListField({
   disabled,
   help,
+  hideLabel,
   label,
+  normalizeEntry,
   onChange,
   placeholder,
+  suggestions,
   value,
 }: {
   disabled?: boolean;
   help?: ReactNode;
+  hideLabel?: boolean;
   label: ReactNode;
+  normalizeEntry?: (value: string) => string;
   onChange: (value: string[] | undefined) => void;
   placeholder?: string;
+  suggestions?: readonly QueryStringListSuggestion[];
   value?: unknown;
 }) {
-  const entries = useMemo(() => normalizeStringList(value), [value]);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const entries = useMemo(
+    () => normalizeStringList(value, normalizeEntry),
+    [normalizeEntry, value],
+  );
+  const availableSuggestions = useMemo(
+    () =>
+      (suggestions ?? []).flatMap((suggestion) => {
+        const normalizedValue = normalizeEntry
+          ? normalizeEntry(suggestion.value)
+          : suggestion.value.trim();
+
+        if (!normalizedValue || entries.includes(normalizedValue)) {
+          return [];
+        }
+
+        return [
+          {
+            ...suggestion,
+            value: normalizedValue,
+            label: suggestion.label ?? normalizedValue,
+          },
+        ];
+      }),
+    [entries, normalizeEntry, suggestions],
+  );
   const [draft, setDraft] = useState("");
 
   useEffect(() => {
-    if (normalizeStringList(value).length === 0) {
+    if (normalizeStringList(value, normalizeEntry).length === 0) {
       setDraft("");
     }
-  }, [value]);
+  }, [normalizeEntry, value]);
 
   function updateEntries(nextEntries: string[]) {
     onChange(nextEntries.length > 0 ? nextEntries : undefined);
   }
 
   function appendEntries(nextDraft = draft) {
-    const parsedEntries = parseStringList(nextDraft);
+    const parsedEntries = parseStringList(nextDraft, normalizeEntry);
 
     if (parsedEntries.length === 0) {
       setDraft("");
@@ -251,12 +304,24 @@ export function QueryStringListField({
     setDraft("");
   }
 
+  function appendEntry(entry: string) {
+    const [nextEntry] = parseStringList(entry, normalizeEntry);
+
+    if (!nextEntry || entries.includes(nextEntry)) {
+      return;
+    }
+
+    updateEntries([...entries, nextEntry]);
+    setDraft("");
+    inputRef.current?.focus();
+  }
+
   function removeEntry(entryToRemove: string) {
     updateEntries(entries.filter((entry) => entry !== entryToRemove));
   }
 
   return (
-    <ConnectionQueryField help={help} label={label}>
+    <ConnectionQueryField help={help} hideLabel={hideLabel} label={label}>
       <div
         className={[
           "min-h-24 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-2 py-2 shadow-sm transition-colors focus-within:border-primary/70 focus-within:ring-2 focus-within:ring-ring/30",
@@ -264,6 +329,7 @@ export function QueryStringListField({
         ]
           .filter(Boolean)
           .join(" ")}
+        onClick={() => inputRef.current?.focus()}
         data-no-widget-drag="true"
       >
         <div className="flex flex-wrap gap-1.5">
@@ -276,6 +342,9 @@ export function QueryStringListField({
               <button
                 type="button"
                 className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                }}
                 onClick={(event) => {
                   event.preventDefault();
                   removeEntry(entry);
@@ -288,6 +357,7 @@ export function QueryStringListField({
             </span>
           ))}
           <Input
+            ref={inputRef}
             value={draft}
             onChange={(event) => {
               const nextDraft = event.target.value;
@@ -320,6 +390,29 @@ export function QueryStringListField({
             className="h-7 min-w-40 flex-1 border-0 bg-transparent px-1 py-0 font-mono text-xs shadow-none focus:border-0 focus:ring-0"
           />
         </div>
+        {availableSuggestions.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
+            {availableSuggestions.map((suggestion) => (
+              <button
+                key={suggestion.value}
+                type="button"
+                className="inline-flex max-w-full items-center rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/65 px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-50"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  appendEntry(suggestion.value);
+                }}
+                disabled={disabled}
+                title={suggestion.description}
+              >
+                <span className="truncate">{suggestion.label}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </ConnectionQueryField>
   );

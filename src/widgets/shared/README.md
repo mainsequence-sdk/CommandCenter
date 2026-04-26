@@ -30,6 +30,11 @@ This directory contains reusable widget presentation primitives that are shared 
 - `widget-usage-guidance.ts`: parses raw `USAGE_GUIDANCE.md` content into the short catalog
   description assigned to `WidgetDefinition.description` and the structured `usageGuidance` payload
   published by backend widget-type sync.
+- `runtime-update.ts`: shared `widget-runtime-update@v1` envelope contract for snapshot/delta
+  update metadata. Source widgets attach it under `source.context.runtimeUpdate` on their published
+  output, and the dashboard binding resolver exposes it to widgets as `upstreamBase`,
+  `upstreamDelta`, and `upstreamUpdate` on resolved inputs. Consumers should read those generic
+  fields instead of source-specific metadata names when they need incremental behavior.
 - `widget-schema.ts`: shared helpers for widget schema visibility, controller context resolution, and exposed-field presentation state.
 - `widget-schema-form.tsx`: generic settings form renderer for schema-based widget fields. The form
   now supports per-field layout width through `WidgetFieldDefinition.settingsColumnSpan`, so shared

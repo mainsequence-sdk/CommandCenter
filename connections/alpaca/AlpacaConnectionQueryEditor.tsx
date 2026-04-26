@@ -18,6 +18,18 @@ import type {
 
 const equityFeeds = ["iex", "sip", "delayed_sip", "boats", "overnight", "otc"] satisfies AlpacaFeed[];
 const cryptoLocations = ["us", "us-1", "us-2", "eu-1", "bs-1"] satisfies AlpacaCryptoLocation[];
+const alpacaTimeframes = [
+  ...Array.from({ length: 59 }, (_, index) => `${index + 1}Min`),
+  ...Array.from({ length: 23 }, (_, index) => `${index + 1}Hour`),
+  "1Day",
+  "1Week",
+  "1Month",
+  "2Month",
+  "3Month",
+  "4Month",
+  "6Month",
+  "12Month",
+] as const;
 
 function readKind(
   queryModelId: string | undefined,
@@ -109,13 +121,13 @@ export function AlpacaConnectionQueryEditor({
         />
 
         {isOhlc ? (
-          <QueryTextField
+          <QuerySelectField
             label="Timeframe"
             value={value.timeframe}
             onChange={(timeframe) => patchQuery(value, onChange, kind, { timeframe })}
             disabled={disabled}
-            placeholder="1Min"
-            help="Alpaca bar timeframe such as 1Min, 5Min, 1Hour, or 1Day."
+            options={alpacaTimeframes}
+            help="Alpaca bar timeframe. Documented values include 1-59Min, 1-23Hour, 1Day, 1Week, and 1, 2, 3, 4, 6, or 12Month."
           />
         ) : null}
 

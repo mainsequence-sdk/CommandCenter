@@ -27,6 +27,8 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset.
 ## blockingRequirements
 
 - A compatible upstream tabular binding is required.
+- When the upstream source publishes incremental metadata, the statistic consumes the retained
+  full `upstreamBase` frame and recomputes the cards as a snapshot.
 - Field pickers are populated from the bound dataset's `columns`, `fields`, and representative rows.
 - `max`, `min`, `sum`, and `mean` require a numeric value field. `count` can count rows without a value field.
 

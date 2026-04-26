@@ -20,6 +20,11 @@ import {
   normalizeWidgetBindingTransformSteps,
 } from "@/dashboards/widget-binding-transforms";
 import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
+import {
+  mapWidgetRuntimeUpdateEnvelope,
+  readWidgetRuntimeUpdateContext,
+  resolveWidgetRuntimeUpdateParts,
+} from "@/widgets/shared/runtime-update";
 
 export interface FlattenedDashboardWidgetEntry {
   instance: DashboardWidgetInstance;
@@ -79,6 +84,57 @@ export interface ResolvedWidgetOutput {
   description?: string;
   value?: unknown;
   valueDescriptor?: WidgetValueDescriptor;
+}
+
+function resolveTransformedRuntimeUpdate(input: {
+  binding: WidgetPortBinding;
+  sourceOutput: ResolvedWidgetOutput;
+  transformedBase: {
+    contractId: WidgetContractId;
+    value: unknown;
+    valueDescriptor?: WidgetValueDescriptor;
+  };
+}) {
+  const sourceUpdate = readWidgetRuntimeUpdateContext(input.sourceOutput.value);
+
+  if (!sourceUpdate) {
+    return {
+      upstreamBase: input.transformedBase.value,
+    };
+  }
+
+  const transformedDelta =
+    sourceUpdate.mode === "delta" && sourceUpdate.deltaOutput !== undefined
+      ? applyWidgetBindingTransform(input.binding, {
+          contractId: input.sourceOutput.contractId,
+          value: sourceUpdate.deltaOutput,
+          valueDescriptor: input.sourceOutput.valueDescriptor,
+        })
+      : undefined;
+  const upstreamDelta =
+    transformedDelta?.status === "valid" ? transformedDelta.value : undefined;
+  const updateMode =
+    sourceUpdate.mode === "delta" && upstreamDelta === undefined
+      ? "snapshot"
+      : sourceUpdate.mode;
+  const upstreamUpdate = mapWidgetRuntimeUpdateEnvelope(sourceUpdate, {
+    mode: updateMode,
+    outputContractId: input.transformedBase.contractId,
+    upstreamBase: input.transformedBase.value,
+    upstreamDelta,
+    diagnostics:
+      sourceUpdate.mode === "delta" && updateMode === "snapshot"
+        ? {
+            deltaTransformFallback: transformedDelta?.status ?? "missing-delta-output",
+          }
+        : undefined,
+  });
+
+  return {
+    upstreamBase: input.transformedBase.value,
+    upstreamDelta,
+    upstreamUpdate,
+  };
 }
 
 export type ResolvedWidgetOutputs = Record<string, ResolvedWidgetOutput | undefined>;
@@ -588,9 +644,10 @@ function resolveSingleInput(
       } satisfies ResolvedWidgetInput;
     }
 
+    const sourceRuntimeParts = resolveWidgetRuntimeUpdateParts(resolvedSourceOutput.value);
     const transformed = applyWidgetBindingTransform(binding, {
       contractId: resolvedSourceOutput.contractId,
-      value: resolvedSourceOutput.value,
+      value: sourceRuntimeParts.upstreamBase,
       valueDescriptor: resolvedSourceOutput.valueDescriptor,
     });
 
@@ -610,6 +667,12 @@ function resolveSingleInput(
     }
 
     if (!input.accepts.includes(transformed.contractId)) {
+      const runtimeUpdate = resolveTransformedRuntimeUpdate({
+        binding,
+        sourceOutput: resolvedSourceOutput,
+        transformedBase: transformed,
+      });
+
       return {
         inputId: input.id,
         label: input.label,
@@ -618,11 +681,20 @@ function resolveSingleInput(
         contractId: transformed.contractId,
         binding,
         value: transformed.value,
+        upstreamBase: runtimeUpdate.upstreamBase,
+        upstreamDelta: runtimeUpdate.upstreamDelta,
+        upstreamUpdate: runtimeUpdate.upstreamUpdate,
         valueDescriptor: transformed.valueDescriptor,
         status: "contract-mismatch",
         effects: input.effects ?? [],
       } satisfies ResolvedWidgetInput;
     }
+
+    const runtimeUpdate = resolveTransformedRuntimeUpdate({
+      binding,
+      sourceOutput: resolvedSourceOutput,
+      transformedBase: transformed,
+    });
 
     return {
       inputId: input.id,
@@ -632,6 +704,9 @@ function resolveSingleInput(
       contractId: transformed.contractId,
       binding,
       value: transformed.value,
+      upstreamBase: runtimeUpdate.upstreamBase,
+      upstreamDelta: runtimeUpdate.upstreamDelta,
+      upstreamUpdate: runtimeUpdate.upstreamUpdate,
       valueDescriptor: transformed.valueDescriptor,
       status: "valid",
       effects: input.effects ?? [],

@@ -22,7 +22,17 @@ export interface MainSequenceOhlcBarsWidgetProps
   highField?: string;
   lowField?: string;
   openField?: string;
+  studies?: OhlcBarsStudyConfig[];
   timeField?: string;
+  volumeField?: string;
+}
+
+export type OhlcBarsStudyType = "sma" | "ema";
+
+export interface OhlcBarsStudyConfig {
+  id?: string;
+  period?: number;
+  type?: OhlcBarsStudyType;
 }
 
 export interface ResolvedOhlcBarsConfig extends ResolvedDataNodeWidgetSourceConfig {
@@ -30,7 +40,9 @@ export interface ResolvedOhlcBarsConfig extends ResolvedDataNodeWidgetSourceConf
   highField?: string;
   lowField?: string;
   openField?: string;
+  studies: Required<OhlcBarsStudyConfig>[];
   timeField?: string;
+  volumeField?: string;
 }
 
 export interface OhlcBarsPoint {
@@ -41,11 +53,13 @@ export interface OhlcBarsPoint {
   sourceTime: unknown;
   timeMs: number;
   time: number;
+  volume?: number;
 }
 
 export interface OhlcBarsSeriesResult {
   invalidRowCount: number;
   points: OhlcBarsPoint[];
+  volumePointCount: number;
 }
 
 const timeFieldPatterns = [/^time$/i, /time[_\s-]?index/i, /timestamp/i, /datetime/i, /^date$/i];
@@ -53,6 +67,9 @@ const openFieldPatterns = [/^open$/i, /^o$/i, /open[_\s-]?price/i];
 const highFieldPatterns = [/^high$/i, /^h$/i, /high[_\s-]?price/i];
 const lowFieldPatterns = [/^low$/i, /^l$/i, /low[_\s-]?price/i];
 const closeFieldPatterns = [/^close$/i, /^c$/i, /close[_\s-]?price/i, /settle/i, /last/i];
+const maxStudyCount = 5;
+const studyPeriodMin = 2;
+const studyPeriodMax = 500;
 
 function normalizeStringField(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -74,6 +91,23 @@ function getRequestedFieldKey(
   return fieldOptions.find((field) =>
     autoPatterns.some((pattern) => pattern.test(formatDataNodeFieldSearchText(field))),
   )?.key;
+}
+
+function getOptionalFieldKey(
+  requestedKey: unknown,
+  fieldOptions: DataNodeFieldOption[],
+) {
+  const normalized = normalizeStringField(requestedKey);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (fieldOptions.length === 0 || fieldOptions.some((field) => field.key === normalized)) {
+    return normalized;
+  }
+
+  return undefined;
 }
 
 function parseNumericValue(value: unknown) {
@@ -161,6 +195,44 @@ function normalizeOhlcValue(value: number) {
   return Math.round(value * 1_000_000) / 1_000_000;
 }
 
+function normalizeStudyType(value: unknown): OhlcBarsStudyType {
+  return value === "ema" ? "ema" : "sma";
+}
+
+function normalizeStudyPeriod(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return 20;
+  }
+
+  return Math.max(studyPeriodMin, Math.min(Math.trunc(parsed), studyPeriodMax));
+}
+
+function normalizeStudies(value: unknown): Required<OhlcBarsStudyConfig>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.slice(0, maxStudyCount).map((entry, index) => {
+    const record = entry && typeof entry === "object" && !Array.isArray(entry)
+      ? entry as OhlcBarsStudyConfig
+      : {};
+    const type = normalizeStudyType(record.type);
+    const period = normalizeStudyPeriod(record.period);
+    const id =
+      typeof record.id === "string" && record.id.trim()
+        ? record.id.trim()
+        : `${type}-${period}-${index + 1}`;
+
+    return {
+      id,
+      period,
+      type,
+    };
+  });
+}
+
 export function normalizeOhlcBarsProps(
   props: MainSequenceOhlcBarsWidgetProps,
   detail?: DataNodeDetail | null,
@@ -177,7 +249,9 @@ export function normalizeOhlcBarsProps(
     highField: resolved.highField,
     lowField: resolved.lowField,
     openField: resolved.openField,
+    studies: resolved.studies,
     timeField: resolved.timeField,
+    volumeField: resolved.volumeField,
   } satisfies MainSequenceOhlcBarsWidgetProps;
 }
 
@@ -210,18 +284,21 @@ export function resolveOhlcBarsConfig(
     openField: getRequestedFieldKey(props.openField, availableFields, openFieldPatterns),
     sourceMode: "filter_widget",
     sourceWidgetId: normalizedReference.sourceWidgetId,
+    studies: normalizeStudies(props.studies),
     timeField: getRequestedFieldKey(props.timeField, availableFields, timeFieldPatterns),
+    volumeField: getOptionalFieldKey(props.volumeField, availableFields),
   };
 }
 
 export function buildOhlcBarsSeries(
   rows: readonly DataNodeRemoteDataRow[],
-  config: Pick<ResolvedOhlcBarsConfig, "closeField" | "highField" | "lowField" | "openField" | "timeField">,
+  config: Pick<ResolvedOhlcBarsConfig, "closeField" | "highField" | "lowField" | "openField" | "timeField" | "volumeField">,
 ): OhlcBarsSeriesResult {
   if (!config.timeField || !config.openField || !config.highField || !config.lowField || !config.closeField) {
     return {
       invalidRowCount: rows.length,
       points: [],
+      volumePointCount: 0,
     };
   }
 
@@ -232,6 +309,7 @@ export function buildOhlcBarsSeries(
     const high = parseNumericValue(row[config.highField!]);
     const low = parseNumericValue(row[config.lowField!]);
     const close = parseNumericValue(row[config.closeField!]);
+    const volume = config.volumeField ? parseNumericValue(row[config.volumeField]) : null;
 
     if (
       timeMs === null ||
@@ -253,6 +331,7 @@ export function buildOhlcBarsSeries(
         sourceTime: row[config.timeField!],
         time: Math.floor(timeMs / 1000),
         timeMs,
+        volume: volume === null ? undefined : normalizeOhlcValue(volume),
       },
     ];
   });
@@ -262,5 +341,6 @@ export function buildOhlcBarsSeries(
   return {
     invalidRowCount,
     points,
+    volumePointCount: points.filter((point) => point.volume !== undefined).length,
   };
 }
