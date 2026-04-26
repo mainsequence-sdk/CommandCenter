@@ -218,6 +218,11 @@ export const ohlcBarsSettingsSchema: WidgetSettingsSchema<
       description: "Map the linked table into time, open, high, low, close, and optional volume fields.",
     },
     {
+      id: "series-filter",
+      title: "Series filter",
+      description: "Restrict multi-instrument tables to one ticker, symbol, or other series value.",
+    },
+    {
       id: "studies",
       title: "Studies",
       description: "Add simple price studies rendered as overlays on the close price.",
@@ -353,6 +358,55 @@ export const ohlcBarsSettingsSchema: WidgetSettingsSchema<
           placeholder="No volume"
           searchPlaceholder="Search volume fields"
           disabled={!editable || context.resolvedConfig.availableFields.length === 0}
+        />
+      ),
+    },
+    {
+      id: "seriesFilterField",
+      label: "Filter column",
+      description: "Optional column used to select one series from a multi-ticker OHLC table.",
+      sectionId: "series-filter",
+      isVisible: ({ context }) => !context.hasNoData,
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <PickerFieldSetting
+          value={context.resolvedConfig.seriesFilterField ?? ""}
+          onChange={(value) => {
+            onDraftPropsChange({
+              ...draftProps,
+              seriesFilterField: value || undefined,
+              seriesFilterValue: undefined,
+            });
+          }}
+          options={context.seriesFilterFieldOptions}
+          placeholder="No filter"
+          searchPlaceholder="Search filter columns"
+          disabled={!editable || context.resolvedConfig.availableFields.length === 0}
+        />
+      ),
+    },
+    {
+      id: "seriesFilterValue",
+      label: "Filter value",
+      description: "Single value to render from the selected filter column.",
+      sectionId: "series-filter",
+      isVisible: ({ context }) => Boolean(context.resolvedConfig.seriesFilterField),
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <PickerFieldSetting
+          value={context.resolvedConfig.seriesFilterValue ?? ""}
+          onChange={(value) => {
+            onDraftPropsChange({
+              ...draftProps,
+              seriesFilterValue: value || undefined,
+            });
+          }}
+          options={context.filterValueOptions}
+          placeholder={
+            context.filterValueOptions.length > 0
+              ? "Select one value"
+              : "No values available"
+          }
+          searchPlaceholder="Search filter values"
+          disabled={!editable || context.filterValueOptions.length === 0}
         />
       ),
     },

@@ -22,6 +22,8 @@ export interface MainSequenceOhlcBarsWidgetProps
   highField?: string;
   lowField?: string;
   openField?: string;
+  seriesFilterField?: string;
+  seriesFilterValue?: string;
   studies?: OhlcBarsStudyConfig[];
   timeField?: string;
   volumeField?: string;
@@ -40,6 +42,8 @@ export interface ResolvedOhlcBarsConfig extends ResolvedDataNodeWidgetSourceConf
   highField?: string;
   lowField?: string;
   openField?: string;
+  seriesFilterField?: string;
+  seriesFilterValue?: string;
   studies: Required<OhlcBarsStudyConfig>[];
   timeField?: string;
   volumeField?: string;
@@ -57,6 +61,8 @@ export interface OhlcBarsPoint {
 }
 
 export interface OhlcBarsSeriesResult {
+  collapsedPointCount: number;
+  filteredRowCount: number;
   invalidRowCount: number;
   points: OhlcBarsPoint[];
   volumePointCount: number;
@@ -73,6 +79,26 @@ const studyPeriodMax = 500;
 
 function normalizeStringField(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function formatFilterValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function getRequestedFieldKey(
@@ -249,6 +275,8 @@ export function normalizeOhlcBarsProps(
     highField: resolved.highField,
     lowField: resolved.lowField,
     openField: resolved.openField,
+    seriesFilterField: resolved.seriesFilterField,
+    seriesFilterValue: resolved.seriesFilterValue,
     studies: resolved.studies,
     timeField: resolved.timeField,
     volumeField: resolved.volumeField,
@@ -282,6 +310,8 @@ export function resolveOhlcBarsConfig(
     highField: getRequestedFieldKey(props.highField, availableFields, highFieldPatterns),
     lowField: getRequestedFieldKey(props.lowField, availableFields, lowFieldPatterns),
     openField: getRequestedFieldKey(props.openField, availableFields, openFieldPatterns),
+    seriesFilterField: getOptionalFieldKey(props.seriesFilterField, availableFields),
+    seriesFilterValue: normalizeStringField(props.seriesFilterValue),
     sourceMode: "filter_widget",
     sourceWidgetId: normalizedReference.sourceWidgetId,
     studies: normalizeStudies(props.studies),
@@ -290,20 +320,56 @@ export function resolveOhlcBarsConfig(
   };
 }
 
+export function buildOhlcBarsFilterValueOptions(
+  rows: readonly DataNodeRemoteDataRow[],
+  filterField?: string,
+) {
+  if (!filterField) {
+    return [];
+  }
+
+  const countsByValue = new Map<string, number>();
+
+  rows.forEach((row) => {
+    const value = formatFilterValue(row[filterField]);
+
+    if (!value) {
+      return;
+    }
+
+    countsByValue.set(value, (countsByValue.get(value) ?? 0) + 1);
+  });
+
+  return [...countsByValue.entries()]
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([value, count]) => ({
+      value,
+      label: value,
+      description: `${count.toLocaleString()} row${count === 1 ? "" : "s"}`,
+      keywords: [value],
+    }));
+}
+
 export function buildOhlcBarsSeries(
   rows: readonly DataNodeRemoteDataRow[],
-  config: Pick<ResolvedOhlcBarsConfig, "closeField" | "highField" | "lowField" | "openField" | "timeField" | "volumeField">,
+  config: Pick<ResolvedOhlcBarsConfig, "closeField" | "highField" | "lowField" | "openField" | "seriesFilterField" | "seriesFilterValue" | "timeField" | "volumeField">,
 ): OhlcBarsSeriesResult {
   if (!config.timeField || !config.openField || !config.highField || !config.lowField || !config.closeField) {
     return {
+      collapsedPointCount: 0,
+      filteredRowCount: 0,
       invalidRowCount: rows.length,
       points: [],
       volumePointCount: 0,
     };
   }
 
+  const filteredRows =
+    config.seriesFilterField && config.seriesFilterValue
+      ? rows.filter((row) => formatFilterValue(row[config.seriesFilterField!]) === config.seriesFilterValue)
+      : rows;
   let invalidRowCount = 0;
-  const points = rows.flatMap<OhlcBarsPoint>((row) => {
+  const points = filteredRows.flatMap<OhlcBarsPoint>((row) => {
     const timeMs = parseTimeToUnixMilliseconds(row[config.timeField!]);
     const open = parseNumericValue(row[config.openField!]);
     const high = parseNumericValue(row[config.highField!]);
@@ -336,11 +402,38 @@ export function buildOhlcBarsSeries(
     ];
   });
 
-  points.sort((left, right) => left.timeMs - right.timeMs);
+  const sortedPoints = points.sort((left, right) => left.timeMs - right.timeMs);
+  const collapsedPoints = [...sortedPoints
+    .reduce((pointBySecond, point) => {
+      const current = pointBySecond.get(point.time);
+
+      if (!current) {
+        pointBySecond.set(point.time, { ...point });
+        return pointBySecond;
+      }
+
+      pointBySecond.set(point.time, {
+        ...current,
+        close: point.close,
+        high: Math.max(current.high, point.high),
+        low: Math.min(current.low, point.low),
+        sourceTime: point.sourceTime,
+        timeMs: point.timeMs,
+        volume:
+          current.volume === undefined && point.volume === undefined
+            ? undefined
+            : (current.volume ?? 0) + (point.volume ?? 0),
+      });
+
+      return pointBySecond;
+    }, new Map<number, OhlcBarsPoint>())
+    .values()];
 
   return {
+    collapsedPointCount: points.length - collapsedPoints.length,
+    filteredRowCount: rows.length - filteredRows.length,
     invalidRowCount,
-    points,
-    volumePointCount: points.filter((point) => point.volume !== undefined).length,
+    points: collapsedPoints,
+    volumePointCount: collapsedPoints.filter((point) => point.volume !== undefined).length,
   };
 }

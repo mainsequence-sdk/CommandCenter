@@ -38,6 +38,41 @@ type TradingViewChartApi = ReturnType<typeof createChart>;
 type TradingViewSeriesApi = Parameters<TradingViewChartApi["removeSeries"]>[0];
 type TradingViewPoint = { time: Time; value: number };
 
+function resolveTimeMs(time: Time) {
+  if (typeof time === "number") {
+    return time * 1000;
+  }
+
+  if (typeof time === "string") {
+    const parsed = Date.parse(time);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return Date.UTC(time.year, time.month - 1, time.day);
+}
+
+function formatTradingViewTime(
+  time: Time,
+  timeAxisMode: Exclude<GraphTimeAxisMode, "auto">,
+  options?: { includeSeconds?: boolean },
+) {
+  const timestampMs = resolveTimeMs(time);
+
+  if (timestampMs === null) {
+    return String(time);
+  }
+
+  if (timeAxisMode === "date") {
+    return formatGraphUtcDateKey(timestampMs);
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: options?.includeSeconds ? "2-digit" : undefined,
+  }).format(new Date(timestampMs));
+}
+
 function mapGraphSeriesPoints(
   entry: GraphSeries,
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">,
@@ -165,9 +200,17 @@ export function TradingViewSeriesChart({
         timeScale: {
           borderVisible: false,
           borderColor: "transparent",
+          fixRightEdge: true,
+          rightOffset: 0,
           timeVisible: timeAxisMode === "datetime",
           secondsVisible: false,
           minBarSpacing: minBarSpacingPx,
+          tickMarkFormatter: (time: Time) =>
+            formatTradingViewTime(time, timeAxisMode),
+        },
+        localization: {
+          timeFormatter: (time: Time) =>
+            formatTradingViewTime(time, timeAxisMode, { includeSeconds: true }),
         },
         crosshair: {
           vertLine: {

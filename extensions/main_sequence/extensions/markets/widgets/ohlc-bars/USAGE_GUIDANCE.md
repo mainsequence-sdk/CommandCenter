@@ -2,6 +2,8 @@
 
 OHLC bar chart for a bound tabular market dataset. The upstream tabular response must publish one
 row per bar with time, open, high, low, and close values, and may include a numeric volume field.
+If the bound table contains several tickers or instruments, configure a series filter column and one
+filter value so the chart renders a single OHLC series.
 
 ## whenToUse
 
@@ -11,6 +13,8 @@ row per bar with time, open, high, low, and close values, and may include a nume
   into a chart.
 - Use when optional volume should be shown as a lower histogram pane or simple close-price studies
   such as SMA/EMA should be overlaid on the price pane.
+- Use when a multi-instrument table includes a discriminator column such as `ticker`, `symbol`, or
+  `instrument_id` and one value should be charted.
 
 ## whenNotToUse
 
@@ -23,6 +27,8 @@ row per bar with time, open, high, low, and close values, and may include a nume
 
 - Bind the widget to a compatible upstream dataset through the Source data input.
 - Ensure the upstream rows contain one temporal field plus numeric open, high, low, and close fields.
+- If rows contain multiple instruments, choose the filter column and then choose one value from that
+  column.
 - Optionally map a numeric volume field to render a synchronized volume histogram.
 - Optionally add SMA or EMA studies; studies are calculated locally from close prices.
 - Let the widget infer common field names such as `time`, `time_index`, `date`, `open`, `high`,
@@ -45,7 +51,8 @@ row per bar with time, open, high, low, and close values, and may include a nume
       "high": 103.4,
       "low": 100.8,
       "close": 102.7,
-      "volume": 123456
+      "volume": 123456,
+      "ticker": "AAPL"
     }
   ]
 }
@@ -55,6 +62,8 @@ row per bar with time, open, high, low, and close values, and may include a nume
   parseable time value and numeric open, high, low, and close values.
 - `volume` is optional. If a volume field is mapped, rows with numeric volume values render in the
   volume pane; rows without valid volume still render price bars.
+- A series filter is optional but recommended for multi-ticker responses. Map a column like `ticker`
+  or `symbol`, then select exactly one value. Only matching rows are parsed into OHLC bars.
 
 ## commonPitfalls
 
@@ -64,6 +73,10 @@ row per bar with time, open, high, low, and close values, and may include a nume
   strings are skipped.
 - Volume values may be numbers or numeric strings. Invalid volume values are ignored without
   invalidating the price bar.
+- Filter values are compared after converting source values to display strings, so symbols, numeric
+  ids, and boolean flags can be selected.
 - SMA and EMA studies require enough close-price history to fill the selected period, so long periods
   start later on the chart.
-- Rows are sorted by parsed time before plotting, so duplicate timestamps can visually overlap.
+- Rows are sorted by parsed time before plotting. Rows that share the same rendered chart timestamp
+  are merged into one OHLC bar using first open, maximum high, minimum low, last close, and summed
+  volume.

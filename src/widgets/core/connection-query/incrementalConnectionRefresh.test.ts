@@ -94,7 +94,7 @@ describe("incremental connection refresh", () => {
     });
 
     expect(deltaDecision.reason).toBe("delta");
-    expect(deltaDecision.request.timeRange?.from).toBe("2026-04-25T00:01:00.000Z");
+    expect(deltaDecision.request.timeRange?.from).toBe("2026-04-25T00:03:00.000Z");
     expect(merged.delta.mode).toBe("delta");
     expect(merged.delta.rowsAppended).toBe(1);
     expect(merged.delta.rowsReplaced).toBe(1);
@@ -103,6 +103,40 @@ describe("incremental connection refresh", () => {
       { time: "2026-04-25T00:02:00.000Z", symbol: "AAPL", value: 22 },
       { time: "2026-04-25T00:03:00.000Z", symbol: "AAPL", value: 30 },
     ]);
+  });
+
+  it("builds the next delta from the last request end instead of the observed data watermark", () => {
+    const initialDecision = resolveConnectionQueryIncrementalDecision({
+      fullRequest: request("2026-04-25T00:00:00.000Z", "2026-04-25T00:10:00.000Z"),
+      settings,
+      connectionTypeId: "test",
+      queryModelId: "bars",
+      scopeId: "widget-1",
+      eligible: true,
+    });
+
+    mergeConnectionQueryIncrementalFrame({
+      decision: initialDecision,
+      settings,
+      incomingFrame: frame([
+        { time: "2026-04-25T00:02:00.000Z", symbol: "AAPL", value: 20 },
+      ]),
+    });
+
+    const deltaDecision = resolveConnectionQueryIncrementalDecision({
+      fullRequest: request("2026-04-25T00:05:00.000Z", "2026-04-25T00:15:00.000Z"),
+      settings,
+      connectionTypeId: "test",
+      queryModelId: "bars",
+      scopeId: "widget-1",
+      eligible: true,
+    });
+
+    expect(deltaDecision.reason).toBe("delta");
+    expect(deltaDecision.request.timeRange).toEqual({
+      from: "2026-04-25T00:09:00.000Z",
+      to: "2026-04-25T00:15:00.000Z",
+    });
   });
 
   it("does not collapse rows that share time when identity columns differ", () => {
@@ -166,6 +200,57 @@ describe("incremental connection refresh", () => {
       { time: "2026-04-25T00:05:00.000Z", symbol: "AAPL", value: 50 },
     ]);
     expect(merged.delta.rowsPruned).toBe(1);
+  });
+
+  it("anchors retention to the latest observed row instead of the requested range end", () => {
+    const decision = resolveConnectionQueryIncrementalDecision({
+      fullRequest: request("2026-04-25T00:00:00.000Z", "2026-04-25T00:15:00.000Z"),
+      settings,
+      connectionTypeId: "test",
+      queryModelId: "bars",
+      scopeId: "widget-1",
+      eligible: true,
+    });
+    const merged = mergeConnectionQueryIncrementalFrame({
+      decision,
+      settings,
+      incomingFrame: frame([
+        { time: "2026-04-25T00:00:30.000Z", symbol: "AAPL", value: 5 },
+        { time: "2026-04-25T00:04:00.000Z", symbol: "AAPL", value: 40 },
+        { time: "2026-04-25T00:06:00.000Z", symbol: "AAPL", value: 60 },
+      ]),
+    });
+
+    expect(merged.frame.rows).toEqual([
+      { time: "2026-04-25T00:04:00.000Z", symbol: "AAPL", value: 40 },
+      { time: "2026-04-25T00:06:00.000Z", symbol: "AAPL", value: 60 },
+    ]);
+    expect(merged.delta.rowsRetained).toBe(2);
+    expect(merged.delta.watermarkAfterMs).toBe(Date.parse("2026-04-25T00:06:00.000Z"));
+  });
+
+  it("accepts numeric timestamp strings for incremental merge fields", () => {
+    const firstTime = Date.parse("2026-04-25T00:04:00.000Z");
+    const secondTime = Date.parse("2026-04-25T00:05:00.000Z");
+    const decision = resolveConnectionQueryIncrementalDecision({
+      fullRequest: request("2026-04-25T00:00:00.000Z", "2026-04-25T00:15:00.000Z"),
+      settings,
+      connectionTypeId: "test",
+      queryModelId: "bars",
+      scopeId: "widget-1",
+      eligible: true,
+    });
+    const merged = mergeConnectionQueryIncrementalFrame({
+      decision,
+      settings,
+      incomingFrame: frame([
+        { time: String(firstTime), symbol: "AAPL", value: 40 },
+        { time: String(secondTime), symbol: "AAPL", value: 50 },
+      ]),
+    });
+
+    expect(merged.frame.rows).toHaveLength(2);
+    expect(merged.delta.watermarkAfterMs).toBe(secondTime);
   });
 
   it("rejects rows with an invalid configured time field", () => {

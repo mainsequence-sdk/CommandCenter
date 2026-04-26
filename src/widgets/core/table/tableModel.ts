@@ -23,6 +23,7 @@ export type TableWidgetSourceMode = "bound" | "manual";
 export type TableWidgetColumnFormat =
   | "auto"
   | "text"
+  | "datetime"
   | "number"
   | "currency"
   | "percent"
@@ -63,6 +64,8 @@ export interface TableWidgetColumnSchema {
   decimals?: number;
   prefix?: string;
   suffix?: string;
+  dateTimeInputFormat?: string;
+  dateTimeOutputFormat?: string;
   categorical?: boolean;
   heatmapEligible?: boolean;
   compact?: boolean;
@@ -75,6 +78,8 @@ export interface TableWidgetColumnOverride {
   decimals?: number;
   prefix?: string;
   suffix?: string;
+  dateTimeInputFormat?: string;
+  dateTimeOutputFormat?: string;
   heatmap?: boolean;
   compact?: boolean;
   barMode?: TableWidgetBarMode;
@@ -280,6 +285,11 @@ export interface TableWidgetSchemaValidationResult {
 const defaultPageSize = 10;
 const defaultRemoteLimit = 500;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
+export const TABLE_WIDGET_DEFAULT_DATETIME_OUTPUT_FORMAT = "yyyy-MM-dd HH:mm:ss";
+
+export function isTableWidgetNumericFormat(format: TableWidgetColumnFormat) {
+  return format === "number" || format === "currency" || format === "percent" || format === "bps";
+}
 
 function isTimeLikeField(field: Pick<TabularFieldOption, "key" | "type"> | undefined) {
   if (!field) {
@@ -429,13 +439,397 @@ function normalizePositiveInteger(value: unknown) {
 }
 
 function normalizeTimestampMs(value: unknown) {
-  const parsed = Number(value);
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const absoluteValue = Math.abs(value);
 
-  if (!Number.isFinite(parsed)) {
+    if (absoluteValue >= 1_000_000_000_000_000_000) {
+      return Math.trunc(value / 1_000_000);
+    }
+
+    if (absoluteValue >= 1_000_000_000_000_000) {
+      return Math.trunc(value / 1000);
+    }
+
+    if (absoluteValue >= 100_000_000_000) {
+      return Math.trunc(value);
+    }
+
+    if (absoluteValue >= 100_000_000) {
+      return Math.trunc(value * 1000);
+    }
+
     return undefined;
   }
 
-  return Math.trunc(parsed);
+  if (typeof value === "string" && value.trim()) {
+    const numericValue = Number(value.trim());
+
+    if (Number.isFinite(numericValue)) {
+      return normalizeTimestampMs(numericValue);
+    }
+
+    const parsed = Date.parse(normalizeDateTimeString(value));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+}
+
+function normalizeDateTimeString(value: string) {
+  let normalized = value.trim();
+
+  if (!normalized) {
+    return normalized;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(normalized)) {
+    normalized = normalized.replace(/\s+/, "T");
+  }
+
+  normalized = normalized.replace(/(\.\d{3})\d+/, "$1");
+  normalized = normalized.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+  normalized = normalized.replace(/\s+UTC$/i, "Z");
+
+  return normalized;
+}
+
+function parseDateOnlyLocal(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+
+  return date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+    ? date.getTime()
+    : null;
+}
+
+function parseTimeOnlyLocal(value: string) {
+  const match = /^(\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(value.trim());
+
+  if (!match) {
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const second = Number(match[3] ?? 0);
+  const millisecond = Number((match[4] ?? "0").padEnd(3, "0"));
+
+  if (hour > 23 || minute > 59 || second > 59 || millisecond > 999) {
+    return null;
+  }
+
+  return new Date(1970, 0, 1, hour, minute, second, millisecond).getTime();
+}
+
+const dateTimeInputTokenPattern = /yyyy|yy|MM|M|dd|d|HH|H|hh|h|mm|m|ss|s|SSS|a/g;
+const dateTimeOutputTokenPattern = /yyyy|yy|MM|M|dd|d|HH|H|hh|h|mm|m|ss|s|SSS|a/g;
+
+function normalizeDateTimePattern(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function readQuotedLiteral(format: string, startIndex: number) {
+  let literal = "";
+  let index = startIndex + 1;
+
+  while (index < format.length) {
+    const char = format[index]!;
+
+    if (char === "'") {
+      if (format[index + 1] === "'") {
+        literal += "'";
+        index += 2;
+        continue;
+      }
+
+      return { literal, nextIndex: index + 1 };
+    }
+
+    literal += char;
+    index += 1;
+  }
+
+  return { literal: "'", nextIndex: startIndex + 1 };
+}
+
+function tokenizeDateTimePattern(
+  pattern: string,
+  tokenPattern: RegExp,
+  onToken: (token: string) => string,
+) {
+  let output = "";
+  let index = 0;
+
+  while (index < pattern.length) {
+    const char = pattern[index]!;
+
+    if (char === "'") {
+      const quoted = readQuotedLiteral(pattern, index);
+      output += quoted.literal;
+      index = quoted.nextIndex;
+      continue;
+    }
+
+    tokenPattern.lastIndex = index;
+    const match = tokenPattern.exec(pattern);
+
+    if (match && match.index === index) {
+      output += onToken(match[0]);
+      index += match[0].length;
+      continue;
+    }
+
+    output += char;
+    index += 1;
+  }
+
+  return output;
+}
+
+function compileDateTimeInputPattern(pattern: string) {
+  const captures: string[] = [];
+  let source = "";
+  let index = 0;
+
+  while (index < pattern.length) {
+    const char = pattern[index]!;
+
+    if (char === "'") {
+      const quoted = readQuotedLiteral(pattern, index);
+      source += escapeRegExp(quoted.literal);
+      index = quoted.nextIndex;
+      continue;
+    }
+
+    dateTimeInputTokenPattern.lastIndex = index;
+    const match = dateTimeInputTokenPattern.exec(pattern);
+
+    if (match && match.index === index) {
+      const token = match[0];
+      captures.push(token);
+
+      if (token === "yyyy") {
+        source += "(\\d{4})";
+      } else if (token === "yy") {
+        source += "(\\d{2})";
+      } else if (token === "SSS") {
+        source += "(\\d{1,3})";
+      } else if (token === "a") {
+        source += "([AaPp][Mm])";
+      } else {
+        source += "(\\d{1,2})";
+      }
+
+      index += token.length;
+      continue;
+    }
+
+    source += escapeRegExp(char);
+    index += 1;
+  }
+
+  return {
+    captures,
+    regex: new RegExp(`^${source}$`),
+  };
+}
+
+function parseDateTimeWithPattern(value: string, pattern: string) {
+  const { captures, regex } = compileDateTimeInputPattern(pattern);
+  const match = regex.exec(value.trim());
+
+  if (!match) {
+    return null;
+  }
+
+  const parsed: Record<string, string> = {};
+
+  captures.forEach((token, index) => {
+    parsed[token] = match[index + 1] ?? "";
+  });
+
+  const rawYear = parsed.yyyy ?? parsed.yy;
+  const year =
+    rawYear == null || rawYear === ""
+      ? 1970
+      : parsed.yy != null && parsed.yyyy == null
+        ? Number(rawYear) >= 70
+          ? 1900 + Number(rawYear)
+          : 2000 + Number(rawYear)
+        : Number(rawYear);
+  const month = Number(parsed.MM ?? parsed.M ?? 1);
+  const day = Number(parsed.dd ?? parsed.d ?? 1);
+  let hour = Number(parsed.HH ?? parsed.H ?? parsed.hh ?? parsed.h ?? 0);
+  const minute = Number(parsed.mm ?? parsed.m ?? 0);
+  const second = Number(parsed.ss ?? parsed.s ?? 0);
+  const millisecond = Number((parsed.SSS ?? "0").padEnd(3, "0"));
+  const meridiem = parsed.a?.toLowerCase();
+
+  if (parsed.hh != null || parsed.h != null) {
+    if (hour < 1 || hour > 12) {
+      return null;
+    }
+
+    if (meridiem === "pm" && hour < 12) {
+      hour += 12;
+    } else if (meridiem === "am" && hour === 12) {
+      hour = 0;
+    }
+  }
+
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day) ||
+    !Number.isFinite(hour) ||
+    !Number.isFinite(minute) ||
+    !Number.isFinite(second) ||
+    !Number.isFinite(millisecond) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59 ||
+    second < 0 ||
+    second > 59 ||
+    millisecond < 0 ||
+    millisecond > 999
+  ) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day, hour, minute, second, millisecond);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute ||
+    date.getSeconds() !== second ||
+    date.getMilliseconds() !== millisecond
+  ) {
+    return null;
+  }
+
+  return date.getTime();
+}
+
+export function parseTableWidgetDateTimeValue(
+  value: TableWidgetCellValue,
+  inputFormat?: string,
+) {
+  const explicitInputFormat = normalizeDateTimePattern(inputFormat);
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return normalizeTimestampMs(value) ?? null;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (explicitInputFormat) {
+    const explicitParsed = parseDateTimeWithPattern(trimmed, explicitInputFormat);
+
+    if (explicitParsed !== null) {
+      return explicitParsed;
+    }
+  }
+
+  const numericValue = Number(trimmed);
+
+  if (Number.isFinite(numericValue)) {
+    return normalizeTimestampMs(numericValue) ?? null;
+  }
+
+  const dateOnly = parseDateOnlyLocal(trimmed);
+
+  if (dateOnly !== null) {
+    return dateOnly;
+  }
+
+  const timeOnly = parseTimeOnlyLocal(trimmed);
+
+  if (timeOnly !== null) {
+    return timeOnly;
+  }
+
+  const parsed = Date.parse(normalizeDateTimeString(trimmed));
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function padDateTimePart(value: number, length = 2) {
+  return String(value).padStart(length, "0");
+}
+
+function formatDateTimeWithPattern(timestampMs: number, pattern: string) {
+  const date = new Date(timestampMs);
+  const hours = date.getHours();
+  const twelveHour = hours % 12 || 12;
+
+  return tokenizeDateTimePattern(pattern, dateTimeOutputTokenPattern, (token) => {
+    switch (token) {
+      case "yyyy":
+        return String(date.getFullYear());
+      case "yy":
+        return padDateTimePart(date.getFullYear() % 100);
+      case "MM":
+        return padDateTimePart(date.getMonth() + 1);
+      case "M":
+        return String(date.getMonth() + 1);
+      case "dd":
+        return padDateTimePart(date.getDate());
+      case "d":
+        return String(date.getDate());
+      case "HH":
+        return padDateTimePart(hours);
+      case "H":
+        return String(hours);
+      case "hh":
+        return padDateTimePart(twelveHour);
+      case "h":
+        return String(twelveHour);
+      case "mm":
+        return padDateTimePart(date.getMinutes());
+      case "m":
+        return String(date.getMinutes());
+      case "ss":
+        return padDateTimePart(date.getSeconds());
+      case "s":
+        return String(date.getSeconds());
+      case "SSS":
+        return padDateTimePart(date.getMilliseconds(), 3);
+      case "a":
+        return hours >= 12 ? "PM" : "AM";
+      default:
+        return token;
+    }
+  });
 }
 
 function normalizeDateRangeMode(value: unknown): TableWidgetDateRangeMode {
@@ -471,7 +865,14 @@ function inferRemoteColumnFormatFromKey(
     fieldType === "time" ||
     (nativeType && /date|time|timestamp/i.test(nativeType))
   ) {
-    return "text";
+    return "datetime";
+  }
+
+  if (
+    /date|time|timestamp/i.test(key) &&
+    rows.some((row) => parseTableWidgetDateTimeValue(row[columnIndex]) !== null)
+  ) {
+    return "datetime";
   }
 
   if (
@@ -533,7 +934,7 @@ export function buildTableWidgetFrameFromRemoteData(
       minWidth: isTimeLikeField(field) ? 160 : format === "text" ? 140 : 120,
       pinned: isKeyLikeField(field) ? "left" : undefined,
       categorical: format === "text",
-      heatmapEligible: format !== "text",
+      heatmapEligible: isTableWidgetNumericFormat(format),
       compact:
         format === "currency" &&
         /gross|net|pnl|notional|amount|exposure|value/i.test(columnKey),
@@ -583,7 +984,7 @@ export function buildTableWidgetFrameFromManualData(
       format,
       minWidth: isTimeLikeField(field) ? 160 : format === "text" ? 140 : 120,
       categorical: format === "text",
-      heatmapEligible: format !== "text",
+      heatmapEligible: isTableWidgetNumericFormat(format),
     };
   });
 
@@ -651,6 +1052,13 @@ function inferSchemaFormatFromRows(
     return "text";
   }
 
+  if (
+    /date|time|timestamp/i.test(columnKey) &&
+    values.some((value) => parseTableWidgetDateTimeValue(value) !== null)
+  ) {
+    return "datetime";
+  }
+
   const allNumeric = values.every((value) => getTableWidgetNumericValue(value) !== null);
 
   if (allNumeric) {
@@ -711,6 +1119,7 @@ function normalizeColumnSchema(value: unknown): TableWidgetColumnSchema | undefi
 
   if (
     record.format !== "text" &&
+    record.format !== "datetime" &&
     record.format !== "number" &&
     record.format !== "currency" &&
     record.format !== "percent" &&
@@ -751,6 +1160,14 @@ function normalizeColumnSchema(value: unknown): TableWidgetColumnSchema | undefi
 
   if (typeof record.suffix === "string") {
     nextValue.suffix = record.suffix;
+  }
+
+  if (typeof record.dateTimeInputFormat === "string" && record.dateTimeInputFormat.trim()) {
+    nextValue.dateTimeInputFormat = record.dateTimeInputFormat.trim();
+  }
+
+  if (typeof record.dateTimeOutputFormat === "string" && record.dateTimeOutputFormat.trim()) {
+    nextValue.dateTimeOutputFormat = record.dateTimeOutputFormat.trim();
   }
 
   if (typeof record.categorical === "boolean") {
@@ -813,6 +1230,7 @@ function normalizeColumnOverride(value: unknown): TableWidgetColumnOverride | un
   if (
     record.format === "auto" ||
     record.format === "text" ||
+    record.format === "datetime" ||
     record.format === "number" ||
     record.format === "currency" ||
     record.format === "percent" ||
@@ -831,6 +1249,14 @@ function normalizeColumnOverride(value: unknown): TableWidgetColumnOverride | un
 
   if (typeof record.suffix === "string") {
     nextValue.suffix = record.suffix;
+  }
+
+  if (typeof record.dateTimeInputFormat === "string" && record.dateTimeInputFormat.trim()) {
+    nextValue.dateTimeInputFormat = record.dateTimeInputFormat.trim();
+  }
+
+  if (typeof record.dateTimeOutputFormat === "string" && record.dateTimeOutputFormat.trim()) {
+    nextValue.dateTimeOutputFormat = record.dateTimeOutputFormat.trim();
   }
 
   if (typeof record.heatmap === "boolean") {
@@ -1248,6 +1674,7 @@ export function resolveTableWidgetColumns(
     const override = props.columnOverrides[column.key] ?? {};
     const effectiveFormat =
       override.format && override.format !== "auto" ? override.format : column.format;
+    const numericFormat = isTableWidgetNumericFormat(effectiveFormat);
 
     return {
       ...column,
@@ -1256,34 +1683,36 @@ export function resolveTableWidgetColumns(
       decimals: override.decimals ?? column.decimals,
       prefix: override.prefix ?? column.prefix,
       suffix: override.suffix ?? column.suffix,
+      dateTimeInputFormat: override.dateTimeInputFormat ?? column.dateTimeInputFormat,
+      dateTimeOutputFormat: override.dateTimeOutputFormat ?? column.dateTimeOutputFormat,
       compact: override.compact ?? column.compact ?? false,
       visible: override.visible ?? true,
-      heatmap: effectiveFormat !== "text" ? (override.heatmap ?? false) : false,
-      barMode: override.barMode ?? "none",
+      heatmap: numericFormat ? (override.heatmap ?? false) : false,
+      barMode: numericFormat ? (override.barMode ?? "none") : "none",
       gradientMode:
-        effectiveFormat !== "text"
+        numericFormat
           ? ((override.gradientMode ?? ((override.heatmap ?? false) ? "fill" : "none")) as TableWidgetGradientMode)
           : "none",
       heatmapPalette:
-        effectiveFormat !== "text"
+        numericFormat
           ? (override.heatmapPalette ?? "auto")
           : "auto",
-      gaugeMode: effectiveFormat !== "text" ? (override.gaugeMode ?? "none") : "none",
-      visualRangeMode: override.visualRangeMode ?? "auto",
+      gaugeMode: numericFormat ? (override.gaugeMode ?? "none") : "none",
+      visualRangeMode: numericFormat ? (override.visualRangeMode ?? "auto") : "auto",
       visualMin:
-        typeof override.visualMin === "number" && Number.isFinite(override.visualMin)
+        numericFormat && typeof override.visualMin === "number" && Number.isFinite(override.visualMin)
           ? override.visualMin
           : undefined,
       visualMax:
-        typeof override.visualMax === "number" && Number.isFinite(override.visualMax)
+        numericFormat && typeof override.visualMax === "number" && Number.isFinite(override.visualMax)
           ? override.visualMax
           : undefined,
       align:
         override.align && override.align !== "auto"
           ? override.align
-          : effectiveFormat === "text"
-            ? "left"
-            : "right",
+          : numericFormat
+            ? "right"
+            : "left",
       pinned:
         override.pinned && override.pinned !== "none"
           ? override.pinned
@@ -1379,7 +1808,7 @@ export function validateTableWidgetSchema(
   }
 
   const nonNumericColumns = columns
-    .filter((column) => column.format !== "text")
+    .filter((column) => isTableWidgetNumericFormat(column.format))
     .filter((column) => {
       const values = sampledRows
         .map((row) => row[column.key])
@@ -1410,7 +1839,13 @@ export function formatTableWidgetValue(
   value: TableWidgetCellValue,
   column: Pick<
     ResolvedTableWidgetColumnConfig,
-    "compact" | "decimals" | "format" | "prefix" | "suffix"
+    | "compact"
+    | "dateTimeInputFormat"
+    | "dateTimeOutputFormat"
+    | "decimals"
+    | "format"
+    | "prefix"
+    | "suffix"
   >,
 ) {
   if (value === null || value === undefined || value === "") {
@@ -1419,6 +1854,19 @@ export function formatTableWidgetValue(
 
   if (column.format === "text") {
     return `${column.prefix ?? ""}${String(value)}${column.suffix ?? ""}`;
+  }
+
+  if (column.format === "datetime") {
+    const timestampMs = parseTableWidgetDateTimeValue(value, column.dateTimeInputFormat);
+
+    if (timestampMs === null) {
+      return String(value);
+    }
+
+    const outputFormat = normalizeDateTimePattern(column.dateTimeOutputFormat) ??
+      TABLE_WIDGET_DEFAULT_DATETIME_OUTPUT_FORMAT;
+
+    return `${column.prefix ?? ""}${formatDateTimeWithPattern(timestampMs, outputFormat)}${column.suffix ?? ""}`;
   }
 
   const numericValue = getTableWidgetNumericValue(value);
@@ -1519,6 +1967,7 @@ export const tableWidgetFormatOptions: Array<{
 }> = [
   { value: "auto", label: "Auto" },
   { value: "text", label: "Text" },
+  { value: "datetime", label: "Date/time" },
   { value: "number", label: "Number" },
   { value: "currency", label: "Currency" },
   { value: "percent", label: "Percent" },

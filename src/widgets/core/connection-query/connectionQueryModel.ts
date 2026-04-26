@@ -1,4 +1,5 @@
 import { fetchConnectionResource, queryConnection } from "@/connections/api";
+import type { DashboardRequestTraceMeta } from "@/dashboards/dashboard-request-trace";
 import {
   isConnectionResponseContractId,
   type ConnectionResponseContractId,
@@ -174,6 +175,69 @@ function summarizeConnectionQueryRequestForDebug(
     cacheMode: request.cacheMode,
     cacheTtlMs: request.cacheTtlMs,
   };
+}
+
+function buildConnectionQueryTraceDetails(input: {
+  connectionRef: ConnectionRef;
+  queryModelId?: string;
+  requestedOutputContract?: string;
+  incrementalDecision: {
+    active: boolean;
+    reason?: string;
+    request: ConnectionQueryRequest<Record<string, unknown>>;
+    fullRequest: ConnectionQueryRequest<Record<string, unknown>>;
+    retainedState?: unknown;
+  };
+}) {
+  const request = input.incrementalDecision.request;
+  const fullRequest = input.incrementalDecision.fullRequest;
+
+  return {
+    kind: "connection-query",
+    connectionUid: input.connectionRef.uid,
+    connectionTypeId: input.connectionRef.typeId,
+    queryModelId: input.queryModelId,
+    queryKind:
+      isPlainRecord(request.query) && typeof request.query.kind === "string"
+        ? request.query.kind
+        : undefined,
+    requestedOutputContract: input.requestedOutputContract,
+    timeRange: request.timeRange,
+    retainedTimeRange: fullRequest.timeRange,
+    maxRows: request.maxRows,
+    cacheMode: request.cacheMode,
+    incremental: {
+      active: input.incrementalDecision.active,
+      reason: input.incrementalDecision.reason,
+      hasRetainedState: Boolean(input.incrementalDecision.retainedState),
+      requestedDeltaRange:
+        input.incrementalDecision.active &&
+        request.timeRange &&
+        fullRequest.timeRange &&
+        (
+          request.timeRange.from !== fullRequest.timeRange.from ||
+          request.timeRange.to !== fullRequest.timeRange.to
+        ),
+    },
+  } satisfies Record<string, unknown>;
+}
+
+function buildConnectionQueryTraceMeta(
+  traceMeta: DashboardRequestTraceMeta | undefined,
+  details: Record<string, unknown>,
+) {
+  if (!traceMeta) {
+    return undefined;
+  }
+
+  return {
+    ...traceMeta,
+    label: traceMeta.label ?? "Connection query",
+    details: {
+      ...(traceMeta.details ?? {}),
+      ...details,
+    },
+  } satisfies DashboardRequestTraceMeta;
 }
 
 function normalizeString(value: unknown) {
@@ -834,6 +898,7 @@ export async function executeConnectionQueryWidgetRequest(
   options?: {
     scopeId?: string;
     forceFullRefresh?: boolean;
+    traceMeta?: DashboardRequestTraceMeta;
   },
 ): Promise<ConnectionQueryRuntimeState> {
   const normalizedProps = normalizeConnectionQueryProps(props);
@@ -894,9 +959,18 @@ export async function executeConnectionQueryWidgetRequest(
       incrementalMode: incrementalDecision.reason,
     });
   }
+  const traceMeta = buildConnectionQueryTraceMeta(
+    options?.traceMeta,
+    buildConnectionQueryTraceDetails({
+      connectionRef,
+      queryModelId,
+      requestedOutputContract,
+      incrementalDecision,
+    }),
+  );
   const payload = await runConnectionQueryWithInFlightDedupe(
     incrementalDecision,
-    () => queryConnection(incrementalDecision.request),
+    () => queryConnection(incrementalDecision.request, traceMeta),
   );
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute payload received", {

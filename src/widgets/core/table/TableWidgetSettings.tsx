@@ -36,6 +36,7 @@ import {
   cloneTableWidgetSchema,
   createTableWidgetRuleId,
   getTableWidgetCategoricalValues,
+  isTableWidgetNumericFormat,
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
@@ -44,6 +45,7 @@ import {
   validateTableWidgetSchema,
   tableWidgetAlignOptions,
   tableWidgetBarModeOptions,
+  TABLE_WIDGET_DEFAULT_DATETIME_OUTPUT_FORMAT,
   tableWidgetDefaultProps,
   tableWidgetDensityOptions,
   tableWidgetFormatOptions,
@@ -87,6 +89,8 @@ const tableFieldHelp = {
   columnDescription: "Optional header tooltip text for this table column.",
   align: "Controls horizontal cell alignment. Auto chooses a default from the current column format.",
   pin: "Keeps the column fixed on the left or right side while the table scrolls horizontally.",
+  dateTimeInputFormat: "Optional parse pattern for Date/time columns when automatic timestamp and ISO parsing is not enough. Supported tokens include yyyy, MM, dd, HH, mm, ss, SSS, and a.",
+  dateTimeOutputFormat: "Display pattern for Date/time columns. Leave blank for the default yyyy-MM-dd HH:mm:ss format.",
   decimals: "Overrides numeric precision for Number, Currency, Percent, and Bps columns. Leave blank for the inferred default.",
   prefix: "Adds static text before the formatted value, for example $, USD, or approximately.",
   suffix: "Adds static text after the formatted value, for example %, bps, kg, or units.",
@@ -152,6 +156,14 @@ function normalizeColumnOverride(override: TableWidgetColumnOverride) {
     nextValue.suffix = override.suffix;
   }
 
+  if (typeof override.dateTimeInputFormat === "string" && override.dateTimeInputFormat.trim()) {
+    nextValue.dateTimeInputFormat = override.dateTimeInputFormat.trim();
+  }
+
+  if (typeof override.dateTimeOutputFormat === "string" && override.dateTimeOutputFormat.trim()) {
+    nextValue.dateTimeOutputFormat = override.dateTimeOutputFormat.trim();
+  }
+
   if (typeof override.heatmap === "boolean") {
     nextValue.heatmap = override.heatmap;
   }
@@ -209,6 +221,8 @@ function hasAdvancedColumnConfiguration(
       typeof column.decimals === "number" ||
       (column.prefix && column.prefix.trim()) ||
       (column.suffix && column.suffix.trim()) ||
+      (column.dateTimeInputFormat && column.dateTimeInputFormat.trim()) ||
+      (column.dateTimeOutputFormat && column.dateTimeOutputFormat.trim()) ||
       column.compact ||
       column.barMode !== "none" ||
       column.gradientMode !== "none" ||
@@ -391,7 +405,9 @@ export function TableWidgetSettings({
     : hasRenderableLinkedDataset;
   const displayedColumns = hasResolvedSource ? resolvedColumns : [];
   const textFormattedColumns = displayedColumns.filter((column) => column.format === "text");
-  const numericFormattedColumns = displayedColumns.filter((column) => column.format !== "text");
+  const numericFormattedColumns = displayedColumns.filter((column) =>
+    isTableWidgetNumericFormat(column.format),
+  );
   const schemaValidation = validateTableWidgetSchema(frameRows, resolvedColumns);
   const inspectorFields = useMemo(
     () =>
@@ -399,7 +415,11 @@ export function TableWidgetSettings({
         ? manualFrameInput.schemaFallback.map((column) => ({
             key: column.key,
             label: column.label,
-            type: column.format === "text" ? ("string" as const) : ("number" as const),
+            type: column.format === "datetime"
+              ? ("datetime" as const)
+              : isTableWidgetNumericFormat(column.format)
+                ? ("number" as const)
+                : ("string" as const),
             description: column.description,
             provenance: "manual" as const,
             reason: "Authored in the Table manual table mode.",
@@ -899,6 +919,7 @@ export function TableWidgetSettings({
             const override = scopedDraft.columnOverrides?.[column.key] ?? {};
             const advancedExpanded = expandedColumnKeys[column.key] ?? false;
             const advancedConfigured = hasAdvancedColumnConfiguration(column, override);
+            const columnUsesNumericFormat = isTableWidgetNumericFormat(column.format);
 
             return (
               <div
@@ -1107,7 +1128,7 @@ export function TableWidgetSettings({
                           max={6}
                           value={override.decimals ?? ""}
                           placeholder={column.decimals == null ? "auto" : String(column.decimals)}
-                          disabled={!editable || column.format === "text"}
+                          disabled={!editable || !columnUsesNumericFormat}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
                               ...current,
@@ -1158,6 +1179,46 @@ export function TableWidgetSettings({
                         />
                       </div>
 
+                      {column.format === "datetime" ? (
+                        <>
+                          <div className={fieldClass}>
+                            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.dateTimeInputFormat}>
+                              Input format
+                            </WidgetSettingFieldLabel>
+                            <Input
+                              className={inputClass}
+                              value={override.dateTimeInputFormat ?? ""}
+                              placeholder="auto"
+                              disabled={!editable}
+                              onChange={(event) => {
+                                updateColumnOverride(column.key, (current) => ({
+                                  ...current,
+                                  dateTimeInputFormat: event.target.value || undefined,
+                                }));
+                              }}
+                            />
+                          </div>
+
+                          <div className={fieldClass}>
+                            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.dateTimeOutputFormat}>
+                              Output format
+                            </WidgetSettingFieldLabel>
+                            <Input
+                              className={inputClass}
+                              value={override.dateTimeOutputFormat ?? ""}
+                              placeholder={column.dateTimeOutputFormat ?? TABLE_WIDGET_DEFAULT_DATETIME_OUTPUT_FORMAT}
+                              disabled={!editable}
+                              onChange={(event) => {
+                                updateColumnOverride(column.key, (current) => ({
+                                  ...current,
+                                  dateTimeOutputFormat: event.target.value || undefined,
+                                }));
+                              }}
+                            />
+                          </div>
+                        </>
+                      ) : null}
+
                       <div className="space-y-2">
                         <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.compactNumbers}>
                           Compact numbers
@@ -1167,7 +1228,7 @@ export function TableWidgetSettings({
                             type="button"
                             size="sm"
                             variant={column.compact ? "default" : "outline"}
-                            disabled={!editable || column.format === "text"}
+                            disabled={!editable || !columnUsesNumericFormat}
                             onClick={() => {
                               updateColumnOverride(column.key, (current) => ({
                                 ...current,
@@ -1181,7 +1242,7 @@ export function TableWidgetSettings({
                             type="button"
                             size="sm"
                             variant={!column.compact ? "default" : "outline"}
-                            disabled={!editable || column.format === "text"}
+                            disabled={!editable || !columnUsesNumericFormat}
                             onClick={() => {
                               updateColumnOverride(column.key, (current) => ({
                                 ...current,
@@ -1201,7 +1262,7 @@ export function TableWidgetSettings({
                         <Select
                           className={selectClass}
                           value={override.barMode ?? "none"}
-                          disabled={!editable || column.format === "text"}
+                          disabled={!editable || !columnUsesNumericFormat}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
                               ...current,
@@ -1224,7 +1285,7 @@ export function TableWidgetSettings({
                         <Select
                           className={selectClass}
                           value={override.gradientMode ?? (override.heatmap ? "fill" : "none")}
-                          disabled={!editable || column.format === "text"}
+                          disabled={!editable || !columnUsesNumericFormat}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
                               ...current,
@@ -1251,7 +1312,7 @@ export function TableWidgetSettings({
                           value={override.heatmapPalette ?? "auto"}
                           disabled={
                             !editable ||
-                            column.format === "text" ||
+                            !columnUsesNumericFormat ||
                             (override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none"
                           }
                           onChange={(event) => {
@@ -1276,7 +1337,7 @@ export function TableWidgetSettings({
                         <Select
                           className={selectClass}
                           value={override.gaugeMode ?? "none"}
-                          disabled={!editable || column.format === "text"}
+                          disabled={!editable || !columnUsesNumericFormat}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
                               ...current,
@@ -1304,7 +1365,7 @@ export function TableWidgetSettings({
                           value={override.visualRangeMode ?? "auto"}
                           disabled={
                             !editable ||
-                            column.format === "text" ||
+                            !columnUsesNumericFormat ||
                             ((override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none" &&
                               (override.gaugeMode ?? "none") === "none" &&
                               (override.barMode ?? "none") === "none")
@@ -1336,7 +1397,7 @@ export function TableWidgetSettings({
                           placeholder="auto"
                           disabled={
                             !editable ||
-                            column.format === "text" ||
+                            !columnUsesNumericFormat ||
                             (override.visualRangeMode ?? "auto") !== "fixed"
                           }
                           onChange={(event) => {
@@ -1362,7 +1423,7 @@ export function TableWidgetSettings({
                           placeholder="auto"
                           disabled={
                             !editable ||
-                            column.format === "text" ||
+                            !columnUsesNumericFormat ||
                             (override.visualRangeMode ?? "auto") !== "fixed"
                           }
                           onChange={(event) => {
@@ -1600,8 +1661,8 @@ export function TableWidgetSettings({
             <p className={descriptionClass}>
               Apply numeric thresholds like `&gt; 0`, `&lt; -5`, or `&gt; 80` to tint cells with theme-aware tones.
               Rules are evaluated top to bottom, and the first match wins. No threshold styling is applied
-              unless this widget instance adds rules here. Rules target columns whose current format is not
-              `Text`, and non-numeric cells are ignored at render time.
+              unless this widget instance adds rules here. Rules target Number, Currency, Percent, or
+              Bps columns, and non-numeric cells are ignored at render time.
             </p>
           </div>
 

@@ -37,7 +37,9 @@ function normalizeNullableRefreshInterval(value: unknown): number | null | undef
     return null;
   }
 
-  return normalizeFiniteNumber(value);
+  const finiteValue = normalizeFiniteNumber(value);
+
+  return finiteValue && finiteValue > 0 ? Math.trunc(finiteValue) : undefined;
 }
 
 function areJsonEqual(left: unknown, right: unknown) {
@@ -72,12 +74,22 @@ function normalizeSelectedControls(value: unknown): WorkspaceUserStateSnapshot["
   const rangeEndMs =
     value.rangeEndMs === null ? null : normalizeFiniteNumber(value.rangeEndMs);
   const refreshIntervalMs = normalizeNullableRefreshInterval(value.refreshIntervalMs);
+  const hasValidCustomRange =
+    timeRangeKey === "custom" &&
+    typeof rangeStartMs === "number" &&
+    typeof rangeEndMs === "number" &&
+    rangeStartMs <= rangeEndMs;
 
   return {
-    ...(timeRangeKey ? { timeRangeKey } : {}),
-    ...("rangeStartMs" in value ? { rangeStartMs: rangeStartMs ?? null } : {}),
-    ...("rangeEndMs" in value ? { rangeEndMs: rangeEndMs ?? null } : {}),
-    ...("refreshIntervalMs" in value ? { refreshIntervalMs } : {}),
+    ...(timeRangeKey && timeRangeKey !== "custom" ? { timeRangeKey } : {}),
+    ...(hasValidCustomRange
+      ? {
+          timeRangeKey: "custom" as const,
+          rangeStartMs,
+          rangeEndMs,
+        }
+      : {}),
+    ...(refreshIntervalMs !== undefined ? { refreshIntervalMs } : {}),
   };
 }
 
@@ -252,10 +264,15 @@ export function extractWorkspaceUserStateFromDashboard(
 
   if (timeRange?.selectedRange) {
     selectedControls.timeRangeKey = timeRange.selectedRange;
-    selectedControls.rangeStartMs =
-      typeof timeRange.customStartMs === "number" ? timeRange.customStartMs : null;
-    selectedControls.rangeEndMs =
-      typeof timeRange.customEndMs === "number" ? timeRange.customEndMs : null;
+
+    if (
+      timeRange.selectedRange === "custom" &&
+      typeof timeRange.customStartMs === "number" &&
+      typeof timeRange.customEndMs === "number"
+    ) {
+      selectedControls.rangeStartMs = timeRange.customStartMs;
+      selectedControls.rangeEndMs = timeRange.customEndMs;
+    }
   }
 
   if ("selectedIntervalMs" in (refresh ?? {})) {

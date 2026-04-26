@@ -2,6 +2,7 @@ import {
   createContext,
   type RefObject,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -244,6 +245,60 @@ function resolveControlsConfig(controls?: DashboardControlsConfig): ResolvedDash
     },
     actions,
   };
+}
+
+interface DashboardControlsSelectionSnapshot {
+  timeRangeKey?: DashboardTimeRangeKey | "custom";
+  customStartMs?: number;
+  customEndMs?: number;
+  hasRefreshInterval: boolean;
+  refreshIntervalMs?: number | null;
+}
+
+function resolveIncomingControlsSelection(
+  controls: DashboardControlsConfig | undefined,
+  resolvedConfig: ResolvedDashboardControlsConfig,
+): DashboardControlsSelectionSnapshot {
+  const selectedRange = controls?.timeRange?.selectedRange;
+  const customStartMs = controls?.timeRange?.customStartMs;
+  const customEndMs = controls?.timeRange?.customEndMs;
+  const hasValidCustomRange =
+    typeof customStartMs === "number" &&
+    typeof customEndMs === "number" &&
+    Number.isFinite(customStartMs) &&
+    Number.isFinite(customEndMs) &&
+    customStartMs <= customEndMs;
+  const timeRangeKey =
+    selectedRange === "custom" && hasValidCustomRange
+      ? "custom"
+      : selectedRange &&
+          selectedRange !== "custom" &&
+          resolvedConfig.timeRange.options.includes(selectedRange)
+        ? selectedRange
+        : undefined;
+  const refreshConfig = controls?.refresh;
+  const hasRefreshInterval =
+    Boolean(refreshConfig) && Object.prototype.hasOwnProperty.call(refreshConfig, "selectedIntervalMs");
+  const rawRefreshInterval = refreshConfig?.selectedIntervalMs;
+  const refreshIntervalMs =
+    rawRefreshInterval === null
+      ? null
+      : typeof rawRefreshInterval === "number" &&
+          Number.isFinite(rawRefreshInterval) &&
+          rawRefreshInterval > 0
+        ? Math.trunc(rawRefreshInterval)
+        : undefined;
+
+  return {
+    ...(timeRangeKey ? { timeRangeKey } : {}),
+    ...(timeRangeKey === "custom" ? { customStartMs, customEndMs } : {}),
+    hasRefreshInterval,
+    ...(hasRefreshInterval ? { refreshIntervalMs: refreshIntervalMs ?? null } : {}),
+  };
+}
+
+function buildControlsSelectionKey(selection: DashboardControlsSelectionSnapshot) {
+  return JSON.stringify(selection);
 }
 
 function formatRefreshInterval(value: number | null) {
@@ -878,17 +933,28 @@ function DashboardViewMenu({
 export function DashboardControlsProvider({
   children,
   controls,
+  onStateCommit,
   onStateChange,
   refreshProgressUpdateIntervalMs = 120,
 }: {
   children: ReactNode;
   controls?: DashboardControlsConfig;
+  onStateCommit?: (state: DashboardControlsState) => void;
   onStateChange?: (state: DashboardControlsState) => void;
   refreshProgressUpdateIntervalMs?: number;
 }) {
   const location = useLocation();
   const refreshLockRef = useRef(false);
   const resolvedConfig = useMemo(() => resolveControlsConfig(controls), [controls]);
+  const incomingSelection = useMemo(
+    () => resolveIncomingControlsSelection(controls, resolvedConfig),
+    [controls, resolvedConfig],
+  );
+  const incomingSelectionKey = useMemo(
+    () => buildControlsSelectionKey(incomingSelection),
+    [incomingSelection],
+  );
+  const syncedSelectionKeyRef = useRef(incomingSelectionKey);
   const kioskMode = useShellStore((state) => state.kioskMode);
   const setKioskMode = useShellStore((state) => state.setKioskMode);
   const toggleKioskMode = useShellStore((state) => state.toggleKioskMode);
@@ -914,6 +980,60 @@ export function DashboardControlsProvider({
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
   const [refreshCycleStartedAt, setRefreshCycleStartedAt] = useState<number | null>(null);
   const [refreshProgress, setRefreshProgress] = useState(0);
+
+  useEffect(() => {
+    if (syncedSelectionKeyRef.current === incomingSelectionKey) {
+      return;
+    }
+
+    syncedSelectionKeyRef.current = incomingSelectionKey;
+
+    if (incomingSelection.timeRangeKey === "custom") {
+      const nextStartMs = incomingSelection.customStartMs;
+      const nextEndMs = incomingSelection.customEndMs;
+
+      if (
+        typeof nextStartMs === "number" &&
+        typeof nextEndMs === "number" &&
+        (
+          timeRangeKey !== "custom" ||
+          rangeStartMs !== nextStartMs ||
+          rangeEndMs !== nextEndMs
+        )
+      ) {
+        setTimeRangeKeyState("custom");
+        setRangeStartMs(nextStartMs);
+        setRangeEndMs(nextEndMs);
+        setRangeStartDate(toDateInputValue(new Date(nextStartMs)));
+        setRangeEndDate(toDateInputValue(new Date(nextEndMs)));
+      }
+    } else if (
+      incomingSelection.timeRangeKey &&
+      incomingSelection.timeRangeKey !== timeRangeKey
+    ) {
+      const resolvedRange = resolvePresetRange(incomingSelection.timeRangeKey);
+
+      setTimeRangeKeyState(incomingSelection.timeRangeKey);
+      setRangeStartMs(resolvedRange.startMs);
+      setRangeEndMs(resolvedRange.endMs);
+      setRangeStartDate(resolvedRange.startDate);
+      setRangeEndDate(resolvedRange.endDate);
+    }
+
+    if (
+      incomingSelection.hasRefreshInterval &&
+      refreshIntervalMs !== (incomingSelection.refreshIntervalMs ?? null)
+    ) {
+      setRefreshIntervalMs(incomingSelection.refreshIntervalMs ?? null);
+    }
+  }, [
+    incomingSelection,
+    incomingSelectionKey,
+    rangeEndMs,
+    rangeStartMs,
+    refreshIntervalMs,
+    timeRangeKey,
+  ]);
 
   useEffect(() => {
     if (timeRangeKey !== "custom" && !resolvedConfig.timeRange.options.includes(timeRangeKey)) {
@@ -1009,6 +1129,49 @@ export function DashboardControlsProvider({
     setKioskMode,
   ]);
 
+  const refreshNow = useCallback(async () => {
+    if (refreshLockRef.current) {
+      return;
+    }
+
+    const refreshStartedAt = Date.now();
+
+    if (
+      resolvedConfig.timeRange.enabled &&
+      timeRangeKey !== "custom" &&
+      resolvedConfig.timeRange.options.includes(timeRangeKey)
+    ) {
+      const rollingRange = resolvePresetRange(timeRangeKey, refreshStartedAt);
+
+      setRangeStartMs(rollingRange.startMs);
+      setRangeEndMs(rollingRange.endMs);
+      setRangeStartDate(rollingRange.startDate);
+      setRangeEndDate(rollingRange.endDate);
+    }
+
+    if (resolvedConfig.refresh.enabled && refreshIntervalMs !== null) {
+      setRefreshCycleStartedAt(refreshStartedAt);
+      setRefreshProgress(0);
+    }
+
+    refreshLockRef.current = true;
+    setIsRefreshing(true);
+    setLastRefreshedAt(refreshStartedAt);
+
+    try {
+      await Promise.resolve();
+    } finally {
+      refreshLockRef.current = false;
+      setIsRefreshing(false);
+    }
+  }, [
+    refreshIntervalMs,
+    resolvedConfig.refresh.enabled,
+    resolvedConfig.timeRange.enabled,
+    resolvedConfig.timeRange.options,
+    timeRangeKey,
+  ]);
+
   useEffect(() => {
     if (!resolvedConfig.refresh.enabled || refreshIntervalMs === null) {
       setRefreshCycleStartedAt(null);
@@ -1021,16 +1184,13 @@ export function DashboardControlsProvider({
     setRefreshProgress(0);
 
     const timerId = window.setInterval(() => {
-      const nextCycleStartedAt = Date.now();
-      setRefreshCycleStartedAt(nextCycleStartedAt);
-      setRefreshProgress(0);
       void refreshNow();
     }, refreshIntervalMs);
 
     return () => {
       window.clearInterval(timerId);
     };
-  }, [refreshIntervalMs, resolvedConfig.refresh.enabled]);
+  }, [refreshIntervalMs, refreshNow, resolvedConfig.refresh.enabled]);
 
   useEffect(() => {
     if (!resolvedConfig.refresh.enabled || refreshIntervalMs === null || refreshCycleStartedAt === null) {
@@ -1063,37 +1223,21 @@ export function DashboardControlsProvider({
     resolvedConfig.refresh.enabled,
   ]);
 
-  async function refreshNow() {
-    if (refreshLockRef.current) {
-      return;
-    }
-
-    if (resolvedConfig.refresh.enabled && refreshIntervalMs !== null) {
-      const cycleStartedAt = Date.now();
-      setRefreshCycleStartedAt(cycleStartedAt);
-      setRefreshProgress(0);
-    }
-
-    refreshLockRef.current = true;
-    setIsRefreshing(true);
-    setLastRefreshedAt(Date.now());
-
-    try {
-      await Promise.resolve();
-    } finally {
-      refreshLockRef.current = false;
-      setIsRefreshing(false);
-    }
-  }
-
   function setTimeRangeKey(value: DashboardTimeRangeKey) {
     const resolvedRange = resolvePresetRange(value);
+    const nextState = {
+      timeRangeKey: value,
+      rangeStartMs: resolvedRange.startMs,
+      rangeEndMs: resolvedRange.endMs,
+      refreshIntervalMs,
+    } satisfies DashboardControlsState;
 
     setTimeRangeKeyState(value);
     setRangeStartMs(resolvedRange.startMs);
     setRangeEndMs(resolvedRange.endMs);
     setRangeStartDate(resolvedRange.startDate);
     setRangeEndDate(resolvedRange.endDate);
+    onStateCommit?.(nextState);
   }
 
   function setCustomRange(startDate: string, endDate: string) {
@@ -1110,11 +1254,29 @@ export function DashboardControlsProvider({
       return;
     }
 
+    const nextState = {
+      timeRangeKey: "custom",
+      rangeStartMs: startMs,
+      rangeEndMs: endMs,
+      refreshIntervalMs,
+    } satisfies DashboardControlsState;
+
     setTimeRangeKeyState("custom");
     setRangeStartMs(startMs);
     setRangeEndMs(endMs);
     setRangeStartDate(startDate);
     setRangeEndDate(endDate);
+    onStateCommit?.(nextState);
+  }
+
+  function setCommittedRefreshInterval(value: number | null) {
+    setRefreshIntervalMs(value);
+    onStateCommit?.({
+      timeRangeKey,
+      rangeStartMs,
+      rangeEndMs,
+      refreshIntervalMs: value,
+    });
   }
 
   const value = useMemo<DashboardControlsContextValue>(
@@ -1132,7 +1294,7 @@ export function DashboardControlsProvider({
       setTimeRangeKey,
       setCustomRange,
       refreshIntervalMs,
-      setRefreshIntervalMs,
+      setRefreshIntervalMs: setCommittedRefreshInterval,
       refreshNow,
       isRefreshing,
       lastRefreshedAt,
@@ -1151,6 +1313,7 @@ export function DashboardControlsProvider({
       rangeStartDate,
       rangeStartMs,
       refreshIntervalMs,
+      onStateCommit,
       setKioskMode,
       timeRangeKey,
       toggleKioskMode,

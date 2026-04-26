@@ -30,6 +30,7 @@ export function WorkspaceStudioCanvasHost() {
     selectedWorkspaceView,
     openWorkspaceSettings,
     updateSelectedWorkspaceUserState,
+    commitSelectedWorkspaceControlsState,
   } = useCustomWorkspaceStudio();
 
   if (!selectedDashboard) {
@@ -81,6 +82,7 @@ export function WorkspaceStudioCanvasHost() {
             updateDashboardControlsState(dashboard, state),
           );
         }}
+        onStateCommit={commitSelectedWorkspaceControlsState}
       >
         <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
           <DashboardWidgetExecutionProvider

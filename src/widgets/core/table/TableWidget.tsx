@@ -27,6 +27,8 @@ import {
   getTableWidgetColumnRange,
   getTableWidgetNumericValue,
   getTableWidgetValueLabel,
+  isTableWidgetNumericFormat,
+  parseTableWidgetDateTimeValue,
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
@@ -285,7 +287,7 @@ function supportsValueLabels(columnConfig: Pick<ResolvedTableWidgetColumnConfig,
 }
 
 function supportsNumericDisplay(columnConfig: Pick<ResolvedTableWidgetColumnConfig, "format">) {
-  return columnConfig.format !== "text";
+  return isTableWidgetNumericFormat(columnConfig.format);
 }
 
 function formatSchemaValidationIssue(issue: TableWidgetSchemaValidationIssue) {
@@ -601,38 +603,61 @@ export function TableWidget({ props, resolvedInputs }: Props) {
 
   const columnDefs = useMemo<ColDef<TableWidgetRow>[]>(
     () =>
-      columns.map((column) => ({
-        field: column.key,
-        colId: column.key,
-        headerName: column.label,
-        headerTooltip: column.description,
-        minWidth: column.minWidth ?? 110,
-        flex: column.flex ?? 1,
-        hide: !column.visible,
-        pinned: column.pinned,
-        sortable: true,
-        resizable: true,
-        filter: column.format === "text" ? "agTextColumnFilter" : "agNumberColumnFilter",
-        floatingFilter: true,
-        suppressHeaderMenuButton: false,
-        cellDataType: column.format === "text" ? "text" : "number",
-        tooltipValueGetter: (params) => formatTableWidgetValue(params.value ?? null, column),
-        cellStyle: (params) =>
-          createTableCellStyle({
-            value: params.value ?? null,
+      columns.map((column) => {
+        const numericFormat = isTableWidgetNumericFormat(column.format);
+
+        return {
+          field: column.key,
+          colId: column.key,
+          headerName: column.label,
+          headerTooltip: column.description,
+          minWidth: column.minWidth ?? 110,
+          flex: column.flex ?? 1,
+          hide: !column.visible,
+          pinned: column.pinned,
+          sortable: true,
+          resizable: true,
+          filter: numericFormat ? "agNumberColumnFilter" : "agTextColumnFilter",
+          floatingFilter: true,
+          suppressHeaderMenuButton: false,
+          cellDataType: numericFormat ? "number" : "text",
+          comparator:
+            column.format === "datetime"
+              ? (leftValue: TableWidgetCellValue, rightValue: TableWidgetCellValue) => {
+                  const leftTime = parseTableWidgetDateTimeValue(
+                    leftValue ?? null,
+                    column.dateTimeInputFormat,
+                  );
+                  const rightTime = parseTableWidgetDateTimeValue(
+                    rightValue ?? null,
+                    column.dateTimeInputFormat,
+                  );
+
+                  if (leftTime !== null && rightTime !== null) {
+                    return leftTime - rightTime;
+                  }
+
+                  return String(leftValue ?? "").localeCompare(String(rightValue ?? ""));
+                }
+              : undefined,
+          tooltipValueGetter: (params) => formatTableWidgetValue(params.value ?? null, column),
+          cellStyle: (params) =>
+            createTableCellStyle({
+              value: params.value ?? null,
+              columnConfig: column,
+              resolvedProps,
+              range: columnRanges[column.key] ?? null,
+              tokens: resolvedTokens,
+            }),
+          cellRenderer: TableWidgetCellRenderer,
+          cellRendererParams: {
             columnConfig: column,
             resolvedProps,
             range: columnRanges[column.key] ?? null,
             tokens: resolvedTokens,
-          }),
-        cellRenderer: TableWidgetCellRenderer,
-        cellRendererParams: {
-          columnConfig: column,
-          resolvedProps,
-          range: columnRanges[column.key] ?? null,
-          tokens: resolvedTokens,
-        },
-      })),
+          },
+        };
+      }),
     [columnRanges, columns, resolvedProps, resolvedTokens],
   );
 

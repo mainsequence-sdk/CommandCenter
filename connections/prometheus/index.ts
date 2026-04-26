@@ -62,25 +62,6 @@ export type PrometheusConnectionQuery =
       endMs?: number;
       stepMs?: number;
       maxDataPoints?: number;
-    }
-  | {
-      kind: "label-values";
-      label: string;
-      matchers?: string[];
-      startMs?: number;
-      endMs?: number;
-    }
-  | {
-      kind: "label-names";
-      matchers?: string[];
-      startMs?: number;
-      endMs?: number;
-    }
-  | {
-      kind: "series";
-      matchers: string[];
-      startMs?: number;
-      endMs?: number;
     };
 
 const prometheusUsageGuidance = `
@@ -90,7 +71,8 @@ Connects Command Center widgets and Explore flows to a backend-owned Prometheus-
 
 ## whenToUse
 
-- Use for PromQL instant queries, range queries, label metadata, and series metadata routed through the backend connection adapter.
+- Use for PromQL instant and range queries routed through the backend connection adapter.
+- Use backend Prometheus resources for label metadata, metric names, target status, and metric metadata.
 - Use Google Managed Service for Prometheus mode when querying Cloud Monitoring's Prometheus API with a Google service account JSON key stored as a write-only backend secret.
 - Use direct Prometheus-compatible endpoint mode for Prometheus, Mimir, Cortex, Thanos, or compatible APIs that expose a standard Prometheus HTTP API root.
 
@@ -158,6 +140,17 @@ The frontend must hide fields that do not apply to the current endpoint/auth sel
 - The backend adapter must use the private key to sign the OAuth JWT, call oauth2.googleapis.com, keep the returned access token in memory, refresh before expiry, and inject Authorization: Bearer <access_token> into Managed Service for Prometheus API requests.
 - The service account needs Cloud Monitoring read permission, such as roles/monitoring.viewer or equivalent monitoring time-series read permissions.
 
+## exploreBuilder
+
+- Prometheus Explore includes a Builder/Code authoring toggle.
+- Builder mode generates PromQL from a selected metric, label filters, optional rate/increase functions, and optional aggregations.
+- Metadata requests are user-triggered only. The frontend must not load metric names, label names, or label values when the Explore screen mounts.
+- Load metrics calls the connection resource endpoint with resource "label-values", label "__name__", and Prometheus params including match[], start, end, and limit when available.
+- Load labels calls the connection resource endpoint with resource "labels" scoped to the selected metric.
+- Load values calls the connection resource endpoint with resource "label-values" scoped to the selected metric and completed filters from the other rows.
+- The generated PromQL is written back into the normal promql-range query payload and executed through the shared Connection Query workbench.
+- Google Managed Prometheus metric names that are not legal bare PromQL identifiers must be emitted as __name__ matchers, for example {__name__="actions.googleapis.com/smarthome_action/request_count"}.
+
 ## queryModels
 
 ### promql-instant
@@ -171,21 +164,14 @@ The frontend must hide fields that do not apply to the current endpoint/auth sel
 - Returns: prometheus.matrix@v1 or core.tabular_frame@v1.
 - Time-range-aware: yes.
 
-### label-values
+## resources
 
-- Payload: { "kind": "label-values", "label": "__name__", "matchers": [] }
-- Returns: core.option_list@v1.
+Prometheus metadata discovery is resource-routed, not query-routed:
 
-### label-names
-
-- Payload: { "kind": "label-names", "matchers": [] }
-- Returns: core.option_list@v1.
-
-### series
-
-- Payload: { "kind": "series", "matchers": ["{__name__=\\"up\\"}"] }
-- Returns: core.tabular_frame@v1.
-- Time-range-aware: yes.
+- labels: payload { "params": { "match[]": ["{job=\\"api\\"}"], "start": 1760000000, "end": 1760003600, "limit": 40000 } }.
+- label-values: payload { "label": "__name__", "params": { "match[]": [], "start": 1760000000, "end": 1760003600, "limit": 40000 } }.
+- targets: payload { "params": {} }.
+- metadata: payload { "params": { "metric": "up" } }.
 
 ## backendOwnership
 
@@ -668,25 +654,6 @@ export const prometheusConnection: ConnectionTypeDefinition<
         "prometheus.matrix@v1",
         CORE_TABULAR_FRAME_SOURCE_CONTRACT,
       ],
-      timeRangeAware: true,
-      supportsVariables: true,
-    },
-    {
-      id: "label-values",
-      label: "Label values",
-      outputContracts: ["core.option_list@v1"],
-      supportsVariables: true,
-    },
-    {
-      id: "label-names",
-      label: "Label names",
-      outputContracts: ["core.option_list@v1"],
-      supportsVariables: true,
-    },
-    {
-      id: "series",
-      label: "Series metadata",
-      outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       timeRangeAware: true,
       supportsVariables: true,
     },

@@ -3,8 +3,6 @@ import {
   ConnectionQueryEditorSection,
   QueryNumberField,
   QuerySqlField,
-  QueryStringListField,
-  QueryTextField,
 } from "@/connections/components/ConnectionQueryEditorFields";
 
 import type { PrometheusConnectionQuery, PrometheusPublicConfig } from "./index";
@@ -17,25 +15,17 @@ function readQueryKind(
   queryModelId: string | undefined,
   value: PrometheusConnectionQuery,
 ): PrometheusConnectionQuery["kind"] {
-  if (
-    queryModelId === "promql-instant" ||
-    queryModelId === "promql-range" ||
-    queryModelId === "label-values" ||
-    queryModelId === "label-names" ||
-    queryModelId === "series"
-  ) {
+  if (queryModelId === "promql-instant" || queryModelId === "promql-range") {
     return queryModelId;
   }
 
-  return value.kind ?? "promql-range";
+  return value.kind === "promql-instant" ? "promql-instant" : "promql-range";
 }
 
 function readQueryText(value: PrometheusConnectionQuery) {
-  return "query" in value ? value.query : "";
-}
-
-function readMatchers(value: PrometheusConnectionQuery) {
-  return "matchers" in value ? value.matchers : undefined;
+  return typeof (value as { query?: unknown }).query === "string"
+    ? (value as { query: string }).query
+    : "";
 }
 
 export function PrometheusConnectionQueryEditor({
@@ -146,75 +136,6 @@ export function PrometheusConnectionQueryEditor({
             disabled={disabled}
             placeholder={String(maxDataPoints)}
             help="Optional point budget used by the backend adapter when choosing a step."
-          />
-        </ConnectionQueryEditorSection>
-      ) : null}
-
-      {queryKind === "label-values" ? (
-        <ConnectionQueryEditorSection title="Label values">
-          <QueryTextField
-            label="Label"
-            value={"label" in value ? value.label : ""}
-            onChange={(label) => {
-              onChange({
-                kind: "label-values",
-                label: label ?? "",
-                matchers: readMatchers(value),
-              });
-            }}
-            disabled={disabled}
-            placeholder="job"
-            help="Prometheus label name."
-          />
-          <QueryStringListField
-            label="Matchers"
-            value={readMatchers(value)}
-            onChange={(matchers) => {
-              onChange({
-                kind: "label-values",
-                label: "label" in value ? value.label : "",
-                matchers,
-              });
-            }}
-            disabled={disabled}
-            placeholder={'{job="api"}'}
-            help="Optional Prometheus series matchers."
-          />
-        </ConnectionQueryEditorSection>
-      ) : null}
-
-      {queryKind === "label-names" ? (
-        <ConnectionQueryEditorSection title="Label names">
-          <QueryStringListField
-            label="Matchers"
-            value={readMatchers(value)}
-            onChange={(matchers) => {
-              onChange({
-                kind: "label-names",
-                matchers,
-              });
-            }}
-            disabled={disabled}
-            placeholder={'{job="api"}'}
-            help="Optional Prometheus series matchers."
-          />
-        </ConnectionQueryEditorSection>
-      ) : null}
-
-      {queryKind === "series" ? (
-        <ConnectionQueryEditorSection title="Series metadata">
-          <QueryStringListField
-            label="Matchers"
-            value={readMatchers(value)}
-            onChange={(matchers) => {
-              onChange({
-                kind: "series",
-                matchers: matchers ?? [],
-              });
-            }}
-            disabled={disabled}
-            placeholder={'{__name__="http_requests_total"}'}
-            help="Required Prometheus series matchers."
           />
         </ConnectionQueryEditorSection>
       ) : null}

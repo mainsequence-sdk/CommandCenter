@@ -5,7 +5,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, or manually authore
 ## whenToUse
 
 - Use when a workspace needs row-level inspection, sorting, filtering, search, pagination, pinned columns, or compact table density.
-- Use when a tabular frame needs display configuration: header labels, descriptions, visibility, alignment, pinning, numeric precision, prefix, suffix, compact-number notation, heatmaps, data bars, gauges, threshold rules, or value-label chips.
+- Use when a tabular frame needs display configuration: header labels, descriptions, visibility, alignment, pinning, datetime rendering, numeric precision, prefix, suffix, compact-number notation, heatmaps, data bars, gauges, threshold rules, or value-label chips.
 - Use manual mode only for display-only rows that should not become a reusable dataset source.
 - Use it as a lightweight tabular source when a downstream widget should consume the table's canonical underlying rows.
 
@@ -21,7 +21,9 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, or manually authore
 - For bound mode, bind the inbound `sourceData` port to a Connection Query or Tabular Transform `dataset` output.
 - For manual mode, define columns and rows in the table editor. Manual rows are stored in this table widget's props and are published as the table `dataset` output.
 - Inspect the incoming field schema before editing columns. Prefer upstream `fields` metadata when available; otherwise the table infers labels, types, and numeric eligibility from the current row sample.
-- Configure table-level presentation first. In the per-column editor, the default row keeps only key, label, format, and visibility inline; expand `Advanced` only when a column needs descriptions, pinning, numeric visuals, or display overrides.
+- Configure table-level presentation first. In the per-column editor, the default row keeps only key, label, format, and visibility inline; expand `Advanced` when a column needs descriptions, pinning, Date/time input or output patterns, numeric visuals, or display overrides.
+- Use the `Date/time` column format for epoch timestamps or date strings that should be rendered as readable dates. Auto parsing handles ISO-like strings plus epoch seconds, milliseconds, microseconds, and nanoseconds. Set `Input format` only when auto parsing is ambiguous; set `Output format` to control the rendered text.
+- Date/time pattern tokens include `yyyy`, `yy`, `MM`, `M`, `dd`, `d`, `HH`, `H`, `hh`, `h`, `mm`, `m`, `ss`, `s`, `SSS`, and `a`. Example: input `dd/MM/yyyy HH:mm:ss` and output `yyyy-MM-dd HH:mm:ss`.
 - Bind downstream widgets to the table `dataset` output when they should consume the same canonical tabular frame.
 
 ## blockingRequirements
@@ -35,6 +37,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, or manually authore
 - Connection response envelopes with `frames[]` are unwrapped to the first compatible publishable frame before rendering.
 - Column `key` values must match fields present in the incoming frame.
 - Numeric visuals require numeric source values and usable bounds.
+- Date/time formatting requires values that can be parsed automatically or by the configured input pattern.
 
 ## commonPitfalls
 
@@ -42,3 +45,4 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, or manually authore
 - Formatting is presentation-only. Hiding a column, applying a prefix, or adding a heatmap does not modify the published table `dataset` output.
 - Changing the upstream transform can change the output columns. Reset columns from the current frame when the saved column schema no longer matches the incoming row shape.
 - Prefix and suffix are literal display text. Do not use them to convert units or change numeric scale upstream.
+- Date/time formatting is presentation-only. It does not convert the published `dataset` output values for downstream widgets.

@@ -1,6 +1,10 @@
 import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
+import {
+  startDashboardRequestTrace,
+  type DashboardRequestTraceMeta,
+} from "@/dashboards/dashboard-request-trace";
 import type {
   ConnectionHealthResult,
   ConnectionInstance,
@@ -121,10 +125,17 @@ function readErrorMessage(payload: unknown) {
 async function requestJson<T>(
   path: string,
   init?: RequestInit,
+  traceMeta?: DashboardRequestTraceMeta,
 ): Promise<T> {
   if (!path.trim()) {
     throw new Error("Command Center connection endpoint is not configured.");
   }
+
+  const requestUrl = buildEndpointUrl(path);
+  const requestTrace = startDashboardRequestTrace(traceMeta, {
+    method: init?.method,
+    url: requestUrl,
+  });
 
   async function sendRequest() {
     const headers = new Headers(init?.headers);
@@ -138,29 +149,78 @@ async function requestJson<T>(
       headers.set(key, value);
     });
 
-    return fetch(buildEndpointUrl(path), {
+    return fetch(requestUrl, {
       ...init,
       headers,
     });
   }
 
-  let response = await sendRequest();
+  let response: Response;
+
+  try {
+    response = await sendRequest();
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "The browser could not reach the connection endpoint.";
+
+    requestTrace?.fail(errorMessage);
+    throw error;
+  }
 
   if (response.status === 401) {
     const refreshed = await useAuthStore.getState().refreshSession();
 
     if (refreshed) {
-      response = await sendRequest();
+      try {
+        response = await sendRequest();
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "The browser could not reach the connection endpoint.";
+
+        requestTrace?.fail(errorMessage);
+        throw error;
+      }
     }
   }
 
-  const payload = await readResponsePayload(response);
+  let payload: unknown;
+
+  try {
+    payload = await readResponsePayload(response);
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Connection response could not be read.";
+
+    requestTrace?.finish({
+      error: errorMessage,
+      ok: false,
+      status: response.status,
+    });
+    throw error;
+  }
 
   if (!response.ok) {
-    throw new Error(
-      readErrorMessage(payload) || `Connection request failed with ${response.status}.`,
-    );
+    const errorMessage =
+      readErrorMessage(payload) || `Connection request failed with ${response.status}.`;
+
+    requestTrace?.finish({
+      error: errorMessage,
+      ok: false,
+      status: response.status,
+    });
+    throw new Error(errorMessage);
   }
+
+  requestTrace?.finish({
+    ok: true,
+    status: response.status,
+  });
 
   return payload as T;
 }
@@ -350,7 +410,10 @@ export function testConnection(uid: string) {
 export function queryConnection<
   TQuery = Record<string, unknown>,
   TResponse = ConnectionQueryResponse,
->(request: ConnectionQueryRequest<TQuery>) {
+>(
+  request: ConnectionQueryRequest<TQuery>,
+  traceMeta?: DashboardRequestTraceMeta,
+) {
   const template = commandCenterConfig.connections.instances.queryUrl.trim();
   return requestJson<TResponse>(
     applyTemplate(template, { uid: request.connectionUid }),
@@ -358,6 +421,7 @@ export function queryConnection<
       method: "POST",
       body: JSON.stringify(request),
     },
+    traceMeta,
   );
 }
 

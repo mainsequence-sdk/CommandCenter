@@ -1600,6 +1600,7 @@ export function CustomWorkspaceGraphPage({
     openWidgetSettings,
     updateSelectedWorkspace,
     updateSelectedWorkspaceUserState,
+    commitSelectedWorkspaceControlsState,
   } = useCustomWorkspaceStudio();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [requestDebugOpen, setRequestDebugOpen] = useState(false);
@@ -1777,6 +1778,7 @@ export function CustomWorkspaceGraphPage({
           updateDashboardControlsState(dashboard, state),
         );
       }}
+      onStateCommit={commitSelectedWorkspaceControlsState}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
         <DashboardWidgetExecutionProvider

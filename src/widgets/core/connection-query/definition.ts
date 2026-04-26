@@ -1,6 +1,7 @@
 import { Database } from "lucide-react";
 
 import { getConnectionTypeById } from "@/app/registry";
+import { buildDashboardExecutionRequestTraceMeta } from "@/dashboards/dashboard-request-trace";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
@@ -163,6 +164,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
           {
             scopeId: context.instanceId,
             forceFullRefresh: context.reason === "manual-submit",
+            traceMeta: buildDashboardExecutionRequestTraceMeta(context),
           },
         );
 

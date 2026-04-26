@@ -100,15 +100,51 @@ function parseRange(
 
 function normalizeTimestampMs(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.trunc(value);
+    const absoluteValue = Math.abs(value);
+
+    if (absoluteValue >= 1_000_000_000_000_000_000) {
+      return Math.trunc(value / 1_000_000);
+    }
+
+    if (absoluteValue >= 1_000_000_000_000_000) {
+      return Math.trunc(value / 1000);
+    }
+
+    if (absoluteValue >= 1_000_000_000_000) {
+      return Math.trunc(value);
+    }
+
+    if (absoluteValue >= 1_000_000_000) {
+      return Math.trunc(value * 1000);
+    }
+
+    return undefined;
   }
 
   if (typeof value === "string" && value.trim()) {
+    const numericValue = Number(value.trim());
+
+    if (Number.isFinite(numericValue)) {
+      return normalizeTimestampMs(numericValue);
+    }
+
     const parsed = Date.parse(value);
     return Number.isFinite(parsed) ? parsed : undefined;
   }
 
   return undefined;
+}
+
+function getFrameMaxTimestampMs(frame: TabularFrameSourceV1, timeField: string) {
+  return frame.rows.reduce<number | undefined>((current, row) => {
+    const rowTimeMs = normalizeTimestampMs(row[timeField]);
+
+    if (rowTimeMs === undefined) {
+      return current;
+    }
+
+    return current === undefined ? rowTimeMs : Math.max(current, rowTimeMs);
+  }, undefined);
 }
 
 function normalizeMergeKeyValue(value: unknown) {
@@ -206,15 +242,7 @@ function withIncrementalContext(
 }
 
 function getFrameWatermark(frame: TabularFrameSourceV1, timeField: string, fallbackMs: number) {
-  const watermarkMs = frame.rows.reduce<number | undefined>((current, row) => {
-    const rowTimeMs = normalizeTimestampMs(row[timeField]);
-
-    if (rowTimeMs === undefined) {
-      return current;
-    }
-
-    return current === undefined ? rowTimeMs : Math.max(current, rowTimeMs);
-  }, undefined);
+  const watermarkMs = getFrameMaxTimestampMs(frame, timeField);
 
   return watermarkMs ?? fallbackMs;
 }
@@ -327,7 +355,7 @@ export function resolveConnectionQueryIncrementalDecision(input: {
 
   const tailFromMs = Math.max(
     fullRange.fromMs,
-    retainedState.lastWatermarkMs - Math.max(0, input.settings.overlapMs),
+    retainedState.lastRequestRange.toMs - Math.max(0, input.settings.overlapMs),
   );
   const boundedFromMs = Math.min(tailFromMs, fullRange.toMs - 1);
 
@@ -415,11 +443,21 @@ export function mergeConnectionQueryIncrementalFrame(input: {
 
   assertMergeableFrame(input.incomingFrame, input.settings);
 
+  const existingRows = input.decision.retainedState?.retainedFrame.rows ?? [];
+  const existingFrame = input.decision.retainedState?.retainedFrame;
+  const observedWatermarkMs = Math.min(
+    fullRange.toMs,
+    Math.max(
+      getFrameMaxTimestampMs(input.incomingFrame, input.settings.timeField!) ?? Number.NEGATIVE_INFINITY,
+      existingFrame ? getFrameMaxTimestampMs(existingFrame, input.settings.timeField!) ?? Number.NEGATIVE_INFINITY : Number.NEGATIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    ),
+  );
+  const retentionAnchorMs = Number.isFinite(observedWatermarkMs) ? observedWatermarkMs : fullRange.toMs;
   const retentionStartMs =
     input.settings.retentionMs === undefined
       ? fullRange.fromMs
-      : Math.max(fullRange.fromMs, fullRange.toMs - input.settings.retentionMs);
-  const existingRows = input.decision.retainedState?.retainedFrame.rows ?? [];
+      : Math.max(fullRange.fromMs, retentionAnchorMs - input.settings.retentionMs);
   const rowsByKey = new Map<string, Record<string, unknown>>();
   const retainedRowsBeforePrune = existingRows.length;
 

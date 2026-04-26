@@ -29,7 +29,7 @@ import {
 
 export const tableWidget = defineWidget<TableWidgetProps>({
   id: "table",
-  widgetVersion: "2.3.0",
+  widgetVersion: "2.4.0",
   title: "Table",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -45,10 +45,11 @@ export const tableWidget = defineWidget<TableWidgetProps>({
       { key: "name", type: "string" },
       { key: "value", type: "number" },
       { key: "status", type: "string" },
+      { key: "updatedAt", type: "datetime" },
     ],
     manualRows: [
-      { name: "Alpha", value: "42", status: "Ready" },
-      { name: "Beta", value: "17", status: "Watch" },
+      { name: "Alpha", value: "42", status: "Ready", updatedAt: "2026-04-26T10:21:02.203Z" },
+      { name: "Beta", value: "17", status: "Watch", updatedAt: "2026-04-26T10:26:31.000Z" },
     ],
   },
   io: {
@@ -223,6 +224,8 @@ export const tableWidget = defineWidget<TableWidgetProps>({
         "label",
         "description",
         "format",
+        "datetimeInputFormat",
+        "datetimeOutputFormat",
         "alignment",
         "pinning",
         "decimals",

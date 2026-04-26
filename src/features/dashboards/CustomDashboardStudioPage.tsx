@@ -1395,6 +1395,7 @@ export function CustomDashboardStudioPage({
     setSelectedWorkspaceEditing,
     updateSelectedWorkspace,
     updateSelectedWorkspaceUserState,
+    commitSelectedWorkspaceControlsState,
     saveWorkspaceDraft,
   } = useCustomWorkspaceStudio();
   const backendMode = persistenceMode === "backend";
@@ -3548,6 +3549,7 @@ export function CustomDashboardStudioPage({
           updateDashboardControlsState(dashboard, state),
         );
       }}
+      onStateCommit={commitSelectedWorkspaceControlsState}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
         <DashboardWidgetExecutionProvider

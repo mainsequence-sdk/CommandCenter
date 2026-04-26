@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:manual": "VITE_MANUAL_RELOAD=true vite",
     "check": "tsc --noEmit",
     "build": "npm run check && vite build",
     "test": "vitest run",

@@ -35,6 +35,7 @@ interface CustomWorkspaceStudioState {
   selectedWorkspaceId: string | null;
   savedWorkspaceById: Record<string, DashboardDefinition>;
   draftWorkspaceById: Record<string, DashboardDefinition>;
+  workspaceUserStateHydratedById: Record<string, boolean>;
   workspaceListItems: WorkspaceListItemSummary[];
   workspaceListHydrated: boolean;
   dirtyWorkspaceIds: Record<string, boolean>;
@@ -74,6 +75,7 @@ interface CustomWorkspaceStudioState {
   deleteWorkspace: (workspaceId: string) => Promise<boolean>;
   resetWorkspaceDraft: (workspaceId: string) => void;
   saveWorkspace: (workspaceId: string) => Promise<DashboardDefinition | null>;
+  saveWorkspaceUserState: (workspaceId: string) => Promise<boolean>;
   loadWorkspaceDetail: (workspaceId: string) => Promise<DashboardDefinition | null>;
   setWorkspaceEditing: (workspaceId: string, editing: boolean) => void;
 }
@@ -247,6 +249,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
   selectedWorkspaceId: null,
   savedWorkspaceById: createEmptyWorkspaceMap(),
   draftWorkspaceById: createEmptyWorkspaceMap(),
+  workspaceUserStateHydratedById: {},
   workspaceListItems: [],
   workspaceListHydrated: false,
   dirtyWorkspaceIds: {},
@@ -267,6 +270,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         selectedWorkspaceId: null,
         savedWorkspaceById: createEmptyWorkspaceMap(),
         draftWorkspaceById: createEmptyWorkspaceMap(),
+        workspaceUserStateHydratedById: {},
         workspaceListItems: [],
         workspaceListHydrated: false,
         dirtyWorkspaceIds: {},
@@ -321,6 +325,9 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         selectedWorkspaceId: loaded.selectedDashboardId,
         savedWorkspaceById: buildWorkspaceMap(loaded.dashboards),
         draftWorkspaceById: buildWorkspaceMap(loaded.dashboards),
+        workspaceUserStateHydratedById: backendEnabled
+          ? {}
+          : Object.fromEntries(loaded.dashboards.map((dashboard) => [dashboard.id, true])),
         workspaceListItems,
         workspaceListHydrated: shouldPreloadList || !backendEnabled,
         dirtyWorkspaceIds: {},
@@ -344,6 +351,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         selectedWorkspaceId: null,
         savedWorkspaceById: createEmptyWorkspaceMap(),
         draftWorkspaceById: createEmptyWorkspaceMap(),
+        workspaceUserStateHydratedById: {},
         workspaceListItems: [],
         workspaceListHydrated: false,
         dirtyWorkspaceIds: {},
@@ -381,6 +389,10 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         draftWorkspaceById: {
           ...current.draftWorkspaceById,
           [workspaceId]: nextWorkspace,
+        },
+        workspaceUserStateHydratedById: {
+          ...current.workspaceUserStateHydratedById,
+          [workspaceId]: true,
         },
         workspaceListItems: isWorkspaceBackendEnabled()
           ? current.workspaceListItems
@@ -441,6 +453,10 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
                 }),
               }
             : current.draftWorkspaceById,
+        workspaceUserStateHydratedById: {
+          ...current.workspaceUserStateHydratedById,
+          [workspaceId]: true,
+        },
         workspaceUserStateRevisionById:
           options?.bumpRevision === false
             ? current.workspaceUserStateRevisionById
@@ -510,6 +526,10 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         selectedWorkspaceId: persistedWorkspace.id,
         savedWorkspaceById: upsertWorkspaceMap(state.savedWorkspaceById, persistedWorkspace),
         draftWorkspaceById: upsertWorkspaceMap(state.draftWorkspaceById, persistedWorkspace),
+        workspaceUserStateHydratedById: {
+          ...state.workspaceUserStateHydratedById,
+          [persistedWorkspace.id]: true,
+        },
         workspaceListItems: upsertWorkspaceListItem(state.workspaceListItems, workspaceListItem),
         workspaceListHydrated: state.workspaceListHydrated,
         dirtyWorkspaceIds: markWorkspaceIdsDirty(state.dirtyWorkspaceIds, [persistedWorkspace.id], false),
@@ -559,6 +579,9 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
           selectedWorkspaceId: nextSelectedWorkspaceId,
           savedWorkspaceById: removeWorkspaceMap(current.savedWorkspaceById, workspaceId),
           draftWorkspaceById: removeWorkspaceMap(current.draftWorkspaceById, workspaceId),
+          workspaceUserStateHydratedById: Object.fromEntries(
+            Object.entries(current.workspaceUserStateHydratedById).filter(([id]) => id !== workspaceId),
+          ),
           workspaceListItems: reloadedWorkspaceListItems,
           workspaceListHydrated: true,
           dirtyWorkspaceIds: markWorkspaceIdsDirty(current.dirtyWorkspaceIds, [workspaceId], false),
@@ -596,6 +619,9 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         selectedWorkspaceId: nextSelectedWorkspaceId,
         savedWorkspaceById: buildWorkspaceMap(persistedSavedCollection.dashboards),
         draftWorkspaceById: nextDraftWorkspaceById,
+        workspaceUserStateHydratedById: Object.fromEntries(
+          Object.entries(state.workspaceUserStateHydratedById).filter(([id]) => id !== workspaceId),
+        ),
         workspaceListItems: nextWorkspaceListItems,
         workspaceListHydrated: current.workspaceListHydrated,
         dirtyWorkspaceIds: markWorkspaceIdsDirty(state.dirtyWorkspaceIds, [workspaceId], false),
@@ -635,6 +661,14 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
               [workspaceId]: cloneWorkspace(savedWorkspace),
             }
           : removeWorkspaceMap(current.draftWorkspaceById, workspaceId),
+        workspaceUserStateHydratedById: savedWorkspace
+          ? {
+              ...current.workspaceUserStateHydratedById,
+              [workspaceId]: true,
+            }
+          : Object.fromEntries(
+              Object.entries(current.workspaceUserStateHydratedById).filter(([id]) => id !== workspaceId),
+            ),
         workspaceListItems:
           isWorkspaceBackendEnabled()
             ? current.workspaceListItems
@@ -727,6 +761,10 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
           canReplaceDraftWorkspace
             ? upsertWorkspaceMap(state.draftWorkspaceById, normalizedSavedWorkspace)
             : state.draftWorkspaceById,
+        workspaceUserStateHydratedById: {
+          ...state.workspaceUserStateHydratedById,
+          [workspaceId]: true,
+        },
         workspaceListItems: upsertWorkspaceListItem(state.workspaceListItems, workspaceListItem),
         workspaceListHydrated: state.workspaceListHydrated,
         dirtyWorkspaceIds:
@@ -755,6 +793,85 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
       return null;
     }
   },
+  async saveWorkspaceUserState(workspaceId) {
+    const current = get();
+
+    if (!current.initializedUserId) {
+      return false;
+    }
+
+    const workspace =
+      current.draftWorkspaceById[workspaceId] ??
+      current.savedWorkspaceById[workspaceId] ??
+      null;
+
+    if (!workspace) {
+      set({
+        error: `Workspace ${workspaceId} is not available in the current draft.`,
+      });
+      return false;
+    }
+
+    if (!isWorkspaceBackendEnabled()) {
+      return true;
+    }
+
+    const userStateRevision = current.workspaceUserStateRevisionById[workspaceId] ?? 0;
+    const draftUserState = extractWorkspaceUserStateFromDashboard(workspace);
+
+    try {
+      const persistedUserState = await savePersistedWorkspaceUserState(
+        workspaceId,
+        draftUserState,
+      );
+
+      set((state) => {
+        const userStateRevisionMatches =
+          (state.workspaceUserStateRevisionById[workspaceId] ?? 0) === userStateRevision;
+        const savedWorkspace = state.savedWorkspaceById[workspaceId] ?? null;
+        const draftWorkspace = state.draftWorkspaceById[workspaceId] ?? null;
+        const nextSavedWorkspace = savedWorkspace
+          ? applyWorkspaceUserStateToDashboard(savedWorkspace, persistedUserState)
+          : null;
+        const nextDraftWorkspace = draftWorkspace
+          ? applyWorkspaceUserStateToDashboard(draftWorkspace, persistedUserState)
+          : null;
+
+        return {
+          savedWorkspaceById:
+            nextSavedWorkspace && nextSavedWorkspace !== savedWorkspace
+              ? {
+                  ...state.savedWorkspaceById,
+                  [workspaceId]: sanitizeDashboardDefinition(nextSavedWorkspace),
+                }
+              : state.savedWorkspaceById,
+          draftWorkspaceById:
+            nextDraftWorkspace && nextDraftWorkspace !== draftWorkspace
+              ? {
+                  ...state.draftWorkspaceById,
+                  [workspaceId]: sanitizeDashboardDefinition(nextDraftWorkspace),
+                }
+              : state.draftWorkspaceById,
+          workspaceUserStateHydratedById: {
+            ...state.workspaceUserStateHydratedById,
+            [workspaceId]: true,
+          },
+          workspaceUserStateRevisionById: userStateRevisionMatches
+            ? clearWorkspaceDraftRevisions(state.workspaceUserStateRevisionById, [workspaceId])
+            : state.workspaceUserStateRevisionById,
+          error: null,
+        };
+      });
+
+      return true;
+    } catch (error) {
+      set({
+        error: readWorkspaceStoreError(error),
+      });
+
+      return false;
+    }
+  },
   async loadWorkspaceDetail(workspaceId) {
     const current = get();
 
@@ -766,79 +883,20 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
       return current.draftWorkspaceById[workspaceId] ?? null;
     }
 
-    const savedWorkspace = current.savedWorkspaceById[workspaceId] ?? null;
+    const hydratedDraftWorkspace =
+      current.workspaceUserStateHydratedById[workspaceId]
+        ? (current.draftWorkspaceById[workspaceId] ?? null)
+        : null;
 
-    if (savedWorkspace) {
-      return savedWorkspace;
-    }
-
-    const draftWorkspace = current.draftWorkspaceById[workspaceId] ?? null;
-
-    if (draftWorkspace) {
-      return draftWorkspace;
+    if (hydratedDraftWorkspace) {
+      return hydratedDraftWorkspace;
     }
 
     if (current.loadingWorkspaceId === workspaceId) {
       return null;
     }
 
-    const initialUserStateRevision =
-      current.workspaceUserStateRevisionById[workspaceId] ?? 0;
-    const userStatePromise = loadPersistedWorkspaceUserState(
-      current.initializedUserId,
-      workspaceId,
-    )
-      .then((loadedUserState) => {
-        set((state) => {
-          const savedWorkspace = state.savedWorkspaceById[workspaceId] ?? null;
-
-          if (!savedWorkspace) {
-            return state;
-          }
-
-          const nextSavedWorkspace = applyWorkspaceUserStateToDashboard(
-            savedWorkspace,
-            loadedUserState,
-          );
-          const draftWorkspaceForHydration =
-            (state.workspaceUserStateRevisionById[workspaceId] ?? 0) === initialUserStateRevision
-              ? (state.draftWorkspaceById[workspaceId] ?? null)
-              : null;
-          const nextDraftWorkspace = draftWorkspaceForHydration
-            ? applyWorkspaceUserStateToDashboard(draftWorkspaceForHydration, loadedUserState)
-            : null;
-
-          if (
-            nextSavedWorkspace === savedWorkspace &&
-            nextDraftWorkspace === draftWorkspaceForHydration
-          ) {
-            return state;
-          }
-
-          return {
-            savedWorkspaceById:
-              nextSavedWorkspace !== savedWorkspace
-                ? {
-                    ...state.savedWorkspaceById,
-                    [workspaceId]: sanitizeDashboardDefinition(nextSavedWorkspace),
-                  }
-                : state.savedWorkspaceById,
-            draftWorkspaceById:
-              nextDraftWorkspace && nextDraftWorkspace !== draftWorkspaceForHydration
-                ? {
-                    ...state.draftWorkspaceById,
-                    [workspaceId]: sanitizeDashboardDefinition(nextDraftWorkspace),
-                  }
-                : state.draftWorkspaceById,
-          };
-        });
-      })
-      .catch((error) => {
-        console.warn(
-          `[workspaces] Unable to hydrate user state for workspace ${workspaceId}.`,
-          error,
-        );
-      });
+    const initialUserStateRevision = current.workspaceUserStateRevisionById[workspaceId] ?? 0;
 
     set((state) => ({
       loadingWorkspaceId: workspaceId,
@@ -852,23 +910,39 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
     }));
 
     try {
-      const loadedWorkspace = await loadPersistedWorkspaceDetail(current.initializedUserId, workspaceId);
+      const [loadedWorkspace, loadedUserState] = await Promise.all([
+        loadPersistedWorkspaceDetail(current.initializedUserId, workspaceId),
+        loadPersistedWorkspaceUserState(current.initializedUserId, workspaceId),
+      ]);
 
       if (!loadedWorkspace) {
         throw new Error(`Workspace ${workspaceId} was not found.`);
       }
 
+      const hydratedWorkspace = applyWorkspaceUserStateToDashboard(
+        loadedWorkspace,
+        loadedUserState,
+      );
+
       set((state) => {
         const existingListItem =
           state.workspaceListItems.find((entry) => entry.id === workspaceId) ?? null;
+        const userStateRevisionMatches =
+          (state.workspaceUserStateRevisionById[workspaceId] ?? 0) === initialUserStateRevision;
 
         return {
           selectedWorkspaceId: workspaceId,
-          savedWorkspaceById: upsertWorkspaceMap(state.savedWorkspaceById, loadedWorkspace),
-          draftWorkspaceById: upsertWorkspaceMap(state.draftWorkspaceById, loadedWorkspace),
+          savedWorkspaceById: upsertWorkspaceMap(state.savedWorkspaceById, hydratedWorkspace),
+          draftWorkspaceById: userStateRevisionMatches
+            ? upsertWorkspaceMap(state.draftWorkspaceById, hydratedWorkspace)
+            : state.draftWorkspaceById,
+          workspaceUserStateHydratedById: {
+            ...state.workspaceUserStateHydratedById,
+            [workspaceId]: true,
+          },
           workspaceListItems: upsertWorkspaceListItem(
             state.workspaceListItems,
-            summarizeDashboardForWorkspaceList(loadedWorkspace, {
+            summarizeDashboardForWorkspaceList(hydratedWorkspace, {
               updatedAt: existingListItem?.updatedAt ?? null,
             }),
           ),
@@ -889,9 +963,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         };
       });
 
-      void userStatePromise;
-
-      return loadedWorkspace;
+      return hydratedWorkspace;
     } catch (error) {
       const message = readWorkspaceStoreError(error);
 

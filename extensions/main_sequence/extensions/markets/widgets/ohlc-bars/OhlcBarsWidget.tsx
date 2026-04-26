@@ -29,6 +29,7 @@ import {
 type Props = WidgetComponentProps<MainSequenceOhlcBarsWidgetProps>;
 type OhlcChartApi = ReturnType<typeof createChart>;
 type OhlcSeriesApi = Parameters<OhlcChartApi["removeSeries"]>[0];
+type OhlcCrosshairHandler = Parameters<OhlcChartApi["subscribeCrosshairMove"]>[0];
 type OhlcChartPoint = {
   close: number;
   high: number;
@@ -49,6 +50,47 @@ function getChartSize(container: HTMLDivElement) {
     width: Math.max(container.clientWidth, 1),
     height: Math.max(container.clientHeight, 1),
   };
+}
+
+function formatOhlcDate(timestampMs: number) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(timestampMs));
+}
+
+function formatOhlcNumber(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: Math.abs(value) >= 100 ? 2 : 6,
+  }).format(value);
+}
+
+function formatVolume(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    notation: Math.abs(value) >= 1_000_000 ? "compact" : "standard",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function renderTooltipContent(
+  tooltip: HTMLDivElement,
+  point: ReturnType<typeof buildOhlcBarsSeries>["points"][number],
+) {
+  const directionColor = point.close >= point.open ? "var(--success)" : "var(--danger)";
+  const volumeRow = point.volume === undefined
+    ? ""
+    : `<div class="flex justify-between gap-4"><span class="text-muted-foreground">Volume</span><span>${formatVolume(point.volume)}</span></div>`;
+
+  tooltip.innerHTML = `
+    <div class="mb-1 text-xs font-medium text-foreground">${formatOhlcDate(point.timeMs)}</div>
+    <div class="space-y-0.5 text-xs">
+      <div class="flex justify-between gap-4"><span class="text-muted-foreground">Open</span><span>${formatOhlcNumber(point.open)}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-muted-foreground">High</span><span>${formatOhlcNumber(point.high)}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-muted-foreground">Low</span><span>${formatOhlcNumber(point.low)}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-muted-foreground">Close</span><span style="color:${directionColor}">${formatOhlcNumber(point.close)}</span></div>
+      ${volumeRow}
+    </div>
+  `;
 }
 
 function mapOhlcChartPoints(points: ReturnType<typeof buildOhlcBarsSeries>["points"]) {
@@ -160,6 +202,8 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
   const barsRef = useRef<OhlcSeriesApi | null>(null);
   const volumeRef = useRef<OhlcSeriesApi | null>(null);
   const studyRefs = useRef<OhlcSeriesApi[]>([]);
+  const pointByChartTimeRef = useRef(new Map<number, ReturnType<typeof buildOhlcBarsSeries>["points"][number]>());
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
   const hasFittedRef = useRef(false);
   const lastPointCountRef = useRef(0);
   const lastShapeKeyRef = useRef<string | null>(null);
@@ -219,6 +263,8 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
         highField: resolvedConfig.highField,
         lowField: resolvedConfig.lowField,
         openField: resolvedConfig.openField,
+        seriesFilterField: resolvedConfig.seriesFilterField,
+        seriesFilterValue: resolvedConfig.seriesFilterValue,
         studies: resolvedConfig.studies.map((study) => `${study.type}:${study.period}`).join("|"),
         timeField: resolvedConfig.timeField,
         volumeField: resolvedConfig.volumeField,
@@ -228,6 +274,8 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
       resolvedConfig.highField,
       resolvedConfig.lowField,
       resolvedConfig.openField,
+      resolvedConfig.seriesFilterField,
+      resolvedConfig.seriesFilterValue,
       resolvedConfig.studies,
       resolvedConfig.timeField,
       resolvedConfig.volumeField,
@@ -248,6 +296,11 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: resolvedTokens["muted-foreground"],
+        panes: {
+          enableResize: false,
+          separatorColor: "transparent",
+          separatorHoverColor: "transparent",
+        },
         attributionLogo: false,
       },
       grid: {
@@ -280,6 +333,15 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
       ...getChartSize(container),
     });
     chartRef.current = chart;
+    container.style.position = "relative";
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "pointer-events-none absolute z-20 hidden min-w-36 rounded-md border border-border/70 bg-popover/95 px-3 py-2 text-popover-foreground shadow-lg backdrop-blur";
+    tooltip.style.left = "0px";
+    tooltip.style.top = "0px";
+    tooltipRef.current = tooltip;
+    container.appendChild(tooltip);
+
     const priceSeries = chart.addSeries(CandlestickSeries, {
       upColor: resolvedTokens.success,
       downColor: resolvedTokens.danger,
@@ -341,10 +403,62 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
       chartRef.current?.applyOptions(getChartSize(container));
     });
 
+    const crosshairHandler: OhlcCrosshairHandler = (param) => {
+      const activeTooltip = tooltipRef.current;
+
+      if (
+        !activeTooltip ||
+        !param.point ||
+        param.point.x < 0 ||
+        param.point.y < 0 ||
+        param.point.x > container.clientWidth ||
+        param.point.y > container.clientHeight
+      ) {
+        if (activeTooltip) {
+          activeTooltip.classList.add("hidden");
+        }
+        return;
+      }
+
+      const seriesDatum = param.seriesData.get(priceSeries) as { time?: unknown } | undefined;
+      const rawTime = typeof seriesDatum?.time === "number"
+        ? seriesDatum.time
+        : typeof param.time === "number"
+          ? param.time
+          : null;
+      const point = rawTime === null ? null : pointByChartTimeRef.current.get(rawTime);
+
+      if (!point) {
+        activeTooltip.classList.add("hidden");
+        return;
+      }
+
+      renderTooltipContent(activeTooltip, point);
+      activeTooltip.classList.remove("hidden");
+
+      const tooltipWidth = activeTooltip.offsetWidth || 160;
+      const tooltipHeight = activeTooltip.offsetHeight || 140;
+      const preferRight = param.point.x + tooltipWidth + 18 <= container.clientWidth;
+      const left = preferRight
+        ? param.point.x + 12
+        : Math.max(8, param.point.x - tooltipWidth - 12);
+      const top = Math.min(
+        Math.max(8, param.point.y - tooltipHeight / 2),
+        Math.max(8, container.clientHeight - tooltipHeight - 8),
+      );
+
+      activeTooltip.style.left = `${left}px`;
+      activeTooltip.style.top = `${top}px`;
+    };
+
+    chart.subscribeCrosshairMove(crosshairHandler);
     resizeObserver.observe(container);
 
     return () => {
+      chart.unsubscribeCrosshairMove(crosshairHandler);
       resizeObserver.disconnect();
+      tooltipRef.current?.remove();
+      tooltipRef.current = null;
       barsRef.current = null;
       volumeRef.current = null;
       studyRefs.current = [];
@@ -372,6 +486,7 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
       resolvedConfig.studies.length > 0;
 
     if (forceSnapshot) {
+      pointByChartTimeRef.current = new Map(seriesResult.points.map((point) => [point.time, point]));
       bars.setData(mapOhlcChartPoints(seriesResult.points));
       volume?.setData(mapVolumeChartPoints(seriesResult.points, resolvedTokens));
       studyRefs.current.forEach((studySeries, index) => {
@@ -399,6 +514,9 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
 
     mapOhlcChartPoints(deltaSeriesResult.points).forEach((point) => {
       bars.update(point, true);
+    });
+    deltaSeriesResult.points.forEach((point) => {
+      pointByChartTimeRef.current.set(point.time, point);
     });
     mapVolumeChartPoints(deltaSeriesResult.points, resolvedTokens).forEach((point) => {
       volume?.update(point, true);
@@ -443,6 +561,16 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
     );
   }
 
+  if (resolvedConfig.seriesFilterField && !resolvedConfig.seriesFilterValue) {
+    return (
+      <EmptyState
+        icon="chart"
+        title="Choose one series value"
+        description="Select the ticker, symbol, or other value to render from the mapped filter column."
+      />
+    );
+  }
+
   if (linkedDataset == null || linkedDataset.status === "loading") {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
@@ -471,6 +599,13 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
         <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
           Skipped {seriesResult.invalidRowCount.toLocaleString()} row
           {seriesResult.invalidRowCount === 1 ? "" : "s"} because the selected OHLC fields could not be parsed.
+        </div>
+      ) : null}
+
+      {seriesResult.collapsedPointCount > 0 ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          Merged {seriesResult.collapsedPointCount.toLocaleString()} row
+          {seriesResult.collapsedPointCount === 1 ? "" : "s"} that shared the same rendered timestamp.
         </div>
       ) : null}
 

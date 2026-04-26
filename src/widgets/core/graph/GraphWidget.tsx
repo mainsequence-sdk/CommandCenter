@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { BarChart3, CalendarClock, Database, Loader2 } from "lucide-react";
+import { AlertTriangle, BarChart3, CalendarClock, Database, Loader2 } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
@@ -31,6 +31,7 @@ export function GraphWidget({
   props,
   presentation,
   instanceId,
+  editable,
 }: Props) {
   const { rangeStartMs, rangeEndMs } = useDashboardControls();
   const transparentSurface = resolveWidgetTransparentSurface(presentation);
@@ -262,15 +263,21 @@ export function GraphWidget({
         </div>
       ) : null}
 
-      {!isDataLoading && !dataErrorMessage && chartCollisionMessage ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-          {chartCollisionMessage}
-        </div>
-      ) : null}
-
       {!isDataLoading && !dataErrorMessage ? (
         <div className="min-h-0 flex-1">
-          <div className="h-full min-h-0">
+          <div className="relative h-full min-h-0">
+            {editable && chartCollisionMessage ? (
+              <div className="absolute right-2 top-2 z-10">
+                <button
+                  type="button"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-warning/35 bg-background/90 text-warning shadow-sm backdrop-blur hover:bg-warning/10"
+                  title={chartCollisionMessage}
+                  aria-label={chartCollisionMessage}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                </button>
+              </div>
+            ) : null}
             <GraphChartErrorBoundary
               fallback={(
                 <div className="flex h-full min-h-0 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/10 px-4 py-6 text-center text-sm text-danger">

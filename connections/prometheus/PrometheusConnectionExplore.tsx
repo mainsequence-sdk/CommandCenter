@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConnectionQueryWorkbench } from "@/connections/ConnectionQueryWorkbench";
 import type {
@@ -13,6 +14,7 @@ import type {
 import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
 
 import type { PrometheusPublicConfig } from "./index";
+import { PrometheusQueryBuilder } from "./PrometheusQueryBuilder";
 
 interface ResolvedPrometheusConfig {
   endpointMode: string;
@@ -22,6 +24,7 @@ interface ResolvedPrometheusConfig {
   scrapeInterval: string;
   queryTimeout: string;
   defaultExploreLookback: string;
+  defaultEditor: string;
   httpMethod: string;
   seriesLimit: number;
   useSeriesEndpoint: boolean;
@@ -135,6 +138,7 @@ function resolvePrometheusConfig(props: ConnectionExploreProps): ResolvedPrometh
     scrapeInterval: readConfigString(props, "scrapeInterval"),
     queryTimeout: readConfigString(props, "queryTimeout"),
     defaultExploreLookback: readConfigString(props, "defaultExploreLookback"),
+    defaultEditor: readConfigString(props, "defaultEditor"),
     httpMethod: readConfigString(props, "httpMethod"),
     seriesLimit: readConfigNumber(props, "seriesLimit", Number.MAX_SAFE_INTEGER),
     useSeriesEndpoint: readConfigBoolean(props, "useSeriesEndpoint"),
@@ -157,13 +161,6 @@ function buildDefaultQueryForModel(input: {
     return {
       kind: "promql-instant",
       query: initialPromql,
-    };
-  }
-
-  if (queryModelId === "series") {
-    return {
-      kind: "series",
-      matchers: [],
     };
   }
 
@@ -224,6 +221,9 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
       maxDataPoints: config.maxDataPoints,
     }),
   );
+  const [editorMode, setEditorMode] = useState<"builder" | "code">(
+    config.defaultEditor === "code" ? "code" : "builder",
+  );
 
   useEffect(() => {
     setQueryProps(
@@ -235,7 +235,9 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
         maxDataPoints: config.maxDataPoints,
       }),
     );
+    setEditorMode(config.defaultEditor === "code" ? "code" : "builder");
   }, [
+    config.defaultEditor,
     config.maxDataPoints,
     connectionInstance.typeId,
     connectionInstance.uid,
@@ -245,6 +247,47 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
     defaultRange.fixedStartMs,
     initialPromql,
   ]);
+  const handleBuilderQueryChange = useCallback(
+    (query: string) => {
+      const normalizedQuery = query.trim();
+
+      if (!normalizedQuery) {
+        return;
+      }
+
+      setQueryProps((current) => {
+        const currentQuery =
+          current.query && typeof current.query === "object" && !Array.isArray(current.query)
+            ? current.query
+            : {};
+
+        return {
+          ...current,
+          queryModelId: "promql-range",
+          query: {
+            ...currentQuery,
+            kind: "promql-range",
+            query: normalizedQuery,
+            maxDataPoints:
+              typeof currentQuery.maxDataPoints === "number"
+                ? currentQuery.maxDataPoints
+                : config.maxDataPoints,
+          },
+          timeRangeMode: "fixed",
+          fixedStartMs: defaultRange.fixedStartMs,
+          fixedEndMs: defaultRange.fixedEndMs,
+        };
+      });
+    },
+    [config.maxDataPoints, defaultRange.fixedEndMs, defaultRange.fixedStartMs],
+  );
+  const currentPromql =
+    queryProps.query &&
+    typeof queryProps.query === "object" &&
+    !Array.isArray(queryProps.query) &&
+    typeof queryProps.query.query === "string"
+      ? queryProps.query.query
+      : initialPromql;
 
   return (
     <Card>
@@ -289,6 +332,40 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
+          <div>
+            <div className="text-sm font-semibold text-foreground">Query authoring</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Builder metadata loads only when you request metrics, labels, or values.
+            </div>
+          </div>
+          <div className="flex items-center gap-1 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/60 p-0.5">
+            {(["builder", "code"] as const).map((mode) => (
+              <Button
+                key={mode}
+                type="button"
+                size="sm"
+                variant={editorMode === mode ? "default" : "ghost"}
+                className="h-8 px-3"
+                onClick={() => setEditorMode(mode)}
+              >
+                {mode === "builder" ? "Builder" : "Code"}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {editorMode === "builder" ? (
+          <PrometheusQueryBuilder
+            connectionUid={connectionInstance.uid}
+            defaultRange={defaultRange}
+            initialQuery={currentPromql}
+            lookupDisabled={config.disableMetricsLookup}
+            onQueryChange={handleBuilderQueryChange}
+            seriesLimit={config.seriesLimit}
+          />
+        ) : null}
+
         <ConnectionQueryWorkbench
           value={queryProps}
           onChange={setQueryProps}
@@ -300,6 +377,7 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
             rangeEndMs: defaultRange.fixedEndMs,
           }}
           showConnectionPicker={false}
+          showQueryEditor={editorMode === "code"}
           autoSelectFirstQueryModel
           runButtonLabel="Run query"
           resultDescription="Preview of the normalized connection runtime frame."

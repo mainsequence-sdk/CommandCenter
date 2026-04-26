@@ -13,6 +13,7 @@ import {
 } from "../../../workbench/widgets/data-node-shared/dataNodeWidgetSource";
 import {
   buildOhlcBarsFieldOptionsFromRuntime,
+  buildOhlcBarsFilterValueOptions,
   normalizeOhlcBarsProps,
   resolveOhlcBarsConfig,
   type MainSequenceOhlcBarsWidgetProps,
@@ -21,9 +22,11 @@ import {
 export interface OhlcBarsControllerContext
   extends DataNodeWidgetSourceControllerContext<ReturnType<typeof resolveOhlcBarsConfig>> {
   closeFieldOptions: PickerOption[];
+  filterValueOptions: PickerOption[];
   highFieldOptions: PickerOption[];
   lowFieldOptions: PickerOption[];
   openFieldOptions: PickerOption[];
+  seriesFilterFieldOptions: PickerOption[];
   timeFieldOptions: PickerOption[];
   volumeFieldOptions: PickerOption[];
 }
@@ -98,10 +101,12 @@ export function useOhlcBarsControllerContext({
     ...sourceContext,
     closeFieldOptions: fieldPickerOptions(pickerOptions, "Auto", "Try to infer the close price field."),
     fieldPickerOptions: pickerOptions,
+    filterValueOptions: buildOhlcBarsFilterValueOptions(linkedDataset?.rows ?? [], resolvedConfig.seriesFilterField),
     highFieldOptions: fieldPickerOptions(pickerOptions, "Auto", "Try to infer the high price field."),
     lowFieldOptions: fieldPickerOptions(pickerOptions, "Auto", "Try to infer the low price field."),
     openFieldOptions: fieldPickerOptions(pickerOptions, "Auto", "Try to infer the open price field."),
     resolvedConfig,
+    seriesFilterFieldOptions: fieldPickerOptions(pickerOptions, "No filter", "Render all rows from the bound dataset."),
     timeFieldOptions: fieldPickerOptions(pickerOptions, "Auto", "Try to infer the timestamp or date field."),
     volumeFieldOptions: fieldPickerOptions(pickerOptions, "No volume", "Do not render a volume pane."),
   };

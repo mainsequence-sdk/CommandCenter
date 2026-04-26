@@ -127,6 +127,7 @@ const loopbackAuthProxyTarget = readLoopbackAuthProxyTarget();
 export default defineConfig(async ({ mode }) => {
   const cloudflarePlugin = mode === cloudflareMode ? await loadOptionalCloudflarePlugin() : null;
   const env = loadEnv(mode, projectRoot, "");
+  const manualReload = env.VITE_MANUAL_RELOAD === "true";
   const assistantProxyTarget =
     env.VITE_ASSISTANT_UI_PROXY_TARGET ||
     env.VITE_ASSISTANT_UI_ENDPOINT ||
@@ -146,6 +147,7 @@ export default defineConfig(async ({ mode }) => {
     },
     server: {
       port: 5173,
+      hmr: manualReload ? false : undefined,
       proxy: {
         [devAuthProxyPrefix]: {
           target: loopbackAuthProxyTarget,

@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import { Bug, Clock3, Loader2, Trash2, X } from "lucide-react";
+import { Bug, ChevronDown, Clock3, Loader2, Trash2, X } from "lucide-react";
 
 import { getWidgetById } from "@/app/registry";
 import {
@@ -149,6 +149,79 @@ function formatResolutionLabel(resolution: DashboardRequestTraceEntry["resolutio
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function formatDateTime(value: unknown) {
+  const date =
+    typeof value === "number"
+      ? new Date(value)
+      : typeof value === "string"
+        ? new Date(value)
+        : null;
+
+  if (!date || !Number.isFinite(date.getTime())) {
+    return typeof value === "string" && value.trim() ? value.trim() : "Not set";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
+function formatTimeRange(value: unknown) {
+  if (!isRecord(value)) {
+    return "No time range requested";
+  }
+
+  const from = value.from;
+  const to = value.to;
+
+  if (typeof from !== "string" || typeof to !== "string") {
+    return "No time range requested";
+  }
+
+  return `${formatDateTime(from)} -> ${formatDateTime(to)}`;
+}
+
+function formatDetailValue(value: unknown) {
+  if (value === undefined || value === null || value === "") {
+    return "Not set";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "Yes" : "No";
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value.toLocaleString() : "Not set";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function formatDetailsJson(value: unknown) {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 function resolveRuntimeViolation(
   entry: DashboardRequestTraceEntry,
   runtimeMode: WidgetWorkspaceRuntimeMode | undefined,
@@ -168,6 +241,108 @@ function resolveRuntimeViolation(
   return null;
 }
 
+function DetailItem({
+  label,
+  value,
+  wide,
+}: {
+  label: string;
+  value: unknown;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-xl border border-border/55 bg-background/55 px-3 py-2",
+        wide ? "sm:col-span-2" : undefined,
+      )}
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 break-words font-mono text-[11px] leading-5 text-foreground">
+        {formatDetailValue(value)}
+      </div>
+    </div>
+  );
+}
+
+function ConnectionQueryTraceDetails({
+  details,
+}: {
+  details: Record<string, unknown>;
+}) {
+  const incremental = isRecord(details.incremental) ? details.incremental : undefined;
+
+  return (
+    <div className="space-y-2">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        Connection Query
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <DetailItem label="Connection" value={details.connectionUid} />
+        <DetailItem label="Connection type" value={details.connectionTypeId} />
+        <DetailItem label="Query model" value={details.queryModelId} />
+        <DetailItem label="Query kind" value={details.queryKind} />
+        <DetailItem label="Requested range" value={formatTimeRange(details.timeRange)} wide />
+        <DetailItem label="Full workspace range" value={formatTimeRange(details.retainedTimeRange)} wide />
+        <DetailItem label="Output contract" value={details.requestedOutputContract} />
+        <DetailItem label="Max rows" value={details.maxRows} />
+        {incremental ? (
+          <>
+            <DetailItem label="Incremental" value={incremental.active} />
+            <DetailItem label="Incremental reason" value={incremental.reason} />
+            <DetailItem label="Had retained base" value={incremental.hasRetainedState} />
+            <DetailItem label="Requested delta range" value={incremental.requestedDeltaRange} />
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function RequestDetails({
+  entry,
+  runtimeMode,
+}: {
+  entry: DashboardRequestTraceEntry;
+  runtimeMode: WidgetWorkspaceRuntimeMode | undefined;
+}) {
+  const details = entry.details;
+  const isConnectionQuery = isRecord(details) && details.kind === "connection-query";
+
+  return (
+    <div className="mt-3 space-y-3 rounded-xl border border-border/60 bg-card/45 p-3">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <DetailItem label="URL" value={entry.url} wide />
+        <DetailItem label="Started" value={formatDateTime(entry.startedAtMs)} />
+        <DetailItem label="Completed" value={entry.completedAtMs ? formatDateTime(entry.completedAtMs) : "Running"} />
+        <DetailItem label="Runtime mode" value={runtimeMode} />
+        <DetailItem label="Trace source" value={formatSourceLabel(entry.source)} />
+        <DetailItem label="Reason" value={formatReasonLabel(entry.reason)} />
+        <DetailItem label="Resolution" value={formatResolutionLabel(entry.resolution) ?? "Network"} />
+      </div>
+
+      {isConnectionQuery ? (
+        <ConnectionQueryTraceDetails details={details} />
+      ) : details ? (
+        <div className="space-y-2">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Trace Details
+          </div>
+          <pre className="max-h-64 overflow-auto rounded-xl border border-border/60 bg-background/70 p-3 text-[11px] leading-5 text-foreground">
+            {formatDetailsJson(details)}
+          </pre>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border/60 bg-background/55 px-3 py-2 text-xs text-muted-foreground">
+          No request-specific details were attached to this trace entry.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WorkspaceRequestDebugPanel({
   open,
   onClose,
@@ -182,6 +357,7 @@ export function WorkspaceRequestDebugPanel({
   widgets: DashboardWidgetInstance[];
 }) {
   const traceScope = useDashboardRequestTrace(scopeId);
+  const [expandedRequestIds, setExpandedRequestIds] = useState<Set<string>>(() => new Set());
   const cycles = traceScope.cycles;
   const latestCycle =
     cycles.find((candidate) => candidate.id === traceScope.activeCycleId) ??
@@ -211,6 +387,19 @@ export function WorkspaceRequestDebugPanel({
     () => cycles.reduce((sum, cycle) => sum + cycle.requests.length, 0),
     [cycles],
   );
+  function toggleRequestDetails(requestId: string) {
+    setExpandedRequestIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(requestId)) {
+        next.delete(requestId);
+      } else {
+        next.add(requestId);
+      }
+
+      return next;
+    });
+  }
 
   return (
     <aside
@@ -360,6 +549,7 @@ export function WorkspaceRequestDebugPanel({
                               ? widgetRuntimeModeByInstanceId[entry.instanceId]
                               : undefined;
                           const runtimeViolation = resolveRuntimeViolation(entry, runtimeMode);
+                          const expanded = expandedRequestIds.has(entry.id);
 
                           return (
                             <div
@@ -389,12 +579,30 @@ export function WorkspaceRequestDebugPanel({
                                     {entry.path}
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <div className="text-sm font-semibold text-foreground">
-                                    {formatDuration(entry.durationMs)}
-                                  </div>
-                                  <div className="mt-1 text-[11px] text-muted-foreground">
-                                    {formatRelativeOffset(cycle.startedAtMs, entry.startedAtMs)}
+                                <div className="flex shrink-0 items-start gap-2">
+                                  <button
+                                    type="button"
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/60 px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                                    aria-expanded={expanded}
+                                    onClick={() => {
+                                      toggleRequestDetails(entry.id);
+                                    }}
+                                  >
+                                    <span>Details</span>
+                                    <ChevronDown
+                                      className={cn(
+                                        "h-3.5 w-3.5 transition-transform",
+                                        expanded ? "rotate-180" : undefined,
+                                      )}
+                                    />
+                                  </button>
+                                  <div className="text-right">
+                                    <div className="text-sm font-semibold text-foreground">
+                                      {formatDuration(entry.durationMs)}
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-muted-foreground">
+                                      {formatRelativeOffset(cycle.startedAtMs, entry.startedAtMs)}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -438,6 +646,10 @@ export function WorkspaceRequestDebugPanel({
                                 <div className="mt-3 rounded-xl border border-danger/20 bg-danger/8 px-3 py-2 text-xs text-danger">
                                   {entry.error}
                                 </div>
+                              ) : null}
+
+                              {expanded ? (
+                                <RequestDetails entry={entry} runtimeMode={runtimeMode} />
                               ) : null}
                             </div>
                           );

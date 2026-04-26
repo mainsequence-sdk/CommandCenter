@@ -72,6 +72,18 @@ export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidge
             description: "Upstream fields populate the optional volume mapping choices.",
           },
           {
+            kind: "drives-options",
+            sourcePath: "fields",
+            target: { kind: "schema-field", id: "seriesFilterField" },
+            description: "Upstream fields populate the optional series filter column choices.",
+          },
+          {
+            kind: "drives-options",
+            sourcePath: "rows",
+            target: { kind: "schema-field", id: "seriesFilterValue" },
+            description: "Upstream rows populate the filter values for the selected series column.",
+          },
+          {
             kind: "drives-render",
             sourcePath: "rows",
             target: { kind: "render", id: "ohlc-bars" },
@@ -94,6 +106,7 @@ export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidge
       requiredSetupSteps: [
         "Bind the widget to an upstream Connection Query or Tabular Transform dataset.",
         "Ensure the upstream table publishes one time field and numeric open, high, low, and close fields.",
+        "If the upstream table contains several tickers or instruments, select a series filter column and one value.",
         "Optionally map a numeric volume field and add SMA or EMA studies in widget settings.",
         "Review or override the inferred field mappings in widget settings.",
       ],
@@ -113,6 +126,7 @@ export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidge
         "The bound tabular response must expose rows shaped like { time: string | number, open: number, high: number, low: number, close: number, volume?: number } or equivalent column names selected in settings.",
         "Time values may be ISO date strings, ISO datetime strings, Unix seconds, Unix milliseconds, Unix microseconds, or Unix nanoseconds.",
         "Volume is optional. When volumeField is mapped, numeric volume values render in a lower histogram pane.",
+        "Series filtering is optional. When the table contains multiple instruments, map seriesFilterField to a column such as ticker or symbol and set seriesFilterValue to one value.",
         "Studies are local visual overlays calculated from close prices. The initial supported studies are SMA and EMA.",
       ],
     },
@@ -122,7 +136,7 @@ export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidge
       supportedStudies: ["sma", "ema"],
       supportedSeriesTypes: ["candlestick", "volume-histogram", "line-study"],
       requiredTabularFields: ["time", "open", "high", "low", "close"],
-      optionalTabularFields: ["volume"],
+      optionalTabularFields: ["volume", "ticker", "symbol", "instrument"],
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },

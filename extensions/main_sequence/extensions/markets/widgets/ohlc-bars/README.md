@@ -25,6 +25,8 @@ Connection Query or Tabular Transform output.
   delta-safe, the chart keeps its mounted Lightweight Charts instance and appends or replaces OHLC
   bars instead of rebuilding from the retained snapshot.
 - The source table must include one time field plus numeric open, high, low, and close fields.
+- Multi-instrument tables can be constrained with `seriesFilterField` and `seriesFilterValue`.
+  The filter is applied before OHLC parsing so one widget instance renders exactly one series.
 - The source table may include a numeric volume field. When `volumeField` is mapped, the widget
   renders volume in a lower Lightweight Charts histogram pane.
 - Optional studies are saved in `studies` and currently support SMA and EMA overlays calculated from
@@ -33,6 +35,9 @@ Connection Query or Tabular Transform output.
   microseconds, or Unix nanoseconds.
 - Price values may be numbers or numeric strings. Invalid rows are skipped and surfaced as a warning
   in the widget body.
+- Lightweight Charts requires strictly increasing rendered timestamps. When multiple source rows
+  resolve to the same chart second, the widget merges them into one bar using first open, maximum
+  high, minimum low, last close, and summed volume.
 
 ## Maintenance Notes
 

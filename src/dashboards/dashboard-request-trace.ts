@@ -26,6 +26,7 @@ export interface DashboardRequestTraceMeta {
   source: DashboardRequestTraceSource;
   reason: DashboardRequestTraceReason;
   label?: string;
+  details?: Record<string, unknown>;
 }
 
 export interface DashboardRequestTraceEntry {
@@ -47,6 +48,7 @@ export interface DashboardRequestTraceEntry {
   reason: DashboardRequestTraceReason;
   label?: string;
   resolution?: DashboardRequestTraceResolution;
+  details?: Record<string, unknown>;
 }
 
 export interface DashboardRequestTraceCycle {
@@ -274,6 +276,7 @@ export function startDashboardRequestTrace(
     source: meta.source,
     reason: meta.reason,
     label: meta.label,
+    details: meta.details,
   };
 
   updateStore((currentState) => {

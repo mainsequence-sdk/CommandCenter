@@ -5,10 +5,11 @@ import { useSearchParams } from "react-router-dom";
 import { useAuthStore } from "@/auth/auth-store";
 import { useToast } from "@/components/ui/toaster";
 import { resolveDashboardLayout } from "@/dashboards/layout";
-import type { DashboardDefinition } from "@/dashboards/types";
+import type { DashboardControlsState, DashboardDefinition } from "@/dashboards/types";
 import {
   createBlankDashboard,
   expandAllDashboardRows,
+  updateDashboardControlsState,
 } from "./custom-dashboard-storage";
 import type { WorkspaceSnapshotCaptureProfile } from "./snapshot/types";
 import { useCustomWorkspaceStudioStore } from "./custom-workspace-studio-store";
@@ -42,6 +43,9 @@ export function useCustomWorkspaceStudio() {
       : "dashboard";
 
   const draftWorkspaceById = useCustomWorkspaceStudioStore((state) => state.draftWorkspaceById);
+  const workspaceUserStateHydratedById = useCustomWorkspaceStudioStore(
+    (state) => state.workspaceUserStateHydratedById,
+  );
   const initializedUserId = useCustomWorkspaceStudioStore((state) => state.initializedUserId);
   const hydratingUserId = useCustomWorkspaceStudioStore((state) => state.hydratingUserId);
   const isHydrating = useCustomWorkspaceStudioStore((state) => state.isHydrating);
@@ -77,6 +81,7 @@ export function useCustomWorkspaceStudio() {
     (state) => state.resetWorkspaceDraft,
   );
   const saveWorkspace = useCustomWorkspaceStudioStore((state) => state.saveWorkspace);
+  const saveWorkspaceUserState = useCustomWorkspaceStudioStore((state) => state.saveWorkspaceUserState);
   const loadWorkspaceDetail = useCustomWorkspaceStudioStore((state) => state.loadWorkspaceDetail);
   const setWorkspaceEditing = useCustomWorkspaceStudioStore((state) => state.setWorkspaceEditing);
 
@@ -90,8 +95,29 @@ export function useCustomWorkspaceStudio() {
   }, [initialize, requestedWorkspaceId, user?.id]);
 
   const selectedDashboardSource = useMemo(
-    () => (requestedWorkspaceId ? (draftWorkspaceById[requestedWorkspaceId] ?? null) : null),
-    [draftWorkspaceById, requestedWorkspaceId],
+    () => {
+      if (!requestedWorkspaceId) {
+        return null;
+      }
+
+      const workspace = draftWorkspaceById[requestedWorkspaceId] ?? null;
+
+      if (
+        persistenceMode === "backend" &&
+        workspace &&
+        !workspaceUserStateHydratedById[requestedWorkspaceId]
+      ) {
+        return null;
+      }
+
+      return workspace;
+    },
+    [
+      draftWorkspaceById,
+      persistenceMode,
+      requestedWorkspaceId,
+      workspaceUserStateHydratedById,
+    ],
   );
   const selectedDashboard = useMemo(
     () =>
@@ -135,7 +161,10 @@ export function useCustomWorkspaceStudio() {
     if (
       persistenceMode !== "backend" ||
       !requestedWorkspaceId ||
-      selectedDashboard ||
+      (
+        Boolean(draftWorkspaceById[requestedWorkspaceId]) &&
+        workspaceUserStateHydratedById[requestedWorkspaceId]
+      ) ||
       !initializedUserId ||
       loadingWorkspaceId === requestedWorkspaceId ||
       workspaceLoadErrorById[requestedWorkspaceId]
@@ -150,7 +179,8 @@ export function useCustomWorkspaceStudio() {
     loadingWorkspaceId,
     persistenceMode,
     requestedWorkspaceId,
-    selectedDashboard,
+    draftWorkspaceById,
+    workspaceUserStateHydratedById,
     workspaceLoadErrorById,
   ]);
 
@@ -345,6 +375,19 @@ export function useCustomWorkspaceStudio() {
     updateWorkspaceUserState(selectedDashboard.id, updater);
   }
 
+  function commitSelectedWorkspaceControlsState(state: DashboardControlsState) {
+    if (!selectedDashboard?.id) {
+      return;
+    }
+
+    const workspaceId = selectedDashboard.id;
+
+    updateWorkspaceUserState(workspaceId, (dashboard) =>
+      updateDashboardControlsState(dashboard, state),
+    );
+    void saveWorkspaceUserState(workspaceId);
+  }
+
   async function createWorkspace(name?: string) {
     const nextDashboard = createBlankDashboard(
       name || `Workspace ${workspaceListItems.length + 1}`,
@@ -453,6 +496,7 @@ export function useCustomWorkspaceStudio() {
     setSelectedWorkspaceEditing,
     updateSelectedWorkspace,
     updateSelectedWorkspaceUserState,
+    commitSelectedWorkspaceControlsState,
     createWorkspace,
     createWorkspaceFromDefinition,
     deleteSelectedWorkspace,

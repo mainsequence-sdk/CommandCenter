@@ -93,6 +93,7 @@ export function CustomWidgetSettingsPage({
     openDashboardView,
     updateSelectedWorkspace,
     updateSelectedWorkspaceUserState,
+    commitSelectedWorkspaceControlsState,
   } = useCustomWorkspaceStudio();
 
   if (!user) {
@@ -535,6 +536,7 @@ export function CustomWidgetSettingsPage({
           updateDashboardControlsState(dashboard, state),
         );
       }}
+      onStateCommit={commitSelectedWorkspaceControlsState}
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
         <DashboardWidgetExecutionProvider

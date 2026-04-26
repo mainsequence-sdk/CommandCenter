@@ -36,8 +36,9 @@ surfaces and the editable workspace studio.
 - `dashboard-request-trace.ts`: shared refresh-cycle request trace store. Execution-driven
   widgets and component-side widget queries can attach request metadata there so graph/debug
   surfaces inspect one canonical refresh request log instead of inventing local endpoint trackers.
-  Cache hits and shared in-flight request reuse should still be traced there as logical requests,
-  marked distinctly from real network fetches.
+  Entries may also attach small, JSON-safe detail payloads for debug-only context such as the
+  effective connection query range. Cache hits and shared in-flight request reuse should still be
+  traced there as logical requests, marked distinctly from real network fetches.
 - `react-grid-layout-adapter.ts`: adapter utilities for the workspace studio's
   `react-grid-layout`-managed canvas. This file converts resolved dashboard widgets into RGL items,
   converts committed RGL layouts back into widget `position/layout`, and exposes the shared

@@ -18,7 +18,7 @@ import { env } from "@/config/env";
 
 const restoredJwtSession = env.bypassAuth ? null : restoreStoredJwtSession();
 const restoredAuthMode = restoredJwtSession?.tokens.authMode ?? "jwt";
-const shouldResolveRestoredSessionBeforeAuth = restoredAuthMode === "runtime_credential";
+const shouldResolveRestoredSessionBeforeAuth = Boolean(restoredJwtSession);
 
 let refreshTimer: number | null = null;
 let loginPromise: Promise<boolean> | null = null;

@@ -131,12 +131,14 @@ function JsonObjectEditor({
 
 function NumberInput({
   disabled,
+  help,
   label,
   value,
   onChange,
   min,
 }: {
   disabled: boolean;
+  help?: ReactNode;
   label: string;
   value: number | undefined;
   onChange: (value: number | undefined) => void;
@@ -144,7 +146,9 @@ function NumberInput({
 }) {
   return (
     <label className="block space-y-2">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <WidgetSettingFieldLabel help={help} textClassName="text-xs font-medium text-muted-foreground">
+        {label}
+      </WidgetSettingFieldLabel>
       <input
         type="number"
         min={min}
@@ -178,7 +182,12 @@ function IncrementalRefreshModeControl({
 }) {
   return (
     <div className="space-y-2 md:col-span-2">
-      <span className="text-xs font-medium text-muted-foreground">Refresh mode</span>
+      <WidgetSettingFieldLabel
+        help="Full refresh replaces the published table on every workspace refresh. Incremental refresh keeps a retained table in memory and merges only the newest tail rows into it."
+        textClassName="text-xs font-medium text-muted-foreground"
+      >
+        Refresh mode
+      </WidgetSettingFieldLabel>
       <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Refresh mode">
         {[
           { value: "full", label: "Full", description: "Replace the dataset on each refresh." },
@@ -432,7 +441,12 @@ function RuntimeDateModeControl({
 }) {
   return (
     <div className="space-y-2 md:col-span-2">
-      <span className="text-xs font-medium text-muted-foreground">Date runtime</span>
+      <WidgetSettingFieldLabel
+        help="Controls which date range is sent to time-range-aware connection queries. Workspace follows the active workspace range; Custom stores fixed dates on this query instance."
+        textClassName="text-xs font-medium text-muted-foreground"
+      >
+        Date runtime
+      </WidgetSettingFieldLabel>
       <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Date runtime">
         {workspaceRuntimeDateModeOptions.map((option) => {
           const active = option.value === value;
@@ -945,6 +959,7 @@ export function ConnectionQueryWorkbench({
             {queryPathSupportsMaxRows ? (
               <NumberInput
                 label="Max rows"
+                help="Maximum rows requested from the connection for each run. Leave blank when the connection default should apply."
                 value={normalizedProps.maxRows}
                 min={1}
                 disabled={!editable}
@@ -1021,6 +1036,7 @@ export function ConnectionQueryWorkbench({
                     />
                     <NumberInput
                       label="Overlap ms"
+                      help="How far before the last retained timestamp the next incremental request should start. A value like 60000 re-requests the previous minute so late-arriving or corrected rows can replace retained rows through the merge key."
                       value={incrementalSettings.overlapMs}
                       min={0}
                       disabled={!editable}
@@ -1033,6 +1049,7 @@ export function ConnectionQueryWorkbench({
                     />
                     <NumberInput
                       label="Retention ms"
+                      help="How much recent history to keep in the retained in-memory table. Leave blank to keep the whole active runtime range; set a value like 900000 to keep only the last 15 minutes."
                       value={incrementalSettings.retentionMs}
                       min={1}
                       disabled={!editable}
@@ -1060,7 +1077,12 @@ export function ConnectionQueryWorkbench({
           </div>
           {queryPathUsesTimeRange ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Runtime range:</span>{" "}
+              <WidgetSettingFieldLabel
+                help="The effective date range that will be sent to this query at runtime. In incremental mode this is the retained range; follow-up requests may ask only for the tail range based on overlap and watermark."
+                textClassName="font-medium text-foreground"
+              >
+                Runtime range:
+              </WidgetSettingFieldLabel>{" "}
               {runtimeRangeSummary}
             </div>
           ) : null}

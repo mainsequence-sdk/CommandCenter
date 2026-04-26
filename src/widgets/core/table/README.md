@@ -7,9 +7,9 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 
 - `definition.ts`: core widget definition, IO metadata, registry contract, agent snapshot, and settings/component wiring.
 - `TableWidget.tsx`: runtime table renderer backed by AG Grid Community.
-- `TableWidgetSettings.tsx`: settings editor for source binding status, manual rows, compact per-column schema controls, collapsible advanced formatting, value labels, and numeric rules.
+- `TableWidgetSettings.tsx`: settings editor for source binding status, manual rows, compact per-column schema controls, collapsible advanced formatting, datetime display patterns, value labels, and numeric rules.
 - `ManualTableEditor.tsx`: spreadsheet-style editor for manual display rows.
-- `tableModel.ts`: table configuration normalization, frame adaptation, schema resolution, formatting helpers, and validation.
+- `tableModel.ts`: table configuration normalization, frame adaptation, schema resolution, formatting helpers, datetime parsing/rendering, and validation.
 - `USAGE_GUIDANCE.md`: registry-synced authoring guidance.
 
 ## Behavior
@@ -33,6 +33,10 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   schema from columns and sampled rows.
 - The column editor keeps `key`, `label`, `format`, and visibility inline for every row. Less-used
   per-column settings stay under an explicit Advanced toggle to reduce settings noise.
+- `Date/time` columns parse common ISO strings plus epoch seconds, milliseconds, microseconds, and
+  nanoseconds automatically. Advanced column settings may provide a local-time input pattern when
+  auto parsing is ambiguous, and an output pattern for display. Supported pattern tokens are
+  `yyyy`, `yy`, `MM`, `M`, `dd`, `d`, `HH`, `H`, `hh`, `h`, `mm`, `m`, `ss`, `s`, `SSS`, and `a`.
 - Formatting is presentation-only and never mutates the published tabular frame.
 
 ## Maintenance Constraints
