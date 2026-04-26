@@ -205,8 +205,26 @@ export function DashboardWidgetExecutionProvider({
   );
   const refreshCycleRef = useRef<string | null>(null);
   const initialRefreshCompletedRef = useRef(false);
+  const initialRefreshRunIdRef = useRef(0);
   const [activeRefreshCycleId, setActiveRefreshCycleId] = useState<string>();
+  const [initialRefreshSettled, setInitialRefreshSettled] = useState(false);
   const [executionStates, setExecutionStates] = useState<Record<string, WidgetExecutionState>>({});
+  const initialRefreshCycleId = `initial:${scopeId}`;
+  const initialRefreshTargets = useMemo(
+    () =>
+      listDashboardRefreshableExecutionTargets({
+        widgets,
+        resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+        refreshCycleId: initialRefreshCycleId,
+        dashboardState,
+      }),
+    [
+      dashboardState,
+      effectiveResolveWidgetDefinition,
+      initialRefreshCycleId,
+      widgets,
+    ],
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -512,16 +530,19 @@ export function DashboardWidgetExecutionProvider({
       return;
     }
 
-    initialRefreshCompletedRef.current = true;
-    const refreshCycleId = `initial:${scopeId}`;
+    const runId = initialRefreshRunIdRef.current + 1;
+    initialRefreshRunIdRef.current = runId;
+    setInitialRefreshSettled(false);
     const refreshTargets = listDashboardRefreshableExecutionTargets({
       widgets: widgetsRef.current,
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
-      refreshCycleId,
+      refreshCycleId: initialRefreshCycleId,
       dashboardState,
     });
 
     if (refreshTargets.length === 0) {
+      initialRefreshCompletedRef.current = true;
+      setInitialRefreshSettled(true);
       return;
     }
 
@@ -529,23 +550,33 @@ export function DashboardWidgetExecutionProvider({
     const abortController = new AbortController();
     let cancelled = false;
     let hadExecutionError = false;
+    const isCurrentRun = () =>
+      initialRefreshRunIdRef.current === runId &&
+      !cancelled &&
+      !abortController.signal.aborted;
 
     async function executeInitialRefresh() {
+      await Promise.resolve();
+
+      if (!isCurrentRun()) {
+        return;
+      }
+
       beginDashboardRequestTraceCycle({
         scopeId,
-        refreshCycleId,
+        refreshCycleId: initialRefreshCycleId,
       });
-      setActiveRefreshCycleId(refreshCycleId);
+      setActiveRefreshCycleId(initialRefreshCycleId);
 
       for (const targetInstanceId of refreshTargets) {
-        if (cancelled) {
+        if (!isCurrentRun()) {
           completeDashboardRequestTraceCycle({
             scopeId,
-            refreshCycleId,
+            refreshCycleId: initialRefreshCycleId,
             status: "cancelled",
           });
           setActiveRefreshCycleId((current) =>
-            current === refreshCycleId ? undefined : current,
+            current === initialRefreshCycleId ? undefined : current,
           );
           return;
         }
@@ -555,28 +586,70 @@ export function DashboardWidgetExecutionProvider({
             targetInstanceId,
             {
               reason: "dashboard-refresh",
-              refreshCycleId,
+              refreshCycleId: initialRefreshCycleId,
               signal: abortController.signal,
             },
             sharedExecutedInstanceIds,
           );
 
-          if (!cancelled) {
+          if (!isCurrentRun()) {
+            completeDashboardRequestTraceCycle({
+              scopeId,
+              refreshCycleId: initialRefreshCycleId,
+              status: "cancelled",
+            });
+            setActiveRefreshCycleId((current) =>
+              current === initialRefreshCycleId ? undefined : current,
+            );
+            return;
+          }
+
+          if (result.status === "error") {
+            hadExecutionError = true;
+          }
+
+          if (isCurrentRun()) {
             widgetsRef.current = result.widgets;
           }
         } catch {
+          if (!isCurrentRun()) {
+            completeDashboardRequestTraceCycle({
+              scopeId,
+              refreshCycleId: initialRefreshCycleId,
+              status: "cancelled",
+            });
+            setActiveRefreshCycleId((current) =>
+              current === initialRefreshCycleId ? undefined : current,
+            );
+            return;
+          }
+
           hadExecutionError = true;
           // Keep initial refresh isolated from rendering.
         }
       }
 
+      if (!isCurrentRun()) {
+        completeDashboardRequestTraceCycle({
+          scopeId,
+          refreshCycleId: initialRefreshCycleId,
+          status: "cancelled",
+        });
+        setActiveRefreshCycleId((current) =>
+          current === initialRefreshCycleId ? undefined : current,
+        );
+        return;
+      }
+
+      initialRefreshCompletedRef.current = true;
+      setInitialRefreshSettled(true);
       completeDashboardRequestTraceCycle({
         scopeId,
-        refreshCycleId,
+        refreshCycleId: initialRefreshCycleId,
         status: hadExecutionError ? "error" : "success",
       });
       setActiveRefreshCycleId((current) =>
-        current === refreshCycleId ? undefined : current,
+        current === initialRefreshCycleId ? undefined : current,
       );
     }
 
@@ -586,7 +659,12 @@ export function DashboardWidgetExecutionProvider({
       cancelled = true;
       abortController.abort();
     };
-  }, [dashboardState, effectiveResolveWidgetDefinition, scopeId]);
+  }, [
+    dashboardState,
+    effectiveResolveWidgetDefinition,
+    initialRefreshCycleId,
+    scopeId,
+  ]);
 
   useEffect(() => {
     if (!lastRefreshedAt) {
@@ -720,7 +798,7 @@ export function DashboardWidgetExecutionProvider({
 
   return (
     <DashboardWidgetExecutionContext.Provider value={value}>
-      {children}
+      {initialRefreshTargets.length > 0 && !initialRefreshSettled ? null : children}
     </DashboardWidgetExecutionContext.Provider>
   );
 }

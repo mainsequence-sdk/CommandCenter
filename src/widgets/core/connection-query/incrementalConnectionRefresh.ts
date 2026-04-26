@@ -281,7 +281,7 @@ export function buildConnectionQueryIncrementalIdentity(input: {
 }) {
   return stableJsonStringify({
     scopeId: input.scopeId,
-    connectionUid: input.request.connectionUid,
+    connectionId: input.request.connectionId,
     connectionTypeId: input.connectionTypeId,
     queryModelId: input.queryModelId,
     requestedOutputContract: input.request.requestedOutputContract,
@@ -303,6 +303,7 @@ export function resolveConnectionQueryIncrementalDecision(input: {
   queryModelId?: string;
   scopeId?: string;
   eligible: boolean;
+  forceFullSnapshot?: boolean;
 }) {
   const fullRange = parseRange(input.fullRequest.timeRange);
   const inactiveDecision = (reason: string): ConnectionQueryIncrementalDecision => ({
@@ -340,6 +341,18 @@ export function resolveConnectionQueryIncrementalDecision(input: {
     },
     rangeDurationMs: fullRange.toMs - fullRange.fromMs,
   });
+
+  if (input.forceFullSnapshot) {
+    return {
+      active: true,
+      identityKey,
+      sourceWidgetId: input.scopeId,
+      request: input.fullRequest,
+      fullRequest: input.fullRequest,
+      reason: "forced-full-refresh",
+    };
+  }
+
   const retainedState = retainedConnectionQueryStore.get(identityKey);
 
   if (!retainedState) {

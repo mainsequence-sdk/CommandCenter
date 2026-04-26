@@ -22,7 +22,8 @@ This feature owns the Main Sequence project registry and project detail experien
 - Project-only tabs and dialogs should remain here even when they are large.
 - The active project detail tabs are `Code`, `Infra Graph`, `Jobs`, `Images`, `Resource Releases`, `Data Nodes Updates`, `Settings`, and `Permissions`.
 - Shared registry controls should stay in `../../components`.
-- The selected-job detail view in the `Jobs` tab exposes a direct `Run Job` action that posts to `job/{id}/run_job/` and refreshes the run list after success.
+- The selected-job detail view in the `Jobs` tab exposes a direct `Run Job` action that posts to `job/{id}/run_job/` and refreshes the run list after success. Users may optionally enter command-style arguments beside the action; the UI tokenizes that input and sends it as the backend `command_args: string[]` payload.
+- Job run list and detail surfaces display `command_args` returned by the job-run serializer so manual run parameters remain visible after launch.
 - The selected run `Logs` tab normalizes structured backend rows into the shared `LogTable`
   contract so expanded log details can show fields like `filename`, `lineno`, `func_name`, and
   any extra structured context returned by the backend.

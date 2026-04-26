@@ -183,7 +183,7 @@ function buildDefaultQueryProps(input: {
 
   return {
     connectionRef: {
-      uid: connectionInstance.uid,
+      id: connectionInstance.id,
       typeId: connectionInstance.typeId,
     },
     queryModelId: defaultQueryModel?.id,
@@ -210,7 +210,7 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
     queryModels.find((model) => model.id === "promql-range") ?? queryModels[0];
   const defaultRange = useMemo(
     () => buildDefaultFixedRange(config.defaultExploreLookback),
-    [connectionInstance.uid, config.defaultExploreLookback],
+    [connectionInstance.id, config.defaultExploreLookback],
   );
   const [queryProps, setQueryProps] = useState<ConnectionQueryWidgetProps>(() =>
     buildDefaultQueryProps({
@@ -240,7 +240,7 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
     config.defaultEditor,
     config.maxDataPoints,
     connectionInstance.typeId,
-    connectionInstance.uid,
+    connectionInstance.id,
     defaultQueryModel?.id,
     defaultQueryModel?.timeRangeAware,
     defaultRange.fixedEndMs,
@@ -308,7 +308,7 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
               {connectionInstance.name}
             </div>
             <div className="truncate font-mono text-[11px] text-muted-foreground">
-              {connectionInstance.uid}
+              {connectionInstance.id}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -357,7 +357,7 @@ export function PrometheusConnectionExplore(props: ConnectionExploreProps) {
 
         {editorMode === "builder" ? (
           <PrometheusQueryBuilder
-            connectionUid={connectionInstance.uid}
+            connectionId={connectionInstance.id}
             defaultRange={defaultRange}
             initialQuery={currentPromql}
             lookupDisabled={config.disableMetricsLookup}

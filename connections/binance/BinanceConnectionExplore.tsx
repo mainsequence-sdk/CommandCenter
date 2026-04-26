@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import { CandlestickChart } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConnectionQueryWorkbench } from "@/connections/ConnectionQueryWorkbench";
 import type { ConnectionExploreProps, ConnectionQueryModel } from "@/connections/types";
@@ -24,7 +23,7 @@ function buildDefaultQueryProps(input: {
 
   return {
     connectionRef: {
-      uid: connectionInstance.uid,
+      id: connectionInstance.id,
       typeId: connectionInstance.typeId,
     },
     queryModelId: defaultQueryModel?.id,
@@ -46,8 +45,7 @@ export function BinanceConnectionExplore({
   const queryModels = useMemo(() => connectionType.queryModels ?? [], [connectionType.queryModels]);
   const defaultQueryModel =
     queryModels.find((model) => model.id === "binance-spot-prices") ?? queryModels[0];
-  const defaultRange = useMemo(buildDefaultFixedRange, [connectionInstance.uid]);
-  const publicConfig = connectionInstance.publicConfig;
+  const defaultRange = useMemo(buildDefaultFixedRange, [connectionInstance.id]);
   const [queryProps, setQueryProps] = useState<ConnectionQueryWidgetProps>(() =>
     buildDefaultQueryProps({ connectionInstance, defaultQueryModel, defaultRange }),
   );
@@ -56,7 +54,7 @@ export function BinanceConnectionExplore({
     setQueryProps(buildDefaultQueryProps({ connectionInstance, defaultQueryModel, defaultRange }));
   }, [
     connectionInstance.typeId,
-    connectionInstance.uid,
+    connectionInstance.id,
     defaultQueryModel?.id,
     defaultQueryModel?.timeRangeAware,
     defaultRange.fixedEndMs,
@@ -75,22 +73,13 @@ export function BinanceConnectionExplore({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.8fr)]">
-          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-3 py-2">
-            <div className="text-xs font-medium text-muted-foreground">Data source</div>
-            <div className="mt-1 truncate text-sm font-semibold text-foreground">
-              {connectionInstance.name}
-            </div>
-            <div className="truncate font-mono text-[11px] text-muted-foreground">
-              {connectionInstance.uid}
-            </div>
+        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-3 py-2">
+          <div className="text-xs font-medium text-muted-foreground">Data source</div>
+          <div className="mt-1 truncate text-sm font-semibold text-foreground">
+            {connectionInstance.name}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="neutral">{String(publicConfig.defaultQuoteAsset ?? "USDT")}</Badge>
-            <Badge variant="neutral">{String(publicConfig.defaultInterval ?? "1m")}</Badge>
-            <Badge variant="neutral">limit {String(publicConfig.defaultLimit ?? 1000)}</Badge>
-            <Badge variant="neutral">cache {String(publicConfig.queryCachePolicy ?? "read")}</Badge>
-            {publicConfig.dedupeInFlight !== false ? <Badge variant="neutral">dedupe</Badge> : null}
+          <div className="truncate font-mono text-[11px] text-muted-foreground">
+            {connectionInstance.id}
           </div>
         </div>
 

@@ -138,10 +138,10 @@ export interface ConnectionTypeDefinition<
 export type AnyConnectionTypeDefinition = ConnectionTypeDefinition<any, any>;
 
 export type ConnectionStatus = "unknown" | "ok" | "error" | "disabled";
+export type ConnectionId = number | string;
 
 export interface ConnectionInstance {
-  id: string;
-  uid: string;
+  id: ConnectionId;
   typeId: string;
   typeVersion: number;
   name: string;
@@ -162,7 +162,7 @@ export interface ConnectionInstance {
 }
 
 export interface ConnectionRef {
-  uid: string;
+  id: ConnectionId;
   typeId: string;
 }
 
@@ -177,7 +177,7 @@ export interface ConnectionHealthResult {
 export type ConnectionQueryCacheMode = "default" | "bypass" | "refresh";
 
 export interface ConnectionQueryRequest<TQuery = Record<string, unknown>> {
-  connectionUid: string;
+  connectionId: ConnectionId;
   query: TQuery;
   requestedOutputContract?: ConnectionResponseContractId;
   timeRange?: {
@@ -223,13 +223,13 @@ export interface ConnectionQueryResponse {
 }
 
 export interface ConnectionResourceRequest {
-  connectionUid: string;
+  connectionId: ConnectionId;
   resource: string;
   params?: Record<string, unknown>;
 }
 
 export interface ConnectionStreamRequest {
-  connectionUid: string;
+  connectionId: ConnectionId;
   channel: string;
   params?: Record<string, unknown>;
 }

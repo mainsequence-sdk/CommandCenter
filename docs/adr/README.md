@@ -22,6 +22,7 @@ feature folder.
 - [ADR: Connection-First Workspace Dataflow](./adr-connection-first-workspace-dataflow.md)
 - [ADR: Incremental Workspace Normalization and Resource-Scoped Save](./adr-incremental-workspace-normalization.md)
 - [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
+- [ADR: Query-Shaped WebSocket Streaming for Connections](./adr-connection-query-websocket-streaming.md)
 - [ADR: Live Workspace Agent Snapshot Archive](./adr-live-workspace-agent-snapshot-archive.md)
 - [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](./adr-widget-agent-context-bindings.md)
 - [ADR: Workspace Widget Referenced Workspace Graph Expansion](./adr-workspace-widget-referenced-graph-expansion.md)
@@ -32,6 +33,7 @@ feature folder.
 - [ADR: Binding-Level Output Transforms for Structured Widget Outputs](./adr-binding-output-transforms.md)
 - [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
 - [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
+- [ADR: Query-Shaped WebSocket Streaming for Connections](./adr-connection-query-websocket-streaming.md)
 - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
 - [ADR: Source-Driven Downstream Execution After Manual Widget Actions](./adr-source-driven-downstream-execution.md)
 - [ADR: Connection-First Workspace Dataflow](./adr-connection-first-workspace-dataflow.md)
@@ -46,6 +48,7 @@ feature folder.
 - [ADR: Shared AppComponent Discovery and Safe-Response Caching](./adr-app-component-caching.md)
 - [ADR: AppComponent Response Notification UI Contract](./adr-app-component-response-notification-ui.md)
 - [ADR: AppComponent Mock JSON Target for Pipeline Prototyping](./adr-app-component-mock-json-target.md)
+- [ADR: AdapterFromApi Dynamic OpenAPI Connection](./adr-adapter-from-api-connection.md)
 
 ## Shell And Extension ADRs
 
@@ -54,6 +57,7 @@ feature folder.
 - [ADR: First-Class Connection Model](./adr-first-class-connection-model.md)
 - [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
 - [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
+- [ADR: Query-Shaped WebSocket Streaming for Connections](./adr-connection-query-websocket-streaming.md)
 - [ADR: Main Sequence Simple Table Connection](./adr-main-sequence-simple-table-connection.md)
 - [ADR: PostgreSQL Custom Connection](./adr-postgresql-connection.md)
 

@@ -143,8 +143,8 @@ Connects widgets and Explore flows to Alpaca Market Data for equities and crypto
 - Example: 5Min
 - Used by: frontend and backend adapter
 - Meaning: default timeframe for OHLC bar queries when the query payload omits timeframe.
-- Constraints: must be accepted by Alpaca bars endpoints.
-- UI help: Default Alpaca timeframe used by OHLC bar queries when a query does not override it. Example: 1Min.
+- Constraints: must be accepted by Alpaca bars endpoints, including 1-59Min, 1-23Hour, 1Day, 1Week, and 1/2/3/4/6/12Month. Short aliases such as 5T, 1H, 1D, 1W, and 1M are also valid.
+- UI help: Default Alpaca timeframe used by OHLC bar queries when a query does not override it. Use Alpaca's documented bars values such as 1Min, 5Min, 1Hour, 1Day, 1Week, 1Month, or aliases like 5T and 1H.
 
 ### defaultLimit
 
@@ -407,7 +407,7 @@ export const alpacaMarketDataConnection: ConnectionTypeDefinition<
         sectionId: "markets",
         label: "Default timeframe",
         description:
-          "Default Alpaca timeframe used by OHLC bar queries when a query does not override it. Example: 1Min.",
+          "Default Alpaca timeframe used by OHLC bar queries when a query does not override it. Use Alpaca's documented bars values such as 1Min, 5Min, 1Hour, 1Day, 1Week, 1Month, or aliases like 5T and 1H.",
         type: "string",
         required: false,
         defaultValue: "1Min",

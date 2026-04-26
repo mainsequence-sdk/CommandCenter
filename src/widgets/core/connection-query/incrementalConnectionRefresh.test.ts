@@ -23,7 +23,7 @@ const settings: ConnectionQueryIncrementalRefreshSettings = {
 
 function request(from: string, to: string): ConnectionQueryRequest<Record<string, unknown>> {
   return {
-    connectionUid: "test-connection",
+    connectionId: "test-connection",
     query: {
       kind: "bars",
       symbol: "AAPL",
@@ -136,6 +136,67 @@ describe("incremental connection refresh", () => {
     expect(deltaDecision.request.timeRange).toEqual({
       from: "2026-04-25T00:09:00.000Z",
       to: "2026-04-25T00:15:00.000Z",
+    });
+  });
+
+  it("forced full snapshots replace the retained base and seed the next delta cursor", () => {
+    const staleDecision = resolveConnectionQueryIncrementalDecision({
+      fullRequest: request("2026-04-25T00:00:00.000Z", "2026-04-25T00:10:00.000Z"),
+      settings,
+      connectionTypeId: "test",
+      queryModelId: "bars",
+      scopeId: "widget-1",
+      eligible: true,
+    });
+
+    mergeConnectionQueryIncrementalFrame({
+      decision: staleDecision,
+      settings,
+      incomingFrame: frame([
+        { time: "2026-04-25T00:01:00.000Z", symbol: "AAPL", value: 10 },
+      ]),
+    });
+
+    const forcedDecision = resolveConnectionQueryIncrementalDecision({
+      fullRequest: request("2026-04-25T00:10:00.000Z", "2026-04-25T00:20:00.000Z"),
+      settings,
+      connectionTypeId: "test",
+      queryModelId: "bars",
+      scopeId: "widget-1",
+      eligible: true,
+      forceFullSnapshot: true,
+    });
+    const forced = mergeConnectionQueryIncrementalFrame({
+      decision: forcedDecision,
+      settings,
+      incomingFrame: frame([
+        { time: "2026-04-25T00:15:00.000Z", symbol: "AAPL", value: 15 },
+      ]),
+    });
+
+    expect(forcedDecision.reason).toBe("forced-full-refresh");
+    expect(forcedDecision.request.timeRange).toEqual({
+      from: "2026-04-25T00:10:00.000Z",
+      to: "2026-04-25T00:20:00.000Z",
+    });
+    expect(forced.delta.mode).toBe("snapshot");
+    expect(forced.frame.rows).toEqual([
+      { time: "2026-04-25T00:15:00.000Z", symbol: "AAPL", value: 15 },
+    ]);
+
+    const nextDecision = resolveConnectionQueryIncrementalDecision({
+      fullRequest: request("2026-04-25T00:15:00.000Z", "2026-04-25T00:25:00.000Z"),
+      settings,
+      connectionTypeId: "test",
+      queryModelId: "bars",
+      scopeId: "widget-1",
+      eligible: true,
+    });
+
+    expect(nextDecision.reason).toBe("delta");
+    expect(nextDecision.request.timeRange).toEqual({
+      from: "2026-04-25T00:19:00.000Z",
+      to: "2026-04-25T00:25:00.000Z",
     });
   });
 

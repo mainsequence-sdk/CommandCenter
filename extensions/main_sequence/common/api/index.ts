@@ -2467,6 +2467,7 @@ export interface JobRunRecord {
   unique_identifier: string;
   job: number;
   job_name: string;
+  command_args: string[];
   execution_start: string | null;
   execution_end: string | null;
   response_status: string | null;
@@ -5444,10 +5445,22 @@ export function fetchJob(jobId: number) {
   return requestJson<JobRecord>(commandCenterConfig.mainSequence.endpoint, `job/${jobId}/`);
 }
 
-export function runJob(jobId: number) {
-  return requestJson<unknown>(commandCenterConfig.mainSequence.endpoint, `job/${jobId}/run_job/`, {
+export interface RunJobInput {
+  commandArgs?: string[];
+}
+
+export interface RunJobResponse {
+  message?: string;
+  command_args?: string[];
+}
+
+export function runJob(jobId: number, input: RunJobInput = {}) {
+  const commandArgs = input.commandArgs ?? [];
+  const body = commandArgs.length > 0 ? { command_args: commandArgs } : {};
+
+  return requestJson<RunJobResponse>(commandCenterConfig.mainSequence.endpoint, `job/${jobId}/run_job/`, {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify(body),
   });
 }
 

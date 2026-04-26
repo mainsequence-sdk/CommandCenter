@@ -7,6 +7,7 @@ Shared static assets for platform connection types live here.
 - `postgresql-logo.svg`: PostgreSQL elephant logo used by the PostgreSQL connection type. Source:
   PostgreSQL wiki logo page. Use is subject to the PostgreSQL trademark policy.
 - `fred-economic-data-logo.svg`: compact FRED Economic Data icon used by the FRED connection type.
+- `massive-icon-logo.svg`: icon exported from Massive-provided assets for the Massive Market Data connection.
 
 ## Maintenance Constraints
 

@@ -15,6 +15,7 @@ import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-di
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toaster";
 
 import {
@@ -44,6 +45,56 @@ import {
 } from "../jobs/jobPresentation";
 import { MainSequenceJobRunsTab } from "./MainSequenceJobRunsTab";
 
+function parseCommandArgs(input: string) {
+  const args: string[] = [];
+  let current = "";
+  let quote: "\"" | "'" | null = null;
+  let escaped = false;
+
+  for (const char of input.trim()) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+
+    if ((char === "\"" || char === "'") && quote === null) {
+      quote = char;
+      continue;
+    }
+
+    if (char === quote) {
+      quote = null;
+      continue;
+    }
+
+    if (quote === null && /\s/.test(char)) {
+      if (current) {
+        args.push(current);
+        current = "";
+      }
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (escaped) {
+    current += "\\";
+  }
+
+  if (current) {
+    args.push(current);
+  }
+
+  return args;
+}
+
 export function MainSequenceProjectJobsTab({
   onCloseJobDetail,
   onCloseJobRunDetail,
@@ -70,6 +121,7 @@ export function MainSequenceProjectJobsTab({
   const [filterValue, setFilterValue] = useState("");
   const [jobsPageIndex, setJobsPageIndex] = useState(0);
   const [jobsPendingDelete, setJobsPendingDelete] = useState<JobRecord[]>([]);
+  const [runCommandValue, setRunCommandValue] = useState("");
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const jobsQuery = useQuery({
@@ -96,6 +148,10 @@ export function MainSequenceProjectJobsTab({
   useEffect(() => {
     setJobsPageIndex(0);
   }, [deferredFilterValue]);
+
+  useEffect(() => {
+    setRunCommandValue("");
+  }, [selectedJobId]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -184,8 +240,14 @@ export function MainSequenceProjectJobsTab({
     },
   });
   const runJobMutation = useMutation({
-    mutationFn: async (jobId: number) => runJob(jobId),
-    onSuccess: async (_, jobId) => {
+    mutationFn: async ({
+      commandArgs,
+      jobId,
+    }: {
+      commandArgs: string[];
+      jobId: number;
+    }) => runJob(jobId, { commandArgs }),
+    onSuccess: async (_, { commandArgs, jobId }) => {
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "jobs", "detail", projectId, jobId],
       });
@@ -198,7 +260,10 @@ export function MainSequenceProjectJobsTab({
 
       toast({
         title: "Job started",
-        description: `Triggered ${selectedJob?.name ?? `Job ${jobId}`}.`,
+        description:
+          commandArgs.length > 0
+            ? `Triggered ${selectedJob?.name ?? `Job ${jobId}`} with ${commandArgs.length} command args.`
+            : `Triggered ${selectedJob?.name ?? `Job ${jobId}`}.`,
       });
     },
     onError: (error) => {
@@ -233,12 +298,32 @@ export function MainSequenceProjectJobsTab({
             <span>/</span>
             <span className="text-foreground">{jobTitle}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <form
+            className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+
+              if (!selectedJobId || runJobMutation.isPending) {
+                return;
+              }
+
+              void runJobMutation.mutateAsync({
+                commandArgs: parseCommandArgs(runCommandValue),
+                jobId: selectedJobId,
+              });
+            }}
+          >
+            <Input
+              aria-label="Command arguments"
+              className="min-w-52 max-w-md flex-1"
+              disabled={runJobMutation.isPending}
+              onChange={(event) => setRunCommandValue(event.target.value)}
+              placeholder="sync --prices"
+              value={runCommandValue}
+            />
             <Button
+              type="submit"
               size="sm"
-              onClick={() => {
-                void runJobMutation.mutateAsync(selectedJobId);
-              }}
               disabled={runJobMutation.isPending}
             >
               {runJobMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -248,7 +333,7 @@ export function MainSequenceProjectJobsTab({
               <ArrowLeft className="h-4 w-4" />
               Back to jobs
             </Button>
-          </div>
+          </form>
         </div>
 
         {jobDetailQuery.isLoading && !jobSummary ? (

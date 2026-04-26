@@ -54,6 +54,7 @@ Runs one explicit connection path and publishes the selected result frame as one
   `supportsVariables: true`.
 - `timeRange` is always sent for query models that advertise `timeRangeAware: true`.
 - Incremental refresh is frontend-only and uses the same backend request shape. Follow-up refreshes narrow `timeRange.from`, merge rows into an in-memory retained frame, and still publish the retained full `core.tabular_frame@v1` dataset with a shared `widget-runtime-update@v1` envelope at `source.context.runtimeUpdate`.
+- Initial workspace execution, manual submit, and manual upstream recalculation rebuild the retained snapshot from the full workspace range. Later dashboard refreshes use the last successful request end plus overlap as the delta cursor.
 - The dedupe key is not inferred from time-series semantics. It is the saved `incrementalMergeKeyFields` column combination selected by the user.
 - Overlapping refreshes for the same widget/query/request identity are deduped while the request is in flight.
 - If downstream widgets do not understand delta metadata, they still consume the retained full dataset as a normal snapshot. They must not cause this source widget to issue a second full backend query.

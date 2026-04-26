@@ -30,9 +30,14 @@ connection ADR. Connections are platform data-access resources, not widgets.
   secrets, tokens, or mutable instance state.
 - Connection instances are backend-owned. The frontend may send secret values when creating or
   updating an instance, but it must only read `secureFields` indicators back.
+- Backend-owned connection instance primary keys are numeric ids. The frontend preserves numeric
+  ids in `ConnectionRef.id` and widget request payloads; string conversion is limited to DOM labels
+  and URL template interpolation.
 - Connection authorization is enforced through the existing platform and Main Sequence permission
   systems. This package does not define a separate connection-permission model.
-- Widgets and workspaces should store stable `ConnectionRef` values: `{ uid, typeId }`.
+- Widgets and workspaces should store stable `ConnectionRef` values: `{ id, typeId }`.
+- Legacy saved refs that still contain `{ uid, typeId }` are normalized on read so existing
+  workspaces continue to resolve the selected backend connection instance.
 - Workspace source widgets should query backend-owned connection instances through `ConnectionRef`.
   The core Connection Query widget is the generic workspace source for connection data and
   publishes one normalized `core.tabular_frame@v1` frame; downstream table, chart, statistic, and

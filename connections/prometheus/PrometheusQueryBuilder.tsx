@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { fetchConnectionResource } from "@/connections/api";
+import type { ConnectionId } from "@/connections/types";
 
 import {
   buildPrometheusMatcherForMetadata,
@@ -43,7 +44,7 @@ interface PrometheusMetadataState<T> {
 }
 
 interface PrometheusQueryBuilderProps {
-  connectionUid: string;
+  connectionId: ConnectionId;
   defaultRange: { fixedStartMs: number; fixedEndMs: number };
   disabled?: boolean;
   initialQuery?: string;
@@ -428,7 +429,7 @@ function MetricsBrowser({
 }
 
 export function PrometheusQueryBuilder({
-  connectionUid,
+  connectionId,
   defaultRange,
   disabled = false,
   initialQuery,
@@ -497,7 +498,7 @@ export function PrometheusQueryBuilder({
     input: { label?: string; matchers?: string[] } = {},
   ) {
     return fetchConnectionResource({
-      connectionUid,
+      connectionId,
       resource,
       params: {
         ...(input.label ? { label: input.label } : {}),

@@ -24,7 +24,7 @@ function buildDefaultQueryProps(input: {
 
   return {
     connectionRef: {
-      uid: connectionInstance.uid,
+      id: connectionInstance.id,
       typeId: connectionInstance.typeId,
     },
     queryModelId: defaultQueryModel?.id,
@@ -46,7 +46,7 @@ export function FredConnectionExplore({
   const queryModels = useMemo(() => connectionType.queryModels ?? [], [connectionType.queryModels]);
   const defaultQueryModel =
     queryModels.find((model) => model.id === "fred-series-observations") ?? queryModels[0];
-  const defaultRange = useMemo(buildDefaultFixedRange, [connectionInstance.uid]);
+  const defaultRange = useMemo(buildDefaultFixedRange, [connectionInstance.id]);
   const publicConfig = connectionInstance.publicConfig;
   const [queryProps, setQueryProps] = useState<ConnectionQueryWidgetProps>(() =>
     buildDefaultQueryProps({ connectionInstance, defaultQueryModel, defaultRange }),
@@ -56,7 +56,7 @@ export function FredConnectionExplore({
     setQueryProps(buildDefaultQueryProps({ connectionInstance, defaultQueryModel, defaultRange }));
   }, [
     connectionInstance.typeId,
-    connectionInstance.uid,
+    connectionInstance.id,
     defaultQueryModel?.id,
     defaultQueryModel?.timeRangeAware,
     defaultRange.fixedEndMs,
@@ -82,7 +82,7 @@ export function FredConnectionExplore({
               {connectionInstance.name}
             </div>
             <div className="truncate font-mono text-[11px] text-muted-foreground">
-              {connectionInstance.uid}
+              {connectionInstance.id}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">

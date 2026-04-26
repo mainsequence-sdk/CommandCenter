@@ -32,7 +32,8 @@ export function ConnectionQueryRailSummary({
     ? connectionType?.queryModels?.find((model) => model.id === normalizedProps.queryModelId)
     : undefined;
   const connectionTitle = connectionType?.title ?? normalizedProps.connectionRef?.typeId ?? "Not selected";
-  const connectionUid = normalizedProps.connectionRef?.uid ?? "Not selected";
+  const connectionId = normalizedProps.connectionRef?.id ?? "Not selected";
+  const connectionIdLabel = String(connectionId);
 
   return (
     <div className="pointer-events-none z-20 w-[260px] rounded-[calc(var(--radius)-4px)] border border-border/80 bg-popover/95 p-3 text-left shadow-xl backdrop-blur-sm">
@@ -65,12 +66,12 @@ export function ConnectionQueryRailSummary({
           </span>
         </div>
         <div className="flex items-start justify-between gap-3">
-          <span className="text-muted-foreground">UID</span>
+          <span className="text-muted-foreground">ID</span>
           <span
             className="max-w-[150px] truncate text-right font-mono text-[11px] text-foreground"
-            title={connectionUid}
+            title={connectionIdLabel}
           >
-            {connectionUid}
+            {connectionIdLabel}
           </span>
         </div>
       </div>

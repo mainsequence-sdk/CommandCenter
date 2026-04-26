@@ -99,7 +99,7 @@ function resolveConnectionQueryIo(
 
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   id: "connection-query",
-  widgetVersion: "1.5.0",
+  widgetVersion: "1.5.1",
   title: "Connection Query",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -148,7 +148,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   execution: {
     canExecute: (context) => {
       const props = normalizeConnectionQueryProps(context.targetOverrides?.props ?? context.props);
-      return Boolean(props.connectionRef?.uid && props.queryModelId);
+      return Boolean(props.connectionRef?.id && props.queryModelId);
     },
     execute: async (context) => {
       const props = normalizeConnectionQueryProps(
@@ -163,7 +163,10 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
           queryModel,
           {
             scopeId: context.instanceId,
-            forceFullRefresh: context.reason === "manual-submit",
+            forceFullRefresh:
+              context.reason === "manual-submit" ||
+              context.reason === "manual-recalculate" ||
+              context.refreshCycleId?.startsWith("initial:") === true,
             traceMeta: buildDashboardExecutionRequestTraceMeta(context),
             signal: context.signal,
           },
@@ -189,7 +192,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
     },
     getRefreshPolicy: (context) => {
       const props = normalizeConnectionQueryProps(context.targetOverrides?.props ?? context.props);
-      return props.connectionRef?.uid && props.queryModelId ? "allow-refresh" : "manual-only";
+      return props.connectionRef?.id && props.queryModelId ? "allow-refresh" : "manual-only";
     },
     getExecutionKey: (context) => `connection-query:${context.instanceId}`,
   },

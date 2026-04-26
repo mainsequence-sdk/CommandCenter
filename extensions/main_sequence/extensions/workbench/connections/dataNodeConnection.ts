@@ -22,12 +22,12 @@ import { DataNodeConnectionExplore } from "./DataNodeConnectionExplore";
 import { DataNodeConnectionQueryEditor } from "./DataNodeConnectionQueryEditor";
 
 export const MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID = "mainsequence.data-node";
-export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_UID = "mainsequence-data-node-default";
+export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_ID = "mainsequence-data-node-default";
 export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_QUERY_CACHE_TTL_MS = 15 * 60 * 1000;
 export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_ROW_LIMIT = 1_000;
 
 export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF: ConnectionRef = {
-  uid: DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_UID,
+  id: DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_ID,
   typeId: MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
 };
 
@@ -83,7 +83,7 @@ function isDefaultDataNodeConnection(connectionRef?: ConnectionRef) {
 
   return (
     resolvedRef.typeId === MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID &&
-    resolvedRef.uid === DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_UID
+    resolvedRef.id === DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_ID
   );
 }
 
@@ -111,7 +111,7 @@ export function buildMainSequenceDataNodeDetailQueryKey(
     "main_sequence",
     "connections",
     MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
-    resolvedRef.uid,
+    resolvedRef.id,
     "data-node-detail",
     dataNodeId ?? 0,
   ] as const;
@@ -127,7 +127,7 @@ export function buildMainSequenceDataNodeLastObservationQueryKey(
     "main_sequence",
     "connections",
     MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
-    resolvedRef.uid,
+    resolvedRef.id,
     "data-node-last-observation",
     dataNodeId ?? 0,
   ] as const;
@@ -151,7 +151,7 @@ export async function queryMainSequenceDataNodeDetail(
   const resolvedRef = resolveDataNodeConnectionRef(connectionRef);
 
   return fetchConnectionResource<DataNodeDetail>({
-    connectionUid: resolvedRef.uid,
+    connectionId: resolvedRef.id,
     resource: "data-node-detail",
     params: { dataNodeId: resolvedDataNodeId },
   });
@@ -175,7 +175,7 @@ export async function queryMainSequenceDataNodeRowsBetweenDates(
 
   const resolvedRef = resolveDataNodeConnectionRef(connectionRef);
   const response = await queryConnection<MainSequenceDataNodeConnectionQuery>({
-    connectionUid: resolvedRef.uid,
+    connectionId: resolvedRef.id,
     query: {
       ...input,
       kind: "data-node-rows-between-dates",
@@ -204,7 +204,7 @@ export async function queryMainSequenceDataNodeLastObservation(
 
   const resolvedRef = resolveDataNodeConnectionRef(connectionRef);
   const response = await queryConnection<MainSequenceDataNodeConnectionQuery>({
-    connectionUid: resolvedRef.uid,
+    connectionId: resolvedRef.id,
     query: {
       kind: "data-node-last-observation",
       dataNodeId: resolvedDataNodeId,

@@ -107,6 +107,14 @@ function getResponseStatusVariant(responseStatus: string | null) {
   return "neutral" as const;
 }
 
+function formatCommandArgs(commandArgs: string[] | null | undefined) {
+  if (!commandArgs || commandArgs.length === 0) {
+    return "No command args";
+  }
+
+  return commandArgs.join(" ");
+}
+
 function getEntityIdFromSummaryHref(
   href: string | undefined,
   queryKeys: string[],
@@ -149,6 +157,39 @@ function getJobIdFromSummaryHref(href?: string) {
 
 function getProjectIdFromSummaryHref(href?: string) {
   return getEntityIdFromSummaryHref(href, ["project_id", "projectId"]);
+}
+
+function buildCommandArgsSummaryField(jobRun: JobRunRecord): SummaryField {
+  return {
+    key: "command_args",
+    label: "Command args",
+    value: jobRun.command_args ?? [],
+    meta: formatCommandArgs(jobRun.command_args),
+    kind: "code",
+    icon: "code",
+  };
+}
+
+function addCommandArgsToSummary(
+  summary: EntitySummaryHeader,
+  jobRun: JobRunRecord | null,
+): EntitySummaryHeader {
+  if (!jobRun) {
+    return summary;
+  }
+
+  const hasCommandArgsField = [...summary.inline_fields, ...summary.highlight_fields].some(
+    (field) => field.key === "command_args",
+  );
+
+  if (hasCommandArgsField) {
+    return summary;
+  }
+
+  return {
+    ...summary,
+    highlight_fields: [...summary.highlight_fields, buildCommandArgsSummaryField(jobRun)],
+  };
 }
 
 function buildFallbackJobRunSummary(jobRun: JobRunRecord): EntitySummaryHeader {
@@ -219,6 +260,7 @@ function buildFallbackJobRunSummary(jobRun: JobRunRecord): EntitySummaryHeader {
         kind: jobRun.commit_hash ? "commit" : "text",
         icon: "git-commit",
       },
+      buildCommandArgsSummaryField(jobRun),
     ],
     stats: [],
   };
@@ -295,6 +337,7 @@ export function MainSequenceJobRunsTab({
         jobRun.response_status ?? "",
         jobRun.triggered_by ?? "",
         jobRun.commit_hash ?? "",
+        formatCommandArgs(jobRun.command_args),
       ]
         .join(" ")
         .toLowerCase()
@@ -303,7 +346,11 @@ export function MainSequenceJobRunsTab({
   }, [deferredFilterValue, runsQuery.data?.results]);
 
   const jobRunSummary =
-    jobRunSummaryQuery.data ?? (selectedJobRunFromList ? buildFallbackJobRunSummary(selectedJobRunFromList) : null);
+    jobRunSummaryQuery.data
+      ? addCommandArgsToSummary(jobRunSummaryQuery.data, selectedJobRunFromList)
+      : selectedJobRunFromList
+        ? buildFallbackJobRunSummary(selectedJobRunFromList)
+        : null;
   const jobRunTitle =
     jobRunSummary?.entity.title ??
     selectedJobRunFromList?.name ??
@@ -443,13 +490,14 @@ export function MainSequenceJobRunsTab({
 
       {!runsQuery.isLoading && !runsQuery.isError && filteredRuns.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] border-separate border-spacing-y-2 text-sm">
+          <table className="w-full min-w-[1320px] border-separate border-spacing-y-2 text-sm">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                 <th className="px-4 pb-2">Run</th>
                 <th className="px-4 pb-2">Status</th>
                 <th className="px-4 pb-2">Timing</th>
                 <th className="px-4 pb-2">Triggered by</th>
+                <th className="px-4 pb-2">Command args</th>
                 <th className="px-4 pb-2">Resources</th>
                 <th className="px-4 pb-2">Commit</th>
               </tr>
@@ -501,6 +549,11 @@ export function MainSequenceJobRunsTab({
                     <div className="text-foreground">{jobRun.triggered_by ?? "System"}</div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {jobRun.triggered_by_id ? `User ${jobRun.triggered_by_id}` : "No user id"}
+                    </div>
+                  </td>
+                  <td className="border-y border-border/70 bg-background/24 px-4 py-3">
+                    <div className="max-w-64 truncate font-mono text-xs text-foreground">
+                      {formatCommandArgs(jobRun.command_args)}
                     </div>
                   </td>
                   <td className="border-y border-border/70 bg-background/24 px-4 py-3">

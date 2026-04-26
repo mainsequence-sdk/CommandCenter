@@ -49,7 +49,7 @@ Workbench data access.
   falls back to the existing authenticated Main Sequence API helpers. Widgets call this connection
   module instead of importing dynamic-table fetch helpers directly.
 - The Connection Query widget uses the Data Node connection's typed `queryEditor` for per-query
-  kwargs. The generic widget owns the standard envelope (`connectionUid`, `query`, `timeRange`,
+  kwargs. The generic widget owns the standard envelope (`connectionId`, `query`, `timeRange`,
   variables, and row limits); Data Node-specific fields stay in the Data Node connection module.
 - Data Node column and `unique_identifier_list` editors use the shared tokenized string-list
   control. Values are committed to the query payload when the user presses Enter or comma, removes a
@@ -83,7 +83,7 @@ Workbench data access.
 - Do not add connection-level secret fields for Data Node access. Authentication and authorization
   must flow through the platform/Main Sequence permission model and backend runtime context.
 - Treat `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight` as backend adapter behavior:
-  key caches by connection uid, query/resource kind, resolved Data Node id, normalized request
+  key caches by connection id, query/resource kind, resolved Data Node id, normalized request
   payload, user/permission context, and effective row limit.
 - Preserve the Data Node row query's semantic contracts when changing connection query response
   normalization: `data-node-rows-between-dates` should publish `core.tabular_frame@v1` and include
@@ -148,7 +148,7 @@ for the resolved Simple Table still apply.
   (`core.tabular_frame@v1`). Include warnings when row limits, SQL normalization, or cache behavior
   affected the result.
 
-`testConnection(uid)`:
+`testConnection(id)`:
 
 - Resolve the Simple Table id from configured public config only.
 - Fetch the Simple Table detail endpoint.
@@ -164,7 +164,7 @@ Build cache and in-flight dedupe keys from:
 
 - organization id
 - user id or equivalent auth scope
-- connection uid
+- connection id
 - connection type id
 - query kind
 - resolved Simple Table id
@@ -265,7 +265,7 @@ for the resolved Data Node still apply.
   with `{}`.
 - Return a normalized `ConnectionQueryResponse` containing one `core.tabular_frame@v1` frame.
 
-`testConnection(uid)`:
+`testConnection(id)`:
 
 - Resolve the Data Node id using configured public config only. For a system/default migration
   connection with no configured id, return `unknown` or `error` explaining that no Data Node is
@@ -301,7 +301,7 @@ The result-cache key must be built from the same normalized dimensions as the in
 
 - organization id
 - user id or equivalent auth scope
-- connection uid
+- connection id
 - connection type id
 - operation kind: `resource` or `query`
 - resource name or query kind
@@ -348,7 +348,7 @@ Build the key after validation/defaulting, not directly from the raw request bod
 
 - organization id
 - user id or equivalent auth scope
-- connection uid
+- connection id
 - connection type id
 - operation kind: `resource` or `query`
 - resource name or query kind

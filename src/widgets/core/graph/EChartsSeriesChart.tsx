@@ -67,14 +67,28 @@ function formatEChartsTimeAxisLabel(
   }).format(parsedValue);
 }
 
+function formatEChartsValueAxisLabel(value: string | number) {
+  const numericValue =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+
+  if (!Number.isFinite(numericValue)) {
+    return String(value);
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 4,
+  }).format(numericValue);
+}
+
 function buildSharedChartOption(args: {
   chartType: GraphChartType;
   emptyMessage: string;
   series: GraphSeries[];
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">;
   tokens: Record<string, string>;
+  xAxisType: "time" | "value";
 }): EChartsOption {
-  const { chartType, series, timeAxisMode, tokens } = args;
+  const { chartType, series, timeAxisMode, tokens, xAxisType } = args;
   const hasData = series.some((entry) => entry.points.length > 0);
 
   return {
@@ -112,8 +126,9 @@ function buildSharedChartOption(args: {
       },
     },
     xAxis: {
-      type: "time",
-      minInterval: timeAxisMode === "date" ? 24 * 60 * 60 * 1000 : undefined,
+      type: xAxisType,
+      minInterval:
+        xAxisType === "time" && timeAxisMode === "date" ? 24 * 60 * 60 * 1000 : undefined,
       axisLine: {
         lineStyle: {
           color: withAlpha(tokens.border, 0.72),
@@ -121,7 +136,10 @@ function buildSharedChartOption(args: {
       },
       axisLabel: {
         color: tokens["muted-foreground"],
-        formatter: (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode),
+        formatter:
+          xAxisType === "time"
+            ? (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode)
+            : (value: string | number) => formatEChartsValueAxisLabel(value),
       },
       splitLine: {
         show: false,
@@ -187,8 +205,9 @@ function buildSeparateAxesChartOption(args: {
   series: GraphSeries[];
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">;
   tokens: Record<string, string>;
+  xAxisType: "time" | "value";
 }): EChartsOption {
-  const { chartType, series, timeAxisMode, tokens } = args;
+  const { chartType, series, timeAxisMode, tokens, xAxisType } = args;
   const legendHeight = series.length > 1 ? 44 : 18;
   const availableHeight = 100 - legendHeight;
   const paneHeight = Math.max(14, availableHeight / Math.max(series.length, 1));
@@ -234,9 +253,10 @@ function buildSeparateAxesChartOption(args: {
     }),
     xAxis: series.map((_, index) =>
       ({
-        type: "time" as const,
+        type: xAxisType,
         gridIndex: index,
-        minInterval: timeAxisMode === "date" ? 24 * 60 * 60 * 1000 : undefined,
+        minInterval:
+          xAxisType === "time" && timeAxisMode === "date" ? 24 * 60 * 60 * 1000 : undefined,
         axisLine: {
           lineStyle: {
             color: withAlpha(tokens.border, 0.72),
@@ -245,7 +265,10 @@ function buildSeparateAxesChartOption(args: {
         axisLabel: {
           color: tokens["muted-foreground"],
           show: index === series.length - 1,
-          formatter: (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode),
+          formatter:
+            xAxisType === "time"
+              ? (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode)
+              : (value: string | number) => formatEChartsValueAxisLabel(value),
         },
         axisTick: {
           show: index === series.length - 1,
@@ -331,6 +354,7 @@ export function EChartsSeriesChart({
   timeAxisMode = "datetime",
   transparentSurface = false,
   updateMode = "snapshot",
+  xAxisType = "time",
 }: {
   chartType: GraphChartType;
   className?: string;
@@ -343,6 +367,7 @@ export function EChartsSeriesChart({
   timeAxisMode?: Exclude<GraphTimeAxisMode, "auto">;
   transparentSurface?: boolean;
   updateMode?: WidgetRuntimeUpdateMode;
+  xAxisType?: "time" | "value";
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
@@ -430,17 +455,19 @@ export function EChartsSeriesChart({
 
     const option = separateAxes
       ? buildSeparateAxesChartOption({
-          chartType,
-          series: themedSeries,
-          timeAxisMode,
-          tokens: resolvedTokens,
-        })
+        chartType,
+        series: themedSeries,
+        timeAxisMode,
+        tokens: resolvedTokens,
+        xAxisType,
+      })
       : buildSharedChartOption({
           chartType,
           emptyMessage,
           series: themedSeries,
           timeAxisMode,
           tokens: resolvedTokens,
+          xAxisType,
         });
     const structureKey = JSON.stringify({
       chartType,
@@ -453,6 +480,7 @@ export function EChartsSeriesChart({
         lineStyle: entry.lineStyle,
       })),
       timeAxisMode,
+      xAxisType,
     });
     const canMerge =
       updateMode === "delta" &&
@@ -475,6 +503,7 @@ export function EChartsSeriesChart({
     themedSeries,
     timeAxisMode,
     updateMode,
+    xAxisType,
   ]);
 
   if (themedSeries.length === 0) {

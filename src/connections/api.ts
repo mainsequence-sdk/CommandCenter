@@ -6,6 +6,7 @@ import {
   type DashboardRequestTraceMeta,
 } from "@/dashboards/dashboard-request-trace";
 import type {
+  ConnectionId,
   ConnectionHealthResult,
   ConnectionInstance,
   ConnectionQueryRequest,
@@ -20,7 +21,7 @@ const devAuthProxyPrefix = "/__command_center_auth__";
 const systemNowIso = "1970-01-01T00:00:00.000Z";
 
 export const COMMAND_CENTER_SYSTEM_CONNECTION_TYPE_ID = "command-center.system-api";
-export const COMMAND_CENTER_SYSTEM_CONNECTION_UID = "system-default";
+export const COMMAND_CENTER_SYSTEM_CONNECTION_ID = "system-default";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -243,8 +244,48 @@ function normalizeListPayload<T>(payload: unknown): T[] {
   return [];
 }
 
-export function createConnectionRef(uid: string, typeId: string): ConnectionRef {
-  return { uid, typeId };
+function normalizeIdentifier(value: unknown): ConnectionId | undefined {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) ? value : undefined;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = String(value).trim();
+  const numericId = Number(normalized);
+
+  if (/^\d+$/.test(normalized) && Number.isSafeInteger(numericId)) {
+    return numericId;
+  }
+
+  return normalized || undefined;
+}
+
+function normalizeConnectionInstancePayload(instance: ConnectionInstance): ConnectionInstance | null {
+  const record = instance as unknown as Record<string, unknown>;
+  const id = normalizeIdentifier(record.id) ?? normalizeIdentifier(record.uid);
+
+  if (!id) {
+    return null;
+  }
+
+  return {
+    ...instance,
+    id,
+  };
+}
+
+function normalizeConnectionInstanceList(payload: unknown) {
+  return normalizeListPayload<ConnectionInstance>(payload).flatMap((instance) => {
+    const normalizedInstance = normalizeConnectionInstancePayload(instance);
+    return normalizedInstance ? [normalizedInstance] : [];
+  });
+}
+
+export function createConnectionRef(id: ConnectionId, typeId: string): ConnectionRef {
+  return { id, typeId };
 }
 
 export function normalizeConnectionRef(
@@ -252,11 +293,11 @@ export function normalizeConnectionRef(
   fallback?: ConnectionRef,
 ): ConnectionRef | undefined {
   if (isRecord(value)) {
-    const uid = typeof value.uid === "string" ? value.uid.trim() : "";
+    const id = normalizeIdentifier(value.id) ?? normalizeIdentifier(value.uid);
     const typeId = typeof value.typeId === "string" ? value.typeId.trim() : "";
 
-    if (uid && typeId) {
-      return { uid, typeId };
+    if (id && typeId) {
+      return { id, typeId };
     }
   }
 
@@ -266,8 +307,7 @@ export function normalizeConnectionRef(
 export function getSystemConnectionInstances(): ConnectionInstance[] {
   const instances: ConnectionInstance[] = [
     {
-      id: COMMAND_CENTER_SYSTEM_CONNECTION_UID,
-      uid: COMMAND_CENTER_SYSTEM_CONNECTION_UID,
+      id: COMMAND_CENTER_SYSTEM_CONNECTION_ID,
       typeId: COMMAND_CENTER_SYSTEM_CONNECTION_TYPE_ID,
       typeVersion: 1,
       name: "Command Center system API",
@@ -290,7 +330,6 @@ export function getSystemConnectionInstances(): ConnectionInstance[] {
 
   instances.push({
     id: "mainsequence-data-node-default",
-    uid: "mainsequence-data-node-default",
     typeId: "mainsequence.data-node",
     typeVersion: 1,
     name: "Main Sequence Data Node",
@@ -309,7 +348,6 @@ export function getSystemConnectionInstances(): ConnectionInstance[] {
 
   instances.push({
     id: "prometheus-default",
-    uid: "prometheus-default",
     typeId: "prometheus.remote",
     typeVersion: 1,
     name: "Prometheus default",
@@ -336,7 +374,7 @@ export function getDefaultConnectionRefForType(
     (candidate) => candidate.typeId === typeId && candidate.isDefault,
   );
 
-  return instance ? createConnectionRef(instance.uid, instance.typeId) : undefined;
+  return instance ? createConnectionRef(instance.id, instance.typeId) : undefined;
 }
 
 export async function fetchConnectionTypes(): Promise<AnyConnectionTypeDefinition[]> {
@@ -358,12 +396,19 @@ export async function fetchConnectionInstances(): Promise<ConnectionInstance[]> 
   }
 
   const payload = await requestJson<unknown>(path);
-  return normalizeListPayload<ConnectionInstance>(payload);
+  return normalizeConnectionInstanceList(payload);
 }
 
-export function fetchConnectionInstance(uid: string) {
+export async function fetchConnectionInstance(id: ConnectionId) {
   const template = commandCenterConfig.connections.instances.detailUrl.trim();
-  return requestJson<ConnectionInstance>(applyTemplate(template, { uid }));
+  const payload = await requestJson<ConnectionInstance>(applyTemplate(template, { id }));
+  const normalizedPayload = normalizeConnectionInstancePayload(payload);
+
+  if (!normalizedPayload) {
+    throw new Error("Connection instance response did not include an id.");
+  }
+
+  return normalizedPayload;
 }
 
 export function createConnectionInstance(
@@ -377,30 +422,46 @@ export function createConnectionInstance(
       method: "POST",
       body: JSON.stringify(input),
     },
-  );
-}
+  ).then((payload) => {
+    const normalizedPayload = normalizeConnectionInstancePayload(payload);
 
-export function updateConnectionInstance(
-  uid: string,
-  input: Partial<ConnectionInstance> & { secureConfig?: Record<string, unknown> },
-) {
-  const template = commandCenterConfig.connections.instances.detailUrl.trim();
-  return requestJson<ConnectionInstance>(applyTemplate(template, { uid }), {
-    method: "PATCH",
-    body: JSON.stringify(input),
+    if (!normalizedPayload) {
+      throw new Error("Connection instance response did not include an id.");
+    }
+
+    return normalizedPayload;
   });
 }
 
-export function deleteConnectionInstance(uid: string) {
+export function updateConnectionInstance(
+  id: ConnectionId,
+  input: Partial<ConnectionInstance> & { secureConfig?: Record<string, unknown> },
+) {
   const template = commandCenterConfig.connections.instances.detailUrl.trim();
-  return requestJson<void>(applyTemplate(template, { uid }), {
+  return requestJson<ConnectionInstance>(applyTemplate(template, { id }), {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  }).then((payload) => {
+    const normalizedPayload = normalizeConnectionInstancePayload(payload);
+
+    if (!normalizedPayload) {
+      throw new Error("Connection instance response did not include an id.");
+    }
+
+    return normalizedPayload;
+  });
+}
+
+export function deleteConnectionInstance(id: ConnectionId) {
+  const template = commandCenterConfig.connections.instances.detailUrl.trim();
+  return requestJson<void>(applyTemplate(template, { id }), {
     method: "DELETE",
   });
 }
 
-export function testConnection(uid: string) {
+export function testConnection(id: ConnectionId) {
   const template = commandCenterConfig.connections.instances.testUrl.trim();
-  return requestJson<ConnectionHealthResult>(applyTemplate(template, { uid }), {
+  return requestJson<ConnectionHealthResult>(applyTemplate(template, { id }), {
     method: "POST",
     body: JSON.stringify({}),
   });
@@ -418,7 +479,7 @@ export function queryConnection<
 ) {
   const template = commandCenterConfig.connections.instances.queryUrl.trim();
   return requestJson<TResponse>(
-    applyTemplate(template, { uid: request.connectionUid }),
+    applyTemplate(template, { id: request.connectionId }),
     {
       method: "POST",
       body: JSON.stringify(request),
@@ -434,7 +495,7 @@ export function fetchConnectionResource<TResponse = unknown>(
   const template = commandCenterConfig.connections.instances.resourceUrl.trim();
   return requestJson<TResponse>(
     applyTemplate(template, {
-      uid: request.connectionUid,
+      id: request.connectionId,
       resource: request.resource,
     }),
     {
@@ -446,7 +507,9 @@ export function fetchConnectionResource<TResponse = unknown>(
 
 export function openConnectionStream(request: ConnectionStreamRequest) {
   const template = commandCenterConfig.connections.instances.streamUrl.trim();
-  const endpoint = applyTemplate(template, { uid: request.connectionUid });
+  const endpoint = applyTemplate(template, {
+    id: request.connectionId,
+  });
   const url = new URL(buildEndpointUrl(endpoint), window.location.origin);
   url.searchParams.set("channel", request.channel);
 

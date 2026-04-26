@@ -382,11 +382,11 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     },
     instances: {
       list_url: "/api/v1/command_center/connections/",
-      detail_url: "/api/v1/command_center/connections/{uid}/",
-      test_url: "/api/v1/command_center/connections/{uid}/test/",
-      query_url: "/api/v1/command_center/connections/{uid}/query/",
-      resource_url: "/api/v1/command_center/connections/{uid}/resources/{resource}/",
-      stream_url: "/api/v1/command_center/connections/{uid}/stream/",
+      detail_url: "/api/v1/command_center/connections/{id}/",
+      test_url: "/api/v1/command_center/connections/{id}/test/",
+      query_url: "/api/v1/command_center/connections/{id}/query/",
+      resource_url: "/api/v1/command_center/connections/{id}/resources/{resource}/",
+      stream_url: "/api/v1/command_center/connections/{id}/stream/",
     },
   },
   auth: {

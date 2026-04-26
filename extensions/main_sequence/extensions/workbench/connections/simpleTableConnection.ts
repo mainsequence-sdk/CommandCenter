@@ -7,7 +7,7 @@ import { SimpleTableConnectionExplore } from "./SimpleTableConnectionExplore";
 import { SimpleTableConnectionQueryEditor } from "./SimpleTableConnectionQueryEditor";
 
 export const MAIN_SEQUENCE_SIMPLE_TABLE_CONNECTION_TYPE_ID = "mainsequence.simple-table";
-export const DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_CONNECTION_UID = "mainsequence-simple-table-default";
+export const DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_CONNECTION_ID = "mainsequence-simple-table-default";
 export const DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_QUERY_CACHE_TTL_MS = 5 * 60 * 1000;
 export const DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_STATEMENT_TIMEOUT_MS = 30_000;
 export const DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_ROW_LIMIT = 1_000;

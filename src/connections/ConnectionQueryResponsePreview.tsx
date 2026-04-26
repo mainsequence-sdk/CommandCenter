@@ -19,14 +19,14 @@ import {
   resolveGraphNormalizationTimeMs,
   resolveGraphSourceFieldDefaults,
   type GraphChartType,
+  type GraphSeries,
 } from "@/widgets/core/graph/graphModel";
+import { EChartsSeriesChart } from "@/widgets/core/graph/EChartsSeriesChart";
 import { TradingViewSeriesChart } from "@/widgets/core/graph/TradingViewSeriesChart";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-  buildGraphDefaultsFromTimeSeriesMeta,
   hasTabularTimeSeriesSemantics,
-  inferTabularTimeSeriesMetaFromFields,
   legacyTimeSeriesFrameToTabularFrameSource,
   normalizeTabularFrameSource,
   type TabularFrameFieldSchema,
@@ -38,6 +38,13 @@ import { resolveTabularFieldOptionsFromDataset } from "@/widgets/shared/tabular-
 
 type PreviewFrame = CommandCenterFrame | TabularFrameSourceV1;
 type ConnectionQueryResultView = "graph" | "table";
+type GraphPreview = {
+  chartSeries: GraphSeries[];
+  chartType: GraphChartType;
+  effectiveTimeAxisMode: "date" | "datetime";
+  normalizationTimeMs: number | "series-start" | null;
+  xAxisType: "time" | "value";
+};
 
 function formatConnectionQueryJson(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -127,33 +134,19 @@ function commandFrameToTabularFrameSource(
     fields,
     meta: rawMeta,
   })?.meta;
-  const inferredTimeSeries = inferTabularTimeSeriesMetaFromFields(
-    frame.fields.map((field) => ({
-      name: field.name,
-      type: field.type,
-    })),
-  );
-  const timeSeries = normalizedMeta?.timeSeries ?? inferredTimeSeries ?? undefined;
+  const meta = normalizedMeta ?? (Object.keys(rawMeta).length > 0 ? rawMeta : undefined);
 
   return {
     status: "ready",
     columns,
     rows,
     fields,
-    meta: timeSeries
-      ? {
-          ...rawMeta,
-          timeSeries,
-        }
-      : Object.keys(rawMeta).length > 0
-        ? rawMeta
-        : undefined,
+    meta,
     source: {
       kind: "connection-query",
       label: frame.name,
       context: {
         sourceContract: frame.contract,
-        graphDefaults: buildGraphDefaultsFromTimeSeriesMeta(timeSeries),
         warnings: response?.warnings,
         traceId: response?.traceId,
       },
@@ -187,13 +180,105 @@ function pickPreviewFrame(response: ConnectionQueryResponse | null | undefined) 
   return coerced.find((frame) => hasTabularTimeSeriesSemantics(frame)) ?? coerced[0];
 }
 
+function parseNumericPreviewValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value.trim().replaceAll(",", ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function resolveNumericGraphDefaults(sourceFrame: TabularFrameSourceV1) {
+  const sourceDefaults = resolveGraphSourceFieldDefaults(sourceFrame);
+
+  if (sourceDefaults.xField && sourceDefaults.yField) {
+    return sourceDefaults;
+  }
+
+  const numericFieldKeys = (sourceFrame.fields ?? [])
+    .filter((field) => field.type === "number")
+    .map((field) => field.key);
+  const fallbackXField = sourceDefaults.xField ?? numericFieldKeys[0];
+  const fallbackYField =
+    sourceDefaults.yField ?? numericFieldKeys.find((fieldKey) => fieldKey !== fallbackXField);
+
+  return {
+    xField: fallbackXField,
+    yField: fallbackYField,
+    groupField: sourceDefaults.groupField,
+  };
+}
+
+function buildNumericGraphSeries(
+  rows: Array<Record<string, unknown>>,
+  config: {
+    groupField?: string;
+    xField?: string;
+    yField?: string;
+  },
+  maxSeries = 12,
+) {
+  if (!config.xField || !config.yField) {
+    return [] as GraphSeries[];
+  }
+
+  const groupedPoints = new Map<
+    string,
+    {
+      id: string;
+      label: string;
+      pointMap: Map<number, number>;
+    }
+  >();
+
+  rows.forEach((row) => {
+    const xValue = parseNumericPreviewValue(row[config.xField!]);
+    const yValue = parseNumericPreviewValue(row[config.yField!]);
+
+    if (xValue === null || yValue === null) {
+      return;
+    }
+
+    const groupLabel = config.groupField ? String(row[config.groupField] ?? "—") : config.yField!;
+    const groupKey = config.groupField ? String(row[config.groupField] ?? "__empty__") : config.yField!;
+    const current =
+      groupedPoints.get(groupKey) ??
+      {
+        id: groupKey,
+        label: groupLabel,
+        pointMap: new Map<number, number>(),
+      };
+
+    current.pointMap.set(xValue, yValue);
+    groupedPoints.set(groupKey, current);
+  });
+
+  return [...groupedPoints.values()]
+    .map((series) => ({
+      id: series.id,
+      label: series.label,
+      pointCount: series.pointMap.size,
+      points: [...series.pointMap.entries()]
+        .sort((left, right) => left[0] - right[0])
+        .map(([time, value]) => ({ time, value })),
+    }))
+    .filter((series) => series.points.length > 0)
+    .sort((left, right) => right.pointCount - left.pointCount)
+    .slice(0, maxSeries);
+}
+
 function buildGraphPreview(
   frame: TabularFrameSourceV1 | null | undefined,
   chartType: GraphChartType,
-) {
+): GraphPreview | null {
   const sourceFrame = resolveGraphDatasetFrame(frame);
 
-  if (!sourceFrame || !hasTabularTimeSeriesSemantics(sourceFrame)) {
+  if (!sourceFrame) {
     return null;
   }
 
@@ -217,16 +302,50 @@ function buildGraphPreview(
     null,
     fieldOptions,
   );
-  const seriesResult = buildGraphSeries(sourceFrame.rows, config, 12);
-  const effectiveTimeAxisMode = resolveGraphEffectiveTimeAxisMode(config, sourceFrame.rows);
-  const chartSeriesResult = buildGraphChartSeries(seriesResult.series, effectiveTimeAxisMode);
-  const normalizationTimeMs = resolveGraphNormalizationTimeMs(config);
+
+  if (hasTabularTimeSeriesSemantics(sourceFrame)) {
+    const seriesResult = buildGraphSeries(sourceFrame.rows, config, 12);
+    const effectiveTimeAxisMode = resolveGraphEffectiveTimeAxisMode(config, sourceFrame.rows);
+    const chartSeriesResult = buildGraphChartSeries(seriesResult.series, effectiveTimeAxisMode);
+
+    if (chartSeriesResult.series.length > 0) {
+      return {
+        chartSeries: chartSeriesResult.series,
+        chartType: config.chartType,
+        effectiveTimeAxisMode,
+        normalizationTimeMs: resolveGraphNormalizationTimeMs(config),
+        xAxisType: "time",
+      };
+    }
+  }
+
+  const numericDefaults = resolveNumericGraphDefaults(sourceFrame);
+  const numericConfig = resolveGraphConfig(
+    {
+      sourceMode: "filter_widget",
+      provider: "echarts",
+      chartType,
+      dateRangeMode: "dashboard",
+      minBarSpacingPx: 0.01,
+      xField: numericDefaults.xField,
+      yField: numericDefaults.yField,
+      groupField: numericDefaults.groupField,
+    },
+    null,
+    fieldOptions,
+  );
+  const numericSeries = buildNumericGraphSeries(sourceFrame.rows, numericConfig, 12);
+
+  if (numericSeries.length === 0) {
+    return null;
+  }
 
   return {
-    chartSeries: chartSeriesResult.series,
-    chartType: config.chartType,
-    effectiveTimeAxisMode,
-    normalizationTimeMs,
+    chartSeries: numericSeries,
+    chartType: numericConfig.chartType,
+    effectiveTimeAxisMode: "datetime",
+    normalizationTimeMs: null,
+    xAxisType: "value",
   };
 }
 
@@ -257,9 +376,7 @@ export function ConnectionQueryResponsePreview({
     () => buildGraphPreview(previewFrame, graphChartType),
     [graphChartType, previewFrame],
   );
-  const resultSupportsGraph = Boolean(
-    previewFrame && hasTabularTimeSeriesSemantics(resolveGraphDatasetFrame(previewFrame)),
-  );
+  const resultSupportsGraph = Boolean(graphPreview);
 
   useEffect(() => {
     if (!previewFrame) {
@@ -372,14 +489,25 @@ export function ConnectionQueryResponsePreview({
                 </div>
               )}
             >
-              <TradingViewSeriesChart
-                chartType={graphPreview?.chartType ?? graphChartType}
-                emptyMessage="No chartable time-series rows are available for this result."
-                minBarSpacingPx={0.01}
-                normalizationTimeMs={graphPreview?.normalizationTimeMs}
-                series={graphPreview?.chartSeries ?? []}
-                timeAxisMode={graphPreview?.effectiveTimeAxisMode ?? "datetime"}
-              />
+              {graphPreview?.xAxisType === "value" ? (
+                <EChartsSeriesChart
+                  chartType={graphPreview.chartType}
+                  emptyMessage="No chartable rows are available for this result."
+                  normalizationTimeMs={graphPreview.normalizationTimeMs}
+                  series={graphPreview.chartSeries}
+                  timeAxisMode={graphPreview.effectiveTimeAxisMode}
+                  xAxisType="value"
+                />
+              ) : (
+                <TradingViewSeriesChart
+                  chartType={graphPreview?.chartType ?? graphChartType}
+                  emptyMessage="No chartable rows are available for this result."
+                  minBarSpacingPx={0.01}
+                  normalizationTimeMs={graphPreview?.normalizationTimeMs}
+                  series={graphPreview?.chartSeries ?? []}
+                  timeAxisMode={graphPreview?.effectiveTimeAxisMode ?? "datetime"}
+                />
+              )}
             </GraphChartErrorBoundary>
           </div>
         ) : (

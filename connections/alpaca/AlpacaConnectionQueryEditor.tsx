@@ -1,3 +1,4 @@
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { ConnectionQueryEditorProps } from "@/connections/types";
 import {
@@ -18,18 +19,21 @@ import type {
 
 const equityFeeds = ["iex", "sip", "delayed_sip", "boats", "overnight", "otc"] satisfies AlpacaFeed[];
 const cryptoLocations = ["us", "us-1", "us-2", "eu-1", "bs-1"] satisfies AlpacaCryptoLocation[];
-const alpacaTimeframes = [
-  ...Array.from({ length: 59 }, (_, index) => `${index + 1}Min`),
-  ...Array.from({ length: 23 }, (_, index) => `${index + 1}Hour`),
+const commonAlpacaTimeframes = [
+  "1Min",
+  "5Min",
+  "15Min",
+  "30Min",
+  "1Hour",
+  "2Hour",
+  "4Hour",
   "1Day",
   "1Week",
   "1Month",
-  "2Month",
-  "3Month",
-  "4Month",
-  "6Month",
-  "12Month",
 ] as const;
+const alpacaTimeframeHelp =
+  "Alpaca bar timeframe. Use the documented bars values: 1-59Min, 1-23Hour, 1Day, 1Week, or 1/2/3/4/6/12Month. Short aliases like 5T, 1H, 1D, 1W, and 1M also work.";
+type CommonAlpacaTimeframe = (typeof commonAlpacaTimeframes)[number];
 
 function readKind(
   queryModelId: string | undefined,
@@ -53,6 +57,10 @@ function patchQuery(
     ...patch,
     kind,
   });
+}
+
+function isCommonAlpacaTimeframe(value: string | undefined): value is CommonAlpacaTimeframe {
+  return !!value && commonAlpacaTimeframes.includes(value as CommonAlpacaTimeframe);
 }
 
 function QuerySelectField({
@@ -80,6 +88,47 @@ function QuerySelectField({
           </option>
         ))}
       </Select>
+    </ConnectionQueryField>
+  );
+}
+
+function QueryTimeframeField({
+  disabled,
+  onChange,
+  value,
+}: {
+  disabled?: boolean;
+  onChange: (value: string | undefined) => void;
+  value?: string;
+}) {
+  const selectedPreset = isCommonAlpacaTimeframe(value) ? value : "";
+  const customValue = value && !isCommonAlpacaTimeframe(value) ? value : "";
+
+  return (
+    <ConnectionQueryField help={alpacaTimeframeHelp} label="Timeframe">
+      <div className="space-y-2">
+        <Select
+          value={selectedPreset}
+          onChange={(event) => onChange(event.target.value || undefined)}
+          disabled={disabled}
+        >
+          <option value="">Use connection default</option>
+          {commonAlpacaTimeframes.map((timeframe) => (
+            <option key={timeframe} value={timeframe}>
+              {timeframe}
+            </option>
+          ))}
+        </Select>
+        <Input
+          value={customValue}
+          onChange={(event) => {
+            const nextValue = event.target.value.trim();
+            onChange(nextValue || undefined);
+          }}
+          disabled={disabled}
+          placeholder="Or enter custom timeframe like 12Hour or 3Month"
+        />
+      </div>
     </ConnectionQueryField>
   );
 }
@@ -121,13 +170,10 @@ export function AlpacaConnectionQueryEditor({
         />
 
         {isOhlc ? (
-          <QuerySelectField
-            label="Timeframe"
+          <QueryTimeframeField
             value={value.timeframe}
             onChange={(timeframe) => patchQuery(value, onChange, kind, { timeframe })}
             disabled={disabled}
-            options={alpacaTimeframes}
-            help="Alpaca bar timeframe. Documented values include 1-59Min, 1-23Hour, 1Day, 1Week, and 1, 2, 3, 4, 6, or 12Month."
           />
         ) : null}
 

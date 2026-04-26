@@ -15,6 +15,7 @@ import { useConnectionInstances } from "@/connections/hooks";
 import type {
   AnyConnectionTypeDefinition,
   ConnectionInstance,
+  ConnectionRef,
   ConnectionQueryEditorProps,
 } from "@/connections/types";
 import {
@@ -518,10 +519,13 @@ function buildRuntimeRangeSummary(input: {
 
 function getConnectionPathLabel(input: {
   typeId?: string;
-  uid?: string;
+  id?: ConnectionRef["id"];
   queryModelId?: string;
 }) {
-  return [input.typeId, input.uid, input.queryModelId].filter(Boolean).join(" / ");
+  return [input.typeId, input.id, input.queryModelId]
+    .filter((value) => value !== undefined && value !== null && value !== "")
+    .map(String)
+    .join(" / ");
 }
 
 function sameQueryModelAvailable(
@@ -553,6 +557,13 @@ function buildDefaultQueryForModel(model: { id: string; defaultQuery?: Record<st
   };
 }
 
+function sameConnectionId(
+  left: ConnectionRef["id"] | undefined,
+  right: ConnectionRef["id"] | undefined,
+) {
+  return left !== undefined && right !== undefined && String(left) === String(right);
+}
+
 export function ConnectionQueryWorkbench({
   autoSelectFirstQueryModel = false,
   connectionInstance,
@@ -573,7 +584,17 @@ export function ConnectionQueryWorkbench({
 }: ConnectionQueryWorkbenchProps) {
   const connectionInstancesQuery = useConnectionInstances();
   const [previewState, setPreviewState] = useState<QueryPreviewState>({ status: "idle" });
-  const normalizedProps = normalizeConnectionQueryProps(value);
+  const normalizedValueProps = normalizeConnectionQueryProps(value);
+  const fallbackConnectionRef = connectionInstance
+    ? { id: connectionInstance.id, typeId: connectionInstance.typeId }
+    : undefined;
+  const normalizedProps: ConnectionQueryWidgetProps = {
+    ...normalizedValueProps,
+    connectionRef:
+      !showConnectionPicker && fallbackConnectionRef
+        ? fallbackConnectionRef
+        : normalizedValueProps.connectionRef ?? fallbackConnectionRef,
+  };
   const connectionType = providedConnectionType ??
     (normalizedProps.connectionRef?.typeId
       ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
@@ -586,28 +607,32 @@ export function ConnectionQueryWorkbench({
   const selectedQueryModel = normalizedProps.queryModelId
     ? queryModels.find((model) => model.id === normalizedProps.queryModelId)
     : undefined;
+  const resolvedQueryModel =
+    selectedQueryModel ?? (autoSelectQueryModel ? queryModels[0] : undefined);
   const systemConnectionInstances = useMemo(() => getSystemConnectionInstances(), []);
   const selectedConnectionInstance = useMemo(() => {
-    const selectedUid = normalizedProps.connectionRef?.uid;
+    const selectedId = normalizedProps.connectionRef?.id;
 
-    if (!selectedUid) {
+    if (!selectedId) {
       return connectionInstance;
     }
 
     return (
       connectionInstance ??
-      (connectionInstancesQuery.data ?? []).find((instance) => instance.uid === selectedUid) ??
-      systemConnectionInstances.find((instance) => instance.uid === selectedUid)
+      (connectionInstancesQuery.data ?? []).find((instance) =>
+        sameConnectionId(instance.id, selectedId),
+      ) ??
+      systemConnectionInstances.find((instance) => sameConnectionId(instance.id, selectedId))
     );
   }, [
     connectionInstance,
     connectionInstancesQuery.data,
-    normalizedProps.connectionRef?.uid,
+    normalizedProps.connectionRef?.id,
     systemConnectionInstances,
   ]);
-  const queryPathUsesTimeRange = Boolean(selectedQueryModel?.timeRangeAware);
-  const queryPathSupportsVariables = Boolean(selectedQueryModel?.supportsVariables);
-  const queryPathSupportsMaxRows = selectedQueryModel?.supportsMaxRows !== false;
+  const queryPathUsesTimeRange = Boolean(resolvedQueryModel?.timeRangeAware);
+  const queryPathSupportsVariables = Boolean(resolvedQueryModel?.supportsVariables);
+  const queryPathSupportsMaxRows = resolvedQueryModel?.supportsMaxRows !== false;
   const showRuntimeSection =
     queryPathUsesTimeRange || queryPathSupportsVariables || queryPathSupportsMaxRows;
   const workspaceDateRuntimeAvailable = Boolean(dashboardState);
@@ -647,8 +672,8 @@ export function ConnectionQueryWorkbench({
     | ComponentType<ConnectionQueryEditorProps<Record<string, unknown>>>
     | undefined;
   const previewRequest = useMemo(
-    () => buildConnectionQueryRequest(effectiveProps, effectiveDashboardState, selectedQueryModel),
-    [effectiveDashboardState, effectiveProps, selectedQueryModel],
+    () => buildConnectionQueryRequest(effectiveProps, effectiveDashboardState, resolvedQueryModel),
+    [effectiveDashboardState, effectiveProps, resolvedQueryModel],
   );
   const runtimeRangeSummary = buildRuntimeRangeSummary({
     mode: effectiveProps.timeRangeMode,
@@ -660,8 +685,8 @@ export function ConnectionQueryWorkbench({
   });
   const connectionPath = getConnectionPathLabel({
     typeId: normalizedProps.connectionRef?.typeId,
-    uid: normalizedProps.connectionRef?.uid,
-    queryModelId: selectedQueryModel?.id,
+    id: normalizedProps.connectionRef?.id,
+    queryModelId: resolvedQueryModel?.id,
   });
   const canRunPreview = Boolean(previewRequest && previewState.status !== "loading");
   const incrementalSettings = resolveConnectionQueryIncrementalSettings(normalizedProps);
@@ -727,7 +752,7 @@ export function ConnectionQueryWorkbench({
     const request = buildConnectionQueryRequest(
       effectiveProps,
       effectiveDashboardState,
-      selectedQueryModel,
+      resolvedQueryModel,
     );
 
     if (!request) {
@@ -745,7 +770,7 @@ export function ConnectionQueryWorkbench({
       const frame = await executeConnectionQueryWidgetRequest(
         effectiveProps,
         effectiveDashboardState,
-        selectedQueryModel,
+        resolvedQueryModel,
         {
           scopeId: "connection-query-workbench-preview",
           forceFullRefresh: true,
@@ -888,7 +913,7 @@ export function ConnectionQueryWorkbench({
               Configure the payload passed to the selected connection query model.
             </p>
           </div>
-          {QueryEditor && selectedQueryModel ? (
+          {QueryEditor && resolvedQueryModel ? (
             <QueryEditor
               value={normalizedProps.query ?? {}}
               onChange={(nextQuery) => {
@@ -896,16 +921,16 @@ export function ConnectionQueryWorkbench({
                   ...value,
                   query: {
                     ...nextQuery,
-                    kind: selectedQueryModel.id,
+                    kind: resolvedQueryModel.id,
                   },
                 });
               }}
               disabled={!editable}
               connectionInstance={selectedConnectionInstance}
               connectionType={connectionType}
-              queryModel={selectedQueryModel}
+              queryModel={resolvedQueryModel}
             />
-          ) : selectedQueryModel ? (
+          ) : resolvedQueryModel ? (
             <JsonObjectEditor
               label="Query JSON"
               value={normalizedProps.query}
@@ -914,7 +939,7 @@ export function ConnectionQueryWorkbench({
                   ...value,
                   query: {
                     ...nextQuery,
-                    kind: selectedQueryModel.id,
+                    kind: resolvedQueryModel.id,
                   },
                 });
               }}

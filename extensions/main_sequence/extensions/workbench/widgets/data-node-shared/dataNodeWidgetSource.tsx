@@ -447,7 +447,7 @@ export function resolveDataNodeWidgetPrefilledFixedRange(
 export function buildDataNodeRemoteRowsQueryKey(input: {
   sourceMode?: DataNodeWidgetSourceMode;
   sourceWidgetId?: string;
-  connectionUid?: string;
+  connectionId?: string;
   dataNodeId?: number;
   columns: string[];
   uniqueIdentifierList?: string[];
@@ -461,7 +461,7 @@ export function buildDataNodeRemoteRowsQueryKey(input: {
     "data_node_remote_data",
     input.sourceMode ?? "direct",
     input.sourceWidgetId ?? "",
-    input.connectionUid ?? "",
+    input.connectionId ?? "",
     input.dataNodeId ?? 0,
     input.columns.join("|"),
     (input.uniqueIdentifierList ?? []).join("|"),
@@ -833,7 +833,7 @@ export function useDataNodeWidgetSourceControllerContext<
       ),
     enabled:
       sourceBinding.sourceMode !== "manual" &&
-      Boolean(selectedConnectionRef.uid),
+      Boolean(selectedConnectionRef.id),
     staleTime: 300_000,
   });
 

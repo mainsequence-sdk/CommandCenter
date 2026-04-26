@@ -15,6 +15,8 @@ the app fits together.
 - [Auth](./auth/README.md): backend integration and authentication boundaries.
 - [Workspaces](./workspaces/README.md): workspace model, layout, persistence, and runtime notes.
 - [Widgets](./widgets/README.md): widget concepts plus links to widget-local implementation docs.
+- [Connections](./connections/README.md): connection model, extension workflow, and backend
+  adapter contracts.
 - [Extensions](./extensions/README.md): how to add product surface area without polluting the shell.
 - [Access Control](./access-control/README.md): RBAC primitives and the dedicated access app.
 - [Operations](./operations/README.md): deployment and operational constraints.
@@ -23,7 +25,8 @@ the app fits together.
 ## If You Are New Here
 
 - Read [Platform](./platform/README.md), then [Apps](./apps/README.md), then
-  [Widgets](./widgets/README.md), then [Workspaces](./workspaces/README.md).
+  [Widgets](./widgets/README.md), then [Connections](./connections/README.md), then
+  [Workspaces](./workspaces/README.md).
 - Use [Extensions](./extensions/README.md) when you are adding product-specific behavior and want
   to avoid polluting core.
 - Use [ADRs](./adr/README.md) when the code feels more opinionated than the current docs explain.
@@ -44,12 +47,13 @@ the app fits together.
 1. [Platform](./platform/README.md)
 2. [Apps](./apps/README.md)
 3. [Widgets](./widgets/README.md)
-4. [Workspaces](./workspaces/README.md)
-5. [Extensions](./extensions/README.md)
-6. [Auth](./auth/README.md)
-7. [Access Control](./access-control/README.md)
-8. [Operations](./operations/README.md)
-9. [ADRs](./adr/README.md)
+4. [Connections](./connections/README.md)
+5. [Workspaces](./workspaces/README.md)
+6. [Extensions](./extensions/README.md)
+7. [Auth](./auth/README.md)
+8. [Access Control](./access-control/README.md)
+9. [Operations](./operations/README.md)
+10. [ADRs](./adr/README.md)
 
 ## How To Use These Docs
 

@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BookOpenText, Database, HeartPulse, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import {
   getConnectionRuntimeDefinition,
   hydrateConnectionRuntime,
 } from "@/app/registry/connection-runtime";
+import { getAppPath } from "@/apps/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,12 +18,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createConnectionInstance,
+  deleteConnectionInstance,
   testConnection,
   updateConnectionInstance,
 } from "@/connections/api";
@@ -32,6 +36,7 @@ import { useConnectionInstances, useConnectionTypes } from "@/connections/hooks"
 import type {
   AnyConnectionTypeDefinition,
   ConnectionConfigSchema,
+  ConnectionId,
   ConnectionSchemaField,
   ConnectionInstance,
 } from "@/connections/types";
@@ -40,7 +45,7 @@ import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 
 type ConnectionsPageMode = "add-new" | "data-sources" | "explore";
 const dataSourceRowGridClass =
-  "lg:grid-cols-[minmax(260px,1.35fr)_minmax(160px,0.9fr)_minmax(180px,1fr)_120px_150px_90px_220px]";
+  "lg:grid-cols-[minmax(260px,1.45fr)_minmax(180px,1fr)_120px_150px_90px_220px]";
 const multilineSecretFieldIds = new Set([
   "serviceAccountJson",
   "caCertificate",
@@ -154,6 +159,10 @@ function getConnectionTypeForInstance(
   );
 }
 
+function sameConnectionId(left: ConnectionId | undefined, right: ConnectionId | undefined) {
+  return left !== undefined && right !== undefined && String(left) === String(right);
+}
+
 function getTypeSearchText(connection: AnyConnectionTypeDefinition) {
   return [
     connection.title,
@@ -209,14 +218,6 @@ function parseConfigEditorValue(
   } catch {
     return {};
   }
-}
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
 }
 
 function parseSchemaValues(
@@ -511,44 +512,36 @@ function ConnectionTypeListItem({
 function CreateConnectionPanel({
   selectedType,
   onBack,
+  onCreated,
 }: {
   selectedType: AnyConnectionTypeDefinition;
   onBack: () => void;
+  onCreated: () => void;
 }) {
   const queryClient = useQueryClient();
   const ConfigEditor = selectedType.configEditor;
   const newerRuntimeDefinition = getNewerRuntimeConnectionDefinition(selectedType);
   const [name, setName] = useState("");
-  const [uid, setUid] = useState("");
   const [description, setDescription] = useState("");
   const [publicValues, setPublicValues] = useState<Record<string, string>>({});
   const [secureValues, setSecureValues] = useState<Record<string, string>>({});
-  const [lastCreatedUid, setLastCreatedUid] = useState("");
 
   useEffect(() => {
     setName(selectedType.title);
-    setUid(slugify(selectedType.title));
     setDescription("");
     setPublicValues(createInitialValues(selectedType.publicConfigSchema));
     setSecureValues(createInitialValues(selectedType.secureConfigSchema));
-    setLastCreatedUid("");
   }, [selectedType]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
       const trimmedName = name.trim();
-      const trimmedUid = uid.trim();
 
       if (!trimmedName) {
         throw new Error("Connection name is required.");
       }
 
-      if (!trimmedUid) {
-        throw new Error("Connection UID is required.");
-      }
-
       return createConnectionInstance({
-        uid: trimmedUid,
         typeId: selectedType.id,
         typeVersion: selectedType.version,
         name: trimmedName,
@@ -564,9 +557,9 @@ function CreateConnectionPanel({
         }),
       });
     },
-    onSuccess: (instance) => {
-      setLastCreatedUid(instance.uid);
-      void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
+      onCreated();
     },
   });
 
@@ -595,18 +588,10 @@ function CreateConnectionPanel({
         <CardContent className="space-y-6">
           <BackendRegistryVersionWarning connection={selectedType} />
 
-          <div className="grid gap-4 xl:grid-cols-3">
+          <div className="grid gap-4 xl:grid-cols-2">
             <label className="space-y-1.5">
               <span className="text-xs font-medium text-muted-foreground">Name</span>
               <Input value={name} onChange={(event) => setName(event.target.value)} />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">UID</span>
-              <Input
-                className="font-mono text-xs"
-                value={uid}
-                onChange={(event) => setUid(slugify(event.target.value) || event.target.value)}
-              />
             </label>
             <label className="space-y-1.5">
               <span className="text-xs font-medium text-muted-foreground">Description</span>
@@ -661,11 +646,6 @@ function CreateConnectionPanel({
               Cancel
             </Button>
           </div>
-          {lastCreatedUid ? (
-            <p className="text-sm text-muted-foreground">
-              Created data source <span className="font-mono">{lastCreatedUid}</span>.
-            </p>
-          ) : null}
           {createMutation.error ? (
             <p className="text-sm text-destructive">
               {createMutation.error instanceof Error
@@ -696,6 +676,7 @@ function EditConnectionPanel({
   const [publicValues, setPublicValues] = useState<Record<string, string>>({});
   const [secureValues, setSecureValues] = useState<Record<string, string>>({});
   const [savedAt, setSavedAt] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     setName(instance.name);
@@ -713,7 +694,7 @@ function EditConnectionPanel({
         throw new Error("Connection name is required.");
       }
 
-      return updateConnectionInstance(instance.uid, {
+      return updateConnectionInstance(instance.id, {
         name: trimmedName,
         description: description.trim(),
         publicConfig: parseSchemaValues(selectedType.publicConfigSchema, publicValues, {
@@ -730,6 +711,12 @@ function EditConnectionPanel({
     onSuccess: () => {
       setSecureValues(createEmptyValues(selectedType.secureConfigSchema));
       setSavedAt(new Date().toLocaleTimeString());
+      void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteConnectionInstance(instance.id),
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
     },
   });
@@ -752,7 +739,7 @@ function EditConnectionPanel({
               <div className="min-w-0 space-y-2">
                 <CardTitle>Edit data source</CardTitle>
                 <CardDescription>
-                  {instance.name} · <span className="font-mono">{instance.uid}</span>
+                  {instance.name} · <span className="font-mono">{instance.id}</span>
                 </CardDescription>
               </div>
             </div>
@@ -767,8 +754,8 @@ function EditConnectionPanel({
               <Input value={name} onChange={(event) => setName(event.target.value)} />
             </label>
             <label className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">UID</span>
-              <Input className="font-mono text-xs" value={instance.uid} disabled />
+              <span className="text-xs font-medium text-muted-foreground">ID</span>
+              <Input className="font-mono text-xs" value={instance.id} disabled />
             </label>
             <label className="space-y-1.5">
               <span className="text-xs font-medium text-muted-foreground">Description</span>
@@ -815,13 +802,26 @@ function EditConnectionPanel({
           <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center">
             <Button
               type="button"
-              disabled={updateMutation.isPending || Boolean(newerRuntimeDefinition)}
+              disabled={
+                updateMutation.isPending ||
+                deleteMutation.isPending ||
+                Boolean(newerRuntimeDefinition)
+              }
               onClick={() => updateMutation.mutate()}
             >
               {updateMutation.isPending ? "Saving" : "Save changes"}
             </Button>
             <Button type="button" variant="outline" onClick={onBack}>
               Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              className="sm:ml-auto"
+              disabled={updateMutation.isPending || deleteMutation.isPending}
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              Delete data source
             </Button>
           </div>
           {savedAt ? (
@@ -836,6 +836,46 @@ function EditConnectionPanel({
           ) : null}
         </CardContent>
       </Card>
+      <ActionConfirmationDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          if (!deleteMutation.isPending) {
+            setDeleteDialogOpen(false);
+          }
+        }}
+        onConfirm={() => deleteMutation.mutateAsync()}
+        onSuccess={() => {
+          setDeleteDialogOpen(false);
+          onBack();
+        }}
+        isPending={deleteMutation.isPending}
+        title="Delete data source"
+        actionLabel="delete"
+        confirmButtonLabel="Delete data source"
+        confirmWord="DELETE"
+        objectLabel="data source"
+        objectSummary={
+          <div className="space-y-1">
+            <div className="font-medium text-foreground">{instance.name}</div>
+            <div className="font-mono text-xs text-muted-foreground">{instance.id}</div>
+            {instance.description ? (
+              <div className="text-sm text-muted-foreground">{instance.description}</div>
+            ) : null}
+          </div>
+        }
+        description="This removes the configured backend-owned connection instance from Command Center."
+        specialText="Queries, Explore flows, and widgets that reference this data source will stop resolving until they are pointed at another connection."
+        tone="danger"
+        successToast={{
+          title: "Data source deleted",
+          description: `Removed ${instance.name}.`,
+          variant: "success",
+        }}
+        errorToast={{
+          title: "Delete failed",
+          variant: "error",
+        }}
+      />
     </div>
   );
 }
@@ -851,7 +891,7 @@ function ConnectionInstanceRow({
 }) {
   const queryClient = useQueryClient();
   const testMutation = useMutation({
-    mutationFn: () => testConnection(instance.uid),
+    mutationFn: () => testConnection(instance.id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
     },
@@ -860,9 +900,9 @@ function ConnectionInstanceRow({
 
   return (
     <div
-      className={`grid gap-3 border-b border-border/70 px-4 py-3 text-sm last:border-b-0 lg:items-center ${dataSourceRowGridClass}`}
+      className={`grid gap-3 border-b border-border/70 px-4 py-3 text-sm last:border-b-0 lg:items-start ${dataSourceRowGridClass}`}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         <ConnectionTypeIcon
           title={connectionType?.title ?? instance.typeId}
           iconUrl={getConnectionIconUrl(connectionType)}
@@ -874,12 +914,6 @@ function ConnectionInstanceRow({
             {instance.description ?? connectionType?.title ?? "No description"}
           </div>
         </div>
-      </div>
-      <div className="min-w-0">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground lg:hidden">
-          UID
-        </div>
-        <div className="truncate font-mono text-xs text-foreground">{instance.uid}</div>
       </div>
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground lg:hidden">
@@ -906,7 +940,7 @@ function ConnectionInstanceRow({
         </div>
         {secureFieldCount || "None"}
       </div>
-      <div className="flex items-center justify-start gap-2 lg:justify-end">
+      <div className="flex items-start justify-start gap-2 lg:justify-end">
         <Button
           type="button"
           size="sm"
@@ -928,7 +962,7 @@ function ConnectionInstanceRow({
         </Button>
       </div>
       {instance.statusMessage || testMutation.error ? (
-        <div className="text-xs text-muted-foreground lg:col-span-7">
+        <div className="text-xs text-muted-foreground lg:col-span-6">
           {testMutation.error instanceof Error
             ? testMutation.error.message
             : instance.statusMessage}
@@ -948,7 +982,7 @@ function buildConnectionExploreDefaultRange() {
 function ExploreHealthTestControl({ instance }: { instance: ConnectionInstance }) {
   const queryClient = useQueryClient();
   const testMutation = useMutation({
-    mutationFn: () => testConnection(instance.uid),
+    mutationFn: () => testConnection(instance.id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
     },
@@ -1035,7 +1069,7 @@ function ConnectionDetailPanel({
             <div className="min-w-0 space-y-2">
               <CardTitle>Connection details</CardTitle>
               <CardDescription>
-                {connectionType.title} · <span className="font-mono">{instance.uid}</span>
+                {connectionType.title} · <span className="font-mono">{instance.id}</span>
               </CardDescription>
             </div>
           </div>
@@ -1190,6 +1224,7 @@ function ConnectionDetailPanel({
 }
 
 function AddNewConnectionContent() {
+  const navigate = useNavigate();
   const typesQuery = useConnectionTypes();
   const [searchValue, setSearchValue] = useState("");
   const [configuringTypeId, setConfiguringTypeId] = useState("");
@@ -1231,6 +1266,7 @@ function AddNewConnectionContent() {
       <CreateConnectionPanel
         selectedType={configuringType}
         onBack={() => setConfiguringTypeId("")}
+        onCreated={() => navigate(getAppPath("connections", "data-sources"), { replace: true })}
       />
     );
   }
@@ -1307,9 +1343,9 @@ function DataSourcesContent({
   typesById: Map<string, AnyConnectionTypeDefinition>;
 }) {
   const instancesQuery = useConnectionInstances();
-  const [editingUid, setEditingUid] = useState("");
+  const [editingId, setEditingId] = useState<ConnectionId | "">("");
   const instances = instancesQuery.data ?? [];
-  const editingInstance = instances.find((instance) => instance.uid === editingUid);
+  const editingInstance = instances.find((instance) => sameConnectionId(instance.id, editingId));
   const editingType = editingInstance ? typesById.get(editingInstance.typeId) : undefined;
 
   if (editingInstance && editingType) {
@@ -1317,15 +1353,15 @@ function DataSourcesContent({
       <EditConnectionPanel
         instance={editingInstance}
         selectedType={editingType}
-        onBack={() => setEditingUid("")}
+        onBack={() => setEditingId("")}
       />
     );
   }
 
   if (editingInstance && !editingType) {
     return (
-      <div className="space-y-4">
-        <Button type="button" variant="ghost" className="px-0" onClick={() => setEditingUid("")}>
+        <div className="space-y-4">
+        <Button type="button" variant="ghost" className="px-0" onClick={() => setEditingId("")}>
           <ArrowLeft className="h-4 w-4" />
           Data sources
         </Button>
@@ -1348,7 +1384,6 @@ function DataSourcesContent({
             className={`hidden border-b border-border/70 bg-muted/30 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground lg:grid ${dataSourceRowGridClass}`}
           >
             <div>Name</div>
-            <div>UID</div>
             <div>Type</div>
             <div>Status</div>
             <div>Last health</div>
@@ -1357,10 +1392,10 @@ function DataSourcesContent({
           </div>
           {instances.map((instance) => (
             <ConnectionInstanceRow
-              key={instance.uid}
+              key={instance.id}
               instance={instance}
               connectionType={getConnectionTypeForInstance(typesById, instance)}
-              onEdit={() => setEditingUid(instance.uid)}
+              onEdit={() => setEditingId(instance.id)}
             />
           ))}
         </div>
@@ -1395,27 +1430,27 @@ function ExploreContent({
 }) {
   const instancesQuery = useConnectionInstances();
   const instances = instancesQuery.data ?? [];
-  const [selectedUid, setSelectedUid] = useState("");
+  const [selectedId, setSelectedId] = useState<ConnectionId | "">("");
 
-  const selectedInstance = instances.find((instance) => instance.uid === selectedUid);
+  const selectedInstance = instances.find((instance) => sameConnectionId(instance.id, selectedId));
   const selectedType = selectedInstance
     ? getConnectionTypeForInstance(typesById, selectedInstance)
     : undefined;
   const queryModels = useMemo(() => selectedType?.queryModels ?? [], [selectedType]);
   const CustomExplore = selectedType?.exploreComponent;
-  const defaultRange = useMemo(() => buildConnectionExploreDefaultRange(), [selectedUid]);
+  const defaultRange = useMemo(() => buildConnectionExploreDefaultRange(), [selectedId]);
   const [exploreQueryProps, setExploreQueryProps] = useState<ConnectionQueryWidgetProps>({});
   const [showConnectionDetails, setShowConnectionDetails] = useState(false);
 
   useEffect(() => {
-    if (!selectedUid && instances.length > 0) {
-      setSelectedUid(instances[0]!.uid);
+    if (!selectedId && instances.length > 0) {
+      setSelectedId(instances[0]!.id);
     }
-  }, [instances, selectedUid]);
+  }, [instances, selectedId]);
 
   useEffect(() => {
     setShowConnectionDetails(false);
-  }, [selectedUid]);
+  }, [selectedId]);
 
   useEffect(() => {
     if (!selectedInstance) {
@@ -1427,7 +1462,7 @@ function ExploreContent({
 
     setExploreQueryProps({
       connectionRef: {
-        uid: selectedInstance.uid,
+        id: selectedInstance.id,
         typeId: selectedInstance.typeId,
       },
       queryModelId: defaultQueryModel?.id,
@@ -1441,7 +1476,7 @@ function ExploreContent({
     defaultRange.rangeStartMs,
     queryModels,
     selectedInstance?.typeId,
-    selectedInstance?.uid,
+    selectedInstance?.id,
   ]);
 
   return (
@@ -1467,10 +1502,10 @@ function ExploreContent({
                   <ConnectionPicker
                     value={
                       selectedInstance
-                        ? { uid: selectedInstance.uid, typeId: selectedInstance.typeId }
+                        ? { id: selectedInstance.id, typeId: selectedInstance.typeId }
                         : undefined
                     }
-                    onChange={(nextRef) => setSelectedUid(nextRef?.uid ?? "")}
+                    onChange={(nextRef) => setSelectedId(nextRef?.id ?? "")}
                     accepts={{ capabilities: ["query"] }}
                     placeholder="Select a data source"
                   />
@@ -1478,7 +1513,7 @@ function ExploreContent({
                 {selectedInstance ? (
                   <div className="flex flex-col gap-3 lg:items-end">
                     <ExploreHealthTestControl
-                      key={selectedInstance.uid}
+                      key={selectedInstance.id}
                       instance={selectedInstance}
                     />
                     {selectedType ? (

@@ -38,7 +38,7 @@ function buildDefaultQueryProps(input: {
 
   return {
     connectionRef: {
-      uid: connectionInstance.uid,
+      id: connectionInstance.id,
       typeId: connectionInstance.typeId,
     },
     queryModelId: defaultQueryModel?.id,
@@ -90,7 +90,7 @@ export function PostgreSqlConnectionExplore({
     );
   }, [
     connectionInstance.typeId,
-    connectionInstance.uid,
+    connectionInstance.id,
     defaultQueryModel?.id,
   ]);
 
@@ -113,7 +113,7 @@ export function PostgreSqlConnectionExplore({
               {connectionInstance.name}
             </div>
             <div className="truncate font-mono text-[11px] text-muted-foreground">
-              {connectionInstance.uid}
+              {connectionInstance.id}
             </div>
           </div>
           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-3 py-2">

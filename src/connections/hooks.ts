@@ -58,7 +58,7 @@ export function useConnectionQuery<
   return useQuery({
     queryKey: ["connections", "query", request],
     queryFn: () => queryConnection<TQuery, TResponse>(request!),
-    enabled: Boolean(request?.connectionUid) && (options?.enabled ?? true),
+    enabled: Boolean(request?.connectionId) && (options?.enabled ?? true),
     ...options,
   });
 }
@@ -72,7 +72,7 @@ export function useConnectionResource<TResponse = unknown>(
   return useQuery({
     queryKey: ["connections", "resource", request],
     queryFn: () => fetchConnectionResource<TResponse>(request!),
-    enabled: Boolean(request?.connectionUid && request.resource) && (options?.enabled ?? true),
+    enabled: Boolean(request?.connectionId && request.resource) && (options?.enabled ?? true),
     ...options,
   });
 }
@@ -88,7 +88,7 @@ export function useConnectionStream(
   const stableParams = JSON.stringify(request?.params ?? {});
 
   useEffect(() => {
-    if (!request?.connectionUid || !request.channel || options.enabled === false) {
+    if (!request?.connectionId || !request.channel || options.enabled === false) {
       return undefined;
     }
 
@@ -102,7 +102,7 @@ export function useConnectionStream(
   }, [
     options,
     request?.channel,
-    request?.connectionUid,
+    request?.connectionId,
     stableParams,
   ]);
 }

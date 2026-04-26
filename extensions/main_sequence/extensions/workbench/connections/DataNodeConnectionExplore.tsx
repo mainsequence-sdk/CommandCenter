@@ -41,7 +41,7 @@ function buildDefaultQueryProps(input: {
 
   return {
     connectionRef: {
-      uid: connectionInstance.uid,
+      id: connectionInstance.id,
       typeId: connectionInstance.typeId,
     },
     queryModelId: defaultQueryModel?.id,
@@ -60,7 +60,7 @@ export function DataNodeConnectionExplore({
   const queryModels = useMemo(() => connectionType.queryModels ?? [], [connectionType.queryModels]);
   const defaultQueryModel = queryModels[0];
   const config = connectionInstance.publicConfig as MainSequenceDataNodeConnectionPublicConfig;
-  const defaultRange = useMemo(() => buildDefaultFixedRange(), [connectionInstance.uid]);
+  const defaultRange = useMemo(() => buildDefaultFixedRange(), [connectionInstance.id]);
   const defaultLimit =
     normalizePositiveInteger(config.defaultLimit) ?? DEFAULT_MAIN_SEQUENCE_DATA_NODE_ROW_LIMIT;
   const [queryProps, setQueryProps] = useState<ConnectionQueryWidgetProps>(() =>
@@ -83,7 +83,7 @@ export function DataNodeConnectionExplore({
     );
   }, [
     connectionInstance.typeId,
-    connectionInstance.uid,
+    connectionInstance.id,
     defaultLimit,
     defaultQueryModel?.id,
     defaultQueryModel?.timeRangeAware,

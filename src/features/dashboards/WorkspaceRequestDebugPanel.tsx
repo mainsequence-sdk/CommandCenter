@@ -280,7 +280,7 @@ function ConnectionQueryTraceDetails({
         Connection Query
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
-        <DetailItem label="Connection" value={details.connectionUid} />
+        <DetailItem label="Connection" value={details.connectionId} />
         <DetailItem label="Connection type" value={details.connectionTypeId} />
         <DetailItem label="Query model" value={details.queryModelId} />
         <DetailItem label="Query kind" value={details.queryKind} />
@@ -304,9 +304,11 @@ function ConnectionQueryTraceDetails({
 function RequestDetails({
   entry,
   runtimeMode,
+  widgetLabel,
 }: {
   entry: DashboardRequestTraceEntry;
   runtimeMode: WidgetWorkspaceRuntimeMode | undefined;
+  widgetLabel?: string;
 }) {
   const details = entry.details;
   const isConnectionQuery = isRecord(details) && details.kind === "connection-query";
@@ -315,6 +317,9 @@ function RequestDetails({
     <div className="mt-3 space-y-3 rounded-xl border border-border/60 bg-card/45 p-3">
       <div className="grid gap-2 sm:grid-cols-2">
         <DetailItem label="URL" value={entry.url} wide />
+        <DetailItem label="Widget instance ID" value={entry.instanceId} wide />
+        <DetailItem label="Widget type" value={entry.widgetId} />
+        <DetailItem label="Widget title" value={widgetLabel} />
         <DetailItem label="Started" value={formatDateTime(entry.startedAtMs)} />
         <DetailItem label="Completed" value={entry.completedAtMs ? formatDateTime(entry.completedAtMs) : "Running"} />
         <DetailItem label="Runtime mode" value={runtimeMode} />
@@ -629,6 +634,16 @@ export function WorkspaceRequestDebugPanel({
                                     {widgetLabelByInstanceId[entry.instanceId] ?? entry.instanceId}
                                   </span>
                                 ) : null}
+                                {entry.instanceId ? (
+                                  <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 font-mono">
+                                    {entry.instanceId}
+                                  </span>
+                                ) : null}
+                                {entry.widgetId ? (
+                                  <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 font-mono">
+                                    {entry.widgetId}
+                                  </span>
+                                ) : null}
                                 {runtimeViolation ? (
                                   <span className="rounded-full border border-danger/25 bg-danger/10 px-2 py-0.5 font-semibold text-danger">
                                     Runtime violation
@@ -649,7 +664,15 @@ export function WorkspaceRequestDebugPanel({
                               ) : null}
 
                               {expanded ? (
-                                <RequestDetails entry={entry} runtimeMode={runtimeMode} />
+                                <RequestDetails
+                                  entry={entry}
+                                  runtimeMode={runtimeMode}
+                                  widgetLabel={
+                                    entry.instanceId
+                                      ? widgetLabelByInstanceId[entry.instanceId]
+                                      : undefined
+                                  }
+                                />
                               ) : null}
                             </div>
                           );

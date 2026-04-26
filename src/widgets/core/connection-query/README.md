@@ -11,7 +11,7 @@ backend-owned connection instances.
   planning, and `core.tabular_frame@v1` row merge/prune behavior for workspace refreshes.
 - `ConnectionQueryWidget.tsx`: compact runtime renderer for the latest published frame status.
 - `ConnectionQueryRailSummary.tsx`: workspace rail hover summary that resolves the selected
-  connection type and renders its logo, selected path, UID, and runtime status.
+  connection type and renders its logo, selected path, backend connection id, and runtime status.
 - `ConnectionQueryWidgetSettings.tsx`: thin settings wrapper around
   `src/connections/ConnectionQueryWorkbench.tsx`. It supplies workspace dashboard dates and stores
   the resulting draft props on the widget.
@@ -53,6 +53,9 @@ backend-owned connection instances.
   canonical `core.tabular_frame@v1` response in memory per widget/query identity, sends a smaller
   follow-up `timeRange` from the retained watermark minus overlap, merges returned rows using the
   user-selected `incrementalMergeKeyFields`, and prunes rows by `incrementalTimeField`.
+- Initial workspace execution, settings test/manual submit, and manual upstream recalculation run a
+  full snapshot request and replace the retained base before later dashboard refreshes request
+  deltas. Persisted widget runtime output is not treated as a successful live refresh cursor.
 - Incremental refresh remains frontend-only. The backend receives the same query envelope; only
   follow-up request ranges are narrower. The published `dataset` output remains the retained full
   tabular frame, with the shared `widget-runtime-update@v1` envelope attached under

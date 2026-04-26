@@ -2,6 +2,7 @@ import { fetchConnectionResource, queryConnection } from "@/connections/api";
 import type { DashboardRequestTraceMeta } from "@/dashboards/dashboard-request-trace";
 import {
   isConnectionResponseContractId,
+  type ConnectionId,
   type ConnectionResponseContractId,
 } from "@/connections/types";
 import type {
@@ -16,7 +17,6 @@ import type { WidgetExecutionDashboardState } from "@/widgets/types";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
-  buildGraphDefaultsFromTimeSeriesMeta,
   inferTabularTimeSeriesMetaFromFields,
   legacyTimeSeriesFrameToTabularFrameSource,
   normalizeTabularFrameSource,
@@ -161,7 +161,7 @@ function summarizeConnectionQueryRequestForDebug(
   }
 
   return {
-    connectionUid: request.connectionUid,
+    connectionId: request.connectionId,
     queryKind:
       isPlainRecord(request.query) && typeof request.query.kind === "string"
         ? request.query.kind
@@ -194,7 +194,7 @@ function buildConnectionQueryTraceDetails(input: {
 
   return {
     kind: "connection-query",
-    connectionUid: input.connectionRef.uid,
+    connectionId: input.connectionRef.id,
     connectionTypeId: input.connectionRef.typeId,
     queryModelId: input.queryModelId,
     queryKind:
@@ -244,6 +244,25 @@ function normalizeString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function normalizeIdentifier(value: unknown): ConnectionId | undefined {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) ? value : undefined;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = String(value).trim();
+  const numericId = Number(normalized);
+
+  if (/^\d+$/.test(normalized) && Number.isSafeInteger(numericId)) {
+    return numericId;
+  }
+
+  return normalized || undefined;
+}
+
 function normalizePositiveInteger(value: unknown) {
   const parsed = Number(value);
 
@@ -279,10 +298,10 @@ function normalizeConnectionRef(value: unknown): ConnectionRef | undefined {
     return undefined;
   }
 
-  const uid = normalizeString(value.uid);
+  const id = normalizeIdentifier(value.id) ?? normalizeIdentifier(value.uid);
   const typeId = normalizeString(value.typeId);
 
-  return uid && typeId ? { uid, typeId } : undefined;
+  return id && typeId ? { id, typeId } : undefined;
 }
 
 function normalizeVariables(value: unknown) {
@@ -405,6 +424,39 @@ export function normalizeConnectionQueryProps(
   };
 }
 
+function resolveEffectiveConnectionQueryProps(
+  props: ConnectionQueryWidgetProps,
+  queryModel?: ConnectionQueryModel,
+): ConnectionQueryWidgetProps {
+  const normalizedProps = normalizeConnectionQueryProps(props);
+  const resolvedQueryModelId = normalizeString(queryModel?.id) ?? normalizedProps.queryModelId;
+  const existingQuery = isPlainRecord(normalizedProps.query) ? normalizedProps.query : {};
+  const queryModelChanged = normalizedProps.queryModelId !== resolvedQueryModelId;
+  const queryKindMatches = normalizeString(existingQuery.kind) === resolvedQueryModelId;
+
+  if (!resolvedQueryModelId) {
+    return normalizedProps;
+  }
+
+  if (!queryModelChanged && queryKindMatches) {
+    return normalizedProps;
+  }
+
+  return {
+    ...normalizedProps,
+    queryModelId: resolvedQueryModelId,
+    query: queryModelChanged
+      ? {
+          ...(queryModel?.defaultQuery ?? {}),
+          kind: resolvedQueryModelId,
+        }
+      : {
+          ...existingQuery,
+          kind: resolvedQueryModelId,
+        },
+  };
+}
+
 function mapFrameFieldType(type: CommandCenterFrameFieldType): TabularFrameFieldType {
   if (type === "time") {
     return "datetime";
@@ -455,32 +507,23 @@ function frameToTabularSource(
     fields,
     meta: rawMeta,
   })?.meta;
-  const inferredTimeSeries = inferTimeSeriesMetaFromFrame(frame);
-  const timeSeries = normalizedMeta?.timeSeries ?? inferredTimeSeries ?? undefined;
+  const meta = normalizedMeta ?? (Object.keys(rawMeta).length > 0 ? rawMeta : undefined);
 
   return {
     status: "ready",
     columns,
     rows,
     fields,
-    meta: timeSeries
-      ? {
-          ...rawMeta,
-          timeSeries,
-        }
-      : Object.keys(rawMeta).length > 0
-        ? rawMeta
-        : undefined,
+    meta,
     source: {
       kind: "connection-query",
-      id: input.connectionRef.uid,
+      id: input.connectionRef.id,
       label: frame.name || input.queryModelId,
       updatedAtMs: Date.now(),
       context: {
         connectionRef: input.connectionRef,
         queryModelId: input.queryModelId,
         requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
-        graphDefaults: buildGraphDefaultsFromTimeSeriesMeta(timeSeries),
         traceId: input.traceId,
         warnings: input.warnings,
       },
@@ -526,7 +569,7 @@ function frameToPublishedSource(
       status: "ready",
       source: {
         kind: "connection-query",
-        id: input.connectionRef.uid,
+        id: input.connectionRef.id,
         label: frame.name || input.queryModelId,
         updatedAtMs: Date.now(),
         context: {
@@ -606,7 +649,7 @@ function firstConnectionFramePayload(
       ...normalizedLegacyTimeSeriesSource,
       source: normalizedLegacyTimeSeriesSource.source ?? {
         kind: "connection-query",
-        id: input.connectionRef.uid,
+        id: input.connectionRef.id,
         label: input.queryModelId,
         updatedAtMs: Date.now(),
         context: {
@@ -629,7 +672,7 @@ function firstConnectionFramePayload(
       ...normalizedSource,
       source: normalizedSource.source ?? {
         kind: "connection-query",
-        id: input.connectionRef.uid,
+        id: input.connectionRef.id,
         label: input.queryModelId,
         updatedAtMs: Date.now(),
         context: {
@@ -781,7 +824,7 @@ async function enrichConnectionQueryRequest(
     }
 
     const detail = await fetchConnectionResource({
-      connectionUid: request.connectionUid,
+      connectionId: request.connectionId,
       resource: "data-node-detail",
       params: dataNodeId ? { dataNodeId } : {},
     });
@@ -831,9 +874,9 @@ export function buildConnectionQueryRequest(
   dashboardState?: WidgetExecutionDashboardState,
   queryModel?: ConnectionQueryModel,
 ): ConnectionQueryRequest<Record<string, unknown>> | null {
-  const normalizedProps = normalizeConnectionQueryProps(props);
-  const connectionRef = normalizedProps.connectionRef;
-  const queryModelId = normalizedProps.queryModelId;
+  const effectiveProps = resolveEffectiveConnectionQueryProps(props, queryModel);
+  const connectionRef = effectiveProps.connectionRef;
+  const queryModelId = effectiveProps.queryModelId;
   const requestedOutputContract = resolveConnectionQueryRequestedOutputContract(queryModel);
 
   if (!connectionRef || !queryModelId) {
@@ -841,9 +884,9 @@ export function buildConnectionQueryRequest(
   }
 
   const timeRangeProps =
-    queryModel?.timeRangeAware && normalizedProps.timeRangeMode === "none"
-      ? { ...normalizedProps, timeRangeMode: "dashboard" as const }
-      : normalizedProps;
+    queryModel?.timeRangeAware && effectiveProps.timeRangeMode === "none"
+      ? { ...effectiveProps, timeRangeMode: "dashboard" as const }
+      : effectiveProps;
   const range = queryModel?.timeRangeAware
     ? buildEffectiveRange(timeRangeProps, dashboardState)
     : null;
@@ -853,8 +896,8 @@ export function buildConnectionQueryRequest(
   }
 
   return {
-    connectionUid: connectionRef.uid,
-    query: buildEffectiveQuery(normalizedProps),
+    connectionId: connectionRef.id,
+    query: buildEffectiveQuery(effectiveProps),
     requestedOutputContract,
     timeRange: range
       ? {
@@ -862,8 +905,8 @@ export function buildConnectionQueryRequest(
           to: new Date(range.toMs).toISOString(),
         }
       : undefined,
-    variables: queryModel?.supportsVariables ? normalizedProps.variables : undefined,
-    maxRows: queryModel?.supportsMaxRows === false ? undefined : normalizedProps.maxRows,
+    variables: queryModel?.supportsVariables ? effectiveProps.variables : undefined,
+    maxRows: queryModel?.supportsMaxRows === false ? undefined : effectiveProps.maxRows,
   };
 }
 
@@ -880,7 +923,7 @@ export function buildConnectionQueryErrorFrame(
     rows: [],
     source: {
       kind: "connection-query",
-      id: normalizedProps.connectionRef?.uid,
+      id: normalizedProps.connectionRef?.id,
       label: normalizedProps.queryModelId ?? "Connection query",
       updatedAtMs: Date.now(),
       context: {
@@ -902,9 +945,9 @@ export async function executeConnectionQueryWidgetRequest(
     signal?: AbortSignal;
   },
 ): Promise<ConnectionQueryRuntimeState> {
-  const normalizedProps = normalizeConnectionQueryProps(props);
-  const connectionRef = normalizedProps.connectionRef;
-  const queryModelId = normalizedProps.queryModelId;
+  const effectiveProps = resolveEffectiveConnectionQueryProps(props, queryModel);
+  const connectionRef = effectiveProps.connectionRef;
+  const queryModelId = effectiveProps.queryModelId;
   const requestedOutputContract = resolveConnectionQueryRequestedOutputContract(queryModel);
   const allowedOutputContracts = resolveConnectionQueryAllowedOutputContracts(queryModel);
 
@@ -916,7 +959,7 @@ export async function executeConnectionQueryWidgetRequest(
     throw new Error("Select a connection path before running this query.");
   }
 
-  const request = buildConnectionQueryRequest(normalizedProps, dashboardState, queryModel);
+  const request = buildConnectionQueryRequest(effectiveProps, dashboardState, queryModel);
 
   if (!request) {
     throw new Error("Connection query request is incomplete.");
@@ -932,26 +975,20 @@ export async function executeConnectionQueryWidgetRequest(
     });
   }
 
-  const enrichedRequest = await enrichConnectionQueryRequest(request, normalizedProps);
-  const incrementalSettings = resolveConnectionQueryIncrementalSettings(normalizedProps);
-  const incrementalDecision = options?.forceFullRefresh
-    ? {
-        active: false,
-        request: enrichedRequest,
-        fullRequest: enrichedRequest,
-        reason: "forced-full-refresh",
-      }
-    : resolveConnectionQueryIncrementalDecision({
-        fullRequest: enrichedRequest,
-        settings: incrementalSettings,
-        connectionTypeId: connectionRef.typeId,
-        queryModelId,
-        scopeId: options?.scopeId,
-        eligible:
-          Boolean(queryModel?.timeRangeAware) &&
-          normalizedProps.timeRangeMode === "dashboard" &&
-          requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT,
-      });
+  const enrichedRequest = await enrichConnectionQueryRequest(request, effectiveProps);
+  const incrementalSettings = resolveConnectionQueryIncrementalSettings(effectiveProps);
+  const incrementalDecision = resolveConnectionQueryIncrementalDecision({
+    fullRequest: enrichedRequest,
+    settings: incrementalSettings,
+    connectionTypeId: connectionRef.typeId,
+    queryModelId,
+    scopeId: options?.scopeId,
+    eligible:
+      Boolean(queryModel?.timeRangeAware) &&
+      effectiveProps.timeRangeMode === "dashboard" &&
+      requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+    forceFullSnapshot: options?.forceFullRefresh,
+  });
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute request ready", {
       originalRequest: summarizeConnectionQueryRequestForDebug(request),

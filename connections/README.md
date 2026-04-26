@@ -8,12 +8,16 @@ API clients, hooks, and picker components.
 
 - `*/index.ts`: each custom connection entrypoint exports a `ConnectionTypeDefinition`, an array of
   definitions, or an object with a `connections` array.
+- `adapter-from-api/`: generic backend-routed dynamic API connection configured from a Command
+  Center OpenAPI adapter contract.
 - `alpaca/`: Alpaca Market Data connection metadata, config editor, query editor, Explore shell,
   and official brand icon.
 - `binance/`: Binance Market Data connection metadata, config editor, query editor, Explore shell,
   and square logo asset.
 - `fred/`: FRED Economic Data connection metadata, config editor, query editor, Explore shell,
   and economic-data icon.
+- `massive/`: Massive Market Data connection metadata, catalog-backed config/query editors, and
+  Explore shell.
 - `prometheus/`: Prometheus connection metadata and its custom Explore shell.
 - `postgresql/`: PostgreSQL connection metadata and its custom SQL Explore shell.
 

@@ -73,7 +73,7 @@ function buildDefaultQueryProps(input: {
 
   return {
     connectionRef: {
-      uid: connectionInstance.uid,
+      id: connectionInstance.id,
       typeId: connectionInstance.typeId,
     },
     queryModelId: defaultQueryModel?.id,
@@ -133,7 +133,7 @@ export function SimpleTableConnectionExplore({
     );
   }, [
     connectionInstance.typeId,
-    connectionInstance.uid,
+    connectionInstance.id,
     defaultMaxRows,
     defaultQueryModel?.id,
     defaultQueryModel?.timeRangeAware,

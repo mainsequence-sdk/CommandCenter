@@ -190,7 +190,7 @@ export function AlpacaConnectionConfigEditor({
 
         <Field
           label="Default timeframe"
-          help="Default Alpaca timeframe used by OHLC bar queries when a query does not override it. Example: 1Min."
+          help="Default Alpaca timeframe used by OHLC bar queries when a query does not override it. Use Alpaca's documented bars values such as 1Min, 5Min, 1Hour, 1Day, 1Week, 1Month, or aliases like 5T and 1H."
         >
           <Input
             value={value.defaultTimeframe ?? ""}
@@ -198,7 +198,7 @@ export function AlpacaConnectionConfigEditor({
               updateConfig(value, onChange, { defaultTimeframe: event.target.value })
             }
             disabled={disabled}
-            placeholder="1Min"
+            placeholder="1Min or 5T"
           />
         </Field>
 

@@ -10,6 +10,7 @@ import { Check, ChevronDown, Loader2, Search } from "lucide-react";
 import type {
   AnyConnectionTypeDefinition,
   ConnectionCapability,
+  ConnectionId,
   ConnectionInstance,
   ConnectionRef,
 } from "@/connections/types";
@@ -89,12 +90,16 @@ function getSearchText(
 ) {
   return [
     instance.name,
-    instance.uid,
+    instance.id,
     instance.typeId,
     connectionType?.title ?? "",
     connectionType?.category ?? "",
     ...(instance.tags ?? []),
   ].join(" ").toLowerCase();
+}
+
+function sameConnectionId(left: ConnectionId | undefined, right: ConnectionId | undefined) {
+  return left !== undefined && right !== undefined && String(left) === String(right);
 }
 
 export function ConnectionPicker({
@@ -105,7 +110,7 @@ export function ConnectionPicker({
   placeholder = "Select a connection",
 }: ConnectionPickerProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const previousValueRef = useRef(value?.uid ?? "");
+  const previousValueRef = useRef<ConnectionId | "">(value?.id ?? "");
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const instancesQuery = useConnectionInstances();
@@ -129,14 +134,14 @@ export function ConnectionPicker({
         }),
     [accepts, instancesQuery.data, typesById],
   );
-  const selectedUid = value?.uid ?? "";
-  const selectedInstance = instances.find((instance) => instance.uid === selectedUid);
+  const selectedId = value?.id ?? "";
+  const selectedInstance = instances.find((instance) => sameConnectionId(instance.id, selectedId));
   const selectedType = selectedInstance
     ? getTypeForInstance(selectedInstance, typesById)
     : value?.typeId
       ? typesById.get(value.typeId) ?? getConnectionRuntimeDefinition(value.typeId)
       : undefined;
-  const selectedLabel = selectedInstance?.name ?? value?.uid;
+  const selectedLabel = selectedInstance?.name ?? value?.id;
   const selectedTypeId = selectedInstance?.typeId ?? value?.typeId;
   const normalizedSearch = searchValue.trim().toLowerCase();
   const filteredInstances = normalizedSearch
@@ -176,12 +181,12 @@ export function ConnectionPicker({
   }, [open]);
 
   useEffect(() => {
-    if (open && previousValueRef.current !== selectedUid) {
+    if (open && !sameConnectionId(previousValueRef.current || undefined, selectedId || undefined)) {
       setOpen(false);
     }
 
-    previousValueRef.current = selectedUid;
-  }, [open, selectedUid]);
+    previousValueRef.current = selectedId;
+  }, [open, selectedId]);
 
   return (
     <div className="space-y-2">
@@ -262,12 +267,12 @@ export function ConnectionPicker({
               ) : null}
 
               {filteredInstances.map((instance) => {
-                const selected = instance.uid === selectedUid;
+                const selected = sameConnectionId(instance.id, selectedId);
                 const connectionType = getTypeForInstance(instance, typesById);
 
                 return (
                   <button
-                    key={instance.uid}
+                    key={instance.id}
                     type="button"
                     role="option"
                     aria-selected={selected}
@@ -276,7 +281,7 @@ export function ConnectionPicker({
                       selected && "bg-primary/12 text-topbar-foreground",
                     )}
                     onClick={() => {
-                      onChange({ uid: instance.uid, typeId: instance.typeId });
+                      onChange({ id: instance.id, typeId: instance.typeId });
                       setOpen(false);
                     }}
                   >
