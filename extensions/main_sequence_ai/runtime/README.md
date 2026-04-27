@@ -22,6 +22,9 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   It can send `current_session` when a frontend request targets an existing backend AgentSession.
 - `agent-session-request.ts`
   Builds the backend request-body fragments used for session-bound assistant runs.
+- `agent-session-readiness.ts`
+  Shared readiness model for interaction surfaces that must wait for AgentSession detail,
+  insights, and history before enabling chat or terminal input.
 - `agent-session-stream.ts`
   Posts a live assistant request and parses the configured UI message stream into chunk callbacks.
 - `agent-sessions-api.ts`
@@ -66,6 +69,9 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - Requests that target a specific existing AgentSession should pass the session id through
   `currentSessionId` so the backend exchange can bind the astro command-center handle to
   `current_session` before hitting runtime endpoints such as history, tools, or chat.
+- Interaction surfaces should use `agent-session-readiness.ts` semantics: a backend AgentSession
+  is not ready for user input until detail, insights, and history have all loaded successfully for
+  the same selected session id.
 - Dynamic runtime-token refresh is centralized in `assistant-endpoint.ts`. Assistant-runtime
   transports should use the shared fetch wrapper instead of issuing raw `fetch(...)` calls so
   `401` / `403` can reacquire runtime access once and retry consistently.

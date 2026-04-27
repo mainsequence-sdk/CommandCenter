@@ -53,7 +53,10 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   widgetId: string;
   widgetKind?: string;
   widgetSource?: string;
+  managedRole?: string;
   placementMode?: "canvas" | "sidebar";
+  railVisibility?: "visible" | "hidden";
+  hiddenFromNormalRail?: boolean;
   hiddenInCollapsedRow: boolean;
   parentRowId?: string;
   inputs: WorkspaceGraphInputPortData[];
@@ -556,6 +559,16 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                 {data.placementMode === "sidebar" ? (
                   <Badge variant="warning" className="px-1.5 py-0.5 text-[8px] tracking-[0.12em]">
                     Sidebar
+                  </Badge>
+                ) : null}
+                {data.managedRole ? (
+                  <Badge variant="neutral" className="px-1.5 py-0.5 text-[8px] tracking-[0.12em]">
+                    Managed
+                  </Badge>
+                ) : null}
+                {data.hiddenFromNormalRail ? (
+                  <Badge variant="warning" className="px-1.5 py-0.5 text-[8px] tracking-[0.12em]">
+                    Hidden rail
                   </Badge>
                 ) : null}
                 {data.hiddenInCollapsedRow ? (

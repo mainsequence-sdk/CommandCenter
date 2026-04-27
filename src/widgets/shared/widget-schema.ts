@@ -57,6 +57,7 @@ export function normalizeWidgetPresentation(
     exposedFields: cloned.exposedFields,
     surfaceMode: cloned.surfaceMode === "transparent" ? "transparent" : "default",
     placementMode: cloned.placementMode === "sidebar" ? "sidebar" : "canvas",
+    railVisibility: cloned.railVisibility === "hidden" ? "hidden" : "visible",
   };
 }
 

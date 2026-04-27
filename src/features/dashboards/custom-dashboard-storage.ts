@@ -1,3 +1,4 @@
+import { getWidgetById } from "@/app/registry";
 import { buildCompanionItemId } from "@/dashboards/canvas-items";
 import { resolveDashboardLayout } from "@/dashboards/layout";
 import {
@@ -16,6 +17,8 @@ import type {
   DashboardCompanionLayoutItem,
   DashboardControlsState,
   DashboardDefinition,
+  DashboardManagedWidgetOwner,
+  DashboardManagedWidgetRole,
   DashboardWidgetLayout,
   DashboardWidgetRowState,
   DashboardWidgetInstance,
@@ -23,11 +26,27 @@ import type {
   DashboardWidgetPlacement,
   DashboardWidgetSpan,
 } from "@/dashboards/types";
-import type { WidgetDefinition } from "@/widgets/types";
-import { resolveDefaultWidgetPresentation } from "@/widgets/shared/widget-schema";
+import type {
+  WidgetDefinition,
+  WidgetInstancePresentation,
+  WidgetPortBindingValue,
+} from "@/widgets/types";
+import {
+  normalizeWidgetPresentation,
+  resolveDefaultWidgetPresentation,
+} from "@/widgets/shared/widget-schema";
+import {
+  normalizeGraphAuthoringSourceMode,
+  resolveGraphEmbeddedConnectionQueryProps,
+  type GraphWidgetProps,
+} from "@/widgets/core/graph/graphModel";
+import {
+  TABULAR_SOURCE_INPUT_ID,
+  TABULAR_SOURCE_OUTPUT_ID,
+} from "@/widgets/shared/tabular-widget-source";
 
 const STORAGE_PREFIX = "main-sequence.custom-dashboards";
-const STORAGE_VERSION = 5;
+const STORAGE_VERSION = 6;
 const WORKSPACE_SNAPSHOT_SCHEMA = "mainsequence.workspace";
 const WORKSPACE_SNAPSHOT_VERSION = 1;
 const DEFAULT_WORKSPACE_COLUMNS = 48;
@@ -155,6 +174,67 @@ function normalizeWidgetRuntimeState(
   }
 
   return cloneJson(runtimeState);
+}
+
+function normalizeDashboardManagedWidgetRole(
+  value: unknown,
+): DashboardManagedWidgetRole | undefined {
+  return value === "embedded-connection-source" ? value : undefined;
+}
+
+function normalizeDashboardManagedWidgetOwner(
+  managedBy: DashboardWidgetInstance["managedBy"] | undefined,
+): DashboardManagedWidgetOwner | undefined {
+  if (!isPlainRecord(managedBy)) {
+    return undefined;
+  }
+
+  const ownerInstanceId =
+    typeof managedBy.ownerInstanceId === "string"
+      ? managedBy.ownerInstanceId.trim()
+      : "";
+  const role = normalizeDashboardManagedWidgetRole(managedBy.role);
+
+  if (!ownerInstanceId || !role) {
+    return undefined;
+  }
+
+  return {
+    ownerInstanceId,
+    role,
+  };
+}
+
+function normalizeDashboardWidgetPresentation(
+  presentation: DashboardWidgetInstance["presentation"] | undefined,
+): DashboardWidgetInstance["presentation"] {
+  if (!isPlainRecord(presentation)) {
+    return undefined;
+  }
+
+  const normalized = normalizeWidgetPresentation(presentation);
+  const nextPresentation: DashboardWidgetInstance["presentation"] = {};
+
+  if (
+    normalized.exposedFields &&
+    Object.keys(normalized.exposedFields).length > 0
+  ) {
+    nextPresentation.exposedFields = normalized.exposedFields;
+  }
+
+  if (normalized.surfaceMode === "transparent") {
+    nextPresentation.surfaceMode = "transparent";
+  }
+
+  if (normalized.placementMode === "sidebar") {
+    nextPresentation.placementMode = "sidebar";
+  }
+
+  if (normalized.railVisibility === "hidden") {
+    nextPresentation.railVisibility = "hidden";
+  }
+
+  return Object.keys(nextPresentation).length > 0 ? nextPresentation : undefined;
 }
 
 function collectDashboardWidgetTreeIds(widget: DashboardWidgetInstance): string[] {
@@ -498,6 +578,8 @@ function normalizeDashboardWidgetInstance(
   const scaled: DashboardWidgetInstance = {
     ...instanceWithoutLegacyAutoGrid,
     bindings: normalizeWidgetInstanceBindings(instance.bindings),
+    managedBy: normalizeDashboardManagedWidgetOwner(instance.managedBy),
+    presentation: normalizeDashboardWidgetPresentation(instance.presentation),
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
     layout: {
       cols: scaleGridW(getLayoutCols(instance.layout, instance.widgetId), migration),
@@ -621,6 +703,8 @@ function sanitizeCanonicalDashboardWidgetInstance(
   const nextWidget: DashboardWidgetInstance = {
     ...instance,
     bindings: normalizeWidgetInstanceBindings(instance.bindings),
+    managedBy: normalizeDashboardManagedWidgetOwner(instance.managedBy),
+    presentation: normalizeDashboardWidgetPresentation(instance.presentation),
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
     layout: {
       cols: getLayoutCols(instance.layout, instance.widgetId),
@@ -1091,6 +1175,157 @@ function cloneDashboardWidgetTree(
   }
 
   return cloned;
+}
+
+function collectDashboardWidgets(
+  widgets: DashboardWidgetInstance[],
+  collected: DashboardWidgetInstance[] = [],
+): DashboardWidgetInstance[] {
+  widgets.forEach((widget) => {
+    collected.push(widget);
+
+    if (widget.row?.children?.length) {
+      collectDashboardWidgets(widget.row.children, collected);
+    }
+  });
+
+  return collected;
+}
+
+function findDashboardWidgetInTree(
+  widgets: DashboardWidgetInstance[],
+  instanceId: string,
+): DashboardWidgetInstance | null {
+  for (const widget of widgets) {
+    if (widget.id === instanceId) {
+      return widget;
+    }
+
+    if (widget.row?.children?.length) {
+      const match = findDashboardWidgetInTree(widget.row.children, instanceId);
+
+      if (match) {
+        return match;
+      }
+    }
+  }
+
+  return null;
+}
+
+function updateDashboardWidgetInTree(
+  widget: DashboardWidgetInstance,
+  instanceId: string,
+  updater: (widget: DashboardWidgetInstance) => DashboardWidgetInstance,
+): [DashboardWidgetInstance, boolean] {
+  let changed = false;
+  let nextWidget = widget;
+
+  if (widget.id === instanceId) {
+    nextWidget = updater(widget);
+    changed = nextWidget !== widget;
+  }
+
+  if (!nextWidget.row?.children?.length) {
+    return [nextWidget, changed];
+  }
+
+  let childChanged = false;
+  const nextChildren = nextWidget.row.children.map((child) => {
+    const [nextChild, nextChildChanged] = updateDashboardWidgetInTree(
+      child,
+      instanceId,
+      updater,
+    );
+
+    childChanged ||= nextChildChanged;
+    return nextChild;
+  });
+
+  if (!childChanged) {
+    return [nextWidget, changed];
+  }
+
+  return [
+    {
+      ...nextWidget,
+      row: {
+        ...nextWidget.row,
+        children: nextChildren,
+      },
+    },
+    true,
+  ];
+}
+
+function remapWidgetBindingSourceIds(
+  bindings: DashboardWidgetInstance["bindings"],
+  idMap: ReadonlyMap<string, string>,
+): DashboardWidgetInstance["bindings"] {
+  const normalizedBindings = normalizeWidgetInstanceBindings(bindings);
+
+  if (!normalizedBindings || idMap.size === 0) {
+    return normalizedBindings;
+  }
+
+  const nextBindings = Object.fromEntries(
+    Object.entries(normalizedBindings).map(([inputId, bindingValue]) => {
+      const bindingList = Array.isArray(bindingValue) ? bindingValue : [bindingValue];
+      const remappedList = bindingList.map((binding) => ({
+        ...binding,
+        sourceWidgetId: idMap.get(binding.sourceWidgetId) ?? binding.sourceWidgetId,
+      }));
+
+      return [inputId, Array.isArray(bindingValue) ? remappedList : remappedList[0]];
+    }),
+  ) satisfies DashboardWidgetInstance["bindings"];
+
+  return normalizeWidgetInstanceBindings(nextBindings);
+}
+
+function remapDashboardWidgetTreeBindingSourceIds(
+  widget: DashboardWidgetInstance,
+  idMap: ReadonlyMap<string, string>,
+): DashboardWidgetInstance {
+  const nextWidget: DashboardWidgetInstance = {
+    ...widget,
+    bindings: remapWidgetBindingSourceIds(widget.bindings, idMap),
+  };
+
+  if (!widget.row?.children?.length) {
+    return nextWidget;
+  }
+
+  return {
+    ...nextWidget,
+    row: {
+      ...widget.row,
+      children: widget.row.children.map((child) =>
+        remapDashboardWidgetTreeBindingSourceIds(child, idMap),
+      ),
+    },
+  };
+}
+
+function resolveManagedWidgetPresentation(
+  role: DashboardManagedWidgetRole,
+  basePresentation: DashboardWidgetInstance["presentation"],
+  patchPresentation?: DashboardWidgetInstance["presentation"],
+): DashboardWidgetInstance["presentation"] {
+  const mergedPresentation = {
+    ...(basePresentation ?? {}),
+    ...(patchPresentation ?? {}),
+  };
+
+  if (role === "embedded-connection-source") {
+    return normalizeDashboardWidgetPresentation({
+      ...mergedPresentation,
+      placementMode: "sidebar",
+      railVisibility: "hidden",
+    });
+  }
+
+  return normalizeDashboardWidgetPresentation(mergedPresentation);
 }
 
 function shiftDashboardWidgetTreeY(
@@ -1844,6 +2079,191 @@ export function updateDashboardWidgetBindings(
     : dashboard;
 }
 
+function updateWidgetInputBinding(
+  bindings: DashboardWidgetInstance["bindings"],
+  inputId: string,
+  binding:
+    | {
+        sourceWidgetId: string;
+        sourceOutputId: string;
+      }
+    | undefined,
+): DashboardWidgetInstance["bindings"] {
+  const nextBindings = {
+    ...(normalizeWidgetInstanceBindings(bindings) ?? {}),
+  } satisfies NonNullable<DashboardWidgetInstance["bindings"]>;
+
+  if (!binding) {
+    delete nextBindings[inputId];
+  } else {
+    nextBindings[inputId] = {
+      sourceWidgetId: binding.sourceWidgetId,
+      sourceOutputId: binding.sourceOutputId,
+    };
+  }
+
+  return normalizeWidgetInstanceBindings(nextBindings);
+}
+
+function replaceWidgetInputBindingValue(
+  bindings: DashboardWidgetInstance["bindings"],
+  inputId: string,
+  bindingValue: WidgetPortBindingValue | undefined,
+) {
+  const nextBindings = {
+    ...(normalizeWidgetInstanceBindings(bindings) ?? {}),
+  } satisfies NonNullable<DashboardWidgetInstance["bindings"]>;
+
+  if (!bindingValue) {
+    delete nextBindings[inputId];
+  } else {
+    nextBindings[inputId] = bindingValue;
+  }
+
+  return normalizeWidgetInstanceBindings(nextBindings);
+}
+
+function removeBindingReferencesToSourceWidgets(
+  bindingValue: WidgetPortBindingValue | undefined,
+  sourceWidgetIds: ReadonlySet<string>,
+) {
+  if (!bindingValue) {
+    return undefined;
+  }
+
+  if (Array.isArray(bindingValue)) {
+    const filtered = bindingValue.filter((binding) => !sourceWidgetIds.has(binding.sourceWidgetId));
+
+    if (filtered.length === 0) {
+      return undefined;
+    }
+
+    return filtered.length === 1 ? filtered[0] : filtered;
+  }
+
+  return sourceWidgetIds.has(bindingValue.sourceWidgetId) ? undefined : bindingValue;
+}
+
+function buildManagedConnectionSourceTitle(ownerWidget: DashboardWidgetInstance) {
+  const ownerTitle = ownerWidget.title?.trim();
+  return ownerTitle ? `${ownerTitle} Source` : "Graph Source";
+}
+
+function resolveGraphEmbeddedConnectionPresentation(
+  props: GraphWidgetProps,
+): WidgetInstancePresentation | undefined {
+  return isPlainRecord(props.embeddedConnectionPresentation)
+    ? normalizeDashboardWidgetPresentation(
+        cloneJson(props.embeddedConnectionPresentation as WidgetInstancePresentation),
+      )
+    : undefined;
+}
+
+function syncGraphManagedConnectionSource(
+  dashboard: DashboardDefinition,
+  instanceId: string,
+) {
+  const ownerWidget = findDashboardWidgetInTree(dashboard.widgets, instanceId);
+
+  if (!ownerWidget || ownerWidget.widgetId !== "graph") {
+    return dashboard;
+  }
+
+  const graphProps = (ownerWidget.props ?? {}) as GraphWidgetProps;
+  const graphSourceMode = normalizeGraphAuthoringSourceMode(graphProps.graphSourceMode);
+  const ownedManagedWidgets = findManagedDashboardWidgets(dashboard, {
+    ownerInstanceId: instanceId,
+    role: "embedded-connection-source",
+  });
+  const ownedManagedWidgetIds = new Set(ownedManagedWidgets.map((widget) => widget.id));
+
+  if (graphSourceMode !== "connection") {
+    if (ownedManagedWidgets.length === 0) {
+      return dashboard;
+    }
+
+    const currentBindings = normalizeWidgetInstanceBindings(ownerWidget.bindings);
+    const nextSourceBinding = removeBindingReferencesToSourceWidgets(
+      currentBindings?.[TABULAR_SOURCE_INPUT_ID],
+      ownedManagedWidgetIds,
+    );
+    let nextDashboard = dashboard;
+
+    if (currentBindings?.[TABULAR_SOURCE_INPUT_ID] !== nextSourceBinding) {
+      nextDashboard = updateDashboardWidgetBindings(
+        nextDashboard,
+        instanceId,
+        replaceWidgetInputBindingValue(
+          currentBindings,
+          TABULAR_SOURCE_INPUT_ID,
+          nextSourceBinding,
+        ),
+      );
+    }
+
+    return removeManagedDashboardWidgets(nextDashboard, {
+      ownerInstanceId: instanceId,
+      role: "embedded-connection-source",
+    });
+  }
+
+  const connectionQueryWidgetDefinition = getWidgetById("connection-query");
+
+  if (!connectionQueryWidgetDefinition) {
+    return dashboard;
+  }
+
+  const embeddedConnectionQuery = resolveGraphEmbeddedConnectionQueryProps(graphProps);
+  const embeddedConnectionPresentation =
+    resolveGraphEmbeddedConnectionPresentation(graphProps);
+  const primaryManagedWidget: DashboardWidgetInstance | null = ownedManagedWidgets[0] ?? null;
+  let nextDashboard = dashboard;
+  let nextManagedWidget: DashboardWidgetInstance | null = primaryManagedWidget;
+
+  if (!primaryManagedWidget) {
+    const created = createManagedDashboardWidget(nextDashboard, {
+      ownerInstanceId: instanceId,
+      role: "embedded-connection-source",
+      widget: connectionQueryWidgetDefinition,
+      props: embeddedConnectionQuery,
+      presentation: embeddedConnectionPresentation,
+      title: buildManagedConnectionSourceTitle(ownerWidget),
+    });
+
+    nextDashboard = created.dashboard;
+    nextManagedWidget = created.widget;
+  } else {
+    const updated = updateManagedDashboardWidget(nextDashboard, primaryManagedWidget.id, {
+      title: buildManagedConnectionSourceTitle(ownerWidget),
+      props: embeddedConnectionQuery,
+      presentation: embeddedConnectionPresentation,
+    });
+
+    nextDashboard = updated.dashboard;
+    nextManagedWidget = updated.widget;
+  }
+
+  if (!nextManagedWidget) {
+    return nextDashboard;
+  }
+
+  for (const extraManagedWidget of ownedManagedWidgets.slice(1)) {
+    nextDashboard = removeDashboardWidget(nextDashboard, extraManagedWidget.id);
+  }
+
+  const refreshedOwnerWidget = findDashboardWidgetInTree(nextDashboard.widgets, instanceId);
+  const nextBindings = updateWidgetInputBinding(
+    refreshedOwnerWidget?.bindings,
+    TABULAR_SOURCE_INPUT_ID,
+    {
+      sourceWidgetId: nextManagedWidget.id,
+      sourceOutputId: TABULAR_SOURCE_OUTPUT_ID,
+    },
+  );
+
+  return updateDashboardWidgetBindings(nextDashboard, instanceId, nextBindings);
+}
+
 export function updateDashboardWidgetSettings(
   dashboard: DashboardDefinition,
   instanceId: string,
@@ -1853,34 +2273,47 @@ export function updateDashboardWidgetSettings(
     presentation?: DashboardWidgetInstance["presentation"];
   },
 ) {
-  return {
-    ...dashboard,
-    widgets: dashboard.widgets.map((widget) => {
-      if (widget.id !== instanceId) {
-        return widget;
-      }
+  let changed = false;
 
-      return {
-        ...widget,
+  const nextWidgets = dashboard.widgets.map((widget) => {
+    const [nextWidget, widgetChanged] = updateDashboardWidgetInTree(
+      widget,
+      instanceId,
+      (currentWidget) => ({
+        ...currentWidget,
         title:
           "title" in settings
             ? (settings.title?.trim() ? settings.title.trim() : undefined)
-            : widget.title,
+            : currentWidget.title,
         props:
           "props" in settings
             ? cloneJson(settings.props ?? {})
-            : widget.props,
+            : currentWidget.props,
         presentation:
           "presentation" in settings
-            ? cloneJson(settings.presentation ?? {})
-            : widget.presentation,
+            ? normalizeDashboardWidgetPresentation(
+                cloneJson(settings.presentation ?? {}),
+              )
+            : currentWidget.presentation,
         runtimeState:
           "props" in settings
             ? undefined
-            : widget.runtimeState,
-      };
-    }),
-  };
+            : currentWidget.runtimeState,
+      }),
+    );
+
+    changed ||= widgetChanged;
+    return nextWidget;
+  });
+
+  const nextDashboard = changed
+    ? {
+        ...dashboard,
+        widgets: nextWidgets,
+      }
+    : dashboard;
+
+  return syncGraphManagedConnectionSource(nextDashboard, instanceId);
 }
 
 export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId: string) {
@@ -1890,7 +2323,7 @@ export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId
     return dashboard;
   }
 
-  return materializeDashboardLayout(
+  const nextDashboard = materializeDashboardLayout(
     removeDashboardCompanionsForInstanceIds(
       {
         ...dashboard,
@@ -1899,6 +2332,11 @@ export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId
       removal.removedIds,
     ),
   );
+
+  return removeManagedDashboardWidgets(nextDashboard, {
+    ownerInstanceId: instanceId,
+    role: "embedded-connection-source",
+  });
 }
 
 export function duplicateDashboardWidget(
@@ -1953,11 +2391,362 @@ export function duplicateDashboardWidget(
     } satisfies DashboardCompanionLayoutItem];
   });
 
-  return materializeDashboardLayout({
+  let nextDashboard = materializeDashboardLayout({
     ...dashboard,
     companions: [...(dashboard.companions ?? []), ...duplicatedCompanions],
     widgets: [...dashboard.widgets, duplicatedWidget],
   });
+
+  if (
+    current.widgetId === "graph" &&
+    normalizeGraphAuthoringSourceMode((current.props as GraphWidgetProps | undefined)?.graphSourceMode) ===
+      "connection"
+  ) {
+    const duplicatedManaged = duplicateManagedDashboardWidgets(nextDashboard, {
+      ownerInstanceId: current.id,
+      nextOwnerInstanceId: duplicatedWidget.id,
+      role: "embedded-connection-source",
+    });
+
+    nextDashboard = duplicatedManaged.dashboard;
+    nextDashboard = syncGraphManagedConnectionSource(nextDashboard, duplicatedWidget.id);
+  }
+
+  return nextDashboard;
+}
+
+export function findManagedDashboardWidgets(
+  dashboard: Pick<DashboardDefinition, "widgets">,
+  options: {
+    ownerInstanceId: string;
+    role?: DashboardManagedWidgetRole;
+  },
+): DashboardWidgetInstance[] {
+  const ownerInstanceId = options.ownerInstanceId.trim();
+
+  if (!ownerInstanceId) {
+    return [];
+  }
+
+  return collectDashboardWidgets(dashboard.widgets).filter((widget) => {
+    if (widget.managedBy?.ownerInstanceId !== ownerInstanceId) {
+      return false;
+    }
+
+    return options.role ? widget.managedBy.role === options.role : true;
+  });
+}
+
+export function findManagedDashboardWidget(
+  dashboard: Pick<DashboardDefinition, "widgets">,
+  options: {
+    ownerInstanceId: string;
+    role?: DashboardManagedWidgetRole;
+  },
+): DashboardWidgetInstance | null {
+  return findManagedDashboardWidgets(dashboard, options)[0] ?? null;
+}
+
+export function createManagedDashboardWidget(
+  dashboard: DashboardDefinition,
+  options: {
+    ownerInstanceId: string;
+    role: DashboardManagedWidgetRole;
+    widget: Pick<
+      WidgetDefinition,
+      "defaultPresentation" | "exampleProps" | "id" | "title"
+    >;
+    bindings?: DashboardWidgetInstance["bindings"];
+    position?: DashboardWidgetPlacement;
+    presentation?: DashboardWidgetInstance["presentation"];
+    props?: Record<string, unknown>;
+    title?: string;
+  },
+): { dashboard: DashboardDefinition; widget: DashboardWidgetInstance | null } {
+  const ownerInstanceId = options.ownerInstanceId.trim();
+
+  if (!ownerInstanceId || !findDashboardWidgetInTree(dashboard.widgets, ownerInstanceId)) {
+    return {
+      dashboard,
+      widget: null,
+    };
+  }
+
+  const baseWidget = buildWidgetInstance(options.widget, options.position);
+  const managedWidget = sanitizeCanonicalDashboardWidgetInstance(
+    {
+      ...baseWidget,
+      title:
+        typeof options.title === "string" && options.title.trim()
+          ? options.title.trim()
+          : baseWidget.title,
+      props:
+        options.props !== undefined
+          ? cloneJson(options.props)
+          : baseWidget.props,
+      bindings: normalizeWidgetInstanceBindings(options.bindings),
+      managedBy: {
+        ownerInstanceId,
+        role: options.role,
+      },
+      presentation: resolveManagedWidgetPresentation(
+        options.role,
+        baseWidget.presentation,
+        options.presentation,
+      ),
+      runtimeState: undefined,
+    },
+    dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS,
+  );
+  const nextDashboard = materializeDashboardLayout({
+    ...dashboard,
+    widgets: [...dashboard.widgets, managedWidget],
+  });
+
+  return {
+    dashboard: nextDashboard,
+    widget: findDashboardWidgetInTree(nextDashboard.widgets, managedWidget.id),
+  };
+}
+
+export function updateManagedDashboardWidget(
+  dashboard: DashboardDefinition,
+  managedWidgetId: string,
+  updates: {
+    title?: string;
+    props?: Record<string, unknown>;
+    bindings?: DashboardWidgetInstance["bindings"];
+    presentation?: DashboardWidgetInstance["presentation"];
+  },
+): { dashboard: DashboardDefinition; widget: DashboardWidgetInstance | null } {
+  const currentWidget = findDashboardWidgetInTree(dashboard.widgets, managedWidgetId);
+
+  if (!currentWidget?.managedBy) {
+    return {
+      dashboard,
+      widget: null,
+    };
+  }
+
+  const nextManagedWidget = sanitizeCanonicalDashboardWidgetInstance(
+    {
+      ...currentWidget,
+      title:
+        "title" in updates
+          ? (updates.title?.trim() ? updates.title.trim() : undefined)
+          : currentWidget.title,
+      props:
+        "props" in updates
+          ? cloneJson(updates.props ?? {})
+          : currentWidget.props,
+      bindings:
+        "bindings" in updates
+          ? normalizeWidgetInstanceBindings(updates.bindings)
+          : currentWidget.bindings,
+      presentation: resolveManagedWidgetPresentation(
+        currentWidget.managedBy.role,
+        currentWidget.presentation,
+        updates.presentation,
+      ),
+      runtimeState:
+        "props" in updates || "bindings" in updates
+          ? undefined
+          : currentWidget.runtimeState,
+    },
+    dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS,
+  );
+
+  let changed = false;
+  const nextWidgets = dashboard.widgets.map((widget) => {
+    const [updatedWidget, widgetChanged] = updateDashboardWidgetInTree(
+      widget,
+      managedWidgetId,
+      () => nextManagedWidget,
+    );
+
+    changed ||= widgetChanged;
+    return updatedWidget;
+  });
+
+  const nextDashboard = changed
+    ? materializeDashboardLayout({
+        ...dashboard,
+        widgets: nextWidgets,
+      })
+    : dashboard;
+
+  return {
+    dashboard: nextDashboard,
+    widget: findDashboardWidgetInTree(nextDashboard.widgets, managedWidgetId),
+  };
+}
+
+export function duplicateManagedDashboardWidgets(
+  dashboard: DashboardDefinition,
+  options: {
+    ownerInstanceId: string;
+    nextOwnerInstanceId: string;
+    role?: DashboardManagedWidgetRole;
+  },
+): {
+  dashboard: DashboardDefinition;
+  idMap: Map<string, string>;
+  widgets: DashboardWidgetInstance[];
+} {
+  const ownerInstanceId = options.ownerInstanceId.trim();
+  const nextOwnerInstanceId = options.nextOwnerInstanceId.trim();
+
+  if (
+    !ownerInstanceId ||
+    !nextOwnerInstanceId ||
+    !findDashboardWidgetInTree(dashboard.widgets, ownerInstanceId) ||
+    !findDashboardWidgetInTree(dashboard.widgets, nextOwnerInstanceId)
+  ) {
+    return {
+      dashboard,
+      idMap: new Map(),
+      widgets: [],
+    };
+  }
+
+  const managedWidgets = findManagedDashboardWidgets(dashboard, {
+    ownerInstanceId,
+    role: options.role,
+  });
+
+  if (managedWidgets.length === 0) {
+    return {
+      dashboard,
+      idMap: new Map(),
+      widgets: [],
+    };
+  }
+
+  const idMap = new Map<string, string>();
+  const clonedWidgets = managedWidgets.map((widget) =>
+    cloneDashboardWidgetTree(widget, {
+      refreshIds: true,
+      idMap,
+    }),
+  );
+  const duplicatedWidgets = clonedWidgets.map((widget) =>
+    sanitizeCanonicalDashboardWidgetInstance(
+      {
+        ...remapDashboardWidgetTreeBindingSourceIds(widget, idMap),
+        managedBy: widget.managedBy
+          ? {
+              ownerInstanceId: nextOwnerInstanceId,
+              role: widget.managedBy.role,
+            }
+          : undefined,
+        presentation: widget.managedBy
+          ? resolveManagedWidgetPresentation(
+              widget.managedBy.role,
+              widget.presentation,
+            )
+          : widget.presentation,
+        runtimeState: undefined,
+      },
+      dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS,
+    ),
+  );
+  const duplicatedCompanions = (dashboard.companions ?? []).flatMap((item) => {
+    const nextInstanceId = idMap.get(item.instanceId);
+
+    if (!nextInstanceId) {
+      return [];
+    }
+
+    return [{
+      id: buildCompanionItemId(nextInstanceId, item.fieldId),
+      instanceId: nextInstanceId,
+      fieldId: item.fieldId,
+      layout: {
+        x: item.layout.x,
+        y: item.layout.y,
+        w: item.layout.w,
+        h: item.layout.h,
+      },
+    } satisfies DashboardCompanionLayoutItem];
+  });
+  const nextDashboard = materializeDashboardLayout({
+    ...dashboard,
+    companions: [...(dashboard.companions ?? []), ...duplicatedCompanions],
+    widgets: [...dashboard.widgets, ...duplicatedWidgets],
+  });
+
+  return {
+    dashboard: nextDashboard,
+    idMap,
+    widgets: duplicatedWidgets
+      .map((widget) => findDashboardWidgetInTree(nextDashboard.widgets, widget.id))
+      .filter((widget): widget is DashboardWidgetInstance => widget !== null),
+  };
+}
+
+export function detachManagedDashboardWidget(
+  dashboard: DashboardDefinition,
+  managedWidgetId: string,
+  options?: {
+    railVisibility?: "visible" | "hidden";
+  },
+): { dashboard: DashboardDefinition; widget: DashboardWidgetInstance | null } {
+  const currentWidget = findDashboardWidgetInTree(dashboard.widgets, managedWidgetId);
+
+  if (!currentWidget?.managedBy) {
+    return {
+      dashboard,
+      widget: null,
+    };
+  }
+
+  const detachedWidget = sanitizeCanonicalDashboardWidgetInstance(
+    {
+      ...currentWidget,
+      managedBy: undefined,
+      presentation: normalizeDashboardWidgetPresentation({
+        ...(currentWidget.presentation ?? {}),
+        railVisibility: options?.railVisibility === "hidden" ? "hidden" : "visible",
+      }),
+    },
+    dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS,
+  );
+
+  let changed = false;
+  const nextWidgets = dashboard.widgets.map((widget) => {
+    const [updatedWidget, widgetChanged] = updateDashboardWidgetInTree(
+      widget,
+      managedWidgetId,
+      () => detachedWidget,
+    );
+
+    changed ||= widgetChanged;
+    return updatedWidget;
+  });
+  const nextDashboard = changed
+    ? materializeDashboardLayout({
+        ...dashboard,
+        widgets: nextWidgets,
+      })
+    : dashboard;
+
+  return {
+    dashboard: nextDashboard,
+    widget: findDashboardWidgetInTree(nextDashboard.widgets, managedWidgetId),
+  };
+}
+
+export function removeManagedDashboardWidgets(
+  dashboard: DashboardDefinition,
+  options: {
+    ownerInstanceId: string;
+    role?: DashboardManagedWidgetRole;
+  },
+): DashboardDefinition {
+  return findManagedDashboardWidgets(dashboard, options).reduce(
+    (currentDashboard, widget) => removeDashboardWidget(currentDashboard, widget.id),
+    dashboard,
+  );
 }
 
 export function createWorkspaceSnapshot(

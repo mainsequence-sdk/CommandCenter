@@ -20,6 +20,7 @@ feature folder.
 - [ADR: Headless Workspace Widget Settings Runtime](./adr-headless-workspace-settings-runtime.md)
 - [ADR: Single Runtime Owner for Workspace Widgets](./adr-single-runtime-owner-workspace-widgets.md)
 - [ADR: Connection-First Workspace Dataflow](./adr-connection-first-workspace-dataflow.md)
+- [ADR: Managed Connection Query Sources for Consumer Widgets](./adr-managed-connection-query-widget-sources.md)
 - [ADR: Incremental Workspace Normalization and Resource-Scoped Save](./adr-incremental-workspace-normalization.md)
 - [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
 - [ADR: Query-Shaped WebSocket Streaming for Connections](./adr-connection-query-websocket-streaming.md)
@@ -37,6 +38,7 @@ feature folder.
 - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
 - [ADR: Source-Driven Downstream Execution After Manual Widget Actions](./adr-source-driven-downstream-execution.md)
 - [ADR: Connection-First Workspace Dataflow](./adr-connection-first-workspace-dataflow.md)
+- [ADR: Managed Connection Query Sources for Consumer Widgets](./adr-managed-connection-query-widget-sources.md)
 - [ADR: Agent-Ready Widget Type Registry Contract](./adr-agent-ready-widget-type-registry-contract.md)
 - [ADR: Organization-Scoped Widget Type Configurations](./adr-organization-widget-type-configurations.md)
 - [ADR: Inline Canvas Editing Capability and Rich Text Widget](./adr-inline-canvas-rich-text-widget.md)
@@ -65,6 +67,7 @@ feature folder.
 
 - [ADR: Main Sequence AI Command Center Base Session](./adr-main-sequence-ai-command-center-base-session.md)
 - [ADR: Main Sequence AI Runtime Endpoint Resolution](./adr-main-sequence-ai-runtime-endpoint-resolution.md)
+- [ADR: AgentSession Interaction Readiness Gate](./adr-agent-session-interaction-readiness-gate.md)
 - [ADR: Agent Terminal Managed Session Creation and Agent Allowlist](./adr-agent-terminal-managed-session-creation.md)
 - [ADR: Main Sequence AI Workspace Reference Widget](./adr-agent-monitor-workspace-reference-widget.md)
 

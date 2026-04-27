@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getConnectionRuntimeDefinition } from "@/app/registry/connection-runtime";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { getSystemConnectionInstances } from "@/connections/api";
 import { ConnectionTypeIcon } from "@/connections/components/ConnectionTypeIcon";
 import { useConnectionInstances, useConnectionTypes } from "@/connections/hooks";
 import { cn } from "@/lib/utils";
@@ -99,6 +100,10 @@ function getSearchText(
 }
 
 function sameConnectionId(left: ConnectionId | undefined, right: ConnectionId | undefined) {
+  if (left === undefined && right === undefined) {
+    return true;
+  }
+
   return left !== undefined && right !== undefined && String(left) === String(right);
 }
 
@@ -119,9 +124,16 @@ export function ConnectionPicker({
     () => new Map((typesQuery.data ?? []).map((connection) => [connection.id, connection])),
     [typesQuery.data],
   );
+  const systemInstances = useMemo(() => getSystemConnectionInstances(), []);
   const instances = useMemo(
-    () =>
-      (instancesQuery.data ?? [])
+    () => {
+      const dedupedInstances = new Map<ConnectionId, ConnectionInstance>();
+
+      for (const instance of [...systemInstances, ...(instancesQuery.data ?? [])]) {
+        dedupedInstances.set(instance.id, instance);
+      }
+
+      return Array.from(dedupedInstances.values())
         .filter((instance) =>
           instanceMatchesAccepts(instance, getTypeForInstance(instance, typesById), accepts),
         )
@@ -131,8 +143,9 @@ export function ConnectionPicker({
           }
 
           return left.name.localeCompare(right.name);
-        }),
-    [accepts, instancesQuery.data, typesById],
+        });
+    },
+    [accepts, instancesQuery.data, systemInstances, typesById],
   );
   const selectedId = value?.id ?? "";
   const selectedInstance = instances.find((instance) => sameConnectionId(instance.id, selectedId));
@@ -197,7 +210,7 @@ export function ConnectionPicker({
             "flex min-h-12 w-full items-center justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 px-3 py-2 text-left text-sm text-foreground shadow-sm outline-none transition-colors hover:border-primary/35 hover:bg-muted/25 focus:border-primary/70 focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50",
             open && "border-primary/60 bg-muted/35",
           )}
-          disabled={disabled || loading || instances.length === 0}
+          disabled={disabled || instances.length === 0}
           aria-expanded={open}
           aria-haspopup="listbox"
           onClick={() => {

@@ -165,6 +165,10 @@ This directory contains reusable widget presentation primitives that are shared 
   the normal mounted card in the dashboard grid, while `sidebar` keeps the widget mounted for
   runtime/state publication but hides its card from the workspace canvas so it lives only in the
   workspace edit rail.
+- Widget instances can also choose `railVisibility` in presentation state. `visible` keeps the
+  normal workspace rail entry, while `hidden` keeps the widget mounted and executable but removes
+  it from normal rail chrome. This is intended for managed helper widgets such as embedded
+  connection-query sources, not for bypassing normal widget lifecycle rules.
 - Canvas companion fields from `presentation.exposedFields` remain independent from card
   placement. A sidebar-only widget can still project selected schema fields onto the canvas as
   companion cards while the owning widget instance stays in the edit rail.

@@ -19,7 +19,7 @@ import {
 
 export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
   id: "main-sequence-ai-agent-terminal",
-  widgetVersion: "3.1.0",
+  widgetVersion: "3.2.0",
   title: "Agent Terminal",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence AI",
@@ -77,11 +77,11 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Selects one supported agent, creates and stores a managed AgentSession for that widget, can optionally block manual typing, optionally loads initial history, stores a saved refresh prompt, and can append several bound upstream widget contexts or workspace references during automated refresh.",
+        "Selects one supported agent, creates and stores a managed AgentSession for that widget, can optionally block manual typing, optionally renders initial history after readiness, stores a saved refresh prompt, and can append several bound upstream widget contexts or workspace references during automated refresh.",
       requiredSetupSteps: [
         "Select one supported agent. The widget creates a fresh session automatically.",
         "Optionally block manual typing when the terminal should only run refresh-driven prompts.",
-        "Optionally enable initial history loading; it is disabled by default.",
+        "Optionally render initial history after the required session readiness load; transcript rendering is disabled by default.",
         "Optionally configure a saved prompt that runs on refresh.",
         "Optionally bind one or more upstream widget contexts or workspace references.",
       ],
@@ -90,7 +90,7 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-submit"],
       executionSummary:
-        "Owns terminal-style execution against one widget-managed AgentSession, validating the session against the normal backend before any assistant-runtime call, optionally blocking manual terminal typing while still allowing refresh-driven requests, avoiding assistant runtime requests on mount unless initial history loading is explicitly enabled, composing saved refresh prompts with bound upstream widget context or workspace references during automated refresh, and publishing the latest assistant markdown output.",
+        "Owns terminal-style execution against one widget-managed AgentSession, requiring detail, insights, and history readiness before any assistant-runtime call, optionally blocking manual terminal typing while still allowing refresh-driven requests, composing saved refresh prompts with bound upstream widget context or workspace references during automated refresh, and publishing the latest assistant markdown output.",
     },
     io: {
       mode: "static",

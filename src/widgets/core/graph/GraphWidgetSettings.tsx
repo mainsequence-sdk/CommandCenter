@@ -2,8 +2,10 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTheme } from "@/themes/ThemeProvider";
+import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import { GraphTable } from "./GraphTable";
@@ -25,7 +27,6 @@ import { TabularFieldSchemaInspector } from "@/widgets/shared/tabular-field-sche
 import { PickerField, type PickerOption } from "@/widgets/shared/picker-field";
 
 const previewRowLimit = 2_500;
-
 const lineStyleOptions: PickerOption[] = [
   { value: "solid", label: "Solid", description: "TradingView solid stroke." },
   { value: "dotted", label: "Dotted", description: "TradingView dotted stroke." },
@@ -124,7 +125,10 @@ function buildSeriesStylingEmptyMessage(input: {
 }
 
 export function GraphWidgetSettings({
+  widget,
   draftProps,
+  draftPresentation,
+  onDraftPresentationChange,
   editable,
   onDraftPropsChange,
   controllerContext,
@@ -297,6 +301,16 @@ export function GraphWidgetSettings({
 
   return (
     <div className="space-y-4">
+      <WidgetSchemaForm
+        widget={widget}
+        draftProps={draftProps}
+        onDraftPropsChange={onDraftPropsChange}
+        draftPresentation={draftPresentation}
+        onDraftPresentationChange={onDraftPresentationChange}
+        editable={editable}
+        context={controllerContext}
+      />
+
       <TabularFieldSchemaInspector
         title="Resolved source schema"
         description="Inspect the resolved field schema this graph is using for axis selection, grouping, and date parsing."

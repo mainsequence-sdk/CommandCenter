@@ -31,7 +31,11 @@ export function useCustomWorkspaceStudio() {
       ? "evidence"
       : "full-data";
   const requestedWidgetSettingsTab =
-    requestedWidgetTabParam === "bindings" ? "bindings" : "settings";
+    requestedWidgetTabParam === "bindings"
+      ? "bindings"
+      : requestedWidgetTabParam === "connection"
+        ? "connection"
+        : "settings";
   const persistenceMode = getWorkspacePersistenceMode();
   const selectedWorkspaceView =
     snapshotMode

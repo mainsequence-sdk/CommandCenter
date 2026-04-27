@@ -1,10 +1,66 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { sql } from "@codemirror/lang-sql";
+import {
+  defaultHighlightStyle,
+  syntaxHighlighting,
+} from "@codemirror/language";
+import type { Extension } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import CodeMirror from "@uiw/react-codemirror";
 import { X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
+
+const EMPTY_EDITOR_EXTENSIONS: readonly Extension[] = [];
+const SQL_EDITOR_EXTENSIONS: readonly Extension[] = [sql()];
+
+const queryEditorTheme = EditorView.theme({
+  "&": {
+    backgroundColor: "transparent",
+    color: "var(--foreground)",
+    minHeight: "260px",
+  },
+  ".cm-content": {
+    caretColor: "var(--foreground)",
+    fontFamily:
+      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
+    fontSize: "0.75rem",
+    lineHeight: "1.5rem",
+    padding: "0.75rem 0.5rem",
+  },
+  ".cm-gutters": {
+    backgroundColor: "color-mix(in srgb, var(--muted) 24%, transparent)",
+    borderRight: "1px solid color-mix(in srgb, var(--border) 70%, transparent)",
+    color: "var(--muted-foreground)",
+  },
+  ".cm-line": {
+    padding: "0 0.625rem",
+  },
+  ".cm-placeholder": {
+    color: "var(--muted-foreground)",
+  },
+  ".cm-scroller": {
+    fontFamily:
+      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
+    minHeight: "260px",
+  },
+  ".cm-selectionBackground": {
+    backgroundColor: "color-mix(in srgb, var(--primary) 28%, transparent) !important",
+  },
+  ".cm-activeLine": {
+    backgroundColor: "color-mix(in srgb, var(--muted) 18%, transparent)",
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "color-mix(in srgb, var(--muted) 24%, transparent)",
+    color: "var(--foreground)",
+  },
+  "&.cm-focused": {
+    outline: "none",
+  },
+});
 
 export function ConnectionQueryEditorSection({
   children,
@@ -128,6 +184,82 @@ export function QueryNumberField({
   );
 }
 
+export function QueryCodeField({
+  ariaLabel,
+  disabled,
+  extensions = EMPTY_EDITOR_EXTENSIONS,
+  help,
+  hideLabel,
+  languageLabel,
+  label,
+  onChange,
+  placeholder,
+  value,
+}: {
+  ariaLabel?: string;
+  disabled?: boolean;
+  extensions?: readonly Extension[];
+  help?: ReactNode;
+  hideLabel?: boolean;
+  languageLabel: string;
+  label: ReactNode;
+  onChange: (value: string | undefined) => void;
+  placeholder?: string;
+  value?: string;
+}) {
+  const editorExtensions = useMemo(
+    () => [
+      queryEditorTheme,
+      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      ...extensions,
+    ],
+    [extensions],
+  );
+
+  return (
+    <ConnectionQueryField className="md:col-span-2" help={help} hideLabel={hideLabel} label={label}>
+      <div
+        className={[
+          "overflow-hidden rounded-[calc(var(--radius)-6px)] border border-input bg-background/70 shadow-xs transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
+          disabled ? "opacity-65" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        data-no-widget-drag="true"
+      >
+        <div className="flex items-center justify-between border-b border-border/70 bg-muted/35 px-3 py-1.5">
+          <span className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">
+            {languageLabel}
+          </span>
+        </div>
+        <CodeMirror
+          value={value ?? ""}
+          onChange={(nextValue) => {
+            onChange(nextValue || undefined);
+          }}
+          readOnly={disabled}
+          editable={!disabled}
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: true,
+            autocompletion: false,
+            highlightActiveLine: true,
+            highlightActiveLineGutter: true,
+            highlightSelectionMatches: true,
+            searchKeymap: true,
+            lintKeymap: false,
+          }}
+          extensions={editorExtensions}
+          theme="none"
+          minHeight="260px"
+          placeholder={placeholder}
+          aria-label={ariaLabel ?? `${languageLabel} editor`}
+        />
+      </div>
+    </ConnectionQueryField>
+  );
+}
+
 export function QuerySqlField({
   disabled,
   help,
@@ -146,29 +278,18 @@ export function QuerySqlField({
   value?: string;
 }) {
   return (
-    <ConnectionQueryField className="md:col-span-2" help={help} hideLabel={hideLabel} label={label}>
-      <div
-        className="overflow-hidden rounded-[calc(var(--radius)-6px)] border border-input bg-background/70 shadow-xs transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
-        data-no-widget-drag="true"
-      >
-        <div className="flex items-center justify-between border-b border-border/70 bg-muted/35 px-3 py-1.5">
-          <span className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">
-            SQL
-          </span>
-        </div>
-        <Textarea
-          value={value ?? ""}
-          onChange={(event) => {
-            onChange(event.target.value || undefined);
-          }}
-          disabled={disabled}
-          placeholder={placeholder}
-          spellCheck={false}
-          className="min-h-[260px] resize-y rounded-none border-0 bg-transparent px-4 py-3 font-mono text-xs leading-6 shadow-none outline-none focus-visible:ring-0"
-          aria-label="SQL editor"
-        />
-      </div>
-    </ConnectionQueryField>
+    <QueryCodeField
+      ariaLabel="SQL editor"
+      disabled={disabled}
+      extensions={SQL_EDITOR_EXTENSIONS}
+      help={help}
+      hideLabel={hideLabel}
+      label={label}
+      languageLabel="SQL"
+      onChange={onChange}
+      placeholder={placeholder}
+      value={value}
+    />
   );
 }
 

@@ -34,17 +34,18 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 - New widgets persist `agentId`, `agentName`, and the widget-managed `agentSessionId`. The agent
   name lets the terminal send live chat requests without first loading history just to recover
   metadata.
-- On mount or session-id change, the widget first validates the AgentSession through the normal
-  Command Center backend detail endpoint. If that detail request returns `404`, the terminal is
-  invalidated, shows `session-not-found`, and does not call the assistant runtime.
-- Initial session history loading is optional and disabled by default through the
-  `loadInitialHistory` prop. With the default settings, mounting the widget validates against the
-  normal backend but does not call the assistant runtime.
+- On mount or session-id change, the widget validates interaction readiness before exposing the
+  prompt. Readiness requires the normal Command Center backend detail endpoint, session insights,
+  and session history for the same `AgentSession` id. If any required request fails, the terminal
+  stays non-interactive and shows the failure instead of rendering a usable empty terminal.
+- Initial transcript rendering is optional and disabled by default through the `loadInitialHistory`
+  prop. The widget still requests history before becoming ready; with the default settings it uses
+  that response for readiness and thread metadata but renders an empty terminal transcript.
 - The terminal widget does not call `/api/chat/session-tools`; tool availability remains a chat UI
   concern and is intentionally not loaded by this widget.
-- Session history is loaded only when `loadInitialHistory` is enabled, when a refresh without a
-  prompt explicitly reloads history, or after a sent terminal message completes and the widget
-  reconciles the transcript.
+- Session history is always loaded during initial readiness. It is also loaded when a refresh
+  without a prompt explicitly reloads history, or after a sent terminal message completes and the
+  widget reconciles the transcript.
 - Live requests post to the same assistant endpoint as chat, but render the stream as terminal
   output instead of chat bubbles.
 - Widget settings and Agents Monitor now both reuse the same agent-only picker instead of exposing

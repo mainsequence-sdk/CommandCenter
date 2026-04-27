@@ -15,7 +15,7 @@ import {
   type XYPosition,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, Boxes, Bug, Save } from "lucide-react";
+import { ArrowLeft, Boxes, Bug, Eye, Save } from "lucide-react";
 
 import { getWidgetById } from "@/app/registry";
 import { hasAllPermissions } from "@/auth/permissions";
@@ -70,6 +70,10 @@ import {
 } from "./WorkspaceChrome";
 import { WorkspaceRequestDebugPanel } from "./WorkspaceRequestDebugPanel";
 import { loadPersistedWorkspaceDetail } from "./workspace-persistence";
+import {
+  isManagedDashboardWidgetHiddenFromNormalRail,
+  resolveVisibleWorkspaceGraph,
+} from "./workspace-widget-visibility";
 import {
   buildWorkspaceStudioCanvasPath,
   useWorkspaceStudioSurfaceConfig,
@@ -156,41 +160,6 @@ function resolveGraphNodeTitle(
   }
 
   return node.title;
-}
-
-function resolveVisibleWorkspaceGraph(
-  graph: DashboardWidgetDependencyGraph,
-) {
-  const incidentEdgeCountByNodeId = new Map<string, number>(
-    graph.nodes.map((node) => [node.id, 0]),
-  );
-
-  for (const edge of graph.edges) {
-    incidentEdgeCountByNodeId.set(
-      edge.from,
-      (incidentEdgeCountByNodeId.get(edge.from) ?? 0) + 1,
-    );
-    incidentEdgeCountByNodeId.set(
-      edge.to,
-      (incidentEdgeCountByNodeId.get(edge.to) ?? 0) + 1,
-    );
-  }
-
-  const nodes = graph.nodes.filter((node) => {
-    const incidentEdgeCount = incidentEdgeCountByNodeId.get(node.id) ?? 0;
-
-    return incidentEdgeCount > 0 || node.inputs.length > 0 || node.outputs.length > 0;
-  });
-  const visibleNodeIds = new Set(nodes.map((node) => node.id));
-  const edges = graph.edges.filter(
-    (edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to),
-  );
-
-  return {
-    nodes,
-    edges,
-    hiddenNodeCount: Math.max(0, graph.nodes.length - nodes.length),
-  };
 }
 
 function resolveInputPortStatus(
@@ -354,12 +323,14 @@ function layoutGraphNodes(
 
 function WorkspaceGraphCanvas({
   currentWorkspaceId,
+  includeManagedHiddenNodes,
   onBindingsChange,
   onOpenWidgetSettings,
   userId,
   workspaceListPath,
 }: {
   currentWorkspaceId: string;
+  includeManagedHiddenNodes: boolean;
   onBindingsChange: (
     instanceId: string,
     bindings: DashboardWidgetInstance["bindings"],
@@ -399,13 +370,17 @@ function WorkspaceGraphCanvas({
   const visibleGraph = useMemo(
     () =>
       dependencyModel
-        ? resolveVisibleWorkspaceGraph(dependencyModel.graph)
+        ? resolveVisibleWorkspaceGraph(dependencyModel.graph, {
+            includeManagedHiddenNodes,
+          })
         : {
             nodes: [],
             edges: [],
+            hiddenManagedNodeCount: 0,
+            hiddenNonGraphNodeCount: 0,
             hiddenNodeCount: 0,
           },
-    [dependencyModel],
+    [dependencyModel, includeManagedHiddenNodes],
   );
   const workspaceReferenceTargetByNodeId = useMemo(() => {
     if (!dependencyModel) {
@@ -786,6 +761,9 @@ function WorkspaceGraphCanvas({
           widgetKind: widgetDefinition?.kind,
           widgetSource: widgetDefinition?.source,
           placementMode: node.placementMode,
+          managedRole: node.managedRole,
+          railVisibility: node.railVisibility,
+          hiddenFromNormalRail: node.hiddenFromNormalRail,
           hiddenInCollapsedRow: node.hiddenInCollapsedRow,
           parentRowId: node.parentRowId,
           expanded: Boolean(expandedNodeIds[node.id]),
@@ -1025,7 +1003,9 @@ function WorkspaceGraphCanvas({
           ? createDashboardWidgetDependencyModel(readyWorkspace.widgets, getWidgetById)
           : null;
         const referencedVisibleGraph = referencedModel
-          ? resolveVisibleWorkspaceGraph(referencedModel.graph)
+          ? resolveVisibleWorkspaceGraph(referencedModel.graph, {
+              includeManagedHiddenNodes,
+            })
           : null;
         const referencedLayout = referencedVisibleGraph
           ? layoutGraphNodes(referencedVisibleGraph)
@@ -1261,6 +1241,7 @@ function WorkspaceGraphCanvas({
     return { edges, nodes };
   }, [
     expandedReferenceNodeIds,
+    includeManagedHiddenNodes,
     localFlowNodes,
     referencedWorkspaceLoadStateById,
     workspaceListPath,
@@ -1520,8 +1501,11 @@ function WorkspaceGraphCanvas({
     <div className="relative h-full min-h-0 overflow-hidden">
       {visibleGraph.hiddenNodeCount > 0 ? (
         <div className="pointer-events-none absolute top-3 right-3 z-20 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/82 px-3 py-2 text-xs text-muted-foreground shadow-[var(--shadow-panel)] backdrop-blur-md">
-          {visibleGraph.hiddenNodeCount} non-graph widget
-          {visibleGraph.hiddenNodeCount === 1 ? "" : "s"} hidden
+          {visibleGraph.hiddenManagedNodeCount > 0 && visibleGraph.hiddenNonGraphNodeCount > 0
+            ? `${visibleGraph.hiddenManagedNodeCount} managed and ${visibleGraph.hiddenNonGraphNodeCount} non-graph widgets hidden`
+            : visibleGraph.hiddenManagedNodeCount > 0
+              ? `${visibleGraph.hiddenManagedNodeCount} managed widget${visibleGraph.hiddenManagedNodeCount === 1 ? "" : "s"} hidden`
+              : `${visibleGraph.hiddenNonGraphNodeCount} non-graph widget${visibleGraph.hiddenNonGraphNodeCount === 1 ? "" : "s"} hidden`}
         </div>
       ) : null}
       {visibleGraph.nodes.length === 0 ? (
@@ -1604,10 +1588,12 @@ export function CustomWorkspaceGraphPage({
   } = useCustomWorkspaceStudio();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [requestDebugOpen, setRequestDebugOpen] = useState(false);
+  const [showManagedWidgets, setShowManagedWidgets] = useState(false);
 
   useEffect(() => {
     setLibraryOpen(false);
     setRequestDebugOpen(false);
+    setShowManagedWidgets(false);
   }, [selectedDashboard?.id]);
 
   if (!user) {
@@ -1629,7 +1615,9 @@ export function CustomWorkspaceGraphPage({
       ...(instance.requiredPermissions ?? []),
     ];
 
-    return widget && hasAllPermissions(permissions, required)
+    return widget &&
+      hasAllPermissions(permissions, required) &&
+      !isManagedDashboardWidgetHiddenFromNormalRail(instance)
       ? [
           {
             id: instance.id,
@@ -1665,6 +1653,15 @@ export function CustomWorkspaceGraphPage({
                 }}
               >
                 <Boxes className="h-3.5 w-3.5" />
+              </WorkspaceToolbarButton>
+              <WorkspaceToolbarButton
+                active={showManagedWidgets}
+                title="Show managed widgets"
+                onClick={() => {
+                  setShowManagedWidgets((current) => !current);
+                }}
+              >
+                <Eye className="h-3.5 w-3.5" />
               </WorkspaceToolbarButton>
               <WorkspaceToolbarButton
                 active={requestDebugOpen}
@@ -1739,6 +1736,7 @@ export function CustomWorkspaceGraphPage({
         <div className="absolute inset-0 pl-12">
           <WorkspaceGraphCanvas
             currentWorkspaceId={selectedDashboard.id}
+            includeManagedHiddenNodes={showManagedWidgets}
             userId={user.id}
             workspaceListPath={workspaceListPath}
             onBindingsChange={(instanceId, bindings) => {

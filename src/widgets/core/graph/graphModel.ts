@@ -2,6 +2,7 @@ import type {
   TabularSourceDetail,
   TabularDataRow,
 } from "@/widgets/shared/tabular-widget-source";
+import type { WidgetInstancePresentation } from "@/widgets/types";
 import {
   buildGraphDefaultsFromTimeSeriesMeta,
   resolveTabularTimeSeriesMeta,
@@ -21,6 +22,10 @@ import {
   type TabularWidgetSourceReferenceProps,
   type ResolvedTabularWidgetSourceConfig,
 } from "@/widgets/shared/tabular-widget-source";
+import {
+  normalizeConnectionQueryProps,
+  type ConnectionQueryWidgetProps,
+} from "@/widgets/core/connection-query/connectionQueryModel";
 
 export type GraphProvider = "tradingview" | "echarts";
 export type GraphChartType = "line" | "area" | "bar";
@@ -28,6 +33,7 @@ export type GraphViewMode = "chart" | "table";
 export type GraphSeriesAxisMode = "shared" | "separate";
 export type GraphTimeAxisMode = "auto" | "date" | "datetime";
 export type GraphNormalizationAnchor = number | "series-start" | null;
+export type GraphAuthoringSourceMode = "bound" | "connection";
 export type GraphLineStyle =
   | "solid"
   | "dotted"
@@ -46,6 +52,9 @@ export type GraphSeriesOverrides = Record<string, GraphSeriesOverride>;
 export interface GraphWidgetProps
   extends TabularWidgetSourceProps,
     TabularWidgetSourceReferenceProps {
+  graphSourceMode?: GraphAuthoringSourceMode;
+  embeddedConnectionQuery?: ConnectionQueryWidgetProps;
+  embeddedConnectionPresentation?: WidgetInstancePresentation;
   chartType?: GraphChartType;
   groupField?: string;
   limit?: number;
@@ -120,6 +129,10 @@ function uniqueStrings(values: Array<string | null | undefined>) {
   });
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function normalizePositiveInteger(value: unknown) {
   const parsed = Number(value);
 
@@ -142,6 +155,10 @@ function normalizeNonNegativeNumber(value: unknown) {
 
 function normalizeTimeAxisMode(value: unknown): GraphTimeAxisMode {
   return value === "date" || value === "datetime" ? value : "auto";
+}
+
+export function normalizeGraphAuthoringSourceMode(value: unknown): GraphAuthoringSourceMode {
+  return value === "connection" ? "connection" : "bound";
 }
 
 function normalizeProvider(value: unknown): GraphProvider {
@@ -270,6 +287,16 @@ export function resolveGraphConfig(
   };
 }
 
+export function resolveGraphEmbeddedConnectionQueryProps(
+  props: GraphWidgetProps,
+): ConnectionQueryWidgetProps {
+  return normalizeConnectionQueryProps(
+    isPlainRecord(props.embeddedConnectionQuery)
+      ? (props.embeddedConnectionQuery as ConnectionQueryWidgetProps)
+      : {},
+  );
+}
+
 export function normalizeGraphProps(
   props: GraphWidgetProps,
   detail?: TabularSourceDetail | null,
@@ -282,6 +309,11 @@ export function normalizeGraphProps(
     ...sourceProps,
     sourceMode: "filter_widget",
     sourceWidgetId: sourceReferenceProps.sourceWidgetId,
+    graphSourceMode: normalizeGraphAuthoringSourceMode(props.graphSourceMode),
+    embeddedConnectionQuery: resolveGraphEmbeddedConnectionQueryProps(props),
+    embeddedConnectionPresentation: isPlainRecord(props.embeddedConnectionPresentation)
+      ? (props.embeddedConnectionPresentation as WidgetInstancePresentation)
+      : undefined,
     provider: resolved.provider,
     chartType: resolved.chartType,
     xField: resolved.xField,

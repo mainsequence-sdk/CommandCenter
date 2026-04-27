@@ -153,6 +153,7 @@ import {
 import type { WorkspaceSnapshotCaptureProfile } from "./snapshot/types";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
+import { isManagedDashboardWidgetHiddenFromNormalRail } from "./workspace-widget-visibility";
 import {
   loadWidgetCatalogPreferences,
   pushRecentWidgetId,
@@ -2621,7 +2622,9 @@ export function CustomDashboardStudioPage({
       ...(instance.requiredPermissions ?? []),
     ];
 
-    return widget && hasAllPermissions(permissions, required)
+    return widget &&
+      hasAllPermissions(permissions, required) &&
+      !isManagedDashboardWidgetHiddenFromNormalRail(instance)
       ? [
           {
             id: instance.id,

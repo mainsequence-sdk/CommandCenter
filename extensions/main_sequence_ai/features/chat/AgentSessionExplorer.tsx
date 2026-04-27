@@ -54,6 +54,8 @@ export function AgentSessionExplorer({
     agentSessions,
     currentSessionId,
     deleteAgentSession,
+    isActiveSessionLoading,
+    isCreatingAgentSession,
     isLoadingLatestSessions,
     latestSessionsError,
     runStatus,
@@ -72,6 +74,8 @@ export function AgentSessionExplorer({
     runStatus === "queued" ||
     runStatus === "thinking" ||
     runStatus === "responding" ||
+    isActiveSessionLoading ||
+    isCreatingAgentSession ||
     Boolean(activeSessionSummary?.working);
   const showAgentSearchResults =
     isSearching || Boolean(searchError) || trimmedQuery.length >= 3;
@@ -326,6 +330,7 @@ export function AgentSessionExplorer({
                         <button
                           type="button"
                           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background/70 hover:text-danger"
+                          disabled={busy}
                           title="Delete session"
                           aria-label={`Delete session ${session.id}`}
                           onClick={async (event) => {

@@ -1,5 +1,6 @@
-import { ConnectionQueryWorkbench } from "@/connections/ConnectionQueryWorkbench";
-import { useDashboardControls } from "@/dashboards/DashboardControls";
+import { getConnectionTypeById } from "@/app/registry";
+import { ConnectionQuerySettingsSurface } from "@/connections/ConnectionQuerySettingsSurface";
+import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
@@ -9,6 +10,8 @@ type Props = WidgetSettingsComponentProps<ConnectionQueryWidgetProps>;
 
 export function ConnectionQueryWidgetSettings({
   widget,
+  instanceId,
+  instanceTitle,
   draftProps,
   draftPresentation,
   editable,
@@ -16,25 +19,24 @@ export function ConnectionQueryWidgetSettings({
   onDraftPropsChange,
   onDraftPresentationChange,
 }: Props) {
-  const dashboardControls = useDashboardControls();
+  const widgetRegistry = useDashboardWidgetRegistry();
+  const currentWidget = widgetRegistry.find((entry) => entry.id === instanceId) ?? null;
+  const selectedConnectionType = draftProps.connectionRef?.typeId
+    ? getConnectionTypeById(draftProps.connectionRef.typeId)
+    : undefined;
+  const useTypedQueryEditor = Boolean(selectedConnectionType?.queryEditor);
 
   return (
-    <ConnectionQueryWorkbench
+    <ConnectionQuerySettingsSurface
       value={draftProps}
       onChange={onDraftPropsChange}
       editable={editable}
-      dashboardState={{
-        timeRangeKey: dashboardControls.timeRangeKey,
-        rangeStartMs: dashboardControls.rangeStartMs,
-        rangeEndMs: dashboardControls.rangeEndMs,
-        refreshIntervalMs: dashboardControls.refreshIntervalMs,
-      }}
-      dashboardTimeRangeLabel={dashboardControls.timeRangeLabel}
-      fixedRangeFallback={{
-        rangeStartMs: dashboardControls.rangeStartMs,
-        rangeEndMs: dashboardControls.rangeEndMs,
-      }}
-      connectionPathSettings={
+      runtimeState={currentWidget?.runtimeState}
+      runtimeStatusTitle="Current source runtime"
+      runtimeStatusDescription="This is the last live runtime state published by this source widget while you edit the draft query."
+      runtimeStatusEmptyMessage="This source has not published a live dataset yet."
+      sourceTitle={instanceTitle}
+      connectionPathSettings={useTypedQueryEditor ? undefined : (
         <WidgetSchemaForm
           widget={widget}
           draftProps={draftProps}
@@ -44,9 +46,9 @@ export function ConnectionQueryWidgetSettings({
           editable={editable}
           context={controllerContext}
         />
-      }
+      )}
       showConnectionPicker
-      showQueryEditor={false}
+      showQueryEditor={useTypedQueryEditor}
       runButtonLabel="Test"
       resultDescription="Preview of the normalized widget runtime frame."
     />

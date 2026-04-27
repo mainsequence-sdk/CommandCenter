@@ -7,5 +7,6 @@ export {
   getAgentSessionRecordTitle,
   getAgentSessionRecordUpdatedAt,
   patchAgentSessionModelConfig,
+  startNewAgentSessionRequest,
   type AgentSessionApiRecord,
 } from "../runtime/agent-sessions-api";

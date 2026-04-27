@@ -5,6 +5,7 @@ import type { WidgetRuntimeUpdateEnvelope } from "@/widgets/shared/runtime-updat
 export type WidgetKind = "kpi" | "chart" | "table" | "feed" | "custom";
 export type WidgetFieldAnchor = "top" | "right" | "bottom" | "left";
 export type WidgetFieldPopMode = "inline" | "chip-group" | "token-list" | "panel";
+export type WidgetRailVisibility = "visible" | "hidden";
 export const DEFAULT_WIDGET_SIZE = { w: 8, h: 6 } as const;
 
 export interface WidgetExposedFieldState {
@@ -27,6 +28,7 @@ export interface WidgetInstancePresentation {
   exposedFields?: Record<string, WidgetExposedFieldState>;
   surfaceMode?: "default" | "transparent";
   placementMode?: "canvas" | "sidebar";
+  railVisibility?: WidgetRailVisibility;
 }
 
 export interface WidgetRailSummaryComponentProps<

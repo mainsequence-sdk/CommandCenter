@@ -24,6 +24,7 @@ import {
   isAgentSessionNotFoundError,
   type AgentSessionApiRecord,
 } from "../../runtime/agent-sessions-api";
+import { fetchSessionInsights } from "../../runtime/session-insights-api";
 import { fetchSessionHistory } from "../../runtime/session-history-api";
 import "./AgentTerminalWidget.css";
 import { AGENT_TERMINAL_HISTORY_REFRESH_RUNTIME_KEY } from "./agentTerminalExecution";
@@ -521,7 +522,6 @@ export function AgentTerminalWidget({
         setLines(buildAgentTerminalLoadingLines(targetSessionId));
         setSessionState(null);
         sessionStateRef.current = null;
-        focusPromptInput(6, 20);
       }
 
       try {
@@ -590,12 +590,9 @@ export function AgentTerminalWidget({
             triggerDownstream: true,
           });
         }
-
-        focusPromptInput(6, 40);
       }
     },
     [
-      focusPromptInput,
       configuredAgentName,
       publishLatestAssistantMarkdown,
       sessionToken,
@@ -636,7 +633,7 @@ export function AgentTerminalWidget({
     const cursorPosition = input.value.length;
     input.focus({ preventScroll: true });
     input.setSelectionRange(cursorPosition, cursorPosition);
-  }, [isStreaming, sessionReady]);
+  }, [blockUserInput, isStreaming, sessionReady]);
 
   useEffect(() => {
     sessionValidationControllerRef.current?.abort();
@@ -656,18 +653,28 @@ export function AgentTerminalWidget({
       void publishLatestAssistantMarkdownRef.current?.({
         markdown: null,
       });
-      focusPromptInput(6, 20);
       return;
     }
 
     const controller = new AbortController();
     sessionValidationControllerRef.current = controller;
     setLines(buildAgentTerminalValidationLines(sessionId));
-    focusPromptInput(6, 20);
 
     void (async () => {
       try {
         const sessionDetail = await fetchAgentSessionDetail({
+          sessionId,
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+        await fetchSessionInsights({
+          sessionId,
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+        const history = await fetchSessionHistory({
           sessionId,
           signal: controller.signal,
           token: sessionToken,
@@ -683,26 +690,38 @@ export function AgentTerminalWidget({
           record: sessionDetail,
           sessionId,
         });
+        const historyAgentName = history.session.agentName.trim();
+        const requestAgentName =
+          historyAgentName ||
+          validatedSessionState.requestAgentName ||
+          configuredAgentName ||
+          null;
+        const readySessionState: AgentTerminalSessionState = {
+          ...validatedSessionState,
+          agentName:
+            historyAgentName ||
+            validatedSessionState.agentName ||
+            requestAgentName ||
+            "Agent session",
+          requestAgentName,
+          threadId: history.session.threadId ?? validatedSessionState.threadId ?? null,
+        };
 
         setSessionReady(true);
-        setSessionState(validatedSessionState);
-        sessionStateRef.current = validatedSessionState;
-
-        if (loadInitialHistory) {
-          void hydrateSessionRef.current?.(sessionId, { showLoading: true });
-          return;
-        }
+        setSessionState(readySessionState);
+        sessionStateRef.current = readySessionState;
 
         setLines(
           buildAgentTerminalSessionLines({
-            messages: [],
+            messages: loadInitialHistory ? history.messages : [],
             prompt,
-            session: validatedSessionState,
+            session: readySessionState,
+            sessionError: history.session.status === "error" ? history.session.error : null,
             userInputBlocked: blockUserInput,
           }),
         );
         void publishLatestAssistantMarkdownRef.current?.({
-          markdown: null,
+          markdown: loadInitialHistory ? extractLatestAssistantMarkdown(history.messages) : null,
         });
         focusPromptInput(8, 40);
       } catch (error) {
@@ -1007,7 +1026,12 @@ export function AgentTerminalWidget({
 
   const requestRefreshAction = useCallback(
     (targetSessionId: string) => {
-      if (!targetSessionId || !sessionReady) {
+      if (!targetSessionId) {
+        return;
+      }
+
+      if (!sessionReady) {
+        pendingHistoryRefreshRef.current = true;
         return;
       }
 

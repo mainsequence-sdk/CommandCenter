@@ -42,6 +42,8 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, or manually authore
 ## commonPitfalls
 
 - Bound mode stays empty until it is bound to a compatible source in the workspace bindings.
+- If this table is backed by an embedded hidden connection source, fix any source runtime error in
+  the settings status card before debugging schema or formatting rules.
 - Formatting is presentation-only. Hiding a column, applying a prefix, or adding a heatmap does not modify the published table `dataset` output.
 - Changing the upstream transform can change the output columns. Reset columns from the current frame when the saved column schema no longer matches the incoming row shape.
 - Prefix and suffix are literal display text. Do not use them to convert units or change numeric scale upstream.

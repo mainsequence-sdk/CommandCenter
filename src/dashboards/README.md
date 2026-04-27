@@ -81,6 +81,13 @@ surfaces and the editable workspace studio.
 - Dashboard widget instances can now also carry canonical `bindings` separately from widget props.
   This is the first-class graph-edge model for widget composition and should remain distinct from
   widget-local configuration.
+- Dashboard widget instances can now also carry optional `managedBy` ownership metadata, and
+  widget presentation can carry optional `railVisibility`. Managed widgets must stay in the saved
+  widget graph, dependency extraction, and execution planning even when normal workspace rail
+  chrome hides them.
+- Normal workspace rails should now treat managed widgets with `presentation.railVisibility:
+  "hidden"` as hidden authoring chrome only. Graph/debug surfaces may opt back into showing those
+  widgets explicitly; execution and dependency behavior must not depend on the rail filter.
 - The dependency layer is intentionally separate from `DashboardWidgetRegistryProvider`. The raw
   registry remains the mounted-widget index, while the dependency provider adds graph extraction,
   canonical binding validation, and optional resolved inputs on top.

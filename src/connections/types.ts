@@ -101,6 +101,21 @@ export interface ConnectionQueryEditorProps<
   queryModel?: ConnectionQueryModel;
 }
 
+export interface ConnectionQueryDraftDefaults {
+  queryModelId?: string;
+  query?: Record<string, unknown>;
+  fixedStartMs?: number;
+  fixedEndMs?: number;
+  maxRows?: number;
+}
+
+export interface ConnectionQueryDraftDefaultsResolverInput {
+  connectionInstance: ConnectionInstance;
+  connectionType: ConnectionTypeDefinition<any, any>;
+  queryModels: ConnectionQueryModel[];
+  selectedQueryModel?: ConnectionQueryModel;
+}
+
 export interface ConnectionExploreProps {
   connectionInstance: ConnectionInstance;
   connectionType: ConnectionTypeDefinition<any, any>;
@@ -127,6 +142,9 @@ export interface ConnectionTypeDefinition<
   configEditor?: ComponentType<ConnectionConfigEditorProps<TPublicConfig>>;
   queryEditor?: ComponentType<ConnectionQueryEditorProps<TQuery>>;
   exploreComponent?: ComponentType<ConnectionExploreProps>;
+  draftDefaultsResolver?: (
+    input: ConnectionQueryDraftDefaultsResolverInput,
+  ) => ConnectionQueryDraftDefaults;
   usageGuidance?: string;
   examples?: Array<{
     title: string;

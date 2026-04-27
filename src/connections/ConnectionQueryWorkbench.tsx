@@ -4,6 +4,11 @@ import { CalendarDays, CalendarRange, AlertTriangle, Loader2, Play } from "lucid
 
 import { getConnectionTypeById } from "@/app/registry";
 import { Button } from "@/components/ui/button";
+import {
+  buildDefaultQueryForModel,
+  resolveConnectionQueryDraftDefaults,
+  resolveConnectionQueryDraftModel,
+} from "@/connections/connectionQueryDraftDefaults";
 import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
 import {
   QueryStringListField,
@@ -550,13 +555,6 @@ function isRuntimeFrameQueryModel(model: { outputContracts?: readonly string[] }
   );
 }
 
-function buildDefaultQueryForModel(model: { id: string; defaultQuery?: Record<string, unknown> }) {
-  return {
-    ...(model.defaultQuery ?? {}),
-    kind: model.id,
-  };
-}
-
 function sameConnectionId(
   left: ConnectionRef["id"] | undefined,
   right: ConnectionRef["id"] | undefined,
@@ -604,11 +602,6 @@ export function ConnectionQueryWorkbench({
     [connectionType],
   );
   const autoSelectQueryModel = autoSelectFirstQueryModel || queryModels.length === 1;
-  const selectedQueryModel = normalizedProps.queryModelId
-    ? queryModels.find((model) => model.id === normalizedProps.queryModelId)
-    : undefined;
-  const resolvedQueryModel =
-    selectedQueryModel ?? (autoSelectQueryModel ? queryModels[0] : undefined);
   const systemConnectionInstances = useMemo(() => getSystemConnectionInstances(), []);
   const selectedConnectionInstance = useMemo(() => {
     const selectedId = normalizedProps.connectionRef?.id;
@@ -630,6 +623,19 @@ export function ConnectionQueryWorkbench({
     normalizedProps.connectionRef?.id,
     systemConnectionInstances,
   ]);
+  const selectedQueryModel = normalizedProps.queryModelId
+    ? queryModels.find((model) => model.id === normalizedProps.queryModelId)
+    : undefined;
+  const resolvedQueryModel =
+    selectedQueryModel ??
+    (autoSelectQueryModel
+      ? resolveConnectionQueryDraftModel({
+          connectionInstance: selectedConnectionInstance,
+          connectionType,
+          queryModels,
+          fallbackQueryModel: queryModels[0],
+        })
+      : undefined);
   const queryPathUsesTimeRange = Boolean(resolvedQueryModel?.timeRangeAware);
   const queryPathSupportsVariables = Boolean(resolvedQueryModel?.supportsVariables);
   const queryPathSupportsMaxRows = resolvedQueryModel?.supportsMaxRows !== false;
@@ -718,26 +724,49 @@ export function ConnectionQueryWorkbench({
       return;
     }
 
-    const nextQueryModel = queryModels[0];
+    const nextQueryModel = resolveConnectionQueryDraftModel({
+      connectionInstance: selectedConnectionInstance,
+      connectionType,
+      queryModels,
+      fallbackQueryModel: queryModels[0],
+    });
+
+    if (!nextQueryModel) {
+      return;
+    }
+    const nextDefaults = resolveConnectionQueryDraftDefaults({
+      connectionInstance: selectedConnectionInstance,
+      connectionType,
+      queryModels,
+      selectedQueryModel: nextQueryModel,
+    });
 
     onChange({
       ...value,
       queryModelId: nextQueryModel.id,
-      query: buildDefaultQueryForModel(nextQueryModel),
+      query: nextDefaults.query ?? buildDefaultQueryForModel(nextQueryModel),
       timeRangeMode: nextQueryModel.timeRangeAware
         ? workspaceDateRuntimeAvailable
           ? "dashboard"
           : "fixed"
         : "none",
+      fixedStartMs: nextDefaults.fixedStartMs ?? effectiveFixedRange.fixedStartMs,
+      fixedEndMs: nextDefaults.fixedEndMs ?? effectiveFixedRange.fixedEndMs,
+      maxRows: nextDefaults.maxRows ?? value.maxRows,
       ...(nextQueryModel.timeRangeAware && !workspaceDateRuntimeAvailable
-        ? effectiveFixedRange
+        ? {
+            fixedStartMs: nextDefaults.fixedStartMs ?? effectiveFixedRange.fixedStartMs,
+            fixedEndMs: nextDefaults.fixedEndMs ?? effectiveFixedRange.fixedEndMs,
+          }
         : {}),
     });
   }, [
+    connectionType,
     autoSelectQueryModel,
     effectiveFixedRange,
     onChange,
     queryModels,
+    selectedConnectionInstance,
     selectedQueryModel,
     value,
     workspaceDateRuntimeAvailable,
@@ -804,32 +833,63 @@ export function ConnectionQueryWorkbench({
               const nextType = nextRef?.typeId ? getConnectionTypeById(nextRef.typeId) : undefined;
               const nextRuntimeQueryModels =
                 nextType?.queryModels?.filter(isRuntimeFrameQueryModel) ?? [];
+              const nextConnectionInstance = nextRef
+                ? (connectionInstancesQuery.data ?? []).find((instance) =>
+                    sameConnectionId(instance.id, nextRef.id),
+                  ) ??
+                  systemConnectionInstances.find((instance) =>
+                    sameConnectionId(instance.id, nextRef.id),
+                  )
+                : undefined;
               const selectedModelStillValid = sameQueryModelAvailable(
                 normalizedProps.queryModelId,
                 nextType,
               );
-              const nextQueryModel = selectedModelStillValid
+              const fallbackQueryModel = selectedModelStillValid
                 ? nextType?.queryModels?.find((model) => model.id === normalizedProps.queryModelId)
                 : nextRuntimeQueryModels.length === 1 || autoSelectFirstQueryModel
                   ? nextRuntimeQueryModels[0]
                   : undefined;
+              const nextQueryModel = resolveConnectionQueryDraftModel({
+                connectionInstance: nextConnectionInstance,
+                connectionType: nextType,
+                queryModels: nextRuntimeQueryModels,
+                fallbackQueryModel,
+              });
+              const nextDefaults = resolveConnectionQueryDraftDefaults({
+                connectionInstance: nextConnectionInstance,
+                connectionType: nextType,
+                queryModels: nextRuntimeQueryModels,
+                selectedQueryModel: nextQueryModel,
+              });
+              const connectionChanged = !sameConnectionId(
+                normalizedProps.connectionRef?.id,
+                nextRef?.id,
+              );
 
               updateValue({
                 ...value,
                 connectionRef: nextRef,
                 queryModelId: nextQueryModel?.id,
                 query: nextQueryModel
-                  ? selectedModelStillValid
+                  ? selectedModelStillValid && !connectionChanged
                     ? normalizedProps.query
-                    : buildDefaultQueryForModel(nextQueryModel)
+                    : nextDefaults.query ?? buildDefaultQueryForModel(nextQueryModel)
                   : {},
                 timeRangeMode: nextQueryModel?.timeRangeAware
                   ? workspaceDateRuntimeAvailable
                     ? "dashboard"
                     : "fixed"
                   : "none",
+                fixedStartMs: nextDefaults.fixedStartMs ?? effectiveFixedRange.fixedStartMs,
+                fixedEndMs: nextDefaults.fixedEndMs ?? effectiveFixedRange.fixedEndMs,
+                maxRows: nextDefaults.maxRows ?? value.maxRows,
                 ...(nextQueryModel?.timeRangeAware && !workspaceDateRuntimeAvailable
-                  ? effectiveFixedRange
+                  ? {
+                      fixedStartMs:
+                        nextDefaults.fixedStartMs ?? effectiveFixedRange.fixedStartMs,
+                      fixedEndMs: nextDefaults.fixedEndMs ?? effectiveFixedRange.fixedEndMs,
+                    }
                   : {}),
               });
             }}
@@ -857,11 +917,17 @@ export function ConnectionQueryWorkbench({
               const nextQueryModel = nextQueryModelId
                 ? queryModels.find((model) => model.id === nextQueryModelId)
                 : undefined;
+              const nextDefaults = resolveConnectionQueryDraftDefaults({
+                connectionInstance: selectedConnectionInstance,
+                connectionType,
+                queryModels,
+                selectedQueryModel: nextQueryModel,
+              });
               const nextQuery =
                 nextQueryModelId && nextQueryModelId === normalizedProps.queryModelId
                   ? { ...(normalizedProps.query ?? {}), kind: nextQueryModelId }
                   : nextQueryModel
-                    ? buildDefaultQueryForModel(nextQueryModel)
+                    ? nextDefaults.query ?? buildDefaultQueryForModel(nextQueryModel)
                     : {};
 
               updateValue({
@@ -873,8 +939,15 @@ export function ConnectionQueryWorkbench({
                     ? "dashboard"
                     : "fixed"
                   : "none",
+                fixedStartMs: nextDefaults.fixedStartMs ?? value.fixedStartMs,
+                fixedEndMs: nextDefaults.fixedEndMs ?? value.fixedEndMs,
+                maxRows: nextDefaults.maxRows ?? value.maxRows,
                 ...(nextQueryModel?.timeRangeAware && !workspaceDateRuntimeAvailable
-                  ? effectiveFixedRange
+                  ? {
+                      fixedStartMs:
+                        nextDefaults.fixedStartMs ?? effectiveFixedRange.fixedStartMs,
+                      fixedEndMs: nextDefaults.fixedEndMs ?? effectiveFixedRange.fixedEndMs,
+                    }
                   : {}),
               });
             }}

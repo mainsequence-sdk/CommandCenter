@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConnectionQueryRuntimeStatusCard } from "@/connections/ConnectionQueryRuntimeStatusCard";
+import { resolveManagedConnectionQuerySource } from "@/connections/managedConnectionQuerySource";
+import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
 import { PickerField } from "@/widgets/shared/picker-field";
 import { useTheme } from "@/themes/ThemeProvider";
 import {
@@ -326,6 +328,7 @@ function stripLegacyTableSourceFields(
 }
 
 export function TableWidgetSettings({
+  instanceId,
   draftProps,
   editable,
   onDraftPropsChange,
@@ -333,6 +336,10 @@ export function TableWidgetSettings({
 }: WidgetSettingsComponentProps<TableWidgetProps>) {
   const { resolvedTokens } = useTheme();
   const widgetRegistry = useDashboardWidgetRegistry();
+  const managedConnectionSource = useMemo(
+    () => resolveManagedConnectionQuerySource(widgetRegistry, instanceId),
+    [instanceId, widgetRegistry],
+  );
   const resolvedDraft = resolveTableWidgetProps(draftProps);
   const isManualTableMode = resolvedDraft.tableSourceMode === "manual";
   const resolvedSourceInput = useMemo(
@@ -695,6 +702,17 @@ export function TableWidgetSettings({
                 <p className={descriptionClass}>
                   The linked source widget owns dataset publication. This table only formats the incoming rows.
                 </p>
+
+                {managedConnectionSource ? (
+                  <ConnectionQueryRuntimeStatusCard
+                    title="Embedded connection source"
+                    description="This table owns a hidden connection-query source widget. Fix source query failures here before debugging table schema or formatting."
+                    runtimeState={managedConnectionSource.runtimeState ?? undefined}
+                    draftProps={managedConnectionSource.props}
+                    sourceTitle={managedConnectionSource.title}
+                    emptyMessage="The embedded source exists, but it has not published a live dataset yet."
+                  />
+                ) : null}
 
                 {linkedDataset?.status === "error" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">

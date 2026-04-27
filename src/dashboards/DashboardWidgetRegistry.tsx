@@ -1,11 +1,16 @@
 import { createContext, useContext, type ReactNode } from "react";
 
+import type { DashboardManagedWidgetOwner } from "@/dashboards/types";
+import type { WidgetInstancePresentation } from "@/widgets/types";
+
 export interface DashboardWidgetRegistryEntry {
   id: string;
   widgetId: string;
   title?: string;
   props?: Record<string, unknown>;
   runtimeState?: Record<string, unknown>;
+  managedBy?: DashboardManagedWidgetOwner;
+  presentation?: WidgetInstancePresentation;
 }
 
 const DashboardWidgetRegistryContext = createContext<DashboardWidgetRegistryEntry[] | null>(null);

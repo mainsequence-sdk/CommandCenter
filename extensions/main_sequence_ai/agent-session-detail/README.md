@@ -10,6 +10,9 @@ This module owns the shared AgentSession detail capability for the `Main Sequenc
 - `useAgentSessionDetail.ts`
   Shared keyed controller hook that loads the core ORM AgentSession detail and composes optional
   `insights` and `tools` facets for one selected session.
+- `../runtime/agent-session-readiness.ts`
+  Shared interaction-readiness model used by chat and terminal surfaces when detail, insights, and
+  history must all complete before user input is allowed.
 - `AgentSessionDetailSections.tsx`
   Reusable presentational sections for rendering the normalized AgentSession core detail, including
   raw payload viewers for large JSON fields.
@@ -46,6 +49,9 @@ transport boundaries into one fake endpoint.
   `sessionKey`, `projectId`, and `cwd`.
 - Provider-derived extras do not belong on the core AgentSession detail record. Fields like
   usage/context summaries come from `insights`, not from the ORM detail contract.
+- Interactive chat and terminal surfaces must not treat this detail snapshot alone as readiness.
+  The shared readiness contract also requires session insights and session history for the same
+  AgentSession id.
 - Large JSON fields such as `metadata`, `runtimeConfigOverride`, `runtimeConfigSnapshot`,
   `inputPayload`, and `outputPayload` are intended for collapsed viewers or dialogs, not always-on
   rail content.

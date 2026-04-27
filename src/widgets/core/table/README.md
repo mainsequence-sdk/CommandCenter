@@ -15,6 +15,9 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 ## Behavior
 
 - Bound mode consumes one `core.tabular_frame@v1` input on `sourceData`.
+- When the table owns a hidden managed `connection-query` source, settings show that source's
+  current runtime status and error message even though the source widget stays out of the normal
+  rail.
 - Bound mode reads the resolved input's generic `upstreamBase` frame when an incremental upstream
   source publishes retained base plus delta metadata. The table currently renders the retained
   snapshot; it does not apply row deltas imperatively.

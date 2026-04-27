@@ -46,8 +46,9 @@ remaining height. The two shells still differ intentionally:
   fallback reasoning effort is forced
 - if the backend model catalog request fails in live mode, the composer is disabled and shows an
   explicit "models could not be fetched" error instead of allowing sends
-- if the backend model catalog loads successfully but returns no available models, the composer is
-  disabled and shows a provider-registration link rather than presenting it as a fetch failure
+- if the backend model catalog loads successfully but returns no available models, that catalog is
+  authoritative: `ChatProvider` clears picker selection, the composer is disabled, the selector row
+  stays hidden, and the only model-provider action shown is `Sign in to provider`
 - the selected model and reasoning effort are owned by `ChatProvider`, not by assistant-ui composer
   `runConfig`
 - if the backend returns models, `ChatProvider` selects one and every live request carries the
@@ -78,6 +79,9 @@ remaining height. The two shells still differ intentionally:
   the latest reasoning/tool activity in the collapsed header
 - the page and overlay composer footers now show a compact context-window usage bar when session
   insights provide `context.percentOfContextWindow`
+- chat interaction is gated by AgentSession readiness: the selected backend session must complete
+  detail, insights, and history loading before the composer, provider/model controls, and send path
+  become interactive
 
 The app surface itself lives separately under `extensions/main_sequence_ai/surfaces/chat/`.
 The shared page explorer UI now lives separately under `extensions/main_sequence_ai/features/chat/`.
@@ -141,6 +145,8 @@ Responsibilities:
 - expose overlay/page navigation helpers
 - bridge app context into chat requests
 - own the selected backend model binding used for `/api/chat`
+- expose and enforce the selected AgentSession interaction-readiness gate so UI components do not
+  treat partial session identity or cached local transcript state as interactive readiness
 - translate backend events into runtime state
 - expose request lifecycle feedback so the thread can show "sent / waiting / failed" before any
   assistant text appears
@@ -171,6 +177,10 @@ This boundary owns a feature-local session layer that:
 - rehydrates the selected session from `/api/chat/history?sessionId=<AgentSession.id>` when the
   user selects a backend session, then replaces the local cached transcript with the backend
   history payload
+- creates user-initiated fresh chat sessions through the backend `start_new_session` action before
+  selecting them, so a local placeholder id is never treated as an interactive session
+- treats backend detail, insights, and history as required readiness facets before enabling chat
+  interaction for the selected AgentSession
 - stages cross-agent `new_session` stream events as pending handoffs: the target AgentSession is
   added locally, latest sessions are refreshed, and the notice offers an immediate open-session
   action

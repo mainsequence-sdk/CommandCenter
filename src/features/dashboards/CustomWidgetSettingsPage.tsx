@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ArrowLeft, BookOpenText, Save } from "lucide-react";
+import { ArrowLeft, BookOpenText, Database, PlugZap, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { getWidgetById } from "@/app/registry";
@@ -13,6 +13,7 @@ import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetReg
 import { WidgetBindingPanel } from "@/widgets/shared/WidgetBindingPanel";
 import { getWidgetDetailsPath } from "@/features/widgets/widget-explorer";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
+import { resolveManagedConnectionQuerySource } from "@/connections/managedConnectionQuerySource";
 import { fetchAppComponentOpenApiDocument } from "@/widgets/core/app-component/appComponentApi";
 import {
   buildAppComponentBindingSpec,
@@ -34,6 +35,14 @@ import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { WorkspaceSavingStatus } from "./WorkspaceChrome";
+import {
+  normalizeGraphAuthoringSourceMode,
+  resolveGraphEmbeddedConnectionQueryProps,
+  type GraphWidgetProps,
+} from "@/widgets/core/graph/graphModel";
+import { GraphManagedConnectionPanel } from "@/widgets/core/graph/GraphManagedConnectionPanel";
+
+type WidgetSettingsTabId = "settings" | "bindings" | "connection";
 
 function getWidgetSettingsTabClassName(active: boolean) {
   return active
@@ -58,6 +67,17 @@ function buildWidgetSettingsDraftState(
     props: initialProps,
     title: instance.title ?? "",
   };
+}
+
+function buildGraphConnectionDraftSignature(props: GraphWidgetProps | undefined) {
+  return JSON.stringify({
+    graphSourceMode: normalizeGraphAuthoringSourceMode(props?.graphSourceMode),
+    embeddedConnectionQuery: resolveGraphEmbeddedConnectionQueryProps(
+      (props ?? {}) as GraphWidgetProps,
+    ),
+    embeddedConnectionPresentation:
+      props?.embeddedConnectionPresentation ?? null,
+  });
 }
 
 function shouldRepairAppComponentBindingSpec(props: AppComponentWidgetProps) {
@@ -125,18 +145,44 @@ export function CustomWidgetSettingsPage({
     widget?.io?.inputs?.length ||
     widget?.resolveIo,
   );
-  const requestedTab = hasBindingTab && requestedWidgetSettingsTab === "bindings"
-    ? "bindings"
-    : "settings";
-  const [activeTab, setActiveTab] = useState<"settings" | "bindings">(requestedTab);
   const [draftState, setDraftState] = useState(() =>
     instance && widget ? buildWidgetSettingsDraftState(instance, widget) : null,
   );
+  const effectiveDraftState =
+    instance && widget ? draftState ?? buildWidgetSettingsDraftState(instance, widget) : null;
+  const isGraphWidget = widget?.id === "graph" && instance?.widgetId === "graph";
+  const graphDraftProps = isGraphWidget
+    ? ((effectiveDraftState?.props ?? {}) as GraphWidgetProps)
+    : undefined;
+  const graphManagedConnectionSource =
+    instance && isGraphWidget
+      ? resolveManagedConnectionQuerySource(resolvedDashboard.widgets, instance.id)
+      : null;
+  const graphConnectionMode =
+    isGraphWidget &&
+    normalizeGraphAuthoringSourceMode(graphDraftProps?.graphSourceMode) === "connection";
+  const hasGraphConnectionTab = Boolean(
+    isGraphWidget &&
+      (graphConnectionMode || graphManagedConnectionSource),
+  );
+  const requestedTab: WidgetSettingsTabId =
+    hasGraphConnectionTab && requestedWidgetSettingsTab === "connection"
+      ? "connection"
+      : hasBindingTab && requestedWidgetSettingsTab === "bindings"
+        ? "bindings"
+        : "settings";
+  const [activeTab, setActiveTab] = useState<WidgetSettingsTabId>(requestedTab);
   const repairedAppComponentIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setActiveTab(requestedTab);
   }, [instance?.id, requestedTab]);
+
+  useEffect(() => {
+    if (activeTab === "connection" && !hasGraphConnectionTab) {
+      setActiveTab(hasBindingTab ? "bindings" : "settings");
+    }
+  }, [activeTab, hasBindingTab, hasGraphConnectionTab]);
 
   useEffect(() => {
     if (!instance || !widget) {
@@ -264,8 +310,6 @@ export function CustomWidgetSettingsPage({
     };
   }, [activeTab, resolvedDashboard.widgets, updateSelectedWorkspace]);
 
-  const effectiveDraftState =
-    instance && widget ? draftState ?? buildWidgetSettingsDraftState(instance, widget) : null;
   const bindingPreviewInstance = useMemo(
     () =>
       instance && effectiveDraftState
@@ -304,6 +348,125 @@ export function CustomWidgetSettingsPage({
         </div>
       </div>
     );
+  }
+
+  const currentGraphConnectionSignature = buildGraphConnectionDraftSignature(
+    (instance.props ?? {}) as GraphWidgetProps,
+  );
+  const draftGraphConnectionSignature = buildGraphConnectionDraftSignature(
+    graphDraftProps,
+  );
+  const graphConnectionDirty =
+    isGraphWidget && draftGraphConnectionSignature !== currentGraphConnectionSignature;
+
+  function updateGraphConnectionDraft(
+    updater: (props: GraphWidgetProps) => GraphWidgetProps,
+  ) {
+    if (!instance || !widget || widget.id !== "graph") {
+      return;
+    }
+
+    setDraftState((current) => {
+      const base = current ?? buildWidgetSettingsDraftState(instance, widget);
+      const currentProps = (base.props ?? {}) as GraphWidgetProps;
+      const nextGraphProps = updater(currentProps);
+
+      return {
+        ...base,
+        props: {
+          ...base.props,
+          graphSourceMode: nextGraphProps.graphSourceMode,
+          embeddedConnectionQuery: nextGraphProps.embeddedConnectionQuery,
+          embeddedConnectionPresentation: nextGraphProps.embeddedConnectionPresentation,
+        },
+      };
+    });
+  }
+
+  function applyGraphConnectionDraft() {
+    if (!isGraphWidget || !graphDraftProps) {
+      return;
+    }
+
+    const nextProps = {
+      ...((instance.props ?? {}) as GraphWidgetProps),
+      graphSourceMode: normalizeGraphAuthoringSourceMode(graphDraftProps.graphSourceMode),
+      embeddedConnectionQuery: resolveGraphEmbeddedConnectionQueryProps(graphDraftProps),
+      embeddedConnectionPresentation: graphDraftProps.embeddedConnectionPresentation,
+    } satisfies GraphWidgetProps;
+
+    updateSelectedWorkspace((dashboard) =>
+      updateDashboardWidgetSettings(dashboard, instance.id, {
+        props: nextProps,
+      }),
+    );
+  }
+
+  function resetGraphConnectionDraft() {
+    if (!instance || !widget || widget.id !== "graph") {
+      return;
+    }
+
+    const instanceGraphProps = (instance.props ?? {}) as GraphWidgetProps;
+    const nextMode = normalizeGraphAuthoringSourceMode(instanceGraphProps.graphSourceMode);
+
+    setDraftState((current) => {
+      const base = current ?? buildWidgetSettingsDraftState(instance, widget);
+      return {
+        ...base,
+        props: {
+          ...base.props,
+          graphSourceMode: nextMode,
+          embeddedConnectionQuery: instanceGraphProps.embeddedConnectionQuery,
+          embeddedConnectionPresentation: instanceGraphProps.embeddedConnectionPresentation,
+        },
+      };
+    });
+
+    if (nextMode !== "connection" && !graphManagedConnectionSource) {
+      setActiveTab("bindings");
+    }
+  }
+
+  function stageGraphManagedConnection() {
+    if (!isGraphWidget) {
+      return;
+    }
+
+    updateGraphConnectionDraft((currentProps) => ({
+      ...currentProps,
+      graphSourceMode: "connection",
+    }));
+    setActiveTab("connection");
+  }
+
+  function removeGraphManagedConnection() {
+    if (!instance || !widget || widget.id !== "graph") {
+      return;
+    }
+
+    const persistedMode = normalizeGraphAuthoringSourceMode(
+      ((instance.props ?? {}) as GraphWidgetProps).graphSourceMode,
+    );
+
+    if (persistedMode === "connection" || graphManagedConnectionSource) {
+      const nextProps = {
+        ...((instance.props ?? {}) as GraphWidgetProps),
+        graphSourceMode: "bound",
+      } satisfies GraphWidgetProps;
+
+      updateSelectedWorkspace((dashboard) =>
+        updateDashboardWidgetSettings(dashboard, instance.id, {
+          props: nextProps,
+        }),
+      );
+    }
+
+    updateGraphConnectionDraft((currentProps) => ({
+      ...currentProps,
+      graphSourceMode: "bound",
+    }));
+    setActiveTab("bindings");
   }
 
   const pageContent = (
@@ -393,6 +556,19 @@ export function CustomWidgetSettingsPage({
                     >
                       Bindings
                     </button>
+                    {hasGraphConnectionTab ? (
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === "connection"}
+                        className={getWidgetSettingsTabClassName(activeTab === "connection")}
+                        onClick={() => {
+                          setActiveTab("connection");
+                        }}
+                      >
+                        Connection
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -501,18 +677,153 @@ export function CustomWidgetSettingsPage({
                 )}
 
                 {activeTab === "bindings" && hasBindingTab ? (
-                  <DashboardWidgetDependenciesProvider widgets={bindingPreviewWidgets}>
-                    <WidgetBindingPanel
-                      widget={widget}
-                      instance={bindingPreviewInstance ?? instance}
-                      editable
-                      onBindingsChange={(bindings) => {
-                        updateSelectedWorkspace((dashboard) =>
-                          updateDashboardWidgetBindings(dashboard, instance.id, bindings),
-                        );
-                      }}
-                    />
-                  </DashboardWidgetDependenciesProvider>
+                  isGraphWidget ? (
+                    <div className="space-y-6">
+                      <section className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/88 shadow-[var(--shadow-panel)] backdrop-blur">
+                        <div className="border-b border-border/70 px-5 py-5 md:px-6 md:py-6">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground">
+                                <Database className="h-5 w-5 text-primary" />
+                                Data connection
+                              </div>
+                              <p className="max-w-3xl text-sm text-muted-foreground">
+                                Keep chart presentation in Settings and manage graph-owned source
+                                creation from here. A managed connection creates one hidden
+                                connection-query widget and binds its dataset output to this
+                                graph&apos;s <code>sourceData</code> input.
+                              </p>
+                            </div>
+                            {graphConnectionMode ? (
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setActiveTab("connection");
+                                  }}
+                                >
+                                  <PlugZap className="h-4 w-4" />
+                                  Open connection
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={removeGraphManagedConnection}
+                                >
+                                  Remove connection
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button onClick={stageGraphManagedConnection}>
+                                <PlugZap className="h-4 w-4" />
+                                Add connection
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 px-5 py-5 md:px-6 md:py-6">
+                          {graphConnectionMode ? (
+                            <div className="rounded-[calc(var(--radius)-6px)] border border-primary/35 bg-primary/8 px-4 py-4">
+                              <div className="text-sm font-medium text-foreground">
+                                {graphManagedConnectionSource
+                                  ? graphManagedConnectionSource.title
+                                  : "Managed connection draft"}
+                              </div>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {graphManagedConnectionSource
+                                  ? "This graph now manages its own hidden connection-query source. Use the Connection tab to edit the full query configuration."
+                                  : "A managed connection has been staged locally. Open the Connection tab and apply those changes to create the hidden source widget."}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-4 text-sm text-muted-foreground">
+                              Use a normal widget-to-widget binding below, or add a managed
+                              connection if this graph should own its own hidden source widget.
+                            </div>
+                          )}
+                        </div>
+                      </section>
+
+                      {!graphConnectionMode ? (
+                        <DashboardWidgetDependenciesProvider widgets={bindingPreviewWidgets}>
+                          <WidgetBindingPanel
+                            widget={widget}
+                            instance={bindingPreviewInstance ?? instance}
+                            editable
+                            onBindingsChange={(bindings) => {
+                              updateSelectedWorkspace((dashboard) =>
+                                updateDashboardWidgetBindings(dashboard, instance.id, bindings),
+                              );
+                            }}
+                          />
+                        </DashboardWidgetDependenciesProvider>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <DashboardWidgetDependenciesProvider widgets={bindingPreviewWidgets}>
+                      <WidgetBindingPanel
+                        widget={widget}
+                        instance={bindingPreviewInstance ?? instance}
+                        editable
+                        onBindingsChange={(bindings) => {
+                          updateSelectedWorkspace((dashboard) =>
+                            updateDashboardWidgetBindings(dashboard, instance.id, bindings),
+                          );
+                        }}
+                      />
+                    </DashboardWidgetDependenciesProvider>
+                  )
+                ) : null}
+
+                {activeTab === "connection" && hasGraphConnectionTab && isGraphWidget && graphDraftProps ? (
+                  <section className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/88 shadow-[var(--shadow-panel)] backdrop-blur">
+                    <div className="border-b border-border/70 px-5 py-5 md:px-6 md:py-6">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground">
+                          <PlugZap className="h-5 w-5 text-primary" />
+                          Graph connection
+                        </div>
+                        <p className="max-w-3xl text-sm text-muted-foreground">
+                          This tab reuses the same connection-query authoring surface as the
+                          standalone Connection Query widget. The graph still renders only from the
+                          resolved <code>sourceData</code> binding.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
+                      <GraphManagedConnectionPanel
+                        draftProps={graphDraftProps}
+                        editable
+                        instanceId={instance.id}
+                        instanceTitle={effectiveDraftState.title || instance.title || widget.title}
+                        onDraftPropsChange={(nextGraphProps) => {
+                          updateGraphConnectionDraft(() => nextGraphProps);
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 px-5 py-4 md:px-6">
+                      <div className="text-sm text-muted-foreground">
+                        Connection edits stay local to this page until you apply them.
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          disabled={!graphConnectionDirty}
+                          onClick={resetGraphConnectionDraft}
+                        >
+                          Reset connection draft
+                        </Button>
+                        <Button
+                          disabled={!graphConnectionDirty}
+                          onClick={applyGraphConnectionDraft}
+                        >
+                          Apply connection changes
+                        </Button>
+                      </div>
+                    </div>
+                  </section>
                 ) : null}
         </div>
       </div>

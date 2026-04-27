@@ -312,6 +312,10 @@ These flows are all part of one app surface, with instance state selected throug
   lightweight nested-field extraction transform to the selected source output before compatibility
   is evaluated for that edge. Inputs with `cardinality: "many"` now also support several bound
   source rows in the shared settings UI instead of only one hidden array entry in persisted JSON.
+- Widgets can also extend that route with widget-specific authoring tabs when one input needs a
+  richer managed-source workflow than the generic binding picker can provide. The Graph widget now
+  starts managed connection creation from `Bindings` and edits the hidden source from a dedicated
+  `Connection` tab while still persisting a normal `sourceData` binding behind the scenes.
 - The dedicated widget settings route now keeps only the shared dashboard provider stack alive.
   It must not hidden-mount the full workspace widget tree again. Runtime-dependent settings should
   resolve through the dependency and execution providers, and executable source or transform

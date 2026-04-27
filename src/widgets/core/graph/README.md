@@ -1,22 +1,41 @@
 # Graph Widget
 
-This folder owns the core `graph` widget. It renders a bound `core.tabular_frame@v1` dataset as a
-line, area, or bar chart.
+This folder owns the core `graph` widget. It renders a canonical
+`core.tabular_frame@v1` dataset as a line, area, or bar chart.
 
 ## Entry Points
 
 - `definition.ts`: core widget definition, IO metadata, registry contract, agent snapshot, and settings/component wiring.
 - `GraphWidget.tsx`: mounted chart renderer and empty/error states.
-- `GraphWidgetSettings.tsx`: settings-only schema inspector and per-series styling controls.
+- `GraphWidgetSettings.tsx`: custom chart-focused settings surface for graph field mapping and
+  per-series styling.
+- `GraphManagedConnectionPanel.tsx`: dedicated managed-source authoring surface used by the widget
+  settings route's `Connection` tab. It reuses the full connection-query workbench.
 - `schema.tsx`: schema-backed chart settings for provider, chart type, field mappings, grouping, normalization, and axes.
 - `controller.ts`: controller context for resolved source fields and picker options.
-- `graphModel.ts`: chart configuration normalization and row-to-series transforms.
+- `graphModel.ts`: chart configuration normalization, graph source-mode normalization, embedded
+  connection draft props, and row-to-series transforms.
 - `TradingViewSeriesChart.tsx` and `EChartsSeriesChart.tsx`: renderer implementations.
 - `USAGE_GUIDANCE.md`: registry-synced authoring guidance.
 
 ## Behavior
 
 - The widget consumes one `core.tabular_frame@v1` input on `sourceData`.
+- Authoring supports two source ownership patterns:
+  - normal bound dataset: the graph reads whichever upstream widget is connected to `sourceData`
+  - managed connection source: the `Bindings` tab can stage or enable one graph-owned hidden
+    `connection-query` widget, and the dedicated `Connection` tab edits that source by reusing the
+    same full connection-query settings surface as the standalone widget
+- Save/update lifecycle code creates or repairs the hidden managed `connection-query` widget and
+  keeps the canonical binding from that source widget's `dataset` output to this graph's
+  `sourceData` input.
+- Even in connection source mode, runtime rendering stays binding-driven. The graph never calls a
+  connection API directly and never reads the managed source props at render time.
+- Embedded connection source settings reuse the same request builder, query-model resolution,
+  typed query editors, test execution, incremental refresh controls, and normalized response
+  preview as the standalone `connection-query` widget.
+- The dedicated `Connection` tab shows the hidden source widget's current runtime status and error
+  message even though the source widget stays out of the normal rail.
 - The shared source binding exposes retained `upstreamBase` frames and optional
   `upstreamDelta` frames. When the incoming update is delta-safe, the chart renderer keeps its
   mounted chart instance and appends or updates projected points instead of rebuilding from the
@@ -31,6 +50,11 @@ line, area, or bar chart.
 
 - Keep the registered id as `graph`.
 - Keep accepted input aligned with `core.tabular_frame@v1`.
+- Keep `sourceData` as the only runtime data edge, even when authoring uses embedded connection
+  source mode.
+- Keep managed connection authoring routed through the shared connection-query settings surface,
+  the widget-settings route `Bindings -> Connection` flow, and the managed widget lifecycle
+  helpers. Do not add graph-local connection query execution.
 - Avoid reintroducing graph-local time-series semantics or upstream metadata-driven auto-mapping.
 - Avoid adding connection-specific or Main Sequence-specific backend calls here.
 - Bump `widgetVersion` when props, accepted input behavior, registry metadata, or user-facing authoring semantics change.

@@ -23,11 +23,15 @@ Managed Main Sequence AI agent conversation with bound workspace context.
 ## blockingRequirements
 
 - A supported agent selection is required.
+- The bound AgentSession must finish detail, insights, and history readiness before manual typing
+  or automated refresh can interact with the session.
 
 ## commonPitfalls
 
 - This widget does not let you browse arbitrary existing sessions. Use `Recycle session` when the same widget needs a fresh session for the same agent.
 - Only the frontend allowlisted agents are selectable here. The current scope is `astro-orchestrator`.
 - When `Block user input` is enabled, the terminal still validates the session and shows streamed output, but manual typing is disabled. Use `Prompt on refresh` together with a refresh mode if the widget should continue sending instructions automatically.
+- `Load initial history` controls whether prior transcript lines are rendered after readiness. It
+  does not skip the required history request used to make the session interactive.
 - Bound widget context or workspace references are only appended during automated refresh; manual terminal input stays unchanged.
 - The widget also publishes `Latest assistant markdown` as a separate downstream string output. That output is independent from the upstream binding input.

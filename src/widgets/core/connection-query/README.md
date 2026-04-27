@@ -13,8 +13,12 @@ backend-owned connection instances.
 - `ConnectionQueryRailSummary.tsx`: workspace rail hover summary that resolves the selected
   connection type and renders its logo, selected path, backend connection id, and runtime status.
 - `ConnectionQueryWidgetSettings.tsx`: thin settings wrapper around
-  `src/connections/ConnectionQueryWorkbench.tsx`. It supplies workspace dashboard dates and stores
-  the resulting draft props on the widget.
+  `src/connections/ConnectionQuerySettingsSurface.tsx`. It supplies live widget runtime status,
+  workspace dashboard dates, and stores the resulting draft props on the widget. When the selected
+  connection type provides a typed `queryEditor`, settings now render that editor directly so the
+  widget shares the same authoring surface as Explore. Connection-specific draft defaults should
+  also come from the selected connection type's `draftDefaultsResolver(...)`, not from a
+  widget-only initialization path.
 - `ConnectionQueryWidgetSchema.tsx`: schema-backed connection path controls. It exposes individual
   selected query-model controls such as symbols, timeframe, feed, limit, page token, interval, and
   cursors as separate poppable canvas companion cards.
@@ -35,14 +39,20 @@ backend-owned connection instances.
   read from dashboard controls; custom fixed dates are stored in props. Returned frames render
   through `src/connections/ConnectionQueryResponsePreview.tsx`, matching Data Sources Explore
   because both surfaces use `ConnectionQueryWorkbench.tsx`.
+- The settings surface also shows the current live runtime status for this source widget. Draft
+  query changes do not silently overwrite the last published runtime state until the widget is run
+  again through normal execution or the settings test action.
 - Connection-specific `queryEditor` components are used when the selected connection type provides
   one. They receive the selected connection instance, connection type, selected query model, and
-  current query payload so each connection can render its own kwargs. The generic JSON editor is
-  the fallback only for connection types that do not provide an editor.
-- Connection-specific path configuration is schema-backed and poppable per field. The sidebar
-  settings place those selected query-model controls directly under the connection path selector,
-  while canvas exposure still uses the shared schema form so each field can be shown as its own
-  dashboard companion card.
+  current query payload so each connection can render its own kwargs and exploration flow. The
+  generic JSON editor is the fallback only for connection types that do not provide an editor.
+- When a connection type publishes `draftDefaultsResolver(...)`, the shared workbench uses it when
+  a user selects a connection or connection path so the widget seeds the same query model, payload
+  defaults, and fixed-date fallbacks as Data Sources Explore.
+- Connection-specific path configuration is still schema-backed and poppable per field, but the
+  sidebar settings use that schema as a fallback path rather than overriding typed query editors.
+  Canvas exposure still uses the shared schema form so eligible fields can be shown as individual
+  dashboard companion cards.
 - The standard `variables` request envelope is only shown and sent when the selected query model
   advertises `supportsVariables: true`. Connector-specific query kwargs must stay in the selected
   connection editor.

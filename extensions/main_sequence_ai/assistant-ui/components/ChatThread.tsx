@@ -13,7 +13,7 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import { useAuiState } from "@assistant-ui/store";
-import { AlertTriangle, ArrowUp, ChevronDown, Sparkles, Square, Wrench, Zap } from "lucide-react";
+import { AlertTriangle, ArrowUp, ChevronDown, Loader2, Sparkles, Square, Wrench, Zap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -476,6 +476,35 @@ function EmptyState({
   );
 }
 
+function SessionReadinessState({
+  message,
+  status,
+}: {
+  message: string;
+  status: "loading" | "error" | "not_found";
+}) {
+  const failure = status === "error" || status === "not_found";
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col items-center justify-center px-6 py-8 text-center">
+      <div
+        className={cn(
+          "flex h-12 w-12 items-center justify-center rounded-full border",
+          failure
+            ? "border-danger/25 bg-danger/10 text-danger"
+            : "border-primary/20 bg-primary/10 text-primary",
+        )}
+      >
+        {failure ? <AlertTriangle className="h-5 w-5" /> : <Loader2 className="h-5 w-5 animate-spin" />}
+      </div>
+      <div className="mt-4 text-base font-semibold text-foreground">
+        {failure ? "AgentSession unavailable" : "Loading AgentSession"}
+      </div>
+      <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{message}</p>
+    </div>
+  );
+}
+
 function formatSessionNotice(value: string) {
   const normalized = value.trim();
 
@@ -569,6 +598,8 @@ function Composer({
   isLoadingAvailableModels,
   isLoadingBaseSession,
   isCancellingSession,
+  isSessionReady = true,
+  isSessionLoading = false,
   isSessionBusy,
   model,
   modelOptions,
@@ -582,6 +613,7 @@ function Composer({
   reasoningEffort,
   surface = "overlay",
   sessionUnavailableMessage = null,
+  sessionLoadingMessage = null,
 }: {
   availableModelsError: string | null;
   hasAvailableModels: boolean;
@@ -591,6 +623,8 @@ function Composer({
   isLoadingAvailableModels: boolean;
   isLoadingBaseSession?: boolean;
   isCancellingSession?: boolean;
+  isSessionReady?: boolean;
+  isSessionLoading?: boolean;
   isSessionBusy?: boolean;
   model: ComposerModelOption;
   modelOptions: ReadonlyArray<{ disabled?: boolean; label: string; value: ComposerModelOption }>;
@@ -604,6 +638,7 @@ function Composer({
   reasoningEffort: ComposerReasoningEffort;
   surface?: "overlay" | "page";
   sessionUnavailableMessage?: string | null;
+  sessionLoadingMessage?: string | null;
 }) {
   const isPage = surface === "page";
   const placeholder = env.useMockData
@@ -612,12 +647,20 @@ function Composer({
   const hasModelOptions = modelOptions.length > 0;
   const hasProviderOptions = (providerOptions?.length ?? 0) > 0;
   const hasReasoningEffortOptions = reasoningEffortOptions.length > 0;
-  const showConfigRow = hasProviderOptions || hasModelOptions || hasReasoningEffortOptions;
   const modelsUnavailable = !env.useMockData && !isLoadingAvailableModels && !hasAvailableModels;
   const modelCatalogError = modelsUnavailable && Boolean(availableModelsError?.trim());
   const emptyModelCatalog = modelsUnavailable && !modelCatalogError;
+  const showConfigRow =
+    hasAvailableModels && (hasProviderOptions || hasModelOptions || hasReasoningEffortOptions);
   const sessionUnavailable = !env.useMockData && Boolean(sessionUnavailableMessage);
-  const blockTyping = modelsUnavailable || sessionUnavailable || isLoadingBaseSession || Boolean(isSessionBusy);
+  const sessionLoading = !env.useMockData && isSessionLoading && !sessionUnavailable;
+  const blockTyping =
+    modelsUnavailable ||
+    sessionUnavailable ||
+    sessionLoading ||
+    isLoadingBaseSession ||
+    !isSessionReady ||
+    Boolean(isSessionBusy);
   const modelsUnavailableMessage = modelCatalogError
     ? formatModelsUnavailableMessage(availableModelsError)
     : formatEmptyModelCatalogMessage();
@@ -640,6 +683,8 @@ function Composer({
           placeholder={
             sessionUnavailable
               ? "Session unavailable."
+              : sessionLoading
+                ? "Loading AgentSession..."
               : modelsUnavailable
                 ? "Models unavailable."
                 : isLoadingBaseSession
@@ -660,7 +705,7 @@ function Composer({
             aria-label={isCancellingSession ? "Stopping session" : "Stop session"}
             title={isCancellingSession ? "Stopping session" : "Stop session"}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
-            disabled={isCancellingSession || sessionUnavailable || !onStop}
+            disabled={isCancellingSession || sessionUnavailable || sessionLoading || !isSessionReady || !onStop}
             onClick={onStop}
           >
             <Square className="h-3.5 w-3.5 fill-current" />
@@ -669,7 +714,13 @@ function Composer({
           <ComposerPrimitive.Send
             aria-label="Send message"
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
-            disabled={modelsUnavailable || sessionUnavailable || isLoadingBaseSession}
+            disabled={
+              modelsUnavailable ||
+              sessionUnavailable ||
+              sessionLoading ||
+              isLoadingBaseSession ||
+              !isSessionReady
+            }
           >
             <ArrowUp className="h-4 w-4" />
           </ComposerPrimitive.Send>
@@ -685,6 +736,7 @@ function Composer({
               }}
               aria-label="Provider"
               className="h-8 min-w-[160px] border-0 bg-transparent px-2 py-1 text-xs shadow-none hover:bg-muted/20 focus:ring-0"
+              disabled={!isSessionReady}
               listboxPlacement="top"
               value={provider}
               onChange={(event) => {
@@ -703,6 +755,7 @@ function Composer({
             <Select
               aria-label="Model"
               className="h-8 border-0 bg-transparent px-2 py-1 text-xs shadow-none hover:bg-muted/20 focus:ring-0"
+              disabled={!isSessionReady}
               fitContent
               listboxPlacement="top"
               value={model}
@@ -725,6 +778,7 @@ function Composer({
             <Select
               aria-label="Reasoning effort"
               className="h-8 min-w-[128px] border-0 bg-transparent px-2 py-1 text-xs shadow-none hover:bg-muted/20 focus:ring-0"
+              disabled={!isSessionReady}
               listboxPlacement="top"
               value={reasoningEffort}
               onChange={(event) => {
@@ -745,6 +799,11 @@ function Composer({
           {sessionUnavailableMessage}
         </div>
       ) : null}
+      {sessionLoading ? (
+        <div className="mt-2 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+          {sessionLoadingMessage ?? "Loading AgentSession detail, insights, and history."}
+        </div>
+      ) : null}
       {modelsUnavailable ? (
         <div
           className={cn(
@@ -761,7 +820,7 @@ function Composer({
                 openUserSettings(MODEL_PROVIDER_SETTINGS_SECTION_ID);
               }}
             >
-              Register provider
+              Sign in to provider
             </button>
           ) : null}
         </div>
@@ -895,6 +954,7 @@ function FooterInsetSpacer({
 export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadProps) {
   const isPage = surface === "page";
   const {
+    activeSessionReadiness,
     activeSessionSummary,
     availableModels,
     availableModelsError,
@@ -904,6 +964,9 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
     cancelActiveSession,
     currentSessionId,
     isCancellingSession,
+    isActiveSessionReady,
+    isActiveSessionLoading,
+    isCreatingAgentSession,
     isLoadingAvailableModels,
     isLoadingBaseSession,
     selectedModelValue,
@@ -941,27 +1004,65 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
   const selectedProvider = selectedProviderValue ?? providerOptions[0]?.value ?? "";
   const selectedReasoningEffort =
     selectedReasoningEffortValue ?? reasoningEffortOptions[0]?.value ?? "";
-  const sessionBusy = threadIsRunning || Boolean(activeSessionSummary?.working);
-  const busyPlaceholder = activeSessionSummary?.working
+  const sessionBusy =
+    threadIsRunning || isCreatingAgentSession || Boolean(activeSessionSummary?.working);
+  const busyPlaceholder = isCreatingAgentSession
+    ? "Creating AgentSession..."
+    : activeSessionSummary?.working
     ? "Session is working..."
     : "Waiting for response...";
+  const readinessLoadingParts = [
+    !activeSessionReadiness.detailReady ? "detail" : null,
+    !activeSessionReadiness.insightsReady ? "insights" : null,
+    !activeSessionReadiness.historyReady ? "history" : null,
+  ].filter(Boolean);
+  const sessionLoadingMessage =
+    !env.useMockData && isActiveSessionLoading
+      ? readinessLoadingParts.length > 0
+        ? `Loading AgentSession ${readinessLoadingParts.join(", ")}.`
+        : "Loading AgentSession."
+      : null;
+  const readinessUnavailableMessage =
+    !env.useMockData &&
+    (activeSessionReadiness.status === "error" || activeSessionReadiness.status === "not_found")
+      ? activeSessionReadiness.error ?? "AgentSession failed to load."
+      : null;
   const sessionUnavailableMessage =
     !currentSessionId && !env.useMockData
       ? baseSessionError
         ? `Unable to open the Command Center base session. ${baseSessionError}`
-        : isLoadingBaseSession
-          ? "Connecting to the Command Center base session."
-          : null
-      : null;
+        : null
+      : readinessUnavailableMessage;
+  const showReadinessState =
+    !env.useMockData &&
+    (isActiveSessionLoading ||
+      activeSessionReadiness.status === "error" ||
+      activeSessionReadiness.status === "not_found");
+  const readinessStateMessage =
+    sessionUnavailableMessage ??
+    sessionLoadingMessage ??
+    "Loading AgentSession detail, insights, and history.";
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <ThreadPrimitive.Root className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-        {isPage && !hasMessages ? (
+        {isPage && (showReadinessState || !hasMessages) ? (
           <div className="relative flex h-full min-h-0 flex-1 px-4 pb-8 pt-4">
             <div className="mx-auto flex w-full max-w-5xl justify-center pt-16">
               <div className="w-full max-w-3xl">
-                <EmptyState compact={compact} surface={surface} />
+                {showReadinessState ? (
+                  <SessionReadinessState
+                    message={readinessStateMessage}
+                    status={
+                      activeSessionReadiness.status === "error" ||
+                      activeSessionReadiness.status === "not_found"
+                        ? activeSessionReadiness.status
+                        : "loading"
+                    }
+                  />
+                ) : (
+                  <EmptyState compact={compact} surface={surface} />
+                )}
               </div>
             </div>
             <div className="pointer-events-none absolute inset-x-4 top-1/2 -translate-y-1/2">
@@ -975,6 +1076,8 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   isLoadingAvailableModels={isLoadingAvailableModels}
                   isLoadingBaseSession={isLoadingBaseSession}
                   isCancellingSession={isCancellingSession}
+                  isSessionReady={isActiveSessionReady}
+                  isSessionLoading={isActiveSessionLoading}
                   isSessionBusy={sessionBusy}
                   model={selectedModel}
                   modelOptions={modelOptions}
@@ -989,6 +1092,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   reasoningEffortOptions={reasoningEffortOptions}
                   reasoningEffort={selectedReasoningEffort}
                   sessionUnavailableMessage={sessionUnavailableMessage}
+                  sessionLoadingMessage={sessionLoadingMessage}
                   surface={surface}
                 />
                 <ComposerFooter surface={surface} />
@@ -1014,17 +1118,31 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   isPage ? "gap-6" : "gap-4",
                 )}
               >
-                {!isPage && !sessionNotice ? (
-                  <ThreadPrimitive.Empty>
-                    <EmptyState compact={compact} surface={surface} />
-                  </ThreadPrimitive.Empty>
-                ) : null}
-                <ThreadPrimitive.Messages
-                  components={{
-                    AssistantMessage: () => <AssistantMessage surface={surface} />,
-                    UserMessage: UserMessageComponent,
-                  }}
-                />
+                {showReadinessState ? (
+                  <SessionReadinessState
+                    message={readinessStateMessage}
+                    status={
+                      activeSessionReadiness.status === "error" ||
+                      activeSessionReadiness.status === "not_found"
+                        ? activeSessionReadiness.status
+                        : "loading"
+                    }
+                  />
+                ) : (
+                  <>
+                    {!isPage && !sessionNotice ? (
+                      <ThreadPrimitive.Empty>
+                        <EmptyState compact={compact} surface={surface} />
+                      </ThreadPrimitive.Empty>
+                    ) : null}
+                    <ThreadPrimitive.Messages
+                      components={{
+                        AssistantMessage: () => <AssistantMessage surface={surface} />,
+                        UserMessage: UserMessageComponent,
+                      }}
+                    />
+                  </>
+                )}
                 <SessionNotice surface={surface} />
                 <FooterInsetSpacer targetRef={isPage ? pageFooterRef : overlayFooterRef} />
               </div>
@@ -1044,6 +1162,8 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     isLoadingAvailableModels={isLoadingAvailableModels}
                     isLoadingBaseSession={isLoadingBaseSession}
                     isCancellingSession={isCancellingSession}
+                    isSessionReady={isActiveSessionReady}
+                    isSessionLoading={isActiveSessionLoading}
                     isSessionBusy={sessionBusy}
                     model={selectedModel}
                     modelOptions={modelOptions}
@@ -1058,6 +1178,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     reasoningEffortOptions={reasoningEffortOptions}
                     reasoningEffort={selectedReasoningEffort}
                     sessionUnavailableMessage={sessionUnavailableMessage}
+                    sessionLoadingMessage={sessionLoadingMessage}
                     surface={surface}
                   />
                   <ComposerFooter surface={surface} />
@@ -1079,6 +1200,8 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     isLoadingAvailableModels={isLoadingAvailableModels}
                     isLoadingBaseSession={isLoadingBaseSession}
                     isCancellingSession={isCancellingSession}
+                    isSessionReady={isActiveSessionReady}
+                    isSessionLoading={isActiveSessionLoading}
                     isSessionBusy={sessionBusy}
                     model={selectedModel}
                     modelOptions={modelOptions}
@@ -1093,6 +1216,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     reasoningEffortOptions={reasoningEffortOptions}
                     reasoningEffort={selectedReasoningEffort}
                     sessionUnavailableMessage={sessionUnavailableMessage}
+                    sessionLoadingMessage={sessionLoadingMessage}
                     surface={surface}
                   />
                   <ComposerFooter surface={surface} />

@@ -91,6 +91,13 @@ export interface DashboardWidgetRowState {
   children?: DashboardWidgetInstance[];
 }
 
+export type DashboardManagedWidgetRole = "embedded-connection-source";
+
+export interface DashboardManagedWidgetOwner {
+  ownerInstanceId: string;
+  role: DashboardManagedWidgetRole;
+}
+
 export interface DashboardWidgetInstance {
   id: string;
   widgetId: string;
@@ -99,6 +106,7 @@ export interface DashboardWidgetInstance {
   runtimeState?: Record<string, unknown>;
   presentation?: WidgetInstancePresentation;
   bindings?: WidgetInstanceBindings;
+  managedBy?: DashboardManagedWidgetOwner;
   row?: DashboardWidgetRowState;
   layout: DashboardWidgetLayout;
   position?: DashboardWidgetPlacement;

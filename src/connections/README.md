@@ -17,6 +17,16 @@ connection ADR. Connections are platform data-access resources, not widgets.
 - `ConnectionQueryWorkbench.tsx`: shared query authoring, generated request preview, test
   execution, and normalized response preview surface used by workspace Connection Query widget
   settings and Data Sources Explore.
+- `connectionQueryDraftDefaults.ts`: shared helper for connection-type draft initialization.
+  Connection types can provide `draftDefaultsResolver(...)` so Explore and widget settings seed
+  the same query model, query payload defaults, and fixed-date fallbacks.
+- `ConnectionQuerySettingsSurface.tsx`: dashboard-aware wrapper around the shared workbench. It
+  injects workspace date controls and renders the current runtime status for the live source while
+  draft settings are being edited.
+- `ConnectionQueryRuntimeStatusCard.tsx`: reusable runtime-state card for standalone and embedded
+  connection-query settings surfaces.
+- `managedConnectionQuerySource.ts`: helpers for resolving hidden managed `connection-query`
+  widgets owned by consumer widgets and summarizing their current runtime state.
 - `components/ConnectionPicker.tsx`: reusable widget/settings picker for selecting a configured
   connection instance by stable `ConnectionRef`.
 - `components/ConnectionQueryEditorFields.tsx`: reusable controls for connection-specific
@@ -48,10 +58,22 @@ connection ADR. Connections are platform data-access resources, not widgets.
   `ConnectionQueryWorkbench.tsx` so they generate the same `ConnectionQueryRequest`, use the same
   typed connection editors, and preview the same normalized runtime frame. Do not add another
   direct Explore-only `queryConnection(...)` path for standard query-capable connections.
+- Embedded consumer settings must route managed `connection-query` authoring through
+  `ConnectionQuerySettingsSurface.tsx` or `ConnectionQueryWorkbench.tsx` so managed sources reuse
+  the same request builder, typed query editors, incremental refresh fields, preview runner, and
+  normalized response preview as the standalone `connection-query` widget.
+- When a connection type needs non-generic initial query defaults, it must publish those defaults
+  through `draftDefaultsResolver(...)` on the connection definition instead of hard-coding a
+  separate Explore-only initialization path. Widget settings and Explore should then consume that
+  same resolver.
 - Connection type `queryEditor` components receive the selected connection instance and selected
   query model. Use them for per-connection query kwargs such as Data Node columns, SQL parameters,
   PromQL matchers, or PostgreSQL time-series field mapping instead of forcing users through a
   generic JSON object.
+- When a connection type provides a typed `queryEditor`, widget settings should use that editor as
+  the primary settings source of truth instead of duplicating the same payload fields through the
+  Connection Query widget schema. Schema-backed path controls remain the fallback for connections
+  that do not provide a typed editor and for canvas companion-card exposure.
 - Explore surfaces and widget test previews should use `ConnectionQueryResponsePreview.tsx` for
   response rendering so frame contracts are interpreted consistently across adapters.
 - System fallback helpers are limited to explicit legacy runtime defaults. They must not appear in

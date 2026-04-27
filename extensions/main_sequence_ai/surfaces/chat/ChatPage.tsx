@@ -61,6 +61,8 @@ export function ChatPage() {
     activeSessionSummary,
     context,
     createAgentSession,
+    isActiveSessionLoading,
+    isCreatingAgentSession,
     minimizeToRail,
     runStatus,
   } = useChatFeature();
@@ -72,6 +74,8 @@ export function ChatPage() {
     runStatus === "queued" ||
     runStatus === "thinking" ||
     runStatus === "responding" ||
+    isActiveSessionLoading ||
+    isCreatingAgentSession ||
     Boolean(activeSessionSummary?.working);
   const displayedRunStatus =
     activeSessionSummary?.working &&
@@ -113,6 +117,7 @@ export function ChatPage() {
             className="h-10 w-10 rounded-[calc(var(--radius)-6px)] text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             aria-label="New session"
             title="New session"
+            disabled={busy}
             onClick={createAgentSession}
           >
             <Plus className="h-4 w-4" />

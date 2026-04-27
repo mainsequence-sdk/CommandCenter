@@ -4,6 +4,7 @@ import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-fra
 
 import { PrometheusConnectionExplore } from "./PrometheusConnectionExplore";
 import { PrometheusConnectionQueryEditor } from "./PrometheusConnectionQueryEditor";
+import { resolvePrometheusDraftDefaults } from "./prometheusAuthoring";
 
 export const PROMETHEUS_CONNECTION_TYPE_ID = "prometheus.remote";
 
@@ -143,6 +144,9 @@ The frontend must hide fields that do not apply to the current endpoint/auth sel
 ## exploreBuilder
 
 - Prometheus Explore includes a Builder/Code authoring toggle.
+- Prometheus Explore, standalone connection-query widget settings, and widget-managed connection
+  settings must seed the same default query model, default fixed lookback, and range-query
+  maxDataPoints from this connection type definition.
 - Builder mode generates PromQL from a selected metric, label filters, optional rate/increase functions, and optional aggregations.
 - Metadata requests are user-triggered only. The frontend must not load metric names, label names, or label values when the Explore screen mounts.
 - Load metrics calls the connection resource endpoint with resource "label-values", label "__name__", and Prometheus params including match[], start, end, and limit when available.
@@ -661,6 +665,7 @@ export const prometheusConnection: ConnectionTypeDefinition<
   requiredPermissions: ["prometheus:query"],
   exploreComponent: PrometheusConnectionExplore,
   queryEditor: PrometheusConnectionQueryEditor,
+  draftDefaultsResolver: resolvePrometheusDraftDefaults,
   usageGuidance: prometheusUsageGuidance,
   examples: [
     {

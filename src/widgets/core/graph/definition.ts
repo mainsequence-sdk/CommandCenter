@@ -36,7 +36,7 @@ function resolveSourceDataset(
 
 export const graphWidget = defineWidget<GraphWidgetProps>({
   id: "graph",
-  widgetVersion: "2.1.0",
+  widgetVersion: "2.3.0",
   title: "Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -46,6 +46,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
   tags: ["tabular", "visualization", "tradingview", "echarts", "graph", "chart"],
   exampleProps: {
     sourceMode: "filter_widget",
+    graphSourceMode: "bound",
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
@@ -53,6 +54,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
   },
   mockProps: {
     sourceMode: "filter_widget",
+    graphSourceMode: "bound",
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
@@ -154,18 +156,21 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     };
   },
   schema: graphSettingsSchema,
+  settingsSchemaPlacement: "custom",
   controller: graphWidgetController,
   registryContract: {
     configuration: {
       mode: "hybrid",
       summary:
-        "Turns a bound tabular dataset into a chart by using selected X, Y, grouping, provider, chart type, and series behavior.",
+        "Turns a bound tabular dataset into a chart by using selected X, Y, grouping, provider, chart type, and series behavior, with optional managed connection-source authoring from the Bindings and Connection tabs.",
       requiredSetupSteps: [
-        "Bind the widget to an upstream tabular dataset.",
+        "Use the Bindings tab to either bind an upstream tabular dataset or add a managed connection for this graph.",
+        "If you add a managed connection, configure it from the dedicated Connection tab.",
         "Choose X and Y fields.",
         "Optionally choose grouping, provider, and chart style settings.",
       ],
       configurationNotes: [
+        "This widget still renders only from the canonical resolved sourceData binding, even when the Bindings and Connection tabs create and manage a hidden connection-query source widget behind the scenes.",
         "This widget does not infer field mappings from upstream time-series metadata.",
         "The chart provider changes rendering behavior but not the canonical upstream dataset contract.",
       ],

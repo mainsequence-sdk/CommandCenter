@@ -112,6 +112,10 @@ Use these local docs before reading the implementation in code:
 - Workspace widget settings now also expose a dedicated `Bindings` tab for widgets that declare
   inputs, including inputs resolved dynamically from saved widget instance configuration. Do not
   stuff inter-widget graph edges into raw props editors.
+- The widget-settings route may also add widget-specific tabs when one input owns a richer managed
+  authoring surface than the generic binding picker. Graph-managed connections use this to start
+  source ownership from `Bindings` and edit the full hidden `connection-query` configuration from a
+  dedicated `Connection` tab.
 - Inputs marked with `cardinality: "many"` are now first-class in the shared bindings UI. Settings
   can add, remove, and preserve several upstream sources for one input without falling back to raw
   JSON editing.

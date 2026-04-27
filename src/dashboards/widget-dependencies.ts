@@ -1,4 +1,4 @@
-import type { DashboardWidgetInstance } from "@/dashboards/types";
+import type { DashboardManagedWidgetRole, DashboardWidgetInstance } from "@/dashboards/types";
 import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
@@ -36,7 +36,10 @@ export interface DashboardWidgetDependencyGraphNode {
   id: string;
   widgetId: string;
   title: string;
+  managedRole?: DashboardManagedWidgetRole;
   placementMode?: "canvas" | "sidebar";
+  railVisibility?: "visible" | "hidden";
+  hiddenFromNormalRail: boolean;
   hiddenInCollapsedRow: boolean;
   parentRowId?: string;
   inputs: Array<{
@@ -732,7 +735,12 @@ function buildGraph(
       id: instance.id,
       widgetId: instance.widgetId,
       title: instance.title ?? definition?.title ?? instance.widgetId,
+      managedRole: instance.managedBy?.role,
       placementMode: instance.presentation?.placementMode,
+      railVisibility: instance.presentation?.railVisibility,
+      hiddenFromNormalRail:
+        Boolean(instance.managedBy?.ownerInstanceId && instance.managedBy?.role) &&
+        instance.presentation?.railVisibility === "hidden",
       hiddenInCollapsedRow,
       parentRowId,
       inputs: (io?.inputs ?? []).map((input) => ({
