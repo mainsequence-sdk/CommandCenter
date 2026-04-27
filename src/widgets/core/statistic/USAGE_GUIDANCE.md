@@ -1,6 +1,6 @@
 ## buildPurpose
 
-KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset.
+KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset or a widget-owned hidden connection source.
 
 ## whenToUse
 
@@ -9,6 +9,8 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset.
 - Use when one KPI should be shown for the full dataset, or one KPI card should be rendered per value of a selected group field.
 - Use when the statistic value needs presentation formatting such as decimals, prefix, suffix, source label display, color rules, per-card sparklines, or an explicit multi-card column layout.
 - Use when a one-row grouped statistic should stretch its cards to fill the available widget height instead of leaving empty panel space.
+- Use the managed connection flow when this statistic should own its own hidden
+  `connection-query` source instead of sharing a visible upstream source widget.
 
 ## whenNotToUse
 
@@ -18,7 +20,9 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset.
 
 ## authoringSteps
 
-- Bind the required `sourceData` input to an upstream `core.tabular_frame@v1` output.
+- Bind the required `sourceData` input to an upstream `core.tabular_frame@v1` output, or open
+  `Bindings`, click `Add connection`, and configure the dedicated `Connection` tab for a hidden
+  managed source.
 - Inspect the resolved source schema before choosing fields.
 - Choose the statistic mode and value field.
 - Optionally choose one group field and one order field.
@@ -27,6 +31,8 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset.
 ## blockingRequirements
 
 - A compatible upstream tabular binding is required.
+- Managed connection mode requires a valid backend-owned connection instance selected in the hidden
+  managed source widget.
 - When the upstream source publishes incremental metadata, the statistic consumes the retained
   full `upstreamBase` frame and recomputes the cards as a snapshot.
 - Field pickers are populated from the bound dataset's `columns`, `fields`, and representative rows.
@@ -35,6 +41,9 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset.
 ## commonPitfalls
 
 - Choosing a non-numeric value field makes `max`, `min`, `sum`, and `mean` produce no usable statistic.
+- Managed connection mode still depends on the hidden `connection-query` widget publishing one
+  canonical tabular frame. Fix source runtime failures in the `Connection` tab before debugging
+  statistic field choices or reduction rules.
 - `first` and `last` use the selected order field only when one is configured. Without an order field, they follow the upstream row order.
 - Grouping is intentionally limited to one field. If the workspace needs multiple group dimensions or pivoted totals, reshape the dataset with Tabular Transform first.
 - Multi-card sparklines only render when the selected value field resolves to at least two numeric observations per card.

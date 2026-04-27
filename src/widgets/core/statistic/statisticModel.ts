@@ -1,4 +1,5 @@
 import type { TabularDataRow } from "@/widgets/shared/tabular-widget-source";
+import type { WidgetInstancePresentation } from "@/widgets/types";
 import {
   resolveTabularFieldOptionsFromDataset,
   type TabularFieldOption,
@@ -7,6 +8,10 @@ import {
   normalizeTabularWidgetSourceReferenceProps,
   type TabularWidgetSourceReferenceProps,
 } from "@/widgets/shared/tabular-widget-source";
+import {
+  normalizeConnectionQueryProps,
+  type ConnectionQueryWidgetProps,
+} from "@/widgets/core/connection-query/connectionQueryModel";
 
 export type StatisticMode =
   | "count"
@@ -19,6 +24,7 @@ export type StatisticMode =
 export type StatisticOperator = "gt" | "gte" | "lt" | "lte" | "eq";
 export type StatisticTone = "neutral" | "primary" | "success" | "warning" | "danger";
 export type StatisticColorMode = "none" | "range-rules" | "change-from-last";
+export type StatisticAuthoringSourceMode = "bound" | "connection";
 
 export interface StatisticColorStyle {
   tone?: StatisticTone;
@@ -45,11 +51,14 @@ export interface StatisticWidgetProps
   columnCount?: number;
   colorMode?: StatisticColorMode;
   decimals?: number;
+  embeddedConnectionPresentation?: WidgetInstancePresentation;
+  embeddedConnectionQuery?: ConnectionQueryWidgetProps;
   groupField?: string;
   orderField?: string;
   prefix?: string;
   rangeRules?: StatisticRangeRule[];
   showSourceLabel?: boolean;
+  statisticSourceMode?: StatisticAuthoringSourceMode;
   statisticMode?: StatisticMode;
   suffix?: string;
   valueField?: string;
@@ -116,6 +125,10 @@ function uniqueStrings(values: Array<string | null | undefined>) {
   });
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function normalizeStatisticMode(value: unknown): StatisticMode {
   return value === "last" ||
     value === "first" ||
@@ -126,6 +139,12 @@ function normalizeStatisticMode(value: unknown): StatisticMode {
     value === "count"
     ? value
     : "last";
+}
+
+export function normalizeStatisticAuthoringSourceMode(
+  value: unknown,
+): StatisticAuthoringSourceMode {
+  return value === "connection" ? "connection" : "bound";
 }
 
 function normalizeColorMode(value: unknown): StatisticColorMode {
@@ -736,6 +755,16 @@ export function normalizeStatisticProps(
     suffix: resolved.suffix,
     valueFieldLabel: resolved.valueFieldLabel,
   } satisfies StatisticWidgetProps;
+}
+
+export function resolveStatisticEmbeddedConnectionQueryProps(
+  props: StatisticWidgetProps,
+) {
+  return normalizeConnectionQueryProps(
+    isPlainRecord(props.embeddedConnectionQuery)
+      ? (props.embeddedConnectionQuery as ConnectionQueryWidgetProps)
+      : {},
+  );
 }
 
 export function createStatisticRangeRuleId() {

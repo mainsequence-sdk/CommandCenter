@@ -30,7 +30,7 @@ Optional fields:
 - `requiredPermissions`: minimum frontend-advertised platform permissions
 - `configEditor`: custom React editor for public config
 - `queryEditor`: custom React editor for query payloads
-- `exploreComponent`: custom Explore shell
+- `authoringContract`: shared Explore/widget authoring behavior
 - `usageGuidance`: agent-facing and catalog-facing Markdown
 - `examples`: realistic public config and query examples
 
@@ -137,7 +137,7 @@ The shared workbench and Connection Query widget send:
 
 ```ts
 interface ConnectionQueryRequest<TQuery> {
-  connectionUid: string;
+  connectionId: string | number;
   query: TQuery;
   requestedOutputContract?: ConnectionResponseContractId;
   timeRange?: { from: string; to: string };
@@ -148,7 +148,7 @@ interface ConnectionQueryRequest<TQuery> {
 }
 ```
 
-The backend adapter resolves `connectionUid` to a backend-owned instance and treats the instance
+The backend adapter resolves `connectionId` to a backend-owned instance and treats the instance
 public config as authoritative. Query payloads should not silently override resource-scoped public
 config such as a selected Simple Table or Data Node.
 
@@ -188,7 +188,7 @@ raw JSON-style widget contract.
 
 `ConnectionInstance` is backend-owned and sanitized for the frontend:
 
-- `uid`: stable runtime reference
+- `id`: stable runtime reference
 - `typeId` and `typeVersion`: connection type identity
 - `name` and optional `description`
 - `organizationId` and optional `workspaceId`
@@ -206,7 +206,7 @@ Widgets and workspaces store only:
 
 ```ts
 interface ConnectionRef {
-  uid: string;
+  id: string | number;
   typeId: string;
 }
 ```
@@ -232,10 +232,9 @@ Use shared controls from `src/connections/components/ConnectionQueryEditorFields
 editors behave consistently. Do not make query editors call provider APIs directly unless they call
 connection resource endpoints for metadata.
 
-`exploreComponent` is optional. Prefer the shared `ConnectionQueryWorkbench`; add a custom Explore
-component only when the source needs a materially different workflow. Custom Explore components
-should still use `queryConnection`, `fetchConnectionResource`, and
-`ConnectionQueryResponsePreview`.
+`authoringContract` is optional. Use it when the connection needs shared query-model filtering,
+draft defaults, summary UI, or Explore copy. Data Sources Explore should use the shared
+`ConnectionExploreSurface.tsx`; do not add per-connection normal-query Explore wrapper components.
 
 ## Registry Sync
 

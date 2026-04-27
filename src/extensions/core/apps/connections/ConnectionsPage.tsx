@@ -31,7 +31,7 @@ import {
 } from "@/connections/api";
 import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
 import { ConnectionTypeIcon } from "@/connections/components/ConnectionTypeIcon";
-import { ConnectionQueryWorkbench } from "@/connections/ConnectionQueryWorkbench";
+import { ConnectionExploreSurface } from "@/connections/ConnectionExploreSurface";
 import { useConnectionInstances, useConnectionTypes } from "@/connections/hooks";
 import type {
   AnyConnectionTypeDefinition,
@@ -40,7 +40,6 @@ import type {
   ConnectionSchemaField,
   ConnectionInstance,
 } from "@/connections/types";
-import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 
 type ConnectionsPageMode = "add-new" | "data-sources" | "explore";
@@ -972,13 +971,6 @@ function ConnectionInstanceRow({
   );
 }
 
-function buildConnectionExploreDefaultRange() {
-  const rangeEndMs = Date.now();
-  const rangeStartMs = rangeEndMs - 24 * 60 * 60 * 1000;
-
-  return { rangeStartMs, rangeEndMs };
-}
-
 function ExploreHealthTestControl({ instance }: { instance: ConnectionInstance }) {
   const queryClient = useQueryClient();
   const testMutation = useMutation({
@@ -1436,10 +1428,6 @@ function ExploreContent({
   const selectedType = selectedInstance
     ? getConnectionTypeForInstance(typesById, selectedInstance)
     : undefined;
-  const queryModels = useMemo(() => selectedType?.queryModels ?? [], [selectedType]);
-  const CustomExplore = selectedType?.exploreComponent;
-  const defaultRange = useMemo(() => buildConnectionExploreDefaultRange(), [selectedId]);
-  const [exploreQueryProps, setExploreQueryProps] = useState<ConnectionQueryWidgetProps>({});
   const [showConnectionDetails, setShowConnectionDetails] = useState(false);
 
   useEffect(() => {
@@ -1451,33 +1439,6 @@ function ExploreContent({
   useEffect(() => {
     setShowConnectionDetails(false);
   }, [selectedId]);
-
-  useEffect(() => {
-    if (!selectedInstance) {
-      setExploreQueryProps({});
-      return;
-    }
-
-    const defaultQueryModel = queryModels[0];
-
-    setExploreQueryProps({
-      connectionRef: {
-        id: selectedInstance.id,
-        typeId: selectedInstance.typeId,
-      },
-      queryModelId: defaultQueryModel?.id,
-      query: defaultQueryModel ? { kind: defaultQueryModel.id } : {},
-      timeRangeMode: defaultQueryModel?.timeRangeAware ? "fixed" : "none",
-      fixedStartMs: defaultRange.rangeStartMs,
-      fixedEndMs: defaultRange.rangeEndMs,
-    });
-  }, [
-    defaultRange.rangeEndMs,
-    defaultRange.rangeStartMs,
-    queryModels,
-    selectedInstance?.typeId,
-    selectedInstance?.id,
-  ]);
 
   return (
     <div className="space-y-4">
@@ -1540,32 +1501,11 @@ function ExploreContent({
               connectionType={selectedType}
               onBack={() => setShowConnectionDetails(false)}
             />
-          ) : CustomExplore && selectedInstance && selectedType ? (
-            <CustomExplore connectionInstance={selectedInstance} connectionType={selectedType} />
           ) : selectedInstance && selectedType ? (
-            <Card className="relative z-0">
-              <CardHeader>
-                <CardTitle>Explore connection</CardTitle>
-                <CardDescription>
-                  Build and run the same generated connection query request used by workspace
-                  source widgets.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ConnectionQueryWorkbench
-                  value={exploreQueryProps}
-                  onChange={setExploreQueryProps}
-                  editable
-                  connectionInstance={selectedInstance}
-                  connectionType={selectedType}
-                  fixedRangeFallback={defaultRange}
-                  showConnectionPicker={false}
-                  autoSelectFirstQueryModel
-                  runButtonLabel="Run query"
-                  resultDescription="Preview of the normalized connection runtime frame."
-                />
-              </CardContent>
-            </Card>
+            <ConnectionExploreSurface
+              connectionInstance={selectedInstance}
+              connectionType={selectedType}
+            />
           ) : null}
         </div>
       ) : null}

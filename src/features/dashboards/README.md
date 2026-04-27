@@ -82,6 +82,9 @@ These flows are all part of one app surface, with instance state selected throug
 - `Custom` currently uses one canonical dense manual grid: `48` columns, `15px` row units, and
   `8px` visual gutters. Older `12`-, `24`-, and `96`-column custom layouts are normalized into
   that model on load so the editor no longer inherits legacy resize steps.
+- Custom-layout canvases also keep a non-persisted trailing bottom buffer at runtime so users can
+  scroll, drag, and extend the workspace below the last widget without first moving an existing
+  card to manufacture empty space. Edit mode intentionally gets a larger buffer than normal view.
 - Workspace settings now expose a `Custom` vs `Auto grid` layout selector. `Auto grid` currently
   supports `maxColumns`, `minColumnWidthPx`, `rowHeight`, and `fillScreen`.
 - In backend mode, workspace creation waits for the backend response and adopts the backend-assigned id instead of persisting a client-generated id.
@@ -216,6 +219,10 @@ These flows are all part of one app surface, with instance state selected throug
   visible in the grid, while `sidebar` keeps it mounted only in the edit-mode rail. This is
   intended for composable source widgets such as `Data Node` instances that should keep publishing
   runtime state without consuming canvas area.
+- In the workspace graph, widgets that own hidden managed `connection-query` sources should still
+  advertise that ownership on the visible owner node. The graph keeps managed source nodes hidden
+  by default, but owner cards must show a managed-connection badge and offer a direct reveal
+  action that turns on the existing managed-widget graph view.
 - The workspace toolbar keeps `Components` and workspace-settings affordances hidden until edit mode
   is active, so normal viewing does not expose authoring controls.
 - The confusing standalone toolbar `+` shortcut to saved widgets has been removed from the canvas.
@@ -313,9 +320,11 @@ These flows are all part of one app surface, with instance state selected throug
   is evaluated for that edge. Inputs with `cardinality: "many"` now also support several bound
   source rows in the shared settings UI instead of only one hidden array entry in persisted JSON.
 - Widgets can also extend that route with widget-specific authoring tabs when one input needs a
-  richer managed-source workflow than the generic binding picker can provide. The Graph widget now
-  starts managed connection creation from `Bindings` and edits the hidden source from a dedicated
-  `Connection` tab while still persisting a normal `sourceData` binding behind the scenes.
+  richer managed-source workflow than the generic binding picker can provide. Widgets that own a
+  hidden `connection-query` source should do it through the shared managed-connection consumer
+  adapter/registry layer. The Graph widget is the first implementation: it starts managed
+  connection creation from `Bindings`, edits the hidden source from a dedicated `Connection` tab,
+  and still persists a normal `sourceData` binding behind the scenes.
 - The dedicated widget settings route now keeps only the shared dashboard provider stack alive.
   It must not hidden-mount the full workspace widget tree again. Runtime-dependent settings should
   resolve through the dependency and execution providers, and executable source or transform
@@ -407,7 +416,9 @@ These flows are all part of one app surface, with instance state selected throug
 - Workspace iconography should also stay unified across surfaces. The left rail, graph cards, and
   any other workspace-owned icon affordances must resolve icons from the shared widget-definition
   field `workspaceIcon` through `resolveWorkspaceWidgetIcon(...)` instead of duplicating widget-id
-  heuristics in each surface.
+  heuristics in each surface. Instance-aware source widgets such as `connection-query` may extend
+  that shared resolver with prop-derived connection-type icons, but the override still belongs in
+  the shared resolver rather than per-surface special cases.
 - Component browser rows show the same resolved widget icon immediately before the widget name, so
   the add-widget list matches the left widget rail and graph card iconography.
 - The dedicated workspace settings page now uses the same scrollable full-page container model as

@@ -61,6 +61,10 @@ function useControllableStringValue(value: unknown, defaultValue: unknown) {
   };
 }
 
+function normalizeSelectValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : String(value ?? "").trim();
+}
+
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   (
     {
@@ -88,7 +92,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       value,
       defaultValue,
     );
-    const selectedOption = options.find((option) => option.value === currentValue) ?? null;
+    const normalizedCurrentValue = normalizeSelectValue(currentValue);
+    const selectedOption =
+      options.find((option) => normalizeSelectValue(option.value) === normalizedCurrentValue) ?? null;
 
     React.useImperativeHandle(forwardedRef, () => hiddenSelectRef.current as HTMLSelectElement, []);
 
@@ -194,10 +200,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           <span
             className={cn(
               fitContent ? "whitespace-nowrap" : "truncate",
-              selectedOption ? "text-foreground" : "text-muted-foreground",
+              selectedOption || normalizedCurrentValue ? "text-foreground" : "text-muted-foreground",
             )}
           >
-            {selectedOption?.label ?? options[0]?.label ?? "Select an option"}
+            {selectedOption?.label ??
+              (normalizedCurrentValue ? currentValue : options[0]?.label ?? "Select an option")}
           </span>
           <ChevronDown
             className={cn(

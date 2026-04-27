@@ -3,8 +3,8 @@ import fredLogoUrl from "@/connections/assets/fred-economic-data-logo.svg";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
 import { FredConnectionConfigEditor } from "./FredConnectionConfigEditor";
-import { FredConnectionExplore } from "./FredConnectionExplore";
 import { FredConnectionQueryEditor } from "./FredConnectionQueryEditor";
+import { fredConnectionAuthoringContract } from "./fredAuthoring";
 
 export const FRED_ECONOMIC_DATA_CONNECTION_TYPE_ID = "finance.fred-economic-data";
 
@@ -498,8 +498,8 @@ export const fredEconomicDataConnection: ConnectionTypeDefinition<
   ],
   requiredPermissions: ["connections:query"],
   configEditor: FredConnectionConfigEditor,
-  exploreComponent: FredConnectionExplore,
   queryEditor: FredConnectionQueryEditor,
+  authoringContract: fredConnectionAuthoringContract,
   usageGuidance,
   examples: [
     {

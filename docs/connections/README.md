@@ -60,7 +60,8 @@ For a new connection type:
 - add query models with output contracts and control metadata
 - add a config editor when schema fields alone are not enough
 - add a query editor when raw JSON is not acceptable for normal users
-- add an Explore component only when the shared workbench is not enough
+- add an `authoringContract` when the connection needs shared draft defaults, query-model
+  filtering, summary UI, or custom Explore copy
 - add realistic examples and complete `usageGuidance`
 - register the connection through the app registry
 - sync the type to the backend registry
@@ -73,7 +74,7 @@ For a new connection type:
 Frontend code may store `ConnectionRef` values in widgets and workspaces:
 
 ```ts
-{ uid: string; typeId: string }
+{ id: string | number; typeId: string }
 ```
 
 Frontend code must not store provider URLs, credentials, tokens, mutable display names, decrypted

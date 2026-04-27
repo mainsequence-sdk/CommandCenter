@@ -128,6 +128,6 @@ export function hydrateConnectionRuntime(
       : connection.queryModels,
     configEditor: runtimeDefinition.configEditor,
     queryEditor: runtimeDefinition.queryEditor,
-    exploreComponent: runtimeDefinition.exploreComponent,
+    authoringContract: runtimeDefinition.authoringContract,
   };
 }

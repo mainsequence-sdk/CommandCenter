@@ -1,4 +1,5 @@
 import type { ResolvedWidgetInput, ResolvedWidgetInputs } from "@/widgets/types";
+import type { WidgetInstancePresentation } from "@/widgets/types";
 import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { TabularSourceDetail, TabularDataRow } from "@/widgets/shared/tabular-widget-source";
 import {
@@ -17,9 +18,13 @@ import {
   type TabularWidgetSourceMode,
   type ManualTableColumnDefinition,
 } from "@/widgets/shared/tabular-widget-source";
+import {
+  normalizeConnectionQueryProps,
+  type ConnectionQueryWidgetProps,
+} from "@/widgets/core/connection-query/connectionQueryModel";
 
 export type TableWidgetDateRangeMode = "dashboard" | "fixed";
-export type TableWidgetSourceMode = "bound" | "manual";
+export type TableWidgetSourceMode = "bound" | "connection" | "manual";
 export type TableWidgetColumnFormat =
   | "auto"
   | "text"
@@ -116,6 +121,8 @@ export interface TableWidgetProps
   extends Record<string, unknown>,
     TabularWidgetSourceReferenceProps {
   tableSourceMode?: TableWidgetSourceMode;
+  embeddedConnectionPresentation?: WidgetInstancePresentation;
+  embeddedConnectionQuery?: ConnectionQueryWidgetProps;
   sourceId?: number;
   dateRangeMode?: TableWidgetDateRangeMode;
   fixedEndMs?: number;
@@ -188,7 +195,8 @@ export function resolveTableWidgetOutput(
       source: {
         kind: "table-widget",
         context: {
-          tableSourceMode: "bound",
+          tableSourceMode:
+            tableSourceMode === "connection" ? "connection" : "bound",
         },
       },
     };
@@ -347,8 +355,22 @@ function normalizeCellValue(value: unknown): TableWidgetCellValue {
   return String(value);
 }
 
-function normalizeTableSourceMode(value: unknown): TableWidgetSourceMode {
-  return value === "manual" ? "manual" : "bound";
+export function normalizeTableSourceMode(value: unknown): TableWidgetSourceMode {
+  return value === "manual" || value === "connection" ? value : "bound";
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+export function resolveTableEmbeddedConnectionQueryProps(
+  props: TableWidgetProps,
+) {
+  return normalizeConnectionQueryProps(
+    isPlainRecord(props.embeddedConnectionQuery)
+      ? (props.embeddedConnectionQuery as ConnectionQueryWidgetProps)
+      : {},
+  );
 }
 
 function coerceManualTableCellValue(

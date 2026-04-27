@@ -99,7 +99,7 @@ function resolveConnectionQueryIo(
 
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   id: "connection-query",
-  widgetVersion: "1.5.1",
+  widgetVersion: "1.5.3",
   title: "Connection Query",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",

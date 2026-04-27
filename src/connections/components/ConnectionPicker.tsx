@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getConnectionRuntimeDefinition } from "@/app/registry/connection-runtime";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { getSystemConnectionInstances } from "@/connections/api";
 import { ConnectionTypeIcon } from "@/connections/components/ConnectionTypeIcon";
 import { useConnectionInstances, useConnectionTypes } from "@/connections/hooks";
 import { cn } from "@/lib/utils";
@@ -107,6 +106,26 @@ function sameConnectionId(left: ConnectionId | undefined, right: ConnectionId | 
   return left !== undefined && right !== undefined && String(left) === String(right);
 }
 
+export function resolveConnectionPickerInstances(input: {
+  backendInstances: ConnectionInstance[];
+  typesById: Map<string, AnyConnectionTypeDefinition>;
+  accepts?: ConnectionPickerAccepts;
+}) {
+  return input.backendInstances.filter((instance) =>
+    instanceMatchesAccepts(
+      instance,
+      getTypeForInstance(instance, input.typesById),
+      input.accepts,
+    ),
+  ).sort((left, right) => {
+    if (left.isDefault !== right.isDefault) {
+      return left.isDefault ? -1 : 1;
+    }
+
+    return left.name.localeCompare(right.name);
+  });
+}
+
 export function ConnectionPicker({
   value,
   onChange,
@@ -124,28 +143,14 @@ export function ConnectionPicker({
     () => new Map((typesQuery.data ?? []).map((connection) => [connection.id, connection])),
     [typesQuery.data],
   );
-  const systemInstances = useMemo(() => getSystemConnectionInstances(), []);
   const instances = useMemo(
-    () => {
-      const dedupedInstances = new Map<ConnectionId, ConnectionInstance>();
-
-      for (const instance of [...systemInstances, ...(instancesQuery.data ?? [])]) {
-        dedupedInstances.set(instance.id, instance);
-      }
-
-      return Array.from(dedupedInstances.values())
-        .filter((instance) =>
-          instanceMatchesAccepts(instance, getTypeForInstance(instance, typesById), accepts),
-        )
-        .sort((left, right) => {
-          if (left.isDefault !== right.isDefault) {
-            return left.isDefault ? -1 : 1;
-          }
-
-          return left.name.localeCompare(right.name);
-        });
-    },
-    [accepts, instancesQuery.data, systemInstances, typesById],
+    () =>
+      resolveConnectionPickerInstances({
+        backendInstances: instancesQuery.data ?? [],
+        typesById,
+        accepts,
+      }),
+    [accepts, instancesQuery.data, typesById],
   );
   const selectedId = value?.id ?? "";
   const selectedInstance = instances.find((instance) => sameConnectionId(instance.id, selectedId));
@@ -355,7 +360,7 @@ export function ConnectionPicker({
         <p className="text-xs text-muted-foreground">
           {instancesQuery.isError
             ? "Unable to load configured connections."
-            : "Connection instances are backend-owned. A system default is used until managed instances exist."}
+            : "Connection instances are backend-owned. Select a real configured instance before running a query."}
         </p>
       )}
     </div>

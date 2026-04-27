@@ -1,4 +1,8 @@
-import { fetchConnectionResource, queryConnection } from "@/connections/api";
+import {
+  fetchConnectionResource,
+  queryConnection,
+  resolveConnectionRefFromInstances,
+} from "@/connections/api";
 import type { DashboardRequestTraceMeta } from "@/dashboards/dashboard-request-trace";
 import {
   isConnectionResponseContractId,
@@ -41,6 +45,7 @@ export interface ConnectionQueryWidgetProps extends Record<string, unknown> {
   connectionRef?: ConnectionRef;
   queryModelId?: string;
   query?: Record<string, unknown>;
+  queryEditorState?: Record<string, unknown>;
   timeRangeMode?: ConnectionQueryTimeRangeMode;
   fixedStartMs?: number;
   fixedEndMs?: number;
@@ -65,6 +70,8 @@ export type ConnectionQueryRawFrameRuntimeState = CommandCenterFrame & {
 export type ConnectionQueryRuntimeState =
   | TabularFrameSourceV1
   | ConnectionQueryRawFrameRuntimeState;
+
+const DEFAULT_PROMQL_RANGE_STEP_MS = 5 * 60 * 1000;
 
 export function resolveConnectionQueryRequestedOutputContract(
   queryModel: ConnectionQueryModel | undefined,
@@ -410,6 +417,9 @@ export function normalizeConnectionQueryProps(
     connectionRef: normalizeConnectionRef(props.connectionRef),
     queryModelId: normalizeString(props.queryModelId),
     query: isPlainRecord(props.query) ? { ...props.query } : {},
+    queryEditorState: isPlainRecord(props.queryEditorState)
+      ? { ...props.queryEditorState }
+      : undefined,
     timeRangeMode: normalizeTimeRangeMode(props.timeRangeMode),
     fixedStartMs: normalizeTimestampMs(props.fixedStartMs),
     fixedEndMs: normalizeTimestampMs(props.fixedEndMs),
@@ -748,6 +758,17 @@ function buildEffectiveQuery(props: ConnectionQueryWidgetProps) {
     query.kind = queryModelId;
   }
 
+  if (query.kind === "promql-range" || queryModelId === "promql-range") {
+    query.kind = "promql-range";
+    query.stepMs = normalizePositiveInteger(query.stepMs) ?? DEFAULT_PROMQL_RANGE_STEP_MS;
+
+    const maxDataPoints = normalizePositiveInteger(query.maxDataPoints);
+
+    if (maxDataPoints !== undefined) {
+      query.maxDataPoints = maxDataPoints;
+    }
+  }
+
   if (queryModelId === "sql") {
     return {
       ...query,
@@ -946,7 +967,15 @@ export async function executeConnectionQueryWidgetRequest(
   },
 ): Promise<ConnectionQueryRuntimeState> {
   const effectiveProps = resolveEffectiveConnectionQueryProps(props, queryModel);
-  const connectionRef = effectiveProps.connectionRef;
+  const resolvedConnectionSelection = await resolveConnectionRefFromInstances(
+    effectiveProps.connectionRef,
+    { allowFetch: true },
+  );
+  const resolvedProps: ConnectionQueryWidgetProps = {
+    ...effectiveProps,
+    connectionRef: resolvedConnectionSelection.connectionRef ?? effectiveProps.connectionRef,
+  };
+  const connectionRef = resolvedProps.connectionRef;
   const queryModelId = effectiveProps.queryModelId;
   const requestedOutputContract = resolveConnectionQueryRequestedOutputContract(queryModel);
   const allowedOutputContracts = resolveConnectionQueryAllowedOutputContracts(queryModel);
@@ -959,7 +988,7 @@ export async function executeConnectionQueryWidgetRequest(
     throw new Error("Select a connection path before running this query.");
   }
 
-  const request = buildConnectionQueryRequest(effectiveProps, dashboardState, queryModel);
+  const request = buildConnectionQueryRequest(resolvedProps, dashboardState, queryModel);
 
   if (!request) {
     throw new Error("Connection query request is incomplete.");
@@ -975,8 +1004,8 @@ export async function executeConnectionQueryWidgetRequest(
     });
   }
 
-  const enrichedRequest = await enrichConnectionQueryRequest(request, effectiveProps);
-  const incrementalSettings = resolveConnectionQueryIncrementalSettings(effectiveProps);
+  const enrichedRequest = await enrichConnectionQueryRequest(request, resolvedProps);
+  const incrementalSettings = resolveConnectionQueryIncrementalSettings(resolvedProps);
   const incrementalDecision = resolveConnectionQueryIncrementalDecision({
     fullRequest: enrichedRequest,
     settings: incrementalSettings,
@@ -985,7 +1014,7 @@ export async function executeConnectionQueryWidgetRequest(
     scopeId: options?.scopeId,
     eligible:
       Boolean(queryModel?.timeRangeAware) &&
-      effectiveProps.timeRangeMode === "dashboard" &&
+      resolvedProps.timeRangeMode === "dashboard" &&
       requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT,
     forceFullSnapshot: options?.forceFullRefresh,
   });

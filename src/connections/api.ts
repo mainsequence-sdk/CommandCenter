@@ -5,6 +5,7 @@ import {
   startDashboardRequestTrace,
   type DashboardRequestTraceMeta,
 } from "@/dashboards/dashboard-request-trace";
+import { resolveConnectionRefSelection } from "@/connections/connectionRefResolution";
 import type {
   ConnectionId,
   ConnectionHealthResult,
@@ -18,10 +19,6 @@ import type {
 } from "@/connections/types";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
-const systemNowIso = "1970-01-01T00:00:00.000Z";
-
-export const COMMAND_CENTER_SYSTEM_CONNECTION_TYPE_ID = "command-center.system-api";
-export const COMMAND_CENTER_SYSTEM_CONNECTION_ID = "system-default";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -304,79 +301,6 @@ export function normalizeConnectionRef(
   return fallback;
 }
 
-export function getSystemConnectionInstances(): ConnectionInstance[] {
-  const instances: ConnectionInstance[] = [
-    {
-      id: COMMAND_CENTER_SYSTEM_CONNECTION_ID,
-      typeId: COMMAND_CENTER_SYSTEM_CONNECTION_TYPE_ID,
-      typeVersion: 1,
-      name: "Command Center system API",
-      description:
-        "Hidden system connection that represents the current Command Center backend runtime.",
-      organizationId: undefined,
-      workspaceId: null,
-      publicConfig: {
-        apiBaseUrl: env.apiBaseUrl,
-      },
-      secureFields: {},
-      status: "unknown",
-      isDefault: true,
-      isSystem: true,
-      tags: ["system"],
-      createdAt: systemNowIso,
-      updatedAt: systemNowIso,
-    },
-  ];
-
-  instances.push({
-    id: "mainsequence-data-node-default",
-    typeId: "mainsequence.data-node",
-    typeVersion: 1,
-    name: "Main Sequence Data Node",
-    description:
-      "Default Data Node connection routed through the current authenticated Main Sequence backend session.",
-    workspaceId: null,
-    publicConfig: {},
-    secureFields: {},
-    status: "unknown",
-    isDefault: true,
-    isSystem: true,
-    tags: ["main-sequence", "data-node"],
-    createdAt: systemNowIso,
-    updatedAt: systemNowIso,
-  });
-
-  instances.push({
-    id: "prometheus-default",
-    typeId: "prometheus.remote",
-    typeVersion: 1,
-    name: "Prometheus default",
-    description:
-      "Default Prometheus connection placeholder. Backend-managed instances should replace this when available.",
-    workspaceId: null,
-    publicConfig: {},
-    secureFields: {},
-    status: "unknown",
-    isDefault: true,
-    isSystem: true,
-    tags: ["prometheus"],
-    createdAt: systemNowIso,
-    updatedAt: systemNowIso,
-  });
-
-  return instances;
-}
-
-export function getDefaultConnectionRefForType(
-  typeId: string,
-): ConnectionRef | undefined {
-  const instance = getSystemConnectionInstances().find(
-    (candidate) => candidate.typeId === typeId && candidate.isDefault,
-  );
-
-  return instance ? createConnectionRef(instance.id, instance.typeId) : undefined;
-}
-
 export async function fetchConnectionTypes(): Promise<AnyConnectionTypeDefinition[]> {
   const path = commandCenterConfig.connections.types.listUrl.trim();
 
@@ -397,6 +321,34 @@ export async function fetchConnectionInstances(): Promise<ConnectionInstance[]> 
 
   const payload = await requestJson<unknown>(path);
   return normalizeConnectionInstanceList(payload);
+}
+
+export async function resolveConnectionRefFromInstances(
+  requestedRef: ConnectionRef | undefined,
+  options?: {
+    preferredInstance?: ConnectionInstance;
+    allowFetch?: boolean;
+  },
+) {
+  let backendInstances: ConnectionInstance[] = [];
+
+  if (options?.allowFetch !== false) {
+    try {
+      backendInstances = await fetchConnectionInstances();
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Unable to load configured connections from the backend.";
+      throw new Error(message);
+    }
+  }
+
+  return resolveConnectionRefSelection({
+    requestedRef,
+    preferredInstance: options?.preferredInstance,
+    backendInstances,
+  });
 }
 
 export async function fetchConnectionInstance(id: ConnectionId) {

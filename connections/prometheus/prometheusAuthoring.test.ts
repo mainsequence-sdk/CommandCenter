@@ -34,6 +34,7 @@ describe("prometheus authoring defaults", () => {
     expect(defaults.queryModelId).toBe("promql-range");
     expect(defaults.query).toMatchObject({
       kind: "promql-range",
+      stepMs: 300000,
       maxDataPoints: 2048,
     });
     expect(typeof defaults.fixedStartMs).toBe("number");

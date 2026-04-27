@@ -2,8 +2,8 @@ import type { ConnectionTypeDefinition } from "@/connections/types";
 import binanceLogoUrl from "@/connections/assets/binance-logo.svg";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
+import { binanceConnectionAuthoringContract } from "./binanceAuthoring";
 import { BinanceConnectionConfigEditor } from "./BinanceConnectionConfigEditor";
-import { BinanceConnectionExplore } from "./BinanceConnectionExplore";
 import { BinanceConnectionQueryEditor } from "./BinanceConnectionQueryEditor";
 
 export const BINANCE_MARKET_DATA_CONNECTION_TYPE_ID = "finance.binance-market-data";
@@ -479,8 +479,8 @@ export const binanceMarketDataConnection: ConnectionTypeDefinition<
   ],
   requiredPermissions: ["connections:query"],
   configEditor: BinanceConnectionConfigEditor,
-  exploreComponent: BinanceConnectionExplore,
   queryEditor: BinanceConnectionQueryEditor,
+  authoringContract: binanceConnectionAuthoringContract,
   usageGuidance,
   examples: [
     {

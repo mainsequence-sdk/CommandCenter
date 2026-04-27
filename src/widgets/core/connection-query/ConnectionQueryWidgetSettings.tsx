@@ -31,6 +31,7 @@ export function ConnectionQueryWidgetSettings({
       value={draftProps}
       onChange={onDraftPropsChange}
       editable={editable}
+      publishPreviewRuntimeStateToInstanceId={instanceId}
       runtimeState={currentWidget?.runtimeState}
       runtimeStatusTitle="Current source runtime"
       runtimeStatusDescription="This is the last live runtime state published by this source widget while you edit the draft query."
@@ -49,7 +50,6 @@ export function ConnectionQueryWidgetSettings({
       )}
       showConnectionPicker
       showQueryEditor={useTypedQueryEditor}
-      runButtonLabel="Test"
       resultDescription="Preview of the normalized widget runtime frame."
     />
   );

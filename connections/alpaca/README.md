@@ -11,7 +11,7 @@ The connection exposes Alpaca equity and crypto market-data queries through the 
 - `index.ts`: exports the `ConnectionTypeDefinition`, config types, query types, query models, examples, and agent-facing `usageGuidance`.
 - `AlpacaConnectionConfigEditor.tsx`: renders stable public configuration fields, including endpoint defaults, asset classes, feed/location defaults, timeout, cache, and dedupe controls.
 - `AlpacaConnectionQueryEditor.tsx`: renders query payload controls for supported Alpaca equity and crypto query kinds.
-- `AlpacaConnectionExplore.tsx`: wraps the shared `ConnectionQueryWorkbench` for live backend-routed query testing.
+- `alpacaAuthoring.ts`: defines the shared `authoringContract` used by both Data Sources Explore and widget-managed/standalone `connection-query` settings for draft seeding and Explore copy.
 - `src/connections/assets/alpaca-symbol.png`: official standalone Alpaca symbol from Alpaca's Newsroom brand kit, used because catalog connection icons render in a square slot.
 
 ## Backend Adapter Contract
@@ -46,5 +46,6 @@ The backend owns symbol normalization, asset-class authorization, provider pagin
 ## Maintenance Constraints
 
 - Keep query models aligned with the backend ADR and adapter implementation.
+- Keep connection-specific authoring behavior inside `alpacaAuthoring.ts`. Do not reintroduce an Alpaca-only Explore wrapper that can drift from widget settings.
 - Keep every config schema field description synchronized with the config editor help text and `usageGuidance`.
 - If the public config, secure config, query payload, resource payload, health result, or response frame shape changes, assess the backend contract before treating the change as frontend-only.

@@ -167,7 +167,7 @@ export interface ConnectionTypeDefinition<
 
   configEditor?: ComponentType<ConnectionConfigEditorProps<TPublicConfig>>;
   queryEditor?: ComponentType<ConnectionQueryEditorProps<TQuery>>;
-  exploreComponent?: ComponentType<ConnectionExploreProps>;
+  authoringContract?: ConnectionAuthoringContract;
 
   usageGuidance?: string;
   examples?: Array<{
@@ -180,6 +180,10 @@ export interface ConnectionTypeDefinition<
 
 This definition is type-level metadata. It must not contain organization-specific config,
 credentials, or runtime health state.
+
+Later authoring work replaced the old `exploreComponent` customization path with a shared
+connection authoring contract. See
+[ADR: Shared Connection Authoring Contract](./adr-connection-authoring-contract.md).
 
 `queryEditor` is a frontend rendering hook for connection-specific query payload fields. It should
 receive the selected backend-owned connection instance, selected query model, requested output

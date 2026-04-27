@@ -24,6 +24,13 @@ This directory contains reusable widget presentation primitives that are shared 
   that need to display a small tabular frame without mounting the full table widget.
 - `tabular-date-time-field.tsx`: compact date/time input field shared by source and connection
   configuration surfaces.
+- `managed-connection-consumer.ts`: shared adapter contract plus draft/apply helpers for widgets
+  that own a hidden managed `connection-query` source.
+- `managed-connection-consumer-registry.ts`: registry lookup for widgets that implement the shared
+  managed-connection adapter.
+- `ManagedConnectionConsumerPanel.tsx`: reusable `Bindings -> Connection` settings surface for
+  managed `connection-query` consumers. It reuses the standard connection-query workbench and
+  writes back through the widget-specific adapter.
 - `chart-data-source.ts`: shared renderer-neutral chart-data contract helper for
   `core.chart_data@v1`, including value-descriptor metadata and frame normalization for backend
   adapters that return chart-ready data rather than source time-series data.
@@ -186,6 +193,9 @@ This directory contains reusable widget presentation primitives that are shared 
 - Widget definitions can set `fixedPlacementMode` when a widget must always stay in one
   placement. The shared presentation resolver and settings panel enforce that placement even if a
   persisted instance has older presentation state.
+- Widgets that support managed connection authoring should describe only their own prop mapping in
+  a local adapter. The shared dashboard storage layer, settings route, and connection panel should
+  own hidden-source lifecycle, draft signatures, binding repair, and `Connection` tab rendering.
 - The shared widget frame does not inject default body padding. Widget authors own internal spacing inside the widget implementation.
 - Missing-widget placeholders explain that the current client does not recognize the stored widget id. Customizable surfaces may attach a direct delete action so stale legacy instances can be removed.
 - Themes should target widget containers through the shared widget-shell markers from `chrome.ts` instead of hardcoding selectors against individual widget implementations.

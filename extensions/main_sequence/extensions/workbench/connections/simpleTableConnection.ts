@@ -2,8 +2,8 @@ import type { ConnectionTypeDefinition } from "@/connections/types";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import mainSequenceLogoMarkUrl from "../../../../../config/branding/logo_mark.png";
 
+import { simpleTableConnectionAuthoringContract } from "./simpleTableAuthoring";
 import { SimpleTableConnectionConfigEditor } from "./SimpleTableConnectionConfigEditor";
-import { SimpleTableConnectionExplore } from "./SimpleTableConnectionExplore";
 import { SimpleTableConnectionQueryEditor } from "./SimpleTableConnectionQueryEditor";
 
 export const MAIN_SEQUENCE_SIMPLE_TABLE_CONNECTION_TYPE_ID = "mainsequence.simple-table";
@@ -145,8 +145,8 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
     ],
   },
   configEditor: SimpleTableConnectionConfigEditor,
-  exploreComponent: SimpleTableConnectionExplore,
   queryEditor: SimpleTableConnectionQueryEditor,
+  authoringContract: simpleTableConnectionAuthoringContract,
   queryModels: [
     {
       id: "simple-table-sql",

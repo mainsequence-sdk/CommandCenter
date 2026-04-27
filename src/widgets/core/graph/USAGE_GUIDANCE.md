@@ -1,12 +1,12 @@
 ## buildPurpose
 
-Line, area, or bar chart for a canonical `core.tabular_frame@v1` dataset, with optional graph-owned managed connection-query authoring that still resolves through `sourceData`.
+Line, area, bar, or markers-only chart for a canonical `core.tabular_frame@v1` dataset, with optional graph-owned managed connection-query authoring that still resolves through `sourceData`.
 
 ## whenToUse
 
-- Use when a tabular dataset should be rendered as a line, area, or bar chart.
+- Use when a tabular dataset should be rendered as a line, area, bar, or markers-only chart.
 - Use when rows can be mapped to an X field, a numeric Y field, and an optional grouping field.
-- Use when the chart needs local provider choice, chart type, series normalization, axis mode, or per-series color and line-style overrides.
+- Use when the chart needs local provider choice, chart type, marker size, max grouped-series count, series normalization, axis mode, or per-series color and line-style overrides.
 - Use the managed connection flow when one chart should own its own query without adding a visible standalone source widget to the rail.
 
 ## whenNotToUse
@@ -24,7 +24,7 @@ Line, area, or bar chart for a canonical `core.tabular_frame@v1` dataset, with o
 - Configure that managed source from the dedicated `Connection` tab with the same connection/path/query/runtime controls used by the standalone Connection Query widget.
 - Apply the connection changes to create or update the hidden source widget and bind its `dataset` output to this graph's `sourceData` input automatically.
 - Choose X and Y fields that match the intended chart.
-- Optionally choose a grouping field, provider, chart type, normalization, and series-axis mode. Leave `Normalize at` blank to rebase each series from its first visible usable point.
+- Optionally choose a grouping field, provider, chart type, `Max series`, normalization, and series-axis mode. Leave `Normalize at` blank to rebase each series from its first visible usable point.
 - Inspect the resolved source schema before finalizing field mappings. Field pickers and chart rendering always resolve from the live `sourceData` binding, including when that binding points at the hidden managed source widget.
 
 ## blockingRequirements
@@ -43,4 +43,8 @@ Line, area, or bar chart for a canonical `core.tabular_frame@v1` dataset, with o
 - The graph does not auto-map fields from upstream time-series metadata; you must set the field mapping explicitly.
 - Ambiguous date strings can make the inferred time axis behave unexpectedly.
 - Several rows at the same chart timestamp collapse to the latest point for that timestamp.
+- When grouping is enabled, `Max series` limits how many groups render at once. Remaining groups
+  are dropped by descending point count.
+- `Markers` suppresses connecting lines; line-style overrides do not visibly change that mode.
+- `Markers` uses the chart's `Marker size` setting, so point size can differ from the default line/area single-point markers.
 - If this graph is backed by a hidden managed connection source, fix any source runtime error in the `Connection` tab before debugging chart field mappings.

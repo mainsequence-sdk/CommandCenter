@@ -14,8 +14,8 @@ import {
 import type { PrometheusConnectionQuery } from "./index";
 import { PrometheusQueryBuilder } from "./PrometheusQueryBuilder";
 import {
+  DEFAULT_PROMQL_RANGE_STEP_MS,
   buildPrometheusDefaultFixedRange,
-  PrometheusConnectionSourceSummary,
   readPrometheusPublicConfig,
   readPrometheusPublicConfigNumber,
   readPrometheusPublicConfigString,
@@ -219,16 +219,44 @@ function readQueryText(value: PrometheusConnectionQuery) {
     : "";
 }
 
+function readPersistedEditorMode(value: unknown): "builder" | "code" | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const mode = (value as { mode?: unknown }).mode;
+  return mode === "builder" || mode === "code" ? mode : undefined;
+}
+
+export function resolvePrometheusEditorMode(input: {
+  supportsBuilder: boolean;
+  persistedEditorMode?: "builder" | "code";
+  defaultEditorMode: "builder" | "code";
+  queryText: string;
+}) {
+  if (!input.supportsBuilder) {
+    return "code" as const;
+  }
+
+  if (input.persistedEditorMode) {
+    return input.persistedEditorMode;
+  }
+
+  return input.queryText.trim() ? "code" : input.defaultEditorMode;
+}
+
 export function PrometheusConnectionQueryEditor({
   connectionInstance,
-  connectionType,
   disabled = false,
+  editorState,
   onChange,
+  onEditorStateChange,
   queryModel,
   value,
 }: ConnectionQueryEditorProps<PrometheusConnectionQuery>) {
   const publicConfig = readPrometheusPublicConfig(connectionInstance?.publicConfig);
   const queryKind = readQueryKind(queryModel?.id, value);
+  const queryText = readQueryText(value);
   const maxDataPoints = readPrometheusPublicConfigNumber(publicConfig.maxDataPoints) ?? 1100;
   const seriesLimit =
     readPrometheusPublicConfigNumber(publicConfig.seriesLimit) ?? Number.MAX_SAFE_INTEGER;
@@ -236,35 +264,36 @@ export function PrometheusConnectionQueryEditor({
     readPrometheusPublicConfigString(publicConfig.defaultExploreLookback) ?? "1h";
   const defaultEditorMode = publicConfig.defaultEditor === "code" ? "code" : "builder";
   const lookupDisabled = publicConfig.disableMetricsLookup === true;
+  const effectiveRangeStepMs =
+    queryKind === "promql-range" && "stepMs" in value && typeof value.stepMs === "number"
+      ? value.stepMs
+      : DEFAULT_PROMQL_RANGE_STEP_MS;
+  const effectiveRangeMaxDataPoints =
+    queryKind === "promql-range" &&
+    "maxDataPoints" in value &&
+    typeof value.maxDataPoints === "number"
+      ? value.maxDataPoints
+      : maxDataPoints;
   const defaultRange = useMemo(
     () => buildPrometheusDefaultFixedRange(defaultLookback),
     [defaultLookback, connectionInstance?.id],
   );
   const supportsBuilder = queryKind === "promql-range";
-  const [editorMode, setEditorMode] = useState<"builder" | "code">(
-    supportsBuilder ? defaultEditorMode : "code",
-  );
+  const persistedEditorMode = readPersistedEditorMode(editorState);
+  const resolvedInitialEditorMode = resolvePrometheusEditorMode({
+    supportsBuilder,
+    persistedEditorMode,
+    defaultEditorMode,
+    queryText,
+  });
+  const [editorMode, setEditorMode] = useState<"builder" | "code">(resolvedInitialEditorMode);
 
   useEffect(() => {
-    setEditorMode(supportsBuilder ? defaultEditorMode : "code");
-  }, [connectionInstance?.id, defaultEditorMode, queryKind, supportsBuilder]);
+    setEditorMode(resolvedInitialEditorMode);
+  }, [resolvedInitialEditorMode]);
 
   return (
     <div className="space-y-5">
-      {connectionInstance && connectionType ? (
-        <PrometheusConnectionSourceSummary
-          connectionInstance={connectionInstance}
-          connectionType={connectionType}
-        />
-      ) : (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2 text-xs text-muted-foreground">
-          <div className="font-medium text-foreground">Configured source</div>
-          <div className="mt-1 break-words">
-            {publicConfig.baseUrl || connectionInstance?.name || "Prometheus connection"}
-          </div>
-        </div>
-      )}
-
       {supportsBuilder ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
           <div>
@@ -281,7 +310,10 @@ export function PrometheusConnectionQueryEditor({
                 size="sm"
                 variant={editorMode === mode ? "default" : "ghost"}
                 className="h-8 px-3"
-                onClick={() => setEditorMode(mode)}
+                onClick={() => {
+                  setEditorMode(mode);
+                  onEditorStateChange?.({ mode });
+                }}
                 disabled={disabled}
               >
                 {mode === "builder" ? "Builder" : "Code"}
@@ -307,11 +339,8 @@ export function PrometheusConnectionQueryEditor({
             onChange({
               kind: "promql-range",
               query: normalizedQuery,
-              stepMs: "stepMs" in value ? value.stepMs : undefined,
-              maxDataPoints:
-                "maxDataPoints" in value && typeof value.maxDataPoints === "number"
-                  ? value.maxDataPoints
-                  : maxDataPoints,
+              stepMs: effectiveRangeStepMs,
+              maxDataPoints: effectiveRangeMaxDataPoints,
             });
           }}
           seriesLimit={seriesLimit}
@@ -373,45 +402,53 @@ export function PrometheusConnectionQueryEditor({
               onChange({
                 kind: "promql-range",
                 query: query ?? "",
-                stepMs: "stepMs" in value ? value.stepMs : undefined,
-                maxDataPoints: "maxDataPoints" in value ? value.maxDataPoints : undefined,
+                stepMs: effectiveRangeStepMs,
+                maxDataPoints: effectiveRangeMaxDataPoints,
               });
             }}
             disabled={disabled}
             placeholder={'sum by (job) (rate(http_requests_total[$__rate_interval]))'}
             help="PromQL range expression sent to the backend adapter."
           />
+        </ConnectionQueryEditorSection>
+      ) : null}
+
+      {queryKind === "promql-range" ? (
+        <ConnectionQueryEditorSection
+          title="Range execution"
+          description="Execution controls for Prometheus range queries. These stay visible in both Builder and Code modes."
+        >
           <QueryNumberField
             label="Step ms"
-            value={"stepMs" in value ? value.stepMs : undefined}
+            value={effectiveRangeStepMs}
             min={1}
             onChange={(stepMs) => {
               onChange({
                 kind: "promql-range",
                 query: readQueryText(value),
-                stepMs,
-                maxDataPoints: "maxDataPoints" in value ? value.maxDataPoints : undefined,
+                stepMs: stepMs ?? DEFAULT_PROMQL_RANGE_STEP_MS,
+                maxDataPoints: effectiveRangeMaxDataPoints,
               });
             }}
             disabled={disabled}
-            placeholder="Auto"
-            help="Optional Prometheus range step in milliseconds."
+            placeholder={String(DEFAULT_PROMQL_RANGE_STEP_MS)}
+            help="Prometheus range step in milliseconds. The default is shown explicitly and sent in the request."
           />
           <QueryNumberField
             label="Max data points"
-            value={"maxDataPoints" in value ? value.maxDataPoints : undefined}
+            value={effectiveRangeMaxDataPoints}
             min={1}
             onChange={(nextMaxDataPoints) => {
               onChange({
                 kind: "promql-range",
                 query: readQueryText(value),
-                stepMs: "stepMs" in value ? value.stepMs : undefined,
-                maxDataPoints: nextMaxDataPoints,
+                stepMs: effectiveRangeStepMs,
+                maxDataPoints: nextMaxDataPoints ?? maxDataPoints,
               });
             }}
             disabled={disabled}
             placeholder={String(maxDataPoints)}
-            help="Optional point budget used by the backend adapter when choosing a step."
+            help="Point budget used by the backend adapter when choosing or validating the step."
           />
         </ConnectionQueryEditorSection>
       ) : null}

@@ -33,6 +33,8 @@ Connection Query or Tabular Transform output.
   close prices.
 - Time values may be ISO date strings, ISO datetime strings, Unix seconds, Unix milliseconds, Unix
   microseconds, or Unix nanoseconds.
+- Date-only time fields render date ticks, while datetime fields render locale-aware intraday ticks
+  and crosshair time labels consistent with the core Graph widget.
 - Price values may be numbers or numeric strings. Invalid rows are skipped and surfaced as a warning
   in the widget body.
 - Lightweight Charts requires strictly increasing rendered timestamps. When multiple source rows

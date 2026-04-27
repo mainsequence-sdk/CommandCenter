@@ -12,6 +12,7 @@ const chartTypeOptions: PickerOption[] = [
   { value: "line", label: "Line", description: "Standard line chart." },
   { value: "area", label: "Area", description: "Filled area chart." },
   { value: "bar", label: "Bar", description: "Bar-style time series." },
+  { value: "markers", label: "Markers", description: "Points only, with no connecting line." },
 ];
 
 const providerOptions: PickerOption[] = [
@@ -178,12 +179,37 @@ export const graphSettingsSchema: WidgetSettingsSchema<
           onChange={(value) => {
             onDraftPropsChange({
               ...draftProps,
-              chartType: value === "area" || value === "bar" ? value : "line",
+              chartType:
+                value === "area" || value === "bar" || value === "markers" ? value : "line",
             });
           }}
           options={chartTypeOptions}
           placeholder="Select a chart type"
           disabled={!editable}
+        />
+      ),
+    },
+    {
+      id: "markerSizePx",
+      label: "Marker size",
+      description: "Controls point size when chart type is Markers.",
+      settingsColumnSpan: 1,
+      sectionId: "visualization",
+      isVisible: ({ context }) => context.resolvedConfig.chartType === "markers",
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <Input
+          type="number"
+          min={2}
+          max={24}
+          step={1}
+          value={String(context.resolvedConfig.markerSizePx)}
+          disabled={!editable}
+          onChange={(event) => {
+            onDraftPropsChange({
+              ...draftProps,
+              markerSizePx: Number(event.target.value),
+            });
+          }}
         />
       ),
     },
@@ -205,6 +231,29 @@ export const graphSettingsSchema: WidgetSettingsSchema<
           options={axisModeOptions}
           placeholder="Select an axis layout"
           disabled={!editable}
+        />
+      ),
+    },
+    {
+      id: "maxSeries",
+      label: "Max series",
+      description: "Limits how many grouped series render at once. Extra groups are dropped by descending point count.",
+      settingsColumnSpan: 1,
+      sectionId: "visualization",
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <Input
+          type="number"
+          min={1}
+          max={200}
+          step={1}
+          value={String(context.resolvedConfig.maxSeries)}
+          disabled={!editable}
+          onChange={(event) => {
+            onDraftPropsChange({
+              ...draftProps,
+              maxSeries: Number(event.target.value),
+            });
+          }}
         />
       ),
     },

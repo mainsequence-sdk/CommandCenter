@@ -1,3 +1,4 @@
+import { getConnectionTypeById } from "@/app/registry";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 
 import {
@@ -30,6 +31,13 @@ export function ConnectionQuerySettingsSurface({
   ...workbenchProps
 }: ConnectionQuerySettingsSurfaceProps) {
   const dashboardControls = useDashboardControls();
+  const selectedConnectionType = value.connectionRef?.typeId
+    ? getConnectionTypeById(value.connectionRef.typeId)
+    : undefined;
+  const resolvedRunButtonLabel =
+    workbenchProps.runButtonLabel ??
+    selectedConnectionType?.authoringContract?.exploreRunButtonLabel ??
+    "Run query";
 
   return (
     <div className="space-y-6">
@@ -45,6 +53,7 @@ export function ConnectionQuerySettingsSurface({
       <ConnectionQueryWorkbench
         {...workbenchProps}
         value={value}
+        runButtonLabel={resolvedRunButtonLabel}
         dashboardState={{
           timeRangeKey: dashboardControls.timeRangeKey,
           rangeStartMs: dashboardControls.rangeStartMs,

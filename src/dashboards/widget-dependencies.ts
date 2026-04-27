@@ -37,6 +37,7 @@ export interface DashboardWidgetDependencyGraphNode {
   widgetId: string;
   title: string;
   managedRole?: DashboardManagedWidgetRole;
+  ownedManagedConnectionSourceCount?: number;
   placementMode?: "canvas" | "sidebar";
   railVisibility?: "visible" | "hidden";
   hiddenFromNormalRail: boolean;
@@ -727,6 +728,21 @@ function buildGraph(
   resolveInputs: (instanceId: string) => ResolvedWidgetInputs | undefined,
   getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
 ): DashboardWidgetDependencyGraph {
+  const ownedManagedConnectionSourceCountByNodeId = new Map<string, number>();
+
+  entries.forEach(({ instance }) => {
+    if (instance.managedBy?.role !== "embedded-connection-source") {
+      return;
+    }
+
+    const ownerInstanceId = instance.managedBy.ownerInstanceId;
+
+    ownedManagedConnectionSourceCountByNodeId.set(
+      ownerInstanceId,
+      (ownedManagedConnectionSourceCountByNodeId.get(ownerInstanceId) ?? 0) + 1,
+    );
+  });
+
   const nodes = entries.map(({ instance, hiddenInCollapsedRow, parentRowId }) => {
     const definition = getWidgetDefinition(instance.widgetId);
     const io = resolveIo(instance.id);
@@ -736,6 +752,8 @@ function buildGraph(
       widgetId: instance.widgetId,
       title: instance.title ?? definition?.title ?? instance.widgetId,
       managedRole: instance.managedBy?.role,
+      ownedManagedConnectionSourceCount:
+        ownedManagedConnectionSourceCountByNodeId.get(instance.id) ?? 0,
       placementMode: instance.presentation?.placementMode,
       railVisibility: instance.presentation?.railVisibility,
       hiddenFromNormalRail:

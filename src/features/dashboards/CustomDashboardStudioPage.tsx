@@ -159,6 +159,11 @@ import {
   pushRecentWidgetId,
   saveWidgetCatalogPreferences,
 } from "./widget-catalog-preferences";
+import {
+  DEFAULT_WORKSPACE_CANVAS_BOTTOM_BUFFER_ROWS,
+  DEFAULT_WORKSPACE_CANVAS_EDIT_MODE_BOTTOM_BUFFER_ROWS,
+  resolveWorkspaceCanvasMinHeight,
+} from "./workspace-canvas-height";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
 import { WidgetCanvasControls } from "@/widgets/shared/widget-canvas-controls";
 import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
@@ -310,18 +315,6 @@ function serializeWorkspaceGridLayout(
         isBounded: item.isBounded,
       })),
   );
-}
-
-function resolveCanvasMinHeight(
-  widgets: readonly Pick<ResolvedDashboardWidgetLayout, "h" | "y">[],
-  grid: { gap: number; rowHeight: number },
-) {
-  const maxBottom = widgets.reduce(
-    (bottom, widget) => Math.max(bottom, widget.y + widget.h),
-    6,
-  );
-
-  return maxBottom * grid.rowHeight + Math.max(0, maxBottom - 1) * grid.gap;
 }
 
 function resolveGridItemInsetStyle(gap: number): CSSProperties | undefined {
@@ -2638,14 +2631,23 @@ export function CustomDashboardStudioPage({
         ]
       : [];
   });
-  const canvasMinHeight = resolveCanvasMinHeight(
+  const canvasBottomBufferRows =
+    layoutKind === "custom"
+      ? (editMode
+          ? DEFAULT_WORKSPACE_CANVAS_EDIT_MODE_BOTTOM_BUFFER_ROWS
+          : DEFAULT_WORKSPACE_CANVAS_BOTTOM_BUFFER_ROWS)
+      : 0;
+  const canvasMinHeight = resolveWorkspaceCanvasMinHeight(
     (layoutKind === "custom" ? renderedCustomGridLayout : activeCanvasGridLayout).map((item) => ({
       y: item.y,
       h: item.h,
     })),
     {
-      gap: layoutKind === "custom" ? 0 : (resolvedDashboard?.grid.gap ?? 0),
-      rowHeight: runtimeRowHeight,
+      bottomBufferRows: canvasBottomBufferRows,
+      grid: {
+        gap: layoutKind === "custom" ? 0 : (resolvedDashboard?.grid.gap ?? 0),
+        rowHeight: runtimeRowHeight,
+      },
     },
   );
 

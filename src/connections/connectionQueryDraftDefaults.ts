@@ -35,7 +35,7 @@ export function resolveConnectionQueryDraftDefaults(input: {
     queryModels,
     selectedQueryModel,
   };
-  const resolved = connectionType.draftDefaultsResolver?.(resolverInput) ?? {};
+  const resolved = connectionType.authoringContract?.resolveDraftDefaults?.(resolverInput) ?? {};
   const resolvedQueryModel =
     (resolved.queryModelId
       ? queryModels.find((model) => model.id === resolved.queryModelId)

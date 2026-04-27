@@ -36,7 +36,7 @@ function resolveSourceDataset(
 
 export const graphWidget = defineWidget<GraphWidgetProps>({
   id: "graph",
-  widgetVersion: "2.3.0",
+  widgetVersion: "2.6.0",
   title: "Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -50,6 +50,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
+    maxSeries: 8,
     minBarSpacingPx: 0.01,
   },
   mockProps: {
@@ -58,6 +59,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
+    maxSeries: 8,
     minBarSpacingPx: 0.01,
   },
   io: {
@@ -106,7 +108,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
       fields: sourceDataset?.fields,
     });
     const config = resolveGraphConfig(props, null, fieldOptions);
-    const rawSeries = buildGraphSeries(sourceDataset?.rows ?? [], config, 12);
+    const rawSeries = buildGraphSeries(sourceDataset?.rows ?? [], config);
     const chartSeries = buildGraphChartSeries(
       rawSeries.series,
       config.timeAxisMode === "date" ? "date" : "datetime",
@@ -172,6 +174,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
       configurationNotes: [
         "This widget still renders only from the canonical resolved sourceData binding, even when the Bindings and Connection tabs create and manage a hidden connection-query source widget behind the scenes.",
         "This widget does not infer field mappings from upstream time-series metadata.",
+        "When grouping is enabled, Max series limits how many grouped series render at once; remaining groups are dropped deterministically by point count.",
         "The chart provider changes rendering behavior but not the canonical upstream dataset contract.",
       ],
     },
@@ -189,8 +192,9 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     capabilities: {
       acceptedContracts: [TABULAR_SOURCE_CONTRACT],
       supportedProviders: ["tradingview", "echarts"],
-      supportedChartTypes: ["line", "area", "bar"],
+      supportedChartTypes: ["line", "area", "bar", "markers"],
       supportedTimeAxisModes: ["auto", "date", "datetime"],
+      supportsMaxSeriesLimit: true,
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },

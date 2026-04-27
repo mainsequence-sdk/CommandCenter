@@ -2,7 +2,7 @@ import type { ConnectionTypeDefinition } from "@/connections/types";
 import massiveIconUrl from "@/connections/assets/massive-icon-logo.svg";
 
 import { MassiveConnectionConfigEditor } from "./MassiveConnectionConfigEditor";
-import { MassiveConnectionExplore } from "./MassiveConnectionExplore";
+import { massiveConnectionAuthoringContract } from "./massiveAuthoring";
 import { MassiveConnectionQueryEditor } from "./MassiveConnectionQueryEditor";
 import {
   DEFAULT_MASSIVE_ASSET_CLASSES,
@@ -389,8 +389,8 @@ export const massiveMarketDataConnection: ConnectionTypeDefinition<
   queryModels: massiveQueryModels,
   requiredPermissions: ["connections:query"],
   configEditor: MassiveConnectionConfigEditor,
-  exploreComponent: MassiveConnectionExplore,
   queryEditor: MassiveConnectionQueryEditor,
+  authoringContract: massiveConnectionAuthoringContract,
   usageGuidance,
   examples: [
     {

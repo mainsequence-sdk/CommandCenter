@@ -3,6 +3,9 @@ import { useMemo } from "react";
 import { Calculator } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConnectionQueryRuntimeStatusCard } from "@/connections/ConnectionQueryRuntimeStatusCard";
+import { resolveManagedConnectionQuerySource } from "@/connections/managedConnectionQuerySource";
+import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PickerField } from "@/widgets/shared/picker-field";
@@ -21,6 +24,7 @@ import {
   buildStatisticCards,
   buildStatisticFieldOptions,
   createStatisticRangeRuleId,
+  normalizeStatisticAuthoringSourceMode,
   normalizeStatisticProps,
   resolveStatisticConfig,
   resolveStatisticValueFieldPickerOptions,
@@ -147,6 +151,11 @@ export function StatisticWidgetSettings({
   onDraftPropsChange,
   resolvedInputs,
 }: WidgetSettingsComponentProps<StatisticWidgetProps>) {
+  const widgetRegistry = useDashboardWidgetRegistry();
+  const managedConnectionSource = useMemo(
+    () => resolveManagedConnectionQuerySource(widgetRegistry, instanceId),
+    [instanceId, widgetRegistry],
+  );
   const previewDataset = useMemo(
     () => resolveStatisticSourceDataset(resolvedInputs),
     [resolvedInputs],
@@ -210,6 +219,10 @@ export function StatisticWidgetSettings({
     previewDataset?.source?.label?.trim() ||
     sourceBinding.resolvedSourceWidget?.title?.trim() ||
     undefined;
+  const sourceMode = normalizeStatisticAuthoringSourceMode(
+    draftProps.statisticSourceMode,
+  );
+  const isManagedConnectionMode = sourceMode === "connection";
 
   return (
     <div className="space-y-3">
@@ -239,15 +252,30 @@ export function StatisticWidgetSettings({
                   {sourceBinding.resolvedSourceWidget.title?.trim() || "Bound source widget"}
                 </div>
                 <div className="mt-1">
-                  This statistic is consuming the published dataset from the selected source widget.
+                  {isManagedConnectionMode
+                    ? "This statistic is consuming the published dataset from its hidden managed connection-query source."
+                    : "This statistic is consuming the published dataset from the selected source widget."}
                 </div>
               </>
             ) : (
-              "Use the Bindings tab to connect this statistic to a source widget in the dashboard."
+              isManagedConnectionMode
+                ? "Open the Connection tab to configure the hidden source widget this statistic owns."
+                : "Use the Bindings tab to connect this statistic to a source widget in the dashboard."
             )}
           </div>
         </div>
       </section>
+
+      {managedConnectionSource ? (
+        <ConnectionQueryRuntimeStatusCard
+          title="Embedded connection source"
+          description="This statistic owns a hidden connection-query source widget. Fix source query failures here before debugging field choices or reduction rules."
+          runtimeState={managedConnectionSource.runtimeState ?? undefined}
+          draftProps={managedConnectionSource.props}
+          sourceTitle={managedConnectionSource.title}
+          emptyMessage="The embedded source exists, but it has not published a live dataset yet."
+        />
+      ) : null}
 
       <TabularFieldSchemaInspector
         title="Resolved source schema"

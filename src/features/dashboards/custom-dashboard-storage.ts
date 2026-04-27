@@ -28,22 +28,15 @@ import type {
 } from "@/dashboards/types";
 import type {
   WidgetDefinition,
-  WidgetInstancePresentation,
   WidgetPortBindingValue,
 } from "@/widgets/types";
 import {
   normalizeWidgetPresentation,
   resolveDefaultWidgetPresentation,
 } from "@/widgets/shared/widget-schema";
-import {
-  normalizeGraphAuthoringSourceMode,
-  resolveGraphEmbeddedConnectionQueryProps,
-  type GraphWidgetProps,
-} from "@/widgets/core/graph/graphModel";
-import {
-  TABULAR_SOURCE_INPUT_ID,
-  TABULAR_SOURCE_OUTPUT_ID,
-} from "@/widgets/shared/tabular-widget-source";
+import { TABULAR_SOURCE_OUTPUT_ID } from "@/widgets/shared/tabular-widget-source";
+import { getManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer-registry";
+import { isManagedConnectionConsumerMode } from "@/widgets/shared/managed-connection-consumer";
 
 const STORAGE_PREFIX = "main-sequence.custom-dashboards";
 const STORAGE_VERSION = 6;
@@ -2144,58 +2137,49 @@ function removeBindingReferencesToSourceWidgets(
   return sourceWidgetIds.has(bindingValue.sourceWidgetId) ? undefined : bindingValue;
 }
 
-function buildManagedConnectionSourceTitle(ownerWidget: DashboardWidgetInstance) {
-  const ownerTitle = ownerWidget.title?.trim();
-  return ownerTitle ? `${ownerTitle} Source` : "Graph Source";
-}
-
-function resolveGraphEmbeddedConnectionPresentation(
-  props: GraphWidgetProps,
-): WidgetInstancePresentation | undefined {
-  return isPlainRecord(props.embeddedConnectionPresentation)
-    ? normalizeDashboardWidgetPresentation(
-        cloneJson(props.embeddedConnectionPresentation as WidgetInstancePresentation),
-      )
-    : undefined;
-}
-
-function syncGraphManagedConnectionSource(
+function syncManagedConnectionConsumerSource(
   dashboard: DashboardDefinition,
   instanceId: string,
 ) {
   const ownerWidget = findDashboardWidgetInTree(dashboard.widgets, instanceId);
 
-  if (!ownerWidget || ownerWidget.widgetId !== "graph") {
+  if (!ownerWidget) {
     return dashboard;
   }
 
-  const graphProps = (ownerWidget.props ?? {}) as GraphWidgetProps;
-  const graphSourceMode = normalizeGraphAuthoringSourceMode(graphProps.graphSourceMode);
+  const adapter = getManagedConnectionConsumerAdapter(ownerWidget.widgetId);
+
+  if (!adapter) {
+    return dashboard;
+  }
+
+  const ownerProps = (ownerWidget.props ?? {}) as Record<string, unknown>;
+  const sourceMode = adapter.getSourceMode(ownerProps);
   const ownedManagedWidgets = findManagedDashboardWidgets(dashboard, {
     ownerInstanceId: instanceId,
     role: "embedded-connection-source",
   });
   const ownedManagedWidgetIds = new Set(ownedManagedWidgets.map((widget) => widget.id));
 
-  if (graphSourceMode !== "connection") {
+  if (!isManagedConnectionConsumerMode(adapter, sourceMode)) {
     if (ownedManagedWidgets.length === 0) {
       return dashboard;
     }
 
     const currentBindings = normalizeWidgetInstanceBindings(ownerWidget.bindings);
     const nextSourceBinding = removeBindingReferencesToSourceWidgets(
-      currentBindings?.[TABULAR_SOURCE_INPUT_ID],
+      currentBindings?.[adapter.sourceInputId],
       ownedManagedWidgetIds,
     );
     let nextDashboard = dashboard;
 
-    if (currentBindings?.[TABULAR_SOURCE_INPUT_ID] !== nextSourceBinding) {
+    if (currentBindings?.[adapter.sourceInputId] !== nextSourceBinding) {
       nextDashboard = updateDashboardWidgetBindings(
         nextDashboard,
         instanceId,
         replaceWidgetInputBindingValue(
           currentBindings,
-          TABULAR_SOURCE_INPUT_ID,
+          adapter.sourceInputId,
           nextSourceBinding,
         ),
       );
@@ -2213,12 +2197,14 @@ function syncGraphManagedConnectionSource(
     return dashboard;
   }
 
-  const embeddedConnectionQuery = resolveGraphEmbeddedConnectionQueryProps(graphProps);
-  const embeddedConnectionPresentation =
-    resolveGraphEmbeddedConnectionPresentation(graphProps);
+  const embeddedConnectionQuery = adapter.getEmbeddedConnectionQuery(ownerProps);
+  const embeddedConnectionPresentation = normalizeDashboardWidgetPresentation(
+    cloneJson(adapter.getEmbeddedConnectionPresentation(ownerProps) ?? {}),
+  );
   const primaryManagedWidget: DashboardWidgetInstance | null = ownedManagedWidgets[0] ?? null;
   let nextDashboard = dashboard;
   let nextManagedWidget: DashboardWidgetInstance | null = primaryManagedWidget;
+  const ownerWidgetDefinition = getWidgetById(ownerWidget.widgetId);
 
   if (!primaryManagedWidget) {
     const created = createManagedDashboardWidget(nextDashboard, {
@@ -2227,14 +2213,20 @@ function syncGraphManagedConnectionSource(
       widget: connectionQueryWidgetDefinition,
       props: embeddedConnectionQuery,
       presentation: embeddedConnectionPresentation,
-      title: buildManagedConnectionSourceTitle(ownerWidget),
+      title: adapter.buildManagedSourceTitle({
+        ownerTitle: ownerWidget.title,
+        widgetTitle: ownerWidgetDefinition?.title ?? ownerWidget.widgetId,
+      }),
     });
 
     nextDashboard = created.dashboard;
     nextManagedWidget = created.widget;
   } else {
     const updated = updateManagedDashboardWidget(nextDashboard, primaryManagedWidget.id, {
-      title: buildManagedConnectionSourceTitle(ownerWidget),
+      title: adapter.buildManagedSourceTitle({
+        ownerTitle: ownerWidget.title,
+        widgetTitle: ownerWidgetDefinition?.title ?? ownerWidget.widgetId,
+      }),
       props: embeddedConnectionQuery,
       presentation: embeddedConnectionPresentation,
     });
@@ -2254,7 +2246,7 @@ function syncGraphManagedConnectionSource(
   const refreshedOwnerWidget = findDashboardWidgetInTree(nextDashboard.widgets, instanceId);
   const nextBindings = updateWidgetInputBinding(
     refreshedOwnerWidget?.bindings,
-    TABULAR_SOURCE_INPUT_ID,
+    adapter.sourceInputId,
     {
       sourceWidgetId: nextManagedWidget.id,
       sourceOutputId: TABULAR_SOURCE_OUTPUT_ID,
@@ -2313,7 +2305,7 @@ export function updateDashboardWidgetSettings(
       }
     : dashboard;
 
-  return syncGraphManagedConnectionSource(nextDashboard, instanceId);
+  return syncManagedConnectionConsumerSource(nextDashboard, instanceId);
 }
 
 export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId: string) {
@@ -2397,10 +2389,16 @@ export function duplicateDashboardWidget(
     widgets: [...dashboard.widgets, duplicatedWidget],
   });
 
+  const managedConnectionConsumerAdapter = getManagedConnectionConsumerAdapter(current.widgetId);
+
   if (
-    current.widgetId === "graph" &&
-    normalizeGraphAuthoringSourceMode((current.props as GraphWidgetProps | undefined)?.graphSourceMode) ===
-      "connection"
+    managedConnectionConsumerAdapter &&
+    isManagedConnectionConsumerMode(
+      managedConnectionConsumerAdapter,
+      managedConnectionConsumerAdapter.getSourceMode(
+        (current.props ?? {}) as Record<string, unknown>,
+      ),
+    )
   ) {
     const duplicatedManaged = duplicateManagedDashboardWidgets(nextDashboard, {
       ownerInstanceId: current.id,
@@ -2409,7 +2407,7 @@ export function duplicateDashboardWidget(
     });
 
     nextDashboard = duplicatedManaged.dashboard;
-    nextDashboard = syncGraphManagedConnectionSource(nextDashboard, duplicatedWidget.id);
+    nextDashboard = syncManagedConnectionConsumerSource(nextDashboard, duplicatedWidget.id);
   }
 
   return nextDashboard;

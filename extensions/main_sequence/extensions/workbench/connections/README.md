@@ -10,25 +10,22 @@ Workbench data access.
 - `DataNodeConnectionConfigEditor.tsx`: connection-specific create/edit UI that reuses the
   workbench Data Node quick-search picker so a configured data source represents one concrete
   Data Node.
-- `DataNodeConnectionExplore.tsx`: Data Node Explore wrapper around the shared
-  `ConnectionQueryWorkbench`. It keeps Data Node source metadata in the connection instance and
-  delegates query authoring, request generation, test execution, and response preview to the same
-  workbench used by the core Connection Query widget.
 - `DataNodeConnectionQueryEditor.tsx`: typed Connection Query widget editor for Data Node row and
   latest-observation payloads. It renders columns, unique identifier filters, inclusive range
   flags, limits, and legacy Data Node id fallback only when the selected instance has no
   configured Data Node.
+- `dataNodeAuthoring.ts`: defines the shared `authoringContract` used by both Data Sources Explore
+  and widget-managed/standalone `connection-query` settings for draft seeding and Explore copy.
 - `simpleTableConnection.ts`: registers the `mainsequence.simple-table` connection type and the
   `simple-table-sql` query model for backend-scoped SQL against one configured Simple Table.
 - `SimpleTableConnectionConfigEditor.tsx`: connection-specific create/edit UI that asks the user
   to select a Main Sequence Simple Table, then loads detail metadata so columns can be inspected
   before saving the data source.
-- `SimpleTableConnectionExplore.tsx`: Simple Table Explore wrapper around the shared
-  `ConnectionQueryWorkbench`. It shows configured table metadata and delegates SQL query
-  authoring, request generation, test execution, and response preview to the same workbench used by
-  the core Connection Query widget.
 - `SimpleTableConnectionQueryEditor.tsx`: typed Connection Query widget editor for Simple Table
   SQL, row limits, and parameter objects.
+- `simpleTableAuthoring.tsx`: defines the shared `authoringContract` used by both Data Sources
+  Explore and widget-managed/standalone `connection-query` settings for SQL draft seeding,
+  configured-table metadata, column preview badges, and Explore copy.
 
 ## Behavior
 
@@ -45,9 +42,9 @@ Workbench data access.
   defaults to `900000` milliseconds, which is 15 minutes.
 - `dedupeInFlight` is a backend request-sharing policy for identical concurrent cache misses. It
   should default to enabled when omitted.
-- Until the backend connection endpoints are available, the default system Data Node connection
-  falls back to the existing authenticated Main Sequence API helpers. Widgets call this connection
-  module instead of importing dynamic-table fetch helpers directly.
+- Main Sequence Data Node queries and resources must execute through real backend-owned connection
+  instances. This module must not fabricate placeholder ids or fall back to local dynamic-table
+  helpers for connection execution.
 - The Connection Query widget uses the Data Node connection's typed `queryEditor` for per-query
   kwargs. The generic widget owns the standard envelope (`connectionId`, `query`, `timeRange`,
   variables, and row limits); Data Node-specific fields stay in the Data Node connection module.
@@ -59,8 +56,9 @@ Workbench data access.
 - Main Sequence Explore shells should stay aligned with the core Connection Query widget: select a
   connection path, edit that path through the connection query editor, build the standard
   `ConnectionQueryRequest`, and preview the normalized runtime frame through
-  `ConnectionQueryWorkbench`. Do not reintroduce separate Data Node pickers, Simple Table SQL run
-  paths, Unix-second inputs, or direct row/helper calls here.
+  `ConnectionQueryWorkbench`. Connection-specific Explore behavior belongs in the shared
+  `authoringContract`, not in a separate wrapper component. Do not reintroduce separate Data Node
+  pickers, Simple Table SQL run paths, Unix-second inputs, or direct row/helper calls here.
 - Main Sequence connection explorers should render query responses through the shared
   `ConnectionQueryResponsePreview` path. When a response normalizes as a canonical tabular frame
   with `meta.timeSeries` hints, that shared preview exposes Graph and Table views using the core
@@ -80,6 +78,8 @@ Workbench data access.
 
 - Keep direct Main Sequence dynamic table endpoint construction inside this connection module or
   the backend adapter. Data Node widgets should not own backend route construction.
+- Keep Data Node and Simple Table authoring defaults inside `dataNodeAuthoring.ts` and
+  `simpleTableAuthoring.tsx`. That shared contract is what prevents Explore/widget drift.
 - Do not add connection-level secret fields for Data Node access. Authentication and authorization
   must flow through the platform/Main Sequence permission model and backend runtime context.
 - Treat `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight` as backend adapter behavior:
@@ -203,8 +203,8 @@ Every adapter operation should first resolve the target Data Node:
 2. Read `requested_data_node_id` from the resource params or query payload `dataNodeId`.
 3. If `configured_data_node_id` exists, use it as the authority.
 4. If both ids exist and they differ, reject the request with a validation error.
-5. If no configured id exists, require `requested_data_node_id`. This keeps the default/system
-   migration connection usable while configured instances remain authoritative.
+5. If no configured id exists, require `requested_data_node_id`. This keeps real backend
+   connection instances usable even when the connection config leaves the Data Node unset.
 6. Validate the resolved id is a positive integer before hitting Main Sequence APIs.
 
 Permissions must be checked before execution and before joining any in-flight request. The minimum

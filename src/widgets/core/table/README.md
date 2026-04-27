@@ -8,6 +8,7 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 - `definition.ts`: core widget definition, IO metadata, registry contract, agent snapshot, and settings/component wiring.
 - `TableWidget.tsx`: runtime table renderer backed by AG Grid Community.
 - `TableWidgetSettings.tsx`: settings editor for source binding status, manual rows, compact per-column schema controls, collapsible advanced formatting, datetime display patterns, value labels, and numeric rules.
+- `managedConnectionConsumer.ts`: shared managed-connection adapter that lets the generic widget-settings route create one hidden `connection-query` source for this table.
 - `ManualTableEditor.tsx`: spreadsheet-style editor for manual display rows.
 - `tableModel.ts`: table configuration normalization, frame adaptation, schema resolution, formatting helpers, datetime parsing/rendering, and validation.
 - `USAGE_GUIDANCE.md`: registry-synced authoring guidance.
@@ -15,6 +16,8 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 ## Behavior
 
 - Bound mode consumes one `core.tabular_frame@v1` input on `sourceData`.
+- Connection mode still consumes `sourceData`, but that binding is automatically repaired to a
+  hidden managed `connection-query` widget owned by the table.
 - When the table owns a hidden managed `connection-query` source, settings show that source's
   current runtime status and error message even though the source widget stays out of the normal
   rail.
@@ -30,6 +33,8 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   the first compatible `frames[]` entry before rendering.
 - Manual mode stores `manualColumns` and `manualRows` locally on this widget and publishes them as
   a canonical tabular frame.
+- `Bindings -> Add connection` and the dedicated `Connection` tab are owned by the shared managed
+  connection consumer adapter layer, not by table-specific settings code.
 - The widget is a passive `consumer`; source queries and transforms belong upstream to Connection
   Query and Tabular Transform.
 - Incoming `fields[]` metadata is preserved where possible. When missing, the table infers display

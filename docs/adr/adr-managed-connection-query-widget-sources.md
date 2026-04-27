@@ -27,7 +27,8 @@ The platform should support two valid authoring styles:
 - embedded source authoring, when one visible consumer owns its own connection query
 
 The second style must not break the accepted connection-first and single-runtime-owner rules. Graph,
-Table, and similar consumer widgets should not call connection APIs directly during rendering.
+Table, Statistic, and similar consumer widgets should not call connection APIs directly during
+rendering.
 Connection execution, incremental refresh, request tracing, output publication, and backend adapter
 access must remain owned by `connection-query`.
 
@@ -45,9 +46,10 @@ enough source-mode metadata for settings and lifecycle management, but the actua
 the canonical widget binding from the managed source's `dataset` output to the consumer's
 `sourceData` input.
 
-Initial implementation scope is Graph and Table.
+Initial implementation scope is Graph, Table, and Statistic.
 
-When a Graph or Table is configured with connection-backed source mode, the workspace editor will:
+When a Graph, Table, or Statistic widget is configured with connection-backed source mode, the
+workspace editor will:
 
 1. create a managed `connection-query` widget if the consumer does not already own one
 2. store the connection query configuration on the managed widget
@@ -83,16 +85,17 @@ by presentation metadata, not by removing the widget from `dashboard.widgets`.
 
 Visible consumers should not rely on a private in-props data edge. Their binding remains the source
 of truth for runtime dataflow. Consumer props may store an authoring source mode such as
-`sourceMode: "connection"` or `tableSourceMode: "connection"` so settings can show the embedded
-connection editor and lifecycle code can find or create the managed source.
+`sourceMode: "connection"`, `tableSourceMode: "connection"`, or
+`statisticSourceMode: "connection"` so settings can show the embedded connection editor and
+lifecycle code can find or create the managed source.
 
 ## Runtime Rules
 
 - Managed sources are included in dependency graph extraction, execution planning, request tracing,
   runtime-state publication, and binding validation.
 - Managed sources are excluded only from the normal user-facing workspace rail by default.
-- Graph and Table stay passive consumers. They render resolved `sourceData` and never call
-  `queryConnection(...)` directly.
+- Graph, Table, and Statistic stay passive consumers. They render resolved `sourceData` and never
+  call `queryConnection(...)` directly.
 - `connection-query` remains the only runtime owner for connection query execution.
 - Incremental refresh behavior stays on the managed `connection-query` widget, including retained
   frame state, dedupe, overlap, merge keys, and published update envelopes.
@@ -137,7 +140,9 @@ Migration:
 
 ## UI Rules
 
-Graph and Table settings should expose connection-backed source mode beside existing source modes.
+Graph, Table, and Statistic settings should expose connection-backed source mode beside existing
+source modes where that widget already has a source selector, while the full connection authoring
+surface lives in `Bindings -> Connection`.
 
 For Graph, source modes should clearly distinguish:
 
@@ -150,9 +155,14 @@ For Table, source modes should clearly distinguish:
 - embedded connection query
 - manual table
 
+For Statistic, source authoring should clearly distinguish:
+
+- bound upstream dataset
+- embedded connection query
+
 The embedded connection query editor should reuse the same workbench logic and typed query editors
-as the `connection-query` widget. Do not create Graph-specific or Table-specific connection query
-forms.
+as the `connection-query` widget. Do not create widget-specific connection query forms that drift
+from the shared authoring surface.
 
 The visible widget may show a compact managed-source status in settings, including selected
 connection, query model, last runtime status, and an affordance to open advanced source settings.
@@ -169,10 +179,11 @@ the backend must allow:
 
 - optional `managedBy` metadata on widget instances
 - optional rail visibility presentation metadata
-- `sourceMode: "connection"` or equivalent source-mode values on Graph and Table props
+- `sourceMode: "connection"` or equivalent source-mode values on Graph, Table, and Statistic props
 
 The backend widget registry does not need a new widget type. It may need updated registry metadata
-for Graph and Table if their source-mode guidance, settings schema, or usage guidance changes.
+for Graph, Table, and Statistic if their source-mode guidance, settings schema, or usage guidance
+changes.
 
 This is a backend-visible storage compatibility change only if backend validation rejects unknown
 widget fields or unknown consumer source-mode values.
@@ -185,6 +196,8 @@ Positive:
   about
 - the existing connection-query execution contract, trace behavior, incremental refresh, and
   normalized frame output are reused instead of duplicated
+- managed-source consumer integration can now be shared through one adapter layer instead of
+  forking Graph-specific settings and storage logic for every new consumer widget
 - existing explicit source-widget workflows remain available for shared sources
 - the binding graph remains the canonical dataflow model
 
@@ -234,9 +247,10 @@ ADR when the corresponding implementation has landed.
   and response preview as the standalone `connection-query` widget.
 - [x] Preserve incremental refresh settings and execution behavior on the managed source widget.
 - [x] Ensure managed source runtime errors surface clearly in the owning consumer settings.
-- [x] Keep the shared connection picker usable for embedded consumers when the backend connection
-  instance catalog is empty by surfacing runtime/system default instances such as
-  `prometheus-default`.
+- [x] Remove synthetic runtime/system connection placeholders from the shared picker and runtime
+  resolver. Embedded consumers must use real backend-owned connection ids or fail explicitly.
+- [x] Remove the remaining Main Sequence Data Node compatibility default from extension-local
+  connection helpers so no managed or standalone connection path executes against a fabricated id.
 - [x] Keep widget-managed Prometheus authoring on the same typed editor and exploration surface as
   Data Sources Explore instead of a widget-only schema fallback.
 - [x] Drive widget-managed Prometheus draft defaults from the same connection-type resolver used by
@@ -244,6 +258,9 @@ ADR when the corresponding implementation has landed.
 
 ### Graph Rollout
 
+- [x] Extract a generic managed-connection consumer adapter layer from the Graph implementation so
+  future widgets can reuse one draft-signature, `Bindings -> Connection`, and hidden-source sync
+  path instead of cloning Graph-specific logic.
 - [x] Add graph-managed connection authoring from `Bindings`, with a dedicated `Connection` tab
   instead of embedding the full connection workbench in the main Graph settings tab.
 - [x] Create or repair the managed `connection-query` source when Graph enters connection mode.
@@ -256,25 +273,37 @@ ADR when the corresponding implementation has landed.
 
 ### Table Rollout
 
-- [ ] Add connection-backed source mode to Table settings while preserving manual and bound modes.
-- [ ] Create or repair the managed `connection-query` source when Table enters connection mode.
-- [ ] Bind Table `sourceData` to the managed source `dataset` output automatically.
-- [ ] Keep Table output publication driven by the resolved source or manual rows, not direct
+- [x] Add connection-backed source mode to Table settings while preserving manual and bound modes.
+- [x] Create or repair the managed `connection-query` source when Table enters connection mode.
+- [x] Bind Table `sourceData` to the managed source `dataset` output automatically.
+- [x] Keep Table output publication driven by the resolved source or manual rows, not direct
   connection execution.
-- [ ] Update Table README and `USAGE_GUIDANCE.md` for embedded connection source authoring.
-- [ ] Add focused tests for Table managed source creation, update, duplicate, delete, manual mode,
+- [x] Update Table README and `USAGE_GUIDANCE.md` for embedded connection source authoring.
+- [x] Add focused tests for Table managed source creation, update, duplicate, delete, manual mode,
   and backward compatibility with explicit source bindings.
+
+### Statistic Rollout
+
+- [x] Add connection-backed source authoring to Statistic through the shared managed-connection
+  adapter and `Bindings -> Connection` flow.
+- [x] Create or repair the managed `connection-query` source when Statistic enters connection mode.
+- [x] Bind Statistic `sourceData` to the managed source `dataset` output automatically.
+- [x] Keep Statistic reduction and rendering driven by the resolved source dataset, not direct
+  connection execution.
+- [x] Update Statistic README and `USAGE_GUIDANCE.md` for embedded connection source authoring.
+- [x] Add focused tests for Statistic managed source creation, duplicate/delete lifecycle, and
+  backward compatibility with explicit source bindings.
 
 ### Backend Coordination
 
 - [ ] Confirm whether backend workspace validation allows optional widget `managedBy` metadata.
 - [ ] Confirm whether backend workspace validation allows optional presentation rail visibility
   metadata.
-- [ ] Confirm whether backend workspace validation allows new Graph/Table connection source-mode
-  values.
+- [ ] Confirm whether backend workspace validation allows new Graph/Table/Statistic connection
+  source-mode values.
 - [ ] Update backend validation if any additive storage fields are rejected.
-- [ ] Sync updated Graph/Table widget registry metadata if usage guidance or schema contracts
-  change.
+- [ ] Sync updated Graph/Table/Statistic widget registry metadata if usage guidance or schema
+  contracts change.
 
 ### Verification
 
@@ -282,8 +311,10 @@ ADR when the corresponding implementation has landed.
   refreshes.
 - [ ] Existing workspace with explicit `connection-query -> Table` binding still loads and
   refreshes.
+- [ ] Existing workspace with explicit `connection-query -> Statistic` binding still loads and
+  refreshes.
 - [ ] Workspace with several Graph widgets using embedded Prometheus queries shows only the visible
   charts in the normal rail.
 - [x] Managed connection sources execute before their owners consume resolved inputs.
-- [ ] Duplicating and deleting embedded-source consumers leaves no orphaned hidden sources.
+- [x] Duplicating and deleting embedded-source consumers leaves no orphaned hidden sources.
 - [x] `npm run check` passes after TypeScript changes.

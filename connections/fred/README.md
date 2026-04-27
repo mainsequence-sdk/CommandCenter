@@ -11,7 +11,7 @@ The connection exposes Federal Reserve Economic Data series observations and sel
 - `index.ts`: exports the `ConnectionTypeDefinition`, config types, query types, query model, examples, and agent-facing `usageGuidance`.
 - `FredConnectionConfigEditor.tsx`: renders stable public configuration fields for the FRED endpoint, default series observation parameters, timeout, cache, and dedupe controls.
 - `FredConnectionQueryEditor.tsx`: renders query payload controls for `fred-series-observations`.
-- `FredConnectionExplore.tsx`: wraps the shared `ConnectionQueryWorkbench` for live backend-routed query testing.
+- `fredAuthoring.tsx`: defines the shared `authoringContract` used by both Data Sources Explore and widget-managed/standalone `connection-query` settings for draft seeding, summary badges, and Explore copy.
 - `src/connections/assets/fred-economic-data-logo.svg`: FRED-style economic data icon used in connection catalogs and pickers.
 
 ## Backend Adapter Contract
@@ -49,6 +49,7 @@ The backend owns series id validation, time-range mapping to `observation_start`
 ## Maintenance Constraints
 
 - Keep query models aligned with ADR 012 and the backend adapter implementation.
+- Keep connection-specific authoring behavior inside `fredAuthoring.tsx`. Do not reintroduce a FRED-only Explore wrapper that can drift from widget settings.
 - Keep every config schema field description synchronized with the config editor help text and `usageGuidance`.
 - If public config, secure config, query payload, resource payload, health result, or response frame shape changes, assess the backend contract before treating the change as frontend-only.
 - Backend contract impact for this change: this frontend module depends on the ADR 012 backend adapter contract. It does not add type-specific routes or change persisted connection instance shape outside the new FRED connection type manifest.

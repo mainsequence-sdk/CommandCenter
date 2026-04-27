@@ -14,6 +14,13 @@ import { WidgetBindingPanel } from "@/widgets/shared/WidgetBindingPanel";
 import { getWidgetDetailsPath } from "@/features/widgets/widget-explorer";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
 import { resolveManagedConnectionQuerySource } from "@/connections/managedConnectionQuerySource";
+import {
+  applyManagedConnectionConsumerDraftProps,
+  buildManagedConnectionConsumerDraftSignature,
+  isManagedConnectionConsumerMode,
+  resolveManagedConnectionConsumerDetachedSourceMode,
+} from "@/widgets/shared/managed-connection-consumer";
+import { getManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer-registry";
 import { fetchAppComponentOpenApiDocument } from "@/widgets/core/app-component/appComponentApi";
 import {
   buildAppComponentBindingSpec,
@@ -35,12 +42,7 @@ import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { WorkspaceSavingStatus } from "./WorkspaceChrome";
-import {
-  normalizeGraphAuthoringSourceMode,
-  resolveGraphEmbeddedConnectionQueryProps,
-  type GraphWidgetProps,
-} from "@/widgets/core/graph/graphModel";
-import { GraphManagedConnectionPanel } from "@/widgets/core/graph/GraphManagedConnectionPanel";
+import { ManagedConnectionConsumerPanel } from "@/widgets/shared/ManagedConnectionConsumerPanel";
 
 type WidgetSettingsTabId = "settings" | "bindings" | "connection";
 
@@ -67,17 +69,6 @@ function buildWidgetSettingsDraftState(
     props: initialProps,
     title: instance.title ?? "",
   };
-}
-
-function buildGraphConnectionDraftSignature(props: GraphWidgetProps | undefined) {
-  return JSON.stringify({
-    graphSourceMode: normalizeGraphAuthoringSourceMode(props?.graphSourceMode),
-    embeddedConnectionQuery: resolveGraphEmbeddedConnectionQueryProps(
-      (props ?? {}) as GraphWidgetProps,
-    ),
-    embeddedConnectionPresentation:
-      props?.embeddedConnectionPresentation ?? null,
-  });
 }
 
 function shouldRepairAppComponentBindingSpec(props: AppComponentWidgetProps) {
@@ -150,23 +141,30 @@ export function CustomWidgetSettingsPage({
   );
   const effectiveDraftState =
     instance && widget ? draftState ?? buildWidgetSettingsDraftState(instance, widget) : null;
-  const isGraphWidget = widget?.id === "graph" && instance?.widgetId === "graph";
-  const graphDraftProps = isGraphWidget
-    ? ((effectiveDraftState?.props ?? {}) as GraphWidgetProps)
+  const managedConnectionAdapter = widget
+    ? getManagedConnectionConsumerAdapter(widget.id)
+    : null;
+  const managedConnectionDraftProps = managedConnectionAdapter
+    ? ((effectiveDraftState?.props ?? {}) as Record<string, unknown>)
     : undefined;
-  const graphManagedConnectionSource =
-    instance && isGraphWidget
+  const managedConnectionSource =
+    instance && managedConnectionAdapter
       ? resolveManagedConnectionQuerySource(resolvedDashboard.widgets, instance.id)
       : null;
-  const graphConnectionMode =
-    isGraphWidget &&
-    normalizeGraphAuthoringSourceMode(graphDraftProps?.graphSourceMode) === "connection";
-  const hasGraphConnectionTab = Boolean(
-    isGraphWidget &&
-      (graphConnectionMode || graphManagedConnectionSource),
+  const managedConnectionMode = Boolean(
+    managedConnectionAdapter &&
+      managedConnectionDraftProps &&
+      isManagedConnectionConsumerMode(
+        managedConnectionAdapter,
+        managedConnectionAdapter.getSourceMode(managedConnectionDraftProps),
+      ),
+  );
+  const hasManagedConnectionTab = Boolean(
+    managedConnectionAdapter &&
+      (managedConnectionMode || managedConnectionSource),
   );
   const requestedTab: WidgetSettingsTabId =
-    hasGraphConnectionTab && requestedWidgetSettingsTab === "connection"
+    hasManagedConnectionTab && requestedWidgetSettingsTab === "connection"
       ? "connection"
       : hasBindingTab && requestedWidgetSettingsTab === "bindings"
         ? "bindings"
@@ -179,10 +177,10 @@ export function CustomWidgetSettingsPage({
   }, [instance?.id, requestedTab]);
 
   useEffect(() => {
-    if (activeTab === "connection" && !hasGraphConnectionTab) {
+    if (activeTab === "connection" && !hasManagedConnectionTab) {
       setActiveTab(hasBindingTab ? "bindings" : "settings");
     }
-  }, [activeTab, hasBindingTab, hasGraphConnectionTab]);
+  }, [activeTab, hasBindingTab, hasManagedConnectionTab]);
 
   useEffect(() => {
     if (!instance || !widget) {
@@ -350,50 +348,47 @@ export function CustomWidgetSettingsPage({
     );
   }
 
-  const currentGraphConnectionSignature = buildGraphConnectionDraftSignature(
-    (instance.props ?? {}) as GraphWidgetProps,
+  const currentManagedConnectionSignature = buildManagedConnectionConsumerDraftSignature(
+    managedConnectionAdapter,
+    (instance.props ?? {}) as Record<string, unknown>,
   );
-  const draftGraphConnectionSignature = buildGraphConnectionDraftSignature(
-    graphDraftProps,
+  const draftManagedConnectionSignature = buildManagedConnectionConsumerDraftSignature(
+    managedConnectionAdapter,
+    managedConnectionDraftProps,
   );
-  const graphConnectionDirty =
-    isGraphWidget && draftGraphConnectionSignature !== currentGraphConnectionSignature;
+  const managedConnectionDirty =
+    Boolean(managedConnectionAdapter) &&
+    draftManagedConnectionSignature !== currentManagedConnectionSignature;
 
-  function updateGraphConnectionDraft(
-    updater: (props: GraphWidgetProps) => GraphWidgetProps,
+  function updateManagedConnectionDraft(
+    updater: (props: Record<string, unknown>) => Record<string, unknown>,
   ) {
-    if (!instance || !widget || widget.id !== "graph") {
+    if (!instance || !widget || !managedConnectionAdapter) {
       return;
     }
 
     setDraftState((current) => {
       const base = current ?? buildWidgetSettingsDraftState(instance, widget);
-      const currentProps = (base.props ?? {}) as GraphWidgetProps;
-      const nextGraphProps = updater(currentProps);
+      const currentProps = (base.props ?? {}) as Record<string, unknown>;
+      const nextProps = updater(currentProps);
 
       return {
         ...base,
-        props: {
-          ...base.props,
-          graphSourceMode: nextGraphProps.graphSourceMode,
-          embeddedConnectionQuery: nextGraphProps.embeddedConnectionQuery,
-          embeddedConnectionPresentation: nextGraphProps.embeddedConnectionPresentation,
-        },
+        props: nextProps,
       };
     });
   }
 
-  function applyGraphConnectionDraft() {
-    if (!isGraphWidget || !graphDraftProps) {
+  function applyManagedConnectionDraft() {
+    if (!instance || !managedConnectionAdapter || !managedConnectionDraftProps) {
       return;
     }
 
-    const nextProps = {
-      ...((instance.props ?? {}) as GraphWidgetProps),
-      graphSourceMode: normalizeGraphAuthoringSourceMode(graphDraftProps.graphSourceMode),
-      embeddedConnectionQuery: resolveGraphEmbeddedConnectionQueryProps(graphDraftProps),
-      embeddedConnectionPresentation: graphDraftProps.embeddedConnectionPresentation,
-    } satisfies GraphWidgetProps;
+    const nextProps = applyManagedConnectionConsumerDraftProps(
+      managedConnectionAdapter,
+      (instance.props ?? {}) as Record<string, unknown>,
+      managedConnectionDraftProps,
+    );
 
     updateSelectedWorkspace((dashboard) =>
       updateDashboardWidgetSettings(dashboard, instance.id, {
@@ -402,58 +397,76 @@ export function CustomWidgetSettingsPage({
     );
   }
 
-  function resetGraphConnectionDraft() {
-    if (!instance || !widget || widget.id !== "graph") {
+  function resetManagedConnectionDraft() {
+    if (!instance || !widget || !managedConnectionAdapter) {
       return;
     }
-
-    const instanceGraphProps = (instance.props ?? {}) as GraphWidgetProps;
-    const nextMode = normalizeGraphAuthoringSourceMode(instanceGraphProps.graphSourceMode);
 
     setDraftState((current) => {
       const base = current ?? buildWidgetSettingsDraftState(instance, widget);
       return {
         ...base,
-        props: {
-          ...base.props,
-          graphSourceMode: nextMode,
-          embeddedConnectionQuery: instanceGraphProps.embeddedConnectionQuery,
-          embeddedConnectionPresentation: instanceGraphProps.embeddedConnectionPresentation,
-        },
+        props: applyManagedConnectionConsumerDraftProps(
+          managedConnectionAdapter,
+          (base.props ?? {}) as Record<string, unknown>,
+          (instance.props ?? {}) as Record<string, unknown>,
+        ),
       };
     });
 
-    if (nextMode !== "connection" && !graphManagedConnectionSource) {
+    if (
+      !isManagedConnectionConsumerMode(
+        managedConnectionAdapter,
+        managedConnectionAdapter.getSourceMode(
+          (instance.props ?? {}) as Record<string, unknown>,
+        ),
+      ) &&
+      !managedConnectionSource
+    ) {
       setActiveTab("bindings");
     }
   }
 
-  function stageGraphManagedConnection() {
-    if (!isGraphWidget) {
+  function stageManagedConnection() {
+    if (!managedConnectionAdapter) {
       return;
     }
 
-    updateGraphConnectionDraft((currentProps) => ({
-      ...currentProps,
-      graphSourceMode: "connection",
-    }));
+    updateManagedConnectionDraft((currentProps) =>
+      managedConnectionAdapter.setSourceMode(
+        currentProps,
+        managedConnectionAdapter.connectionMode,
+      ),
+    );
     setActiveTab("connection");
   }
 
-  function removeGraphManagedConnection() {
-    if (!instance || !widget || widget.id !== "graph") {
+  function removeManagedConnection() {
+    if (!instance || !widget || !managedConnectionAdapter) {
       return;
     }
 
-    const persistedMode = normalizeGraphAuthoringSourceMode(
-      ((instance.props ?? {}) as GraphWidgetProps).graphSourceMode,
+    const persistedMode = managedConnectionAdapter.getSourceMode(
+      (instance.props ?? {}) as Record<string, unknown>,
     );
+    const detachedSourceMode = isManagedConnectionConsumerMode(
+      managedConnectionAdapter,
+      persistedMode,
+    )
+      ? resolveManagedConnectionConsumerDetachedSourceMode(
+          managedConnectionAdapter,
+          (instance.props ?? {}) as Record<string, unknown>,
+        )
+      : persistedMode;
 
-    if (persistedMode === "connection" || graphManagedConnectionSource) {
-      const nextProps = {
-        ...((instance.props ?? {}) as GraphWidgetProps),
-        graphSourceMode: "bound",
-      } satisfies GraphWidgetProps;
+    if (isManagedConnectionConsumerMode(managedConnectionAdapter, persistedMode) || managedConnectionSource) {
+      const nextProps = managedConnectionAdapter.setSourceMode(
+        (instance.props ?? {}) as Record<string, unknown>,
+        resolveManagedConnectionConsumerDetachedSourceMode(
+          managedConnectionAdapter,
+          (instance.props ?? {}) as Record<string, unknown>,
+        ),
+      );
 
       updateSelectedWorkspace((dashboard) =>
         updateDashboardWidgetSettings(dashboard, instance.id, {
@@ -462,10 +475,9 @@ export function CustomWidgetSettingsPage({
       );
     }
 
-    updateGraphConnectionDraft((currentProps) => ({
-      ...currentProps,
-      graphSourceMode: "bound",
-    }));
+    updateManagedConnectionDraft((currentProps) =>
+      managedConnectionAdapter.setSourceMode(currentProps, detachedSourceMode),
+    );
     setActiveTab("bindings");
   }
 
@@ -556,7 +568,7 @@ export function CustomWidgetSettingsPage({
                     >
                       Bindings
                     </button>
-                    {hasGraphConnectionTab ? (
+                    {hasManagedConnectionTab ? (
                       <button
                         type="button"
                         role="tab"
@@ -677,7 +689,7 @@ export function CustomWidgetSettingsPage({
                 )}
 
                 {activeTab === "bindings" && hasBindingTab ? (
-                  isGraphWidget ? (
+                  managedConnectionAdapter ? (
                     <div className="space-y-6">
                       <section className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/88 shadow-[var(--shadow-panel)] backdrop-blur">
                         <div className="border-b border-border/70 px-5 py-5 md:px-6 md:py-6">
@@ -688,13 +700,14 @@ export function CustomWidgetSettingsPage({
                                 Data connection
                               </div>
                               <p className="max-w-3xl text-sm text-muted-foreground">
-                                Keep chart presentation in Settings and manage graph-owned source
+                                Keep widget presentation in Settings and manage widget-owned source
                                 creation from here. A managed connection creates one hidden
                                 connection-query widget and binds its dataset output to this
-                                graph&apos;s <code>sourceData</code> input.
+                                widget&apos;s <code>{managedConnectionAdapter.sourceInputId}</code>{" "}
+                                input.
                               </p>
                             </div>
-                            {graphConnectionMode ? (
+                            {managedConnectionMode ? (
                               <div className="flex flex-wrap gap-2">
                                 <Button
                                   variant="outline"
@@ -707,13 +720,13 @@ export function CustomWidgetSettingsPage({
                                 </Button>
                                 <Button
                                   variant="outline"
-                                  onClick={removeGraphManagedConnection}
+                                  onClick={removeManagedConnection}
                                 >
                                   Remove connection
                                 </Button>
                               </div>
                             ) : (
-                              <Button onClick={stageGraphManagedConnection}>
+                              <Button onClick={stageManagedConnection}>
                                 <PlugZap className="h-4 w-4" />
                                 Add connection
                               </Button>
@@ -722,29 +735,29 @@ export function CustomWidgetSettingsPage({
                         </div>
 
                         <div className="space-y-4 px-5 py-5 md:px-6 md:py-6">
-                          {graphConnectionMode ? (
+                          {managedConnectionMode ? (
                             <div className="rounded-[calc(var(--radius)-6px)] border border-primary/35 bg-primary/8 px-4 py-4">
                               <div className="text-sm font-medium text-foreground">
-                                {graphManagedConnectionSource
-                                  ? graphManagedConnectionSource.title
+                                {managedConnectionSource
+                                  ? managedConnectionSource.title
                                   : "Managed connection draft"}
                               </div>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                {graphManagedConnectionSource
-                                  ? "This graph now manages its own hidden connection-query source. Use the Connection tab to edit the full query configuration."
+                                {managedConnectionSource
+                                  ? `This ${widget.title.toLowerCase()} now manages its own hidden connection-query source. Use the Connection tab to edit the full query configuration.`
                                   : "A managed connection has been staged locally. Open the Connection tab and apply those changes to create the hidden source widget."}
                               </p>
                             </div>
                           ) : (
                             <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-4 text-sm text-muted-foreground">
                               Use a normal widget-to-widget binding below, or add a managed
-                              connection if this graph should own its own hidden source widget.
+                              connection if this widget should own its own hidden source widget.
                             </div>
                           )}
                         </div>
                       </section>
 
-                      {!graphConnectionMode ? (
+                      {!managedConnectionMode ? (
                         <DashboardWidgetDependenciesProvider widgets={bindingPreviewWidgets}>
                           <WidgetBindingPanel
                             widget={widget}
@@ -775,30 +788,32 @@ export function CustomWidgetSettingsPage({
                   )
                 ) : null}
 
-                {activeTab === "connection" && hasGraphConnectionTab && isGraphWidget && graphDraftProps ? (
+                {activeTab === "connection" && hasManagedConnectionTab && managedConnectionAdapter && managedConnectionDraftProps ? (
                   <section className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/88 shadow-[var(--shadow-panel)] backdrop-blur">
                     <div className="border-b border-border/70 px-5 py-5 md:px-6 md:py-6">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground">
                           <PlugZap className="h-5 w-5 text-primary" />
-                          Graph connection
+                          {widget.title} connection
                         </div>
                         <p className="max-w-3xl text-sm text-muted-foreground">
                           This tab reuses the same connection-query authoring surface as the
-                          standalone Connection Query widget. The graph still renders only from the
-                          resolved <code>sourceData</code> binding.
+                          standalone Connection Query widget. This {widget.title.toLowerCase()} still renders only from the
+                          resolved <code>{managedConnectionAdapter.sourceInputId}</code> binding.
                         </p>
                       </div>
                     </div>
 
                     <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
-                      <GraphManagedConnectionPanel
-                        draftProps={graphDraftProps}
+                      <ManagedConnectionConsumerPanel
+                        adapter={managedConnectionAdapter}
+                        draftProps={managedConnectionDraftProps}
                         editable
                         instanceId={instance.id}
                         instanceTitle={effectiveDraftState.title || instance.title || widget.title}
-                        onDraftPropsChange={(nextGraphProps) => {
-                          updateGraphConnectionDraft(() => nextGraphProps);
+                        widgetTitle={widget.title}
+                        onDraftPropsChange={(nextManagedConnectionProps) => {
+                          updateManagedConnectionDraft(() => nextManagedConnectionProps);
                         }}
                       />
                     </div>
@@ -810,14 +825,14 @@ export function CustomWidgetSettingsPage({
                       <div className="flex flex-wrap gap-2">
                         <Button
                           variant="outline"
-                          disabled={!graphConnectionDirty}
-                          onClick={resetGraphConnectionDraft}
+                          disabled={!managedConnectionDirty}
+                          onClick={resetManagedConnectionDraft}
                         >
                           Reset connection draft
                         </Button>
                         <Button
-                          disabled={!graphConnectionDirty}
-                          onClick={applyGraphConnectionDraft}
+                          disabled={!managedConnectionDirty}
+                          onClick={applyManagedConnectionDraft}
                         >
                           Apply connection changes
                         </Button>

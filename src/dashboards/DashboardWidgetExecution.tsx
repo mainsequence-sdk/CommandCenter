@@ -92,6 +92,10 @@ interface DashboardWidgetExecutionContextValue {
     instanceId?: string,
     options?: ResolveWidgetUpstreamOptions,
   ) => DashboardUpstreamResolutionRequirement | undefined;
+  publishRuntimeState: (
+    instanceId: string,
+    runtimeState: Record<string, unknown> | undefined,
+  ) => void;
 }
 
 const DashboardWidgetExecutionContext =
@@ -785,6 +789,13 @@ export function DashboardWidgetExecutionProvider({
           ...requirement,
           requestKey: `${requirement.requestKey}::${serializeDashboardExecutionState(dashboardState)}`,
         };
+      },
+      publishRuntimeState: (instanceId, runtimeState) => {
+        if (!instanceId) {
+          return;
+        }
+
+        writeRuntimeState(instanceId, runtimeState);
       },
     }),
     [

@@ -1,7 +1,7 @@
 # Graph Widget
 
 This folder owns the core `graph` widget. It renders a canonical
-`core.tabular_frame@v1` dataset as a line, area, or bar chart.
+`core.tabular_frame@v1` dataset as a line, area, bar, or markers-only chart.
 
 ## Entry Points
 
@@ -9,8 +9,8 @@ This folder owns the core `graph` widget. It renders a canonical
 - `GraphWidget.tsx`: mounted chart renderer and empty/error states.
 - `GraphWidgetSettings.tsx`: custom chart-focused settings surface for graph field mapping and
   per-series styling.
-- `GraphManagedConnectionPanel.tsx`: dedicated managed-source authoring surface used by the widget
-  settings route's `Connection` tab. It reuses the full connection-query workbench.
+- `managedConnectionConsumer.ts`: Graph implementation of the shared managed-connection consumer
+  adapter. It maps Graph props onto the generic hidden `connection-query` authoring lifecycle.
 - `schema.tsx`: schema-backed chart settings for provider, chart type, field mappings, grouping, normalization, and axes.
 - `controller.ts`: controller context for resolved source fields and picker options.
 - `graphModel.ts`: chart configuration normalization, graph source-mode normalization, embedded
@@ -34,6 +34,12 @@ This folder owns the core `graph` widget. It renders a canonical
 - Embedded connection source settings reuse the same request builder, query-model resolution,
   typed query editors, test execution, incremental refresh controls, and normalized response
   preview as the standalone `connection-query` widget.
+- Graph no longer owns a private managed-source settings implementation. The widget-settings route,
+  hidden-source lifecycle, and `Connection` tab now all go through the shared managed-connection
+  consumer adapter/panel layer so future consumer widgets can reuse the same integration path.
+- The `Connection` tab test action also republishes the tested runtime frame onto the hidden
+  managed source widget, so the graph preview resolves through the normal `sourceData` binding
+  instead of waiting on an Explore-local result that the graph cannot see.
 - The dedicated `Connection` tab shows the hidden source widget's current runtime status and error
   message even though the source widget stays out of the normal rail.
 - The shared source binding exposes retained `upstreamBase` frames and optional
@@ -42,6 +48,12 @@ This folder owns the core `graph` widget. It renders a canonical
   retained snapshot.
 - Authors must explicitly choose X and Y fields; grouping is optional and explicit.
 - Provider selection is local to the widget: TradingView Lightweight Charts or ECharts.
+- `markers` uses point-only rendering. ECharts maps that mode to scatter series, while
+  TradingView uses a line series with the stroke hidden and point markers forced on.
+- Marker-only charts expose a widget-level `markerSizePx` setting so authors can tune point size
+  without switching providers.
+- Grouped charts expose a widget-level `maxSeries` setting so authors can decide how many grouped
+  series render before the widget drops the remainder by point count.
 - Normalization, per-series colors, and line styles are chart-local and do not mutate upstream data.
 - When normalization is enabled and `Normalize at` is blank, each series rebases from its first visible usable point.
 - The widget is a passive `consumer`; source queries and transforms belong upstream to Connection Query and Tabular Transform.

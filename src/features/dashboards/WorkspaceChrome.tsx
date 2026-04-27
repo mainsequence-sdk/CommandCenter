@@ -426,7 +426,10 @@ export function WorkspaceWidgetRail({
           }}
         >
           {orderedWidgets.map(({ id, title, props, presentation, runtimeState, widget }) => {
-            const Icon = resolveWorkspaceWidgetIcon(widget);
+            const Icon = resolveWorkspaceWidgetIcon({
+              ...widget,
+              props: (props ?? {}) as Record<string, unknown>,
+            });
             const active = activeInstanceId === id;
             const executionState = widgetExecution?.getExecutionState(id);
             const dotClassName = resolveWidgetRailStatusDotClass({

@@ -23,7 +23,7 @@ runtime implementation.
 2. Backend stores the active connection type metadata.
 3. Administrator creates a connection instance.
 4. Backend stores public config and secret references.
-5. Frontend calls test/query/resource/stream endpoints with `connectionUid`.
+5. Frontend calls test/query/resource/stream endpoints with `connectionId`.
 6. Backend loads the instance, decrypts required secret material, builds request context, and
    dispatches to the adapter by `type_id`.
 7. Adapter validates config and request payloads.
@@ -79,7 +79,7 @@ Widget-bound queries receive a `ConnectionQueryRequest`:
 
 ```ts
 {
-  connectionUid: string;
+  connectionId: string | number;
   query: Record<string, unknown>;
   requestedOutputContract?: string;
   timeRange?: { from: string; to: string };
@@ -117,7 +117,7 @@ Cache and dedupe policy is part of the adapter contract. Keys should include:
 
 - organization id
 - user id or auth scope
-- connection uid
+- connection id
 - connection type id and version
 - instance update marker or config generation
 - query kind or resource name

@@ -7,19 +7,17 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
 
 - `index.ts`: exports the `prometheus.remote` connection type definition consumed by the app
   registry's root-level connection loader.
-- `PrometheusConnectionExplore.tsx`: Prometheus Explore wrapper rendered by
-  `Connections > Explore`. It renders the same shared Prometheus datasource summary, default query
-  seeding, PromQL builder/code authoring, generated request preview, test execution, and response
-  preview used by widget-managed and standalone connection-query settings.
 - `PrometheusQueryBuilder.tsx`: click-driven metric, label, and label-value selector builder.
   Metadata lookups are never issued on load; users must click `Load metrics`, `Load labels`, or
   `Values` for a specific label row.
 - `promqlBuilder.ts`: pure PromQL selector/query helpers used by the builder and unit tests.
-- `prometheusAuthoring.tsx`: shared Prometheus datasource summary, query-default resolver, and
-  default fixed-range helpers used by both Explore and widget connection authoring.
+- `prometheusAuthoring.tsx`: defines the shared `authoringContract`, Prometheus datasource summary,
+  query-default resolver, and default fixed-range helpers used by both Data Sources Explore and
+  widget connection authoring.
 - `PrometheusConnectionQueryEditor.tsx`: typed Connection Query widget editor for PromQL instant
   and PromQL range payloads. It is the shared source of truth for both Explore and widget-managed
-  connection authoring, including the Builder/Code toggle and metadata-driven PromQL exploration.
+  connection authoring, including the Builder/Code toggle, persisted editor-mode restore, and
+  metadata-driven PromQL exploration.
 
 ## Behavior
 
@@ -32,12 +30,12 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
   `static/prometheus_logo_orange_circle.svg` under the Prometheus docs Apache 2.0 license.
 - Connection instances remain backend-owned data sources. This implementation contributes type
   metadata and frontend Explore UX only.
-- The Explore shell reads runtime behavior from the selected connection instance and its synced
-  connection type defaults. It uses the same `ConnectionQueryWorkbench`, `queryModels`, and
-  `PrometheusConnectionQueryEditor.tsx` path as the workspace Connection Query widget and managed
-  widget-owned connection settings for query execution, parameter editing, builder mode, response
-  preview, datasource summary, and default query/range seeding. Do not reintroduce a second
-  Prometheus authoring path for standard queries.
+- The generic Explore surface reads runtime behavior from the selected connection instance and its
+  synced connection type defaults. It uses the same `ConnectionQueryWorkbench`, `queryModels`,
+  `prometheusAuthoring.tsx`, and `PrometheusConnectionQueryEditor.tsx` path as the workspace
+  Connection Query widget and managed widget-owned connection settings for query execution,
+  parameter editing, builder mode, response preview, shared datasource summary, and default query/range
+  seeding. Do not reintroduce a second Prometheus authoring path for standard queries.
 - The PromQL builder performs metadata discovery through the backend-routed connection resource
   endpoint only after explicit user actions. `Load metrics` calls resource `label-values` for
   `__name__`, `Load labels` calls resource `labels` scoped to the selected metric, and each row's
@@ -53,6 +51,10 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
   max data points. PromQL authoring must stay on the CodeMirror-backed PromQL editor instead of a
   generic textarea. These fields remain Prometheus-specific payload kwargs instead of becoming
   static fields on the generic widget.
+- Builder vs Code selection is persisted in the surrounding `ConnectionQueryWidgetProps` authoring
+  state, not guessed from the backend query payload. If no persisted mode exists yet and a saved
+  query already has custom PromQL text, the editor should reopen in Code mode instead of silently
+  dropping the user back into Builder.
 - `promql-range` must publish a canonical `core.tabular_frame@v1` for widget/runtime flows. When
   the backend can identify chart semantics, preserve them in `meta.timeSeries` on that tabular
   frame while keeping Prometheus labels available as series metadata.
@@ -62,6 +64,9 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
 
 - Keep Prometheus out of `extensions/`; it should appear to users only through the shared
   Connections app.
+- Keep datasource summaries, default query seeding, and Explore copy in
+  `prometheusAuthoring.tsx`. The typed PromQL editor remains the only connection-specific query
+  authoring path.
 - Do not render or persist returned secret values. Bearer tokens, basic passwords, Google service
   account JSON keys, and TLS material are write-only secure config fields on backend-owned
   connection instances. The UI may show only `secureFields` indicators for already configured

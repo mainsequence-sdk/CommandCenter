@@ -8,6 +8,7 @@ into one or more KPI-style cards.
 - `definition.ts`: core widget definition, IO metadata, registry contract, demo inputs, and settings/component wiring.
 - `StatisticWidget.tsx`: mounted renderer for statistic cards and empty/error states.
 - `StatisticWidgetSettings.tsx`: settings editor for binding status, reduction mode, field choices, grouping, formatting, and color rules.
+- `managedConnectionConsumer.ts`: shared managed-connection adapter that lets the generic widget-settings route create one hidden `connection-query` source for this statistic widget.
 - `StatisticCardGrid.tsx`: responsive KPI card renderer.
 - `statisticModel.ts`: configuration normalization, field inference, grouping, reduction, formatting, and color-rule evaluation.
 - `statisticPreview.ts`: demo resolved-input fixture for settings preview mode.
@@ -16,6 +17,8 @@ into one or more KPI-style cards.
 ## Behavior
 
 - The widget consumes one `core.tabular_frame@v1` input on `sourceData`.
+- Connection-backed authoring still resolves through `sourceData`; the hidden managed
+  `connection-query` widget owns execution and dataset publication.
 - The widget reads the resolved input's generic `upstreamBase` frame when an incremental upstream
   source publishes retained base plus delta metadata. It recomputes cards from the retained
   snapshot rather than applying row deltas directly.
@@ -24,6 +27,8 @@ into one or more KPI-style cards.
 - Numeric cards can render a compact sparkline from the same incoming value field, including multi-card grouped layouts.
 - When the current grouped layout fits in one row, the statistic grid stretches to the full widget height instead of leaving unused space under the cards.
 - Multi-card layouts use an author-controlled column count and scroll instead of compressing every tile to fit the widget height.
+- `Bindings -> Add connection` and the dedicated `Connection` tab are shared managed-connection
+  surfaces. Statistic settings stay focused on reduction and presentation.
 - The widget is a passive `consumer`; source queries and transforms belong upstream to Connection Query and Tabular Transform.
 
 ## Maintenance Constraints

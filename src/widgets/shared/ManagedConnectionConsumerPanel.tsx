@@ -1,33 +1,33 @@
 import { useMemo } from "react";
 
-import { getWidgetById } from "@/app/registry";
-import { getConnectionTypeById } from "@/app/registry";
+import { getConnectionTypeById, getWidgetById } from "@/app/registry";
 import { ConnectionQuerySettingsSurface } from "@/connections/ConnectionQuerySettingsSurface";
 import { resolveManagedConnectionQuerySource } from "@/connections/managedConnectionQuerySource";
 import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
+import type {
+  AnyManagedConnectionConsumerAdapter,
+} from "@/widgets/shared/managed-connection-consumer";
+import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
 import type { WidgetDefinition } from "@/widgets/types";
 
-import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
-
-import {
-  resolveGraphEmbeddedConnectionQueryProps,
-  type GraphWidgetProps,
-} from "./graphModel";
-
-export function GraphManagedConnectionPanel({
+export function ManagedConnectionConsumerPanel({
+  adapter,
   draftProps,
   editable,
   instanceId,
   instanceTitle,
+  widgetTitle,
   onDraftPropsChange,
 }: {
-  draftProps: GraphWidgetProps;
+  adapter: AnyManagedConnectionConsumerAdapter;
+  draftProps: Record<string, unknown>;
   editable: boolean;
   instanceId: string;
   instanceTitle?: string;
-  onDraftPropsChange: (nextProps: GraphWidgetProps) => void;
+  widgetTitle: string;
+  onDraftPropsChange: (nextProps: Record<string, unknown>) => void;
 }) {
   const widgetRegistry = useDashboardWidgetRegistry();
   const connectionQueryWidgetDefinition = useMemo(
@@ -39,34 +39,39 @@ export function GraphManagedConnectionPanel({
     [instanceId, widgetRegistry],
   );
   const embeddedConnectionQueryProps = useMemo(
-    () => resolveGraphEmbeddedConnectionQueryProps(draftProps),
-    [draftProps],
+    () => adapter.getEmbeddedConnectionQuery(draftProps),
+    [adapter, draftProps],
+  );
+  const embeddedConnectionPresentation = useMemo(
+    () => adapter.getEmbeddedConnectionPresentation(draftProps),
+    [adapter, draftProps],
   );
   const selectedConnectionType = embeddedConnectionQueryProps.connectionRef?.typeId
     ? getConnectionTypeById(embeddedConnectionQueryProps.connectionRef.typeId)
     : undefined;
   const useTypedQueryEditor = Boolean(selectedConnectionType?.queryEditor);
-  const embeddedConnectionPresentation = useMemo(
+  const resolvedConnectionPresentation = useMemo(
     () =>
       connectionQueryWidgetDefinition
         ? resolveWidgetInstancePresentation(
             connectionQueryWidgetDefinition,
-            managedConnectionSource?.presentation ??
-              draftProps.embeddedConnectionPresentation,
+            managedConnectionSource?.presentation ?? embeddedConnectionPresentation,
           )
-        : draftProps.embeddedConnectionPresentation ?? {},
+        : embeddedConnectionPresentation ?? {},
     [
       connectionQueryWidgetDefinition,
-      draftProps.embeddedConnectionPresentation,
+      embeddedConnectionPresentation,
       managedConnectionSource?.presentation,
     ],
   );
+  const normalizedWidgetTitle = widgetTitle.trim() || "Widget";
+  const consumerLabel = normalizedWidgetTitle.toLowerCase();
 
   if (!connectionQueryWidgetDefinition) {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/35 bg-danger/8 px-4 py-3 text-sm text-danger">
-        The connection-query widget definition is unavailable, so this graph-managed connection
-        cannot be configured here.
+        The connection-query widget definition is unavailable, so this managed connection cannot be
+        configured here.
       </div>
     );
   }
@@ -75,16 +80,17 @@ export function GraphManagedConnectionPanel({
     <ConnectionQuerySettingsSurface
       value={embeddedConnectionQueryProps}
       onChange={(nextEmbeddedConnectionQuery) => {
-        onDraftPropsChange({
-          ...draftProps,
-          graphSourceMode: "connection",
-          embeddedConnectionQuery: nextEmbeddedConnectionQuery,
-        });
+        const nextProps = adapter.setEmbeddedConnectionQuery(
+          adapter.setSourceMode(draftProps, adapter.connectionMode),
+          nextEmbeddedConnectionQuery,
+        );
+        onDraftPropsChange(nextProps);
       }}
       editable={editable}
+      publishPreviewRuntimeStateToInstanceId={managedConnectionSource?.id}
       runtimeState={managedConnectionSource?.runtimeState ?? undefined}
       runtimeStatusTitle="Managed source runtime"
-      runtimeStatusDescription="This graph still renders from resolved sourceData. Applying connection changes creates or updates the hidden connection-query source and keeps sourceData bound to its dataset output."
+      runtimeStatusDescription={`This ${consumerLabel} still renders from resolved ${adapter.sourceInputId}. Applying connection changes creates or updates the hidden connection-query source and keeps ${adapter.sourceInputId} bound to its dataset output.`}
       runtimeStatusEmptyMessage={
         managedConnectionSource
           ? "The managed source exists, but it has not published a live dataset yet."
@@ -92,26 +98,29 @@ export function GraphManagedConnectionPanel({
       }
       sourceTitle={
         managedConnectionSource?.title ??
-        `${instanceTitle?.trim() || "Graph"} Source`
+        adapter.buildManagedSourceTitle({
+          ownerTitle: instanceTitle,
+          widgetTitle: normalizedWidgetTitle,
+        })
       }
       connectionPathSettings={useTypedQueryEditor ? undefined : (
         <WidgetSchemaForm
           widget={connectionQueryWidgetDefinition}
           draftProps={embeddedConnectionQueryProps}
           onDraftPropsChange={(nextEmbeddedConnectionQuery) => {
-            onDraftPropsChange({
-              ...draftProps,
-              graphSourceMode: "connection",
-              embeddedConnectionQuery: nextEmbeddedConnectionQuery,
-            });
+            const nextProps = adapter.setEmbeddedConnectionQuery(
+              adapter.setSourceMode(draftProps, adapter.connectionMode),
+              nextEmbeddedConnectionQuery as Record<string, unknown>,
+            );
+            onDraftPropsChange(nextProps);
           }}
-          draftPresentation={embeddedConnectionPresentation}
+          draftPresentation={resolvedConnectionPresentation}
           onDraftPresentationChange={(nextEmbeddedConnectionPresentation) => {
-            onDraftPropsChange({
-              ...draftProps,
-              graphSourceMode: "connection",
-              embeddedConnectionPresentation: nextEmbeddedConnectionPresentation,
-            });
+            const nextProps = adapter.setEmbeddedConnectionPresentation(
+              adapter.setSourceMode(draftProps, adapter.connectionMode),
+              nextEmbeddedConnectionPresentation,
+            );
+            onDraftPropsChange(nextProps);
           }}
           editable={editable}
           context={undefined}
@@ -119,8 +128,7 @@ export function GraphManagedConnectionPanel({
       )}
       showConnectionPicker
       showQueryEditor={useTypedQueryEditor}
-      runButtonLabel="Test source"
-      resultDescription="Preview of the normalized source frame this graph will receive through sourceData."
+      resultDescription={`Preview of the normalized source frame this ${consumerLabel} will receive through ${adapter.sourceInputId}.`}
     />
   );
 }

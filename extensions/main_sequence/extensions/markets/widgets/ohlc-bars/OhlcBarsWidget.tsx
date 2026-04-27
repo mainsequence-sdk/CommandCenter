@@ -7,6 +7,7 @@ import {
   HistogramSeries,
   LineSeries,
   createChart,
+  type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
 
@@ -44,6 +45,7 @@ type OhlcLinePoint = {
 type OhlcVolumePoint = OhlcLinePoint & {
   color: string;
 };
+type OhlcTimeAxisMode = "date" | "datetime";
 
 function getChartSize(container: HTMLDivElement) {
   return {
@@ -52,7 +54,54 @@ function getChartSize(container: HTMLDivElement) {
   };
 }
 
-function formatOhlcDate(timestampMs: number) {
+function resolveChartTimeMs(time: Time) {
+  if (typeof time === "number") {
+    return time * 1000;
+  }
+
+  if (typeof time === "string") {
+    const parsed = Date.parse(time);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return Date.UTC(time.year, time.month - 1, time.day);
+}
+
+function formatOhlcUtcDateKey(timestampMs: number) {
+  return new Date(timestampMs).toISOString().slice(0, 10);
+}
+
+function formatOhlcChartTime(
+  time: Time,
+  timeAxisMode: OhlcTimeAxisMode,
+  options?: { includeSeconds?: boolean },
+) {
+  const timestampMs = resolveChartTimeMs(time);
+
+  if (timestampMs === null) {
+    return String(time);
+  }
+
+  if (timeAxisMode === "date") {
+    return formatOhlcUtcDateKey(timestampMs);
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: options?.includeSeconds ? "2-digit" : undefined,
+  }).format(new Date(timestampMs));
+}
+
+function formatOhlcDate(timestampMs: number, timeAxisMode: OhlcTimeAxisMode) {
+  if (timeAxisMode === "date") {
+    return new Intl.DateTimeFormat(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(timestampMs));
+  }
+
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -75,6 +124,7 @@ function formatVolume(value: number) {
 function renderTooltipContent(
   tooltip: HTMLDivElement,
   point: ReturnType<typeof buildOhlcBarsSeries>["points"][number],
+  timeAxisMode: OhlcTimeAxisMode,
 ) {
   const directionColor = point.close >= point.open ? "var(--success)" : "var(--danger)";
   const volumeRow = point.volume === undefined
@@ -82,7 +132,7 @@ function renderTooltipContent(
     : `<div class="flex justify-between gap-4"><span class="text-muted-foreground">Volume</span><span>${formatVolume(point.volume)}</span></div>`;
 
   tooltip.innerHTML = `
-    <div class="mb-1 text-xs font-medium text-foreground">${formatOhlcDate(point.timeMs)}</div>
+    <div class="mb-1 text-xs font-medium text-foreground">${formatOhlcDate(point.timeMs, timeAxisMode)}</div>
     <div class="space-y-0.5 text-xs">
       <div class="flex justify-between gap-4"><span class="text-muted-foreground">Open</span><span>${formatOhlcNumber(point.open)}</span></div>
       <div class="flex justify-between gap-4"><span class="text-muted-foreground">High</span><span>${formatOhlcNumber(point.high)}</span></div>
@@ -172,6 +222,39 @@ function mapStudyChartPoints(
   });
 }
 
+function isDateOnlySourceTime(value: unknown) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
+function resolveOhlcTimeAxisMode(args: {
+  fieldOptions: Array<{ key: string; type?: string }>;
+  points: ReturnType<typeof buildOhlcBarsSeries>["points"];
+  timeField?: string;
+}): OhlcTimeAxisMode {
+  const timeFieldType = args.fieldOptions.find((field) => field.key === args.timeField)?.type;
+
+  if (timeFieldType === "date") {
+    return "date";
+  }
+
+  if (timeFieldType === "datetime" || timeFieldType === "time") {
+    return "datetime";
+  }
+
+  const sampleValues = args.points
+    .map((point) => point.sourceTime)
+    .filter((value) => value !== null && value !== undefined && value !== "")
+    .slice(0, 50);
+
+  if (sampleValues.length === 0) {
+    return "datetime";
+  }
+
+  return sampleValues.every((value) => isDateOnlySourceTime(value))
+    ? "date"
+    : "datetime";
+}
+
 function EmptyState({
   icon,
   title,
@@ -245,6 +328,15 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
     () => buildOhlcBarsSeries(linkedDataset?.rows ?? [], resolvedConfig),
     [linkedDataset?.rows, resolvedConfig],
   );
+  const timeAxisMode = useMemo(
+    () =>
+      resolveOhlcTimeAxisMode({
+        fieldOptions: runtimeFieldOptions,
+        points: seriesResult.points,
+        timeField: resolvedConfig.timeField,
+      }),
+    [resolvedConfig.timeField, runtimeFieldOptions, seriesResult.points],
+  );
   const deltaSeriesResult = useMemo(
     () => buildOhlcBarsSeries(sourceBinding.resolvedSourceDeltaDataset?.rows ?? [], resolvedConfig),
     [resolvedConfig, sourceBinding.resolvedSourceDeltaDataset?.rows],
@@ -316,9 +408,14 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
       },
       timeScale: {
         borderColor: withAlpha(resolvedTokens.border, 0.72),
-        timeVisible: true,
+        timeVisible: timeAxisMode === "datetime",
         secondsVisible: false,
         rightOffset: 2,
+        tickMarkFormatter: (time: Time) => formatOhlcChartTime(time, timeAxisMode),
+      },
+      localization: {
+        timeFormatter: (time: Time) =>
+          formatOhlcChartTime(time, timeAxisMode, { includeSeconds: true }),
       },
       crosshair: {
         vertLine: {
@@ -433,7 +530,7 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
         return;
       }
 
-      renderTooltipContent(activeTooltip, point);
+      renderTooltipContent(activeTooltip, point, timeAxisMode);
       activeTooltip.classList.remove("hidden");
 
       const tooltipWidth = activeTooltip.offsetWidth || 160;
@@ -465,7 +562,7 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
       chartRef.current?.remove();
       chartRef.current = null;
     };
-  }, [hasChartablePoints, hasVolume, resolvedConfig.studies, resolvedTokens]);
+  }, [hasChartablePoints, hasVolume, resolvedConfig.studies, resolvedTokens, timeAxisMode]);
 
   useEffect(() => {
     const chart = chartRef.current;

@@ -8,9 +8,13 @@ import {
 
 const config = {
   groupField: "symbol",
+  maxSeries: 8,
   xField: "time",
   yField: "value",
-} satisfies Pick<ResolvedGraphConfig, "groupField" | "seriesOverrides" | "xField" | "yField">;
+} satisfies Pick<
+  ResolvedGraphConfig,
+  "groupField" | "maxSeries" | "seriesOverrides" | "xField" | "yField"
+>;
 
 describe("graph incremental series projection", () => {
   it("projects delta rows to the same series and chart bucket as retained rows", () => {
@@ -39,5 +43,26 @@ describe("graph incremental series projection", () => {
     expect(delta.series[0]?.points).toEqual([
       { time: Date.parse("2026-04-25T00:02:00.000Z"), value: 22 },
     ]);
+  });
+
+  it("uses the configured maxSeries limit instead of a hardcoded cap", () => {
+    const result = buildGraphSeries(
+      [
+        { time: "2026-04-25T00:01:00.000Z", symbol: "AAPL", value: 10 },
+        { time: "2026-04-25T00:02:00.000Z", symbol: "AAPL", value: 11 },
+        { time: "2026-04-25T00:01:00.000Z", symbol: "MSFT", value: 20 },
+        { time: "2026-04-25T00:02:00.000Z", symbol: "MSFT", value: 21 },
+        { time: "2026-04-25T00:01:00.000Z", symbol: "NVDA", value: 30 },
+        { time: "2026-04-25T00:02:00.000Z", symbol: "NVDA", value: 31 },
+      ],
+      {
+        ...config,
+        maxSeries: 2,
+      },
+    );
+
+    expect(result.series.map((series) => series.id)).toEqual(["AAPL", "MSFT"]);
+    expect(result.droppedGroups).toBe(1);
+    expect(result.totalGroups).toBe(3);
   });
 });

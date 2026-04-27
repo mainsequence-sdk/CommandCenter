@@ -32,7 +32,6 @@ import { DATA_NODE_SOURCE_INPUT_ID } from "./widgetBindings";
 import { resolveMainSequenceDataSourceContext } from "../../widget-contracts/mainSequenceDataSourceBundle";
 import {
   buildMainSequenceDataNodeDetailQueryKey,
-  DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF,
   MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
   queryMainSequenceDataNodeDetail,
 } from "../../connections/dataNodeConnection";
@@ -71,7 +70,7 @@ export interface DataNodeWidgetSourceReferenceProps extends Record<string, unkno
 
 export interface ResolvedDataNodeWidgetSourceConfig {
   availableFields: DataNodeFieldOption[];
-  connectionRef: ConnectionRef;
+  connectionRef?: ConnectionRef;
   dataNodeId?: number;
   dataNodeLabel: string;
   dateRangeMode: DataNodeDateRangeMode;
@@ -736,9 +735,7 @@ export function resolveDataNodeWidgetSourceConfig(
   );
   const dataNodeId =
     normalizePositiveInteger(props.dataNodeId) ?? normalizePositiveInteger(detail?.id);
-  const connectionRef =
-    normalizeConnectionRef(props.connectionRef, DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF) ??
-    DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF;
+  const connectionRef = normalizeConnectionRef(props.connectionRef);
   const dateRangeMode: DataNodeDateRangeMode =
     props.dateRangeMode === "fixed" ? "fixed" : "dashboard";
   const fixedStartMs = normalizeTimestampMs(props.fixedStartMs);
@@ -819,8 +816,7 @@ export function useDataNodeWidgetSourceControllerContext<
 }): DataNodeWidgetSourceControllerContext<TResolvedConfig> {
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({ props, currentWidgetInstanceId });
   const selectedDataNodeId = Number(sourceBinding.resolvedSourceProps.dataNodeId ?? 0);
-  const selectedConnectionRef =
-    sourceBinding.resolvedSourceProps.connectionRef ?? DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF;
+  const selectedConnectionRef = sourceBinding.resolvedSourceProps.connectionRef;
   const selectedDataNodeDetailQuery = useQuery({
     queryKey: buildMainSequenceDataNodeDetailQueryKey(
       selectedDataNodeId > 0 ? selectedDataNodeId : undefined,
@@ -833,7 +829,7 @@ export function useDataNodeWidgetSourceControllerContext<
       ),
     enabled:
       sourceBinding.sourceMode !== "manual" &&
-      Boolean(selectedConnectionRef.id),
+      Boolean(selectedConnectionRef?.id),
     staleTime: 300_000,
   });
 
@@ -905,14 +901,11 @@ export function createDataNodeWidgetSourceSettingsSchema<
   }: WidgetFieldSettingsRendererProps<TProps, TContext>) {
     return (
       <ConnectionPicker
-        value={normalizeConnectionRef(
-          draftProps.connectionRef,
-          DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF,
-        )}
+        value={normalizeConnectionRef(draftProps.connectionRef)}
         onChange={(nextRef) => {
           onDraftPropsChange({
             ...draftProps,
-            connectionRef: nextRef ?? DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF,
+            connectionRef: nextRef,
           });
         }}
         accepts={{

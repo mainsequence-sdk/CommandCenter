@@ -5,11 +5,10 @@ Reusable UI components for connection-aware settings and app surfaces.
 ## Entry Points
 
 - `ConnectionPicker.tsx`: selects a connection instance and returns a stable `ConnectionRef`.
-  The picker merges backend-managed instances with runtime/system default instances so widget
-  settings and explorer screens can still select safe defaults such as `prometheus-default` before
-  the backend instance catalog is populated. Menu rows render the connection type logo, instance
-  name, type title/id, and status badges so connection-aware settings and explorer screens share
-  one picker.
+  The picker lists backend-managed instances only. It must not inject synthetic defaults or system
+  placeholders such as `prometheus-default`, because widget runtime execution needs a real backend
+  connection id. Menu rows render the connection type logo, instance name, type title/id, and
+  status badges so connection-aware settings and explorer screens share one picker.
 - `ConnectionTypeIcon.tsx`: renders a connection type logo with a safe initials fallback.
 - `ConnectionQueryEditorFields.tsx`: shared form controls for connection-specific query editors.
   These controls keep CodeMirror-backed query code, SQL, JSON-object, string-list, number, boolean,

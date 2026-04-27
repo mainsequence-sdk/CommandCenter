@@ -102,6 +102,38 @@ function graphWidget(
   };
 }
 
+function tableWidget(
+  id: string,
+  position?: { x: number; y: number },
+): DashboardWidgetInstance {
+  return {
+    id,
+    widgetId: "table",
+    title: id,
+    layout: {
+      cols: 12,
+      rows: 8,
+    },
+    position,
+  };
+}
+
+function statisticWidget(
+  id: string,
+  position?: { x: number; y: number },
+): DashboardWidgetInstance {
+  return {
+    id,
+    widgetId: "statistic",
+    title: id,
+    layout: {
+      cols: 12,
+      rows: 8,
+    },
+    position,
+  };
+}
+
 function connectionQueryWidget(
   id: string,
   title = "Connection Query",
@@ -626,6 +658,413 @@ describe("custom dashboard storage managed widgets", () => {
     expect(
       findManagedDashboardWidgets(updated, {
         ownerInstanceId: "graph-1",
+        role: "embedded-connection-source",
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("creates and binds a managed connection-query source when table connection mode is saved", () => {
+    const dashboard = dashboardWithWidgets([
+      tableWidget("table-1", { x: 0, y: 0 }),
+    ]);
+
+    const updated = updateDashboardWidgetSettings(dashboard, "table-1", {
+      title: "Orders Table",
+      props: {
+        tableSourceMode: "connection",
+        embeddedConnectionQuery: {
+          connectionRef: {
+            id: 101,
+            typeId: "postgresql",
+          },
+          queryModelId: "sql",
+          query: {
+            kind: "sql",
+            sql: "select * from orders limit 100",
+          },
+          maxRows: 100,
+        },
+      },
+    });
+
+    const managedSource = findManagedDashboardWidget(updated, {
+      ownerInstanceId: "table-1",
+      role: "embedded-connection-source",
+    });
+    const owner = updated.widgets.find((widget) => widget.id === "table-1");
+
+    expect(managedSource?.widgetId).toBe("connection-query");
+    expect(managedSource?.title).toBe("Orders Table Source");
+    expect(managedSource?.props).toMatchObject({
+      connectionRef: {
+        id: 101,
+        typeId: "postgresql",
+      },
+      queryModelId: "sql",
+      maxRows: 100,
+    });
+    expect(owner?.bindings).toEqual({
+      sourceData: {
+        sourceWidgetId: managedSource?.id,
+        sourceOutputId: "dataset",
+      },
+    });
+  });
+
+  it("updates the existing managed connection-query source when table connection settings change", () => {
+    const dashboard = updateDashboardWidgetSettings(
+      dashboardWithWidgets([tableWidget("table-1", { x: 0, y: 0 })]),
+      "table-1",
+      {
+        title: "Orders Table",
+        props: {
+          tableSourceMode: "connection",
+          embeddedConnectionQuery: {
+            connectionRef: {
+              id: 101,
+              typeId: "postgresql",
+            },
+            queryModelId: "sql",
+            query: {
+              kind: "sql",
+              sql: "select * from orders limit 100",
+            },
+          },
+        },
+      },
+    );
+    const initialManagedSource = findManagedDashboardWidget(dashboard, {
+      ownerInstanceId: "table-1",
+      role: "embedded-connection-source",
+    });
+
+    const updated = updateDashboardWidgetSettings(dashboard, "table-1", {
+      title: "Orders Table v2",
+      props: {
+        tableSourceMode: "connection",
+        embeddedConnectionQuery: {
+          connectionRef: {
+            id: 101,
+            typeId: "postgresql",
+          },
+          queryModelId: "sql",
+          query: {
+            kind: "sql",
+            sql: "select id, status from orders limit 50",
+          },
+          maxRows: 50,
+        },
+      },
+    });
+    const managedSource = findManagedDashboardWidget(updated, {
+      ownerInstanceId: "table-1",
+      role: "embedded-connection-source",
+    });
+
+    expect(managedSource?.id).toBe(initialManagedSource?.id);
+    expect(managedSource?.title).toBe("Orders Table v2 Source");
+    expect(managedSource?.props).toMatchObject({
+      maxRows: 50,
+      query: {
+        kind: "sql",
+        sql: "select id, status from orders limit 50",
+      },
+    });
+  });
+
+  it("removes the managed table source and binding when the table switches to manual mode", () => {
+    const dashboard = updateDashboardWidgetSettings(
+      dashboardWithWidgets([tableWidget("table-1", { x: 0, y: 0 })]),
+      "table-1",
+      {
+        props: {
+          tableSourceMode: "connection",
+          embeddedConnectionQuery: {
+            connectionRef: {
+              id: 101,
+              typeId: "postgresql",
+            },
+            queryModelId: "sql",
+            query: {
+              kind: "sql",
+              sql: "select * from orders",
+            },
+          },
+        },
+      },
+    );
+
+    const updated = updateDashboardWidgetSettings(dashboard, "table-1", {
+      props: {
+        tableSourceMode: "manual",
+        manualColumns: [{ key: "name", type: "string" }],
+        manualRows: [{ name: "alpha" }],
+      },
+    });
+    const owner = updated.widgets.find((widget) => widget.id === "table-1");
+
+    expect(owner?.bindings).toBeUndefined();
+    expect(owner?.props).toMatchObject({
+      tableSourceMode: "manual",
+      manualColumns: [{ key: "name", type: "string" }],
+      manualRows: [{ name: "alpha" }],
+    });
+    expect(
+      findManagedDashboardWidgets(updated, {
+        ownerInstanceId: "table-1",
+        role: "embedded-connection-source",
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("duplicates the table-managed source and rebinds the duplicated table", () => {
+    const dashboard = updateDashboardWidgetSettings(
+      dashboardWithWidgets([tableWidget("table-1", { x: 0, y: 0 })]),
+      "table-1",
+      {
+        title: "Orders Table",
+        props: {
+          tableSourceMode: "connection",
+          embeddedConnectionQuery: {
+            connectionRef: {
+              id: 101,
+              typeId: "postgresql",
+            },
+            queryModelId: "sql",
+            query: {
+              kind: "sql",
+              sql: "select * from orders",
+            },
+          },
+        },
+      },
+    );
+    const originalManagedSource = findManagedDashboardWidget(dashboard, {
+      ownerInstanceId: "table-1",
+      role: "embedded-connection-source",
+    });
+
+    const duplicated = duplicateDashboardWidget(dashboard, "table-1");
+    const duplicatedTable = duplicated.widgets.find(
+      (widget) => widget.widgetId === "table" && widget.id !== "table-1",
+    );
+    const duplicatedManagedSource = duplicatedTable
+      ? findManagedDashboardWidget(duplicated, {
+          ownerInstanceId: duplicatedTable.id,
+          role: "embedded-connection-source",
+        })
+      : null;
+
+    expect(duplicatedManagedSource?.id).not.toBe(originalManagedSource?.id);
+    expect(duplicatedManagedSource?.props).toEqual(originalManagedSource?.props);
+    expect(duplicatedTable?.bindings).toEqual({
+      sourceData: {
+        sourceWidgetId: duplicatedManagedSource?.id,
+        sourceOutputId: "dataset",
+      },
+    });
+  });
+
+  it("removes the managed source when the table owner is deleted", () => {
+    const dashboard = updateDashboardWidgetSettings(
+      dashboardWithWidgets([tableWidget("table-1", { x: 0, y: 0 })]),
+      "table-1",
+      {
+        props: {
+          tableSourceMode: "connection",
+          embeddedConnectionQuery: {
+            connectionRef: {
+              id: 101,
+              typeId: "postgresql",
+            },
+            queryModelId: "sql",
+            query: {
+              kind: "sql",
+              sql: "select * from orders",
+            },
+          },
+        },
+      },
+    );
+
+    const removed = removeDashboardWidget(dashboard, "table-1");
+
+    expect(removed.widgets.some((widget) => widget.id === "table-1")).toBe(false);
+    expect(
+      findManagedDashboardWidgets(removed, {
+        ownerInstanceId: "table-1",
+        role: "embedded-connection-source",
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("keeps explicit source bindings unchanged for backward-compatible bound tables", () => {
+    const dashboard = updateDashboardWidgetBindings(
+      dashboardWithWidgets([
+        tableWidget("table-1", { x: 0, y: 0 }),
+        connectionQueryWidget("source-explicit", "Shared Source"),
+      ]),
+      "table-1",
+      {
+        sourceData: {
+          sourceWidgetId: "source-explicit",
+          sourceOutputId: "dataset",
+        },
+      },
+    );
+
+    const updated = updateDashboardWidgetSettings(dashboard, "table-1", {
+      props: {
+        density: "compact",
+      },
+    });
+    const owner = updated.widgets.find((widget) => widget.id === "table-1");
+
+    expect(owner?.bindings).toEqual({
+      sourceData: {
+        sourceWidgetId: "source-explicit",
+        sourceOutputId: "dataset",
+      },
+    });
+    expect(
+      findManagedDashboardWidgets(updated, {
+        ownerInstanceId: "table-1",
+        role: "embedded-connection-source",
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("creates and binds a managed connection-query source when statistic connection mode is saved", () => {
+    const dashboard = dashboardWithWidgets([
+      statisticWidget("stat-1", { x: 0, y: 0 }),
+    ]);
+
+    const updated = updateDashboardWidgetSettings(dashboard, "stat-1", {
+      title: "Yield KPI",
+      props: {
+        statisticSourceMode: "connection",
+        embeddedConnectionQuery: {
+          connectionRef: {
+            id: 77,
+            typeId: "prometheus",
+          },
+          queryModelId: "promql-range",
+          query: {
+            kind: "promql-range",
+            expr: "avg(rate(cpu_usage_seconds_total[5m]))",
+          },
+        },
+      },
+    });
+
+    const managedSource = findManagedDashboardWidget(updated, {
+      ownerInstanceId: "stat-1",
+      role: "embedded-connection-source",
+    });
+    const owner = updated.widgets.find((widget) => widget.id === "stat-1");
+
+    expect(managedSource?.title).toBe("Yield KPI Source");
+    expect(managedSource?.props).toMatchObject({
+      connectionRef: {
+        id: 77,
+        typeId: "prometheus",
+      },
+      queryModelId: "promql-range",
+    });
+    expect(owner?.bindings).toEqual({
+      sourceData: {
+        sourceWidgetId: managedSource?.id,
+        sourceOutputId: "dataset",
+      },
+    });
+  });
+
+  it("duplicates and removes the managed source for statistic widgets", () => {
+    const dashboard = updateDashboardWidgetSettings(
+      dashboardWithWidgets([statisticWidget("stat-1", { x: 0, y: 0 })]),
+      "stat-1",
+      {
+        props: {
+          statisticSourceMode: "connection",
+          embeddedConnectionQuery: {
+            connectionRef: {
+              id: 77,
+              typeId: "prometheus",
+            },
+            queryModelId: "promql-range",
+            query: {
+              kind: "promql-range",
+              expr: "up",
+            },
+          },
+        },
+      },
+    );
+    const originalManagedSource = findManagedDashboardWidget(dashboard, {
+      ownerInstanceId: "stat-1",
+      role: "embedded-connection-source",
+    });
+
+    const duplicated = duplicateDashboardWidget(dashboard, "stat-1");
+    const duplicatedStatistic = duplicated.widgets.find(
+      (widget) => widget.widgetId === "statistic" && widget.id !== "stat-1",
+    );
+    const duplicatedManagedSource = duplicatedStatistic
+      ? findManagedDashboardWidget(duplicated, {
+          ownerInstanceId: duplicatedStatistic.id,
+          role: "embedded-connection-source",
+        })
+      : null;
+
+    expect(duplicatedManagedSource?.id).not.toBe(originalManagedSource?.id);
+    expect(duplicatedStatistic?.bindings).toEqual({
+      sourceData: {
+        sourceWidgetId: duplicatedManagedSource?.id,
+        sourceOutputId: "dataset",
+      },
+    });
+
+    const removed = removeDashboardWidget(dashboard, "stat-1");
+
+    expect(
+      findManagedDashboardWidgets(removed, {
+        ownerInstanceId: "stat-1",
+        role: "embedded-connection-source",
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("keeps explicit source bindings unchanged for backward-compatible bound statistics", () => {
+    const dashboard = updateDashboardWidgetBindings(
+      dashboardWithWidgets([
+        statisticWidget("stat-1", { x: 0, y: 0 }),
+        connectionQueryWidget("source-explicit", "Shared Source"),
+      ]),
+      "stat-1",
+      {
+        sourceData: {
+          sourceWidgetId: "source-explicit",
+          sourceOutputId: "dataset",
+        },
+      },
+    );
+
+    const updated = updateDashboardWidgetSettings(dashboard, "stat-1", {
+      props: {
+        statisticMode: "max",
+      },
+    });
+    const owner = updated.widgets.find((widget) => widget.id === "stat-1");
+
+    expect(owner?.bindings).toEqual({
+      sourceData: {
+        sourceWidgetId: "source-explicit",
+        sourceOutputId: "dataset",
+      },
+    });
+    expect(
+      findManagedDashboardWidgets(updated, {
+        ownerInstanceId: "stat-1",
         role: "embedded-connection-source",
       }),
     ).toHaveLength(0);

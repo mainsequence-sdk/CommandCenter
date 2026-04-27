@@ -54,6 +54,10 @@ import {
 } from "@/widgets/shared/widget-schema";
 import type { WidgetInstancePresentation } from "@/widgets/types";
 import type { WidgetHeaderActionsProps } from "@/widgets/types";
+import {
+  DEFAULT_WORKSPACE_CANVAS_BOTTOM_BUFFER_ROWS,
+  resolveWorkspaceCanvasMinHeight,
+} from "./workspace-canvas-height";
 
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
   return {
@@ -71,18 +75,6 @@ function autoGridItemStyle(
     gridRow: `span ${Math.max(1, layout.h)}`,
     gridColumn: options?.fullWidth ? "1 / -1" : undefined,
   };
-}
-
-function resolveCanvasMinHeight(
-  widgets: readonly Pick<ResolvedDashboardWidgetLayout, "h" | "y">[],
-  grid: { gap: number; rowHeight: number },
-) {
-  const maxBottom = widgets.reduce(
-    (bottom, widget) => Math.max(bottom, widget.y + widget.h),
-    6,
-  );
-
-  return maxBottom * grid.rowHeight + Math.max(0, maxBottom - 1) * grid.gap;
 }
 
 function resolveGridItemInsetStyle(gap: number): CSSProperties | undefined {
@@ -340,7 +332,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
   const canvasMinHeight = useMemo(
     () => layoutKind === "custom"
       ?
-      resolveCanvasMinHeight(
+      resolveWorkspaceCanvasMinHeight(
         [
           ...canvasWidgetEntries
             .map(({ instance }) => customRuntimeLayoutById.get(instance.id) ?? instance.layout),
@@ -350,8 +342,11 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
             .map((candidate) => customRuntimeLayoutById.get(candidate.itemId) ?? candidate.layout),
         ],
         {
-          gap: 0,
-          rowHeight: runtimeRowHeight,
+          bottomBufferRows: DEFAULT_WORKSPACE_CANVAS_BOTTOM_BUFFER_ROWS,
+          grid: {
+            gap: 0,
+            rowHeight: runtimeRowHeight,
+          },
         },
       )
       : 0,

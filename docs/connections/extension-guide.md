@@ -57,7 +57,7 @@ connections/my-source/
   README.md
   MySourceConnectionConfigEditor.tsx
   MySourceConnectionQueryEditor.tsx
-  MySourceConnectionExplore.tsx
+  mySourceAuthoring.tsx
 ```
 
 For an extension-owned connection, place it under the owning extension's `connections/` directory.
@@ -223,7 +223,7 @@ Use shared controls from `src/connections/components/ConnectionQueryEditorFields
 Do not make editors store provider credentials, mutate connection instances, or bypass the backend
 adapter.
 
-## 8. Prefer The Shared Workbench
+## 8. Prefer The Shared Workbench And Shared Authoring Contract
 
 The shared `ConnectionQueryWorkbench` handles:
 
@@ -236,9 +236,21 @@ The shared `ConnectionQueryWorkbench` handles:
 - running test queries
 - previewing normalized responses
 
-Add a custom `exploreComponent` only when the source needs a workflow the workbench cannot express.
-Even then, use `queryConnection`, `fetchConnectionResource`, and
-`ConnectionQueryResponsePreview` for runtime calls and previews.
+The shared `ConnectionExploreSurface.tsx` uses that same workbench for Data Sources Explore. If the
+connection needs connection-specific query-model filtering, draft defaults, summary UI, or Explore
+copy, publish it through `authoringContract` on the connection definition instead of adding a
+custom Explore wrapper.
+
+```ts
+authoringContract: {
+  resolveDraftDefaults: resolveMySourceDraftDefaults,
+  SummaryComponent: MySourceConnectionSummary,
+  exploreTitle: "My Source Explore",
+}
+```
+
+Do not add a per-connection normal-query Explore component for behavior that should also exist in
+widget settings.
 
 ## 9. Write Usage Guidance
 

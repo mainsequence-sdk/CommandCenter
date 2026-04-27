@@ -95,6 +95,8 @@ export interface ConnectionQueryEditorProps<
 > {
   value: TQuery;
   onChange: (value: TQuery) => void;
+  editorState?: Record<string, unknown>;
+  onEditorStateChange?: (value: Record<string, unknown> | undefined) => void;
   disabled?: boolean;
   connectionInstance?: ConnectionInstance;
   connectionType?: ConnectionTypeDefinition<any, any>;
@@ -114,6 +116,32 @@ export interface ConnectionQueryDraftDefaultsResolverInput {
   connectionType: ConnectionTypeDefinition<any, any>;
   queryModels: ConnectionQueryModel[];
   selectedQueryModel?: ConnectionQueryModel;
+}
+
+export interface ConnectionAuthoringQueryModelsResolverInput {
+  connectionInstance: ConnectionInstance;
+  connectionType: ConnectionTypeDefinition<any, any>;
+  queryModels: ConnectionQueryModel[];
+}
+
+export interface ConnectionAuthoringSummaryProps {
+  connectionInstance: ConnectionInstance;
+  connectionType: ConnectionTypeDefinition<any, any>;
+}
+
+export interface ConnectionAuthoringContract {
+  resolveQueryModels?: (
+    input: ConnectionAuthoringQueryModelsResolverInput,
+  ) => ConnectionQueryModel[];
+  resolveDraftDefaults?: (
+    input: ConnectionQueryDraftDefaultsResolverInput,
+  ) => ConnectionQueryDraftDefaults;
+  SummaryComponent?: ComponentType<ConnectionAuthoringSummaryProps>;
+  exploreTitle?: string;
+  exploreDescription?: string;
+  exploreRunButtonLabel?: string;
+  exploreResultTitle?: string;
+  exploreResultDescription?: string;
 }
 
 export interface ConnectionExploreProps {
@@ -141,10 +169,7 @@ export interface ConnectionTypeDefinition<
   requiredPermissions?: string[];
   configEditor?: ComponentType<ConnectionConfigEditorProps<TPublicConfig>>;
   queryEditor?: ComponentType<ConnectionQueryEditorProps<TQuery>>;
-  exploreComponent?: ComponentType<ConnectionExploreProps>;
-  draftDefaultsResolver?: (
-    input: ConnectionQueryDraftDefaultsResolverInput,
-  ) => ConnectionQueryDraftDefaults;
+  authoringContract?: ConnectionAuthoringContract;
   usageGuidance?: string;
   examples?: Array<{
     title: string;

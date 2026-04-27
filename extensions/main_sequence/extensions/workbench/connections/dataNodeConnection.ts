@@ -1,4 +1,4 @@
-import { fetchConnectionResource, getDefaultConnectionRefForType, queryConnection } from "@/connections/api";
+import { fetchConnectionResource, queryConnection } from "@/connections/api";
 import type {
   ConnectionQueryResponse,
   ConnectionRef,
@@ -11,25 +11,16 @@ import {
   type DataNodeLastObservation,
   type DataNodeRemoteDataRequest,
   type DataNodeRemoteDataRow,
-  fetchDataNodeDataBetweenDatesFromRemote,
-  fetchDataNodeDetail,
-  fetchDataNodeLastObservation,
 } from "../../../common/api";
 import mainSequenceLogoMarkUrl from "../../../../../config/branding/logo_mark.png";
 
+import { dataNodeConnectionAuthoringContract } from "./dataNodeAuthoring";
 import { DataNodeConnectionConfigEditor } from "./DataNodeConnectionConfigEditor";
-import { DataNodeConnectionExplore } from "./DataNodeConnectionExplore";
 import { DataNodeConnectionQueryEditor } from "./DataNodeConnectionQueryEditor";
 
 export const MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID = "mainsequence.data-node";
-export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_ID = "mainsequence-data-node-default";
 export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_QUERY_CACHE_TTL_MS = 15 * 60 * 1000;
 export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_ROW_LIMIT = 1_000;
-
-export const DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF: ConnectionRef = {
-  id: DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_ID,
-  typeId: MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
-};
 
 export type MainSequenceDataNodeQueryCachePolicy = "disabled" | "read";
 export type MainSequenceDataNodeRowsBetweenDatesQuery = Partial<
@@ -70,21 +61,12 @@ function normalizePositiveInteger(value: unknown) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : undefined;
 }
 
-function resolveDataNodeConnectionRef(connectionRef?: ConnectionRef) {
-  return (
-    connectionRef ??
-    getDefaultConnectionRefForType(MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID) ??
-    DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_REF
-  );
-}
+function requireDataNodeConnectionRef(connectionRef?: ConnectionRef) {
+  if (!connectionRef) {
+    throw new Error("Select a Data Node connection before running this request.");
+  }
 
-function isDefaultDataNodeConnection(connectionRef?: ConnectionRef) {
-  const resolvedRef = resolveDataNodeConnectionRef(connectionRef);
-
-  return (
-    resolvedRef.typeId === MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID &&
-    resolvedRef.id === DEFAULT_MAIN_SEQUENCE_DATA_NODE_CONNECTION_ID
-  );
+  return connectionRef;
 }
 
 function frameToRows(response: ConnectionQueryResponse): DataNodeRemoteDataRow[] {
@@ -105,13 +87,11 @@ export function buildMainSequenceDataNodeDetailQueryKey(
   dataNodeId?: number,
   connectionRef?: ConnectionRef,
 ) {
-  const resolvedRef = resolveDataNodeConnectionRef(connectionRef);
-
   return [
     "main_sequence",
     "connections",
     MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
-    resolvedRef.id,
+    connectionRef?.id ?? "unselected",
     "data-node-detail",
     dataNodeId ?? 0,
   ] as const;
@@ -121,13 +101,11 @@ export function buildMainSequenceDataNodeLastObservationQueryKey(
   dataNodeId?: number,
   connectionRef?: ConnectionRef,
 ) {
-  const resolvedRef = resolveDataNodeConnectionRef(connectionRef);
-
   return [
     "main_sequence",
     "connections",
     MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
-    resolvedRef.id,
+    connectionRef?.id ?? "unselected",
     "data-node-last-observation",
     dataNodeId ?? 0,
   ] as const;
@@ -136,19 +114,14 @@ export function buildMainSequenceDataNodeLastObservationQueryKey(
 export async function queryMainSequenceDataNodeDetail(
   dataNodeId?: number,
   connectionRef?: ConnectionRef,
-  traceMeta?: DashboardRequestTraceMeta,
+  _traceMeta?: DashboardRequestTraceMeta,
 ) {
   const resolvedDataNodeId = normalizePositiveInteger(dataNodeId);
 
   if (!resolvedDataNodeId) {
     throw new Error("Select a Data Node before loading detail.");
   }
-
-  if (isDefaultDataNodeConnection(connectionRef)) {
-    return fetchDataNodeDetail(resolvedDataNodeId, traceMeta);
-  }
-
-  const resolvedRef = resolveDataNodeConnectionRef(connectionRef);
+  const resolvedRef = requireDataNodeConnectionRef(connectionRef);
 
   return fetchConnectionResource<DataNodeDetail>({
     connectionId: resolvedRef.id,
@@ -168,12 +141,7 @@ export async function queryMainSequenceDataNodeRowsBetweenDates(
   if (!resolvedDataNodeId) {
     throw new Error("Select a Data Node before loading rows.");
   }
-
-  if (isDefaultDataNodeConnection(connectionRef)) {
-    return fetchDataNodeDataBetweenDatesFromRemote(resolvedDataNodeId, input, traceMeta);
-  }
-
-  const resolvedRef = resolveDataNodeConnectionRef(connectionRef);
+  const resolvedRef = requireDataNodeConnectionRef(connectionRef);
   const response = await queryConnection<MainSequenceDataNodeConnectionQuery>({
     connectionId: resolvedRef.id,
     query: {
@@ -183,7 +151,7 @@ export async function queryMainSequenceDataNodeRowsBetweenDates(
     },
     requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
     maxRows: input.limit,
-  });
+  }, traceMeta);
 
   return frameToRows(response);
 }
@@ -197,12 +165,7 @@ export async function queryMainSequenceDataNodeLastObservation(
   if (!resolvedDataNodeId) {
     throw new Error("Select a Data Node before loading the latest observation.");
   }
-
-  if (isDefaultDataNodeConnection(connectionRef)) {
-    return fetchDataNodeLastObservation(resolvedDataNodeId);
-  }
-
-  const resolvedRef = resolveDataNodeConnectionRef(connectionRef);
+  const resolvedRef = requireDataNodeConnectionRef(connectionRef);
   const response = await queryConnection<MainSequenceDataNodeConnectionQuery>({
     connectionId: resolvedRef.id,
     query: {
@@ -311,8 +274,8 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
     ],
   },
   configEditor: DataNodeConnectionConfigEditor,
-  exploreComponent: DataNodeConnectionExplore,
   queryEditor: DataNodeConnectionQueryEditor,
+  authoringContract: dataNodeConnectionAuthoringContract,
   queryModels: [
     {
       id: "data-node-rows-between-dates",
@@ -334,7 +297,7 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
   ],
   requiredPermissions: ["main_sequence_foundry:view"],
   usageGuidance:
-    "Use this connection when a configured source should expose one Main Sequence Data Node to Connection Query. Bind Table, Graph, Statistic, or Transform widgets downstream instead of using the removed Data Node widget.",
+    "Use this connection when a configured source should expose one Main Sequence Data Node to Connection Query through a real backend-owned connection instance. Bind Table, Graph, Statistic, or Transform widgets downstream instead of using the removed Data Node widget.",
   examples: [
     {
       title: "Data Node row source",

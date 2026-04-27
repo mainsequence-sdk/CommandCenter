@@ -16,9 +16,9 @@ backend-owned connection instances.
   `src/connections/ConnectionQuerySettingsSurface.tsx`. It supplies live widget runtime status,
   workspace dashboard dates, and stores the resulting draft props on the widget. When the selected
   connection type provides a typed `queryEditor`, settings now render that editor directly so the
-  widget shares the same authoring surface as Explore. Connection-specific draft defaults should
-  also come from the selected connection type's `draftDefaultsResolver(...)`, not from a
-  widget-only initialization path.
+  widget shares the same authoring surface as Explore. Connection-specific draft defaults, query
+  model filtering, and summary behavior come from the selected connection type's
+  `authoringContract`, not from a widget-only initialization path.
 - `ConnectionQueryWidgetSchema.tsx`: schema-backed connection path controls. It exposes individual
   selected query-model controls such as symbols, timeframe, feed, limit, page token, interval, and
   cursors as separate poppable canvas companion cards.
@@ -27,8 +27,8 @@ backend-owned connection instances.
 ## Behavior
 
 - The widget stores a stable `ConnectionRef`, selected `queryModelId` connection path, query
-  payload, optional variables, date runtime behavior, row limit, and optional incremental refresh
-  settings.
+  payload, optional editor-state metadata for typed query editors, optional variables, date runtime
+  behavior, row limit, and optional incremental refresh settings.
 - The selected `queryModelId` is authoritative and is always sent as `query.kind`; the generic JSON
   editor cannot redirect a saved widget to another connection path.
 - Runtime execution calls `queryConnection(...)` and publishes one dataset from the first matching
@@ -39,16 +39,21 @@ backend-owned connection instances.
   read from dashboard controls; custom fixed dates are stored in props. Returned frames render
   through `src/connections/ConnectionQueryResponsePreview.tsx`, matching Data Sources Explore
   because both surfaces use `ConnectionQueryWorkbench.tsx`.
+- When the shared settings workbench runs for a real widget instance, the test action also
+  publishes the resulting runtime frame back onto that widget's live runtime state. This keeps the
+  widget's own runtime card, hidden managed-source consumers, and downstream `sourceData` bindings
+  aligned with the tested result instead of leaving the frame trapped in local preview state.
 - The settings surface also shows the current live runtime status for this source widget. Draft
   query changes do not silently overwrite the last published runtime state until the widget is run
   again through normal execution or the settings test action.
 - Connection-specific `queryEditor` components are used when the selected connection type provides
   one. They receive the selected connection instance, connection type, selected query model, and
-  current query payload so each connection can render its own kwargs and exploration flow. The
-  generic JSON editor is the fallback only for connection types that do not provide an editor.
-- When a connection type publishes `draftDefaultsResolver(...)`, the shared workbench uses it when
-  a user selects a connection or connection path so the widget seeds the same query model, payload
-  defaults, and fixed-date fallbacks as Data Sources Explore.
+  current query payload plus optional editor-state metadata so each connection can render its own
+  kwargs and exploration flow without losing authoring-mode state on reopen. The generic JSON
+  editor is the fallback only for connection types that do not provide an editor.
+- When a connection type publishes `authoringContract`, the shared workbench uses that contract
+  when a user selects a connection or connection path so the widget seeds the same query model,
+  payload defaults, filtered query-model list, and fixed-date fallbacks as Data Sources Explore.
 - Connection-specific path configuration is still schema-backed and poppable per field, but the
   sidebar settings use that schema as a fallback path rather than overriding typed query editors.
   Canvas exposure still uses the shared schema form so eligible fields can be shown as individual
@@ -75,6 +80,9 @@ backend-owned connection instances.
   retained frame.
 - The widget is fixed to sidebar placement. It is a source/execution node, not a canvas
   visualization.
+- Workspace graph cards and the edit-mode widget rail should prefer the selected connection type's
+  icon when `connectionRef.typeId` is configured, falling back to the generic source icon only
+  when the widget has not selected a connection yet.
 - The widget is an `execution-owner`; mounted runtime UI renders the latest `runtimeState` and does
   not independently query the backend.
 

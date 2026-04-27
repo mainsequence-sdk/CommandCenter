@@ -4,27 +4,34 @@ import { CalendarDays, CalendarRange, AlertTriangle, Loader2, Play } from "lucid
 
 import { getConnectionTypeById } from "@/app/registry";
 import { Button } from "@/components/ui/button";
+import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
 import {
   buildDefaultQueryForModel,
   resolveConnectionQueryDraftDefaults,
   resolveConnectionQueryDraftModel,
 } from "@/connections/connectionQueryDraftDefaults";
+import {
+  resolveConnectionAuthoringQueryModels,
+  resolveConnectionAuthoringSummaryComponent,
+} from "@/connections/connectionAuthoringContract";
+import { resolveConnectionRefSelection } from "@/connections/connectionRefResolution";
 import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
 import {
   QueryStringListField,
   QueryTextField,
 } from "@/connections/components/ConnectionQueryEditorFields";
 import { ConnectionQueryResponsePreview } from "@/connections/ConnectionQueryResponsePreview";
-import { getSystemConnectionInstances } from "@/connections/api";
 import { useConnectionInstances } from "@/connections/hooks";
 import type {
   AnyConnectionTypeDefinition,
   ConnectionInstance,
   ConnectionRef,
   ConnectionQueryEditorProps,
+  ConnectionQueryModel,
 } from "@/connections/types";
 import {
   buildConnectionQueryRequest,
+  buildConnectionQueryErrorFrame,
   executeConnectionQueryWidgetRequest,
   normalizeConnectionQueryProps,
   normalizeConnectionQueryRuntimeState,
@@ -66,6 +73,7 @@ export interface ConnectionQueryWorkbenchProps {
   runButtonLabel?: string;
   resultDescription?: string;
   resultTitle?: string;
+  publishPreviewRuntimeStateToInstanceId?: string;
 }
 
 function formatJson(value: unknown) {
@@ -535,13 +543,11 @@ function getConnectionPathLabel(input: {
 
 function sameQueryModelAvailable(
   queryModelId: string | undefined,
-  connectionType: AnyConnectionTypeDefinition | undefined,
+  queryModels: ConnectionQueryModel[],
 ) {
   return Boolean(
     queryModelId &&
-      connectionType?.queryModels?.some(
-        (model) => model.id === queryModelId && isRuntimeFrameQueryModel(model),
-      ),
+      queryModels.some((model) => model.id === queryModelId),
   );
 }
 
@@ -578,51 +584,49 @@ export function ConnectionQueryWorkbench({
   showConnectionPicker = true,
   showQueryEditor = true,
   titlePrefix = "",
+  publishPreviewRuntimeStateToInstanceId,
   value,
 }: ConnectionQueryWorkbenchProps) {
+  const widgetExecution = useDashboardWidgetExecution();
   const connectionInstancesQuery = useConnectionInstances();
   const [previewState, setPreviewState] = useState<QueryPreviewState>({ status: "idle" });
   const normalizedValueProps = normalizeConnectionQueryProps(value);
   const fallbackConnectionRef = connectionInstance
     ? { id: connectionInstance.id, typeId: connectionInstance.typeId }
     : undefined;
+  const requestedConnectionRef =
+    !showConnectionPicker && fallbackConnectionRef
+      ? fallbackConnectionRef
+      : normalizedValueProps.connectionRef ?? fallbackConnectionRef;
+  const resolvedConnectionSelection = useMemo(() => {
+    return resolveConnectionRefSelection({
+      requestedRef: requestedConnectionRef,
+      preferredInstance: connectionInstance,
+      backendInstances: connectionInstancesQuery.data ?? [],
+    });
+  }, [
+    connectionInstance,
+    connectionInstancesQuery.data,
+    requestedConnectionRef,
+  ]);
   const normalizedProps: ConnectionQueryWidgetProps = {
     ...normalizedValueProps,
-    connectionRef:
-      !showConnectionPicker && fallbackConnectionRef
-        ? fallbackConnectionRef
-        : normalizedValueProps.connectionRef ?? fallbackConnectionRef,
+    connectionRef: resolvedConnectionSelection.connectionRef,
   };
   const connectionType = providedConnectionType ??
     (normalizedProps.connectionRef?.typeId
       ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
       : undefined);
+  const selectedConnectionInstance = resolvedConnectionSelection.connectionInstance;
   const queryModels = useMemo(
-    () => (connectionType?.queryModels ?? []).filter(isRuntimeFrameQueryModel),
-    [connectionType],
+    () =>
+      resolveConnectionAuthoringQueryModels({
+        connectionInstance: selectedConnectionInstance,
+        connectionType,
+      }).filter(isRuntimeFrameQueryModel),
+    [connectionType, selectedConnectionInstance],
   );
   const autoSelectQueryModel = autoSelectFirstQueryModel || queryModels.length === 1;
-  const systemConnectionInstances = useMemo(() => getSystemConnectionInstances(), []);
-  const selectedConnectionInstance = useMemo(() => {
-    const selectedId = normalizedProps.connectionRef?.id;
-
-    if (!selectedId) {
-      return connectionInstance;
-    }
-
-    return (
-      connectionInstance ??
-      (connectionInstancesQuery.data ?? []).find((instance) =>
-        sameConnectionId(instance.id, selectedId),
-      ) ??
-      systemConnectionInstances.find((instance) => sameConnectionId(instance.id, selectedId))
-    );
-  }, [
-    connectionInstance,
-    connectionInstancesQuery.data,
-    normalizedProps.connectionRef?.id,
-    systemConnectionInstances,
-  ]);
   const selectedQueryModel = normalizedProps.queryModelId
     ? queryModels.find((model) => model.id === normalizedProps.queryModelId)
     : undefined;
@@ -677,6 +681,7 @@ export function ConnectionQueryWorkbench({
   const QueryEditor = connectionType?.queryEditor as
     | ComponentType<ConnectionQueryEditorProps<Record<string, unknown>>>
     | undefined;
+  const SummaryComponent = resolveConnectionAuthoringSummaryComponent(connectionType);
   const previewRequest = useMemo(
     () => buildConnectionQueryRequest(effectiveProps, effectiveDashboardState, resolvedQueryModel),
     [effectiveDashboardState, effectiveProps, resolvedQueryModel],
@@ -695,6 +700,11 @@ export function ConnectionQueryWorkbench({
     queryModelId: resolvedQueryModel?.id,
   });
   const canRunPreview = Boolean(previewRequest && previewState.status !== "loading");
+  const publishedPreviewInstanceId =
+    typeof publishPreviewRuntimeStateToInstanceId === "string" &&
+    publishPreviewRuntimeStateToInstanceId.trim()
+      ? publishPreviewRuntimeStateToInstanceId.trim()
+      : undefined;
   const incrementalSettings = resolveConnectionQueryIncrementalSettings(normalizedProps);
   const incrementalControlsAvailable =
     queryPathUsesTimeRange && workspaceDateRuntimeAvailable;
@@ -718,6 +728,40 @@ export function ConnectionQueryWorkbench({
       description: "Returned by the latest test query.",
     }));
   }, [previewState]);
+
+  useEffect(() => {
+    if (!resolvedConnectionSelection.repaired) {
+      return;
+    }
+
+    const nextConnectionRef = resolvedConnectionSelection.connectionRef;
+
+    if (
+      (!normalizedValueProps.connectionRef && !nextConnectionRef) ||
+      (
+        nextConnectionRef &&
+        sameConnectionId(
+          normalizedValueProps.connectionRef?.id,
+          nextConnectionRef.id,
+        ) &&
+        normalizedValueProps.connectionRef?.typeId === nextConnectionRef.typeId
+      )
+    ) {
+      return;
+    }
+
+    onChange({
+      ...value,
+      connectionRef: nextConnectionRef,
+    });
+  }, [
+    normalizedValueProps.connectionRef?.id,
+    normalizedValueProps.connectionRef?.typeId,
+    onChange,
+    resolvedConnectionSelection.connectionRef,
+    resolvedConnectionSelection.repaired,
+    value,
+  ]);
 
   useEffect(() => {
     if (!autoSelectQueryModel || selectedQueryModel || !queryModels[0]) {
@@ -801,17 +845,34 @@ export function ConnectionQueryWorkbench({
         effectiveDashboardState,
         resolvedQueryModel,
         {
-          scopeId: "connection-query-workbench-preview",
+          scopeId: publishedPreviewInstanceId ?? "connection-query-workbench-preview",
           forceFullRefresh: true,
         },
       );
       setPreviewState({ status: "success", request, frame });
+      if (publishedPreviewInstanceId) {
+        widgetExecution?.publishRuntimeState(
+          publishedPreviewInstanceId,
+          frame as unknown as Record<string, unknown>,
+        );
+      }
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Connection query failed.";
       setPreviewState({
         status: "error",
         request,
-        error: error instanceof Error ? error.message : "Connection query failed.",
+        error: errorMessage,
       });
+      if (publishedPreviewInstanceId) {
+        widgetExecution?.publishRuntimeState(
+          publishedPreviewInstanceId,
+          buildConnectionQueryErrorFrame(errorMessage, effectiveProps) as unknown as Record<
+            string,
+            unknown
+          >,
+        );
+      }
     }
   }
 
@@ -828,36 +889,42 @@ export function ConnectionQueryWorkbench({
             </p>
           </div>
           <ConnectionPicker
-            value={normalizedProps.connectionRef}
+            value={resolvedConnectionSelection.connectionRef}
             onChange={(nextRef) => {
               const nextType = nextRef?.typeId ? getConnectionTypeById(nextRef.typeId) : undefined;
-              const nextRuntimeQueryModels =
-                nextType?.queryModels?.filter(isRuntimeFrameQueryModel) ?? [];
               const nextConnectionInstance = nextRef
                 ? (connectionInstancesQuery.data ?? []).find((instance) =>
                     sameConnectionId(instance.id, nextRef.id),
                   ) ??
-                  systemConnectionInstances.find((instance) =>
-                    sameConnectionId(instance.id, nextRef.id),
-                  )
+                  connectionInstance
                 : undefined;
+              const resolvedNextConnectionInstance =
+                nextConnectionInstance && nextConnectionInstance.typeId === nextRef?.typeId
+                  ? nextConnectionInstance
+                  : undefined;
+              const nextRuntimeQueryModels = resolveConnectionAuthoringQueryModels({
+                connectionInstance: resolvedNextConnectionInstance,
+                connectionType: nextType,
+              }).filter(isRuntimeFrameQueryModel);
               const selectedModelStillValid = sameQueryModelAvailable(
                 normalizedProps.queryModelId,
-                nextType,
+                nextRuntimeQueryModels,
               );
               const fallbackQueryModel = selectedModelStillValid
-                ? nextType?.queryModels?.find((model) => model.id === normalizedProps.queryModelId)
+                ? nextRuntimeQueryModels.find(
+                    (model) => model.id === normalizedProps.queryModelId,
+                  )
                 : nextRuntimeQueryModels.length === 1 || autoSelectFirstQueryModel
                   ? nextRuntimeQueryModels[0]
                   : undefined;
               const nextQueryModel = resolveConnectionQueryDraftModel({
-                connectionInstance: nextConnectionInstance,
+                connectionInstance: resolvedNextConnectionInstance,
                 connectionType: nextType,
                 queryModels: nextRuntimeQueryModels,
                 fallbackQueryModel,
               });
               const nextDefaults = resolveConnectionQueryDraftDefaults({
-                connectionInstance: nextConnectionInstance,
+                connectionInstance: resolvedNextConnectionInstance,
                 connectionType: nextType,
                 queryModels: nextRuntimeQueryModels,
                 selectedQueryModel: nextQueryModel,
@@ -978,6 +1045,13 @@ export function ConnectionQueryWorkbench({
 
       {connectionPathSettings}
 
+      {SummaryComponent && selectedConnectionInstance && connectionType ? (
+        <SummaryComponent
+          connectionInstance={selectedConnectionInstance}
+          connectionType={connectionType}
+        />
+      ) : null}
+
       {showQueryEditor ? (
         <section className="space-y-3">
           <div>
@@ -996,6 +1070,13 @@ export function ConnectionQueryWorkbench({
                     ...nextQuery,
                     kind: resolvedQueryModel.id,
                   },
+                });
+              }}
+              editorState={normalizedProps.queryEditorState}
+              onEditorStateChange={(nextEditorState) => {
+                updateValue({
+                  ...value,
+                  queryEditorState: nextEditorState,
                 });
               }}
               disabled={!editable}

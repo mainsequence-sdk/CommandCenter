@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import * as echarts from "echarts";
-import type { EChartsOption, LineSeriesOption, BarSeriesOption } from "echarts";
+import type {
+  EChartsOption,
+  LineSeriesOption,
+  BarSeriesOption,
+  ScatterSeriesOption,
+} from "echarts";
 
 import { withAlpha } from "@/lib/color";
 import { cn } from "@/lib/utils";
@@ -83,12 +88,13 @@ function formatEChartsValueAxisLabel(value: string | number) {
 function buildSharedChartOption(args: {
   chartType: GraphChartType;
   emptyMessage: string;
+  markerSizePx: number;
   series: GraphSeries[];
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">;
   tokens: Record<string, string>;
   xAxisType: "time" | "value";
 }): EChartsOption {
-  const { chartType, series, timeAxisMode, tokens, xAxisType } = args;
+  const { chartType, markerSizePx, series, timeAxisMode, tokens, xAxisType } = args;
   const hasData = series.some((entry) => entry.points.length > 0);
 
   return {
@@ -178,6 +184,14 @@ function buildSharedChartOption(args: {
             } satisfies BarSeriesOption;
           }
 
+          if (chartType === "markers") {
+            return {
+              ...baseSeries,
+              type: "scatter",
+              symbolSize: markerSizePx,
+            } satisfies ScatterSeriesOption;
+          }
+
           return {
             ...baseSeries,
             type: "line",
@@ -202,12 +216,13 @@ function buildSharedChartOption(args: {
 
 function buildSeparateAxesChartOption(args: {
   chartType: GraphChartType;
+  markerSizePx: number;
   series: GraphSeries[];
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">;
   tokens: Record<string, string>;
   xAxisType: "time" | "value";
 }): EChartsOption {
-  const { chartType, series, timeAxisMode, tokens, xAxisType } = args;
+  const { chartType, markerSizePx, series, timeAxisMode, tokens, xAxisType } = args;
   const legendHeight = series.length > 1 ? 44 : 18;
   const availableHeight = 100 - legendHeight;
   const paneHeight = Math.max(14, availableHeight / Math.max(series.length, 1));
@@ -321,6 +336,14 @@ function buildSeparateAxesChartOption(args: {
         } satisfies BarSeriesOption;
       }
 
+      if (chartType === "markers") {
+        return {
+          ...baseSeries,
+          type: "scatter",
+          symbolSize: markerSizePx,
+        } satisfies ScatterSeriesOption;
+      }
+
       return {
         ...baseSeries,
         type: "line",
@@ -348,6 +371,7 @@ export function EChartsSeriesChart({
   dataShapeKey,
   deltaSeries = [],
   emptyMessage = "No chartable rows are available for the selected configuration.",
+  markerSizePx = 8,
   normalizationTimeMs,
   series,
   seriesAxisMode = "shared",
@@ -361,6 +385,7 @@ export function EChartsSeriesChart({
   dataShapeKey?: string;
   deltaSeries?: GraphSeries[];
   emptyMessage?: string;
+  markerSizePx?: number;
   normalizationTimeMs?: GraphNormalizationAnchor;
   series: GraphSeries[];
   seriesAxisMode?: GraphSeriesAxisMode;
@@ -456,6 +481,7 @@ export function EChartsSeriesChart({
     const option = separateAxes
       ? buildSeparateAxesChartOption({
         chartType,
+        markerSizePx,
         series: themedSeries,
         timeAxisMode,
         tokens: resolvedTokens,
@@ -464,6 +490,7 @@ export function EChartsSeriesChart({
       : buildSharedChartOption({
           chartType,
           emptyMessage,
+          markerSizePx,
           series: themedSeries,
           timeAxisMode,
           tokens: resolvedTokens,
@@ -498,6 +525,7 @@ export function EChartsSeriesChart({
     dataShapeKey,
     deltaSeries.length,
     emptyMessage,
+    markerSizePx,
     resolvedTokens,
     separateAxes,
     themedSeries,

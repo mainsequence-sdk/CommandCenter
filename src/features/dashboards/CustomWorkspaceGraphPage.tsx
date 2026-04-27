@@ -326,6 +326,7 @@ function WorkspaceGraphCanvas({
   includeManagedHiddenNodes,
   onBindingsChange,
   onOpenWidgetSettings,
+  onShowManagedWidgets,
   userId,
   workspaceListPath,
 }: {
@@ -336,6 +337,7 @@ function WorkspaceGraphCanvas({
     bindings: DashboardWidgetInstance["bindings"],
   ) => void;
   onOpenWidgetSettings: (instanceId: string) => void;
+  onShowManagedWidgets: () => void;
   userId: string;
   workspaceListPath: string;
 }) {
@@ -677,6 +679,18 @@ function WorkspaceGraphCanvas({
       highlightedOutputIdsByNodeId,
     };
   }, [dependencyFocusNodeId, dependencyModel, visibleGraph.edges]);
+  const widgetPropsByNodeId = useMemo(
+    () =>
+      dependencyModel
+        ? new Map(
+            dependencyModel.entries.map(({ instance }) => [
+              instance.id,
+              (instance.props ?? {}) as Record<string, unknown>,
+            ]),
+          )
+        : new Map<string, Record<string, unknown>>(),
+    [dependencyModel],
+  );
 
   const derivedNodes = useMemo<WorkspaceGraphFlowNode[]>(() => {
     if (!dependencyModel) {
@@ -759,7 +773,11 @@ function WorkspaceGraphCanvas({
           title: resolveGraphNodeTitle(node, widgetDefinition),
           widgetId: node.widgetId,
           widgetKind: widgetDefinition?.kind,
+          widgetProps: widgetPropsByNodeId.get(node.id),
           widgetSource: widgetDefinition?.source,
+          ownedManagedConnectionSourceCount: node.ownedManagedConnectionSourceCount,
+          managedSourcesVisible:
+            includeManagedHiddenNodes && (node.ownedManagedConnectionSourceCount ?? 0) > 0,
           placementMode: node.placementMode,
           managedRole: node.managedRole,
           railVisibility: node.railVisibility,
@@ -834,6 +852,21 @@ function WorkspaceGraphCanvas({
           onOpenSettings: () => {
             onOpenWidgetSettings(node.id);
           },
+          onRevealManagedSources:
+            (node.ownedManagedConnectionSourceCount ?? 0) > 0 && !includeManagedHiddenNodes
+              ? () => {
+                  onShowManagedWidgets();
+                  setDependencyFocusNodeId(node.id);
+                  setExpandedNodeIds((current) =>
+                    current[node.id]
+                      ? current
+                      : {
+                          ...current,
+                          [node.id]: true,
+                        },
+                  );
+                }
+              : undefined,
           onToggleExpanded: () => {
             setExpandedNodeIds((current) => {
               if (current[node.id]) {
@@ -876,7 +909,10 @@ function WorkspaceGraphCanvas({
     visibleGraph.edges,
     visibleGraph.nodes,
     visibleOutputIdsByNodeId,
+    widgetPropsByNodeId,
     workspaceReferenceTargetByNodeId,
+    includeManagedHiddenNodes,
+    onShowManagedWidgets,
   ]);
 
   const derivedEdges = useMemo<Edge[]>(() => {
@@ -1737,6 +1773,9 @@ export function CustomWorkspaceGraphPage({
           <WorkspaceGraphCanvas
             currentWorkspaceId={selectedDashboard.id}
             includeManagedHiddenNodes={showManagedWidgets}
+            onShowManagedWidgets={() => {
+              setShowManagedWidgets(true);
+            }}
             userId={user.id}
             workspaceListPath={workspaceListPath}
             onBindingsChange={(instanceId, bindings) => {

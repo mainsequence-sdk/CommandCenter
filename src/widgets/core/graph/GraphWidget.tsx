@@ -290,6 +290,7 @@ export function GraphWidget({
                   chartType={resolvedConfig.chartType}
                   dataShapeKey={chartDataShapeKey}
                   emptyMessage={chartEmptyMessage}
+                  markerSizePx={resolvedConfig.markerSizePx}
                   normalizationTimeMs={normalizationTimeMs}
                   series={chartSeriesResult.series}
                   deltaSeries={chartUpdateMode === "delta" ? deltaChartSeriesResult.series : []}
@@ -303,6 +304,7 @@ export function GraphWidget({
                   chartType={resolvedConfig.chartType}
                   dataShapeKey={chartDataShapeKey}
                   emptyMessage={chartEmptyMessage}
+                  markerSizePx={resolvedConfig.markerSizePx}
                   minBarSpacingPx={resolvedConfig.minBarSpacingPx}
                   normalizationTimeMs={normalizationTimeMs}
                   series={chartSeriesResult.series}

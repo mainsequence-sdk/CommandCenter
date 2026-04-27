@@ -13,7 +13,7 @@ The connection exposes Massive REST market data, reference data, news, filings, 
 - `massiveShared.ts`: owns the frontend endpoint catalog, query-model generation, config field help text, and query-model filtering helpers.
 - `MassiveConnectionConfigEditor.tsx`: renders public configuration fields for endpoint host, enabled asset classes, beta/deprecated gates, timeout, cache, row limits, and dedupe controls.
 - `MassiveConnectionQueryEditor.tsx`: renders catalog-aware query payload controls for `pathParams`, allowlisted provider `params`, and safe pagination behavior.
-- `MassiveConnectionExplore.tsx`: wraps the shared `ConnectionQueryWorkbench` and filters query models by the configured asset classes, beta flag, and deprecated flag.
+- `massiveAuthoring.tsx`: defines the shared `authoringContract` used by both Data Sources Explore and widget-managed/standalone `connection-query` settings. It applies config-aware query-model filtering, draft seeding, summary badges, and Explore copy.
 
 ## Backend Adapter Contract
 
@@ -57,6 +57,7 @@ Resources are selector and metadata resources only: `endpoint-catalog`, `query-m
 ## Maintenance Constraints
 
 - Keep `massiveShared.ts` aligned with ADR 013 and the backend endpoint catalog.
+- Keep config-aware query-model filtering in `massiveAuthoring.tsx` so Explore and widget settings cannot diverge on which Massive paths are actually allowed for a configured connection.
 - Keep every config schema field description synchronized with the config editor help text and `usageGuidance`.
 - Keep beta futures endpoints hidden unless `enableBetaEndpoints` is true and deprecated endpoints hidden unless `enableDeprecatedEndpoints` is true.
 - Keep API keys out of public config, examples, query payloads, resource payloads, cache keys, logs, and response metadata.

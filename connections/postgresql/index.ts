@@ -2,8 +2,8 @@ import type { ConnectionTypeDefinition } from "@/connections/types";
 import postgreSqlLogoUrl from "@/connections/assets/postgresql-logo.svg";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
-import { PostgreSqlConnectionExplore } from "./PostgreSqlConnectionExplore";
 import { PostgreSqlConnectionQueryEditor } from "./PostgreSqlConnectionQueryEditor";
+import { postgreSqlConnectionAuthoringContract } from "./postgreSqlAuthoring";
 
 export const POSTGRESQL_CONNECTION_TYPE_ID = "postgresql.database";
 
@@ -236,8 +236,8 @@ export const postgreSqlConnection: ConnectionTypeDefinition<
     },
   ],
   requiredPermissions: ["postgresql:query"],
-  exploreComponent: PostgreSqlConnectionExplore,
   queryEditor: PostgreSqlConnectionQueryEditor,
+  authoringContract: postgreSqlConnectionAuthoringContract,
   usageGuidance:
     "Use this connection type for backend-managed live PostgreSQL query access. Configure the database user, set data-source-level row limits, timeouts, cache defaults, and in-flight de-duplication, validate SQL in Connections > Explore, and return normalized frames to widgets through the shared connection runtime.",
   examples: [

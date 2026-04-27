@@ -2,14 +2,14 @@ import { useMemo } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import type {
+  ConnectionAuthoringContract,
+  ConnectionAuthoringSummaryProps,
   ConnectionConfigSchema,
   ConnectionInstance,
   ConnectionQueryDraftDefaults,
   ConnectionQueryDraftDefaultsResolverInput,
-  ConnectionQueryModel,
   ConnectionTypeDefinition,
 } from "@/connections/types";
-import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
 
 import type { PrometheusConnectionQuery, PrometheusPublicConfig } from "./index";
 
@@ -31,6 +31,8 @@ export interface ResolvedPrometheusConfig {
   disableMetricsLookup: boolean;
   customQueryParameters: string;
 }
+
+export const DEFAULT_PROMQL_RANGE_STEP_MS = 5 * 60 * 1000;
 
 function isBlank(value: unknown) {
   return typeof value === "string" ? value.trim() === "" : value === undefined || value === null;
@@ -194,6 +196,7 @@ function buildDefaultPrometheusQuery(input: {
   return {
     kind: "promql-range",
     query: input.initialPromql,
+    stepMs: DEFAULT_PROMQL_RANGE_STEP_MS,
     maxDataPoints: input.maxDataPoints,
   };
 }
@@ -229,43 +232,10 @@ export function resolvePrometheusDraftDefaults(
   };
 }
 
-export function buildPrometheusDefaultQueryProps(input: {
-  connectionInstance: ConnectionInstance;
-  connectionType: ConnectionTypeDefinition<any, any>;
-  queryModels: ConnectionQueryModel[];
-  selectedQueryModel?: ConnectionQueryModel;
-}): ConnectionQueryWidgetProps {
-  const defaults = resolvePrometheusDraftDefaults({
-    connectionInstance: input.connectionInstance,
-    connectionType: input.connectionType,
-    queryModels: input.queryModels,
-    selectedQueryModel: input.selectedQueryModel,
-  });
-  const selectedQueryModel =
-    input.selectedQueryModel ??
-    input.queryModels.find((model) => model.id === defaults.queryModelId) ??
-    input.queryModels[0];
-
-  return {
-    connectionRef: {
-      id: input.connectionInstance.id,
-      typeId: input.connectionInstance.typeId,
-    },
-    queryModelId: selectedQueryModel?.id,
-    query: defaults.query ?? {},
-    timeRangeMode: selectedQueryModel?.timeRangeAware ? "fixed" : "none",
-    fixedStartMs: defaults.fixedStartMs,
-    fixedEndMs: defaults.fixedEndMs,
-  };
-}
-
 export function PrometheusConnectionSourceSummary({
   connectionInstance,
   connectionType,
-}: {
-  connectionInstance: ConnectionInstance;
-  connectionType: ConnectionTypeDefinition<any, any>;
-}) {
+}: ConnectionAuthoringSummaryProps) {
   const config = useMemo(
     () => resolvePrometheusConfig({ connectionInstance, connectionType }),
     [connectionInstance, connectionType],
@@ -304,3 +274,13 @@ export function PrometheusConnectionSourceSummary({
     </div>
   );
 }
+
+export const prometheusConnectionAuthoringContract: ConnectionAuthoringContract = {
+  resolveDraftDefaults: resolvePrometheusDraftDefaults,
+  SummaryComponent: PrometheusConnectionSourceSummary,
+  exploreTitle: "Prometheus Explore",
+  exploreDescription:
+    "Runs the same generated connection query request and PromQL authoring surface used by workspace connection-query widgets and managed widget-owned sources.",
+  exploreRunButtonLabel: "Run query",
+  exploreResultDescription: "Preview of the normalized connection runtime frame.",
+};

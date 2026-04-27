@@ -28,7 +28,7 @@ import {
 } from "@/widgets/core/connection-query/connectionQueryModel";
 
 export type GraphProvider = "tradingview" | "echarts";
-export type GraphChartType = "line" | "area" | "bar";
+export type GraphChartType = "line" | "area" | "bar" | "markers";
 export type GraphViewMode = "chart" | "table";
 export type GraphSeriesAxisMode = "shared" | "separate";
 export type GraphTimeAxisMode = "auto" | "date" | "datetime";
@@ -58,6 +58,8 @@ export interface GraphWidgetProps
   chartType?: GraphChartType;
   groupField?: string;
   limit?: number;
+  maxSeries?: number;
+  markerSizePx?: number;
   minBarSpacingPx?: number;
   normalizeAtMs?: number;
   normalizeSeries?: boolean;
@@ -75,6 +77,8 @@ export interface ResolvedGraphConfig extends ResolvedTabularWidgetSourceConfig {
   chartType: GraphChartType;
   groupField?: string;
   limit: number;
+  maxSeries: number;
+  markerSizePx: number;
   minBarSpacingPx: number;
   normalizeAtMs?: number;
   normalizeSeries: boolean;
@@ -109,6 +113,8 @@ export interface GraphChartSeriesResult {
 }
 
 const defaultVisualizerLimit = 14_000;
+const defaultVisualizerMaxSeries = 8;
+const defaultVisualizerMarkerSizePx = 8;
 const defaultVisualizerMinBarSpacingPx = 0.01;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
 
@@ -153,6 +159,16 @@ function normalizeNonNegativeNumber(value: unknown) {
   return parsed;
 }
 
+function normalizeMarkerSizePx(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
 function normalizeTimeAxisMode(value: unknown): GraphTimeAxisMode {
   return value === "date" || value === "datetime" ? value : "auto";
 }
@@ -163,6 +179,10 @@ export function normalizeGraphAuthoringSourceMode(value: unknown): GraphAuthorin
 
 function normalizeProvider(value: unknown): GraphProvider {
   return value === "echarts" ? "echarts" : "tradingview";
+}
+
+function normalizeGraphChartType(value: unknown): GraphChartType {
+  return value === "area" || value === "bar" || value === "markers" ? value : "line";
 }
 
 export function normalizeGraphLineStyle(value: unknown): GraphLineStyle {
@@ -246,9 +266,22 @@ export function resolveGraphConfig(
       ? fieldOptionsOverride
       : sourceConfig.availableFields;
   const provider = normalizeProvider(props.provider);
-  const chartType: GraphChartType =
-    props.chartType === "area" || props.chartType === "bar" ? props.chartType : "line";
+  const chartType = normalizeGraphChartType(props.chartType);
   const limit = Math.max(1, Math.min(normalizePositiveInteger(props.limit) ?? defaultVisualizerLimit, 14_000));
+  const maxSeries = Math.max(
+    1,
+    Math.min(
+      normalizePositiveInteger(props.maxSeries) ?? defaultVisualizerMaxSeries,
+      200,
+    ),
+  );
+  const markerSizePx = Math.min(
+    Math.max(
+      normalizeMarkerSizePx(props.markerSizePx) ?? defaultVisualizerMarkerSizePx,
+      2,
+    ),
+    24,
+  );
   const minBarSpacingPx = Math.min(
     Math.max(
       normalizeNonNegativeNumber(props.minBarSpacingPx) ?? defaultVisualizerMinBarSpacingPx,
@@ -278,6 +311,8 @@ export function resolveGraphConfig(
     yField,
     groupField,
     limit,
+    maxSeries,
+    markerSizePx,
     minBarSpacingPx,
     normalizeSeries,
     normalizeAtMs,
@@ -320,6 +355,8 @@ export function normalizeGraphProps(
     yField: resolved.yField,
     groupField: resolved.groupField,
     limit: resolved.limit,
+    maxSeries: resolved.maxSeries,
+    markerSizePx: resolved.markerSizePx,
     minBarSpacingPx: resolved.minBarSpacingPx,
     normalizeSeries: resolved.normalizeSeries,
     normalizeAtMs: resolved.normalizeAtMs,
@@ -686,9 +723,8 @@ export function buildGraphSeries(
   rows: TabularDataRow[],
   config: Pick<
     ResolvedGraphConfig,
-    "groupField" | "seriesOverrides" | "xField" | "yField"
+    "groupField" | "maxSeries" | "seriesOverrides" | "xField" | "yField"
   >,
-  maxSeries = 8,
 ): GraphSeriesResult {
   if (!config.xField || !config.yField) {
     return { series: [], droppedGroups: 0, filteredGroups: 0, totalGroups: 0 };
@@ -752,6 +788,7 @@ export function buildGraphSeries(
   const totalGroups = groupField
     ? uniqueStrings(rows.map((row) => String(row[groupField] ?? "__empty__"))).length
     : sortedGroups.length;
+  const maxSeries = Math.max(1, config.maxSeries);
 
   return {
     series: sortedGroups.slice(0, maxSeries),

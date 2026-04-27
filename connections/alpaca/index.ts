@@ -3,7 +3,7 @@ import alpacaSymbolUrl from "@/connections/assets/alpaca-symbol.png";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
 import { AlpacaConnectionConfigEditor } from "./AlpacaConnectionConfigEditor";
-import { AlpacaConnectionExplore } from "./AlpacaConnectionExplore";
+import { alpacaConnectionAuthoringContract } from "./alpacaAuthoring";
 import { AlpacaConnectionQueryEditor } from "./AlpacaConnectionQueryEditor";
 
 export const ALPACA_MARKET_DATA_CONNECTION_TYPE_ID = "finance.alpaca-market-data";
@@ -579,8 +579,8 @@ export const alpacaMarketDataConnection: ConnectionTypeDefinition<
   ],
   requiredPermissions: ["connections:query"],
   configEditor: AlpacaConnectionConfigEditor,
-  exploreComponent: AlpacaConnectionExplore,
   queryEditor: AlpacaConnectionQueryEditor,
+  authoringContract: alpacaConnectionAuthoringContract,
   usageGuidance,
   examples: [
     {

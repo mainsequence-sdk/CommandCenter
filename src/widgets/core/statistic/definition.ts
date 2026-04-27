@@ -13,7 +13,7 @@ import type { StatisticWidgetProps } from "./statisticModel";
 
 export const statisticWidget = defineWidget<StatisticWidgetProps>({
   id: "statistic",
-  widgetVersion: "2.2.0",
+  widgetVersion: "2.3.0",
   title: "Statistic",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -22,10 +22,12 @@ export const statisticWidget = defineWidget<StatisticWidgetProps>({
   requiredPermissions: ["workspaces:view"],
   tags: ["tabular", "statistic", "kpi"],
   exampleProps: {
+    statisticSourceMode: "bound",
     sourceMode: "filter_widget",
     statisticMode: "last",
   },
   mockProps: {
+    statisticSourceMode: "bound",
     sourceMode: "filter_widget",
     statisticMode: "last",
     valueField: "yield",
@@ -76,9 +78,9 @@ export const statisticWidget = defineWidget<StatisticWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Reduces a bound tabular dataset into one or more statistic cards using selected value and grouping fields, per-card sparklines, and author-controlled columns.",
+        "Reduces a bound tabular dataset or a widget-owned hidden connection-query source into one or more statistic cards using selected value and grouping fields, per-card sparklines, and author-controlled columns.",
       requiredSetupSteps: [
-        "Bind the widget to an upstream tabular dataset.",
+        "Bind the widget to an upstream tabular dataset, or use Bindings -> Add connection to create a widget-owned hidden source.",
         "Choose a statistic mode and value field.",
         "Optionally choose grouping, column count, and presentation options.",
       ],
@@ -96,6 +98,7 @@ export const statisticWidget = defineWidget<StatisticWidgetProps>({
     },
     capabilities: {
       acceptedContracts: [TABULAR_SOURCE_CONTRACT],
+      supportedSourceModes: ["bound", "connection"],
       supportedStatisticModes: ["last", "first", "sum", "mean", "min", "max", "count"],
       supportedColorModes: ["none", "range-rules", "change-from-last"],
       supportedRangeOperators: ["gt", "gte", "lt", "lte", "eq"],

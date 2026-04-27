@@ -2,9 +2,8 @@ import type { ConnectionTypeDefinition } from "@/connections/types";
 import prometheusLogoUrl from "@/connections/assets/prometheus-logo.svg";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 
-import { PrometheusConnectionExplore } from "./PrometheusConnectionExplore";
 import { PrometheusConnectionQueryEditor } from "./PrometheusConnectionQueryEditor";
-import { resolvePrometheusDraftDefaults } from "./prometheusAuthoring";
+import { prometheusConnectionAuthoringContract } from "./prometheusAuthoring";
 
 export const PROMETHEUS_CONNECTION_TYPE_ID = "prometheus.remote";
 
@@ -147,6 +146,9 @@ The frontend must hide fields that do not apply to the current endpoint/auth sel
 - Prometheus Explore, standalone connection-query widget settings, and widget-managed connection
   settings must seed the same default query model, default fixed lookback, and range-query
   maxDataPoints from this connection type definition.
+- Builder vs Code selection is part of frontend authoring state for the surrounding connection
+  query widget or managed source. Reopening the editor must restore the saved mode instead of
+  always falling back to the datasource default editor.
 - Builder mode generates PromQL from a selected metric, label filters, optional rate/increase functions, and optional aggregations.
 - Metadata requests are user-triggered only. The frontend must not load metric names, label names, or label values when the Explore screen mounts.
 - Load metrics calls the connection resource endpoint with resource "label-values", label "__name__", and Prometheus params including match[], start, end, and limit when available.
@@ -164,7 +166,7 @@ The frontend must hide fields that do not apply to the current endpoint/auth sel
 
 ### promql-range
 
-- Payload: { "kind": "promql-range", "query": "rate(http_requests_total[5m])", "maxDataPoints": 1100 }
+- Payload: { "kind": "promql-range", "query": "rate(http_requests_total[5m])", "stepMs": 300000, "maxDataPoints": 1100 }
 - Returns: prometheus.matrix@v1 or core.tabular_frame@v1.
 - Time-range-aware: yes.
 
@@ -663,9 +665,8 @@ export const prometheusConnection: ConnectionTypeDefinition<
     },
   ],
   requiredPermissions: ["prometheus:query"],
-  exploreComponent: PrometheusConnectionExplore,
   queryEditor: PrometheusConnectionQueryEditor,
-  draftDefaultsResolver: resolvePrometheusDraftDefaults,
+  authoringContract: prometheusConnectionAuthoringContract,
   usageGuidance: prometheusUsageGuidance,
   examples: [
     {
@@ -682,6 +683,7 @@ export const prometheusConnection: ConnectionTypeDefinition<
       query: {
         kind: "promql-range",
         query: 'sum by (job) (rate(http_requests_total[$__rate_interval]))',
+        stepMs: 300000,
       },
     },
     {
@@ -698,6 +700,7 @@ export const prometheusConnection: ConnectionTypeDefinition<
       query: {
         kind: "promql-range",
         query: 'sum by (cluster) (rate(kubernetes_io:container_cpu_core_usage_time[5m]))',
+        stepMs: 300000,
       },
     },
   ],

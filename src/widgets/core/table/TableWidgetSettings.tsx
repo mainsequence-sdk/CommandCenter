@@ -39,6 +39,7 @@ import {
   createTableWidgetRuleId,
   getTableWidgetCategoricalValues,
   isTableWidgetNumericFormat,
+  normalizeTableSourceMode,
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
@@ -80,7 +81,7 @@ const colorInputClass = widgetTightFormColorInputClass;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
 const tableFieldHelp = {
   density: "Controls row and cell spacing in the rendered table.",
-  tableSourceMode: "Selects whether this table formats a bound dataset or renders manually authored rows stored on this table widget.",
+  tableSourceMode: "Selects whether this table formats a bound dataset, owns a hidden connection-query source, or renders manually authored rows stored on this table widget.",
   sourceBinding: "Shows the upstream Connection Query or transform widget bound to this table. The binding supplies one canonical tabular dataset; this widget only formats it.",
   pageSize: "Sets how many rows AG Grid shows per page when pagination is enabled.",
   surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset.",
@@ -341,7 +342,11 @@ export function TableWidgetSettings({
     [instanceId, widgetRegistry],
   );
   const resolvedDraft = resolveTableWidgetProps(draftProps);
-  const isManualTableMode = resolvedDraft.tableSourceMode === "manual";
+  const tableSourceMode = normalizeTableSourceMode(
+    (draftProps as TableWidgetProps).tableSourceMode,
+  );
+  const isManualTableMode = tableSourceMode === "manual";
+  const isConnectionTableMode = tableSourceMode === "connection";
   const resolvedSourceInput = useMemo(
     () => resolveTableWidgetSourceInput(resolvedInputs),
     [resolvedInputs],
@@ -645,10 +650,10 @@ export function TableWidgetSettings({
             </WidgetSettingFieldLabel>
             <Select
               className={selectClass}
-              value={isManualTableMode ? "manual" : "bound"}
+              value={tableSourceMode}
               disabled={!editable}
               onChange={(event) => {
-                const nextSourceMode = event.target.value === "manual" ? "manual" : "bound";
+                const nextSourceMode = normalizeTableSourceMode(event.target.value);
 
                 commit({
                   ...scopedDraft,
@@ -661,6 +666,7 @@ export function TableWidgetSettings({
               }}
             >
               <option value="bound">Bound dataset</option>
+              <option value="connection">Connection query</option>
               <option value="manual">Manual table</option>
             </Select>
           </div>
@@ -692,15 +698,21 @@ export function TableWidgetSettings({
                         {boundSourceWidget.title?.trim() || "Bound source widget"}
                       </div>
                       <div className="mt-1">
-                        This table reads the published dataset from the selected source widget.
+                        {isConnectionTableMode
+                          ? "This table reads the published dataset from its hidden managed connection-query source."
+                          : "This table reads the published dataset from the selected source widget."}
                       </div>
                     </div>
                   ) : (
-                    "Use the Bindings tab to connect this table to a source widget in the dashboard."
+                    isConnectionTableMode
+                      ? "Open the Connection tab to configure the hidden source widget this table owns."
+                      : "Use the Bindings tab to connect this table to a source widget in the dashboard."
                   )}
                 </div>
                 <p className={descriptionClass}>
-                  The linked source widget owns dataset publication. This table only formats the incoming rows.
+                  {isConnectionTableMode
+                    ? "The hidden connection-query widget still owns execution and dataset publication. This table only formats the incoming rows."
+                    : "The linked source widget owns dataset publication. This table only formats the incoming rows."}
                 </p>
 
                 {managedConnectionSource ? (

@@ -52,8 +52,11 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   title: string;
   widgetId: string;
   widgetKind?: string;
+  widgetProps?: Record<string, unknown>;
   widgetSource?: string;
   managedRole?: string;
+  ownedManagedConnectionSourceCount?: number;
+  managedSourcesVisible?: boolean;
   placementMode?: "canvas" | "sidebar";
   railVisibility?: "visible" | "hidden";
   hiddenFromNormalRail?: boolean;
@@ -88,6 +91,7 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   onToggleExpanded?: () => void;
   onRevealOutput?: (outputId: string) => void;
   onHideOutput?: (outputId: string) => void;
+  onRevealManagedSources?: () => void;
   onOpenSettings?: () => void;
 }
 
@@ -178,13 +182,14 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
   const widgetDefinition = getWidgetById(data.widgetId);
   const expanded = Boolean(data.expanded);
   const readOnly = Boolean(data.readOnly);
-  const WidgetIcon = resolveWorkspaceWidgetIcon(
-    widgetDefinition ?? {
+  const WidgetIcon = resolveWorkspaceWidgetIcon({
+    ...(widgetDefinition ?? {
       id: data.widgetId,
       title: data.title,
       kind: data.widgetKind,
-    },
-  );
+    }),
+    props: data.widgetProps,
+  });
   const selectedAvailableOutput = useMemo(
     () =>
       data.availableOutputs.find((output) => output.id === selectedHiddenOutputId) ??
@@ -566,6 +571,13 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                     Managed
                   </Badge>
                 ) : null}
+                {(data.ownedManagedConnectionSourceCount ?? 0) > 0 ? (
+                  <Badge variant="neutral" className="px-1.5 py-0.5 text-[8px] tracking-[0.12em]">
+                    {(data.ownedManagedConnectionSourceCount ?? 0) === 1
+                      ? "Managed connection"
+                      : `${data.ownedManagedConnectionSourceCount} managed connections`}
+                  </Badge>
+                ) : null}
                 {data.hiddenFromNormalRail ? (
                   <Badge variant="warning" className="px-1.5 py-0.5 text-[8px] tracking-[0.12em]">
                     Hidden rail
@@ -607,6 +619,22 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
               )}
             </Button>
           ) : null}
+          {data.onRevealManagedSources ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="nodrag nopan h-7 shrink-0 rounded-[10px] px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+              aria-label={`Show managed connection source for ${data.title}`}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                data.onRevealManagedSources?.();
+              }}
+            >
+              <Network className="h-3.5 w-3.5" />
+              Source
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="sm"
@@ -630,6 +658,17 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               <span>{data.inputs.length} input{data.inputs.length === 1 ? "" : "s"}</span>
               <span>{data.outputs.length} output{data.outputs.length === 1 ? "" : "s"}</span>
+              {(data.ownedManagedConnectionSourceCount ?? 0) > 0 ? (
+                <span>
+                  {(data.ownedManagedConnectionSourceCount ?? 0) === 1
+                    ? data.managedSourcesVisible
+                      ? "managed source visible"
+                      : "managed source hidden"
+                    : data.managedSourcesVisible
+                      ? `${data.ownedManagedConnectionSourceCount} managed sources visible`
+                      : `${data.ownedManagedConnectionSourceCount} managed sources hidden`}
+                </span>
+              ) : null}
               {data.availableOutputs.length > 0 ? (
                 <span>+{data.availableOutputs.length} hidden</span>
               ) : null}

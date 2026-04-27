@@ -294,6 +294,7 @@ function buildGraphPreview(
       provider: "tradingview",
       chartType,
       dateRangeMode: "dashboard",
+      maxSeries: 12,
       minBarSpacingPx: 0.01,
       xField: sourceDefaults.xField,
       yField: sourceDefaults.yField,
@@ -304,7 +305,7 @@ function buildGraphPreview(
   );
 
   if (hasTabularTimeSeriesSemantics(sourceFrame)) {
-    const seriesResult = buildGraphSeries(sourceFrame.rows, config, 12);
+    const seriesResult = buildGraphSeries(sourceFrame.rows, config);
     const effectiveTimeAxisMode = resolveGraphEffectiveTimeAxisMode(config, sourceFrame.rows);
     const chartSeriesResult = buildGraphChartSeries(seriesResult.series, effectiveTimeAxisMode);
 

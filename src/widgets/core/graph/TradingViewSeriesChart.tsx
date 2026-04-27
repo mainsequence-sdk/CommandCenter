@@ -92,6 +92,7 @@ export function TradingViewSeriesChart({
   dataShapeKey,
   deltaSeries = [],
   emptyMessage = "No chartable rows are available for the selected configuration.",
+  markerSizePx = 8,
   minBarSpacingPx = 0.01,
   normalizationTimeMs,
   series,
@@ -105,6 +106,7 @@ export function TradingViewSeriesChart({
   dataShapeKey?: string;
   deltaSeries?: GraphSeries[];
   emptyMessage?: string;
+  markerSizePx?: number;
   minBarSpacingPx?: number;
   normalizationTimeMs?: GraphNormalizationAnchor;
   series: GraphSeries[];
@@ -154,8 +156,10 @@ export function TradingViewSeriesChart({
     resolvedTokens.warning,
   ]);
   const showPointMarkers = useMemo(
-    () => themedSeries.length > 0 && themedSeries.every((entry) => entry.points.length <= 1),
-    [themedSeries],
+    () =>
+      chartType === "markers" ||
+      (themedSeries.length > 0 && themedSeries.every((entry) => entry.points.length <= 1)),
+    [chartType, themedSeries],
   );
   const resolveLineStyle = (lineStyle: GraphLineStyle | undefined) => {
     switch (lineStyle) {
@@ -327,10 +331,14 @@ export function TradingViewSeriesChart({
           color: seriesColor,
           lineStyle: resolveLineStyle(entry.lineStyle),
           lineWidth: 2,
+          lineVisible: chartType !== "markers",
           priceLineVisible: false,
           lastValueVisible: false,
           pointMarkersVisible: showPointMarkers,
-          pointMarkersRadius: showPointMarkers ? 5 : undefined,
+          pointMarkersRadius:
+            showPointMarkers
+              ? (chartType === "markers" ? Math.max(1, markerSizePx / 2) : 5)
+              : undefined,
           title: entry.label,
         },
         paneIndex,
@@ -421,6 +429,7 @@ export function TradingViewSeriesChart({
     chartType,
     dataShapeKey,
     deltaSeries,
+    markerSizePx,
     separateAxes,
     showPointMarkers,
     themedSeries,
