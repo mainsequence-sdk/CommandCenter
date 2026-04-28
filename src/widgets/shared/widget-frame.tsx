@@ -1,9 +1,13 @@
 import type { CSSProperties, ReactNode } from "react";
 
-import { AlertTriangle, GripHorizontal, Lock, Trash2 } from "lucide-react";
+import { AlertTriangle, GripHorizontal, Loader2, Lock, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  useDashboardWidgetExecution,
+  useWidgetExecutionState,
+} from "@/dashboards/DashboardWidgetExecution";
 import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import { cn } from "@/lib/utils";
 import {
@@ -16,8 +20,69 @@ import { WidgetExplorerTrigger } from "@/widgets/shared/widget-explorer-trigger"
 import { WidgetSettingsTrigger } from "@/widgets/shared/widget-settings";
 import type { WidgetDefinition, WidgetInstancePresentation } from "@/widgets/types";
 
+function resolveRuntimeStatus(runtimeState?: Record<string, unknown>) {
+  return typeof runtimeState?.status === "string" ? runtimeState.status : null;
+}
+
+function isWidgetFrameLoading(input: {
+  widget: WidgetDefinition;
+  dashboardSurfaceHydrationActive: boolean;
+  executionState?: { status?: string };
+  runtimeState?: Record<string, unknown>;
+}) {
+  if (input.executionState?.status === "running") {
+    return true;
+  }
+
+  const runtimeStatus = resolveRuntimeStatus(input.runtimeState);
+
+  if (runtimeStatus === "loading") {
+    return true;
+  }
+
+  if (!input.dashboardSurfaceHydrationActive || input.widget.workspaceRuntimeMode === "local-ui") {
+    return false;
+  }
+
+  if (
+    input.executionState?.status === "success" ||
+    input.executionState?.status === "error"
+  ) {
+    return false;
+  }
+
+  if (
+    runtimeStatus === "ready" ||
+    runtimeStatus === "error" ||
+    runtimeStatus === "data_error" ||
+    runtimeStatus === "detail_error"
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function resolveWidgetFrameLoadingLabel(input: {
+  executionState?: { status?: string };
+  runtimeState?: Record<string, unknown>;
+}) {
+  if (input.executionState?.status === "running") {
+    return "Running";
+  }
+
+  const runtimeStatus = resolveRuntimeStatus(input.runtimeState);
+
+  if (runtimeStatus === "loading") {
+    return "Loading data";
+  }
+
+  return "Loading";
+}
+
 export function WidgetFrame({
   widget,
+  instanceId,
   instance,
   headerActions,
   onOpenSettings,
@@ -26,10 +91,12 @@ export function WidgetFrame({
   showHeader,
   showHeaderMeta,
   presentation,
+  runtimeState,
   style,
   children,
 }: {
   widget: WidgetDefinition;
+  instanceId?: string;
   instance: { title?: string; props?: Record<string, unknown> };
   headerActions?: ReactNode;
   onOpenSettings?: () => void;
@@ -38,9 +105,12 @@ export function WidgetFrame({
   showHeader?: boolean;
   showHeaderMeta?: boolean;
   presentation?: WidgetInstancePresentation;
+  runtimeState?: Record<string, unknown>;
   style?: CSSProperties;
   children: ReactNode;
 }) {
+  const widgetExecution = useDashboardWidgetExecution();
+  const executionState = useWidgetExecutionState(instanceId);
   const headerVisible = showHeader ?? true;
   const headerMetaVisible = showHeaderMeta ?? true;
   const dragHandleVisible = showDragHandle ?? true;
@@ -48,27 +118,67 @@ export function WidgetFrame({
   const transparentSurface = resolveWidgetTransparentSurface(presentation);
   const dividerPresentation =
     (isWorkspaceRowWidgetId(widget.id) || minimalChrome) && !headerVisible;
+  const shellLoading = isWidgetFrameLoading({
+    widget,
+    dashboardSurfaceHydrationActive:
+      widgetExecution?.dashboardSurfaceHydrationActive === true,
+    executionState,
+    runtimeState,
+  });
+  const shellLoadingLabel = shellLoading
+    ? resolveWidgetFrameLoadingLabel({
+        executionState,
+        runtimeState,
+      })
+    : null;
 
   return (
     <section
       data-widget-shell="default"
+      data-widget-shell-loading={shellLoading ? "true" : "false"}
       data-widget-surface={dividerPresentation || transparentSurface ? "bare" : "card"}
       style={style}
       className={cn(
         widgetShellClassName,
+        "relative",
         dividerPresentation
           ? "group flex h-full min-h-0 flex-col overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
           : transparentSurface
             ? "group flex h-full min-h-0 flex-col overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
             : "group flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius)] border border-border/80 bg-card/88 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur",
+        shellLoading && !dividerPresentation && !transparentSurface
+          ? "border-primary/35 shadow-[0_0_0_1px_hsl(var(--primary)/0.08),var(--shadow-panel)]"
+          : undefined,
       )}
     >
+      {shellLoading ? (
+        <>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 h-1 bg-gradient-to-r from-primary/45 via-primary/80 to-primary/45 animate-pulse"
+          />
+          {!dividerPresentation ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-primary/[0.08] via-primary/[0.04] to-transparent animate-pulse"
+            />
+          ) : null}
+        </>
+      ) : null}
+      {shellLoading && !headerVisible ? (
+        <div className="pointer-events-none absolute right-3 top-3 z-20">
+          <Badge variant="primary" className="gap-1.5 px-2 py-1 text-[10px] tracking-[0.12em] shadow-sm">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {shellLoadingLabel}
+          </Badge>
+        </div>
+      ) : null}
       {headerVisible ? (
         <header
           data-widget-shell-header=""
           className={cn(
             widgetShellHeaderClassName,
-            "flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5",
+            "relative z-10 flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5",
           )}
         >
           <div className="min-w-0">
@@ -80,6 +190,15 @@ export function WidgetFrame({
                 <Badge variant="neutral" className="px-1.5 py-0.5 text-[9px] tracking-[0.12em]">
                   {widget.kind}
                 </Badge>
+                {shellLoading ? (
+                  <Badge
+                    variant="primary"
+                    className="gap-1.5 px-1.5 py-0.5 text-[9px] tracking-[0.12em] shadow-sm"
+                  >
+                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                    {shellLoadingLabel}
+                  </Badge>
+                ) : null}
                 <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                   {widget.source}
                 </span>
@@ -87,6 +206,17 @@ export function WidgetFrame({
             ) : null}
           </div>
           <div className="flex items-center gap-1">
+            {shellLoading ? (
+              <Badge
+                variant="primary"
+                className="gap-1.5 px-2 py-1 text-[10px] tracking-[0.12em] shadow-sm"
+                aria-label={`Widget ${shellLoadingLabel?.toLowerCase() ?? "loading"}`}
+                title={`Widget ${shellLoadingLabel?.toLowerCase() ?? "loading"}`}
+              >
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {shellLoadingLabel}
+              </Badge>
+            ) : null}
             {headerActions}
             {showExplorerTrigger !== false ? (
               <WidgetExplorerTrigger
@@ -106,7 +236,9 @@ export function WidgetFrame({
           </div>
         </header>
       ) : null}
-      <div className={cn("min-h-0 flex-1", dividerPresentation ? "p-0" : "p-4")}>{children}</div>
+      <div className={cn("relative z-10 min-h-0 flex-1", dividerPresentation ? "p-0" : "p-4")}>
+        {children}
+      </div>
     </section>
   );
 }

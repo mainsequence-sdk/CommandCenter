@@ -11,6 +11,13 @@ import {
 import { getWidgetById } from "@/app/registry";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import {
+  resolveDashboardSurfaceHydrationState,
+  shouldStartDashboardSurfaceReturnHydration,
+  shouldSuppressPassiveUpstreamResolution,
+  type DashboardExecutionSurface,
+  type DashboardSurfaceHydrationReason,
+} from "@/dashboards/dashboard-surface-hydration";
+import {
   beginDashboardRequestTraceCycle,
   buildDashboardExecutionRequestTraceMeta,
   completeDashboardRequestTraceCycle,
@@ -74,7 +81,11 @@ export interface DashboardWidgetFlowExecutionResult {
 
 interface DashboardWidgetExecutionContextValue {
   scopeId: string;
+  activeSurface: DashboardExecutionSurface;
   activeRefreshCycleId?: string;
+  initialHydrationActive: boolean;
+  dashboardSurfaceHydrationActive: boolean;
+  dashboardSurfaceHydrationReason?: DashboardSurfaceHydrationReason;
   executeWidgetGraph: (
     targetInstanceId: string,
     options: ExecuteWidgetGraphOptions,
@@ -165,12 +176,14 @@ function serializeDashboardExecutionState(value: WidgetExecutionDashboardState) 
 
 export function DashboardWidgetExecutionProvider({
   children,
+  activeSurface = "dashboard",
   scopeId,
   widgets,
   writeRuntimeState,
   resolveWidgetDefinition,
 }: {
   children: ReactNode;
+  activeSurface?: DashboardExecutionSurface;
   scopeId: string;
   widgets: DashboardWidgetInstance[];
   writeRuntimeState: (
@@ -210,8 +223,14 @@ export function DashboardWidgetExecutionProvider({
   const refreshCycleRef = useRef<string | null>(null);
   const initialRefreshCompletedRef = useRef(false);
   const initialRefreshRunIdRef = useRef(0);
+  const previousSurfaceRef = useRef<DashboardExecutionSurface>(activeSurface);
+  const surfaceReturnHydrationRunIdRef = useRef(0);
   const [activeRefreshCycleId, setActiveRefreshCycleId] = useState<string>();
   const [initialRefreshSettled, setInitialRefreshSettled] = useState(false);
+  const [surfaceReturnHydrationActive, setSurfaceReturnHydrationActive] = useState(false);
+  const [surfaceReturnHydrationCycleId, setSurfaceReturnHydrationCycleId] = useState<
+    string | null
+  >(null);
   const [executionStates, setExecutionStates] = useState<Record<string, WidgetExecutionState>>({});
   const initialRefreshCycleId = `initial:${scopeId}`;
   const initialRefreshTargets = useMemo(
@@ -229,6 +248,22 @@ export function DashboardWidgetExecutionProvider({
       widgets,
     ],
   );
+  const initialHydrationActive =
+    initialRefreshTargets.length > 0 && !initialRefreshSettled;
+  const surfaceReturnHydrationPending = shouldStartDashboardSurfaceReturnHydration({
+    previousSurface: previousSurfaceRef.current,
+    nextSurface: activeSurface,
+    initialRefreshCompleted: initialRefreshCompletedRef.current,
+  });
+  const {
+    active: dashboardSurfaceHydrationActive,
+    reason: dashboardSurfaceHydrationReason,
+  } = resolveDashboardSurfaceHydrationState({
+    activeSurface,
+    initialHydrationActive,
+    surfaceReturnHydrationActive,
+    surfaceReturnHydrationPending,
+  });
 
   useEffect(() => {
     mountedRef.current = true;
@@ -245,6 +280,25 @@ export function DashboardWidgetExecutionProvider({
   useEffect(() => {
     dashboardStateKeyRef.current = dashboardStateKey;
   }, [dashboardStateKey]);
+
+  useEffect(() => {
+    previousSurfaceRef.current = activeSurface;
+
+    if (activeSurface !== "dashboard") {
+      setSurfaceReturnHydrationActive(false);
+      setSurfaceReturnHydrationCycleId(null);
+      return;
+    }
+
+    if (!surfaceReturnHydrationPending) {
+      return;
+    }
+
+    const runId = surfaceReturnHydrationRunIdRef.current + 1;
+    surfaceReturnHydrationRunIdRef.current = runId;
+    setSurfaceReturnHydrationActive(true);
+    setSurfaceReturnHydrationCycleId(`surface-return:${scopeId}:${runId.toString(36)}`);
+  }, [activeSurface, scopeId, surfaceReturnHydrationPending]);
 
   function setExecutionState(instanceId: string, nextState: WidgetExecutionState) {
     setExecutionStates((current) => ({
@@ -757,10 +811,108 @@ export function DashboardWidgetExecutionProvider({
     };
   }, [dashboardState, effectiveResolveWidgetDefinition, lastRefreshedAt, scopeId]);
 
+  useEffect(() => {
+    if (!surfaceReturnHydrationCycleId) {
+      return;
+    }
+
+    const cycleId = surfaceReturnHydrationCycleId;
+
+    const refreshTargets = listDashboardRefreshableExecutionTargets({
+      widgets: widgetsRef.current,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      refreshCycleId: cycleId,
+      dashboardState,
+    });
+
+    if (refreshTargets.length === 0) {
+      setSurfaceReturnHydrationActive(false);
+      setSurfaceReturnHydrationCycleId((current) =>
+        current === cycleId ? null : current,
+      );
+      return;
+    }
+
+    const sharedExecutedInstanceIds = new Set<string>();
+    const abortController = new AbortController();
+    let cancelled = false;
+    let hadExecutionError = false;
+
+    async function executeSurfaceReturnHydration() {
+      beginDashboardRequestTraceCycle({
+        scopeId,
+        refreshCycleId: cycleId,
+        label: "Dashboard surface return hydration",
+      });
+      setActiveRefreshCycleId(cycleId);
+
+      for (const targetInstanceId of refreshTargets) {
+        if (cancelled) {
+          completeDashboardRequestTraceCycle({
+            scopeId,
+            refreshCycleId: cycleId,
+            status: "cancelled",
+          });
+          setActiveRefreshCycleId((current) =>
+            current === cycleId ? undefined : current,
+          );
+          setSurfaceReturnHydrationActive(false);
+          return;
+        }
+
+        try {
+          const result = await runGraph(
+            targetInstanceId,
+            {
+              reason: "dashboard-refresh",
+              refreshCycleId: cycleId,
+              signal: abortController.signal,
+            },
+            sharedExecutedInstanceIds,
+          );
+
+          if (!cancelled) {
+            widgetsRef.current = result.widgets;
+          }
+
+          if (result.status === "error") {
+            hadExecutionError = true;
+          }
+        } catch {
+          hadExecutionError = true;
+        }
+      }
+
+      completeDashboardRequestTraceCycle({
+        scopeId,
+        refreshCycleId: cycleId,
+        status: hadExecutionError ? "error" : "success",
+      });
+      setActiveRefreshCycleId((current) =>
+        current === cycleId ? undefined : current,
+      );
+      setSurfaceReturnHydrationActive(false);
+      setSurfaceReturnHydrationCycleId((current) =>
+        current === cycleId ? null : current,
+      );
+    }
+
+    void executeSurfaceReturnHydration();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
+  }, [dashboardState, effectiveResolveWidgetDefinition, scopeId, surfaceReturnHydrationCycleId]);
+
   const value = useMemo<DashboardWidgetExecutionContextValue>(
     () => ({
       scopeId,
+      activeSurface,
       activeRefreshCycleId,
+      initialHydrationActive,
+      dashboardSurfaceHydrationActive,
+      dashboardSurfaceHydrationReason,
       executeWidgetGraph: (targetInstanceId, options) =>
         runGraph(targetInstanceId, options),
       executeWidgetFlow: (sourceInstanceId, options) =>
@@ -799,17 +951,21 @@ export function DashboardWidgetExecutionProvider({
       },
     }),
     [
+      activeSurface,
       activeRefreshCycleId,
+      dashboardSurfaceHydrationActive,
+      dashboardSurfaceHydrationReason,
       dashboardState,
       effectiveResolveWidgetDefinition,
       executionStates,
+      initialHydrationActive,
       scopeId,
     ],
   );
 
   return (
     <DashboardWidgetExecutionContext.Provider value={value}>
-      {initialRefreshTargets.length > 0 && !initialRefreshSettled ? null : children}
+      {children}
     </DashboardWidgetExecutionContext.Provider>
   );
 }
@@ -832,6 +988,16 @@ export function useResolveWidgetUpstream(
 
   useEffect(() => {
     if (!context || !instanceId || !enabled || !upstreamRequirement?.needsResolution) {
+      lastRequestKeyRef.current = "";
+      return;
+    }
+
+    if (
+      shouldSuppressPassiveUpstreamResolution({
+        dashboardSurfaceHydrationActive:
+          context.dashboardSurfaceHydrationActive === true,
+      })
+    ) {
       lastRequestKeyRef.current = "";
       return;
     }
@@ -881,7 +1047,14 @@ export function useResolveWidgetUpstream(
           });
         }
       });
-  }, [context, enabled, instanceId, targetOverrides, upstreamRequirement?.needsResolution, upstreamRequirement?.requestKey]);
+  }, [
+    context,
+    enabled,
+    instanceId,
+    targetOverrides,
+    upstreamRequirement?.needsResolution,
+    upstreamRequirement?.requestKey,
+  ]);
 
   return upstreamRequirement;
 }

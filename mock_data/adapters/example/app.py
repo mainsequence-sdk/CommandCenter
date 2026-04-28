@@ -5,6 +5,13 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import FastAPI, Query, Request
+from mainsequence.client.command_center.data_models import (
+    CORE_TABULAR_FRAME_CONTRACT,
+    TabularFrameFieldResponse,
+    TabularFrameMetaResponse,
+    TabularFrameResponse,
+    TabularFrameSourceResponse,
+)
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -81,8 +88,11 @@ class ResponseMapping(ContractModel):
     contract: str
     status_code: str = Field(default="200", alias="statusCode")
     content_type: str = Field(default="application/json", alias="contentType")
-    rows_path: str = Field(default="$.points", alias="rowsPath")
-    field_types: dict[str, Literal["time", "number", "boolean", "string", "json"]] = Field(
+    rows_path: str = Field(default="$.rows", alias="rowsPath")
+    field_types: dict[
+        str,
+        Literal["string", "number", "integer", "boolean", "datetime", "date", "time", "json", "unknown"],
+    ] = Field(
         default_factory=dict,
         alias="fieldTypes",
     )
@@ -133,20 +143,6 @@ class ConnectionContract(ContractModel):
     health: HealthContract
 
 
-class GraphPoint(BaseModel):
-    x: int
-    y: float
-
-
-class GraphSeriesResponse(BaseModel):
-    operation_id: str = Field(alias="operationId")
-    label: str
-    points: list[GraphPoint]
-    metadata: dict[str, Any]
-
-    model_config = ConfigDict(populate_by_name=True)
-
-
 class HealthResponse(BaseModel):
     ok: bool
     status: Literal["ok"]
@@ -154,23 +150,18 @@ class HealthResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-POINTS_RESPONSE_MAPPING = ResponseMapping(
-    id="points_table",
-    label="Graph points table",
-    contract="core.tabular_frame@v1",
-    rowsPath="$.points",
-    fieldTypes={"x": "number", "y": "number"},
-    timeSeries={
-        "xField": "x",
-        "yField": "y",
-        "seriesKind": "line",
-    },
+GRAPH_FRAME_RESPONSE_MAPPING = ResponseMapping(
+    id="graph_frame",
+    label="Graph canonical tabular frame",
+    contract=CORE_TABULAR_FRAME_CONTRACT,
+    rowsPath="$.rows",
+    fieldTypes={"x": "integer", "y": "number"},
 )
 
 GRAPH_LINE_OPERATION = OperationDefinition(
     operationId="graphLine",
     label="Graph line",
-    description="Returns 100 points for y = slope * x.",
+    description="Returns a canonical tabular frame with 100 rows for y = slope * x.",
     method="GET",
     path="/graph-line",
     parameters=OperationParameters(
@@ -187,13 +178,13 @@ GRAPH_LINE_OPERATION = OperationDefinition(
             ),
         ],
     ),
-    responseMappings=[POINTS_RESPONSE_MAPPING],
+    responseMappings=[GRAPH_FRAME_RESPONSE_MAPPING],
 )
 
 GRAPH_RANDOM_WALK_OPERATION = OperationDefinition(
     operationId="graphRandomWalk",
     label="Graph random walk",
-    description="Returns 100 cumulative Gaussian random-walk points.",
+    description="Returns a canonical tabular frame with 100 cumulative Gaussian random-walk rows.",
     method="GET",
     path="/graph-random-walk",
     parameters=OperationParameters(
@@ -210,7 +201,7 @@ GRAPH_RANDOM_WALK_OPERATION = OperationDefinition(
             ),
         ],
     ),
-    responseMappings=[POINTS_RESPONSE_MAPPING],
+    responseMappings=[GRAPH_FRAME_RESPONSE_MAPPING],
 )
 
 HEALTH_OPERATION = OperationDefinition(
@@ -228,6 +219,47 @@ HEALTH_OPERATION = OperationDefinition(
 
 def dump_contract_model(model: BaseModel) -> dict[str, Any]:
     return model.model_dump(by_alias=True, mode="json", exclude_none=True)
+
+
+def build_graph_frame(
+    *,
+    operation_id: str,
+    label: str,
+    rows: list[dict[str, int | float]],
+    context: dict[str, Any],
+) -> TabularFrameResponse:
+    return TabularFrameResponse(
+        status="ready",
+        columns=["x", "y"],
+        rows=rows,
+        fields=[
+            TabularFrameFieldResponse(
+                key="x",
+                label="X",
+                type="integer",
+                nullable=False,
+                provenance="backend",
+            ),
+            TabularFrameFieldResponse(
+                key="y",
+                label="Y",
+                type="number",
+                nullable=False,
+                provenance="backend",
+            ),
+        ],
+        meta=TabularFrameMetaResponse(
+            pointCount=len(rows),
+            graph={"xField": "x", "yField": "y", "seriesKind": "line"},
+        ),
+        source=TabularFrameSourceResponse(
+            kind="adapter-from-api",
+            id=operation_id,
+            label=label,
+            updatedAtMs=datetime.now(UTC),
+            context=context,
+        ),
+    )
 
 
 def build_contract(base_url: str | None = None) -> ConnectionContract:
@@ -351,7 +383,7 @@ async def get_connection_contract(request: Request) -> ConnectionContract:
 
 @app.get(
     "/graph-line",
-    response_model=GraphSeriesResponse,
+    response_model=TabularFrameResponse,
     operation_id="graphLine",
 )
 async def graph_line(
@@ -362,23 +394,21 @@ async def graph_line(
         description="Slope used to calculate y = slope * x.",
     ),
 ) -> GraphSeriesResponse:
-    points = [GraphPoint(x=index, y=round(slope * index, 6)) for index in range(100)]
+    rows = [{"x": index, "y": round(slope * index, 6)} for index in range(100)]
 
-    return GraphSeriesResponse(
-        operationId="graphLine",
+    return build_graph_frame(
+        operation_id="graphLine",
         label="Graph line",
-        points=points,
-        metadata={
-            "pointCount": 100,
+        rows=rows,
+        context={
             "slope": slope,
-            "generatedAt": datetime.now(UTC).isoformat(),
         },
     )
 
 
 @app.get(
     "/graph-random-walk",
-    response_model=GraphSeriesResponse,
+    response_model=TabularFrameResponse,
     operation_id="graphRandomWalk",
 )
 async def graph_random_walk(
@@ -390,22 +420,20 @@ async def graph_random_walk(
     ),
 ) -> GraphSeriesResponse:
     current = 0.0
-    points: list[GraphPoint] = []
+    rows: list[dict[str, int | float]] = []
     rng = random.Random()
 
     for index in range(100):
         if index > 0:
             current += rng.gauss(0, std)
-        points.append(GraphPoint(x=index, y=round(current, 6)))
+        rows.append({"x": index, "y": round(current, 6)})
 
-    return GraphSeriesResponse(
-        operationId="graphRandomWalk",
+    return build_graph_frame(
+        operation_id="graphRandomWalk",
         label="Graph random walk",
-        points=points,
-        metadata={
-            "pointCount": 100,
+        rows=rows,
+        context={
             "std": std,
-            "generatedAt": datetime.now(UTC).isoformat(),
         },
     )
 

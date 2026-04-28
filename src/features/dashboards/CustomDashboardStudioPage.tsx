@@ -41,6 +41,7 @@ import {
   Settings2,
   Star,
   Trash2,
+  Loader2,
   Waypoints,
   X,
 } from "lucide-react";
@@ -60,8 +61,12 @@ import {
   DashboardWidgetDependenciesProvider,
   useResolvedWidgetInputs,
 } from "@/dashboards/DashboardWidgetDependencies";
-import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
+import {
+  DashboardWidgetExecutionProvider,
+  useDashboardWidgetExecution,
+} from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
+import { shouldMountSidebarOnlyWidgets } from "@/dashboards/dashboard-surface-hydration";
 import {
   resolveDashboardCanvasCompanionCandidates,
   parseCompanionItemId,
@@ -136,6 +141,7 @@ import { SavedWidgetLibraryDialog } from "./SavedWidgetLibraryDialog";
 import { SavedWidgetSaveDialog } from "./SavedWidgetSaveDialog";
 import {
   WorkspaceSavingStatus,
+  WorkspaceLoadingStatus,
   WorkspaceToolbarButton,
   WorkspaceWidgetRail,
 } from "./WorkspaceChrome";
@@ -218,6 +224,106 @@ function autoGridItemStyle(
     gridRow: `span ${Math.max(1, layout.h)}`,
     gridColumn: options?.fullWidth ? "1 / -1" : undefined,
   };
+}
+
+function SidebarOnlyRuntimeMounts({
+  sidebarOnlyWidgets,
+  permissions,
+  onRuntimeStateChange,
+}: {
+  sidebarOnlyWidgets: DashboardDefinition["widgets"];
+  permissions: string[];
+  onRuntimeStateChange: (
+    instanceId: string,
+    state: Record<string, unknown> | undefined,
+  ) => void;
+}) {
+  const widgetExecution = useDashboardWidgetExecution();
+  const mountSidebarOnlyWidgets = shouldMountSidebarOnlyWidgets({
+    dashboardSurfaceHydrationActive:
+      widgetExecution?.dashboardSurfaceHydrationActive === true,
+  });
+
+  if (!mountSidebarOnlyWidgets) {
+    return null;
+  }
+
+  return (
+    <>
+      {sidebarOnlyWidgets.map((instance) => {
+        const widget = getWidgetById(instance.widgetId);
+
+        if (!widget) {
+          return null;
+        }
+
+        const required = [
+          ...(widget.requiredPermissions ?? []),
+          ...(instance.requiredPermissions ?? []),
+        ];
+
+        if (!hasAllPermissions(permissions, required)) {
+          return null;
+        }
+
+        const Component = widget.component as ComponentType<{
+          widget: typeof widget;
+          instanceId?: string;
+          instanceTitle?: string;
+          props: Record<string, unknown>;
+          presentation?: WidgetInstancePresentation;
+          runtimeState?: Record<string, unknown>;
+          onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
+        }>;
+
+        return (
+          <div
+            key={instance.id}
+            className="h-px w-px overflow-hidden"
+            data-workspace-widget-instance-id={instance.id}
+            data-workspace-widget-id={widget.id}
+            data-workspace-widget-visibility="hidden"
+          >
+            <WidgetErrorBoundary
+              widgetId={widget.id}
+              widgetTitle={instance.title ?? widget.title}
+              instanceId={instance.id}
+              surface="hidden"
+            >
+              <Component
+                widget={widget}
+                instanceId={instance.id}
+                instanceTitle={instance.title}
+                props={instance.props ?? {}}
+                presentation={instance.presentation}
+                runtimeState={instance.runtimeState}
+                onRuntimeStateChange={(state) => {
+                  onRuntimeStateChange(instance.id, state);
+                }}
+              />
+            </WidgetErrorBoundary>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function DashboardSurfaceReturnOverlay() {
+  const widgetExecution = useDashboardWidgetExecution();
+
+  if (widgetExecution?.dashboardSurfaceHydrationReason !== "surface-return") {
+    return null;
+  }
+
+  return (
+    <div className="absolute inset-0 z-35 flex items-center justify-center bg-background/36 backdrop-blur-sm">
+      <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/90 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground shadow-sm">
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+        <span>Loading canvas…</span>
+      </div>
+    </div>
+  );
 }
 
 function resolveAutoGridDropPosition(
@@ -2288,6 +2394,7 @@ export function CustomDashboardStudioPage({
     ) => {
       updateSelectedWorkspaceUserState((dashboard) =>
         updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+        { bumpRevision: false },
       );
     },
     [updateSelectedWorkspaceUserState],
@@ -2738,6 +2845,7 @@ export function CustomDashboardStudioPage({
       style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
     >
       <DashboardRefreshProgressLine />
+      <DashboardSurfaceReturnOverlay />
       <div
         className="pointer-events-none absolute inset-0"
         style={{ backgroundImage: "var(--workspace-canvas-background)" }}
@@ -2772,61 +2880,11 @@ export function CustomDashboardStudioPage({
         ) : null}
 
         <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
-          {sidebarOnlyWidgets.map((instance) => {
-            const widget = getWidgetById(instance.widgetId);
-
-            if (!widget) {
-              return null;
-            }
-
-            const required = [
-              ...(widget.requiredPermissions ?? []),
-              ...(instance.requiredPermissions ?? []),
-            ];
-
-            if (!hasAllPermissions(permissions, required)) {
-              return null;
-            }
-
-            const Component = widget.component as ComponentType<{
-              widget: typeof widget;
-              instanceId?: string;
-              instanceTitle?: string;
-              props: Record<string, unknown>;
-              presentation?: WidgetInstancePresentation;
-              runtimeState?: Record<string, unknown>;
-              onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-            }>;
-
-            return (
-              <div
-                key={instance.id}
-                className="h-px w-px overflow-hidden"
-                data-workspace-widget-instance-id={instance.id}
-                data-workspace-widget-id={widget.id}
-                data-workspace-widget-visibility="hidden"
-              >
-                <WidgetErrorBoundary
-                  widgetId={widget.id}
-                  widgetTitle={instance.title ?? widget.title}
-                  instanceId={instance.id}
-                  surface="hidden"
-                >
-                  <Component
-                    widget={widget}
-                    instanceId={instance.id}
-                    instanceTitle={instance.title}
-                    props={instance.props ?? {}}
-                    presentation={instance.presentation}
-                    runtimeState={instance.runtimeState}
-                    onRuntimeStateChange={(state) => {
-                      handleWidgetRuntimeStateChange(instance.id, state);
-                    }}
-                  />
-                </WidgetErrorBoundary>
-              </div>
-            );
-          })}
+          <SidebarOnlyRuntimeMounts
+            sidebarOnlyWidgets={sidebarOnlyWidgets}
+            permissions={permissions}
+            onRuntimeStateChange={handleWidgetRuntimeStateChange}
+          />
         </div>
 
         <div
@@ -2873,6 +2931,7 @@ export function CustomDashboardStudioPage({
                         <Save className="h-3.5 w-3.5" />
                       </WorkspaceToolbarButton>
                     ) : null}
+                    {editMode ? <WorkspaceLoadingStatus /> : null}
                     {editMode && isSaving ? <WorkspaceSavingStatus /> : null}
                     {editMode ? (
                       <Badge variant="primary" className="px-2 py-0.5 text-[10px] tracking-[0.14em]">
@@ -3558,6 +3617,7 @@ export function CustomDashboardStudioPage({
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
         <DashboardWidgetExecutionProvider
+          activeSurface="dashboard"
           scopeId={selectedDashboard.id}
           widgets={resolvedDashboard.widgets}
           writeRuntimeState={handleWidgetRuntimeStateChange}

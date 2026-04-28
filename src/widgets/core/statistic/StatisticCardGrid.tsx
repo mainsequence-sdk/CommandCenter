@@ -105,14 +105,12 @@ function StatisticCard({
   fillHeight,
   showCharts,
   showSourceLabel,
-  singleCard,
   sourceLabel,
 }: {
   card: StatisticCard;
   fillHeight: boolean;
   showCharts: boolean;
   showSourceLabel: boolean;
-  singleCard: boolean;
   sourceLabel?: string;
 }) {
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -120,11 +118,6 @@ function StatisticCard({
   const { resolvedTokens } = useTheme();
 
   useEffect(() => {
-    if (!singleCard) {
-      setCardSize(null);
-      return;
-    }
-
     const node = cardRef.current;
 
     if (!node) {
@@ -153,16 +146,14 @@ function StatisticCard({
     return () => {
       observer.disconnect();
     };
-  }, [singleCard]);
+  }, []);
 
-  const chartHeightPx =
-    singleCard && cardSize
-      ? Math.max(32, Math.min(Math.round(cardSize.height * 0.36), 110))
-      : undefined;
-  const singleCardValueFontPx =
-    singleCard && cardSize
-      ? Math.max(28, Math.min(cardSize.width * 0.16, cardSize.height * 0.28, 64))
-      : undefined;
+  const chartHeightPx = cardSize
+    ? Math.max(32, Math.min(Math.round(cardSize.height * 0.36), 110))
+    : undefined;
+  const valueFontPx = cardSize
+    ? Math.max(28, Math.min(cardSize.width * 0.16, cardSize.height * 0.28, 64))
+    : undefined;
   const renderChart = showCharts && (card.chartPoints?.length ?? 0) >= 2;
   const toneColor = card.resolvedStyle?.tone
     ? resolveSemanticToneColor(card.resolvedStyle.tone, resolvedTokens)
@@ -186,17 +177,14 @@ function StatisticCard({
       className={cn(
         "relative overflow-hidden bg-background/24 px-[var(--summary-stat-card-padding-x)] py-[var(--summary-stat-card-padding-y)]",
         fillHeight ? "h-full min-h-0" : undefined,
-        singleCard ? (fillHeight ? "min-h-0" : "min-h-[180px]") : "min-h-[148px]",
+        fillHeight ? "min-h-0" : "min-h-[180px]",
       )}
       style={cardStyle}
     >
       <div className="relative z-10 flex h-full min-h-0 flex-col">
         {card.label ? (
           <div
-            className={cn(
-              "truncate text-muted-foreground",
-              singleCard ? "max-w-full text-center" : undefined,
-            )}
+            className="max-w-full truncate text-center text-muted-foreground"
             style={{
               fontSize: "var(--summary-stat-label-size)",
               color: cardTextColor ?? undefined,
@@ -208,32 +196,19 @@ function StatisticCard({
 
         {card.metricLabel ? (
           <div
-            className={cn(
-              "truncate text-[11px] uppercase tracking-[0.12em] text-muted-foreground/90",
-              singleCard ? "mt-1 max-w-full text-center" : "mt-1",
-            )}
+            className="mt-1 max-w-full truncate text-center text-[11px] uppercase tracking-[0.12em] text-muted-foreground/90"
             style={{ color: cardTextColor ? withAlpha(cardTextColor, 0.84) : undefined }}
           >
             {card.metricLabel}
           </div>
         ) : null}
 
-        <div
-          className={cn(
-            "flex min-h-0 flex-1",
-            singleCard ? "items-center justify-center" : "items-end",
-          )}
-        >
+        <div className="flex min-h-0 flex-1 items-center justify-center">
           <div
-            className={cn(
-              "font-semibold tracking-tight text-foreground",
-              singleCard ? "text-center" : undefined,
-            )}
+            className="text-center font-semibold tracking-tight text-foreground"
             style={{
               color: cardTextColor ?? undefined,
-              fontSize: singleCard
-                ? (singleCardValueFontPx ? `${singleCardValueFontPx}px` : "clamp(2.75rem, 7vw, 4rem)")
-                : "var(--summary-stat-value-size)",
+              fontSize: valueFontPx ? `${valueFontPx}px` : "clamp(2.75rem, 7vw, 4rem)",
             }}
           >
             <span>{card.formattedPrimaryValue}</span>
@@ -253,11 +228,8 @@ function StatisticCard({
 
         {renderChart ? (
           <div
-            className={cn(
-              "mt-3 shrink-0",
-              singleCard ? "h-[88px]" : "h-[52px]",
-            )}
-            style={singleCard && chartHeightPx ? { height: `${chartHeightPx}px` } : undefined}
+            className="mt-3 h-[88px] shrink-0"
+            style={chartHeightPx ? { height: `${chartHeightPx}px` } : undefined}
           >
             <StatisticMiniChart
               points={card.chartPoints!}
@@ -295,8 +267,7 @@ export function StatisticCardGrid({
   showSourceLabel?: boolean;
   sourceLabel?: string;
 }) {
-  const singleCard = cards.length === 1;
-  const multiCardColumnCount = Math.max(
+  const resolvedColumnCount = Math.max(
     1,
     Math.min(cards.length, columnCount ?? Math.min(cards.length, 4)),
   );
@@ -304,18 +275,13 @@ export function StatisticCardGrid({
   return (
     <div
       className={cn(
-        "grid min-h-0 bg-border/70",
-        singleCard ? "grid-cols-1 gap-0" : "gap-px",
+        "grid min-h-0 gap-px bg-border/70",
         fillHeight ? "h-full" : undefined,
       )}
-      style={
-        singleCard
-          ? undefined
-          : {
-              gridAutoRows: fillHeight ? "minmax(0, 1fr)" : undefined,
-              gridTemplateColumns: `repeat(${multiCardColumnCount}, minmax(0, 1fr))`,
-            }
-      }
+      style={{
+        gridAutoRows: fillHeight ? "minmax(0, 1fr)" : undefined,
+        gridTemplateColumns: `repeat(${resolvedColumnCount}, minmax(0, 1fr))`,
+      }}
     >
       {cards.map((card) => {
         return (
@@ -325,7 +291,6 @@ export function StatisticCardGrid({
             fillHeight={fillHeight}
             showCharts={showCharts}
             showSourceLabel={showSourceLabel}
-            singleCard={singleCard}
             sourceLabel={sourceLabel}
           />
         );

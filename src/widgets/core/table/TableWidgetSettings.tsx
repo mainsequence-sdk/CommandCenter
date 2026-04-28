@@ -43,6 +43,7 @@ import {
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
+  resolveTableWidgetSourceConsumerState,
   resolveTableWidgetSourceInput,
   resolveTableWidgetSourceDataset,
   validateTableWidgetSchema,
@@ -355,8 +356,9 @@ export function TableWidgetSettings({
     () => resolveTableWidgetSourceDataset(resolvedInputs),
     [resolvedInputs],
   );
-  const hasResolvedInputDataset = Boolean(
-    resolvedInputDataset && !isEmptyTabularFrameSource(resolvedInputDataset),
+  const sourceConsumerState = useMemo(
+    () => resolveTableWidgetSourceConsumerState(resolvedInputs),
+    [resolvedInputs],
   );
   const linkedDataset = resolvedInputDataset;
   const hasRenderableLinkedDataset = Boolean(
@@ -726,53 +728,51 @@ export function TableWidgetSettings({
                   />
                 ) : null}
 
-                {linkedDataset?.status === "error" ? (
+                {sourceConsumerState.kind === "error" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                    {linkedDataset.error ?? "The bound source failed to load rows."}
+                    {sourceConsumerState.error ?? linkedDataset?.error ?? "The bound source failed to load rows."}
                   </div>
                 ) : null}
 
-                {resolvedSourceInput?.status === "missing-source" ? (
+                {sourceConsumerState.kind === "missing-source" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
                     The saved source widget no longer exists. Rebind this table in the Bindings tab.
                   </div>
                 ) : null}
 
-                {resolvedSourceInput?.status === "missing-output" ? (
+                {sourceConsumerState.kind === "missing-output" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
                     The selected source output is no longer available. Rebind this table in the Bindings tab.
                   </div>
                 ) : null}
 
-                {resolvedSourceInput?.status === "contract-mismatch" ? (
+                {sourceConsumerState.kind === "contract-mismatch" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
                     The current binding does not publish a canonical tabular frame compatible with this table.
                   </div>
                 ) : null}
 
-                {resolvedSourceInput?.status === "valid" && linkedDataset === null ? (
+                {sourceConsumerState.kind === "awaiting-upstream" ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                    Waiting for the bound source widget to publish its dataset.
+                  </div>
+                ) : null}
+
+                {resolvedSourceInput?.status === "valid" && linkedDataset === null && sourceConsumerState.kind !== "awaiting-upstream" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
                     The bound source output is malformed and does not normalize to a canonical tabular frame.
                   </div>
                 ) : null}
 
-                {resolvedSourceInput?.status === "transform-invalid" ? (
+                {sourceConsumerState.kind === "transform-invalid" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
                     The binding transform is invalid. Fix it in the Bindings tab before previewing this table.
                   </div>
                 ) : null}
 
-                {resolvedSourceInput?.status === "self-reference-blocked" ? (
+                {sourceConsumerState.kind === "self-reference-blocked" ? (
                   <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
                     This table cannot bind to its own published output. Select another source widget in the Bindings tab.
-                  </div>
-                ) : null}
-
-                {!hasResolvedInputDataset &&
-                resolvedSourceInput?.status === "valid" &&
-                (linkedDataset?.status === "loading" || linkedDataset?.status === "idle") ? (
-                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
-                    Waiting for the bound source widget to publish its dataset.
                   </div>
                 ) : null}
 

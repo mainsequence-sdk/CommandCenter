@@ -12,11 +12,13 @@ import { Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
 import type { ThemeTokens } from "@/themes/types";
 import { createAgGridTerminalTheme } from "@/widgets/extensions/ag-grid/grid-theme";
+import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-widget-source";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -32,7 +34,6 @@ import {
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
-  resolveTableWidgetSourceInput,
   resolveTableWidgetSourceDataset,
   validateTableWidgetSchema,
   type ResolvedTableWidgetColumnConfig,
@@ -532,7 +533,7 @@ function TableWidgetCellRenderer({
   );
 }
 
-export function TableWidget({ props, resolvedInputs }: Props) {
+export function TableWidget({ props, resolvedInputs, instanceId }: Props) {
   const { resolvedTokens, tightness } = useTheme();
   const tightnessMetrics = useMemo(() => getThemeTightnessMetrics(tightness), [tightness]);
   const normalizedProps = useMemo(
@@ -540,13 +541,20 @@ export function TableWidget({ props, resolvedInputs }: Props) {
     [props],
   );
   const isManualTableMode = normalizedProps.tableSourceMode === "manual";
-  const resolvedSourceInput = useMemo(
-    () => resolveTableWidgetSourceInput(resolvedInputs),
-    [resolvedInputs],
-  );
+  const sourceBinding = useResolvedTabularWidgetSourceBinding({
+    props: normalizedProps as unknown as TableWidgetProps,
+    currentWidgetInstanceId: instanceId,
+  });
+  const sourceConsumerState = sourceBinding.consumerState;
+  useResolveWidgetUpstream(instanceId, {
+    enabled: !isManualTableMode && sourceBinding.requiresUpstreamResolution,
+  });
   const resolvedInputDataset = useMemo(
-    () => resolveTableWidgetSourceDataset(resolvedInputs),
-    [resolvedInputs],
+    () =>
+      !isManualTableMode
+        ? sourceConsumerState.dataset
+        : resolveTableWidgetSourceDataset(resolvedInputs),
+    [isManualTableMode, resolvedInputs, sourceConsumerState.dataset],
   );
   const linkedDataset = resolvedInputDataset;
   const sourceColumns = linkedDataset?.columns ?? [];
@@ -579,12 +587,12 @@ export function TableWidget({ props, resolvedInputs }: Props) {
     [columns, rowObjects],
   );
   const dataErrorMessage =
-    !isManualTableMode && linkedDataset?.status === "error"
-      ? linkedDataset.error ?? "The bound source failed to load rows."
+    !isManualTableMode && sourceConsumerState.kind === "error"
+      ? sourceConsumerState.error ?? linkedDataset?.error ?? "The bound source failed to load rows."
       : null;
   const isDataLoading =
     !isManualTableMode &&
-    (linkedDataset?.status === "loading" || linkedDataset?.status === "idle");
+    sourceConsumerState.kind === "loading";
   const [quickFilter, setQuickFilter] = useState("");
   const deferredQuickFilter = useDeferredValue(quickFilter);
 
@@ -690,7 +698,7 @@ export function TableWidget({ props, resolvedInputs }: Props) {
 
   if (
     !isManualTableMode &&
-    (!resolvedSourceInput || resolvedSourceInput.status === "unbound")
+    sourceConsumerState.kind === "unbound"
   ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
@@ -707,7 +715,7 @@ export function TableWidget({ props, resolvedInputs }: Props) {
     );
   }
 
-  if (!isManualTableMode && resolvedSourceInput?.status === "missing-source") {
+  if (!isManualTableMode && sourceConsumerState.kind === "missing-source") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -723,7 +731,7 @@ export function TableWidget({ props, resolvedInputs }: Props) {
     );
   }
 
-  if (!isManualTableMode && resolvedSourceInput?.status === "missing-output") {
+  if (!isManualTableMode && sourceConsumerState.kind === "missing-output") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -739,7 +747,7 @@ export function TableWidget({ props, resolvedInputs }: Props) {
     );
   }
 
-  if (!isManualTableMode && resolvedSourceInput?.status === "contract-mismatch") {
+  if (!isManualTableMode && sourceConsumerState.kind === "contract-mismatch") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -755,16 +763,16 @@ export function TableWidget({ props, resolvedInputs }: Props) {
     );
   }
 
-  if (!isManualTableMode && resolvedSourceInput?.status === "valid" && linkedDataset === null) {
+  if (!isManualTableMode && sourceConsumerState.kind === "awaiting-upstream") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
           <Database className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">Source dataset is invalid</div>
+          <div className="text-sm font-medium text-foreground">Resolving upstream source</div>
           <p className="text-sm text-muted-foreground">
-            The bound source did not publish a compatible canonical tabular frame.
+            Refreshing the bound source widget so this table can load its dataset.
           </p>
         </div>
       </div>
@@ -773,8 +781,8 @@ export function TableWidget({ props, resolvedInputs }: Props) {
 
   if (
     !isManualTableMode &&
-    (resolvedSourceInput?.status === "transform-invalid" ||
-      resolvedSourceInput?.status === "self-reference-blocked")
+    (sourceConsumerState.kind === "transform-invalid" ||
+      sourceConsumerState.kind === "self-reference-blocked")
   ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">

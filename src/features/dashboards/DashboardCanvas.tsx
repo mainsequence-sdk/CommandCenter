@@ -688,8 +688,10 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                       >
                         <WidgetFrame
                           widget={widget}
+                          instanceId={instance.id}
                           instance={instance}
                           presentation={instance.presentation}
+                          runtimeState={instance.runtimeState}
                           showHeader={
                             isWorkspaceRowWidgetId(widget.id)
                               ? false
@@ -812,8 +814,10 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                       >
                         <WidgetFrame
                           widget={widget}
+                          instanceId={instance.id}
                           instance={instance}
                           presentation={instance.presentation}
+                          runtimeState={instance.runtimeState}
                           showHeader={
                             isWorkspaceRowWidgetId(widget.id)
                               ? false

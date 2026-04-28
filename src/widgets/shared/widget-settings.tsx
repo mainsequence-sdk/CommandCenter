@@ -312,11 +312,13 @@ function WidgetPanelPreview<
             <div className="h-full min-h-0">
               <WidgetFrame
                 widget={previewShellWidget}
+                instanceId={instanceId}
                 instance={{
                   title: instanceTitle,
                   props,
                 }}
                 presentation={presentation}
+                runtimeState={previewRuntimeState}
                 showDragHandle={false}
                 showExplorerTrigger={false}
                 showHeader={showHeader}

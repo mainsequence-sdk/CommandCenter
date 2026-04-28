@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AllCommunityModule, type ColDef } from "ag-grid-community";
 import { AgGridProvider, AgGridReact } from "ag-grid-react";
+import { AlertTriangle, Database, Loader2 } from "lucide-react";
 
 import { fetchPositions, type PositionRow } from "@/data/api";
 import { formatCurrency, formatNumber, formatSignedCurrency } from "@/lib/format";
@@ -87,13 +88,64 @@ export function PositionsTableWidget({}: Props) {
     }),
     [],
   );
+  const rows = query.data ?? [];
+
+  if (query.isLoading && rows.length === 0) {
+    return (
+      <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 p-4 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/50 text-primary">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Loading positions</div>
+          <p className="text-sm text-muted-foreground">
+            Waiting for the first positions snapshot before rendering the grid.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (query.isError && rows.length === 0) {
+    return (
+      <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/8 p-4 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[calc(var(--radius)-4px)] border border-danger/30 bg-danger/10 text-danger">
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Positions query failed</div>
+          <p className="text-sm text-danger">
+            {query.error instanceof Error
+              ? query.error.message
+              : "The positions dataset could not be loaded."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!query.isLoading && !query.isError && rows.length === 0) {
+    return (
+      <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 p-4 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/50 text-muted-foreground">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">No positions returned</div>
+          <p className="text-sm text-muted-foreground">
+            The positions query completed successfully but returned zero rows.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AgGridProvider modules={agGridModules}>
       <div className="h-full min-h-[280px] overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 text-foreground">
         <AgGridReact<PositionRow>
           theme={theme}
-          rowData={query.data ?? []}
+          rowData={rows}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           animateRows

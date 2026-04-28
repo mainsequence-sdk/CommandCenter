@@ -30,10 +30,14 @@ function resolveRuntimeStatus(runtimeState?: Record<string, unknown>) {
 }
 
 function resolveWidgetRailStatusDotClass({
+  widget,
   executionState,
+  dashboardSurfaceHydrationActive,
   runtimeState,
 }: {
+  widget?: WidgetDefinition;
   executionState?: WidgetExecutionState;
+  dashboardSurfaceHydrationActive?: boolean;
   runtimeState?: Record<string, unknown>;
 }) {
   if (executionState?.status === "error") {
@@ -66,14 +70,22 @@ function resolveWidgetRailStatusDotClass({
     return "bg-success";
   }
 
+  if (dashboardSurfaceHydrationActive && widget?.workspaceRuntimeMode !== "local-ui") {
+    return "bg-primary";
+  }
+
   return "bg-success";
 }
 
 function resolveWidgetRailStatusLabel({
+  widget,
   executionState,
+  dashboardSurfaceHydrationActive,
   runtimeState,
 }: {
+  widget?: WidgetDefinition;
   executionState?: WidgetExecutionState;
+  dashboardSurfaceHydrationActive?: boolean;
   runtimeState?: Record<string, unknown>;
 }) {
   if (executionState?.status === "running") {
@@ -91,6 +103,10 @@ function resolveWidgetRailStatusLabel({
   const status = resolveRuntimeStatus(runtimeState);
 
   if (!status) {
+    if (dashboardSurfaceHydrationActive && widget?.workspaceRuntimeMode !== "local-ui") {
+      return "Loading";
+    }
+
     return "Ready";
   }
 
@@ -98,13 +114,32 @@ function resolveWidgetRailStatusLabel({
 }
 
 function isWidgetRailLoading({
+  widget,
   executionState,
+  dashboardSurfaceHydrationActive,
   runtimeState,
 }: {
+  widget?: WidgetDefinition;
   executionState?: WidgetExecutionState;
+  dashboardSurfaceHydrationActive?: boolean;
   runtimeState?: Record<string, unknown>;
 }) {
-  return executionState?.status === "running" || runtimeState?.status === "loading";
+  if (executionState?.status === "running" || runtimeState?.status === "loading") {
+    return true;
+  }
+
+  if (
+    executionState?.status === "success" ||
+    executionState?.status === "error" ||
+    runtimeState?.status === "ready" ||
+    runtimeState?.status === "error" ||
+    runtimeState?.status === "data_error" ||
+    runtimeState?.status === "detail_error"
+  ) {
+    return false;
+  }
+
+  return dashboardSurfaceHydrationActive === true && widget?.workspaceRuntimeMode !== "local-ui";
 }
 
 function RailHoverCard({
@@ -202,15 +237,19 @@ function DefaultWidgetRailSummary({
   title,
   widget,
   executionState,
+  dashboardSurfaceHydrationActive,
   runtimeState,
 }: {
   title: string;
   widget: WidgetDefinition;
   executionState?: WidgetExecutionState;
+  dashboardSurfaceHydrationActive?: boolean;
   runtimeState?: Record<string, unknown>;
 }) {
   const statusLabel = resolveWidgetRailStatusLabel({
+    widget,
     executionState,
+    dashboardSurfaceHydrationActive,
     runtimeState,
   });
 
@@ -289,6 +328,33 @@ export function WorkspaceSavingStatus({
   );
 }
 
+export function WorkspaceLoadingStatus({
+  label = "Loading widget data…",
+  className,
+}: {
+  label?: string;
+  className?: string;
+}) {
+  const widgetExecution = useDashboardWidgetExecution();
+
+  if (widgetExecution?.dashboardSurfaceHydrationActive !== true) {
+    return null;
+  }
+
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-primary shadow-sm",
+        className,
+      )}
+      aria-live="polite"
+    >
+      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+      <span>{label}</span>
+    </div>
+  );
+}
+
 export function WorkspaceWidgetRail({
   widgets,
   activeInstanceId,
@@ -318,6 +384,8 @@ export function WorkspaceWidgetRail({
   };
 }) {
   const widgetExecution = useDashboardWidgetExecution();
+  const dashboardSurfaceHydrationActive =
+    widgetExecution?.dashboardSurfaceHydrationActive === true;
   const listViewportRef = useRef<HTMLDivElement | null>(null);
   const listContentRef = useRef<HTMLDivElement | null>(null);
   const [listMaxOffset, setListMaxOffset] = useState(0);
@@ -433,11 +501,15 @@ export function WorkspaceWidgetRail({
             const active = activeInstanceId === id;
             const executionState = widgetExecution?.getExecutionState(id);
             const dotClassName = resolveWidgetRailStatusDotClass({
+              widget,
               executionState,
+              dashboardSurfaceHydrationActive,
               runtimeState,
             });
             const loading = isWidgetRailLoading({
+              widget,
               executionState,
+              dashboardSurfaceHydrationActive,
               runtimeState,
             });
             const RailSummary =
@@ -464,6 +536,7 @@ export function WorkspaceWidgetRail({
                 title={displayTitle}
                 widget={widget}
                 executionState={executionState}
+                dashboardSurfaceHydrationActive={dashboardSurfaceHydrationActive}
                 runtimeState={runtimeState}
               />
             );

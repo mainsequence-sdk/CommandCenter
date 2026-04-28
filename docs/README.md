@@ -41,6 +41,8 @@ the app fits together.
 - Widget-facing docs must point to the nearest widget implementation `README.md`.
 - Extension-facing docs must point to the owning extension `README.md`.
 - ADRs stay in `docs/adr/`. Do not scatter architectural decisions through feature folders.
+- New ADRs should use the next available sequential number in both the filename and title, for
+  example `adr-038-short-name.md` and `# ADR 038: Title` when `038` is the next slot.
 
 ## Recommended Reading Order
 

@@ -15,6 +15,9 @@ feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 040: Dashboard Surface Return Hydration](./adr-040-dashboard-surface-return-hydration.md)
+- [ADR 039: Unified Upstream Consumer State Contract](./adr-039-unified-upstream-consumer-state-contract.md)
+- [ADR 038: Progressive Workspace Initial Rendering and Per-Widget Hydration](./adr-038-progressive-workspace-widget-hydration.md)
 - [ADR: Shared Workspace Content vs Per-User View State](./adr-shared-workspace-state.md)
 - [ADR: Use React Grid Layout v2 API in Workspace Studio](./adr-rgl-v2-workspace-studio.md)
 - [ADR: Headless Workspace Widget Settings Runtime](./adr-headless-workspace-settings-runtime.md)
@@ -31,6 +34,9 @@ feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 040: Dashboard Surface Return Hydration](./adr-040-dashboard-surface-return-hydration.md)
+- [ADR 039: Unified Upstream Consumer State Contract](./adr-039-unified-upstream-consumer-state-contract.md)
+- [ADR 038: Progressive Workspace Initial Rendering and Per-Widget Hydration](./adr-038-progressive-workspace-widget-hydration.md)
 - [ADR: First-Class Widget Bindings and Dependency Graph](./adr-widget-bindings-and-dependency-graph.md)
 - [ADR: Binding-Level Output Transforms for Structured Widget Outputs](./adr-binding-output-transforms.md)
 - [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
@@ -77,6 +83,9 @@ feature folder.
 ## Guidelines
 
 - Write an ADR when the choice changes a shared contract, not for every implementation detail.
+- New ADRs should use the next available sequential number in both the filename and title so
+  chronology stays visible, for example `adr-038-short-name.md` with a heading like
+  `# ADR 038: Title` when `038` is the next slot.
 - Keep related investigative or remediation docs in the owning section, then link to them from the
   ADR when needed.
 - Update the nearest implementation `README.md` when an accepted ADR changes authoring or runtime

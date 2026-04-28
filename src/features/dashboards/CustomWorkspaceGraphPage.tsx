@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -15,7 +16,7 @@ import {
   type XYPosition,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, Boxes, Bug, Eye, Save } from "lucide-react";
+import { ArrowLeft, Boxes, Bug, Eye, Loader2, Save } from "lucide-react";
 
 import { getWidgetById } from "@/app/registry";
 import { hasAllPermissions } from "@/auth/permissions";
@@ -65,6 +66,7 @@ import {
 } from "./WorkspaceGraphNode";
 import {
   WorkspaceSavingStatus,
+  WorkspaceLoadingStatus,
   WorkspaceToolbarButton,
   WorkspaceWidgetRail,
 } from "./WorkspaceChrome";
@@ -1625,12 +1627,23 @@ export function CustomWorkspaceGraphPage({
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [requestDebugOpen, setRequestDebugOpen] = useState(false);
   const [showManagedWidgets, setShowManagedWidgets] = useState(false);
+  const [returningToDashboard, setReturningToDashboard] = useState(false);
+  const pendingReturnFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     setLibraryOpen(false);
     setRequestDebugOpen(false);
     setShowManagedWidgets(false);
+    setReturningToDashboard(false);
   }, [selectedDashboard?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingReturnFrameRef.current !== null) {
+        window.cancelAnimationFrame(pendingReturnFrameRef.current);
+      }
+    };
+  }, []);
 
   if (!user) {
     return (
@@ -1677,9 +1690,27 @@ export function CustomWorkspaceGraphPage({
             <>
               <WorkspaceToolbarButton
                 title="Return to workspace"
-                onClick={openDashboardView}
+                disabled={returningToDashboard}
+                onClick={() => {
+                  if (returningToDashboard) {
+                    return;
+                  }
+
+                  flushSync(() => {
+                    setReturningToDashboard(true);
+                  });
+
+                  pendingReturnFrameRef.current = window.requestAnimationFrame(() => {
+                    pendingReturnFrameRef.current = null;
+                    openDashboardView();
+                  });
+                }}
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
+                {returningToDashboard ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                )}
               </WorkspaceToolbarButton>
               <WorkspaceToolbarButton
                 active={libraryOpen}
@@ -1722,6 +1753,7 @@ export function CustomWorkspaceGraphPage({
                 ) : null}
                 <Save className="h-3.5 w-3.5" />
               </WorkspaceToolbarButton>
+              <WorkspaceLoadingStatus />
               {isSaving ? <WorkspaceSavingStatus /> : null}
             </>
           }
@@ -1732,6 +1764,14 @@ export function CustomWorkspaceGraphPage({
         className="relative min-h-0 flex-1 overflow-hidden"
         style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
       >
+        {returningToDashboard ? (
+          <div className="absolute inset-0 z-45 flex items-center justify-center bg-background/32 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/90 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground shadow-sm">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+              <span>Returning to canvas…</span>
+            </div>
+          </div>
+        ) : null}
         <DashboardRefreshProgressLine className="absolute top-0 left-0 right-0 z-30" />
         <div
           className="pointer-events-none absolute inset-0"
@@ -1819,11 +1859,13 @@ export function CustomWorkspaceGraphPage({
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
         <DashboardWidgetExecutionProvider
+          activeSurface="graph"
           scopeId={selectedDashboard.id}
           widgets={resolvedDashboard.widgets}
           writeRuntimeState={(instanceId, runtimeState) => {
             updateSelectedWorkspaceUserState((dashboard) =>
               updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+              { bumpRevision: false },
             );
           }}
         >

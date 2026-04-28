@@ -19,6 +19,9 @@ surfaces and the editable workspace studio.
   global React Query cache or refetch unrelated shell data such as notifications.
 - `DashboardWidgetRegistry.tsx`: runtime widget-instance registry used for linked-widget
   composition.
+- `dashboard-surface-hydration.ts`: shared surface-lifecycle helpers for workspace dashboard
+  entry/return hydration. It centralizes the policy for `graph -> dashboard` return hydration,
+  passive-consumer suppression, and hidden sidebar-only mount gating.
 - `widget-dependencies.ts`: shared binding normalization, resolved-input resolution, and static
   dependency-graph extraction. It also owns graph-connection parsing, validation, and canonical
   binding add/remove helpers so visual graph editors do not duplicate semantics.
@@ -32,7 +35,14 @@ surfaces and the editable workspace studio.
   upstream resolution through `resolveUpstream(...)` / `useResolveWidgetUpstream(...)`, in-flight
   dedupe, per-instance execution status, and refresh-cycle handoff from dashboard controls. It
   also carries the current dashboard control range into widget executors so headless source
-  widgets can respect the active time window even outside the main canvas route.
+  widgets can respect the active time window even outside the main canvas route. Initial workspace
+  refresh is now progressive: the provider renders children immediately, exposes
+  `initialHydrationActive`, and suppresses passive-consumer upstream re-resolution while that
+  first hydration pass is still running. The same provider now also models explicit dashboard
+  surface return hydration for `graph -> dashboard` transitions through
+  `dashboardSurfaceHydrationActive` / `dashboardSurfaceHydrationReason`, so visible consumers do
+  not replay their own upstream-resolution wave while the shared execution layer owns the return
+  transition.
 - `dashboard-request-trace.ts`: shared refresh-cycle request trace store. Execution-driven
   widgets and component-side widget queries can attach request metadata there so graph/debug
   surfaces inspect one canonical refresh request log instead of inventing local endpoint trackers.
@@ -126,6 +136,16 @@ surfaces and the editable workspace studio.
 - Dashboard refresh now also treats passive consumers with executable upstream dependencies as
   refresh roots. That means a table/statistic bound to an executable source can trigger its
   upstream execution on refresh even though the consumer itself is not executable.
+- Initial workspace hydration is no longer a page-level render gate. Hidden managed runtime mounts,
+  visible widget frames, and sidebar-only helper widgets all mount with the workspace shell, while
+  the shared execution provider owns the background first-load hydration pass.
+- Passive widgets should keep first-load ownership in that shared hydration pass. During
+  `initialHydrationActive`, `useResolveWidgetUpstream(...)` intentionally suppresses duplicate
+  component-triggered upstream execution and falls back to mounted pending UI instead.
+- Dashboard surface return now follows the same ownership model. When the shared workspace host
+  switches from `graph` back to `dashboard`, the execution provider opens a short
+  `surface-return` hydration window, suppresses passive consumer re-resolution for that render
+  wave, and delays hidden `sidebarOnlyWidgets` until the visible dashboard settles.
 - Widget settings should now stay provider-backed and headless. If a settings surface needs source
   runtime, it should come from the shared execution provider plus widget execution contracts, not
   from hidden sibling component mounts.

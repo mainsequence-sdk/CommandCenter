@@ -85,6 +85,9 @@ backend-owned connection instances.
   when the widget has not selected a connection yet.
 - The widget is an `execution-owner`; mounted runtime UI renders the latest `runtimeState` and does
   not independently query the backend.
+- The mounted runtime card now treats `idle` and first-load `loading` without retained rows as an
+  initial waiting state. It should not render `0 rows / 0 columns` until the widget has produced a
+  real response frame.
 
 ## Maintenance Constraints
 

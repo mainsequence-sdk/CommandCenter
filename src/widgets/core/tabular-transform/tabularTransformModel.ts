@@ -13,6 +13,10 @@ import {
   attachWidgetRuntimeUpdateContext,
   mapWidgetRuntimeUpdateEnvelope,
 } from "@/widgets/shared/runtime-update";
+import {
+  resolveUpstreamConsumerState,
+  type ResolvedUpstreamConsumerState,
+} from "@/widgets/shared/upstream-consumer-state";
 
 export const TABULAR_TRANSFORM_SOURCE_INPUT_ID = "sourceData";
 export const TABULAR_TRANSFORM_DATASET_OUTPUT_ID = "dataset";
@@ -511,6 +515,21 @@ function resolveInvalidInputError(input: ResolvedWidgetInput | undefined) {
   return "Bind a tabular dataset before this transform can run.";
 }
 
+export function resolveTabularTransformSourceConsumerState(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+): ResolvedUpstreamConsumerState<TabularFrameSourceV1> {
+  const sourceInput = resolveSourceInput(resolvedInputs);
+  const sourceValue = sourceInput?.upstreamBase ?? sourceInput?.value;
+
+  return resolveUpstreamConsumerState({
+    hasCanonicalSourceBinding: Boolean(sourceInput?.sourceWidgetId),
+    hasPublishedValue: sourceValue !== undefined,
+    resolvedSourceInput: sourceInput,
+    dataset: normalizeTabularFrameSource(sourceValue),
+    invalidPublishedValueMessage: "The bound source did not publish a valid tabular dataset.",
+  });
+}
+
 export function resolveTabularTransformOutput(input: {
   props: TabularTransformWidgetProps;
   runtimeState?: unknown;
@@ -518,23 +537,33 @@ export function resolveTabularTransformOutput(input: {
 }): TabularTransformRuntimeState {
   const props = normalizeTabularTransformProps(input.props);
   const sourceInput = resolveSourceInput(input.resolvedInputs);
+  const sourceConsumerState = resolveTabularTransformSourceConsumerState(input.resolvedInputs);
 
   if (sourceInput?.status === "valid") {
-    const source = normalizeTabularFrameSource(sourceInput.upstreamBase ?? sourceInput.value);
+    const source = sourceConsumerState.dataset;
+    const sourceValue = sourceInput.upstreamBase ?? sourceInput.value;
 
-    if (!source) {
+    if (sourceConsumerState.kind === "awaiting-upstream" || sourceValue === undefined) {
       return {
-        status: "error",
-        error: "The bound source did not publish a valid tabular dataset.",
+        status: "idle",
         columns: [],
         rows: [],
       };
     }
 
-    if (source.status === "error") {
+    if (!source) {
       return {
         status: "error",
-        error: source.error ?? "The bound tabular source failed.",
+        error: sourceConsumerState.error ?? "The bound source did not publish a valid tabular dataset.",
+        columns: [],
+        rows: [],
+      };
+    }
+
+    if (sourceConsumerState.kind === "error" || source.status === "error") {
+      return {
+        status: "error",
+        error: sourceConsumerState.error ?? source.error ?? "The bound tabular source failed.",
         columns: source.columns,
         rows: [],
         fields: source.fields,
@@ -550,7 +579,7 @@ export function resolveTabularTransformOutput(input: {
       };
     }
 
-    if (source.status !== "ready") {
+    if (sourceConsumerState.kind === "loading" || source.status !== "ready") {
       return {
         status: source.status,
         columns: source.columns,
@@ -642,15 +671,19 @@ export function resolveTabularTransformOutput(input: {
     );
   }
 
-  const runtimeFrame = normalizeTabularFrameSource(input.runtimeState);
-
-  if (runtimeFrame) {
-    return runtimeFrame;
+  if (sourceInput) {
+    return {
+      status: "error",
+      error: resolveInvalidInputError(sourceInput),
+      columns: [],
+      rows: [],
+    };
   }
 
-  return {
-    status: sourceInput ? "error" : "idle",
-    error: sourceInput ? resolveInvalidInputError(sourceInput) : undefined,
+  const runtimeFrame = normalizeTabularFrameSource(input.runtimeState);
+
+  return runtimeFrame ?? {
+    status: "idle",
     columns: [],
     rows: [],
   };

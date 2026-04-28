@@ -866,11 +866,13 @@ export function CustomWidgetSettingsPage({
     >
       <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
         <DashboardWidgetExecutionProvider
+          activeSurface="dashboard"
           scopeId={selectedDashboard.id}
           widgets={resolvedDashboard.widgets}
           writeRuntimeState={(instanceId, runtimeState) => {
             updateSelectedWorkspaceUserState((dashboard) =>
               updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+              { bumpRevision: false },
             );
           }}
         >

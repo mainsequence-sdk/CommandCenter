@@ -25,6 +25,10 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   source publishes retained base plus delta metadata. The table currently renders the retained
   snapshot; it does not apply row deltas imperatively.
 - The widget always publishes one `core.tabular_frame@v1` output on `dataset`.
+- Both canvas rendering and downstream output publication now normalize bound-source state through
+  the shared upstream consumer contract before applying table-specific schema or formatting logic.
+  That keeps invalid bindings, awaiting upstream publication, loading, empty success, and errors
+  separate instead of inferring readiness from `null` frames or `0 rows`.
 - The runtime renderer reads the resolved `sourceData` input only. It does not read dashboard
   refresh controls or source widget runtime state directly.
 - Legacy backend time-series frames are coerced into canonical tabular rows before table

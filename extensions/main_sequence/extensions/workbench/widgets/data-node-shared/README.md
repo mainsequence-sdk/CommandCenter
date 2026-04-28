@@ -20,8 +20,9 @@ data-node metadata and remote rows.
   fixed date controls mark `From` and `To` as half-width schema fields, so they render on the same
   row in settings instead of stacking vertically. When a passive consumer is canonically bound to an
   executable upstream widget and no published source value exists yet, this source layer exposes
-  `requiresUpstreamResolution` so consumer widgets can delegate that work to the shared dashboard
-  execution coordinator before they render.
+  `requiresUpstreamResolution` plus a normalized `consumerState` so consumer widgets can delegate
+  that work to the shared dashboard execution coordinator and render the same mounted-state
+  semantics as core tabular consumers.
 - `widgetBindings.ts`: shared binding ids for Data Node-family composition.
 - `DataNodePreviewTable.tsx`: reusable simple table preview used inside settings flows that inspect
   fetched data-node rows without mounting the full table formatter widget.

@@ -105,6 +105,11 @@ These flows are all part of one app surface, with instance state selected throug
 - Normal `Save workspace` is resource-scoped. When a specific workspace is open, save sends only
   that workspace to the backend detail endpoint (`PUT /workspaces/:id/`) instead of diffing the
   entire workspace collection first.
+- Background widget runtime publication should not count as an authored unsaved change. Runtime
+  state still updates the mounted workspace draft so tiles and downstream bindings stay live, but
+  the save indicator is reserved for explicit workspace edits and persisted user-state changes.
+- The workspace index should not scan every stored workspace draft to decide whether the current
+  surface is dirty. Unsaved-state indicators are scoped to the currently selected workspace only.
 - Workspace normalization is now split by boundary. Load/import paths still run the full migration
   pass for legacy payloads, while normal edit/save paths use the cheaper shared sanitize path so
   new widgets and extensions inherit canonical draft handling automatically without adding their own
@@ -385,7 +390,17 @@ These flows are all part of one app surface, with instance state selected throug
 - The workspace canvas and workspace graph routes now share one runtime/provider stack inside
   `WorkspacesPage.tsx`. Switching between `?workspace=<id>` and `?workspace=<id>&view=graph` must
   not recreate dashboard controls, dependency resolution, or execution state for the same
-  workspace id.
+  workspace id. Returning from graph view to the canvas now uses an explicit shared-provider
+  `surface-return` hydration step: visible dashboard widgets mount immediately, passive upstream
+  auto-resolution stays suppressed during that return wave, and hidden `sidebarOnlyWidgets` wait
+  until the visible dashboard settles.
+- The return affordance for `graph -> dashboard` belongs to the dashboard surface, not to graph
+  mode. During `surface-return` hydration the dashboard canvas mounts immediately and shows a
+  frosted `Loading canvas…` overlay on top of the real canvas so the transition is explicit
+  without leaving users on a stale graph-owned waiting state.
+- Graph mode still owns one tiny piece of transition feedback: clicking `Return to workspace`
+  paints a one-frame `Returning to canvas…` affordance before the route flips, then the dashboard
+  surface takes over with its own `Loading canvas…` hydration overlay.
 - The workspace graph is now a dedicated route-level React Flow surface built on top of the shared
   dependency layer. It renders one node per widget instance, one edge per canonical binding, keeps
   graph coordinates session-local, stays inside the normal Workspaces shell with the standard app

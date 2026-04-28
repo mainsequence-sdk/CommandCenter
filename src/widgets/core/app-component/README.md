@@ -88,6 +88,10 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   is the upgrade path for stale saved compiled forms that predate newer field-render metadata. If
   live discovery is unavailable, runtime and execution still fall back to `bindingSpec.requestForm`
   or the legacy binding-port synthesis path.
+- The mounted widget now distinguishes live discovery pending and live discovery failure from the
+  terminal `Request form not compiled` state. First render should show discovery loading while the
+  live OpenAPI document is still in flight, then only fall back to the compiled-form error when no
+  usable live or persisted form exists.
 - Binding still stays port-to-port. Nested response-field selection is stored on the binding edge
   as a transform, not as a second AppComponent-only wiring model.
 - Request execution now also goes through the shared dashboard execution coordinator when it is

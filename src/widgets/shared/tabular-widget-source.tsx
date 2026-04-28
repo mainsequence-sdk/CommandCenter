@@ -12,6 +12,11 @@ import {
   type TabularFrameFieldType,
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
+import {
+  resolveUpstreamConsumerState,
+  selectPreferredUpstreamDataset,
+  type ResolvedUpstreamConsumerState,
+} from "@/widgets/shared/upstream-consumer-state";
 import type {
   WidgetFieldDefinition,
   WidgetFieldSection,
@@ -114,6 +119,7 @@ export interface MinimalTabularDetailQuery {
 export interface TabularWidgetSourceControllerContext<
   TResolvedConfig extends ResolvedTabularWidgetSourceConfig = ResolvedTabularWidgetSourceConfig,
 > {
+  consumerState: ResolvedUpstreamConsumerState<TabularFrameSourceV1>;
   currentWidgetInstanceId?: string;
   filterWidgetOptions: PickerOption[];
   fieldPickerOptions: PickerOption[];
@@ -138,6 +144,7 @@ export interface TabularWidgetSourceControllerContext<
 }
 
 export interface ResolvedTabularWidgetSourceBinding {
+  consumerState: ResolvedUpstreamConsumerState<TabularFrameSourceV1>;
   filterWidgetOptions: PickerOption[];
   hasCanonicalSourceBinding: boolean;
   hasResolvedFilterWidgetSource: boolean;
@@ -936,41 +943,52 @@ export function useResolvedTabularWidgetSourceBinding<
         : null,
     [currentWidgetInstanceId, resolvedSourceWidgetId, widgetRegistry],
   );
+  const resolvedInputBaseValue = resolvedInputBinding?.upstreamBase ?? resolvedInputBinding?.value;
+  const sourceRuntimeValue = resolvedSourceWidget?.runtimeState;
+  const inputFrame = useMemo(
+    () => normalizeAnyTabularFrameSource(resolvedInputBaseValue),
+    [resolvedInputBaseValue],
+  );
+  const runtimeFrame = useMemo(
+    () => normalizeAnyTabularFrameSource(sourceRuntimeValue),
+    [sourceRuntimeValue],
+  );
   const resolvedSourceFrame = useMemo(
-    () => {
-      const inputFrame = normalizeAnyTabularFrameSource(
-        resolvedInputBinding?.upstreamBase ?? resolvedInputBinding?.value,
-      );
-      const runtimeFrame = normalizeAnyTabularFrameSource(resolvedSourceWidget?.runtimeState);
-
-      return inputFrame && !isEmptyTabularFrameSource(inputFrame)
-        ? inputFrame
-        : runtimeFrame ?? inputFrame;
-    },
-    [
-      resolvedInputBinding?.upstreamBase,
-      resolvedInputBinding?.value,
-      resolvedSourceWidget?.runtimeState,
-    ],
+    () => selectPreferredUpstreamDataset(inputFrame, runtimeFrame),
+    [inputFrame, runtimeFrame],
   );
   const resolvedSourceDeltaFrame = useMemo(
     () => normalizeAnyTabularFrameSource(resolvedInputBinding?.upstreamDelta),
     [resolvedInputBinding?.upstreamDelta],
   );
   const resolvedSourceDataset = resolvedSourceFrame;
-  const resolvedInputBaseValue = resolvedInputBinding?.upstreamBase ?? resolvedInputBinding?.value;
   const hasCanonicalSourceBinding = resolvedInputBinding?.sourceWidgetId != null;
-  const resolvedSourceStatus =
-    resolvedSourceDataset?.status ??
-    (resolvedInputBaseValue === undefined ? "idle" : null);
-  const isAwaitingBoundSourceValue = Boolean(
-    hasCanonicalSourceBinding &&
-      resolvedInputBinding?.status === "valid" &&
-      (resolvedInputBaseValue === undefined ||
-        resolvedSourceStatus === "idle" ||
-        resolvedSourceStatus === "loading" ||
-        isEmptyTabularFrameSource(resolvedSourceDataset)),
+  const hasPublishedValue = Boolean(
+    resolvedInputBaseValue !== undefined ||
+      sourceRuntimeValue !== undefined,
   );
+  const consumerState = useMemo(
+    () =>
+      resolveUpstreamConsumerState({
+        hasCanonicalSourceBinding,
+        hasPublishedValue,
+        resolvedSourceInput: resolvedInputBinding,
+        resolvedSourceWidget,
+        dataset: resolvedSourceDataset,
+        deltaDataset: resolvedSourceDeltaFrame,
+        invalidPublishedValueMessage:
+          "The bound source did not publish a compatible canonical tabular frame.",
+      }),
+    [
+      hasCanonicalSourceBinding,
+      hasPublishedValue,
+      resolvedInputBinding,
+      resolvedSourceDataset,
+      resolvedSourceDeltaFrame,
+      resolvedSourceWidget,
+    ],
+  );
+  const isAwaitingBoundSourceValue = consumerState.kind === "awaiting-upstream";
   const sourceMode: TabularWidgetSourceMode =
     normalizedReference.sourceMode === "manual" ? "manual" : "filter_widget";
 
@@ -986,19 +1004,21 @@ export function useResolvedTabularWidgetSourceBinding<
             inputValue: summarizeSourceValueForDebug(resolvedInputBaseValue),
             sourceRuntimeState: summarizeSourceValueForDebug(resolvedSourceWidget?.runtimeState),
             resolvedDataset: summarizeSourceValueForDebug(resolvedSourceDataset),
-            resolvedSourceStatus,
-            requiresUpstreamResolution: isAwaitingBoundSourceValue,
+            consumerState: consumerState.kind,
+            hasPublishedValue,
+            requiresUpstreamResolution: consumerState.requiresUpstreamResolution,
           },
     [
+      consumerState.kind,
       currentWidgetInstanceId,
       hasCanonicalSourceBinding,
+      hasPublishedValue,
       isAwaitingBoundSourceValue,
       resolvedInputBinding?.contractId,
       resolvedInputBinding?.status,
       resolvedInputBaseValue,
       resolvedInputBinding?.value,
       resolvedSourceDataset,
-      resolvedSourceStatus,
       resolvedSourceWidget?.runtimeState,
       resolvedSourceWidgetId,
     ],
@@ -1017,6 +1037,7 @@ export function useResolvedTabularWidgetSourceBinding<
   }, [debugSnapshotJson]);
 
   return {
+    consumerState,
     filterWidgetOptions: buildFilterWidgetOptions(widgetRegistry, currentWidgetInstanceId),
     hasCanonicalSourceBinding,
     hasResolvedFilterWidgetSource:
@@ -1028,7 +1049,7 @@ export function useResolvedTabularWidgetSourceBinding<
     isAwaitingBoundSourceValue,
     isFilterWidgetSource: sourceMode !== "manual",
     referencedFilterWidget: resolvedSourceWidget,
-    requiresUpstreamResolution: isAwaitingBoundSourceValue,
+    requiresUpstreamResolution: consumerState.requiresUpstreamResolution,
     resolvedSourceWidget,
     resolvedSourceDataset,
     resolvedSourceDeltaFrame,
@@ -1075,6 +1096,7 @@ export function useTabularWidgetSourceControllerContext<
   );
 
   return {
+    consumerState: sourceBinding.consumerState,
     currentWidgetInstanceId,
     filterWidgetOptions: sourceBinding.filterWidgetOptions,
     fieldPickerOptions,

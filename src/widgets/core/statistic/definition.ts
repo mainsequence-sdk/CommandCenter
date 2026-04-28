@@ -13,7 +13,7 @@ import type { StatisticWidgetProps } from "./statisticModel";
 
 export const statisticWidget = defineWidget<StatisticWidgetProps>({
   id: "statistic",
-  widgetVersion: "2.3.0",
+  widgetVersion: "2.3.1",
   title: "Statistic",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",

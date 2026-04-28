@@ -4,7 +4,9 @@ This directory contains reusable widget presentation primitives that are shared 
 
 ## Main entry points
 
-- `widget-frame.tsx`: standard card shell for registered widget instances, including the header chrome, optional widget-defined header actions, and state placeholders.
+- `widget-frame.tsx`: standard card shell for registered widget instances, including the header
+  chrome, optional widget-defined header actions, and progressive-hydration shell loading
+  treatment derived from shared execution state plus widget runtime state.
 - `chrome.ts`: shared helpers for widget chrome options such as per-instance header visibility, plus shared widget-shell markers used by themes to style widget containers consistently.
 - `widget-settings.tsx`: shared settings trigger plus the reusable full-page settings panel used to edit widget instances outside the old modal flow. It also exports the shared duplicate trigger used by workspace widget chrome.
 - `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, preview, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors. Binding panels should only pass live source widgets that expose at least one output compatible with the target input directly or through a supported structured-output transform.
@@ -18,6 +20,10 @@ This directory contains reusable widget presentation primitives that are shared 
 - `tabular-widget-source.tsx`: shared source-binding helpers for widgets that consume
   `core.tabular_frame@v1`, including field inference, manual table normalization, connection
   response/frame normalization, source-widget binding resolution, and settings-schema helper glue.
+- `upstream-consumer-state.ts`: shared mounted-state contract for widgets that consume upstream
+  workspace outputs. It normalizes binding validity, publication visibility, loading/error state,
+  and successful empty results into one consumer-facing state object so widgets do not infer
+  readiness from row counts or null runtime values on their own.
 - `tabular-field-schema-inspector.tsx`: reusable settings inspector for declared or inferred
   tabular fields, including provenance, warnings, and sample-row context.
 - `tabular-preview-table.tsx`: lightweight preview table for settings and connection explorers
@@ -84,6 +90,10 @@ This directory contains reusable widget presentation primitives that are shared 
 - Structured output exploration belongs in the shared source explorer contract, not in widget-specific binding hacks. Widgets should expose `valueDescriptor` metadata on outputs, and shared binding surfaces should consume that metadata to render whole-output binding, array-item selection, and nested-field extraction consistently. When a descriptor is generic but a runtime value is already available, the explorer may infer temporary nested paths from that value so API-driven JSON outputs remain bindable.
 - Array outputs are not flattened into pseudo-ports by the shared binding layer. The explorer keeps the graph edge anchored to the source output port, then optionally applies ordered binding transforms such as `select-array-item` followed by `extract-path`.
 - Generic table-like widget bindings should use `tabular-frame-source.ts` instead of inventing extension-specific row contracts. Keep source-specific metadata nested under `source` and keep field schemas limited to generic metadata like `key`, `label`, `type`, `description`, and `nullable`.
+- Upstream consumer widgets should render from `upstream-consumer-state.ts` instead of
+  independently combining binding status, runtime-state nullability, dataset status, and row-count
+  heuristics. In particular, `awaiting-upstream`, `loading`, `empty`, and `error` must stay
+  distinct.
   The canonical shared payload is:
   ```ts
   {
@@ -166,6 +176,13 @@ This directory contains reusable widget presentation primitives that are shared 
 - Shared widget headers should stay visually tight. Title bars, badges, explorer/settings triggers,
   and edit-mode menu affordances are expected to minimize vertical padding so chrome does not eat
   meaningful canvas space.
+- Progressive workspace hydration now belongs in the shared frame layer rather than in page-level
+  render gates. `widget-frame.tsx` is responsible only for the generic shell signal
+  ("this tile is still resolving"), including a visible loading badge in normal headers and a
+  corner badge when the header is hidden. Workspace rail chrome should stay an overview only; it
+  may show status dots and hover summaries, but first-load loading meaning must be readable on the
+  tile itself and in workspace-level loading chrome. Widget bodies keep the content-specific distinction
+  between missing source, awaiting upstream, empty, invalid configuration, and error.
 - Widget instances can hide their header in normal viewing through the shared `showHeader` chrome setting, while workspace edit mode forces the header visible so drag/settings controls stay available.
 - Widget instances can also choose a shared `surfaceMode` in presentation state. `default` keeps the normal card shell, while `transparent` removes the card fill/shadow so the widget sits flatter on the workspace canvas.
 - Widget instances can also choose a shared `placementMode` in presentation state. `canvas` keeps

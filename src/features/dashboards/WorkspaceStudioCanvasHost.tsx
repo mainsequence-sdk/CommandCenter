@@ -86,11 +86,13 @@ export function WorkspaceStudioCanvasHost() {
       >
         <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
           <DashboardWidgetExecutionProvider
+            activeSurface={selectedWorkspaceView === "graph" ? "graph" : "dashboard"}
             scopeId={selectedDashboard.id}
             widgets={resolvedDashboard.widgets}
             writeRuntimeState={(instanceId, runtimeState) => {
               updateSelectedWorkspaceUserState((dashboard) =>
                 updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
+                { bumpRevision: false },
               );
             }}
           >

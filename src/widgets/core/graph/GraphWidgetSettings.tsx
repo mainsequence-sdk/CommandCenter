@@ -81,18 +81,39 @@ function toColorInputValue(value: string | undefined, fallback: string) {
 
 function buildSourceSchemaEmptyMessage(input: {
   hasBoundSource: boolean;
-  isAwaitingBoundSourceValue: boolean;
-  sourceStatus?: string;
+  consumerStateKind?: string;
 }) {
-  if (!input.hasBoundSource) {
+  if (!input.hasBoundSource || input.consumerStateKind === "unbound") {
     return "Bind this graph to a tabular source to inspect its source schema.";
   }
 
-  if (input.isAwaitingBoundSourceValue || input.sourceStatus === "idle" || input.sourceStatus === "loading") {
+  if (input.consumerStateKind === "missing-source") {
+    return "The saved source widget no longer exists. Rebind this graph in the Bindings tab.";
+  }
+
+  if (input.consumerStateKind === "missing-output") {
+    return "The selected source output is no longer available. Rebind this graph in the Bindings tab.";
+  }
+
+  if (input.consumerStateKind === "contract-mismatch") {
+    return "The current binding does not publish a canonical tabular frame compatible with this graph.";
+  }
+
+  if (
+    input.consumerStateKind === "self-reference-blocked" ||
+    input.consumerStateKind === "transform-invalid"
+  ) {
+    return "The current source binding is invalid. Fix it in the Bindings tab before inspecting source schema.";
+  }
+
+  if (
+    input.consumerStateKind === "awaiting-upstream" ||
+    input.consumerStateKind === "loading"
+  ) {
     return "The source binding is valid, but the bound widget has not published a runtime frame yet.";
   }
 
-  if (input.sourceStatus === "error") {
+  if (input.consumerStateKind === "error") {
     return "The source binding is valid, but the bound widget published an error instead of a schema.";
   }
 
@@ -101,19 +122,40 @@ function buildSourceSchemaEmptyMessage(input: {
 
 function buildSeriesStylingEmptyMessage(input: {
   hasBoundSource: boolean;
-  isAwaitingBoundSourceValue: boolean;
   previewRows: number;
-  sourceStatus?: string;
+  consumerStateKind?: string;
 }) {
-  if (!input.hasBoundSource) {
+  if (!input.hasBoundSource || input.consumerStateKind === "unbound") {
     return "Bind a chartable tabular source before configuring per-series styling.";
   }
 
-  if (input.isAwaitingBoundSourceValue || input.sourceStatus === "idle" || input.sourceStatus === "loading") {
+  if (input.consumerStateKind === "missing-source") {
+    return "The saved source widget no longer exists. Rebind this graph in the Bindings tab.";
+  }
+
+  if (input.consumerStateKind === "missing-output") {
+    return "The selected source output is no longer available. Rebind this graph in the Bindings tab.";
+  }
+
+  if (input.consumerStateKind === "contract-mismatch") {
+    return "The current binding does not publish a canonical tabular frame compatible with this graph.";
+  }
+
+  if (
+    input.consumerStateKind === "self-reference-blocked" ||
+    input.consumerStateKind === "transform-invalid"
+  ) {
+    return "The current source binding is invalid. Fix it before styling graph series.";
+  }
+
+  if (
+    input.consumerStateKind === "awaiting-upstream" ||
+    input.consumerStateKind === "loading"
+  ) {
     return "The source binding is valid, but the bound widget has not published a runtime frame yet.";
   }
 
-  if (input.sourceStatus === "error") {
+  if (input.consumerStateKind === "error") {
     return "The source binding is valid, but the bound widget returned an error.";
   }
 
@@ -143,6 +185,7 @@ export function GraphWidgetSettings({
   );
   const hasBoundSource = Boolean(context?.sourceWidgetId || context?.resolvedSourceWidget);
   const hasPreviewSource = Boolean(resolvedConfig?.sourceId || hasBoundSource);
+  const sourceConsumerStateKind = context?.consumerState.kind;
   const [previewModeOverride, setPreviewModeOverride] = useState<GraphViewMode | null>(
     null,
   );
@@ -150,14 +193,14 @@ export function GraphWidgetSettings({
   const activePreviewMode = previewModeOverride ?? "chart";
   const previewRange = { hasValidRange: true, rangeStartMs: null, rangeEndMs: null };
   const previewRows = linkedDataset?.rows ?? [];
-  const sourceStatus = linkedDataset?.status;
   const previewErrorMessage =
-    linkedDataset?.status === "error"
-      ? linkedDataset.error ?? "The bound source failed to load rows."
+    sourceConsumerStateKind === "error"
+      ? context?.consumerState.error ?? linkedDataset?.error ?? "The bound source failed to load rows."
+      : linkedDataset?.status === "error"
+        ? linkedDataset.error ?? "The bound source failed to load rows."
       : null;
   const previewIsLoading =
-    Boolean(context?.isAwaitingBoundSourceValue) ||
-    linkedDataset?.status === "loading";
+    sourceConsumerStateKind === "loading";
 
   const previewSeriesResult = useMemo(
     () =>
@@ -318,8 +361,7 @@ export function GraphWidgetSettings({
         rows={previewRows}
         emptyMessage={buildSourceSchemaEmptyMessage({
           hasBoundSource,
-          isAwaitingBoundSourceValue: Boolean(context?.isAwaitingBoundSourceValue),
-          sourceStatus,
+          consumerStateKind: sourceConsumerStateKind,
         })}
       />
 
@@ -331,12 +373,11 @@ export function GraphWidgetSettings({
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
             {buildSeriesStylingEmptyMessage({
               hasBoundSource,
-              isAwaitingBoundSourceValue: Boolean(context?.isAwaitingBoundSourceValue),
               previewRows: previewRows.length,
-              sourceStatus,
+              consumerStateKind: sourceConsumerStateKind,
             })}
           </div>
-        ) : context?.isAwaitingBoundSourceValue ? (
+        ) : sourceConsumerStateKind === "awaiting-upstream" ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
             The source binding is valid, but the bound widget has not published a runtime frame yet.
           </div>
@@ -405,9 +446,8 @@ export function GraphWidgetSettings({
           <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
             {buildSeriesStylingEmptyMessage({
               hasBoundSource,
-              isAwaitingBoundSourceValue: Boolean(context?.isAwaitingBoundSourceValue),
               previewRows: previewRows.length,
-              sourceStatus,
+              consumerStateKind: sourceConsumerStateKind,
             })}
           </div>
         )}

@@ -46,6 +46,9 @@ This folder owns the core `graph` widget. It renders a canonical
   `upstreamDelta` frames. When the incoming update is delta-safe, the chart renderer keeps its
   mounted chart instance and appends or updates projected points instead of rebuilding from the
   retained snapshot.
+- When the bound source reports `loading`, the graph only blocks rendering if there is no retained
+  dataset yet. If retained rows already exist, the chart stays mounted and shows an inline refresh
+  overlay instead of blinking back to a blank skeleton.
 - Authors must explicitly choose X and Y fields; grouping is optional and explicit.
 - Provider selection is local to the widget: TradingView Lightweight Charts or ECharts.
 - `markers` uses point-only rendering. ECharts maps that mode to scatter series, while

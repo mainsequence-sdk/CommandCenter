@@ -16,6 +16,25 @@ import { useCustomWorkspaceStudioStore } from "./custom-workspace-studio-store";
 import { getWorkspacePersistenceMode } from "./workspace-persistence";
 import type { WorkspaceListItemSummary } from "./workspace-list-summary";
 
+export function resolveWorkspaceDirtyState(input: {
+  workspaceId: string | null | undefined;
+  dirtyWorkspaceIds: Record<string, boolean>;
+  workspaceDraftRevisionById: Record<string, number>;
+  workspaceUserStateRevisionById: Record<string, number>;
+}) {
+  const workspaceId = input.workspaceId;
+
+  if (!workspaceId) {
+    return false;
+  }
+
+  return Boolean(
+    (input.dirtyWorkspaceIds[workspaceId] ?? false) ||
+      (input.workspaceDraftRevisionById[workspaceId] ?? 0) > 0 ||
+      (input.workspaceUserStateRevisionById[workspaceId] ?? 0) > 0,
+  );
+}
+
 export function useCustomWorkspaceStudio() {
   const user = useAuthStore((state) => state.session?.user);
   const { toast } = useToast();
@@ -227,35 +246,22 @@ export function useCustomWorkspaceStudio() {
     });
   }, [resolvedDashboard.error, selectedDashboard]);
 
-  const dirty = useMemo(
-    () => {
-      const workspaceIds = new Set([
-        ...Object.keys(dirtyWorkspaceIds),
-        ...Object.keys(workspaceDraftRevisionById),
-        ...Object.keys(workspaceUserStateRevisionById),
-      ]);
-
-      return Array.from(workspaceIds).some((workspaceId) => {
-        const hasDraftChanges =
-          (dirtyWorkspaceIds[workspaceId] ?? false) || (workspaceDraftRevisionById[workspaceId] ?? 0) > 0;
-        const hasUserStateChanges = (workspaceUserStateRevisionById[workspaceId] ?? 0) > 0;
-
-        return hasDraftChanges || hasUserStateChanges;
-      });
-    },
-    [dirtyWorkspaceIds, workspaceDraftRevisionById, workspaceUserStateRevisionById],
-  );
   const selectedWorkspaceDirty = useMemo(
     () =>
-      requestedWorkspaceId
-        ? Boolean(
-            (dirtyWorkspaceIds[requestedWorkspaceId] ?? false) ||
-              (workspaceDraftRevisionById[requestedWorkspaceId] ?? 0) > 0 ||
-              (workspaceUserStateRevisionById[requestedWorkspaceId] ?? 0) > 0,
-          )
-        : false,
-    [dirtyWorkspaceIds, requestedWorkspaceId, workspaceDraftRevisionById, workspaceUserStateRevisionById],
+      resolveWorkspaceDirtyState({
+        workspaceId: requestedWorkspaceId,
+        dirtyWorkspaceIds,
+        workspaceDraftRevisionById,
+        workspaceUserStateRevisionById,
+      }),
+    [
+      dirtyWorkspaceIds,
+      requestedWorkspaceId,
+      workspaceDraftRevisionById,
+      workspaceUserStateRevisionById,
+    ],
   );
+  const dirty = selectedWorkspaceDirty;
   const selectedWorkspaceEditing = useMemo(
     () =>
       requestedWorkspaceId
@@ -371,12 +377,15 @@ export function useCustomWorkspaceStudio() {
 
   function updateSelectedWorkspaceUserState(
     updater: (dashboard: DashboardDefinition) => DashboardDefinition,
+    options?: {
+      bumpRevision?: boolean;
+    },
   ) {
     if (!selectedDashboard?.id) {
       return;
     }
 
-    updateWorkspaceUserState(selectedDashboard.id, updater);
+    updateWorkspaceUserState(selectedDashboard.id, updater, options);
   }
 
   function commitSelectedWorkspaceControlsState(state: DashboardControlsState) {

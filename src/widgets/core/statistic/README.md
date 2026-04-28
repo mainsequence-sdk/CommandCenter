@@ -25,7 +25,8 @@ into one or more KPI-style cards.
 - Supported reductions are `last`, `first`, `max`, `min`, `sum`, `mean`, and `count`.
 - Optional grouping renders one card per group value.
 - Numeric cards can render a compact sparkline from the same incoming value field, including multi-card grouped layouts.
-- When the current grouped layout fits in one row, the statistic grid stretches to the full widget height instead of leaving unused space under the cards.
+- Single-stat and grouped multi-stat renders use the same large centered KPI card treatment; grouping only adds more cards.
+- When the current layout fits in one row, the statistic grid stretches to the full widget height instead of leaving unused space under the cards.
 - Multi-card layouts use an author-controlled column count and scroll instead of compressing every tile to fit the widget height.
 - `Bindings -> Add connection` and the dedicated `Connection` tab are shared managed-connection
   surfaces. Statistic settings stay focused on reduction and presentation.

@@ -125,6 +125,7 @@ export function DebugStreamWidget({
     props,
     currentWidgetInstanceId: instanceId,
   });
+  const sourceConsumerState = sourceBinding.consumerState;
 
   useResolveWidgetUpstream(instanceId, {
     enabled: sourceBinding.requiresUpstreamResolution,
@@ -152,10 +153,10 @@ export function DebugStreamWidget({
       sourceWidgetId: sourceBinding.resolvedSourceInput?.sourceWidgetId,
       sourceOutputId: sourceBinding.resolvedSourceInput?.sourceOutputId,
       inputStatus: sourceBinding.resolvedSourceInput?.status ?? "unbound",
+      consumerState: sourceConsumerState.kind,
       inputContractId: sourceBinding.resolvedSourceInput?.contractId,
       hasResolvedFilterWidgetSource: sourceBinding.hasResolvedFilterWidgetSource,
       requiresUpstreamResolution: sourceBinding.requiresUpstreamResolution,
-      isAwaitingBoundSourceValue: sourceBinding.isAwaitingBoundSourceValue,
       sourceWidget: sourceBinding.resolvedSourceWidget
         ? {
             id: sourceBinding.resolvedSourceWidget.id,
@@ -173,7 +174,6 @@ export function DebugStreamWidget({
       instanceTitle,
       previewFrame,
       sourceBinding.hasResolvedFilterWidgetSource,
-      sourceBinding.isAwaitingBoundSourceValue,
       sourceBinding.requiresUpstreamResolution,
       sourceBinding.resolvedSourceDataset,
       sourceBinding.resolvedSourceInput?.contractId,
@@ -182,6 +182,7 @@ export function DebugStreamWidget({
       sourceBinding.resolvedSourceInput?.status,
       sourceBinding.resolvedSourceInput?.value,
       sourceBinding.resolvedSourceWidget,
+      sourceConsumerState.kind,
     ],
   );
   const debugSnapshotJson = useMemo(
@@ -197,7 +198,7 @@ export function DebugStreamWidget({
     console.debug("[debug-stream] snapshot", JSON.parse(debugSnapshotJson));
   }, [debugSnapshotJson]);
 
-  if (!sourceBinding.hasCanonicalSourceBinding) {
+  if (sourceConsumerState.kind === "unbound") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -217,7 +218,7 @@ export function DebugStreamWidget({
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-auto p-3">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="primary">debug_stream</Badge>
-        <Badge variant="neutral">{debugSnapshot.inputStatus}</Badge>
+        <Badge variant="neutral">{sourceConsumerState.kind}</Badge>
         {debugSnapshot.inputContractId ? (
           <Badge variant="neutral">{debugSnapshot.inputContractId}</Badge>
         ) : null}
@@ -247,10 +248,16 @@ export function DebugStreamWidget({
         />
       </div>
 
-      {sourceBinding.isAwaitingBoundSourceValue ? (
+      {sourceConsumerState.kind === "awaiting-upstream" ? (
         <div className="flex items-center gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
           Resolving upstream source. The binding is valid but this consumer still cannot see the published frame.
+        </div>
+      ) : null}
+
+      {sourceConsumerState.kind === "error" ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+          {sourceConsumerState.error ?? "The bound source failed to publish a compatible frame."}
         </div>
       ) : null}
 

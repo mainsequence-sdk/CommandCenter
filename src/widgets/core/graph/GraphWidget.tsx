@@ -27,6 +27,22 @@ import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-
 
 type Props = WidgetComponentProps<GraphWidgetProps>;
 
+function shouldBlockGraphRenderingWhileLoading(dataset: {
+  status?: string;
+  columns?: string[];
+  rows?: Array<Record<string, unknown>>;
+} | null) {
+  if (!dataset) {
+    return true;
+  }
+
+  if (dataset.status !== "loading") {
+    return false;
+  }
+
+  return (dataset.rows?.length ?? 0) === 0 && (dataset.columns?.length ?? 0) === 0;
+}
+
 export function GraphWidget({
   props,
   presentation,
@@ -43,12 +59,13 @@ export function GraphWidget({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
   });
+  const sourceConsumerState = sourceBinding.consumerState;
   useResolveWidgetUpstream(instanceId, {
     enabled: sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = useMemo(
-    () => sourceBinding.resolvedSourceDataset,
-    [sourceBinding.resolvedSourceDataset],
+    () => sourceConsumerState.dataset,
+    [sourceConsumerState.dataset],
   );
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
   const effectiveProps = useMemo(
@@ -163,13 +180,17 @@ export function GraphWidget({
     chartSeriesResult.affectedSeriesCount,
     chartSeriesResult.collapsedPointCount,
   ]);
-  const isDataLoading = linkedDataset?.status === "loading" || linkedDataset == null;
+  const isDataLoading = shouldBlockGraphRenderingWhileLoading(linkedDataset);
+  const showRefreshOverlay =
+    linkedDataset?.status === "loading" &&
+    !isDataLoading &&
+    sourceRows.length > 0;
   const dataErrorMessage =
     linkedDataset?.status === "error"
       ? linkedDataset.error ?? "The bound source failed to load rows."
       : null;
 
-  if (sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
+  if (sourceConsumerState.kind === "unbound") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -185,7 +206,74 @@ export function GraphWidget({
     );
   }
 
-  if (sourceBinding.isAwaitingBoundSourceValue) {
+  if (sourceConsumerState.kind === "missing-source") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Bound source is missing</div>
+          <p className="text-sm text-muted-foreground">
+            Rebind this graph because the saved source widget no longer exists in this workspace.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (sourceConsumerState.kind === "missing-output") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Bound output is missing</div>
+          <p className="text-sm text-muted-foreground">
+            The selected source widget no longer publishes the output this graph is bound to.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (sourceConsumerState.kind === "contract-mismatch") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Incompatible bound dataset</div>
+          <p className="text-sm text-muted-foreground">
+            Bind this graph to a widget output that publishes one canonical tabular frame.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    sourceConsumerState.kind === "self-reference-blocked" ||
+    sourceConsumerState.kind === "transform-invalid"
+  ) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Source binding is invalid</div>
+          <p className="text-sm text-muted-foreground">
+            Fix the graph binding before this widget can render the published dataset.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (sourceConsumerState.kind === "awaiting-upstream") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -201,7 +289,7 @@ export function GraphWidget({
     );
   }
 
-  if (!sourceBinding.hasResolvedFilterWidgetSource || !linkedDataset) {
+  if (!linkedDataset) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -266,6 +354,14 @@ export function GraphWidget({
       {!isDataLoading && !dataErrorMessage ? (
         <div className="min-h-0 flex-1">
           <div className="relative h-full min-h-0">
+            {showRefreshOverlay ? (
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[calc(var(--radius)-6px)] bg-background/28 backdrop-blur-[1.5px]">
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/88 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground shadow-sm">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span>Refreshing chart…</span>
+                </div>
+              </div>
+            ) : null}
             {editable && chartCollisionMessage ? (
               <div className="absolute right-2 top-2 z-10">
                 <button

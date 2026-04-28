@@ -17,6 +17,9 @@ for `core.tabular_frame@v1` datasets.
 
 - The widget consumes one `core.tabular_frame@v1` input and republishes one
   `core.tabular_frame@v1` output.
+- Source-input validity and mounted waiting/loading/error semantics now go through the shared
+  upstream consumer contract before transform execution or UI rendering. A valid binding with no
+  published upstream value is treated as `awaiting-upstream`, not as a malformed dataset.
 - When an upstream source publishes incremental metadata, the transform reads the retained
   `upstreamBase` frame for correctness. Pass-through/projection transforms also publish transformed
   `upstreamDelta` metadata; aggregate, pivot, and unpivot modes fall back to snapshot output because

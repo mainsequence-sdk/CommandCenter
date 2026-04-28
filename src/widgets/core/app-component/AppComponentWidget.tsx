@@ -50,13 +50,22 @@ type Props = WidgetComponentProps<AppComponentWidgetProps>;
 function AppComponentPlaceholder({
   title,
   description,
+  loading = false,
 }: {
   title: string;
   description: string;
+  loading?: boolean;
 }) {
   return (
     <div className="flex h-full min-h-0 items-center justify-center p-4 md:p-5">
       <div className="max-w-lg space-y-4 rounded-[calc(var(--radius)-4px)] border border-dashed border-border/70 bg-background/24 px-5 py-6 text-center">
+        {loading ? (
+          <div className="flex justify-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          </div>
+        ) : null}
         <div className="space-y-2">
           <div className="text-base font-semibold text-foreground">{title}</div>
           <p className="text-sm text-muted-foreground">{description}</p>
@@ -124,6 +133,14 @@ export function AppComponentWidget({
     [normalizedProps.requestBodyContentType, runtimeOpenApiQuery.data, runtimeResolvedOperation],
   );
   const generatedForm = liveGeneratedForm ?? persistedGeneratedForm;
+  const liveDiscoveryPending =
+    runtimeOpenApiQuery.isLoading &&
+    !liveGeneratedForm &&
+    !persistedGeneratedForm;
+  const liveDiscoveryError =
+    runtimeOpenApiQuery.isError &&
+    !liveGeneratedForm &&
+    !persistedGeneratedForm;
   const mappedRequestForms = useMemo(
     () => resolveAppComponentMappedRequestForms(generatedForm, normalizedProps),
     [generatedForm, normalizedProps],
@@ -309,6 +326,29 @@ export function AppComponentWidget({
       <AppComponentPlaceholder
         title="No operation selected"
         description="Open widget settings, explore the API, and bind this widget instance to one route before sending requests."
+      />
+    );
+  }
+
+  if (liveDiscoveryPending && !submissionForm && !cardForm) {
+    return (
+      <AppComponentPlaceholder
+        title="Discovering request form"
+        description="Loading the live OpenAPI document so this widget can build its request form."
+        loading
+      />
+    );
+  }
+
+  if (liveDiscoveryError && !submissionForm && !cardForm) {
+    return (
+      <AppComponentPlaceholder
+        title="API discovery failed"
+        description={
+          runtimeOpenApiQuery.error instanceof Error
+            ? runtimeOpenApiQuery.error.message
+            : "The live OpenAPI document could not be loaded for this widget."
+        }
       />
     );
   }

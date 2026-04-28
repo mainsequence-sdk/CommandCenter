@@ -8,6 +8,7 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset or a widge
 - Use when a workspace needs `last`, `first`, `max`, `min`, `sum`, `mean`, or `count` over a published table-shaped dataset.
 - Use when one KPI should be shown for the full dataset, or one KPI card should be rendered per value of a selected group field.
 - Use when the statistic value needs presentation formatting such as decimals, prefix, suffix, source label display, color rules, per-card sparklines, or an explicit multi-card column layout.
+- Use when single-stat and grouped multi-stat views should keep the same large centered card presentation.
 - Use when a one-row grouped statistic should stretch its cards to fill the available widget height instead of leaving empty panel space.
 - Use the managed connection flow when this statistic should own its own hidden
   `connection-query` source instead of sharing a visible upstream source widget.

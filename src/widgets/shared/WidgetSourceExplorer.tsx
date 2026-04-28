@@ -48,8 +48,7 @@ type WidgetSourceExplorerEvaluation = {
     | "missing-source"
     | "missing-output"
     | "contract-mismatch"
-    | "transform-invalid"
-    | "pending";
+    | "transform-invalid";
   message: string;
   contractId?: WidgetContractId;
   value?: unknown;
@@ -154,7 +153,6 @@ function resolveDraftBindingStatusVariant(
     case "missing-source":
     case "missing-output":
       return "warning";
-    case "pending":
     case "unbound":
     default:
       return "neutral";
@@ -588,7 +586,7 @@ export function WidgetSourceExplorer({
           }
         : !value?.sourceOutputId
           ? {
-              status: "pending",
+              status: "unbound",
               message: "Choose a source output to continue.",
               contractId: undefined,
               value: undefined,
@@ -602,7 +600,7 @@ export function WidgetSourceExplorer({
               }
             : collectionSelectionPending
               ? {
-                  status: "pending",
+                  status: "unbound",
                   message:
                     currentCollectionMode === "index"
                       ? "Choose which collection item index to bind."
@@ -613,7 +611,7 @@ export function WidgetSourceExplorer({
               : currentValueMappingMode === "extract-path" &&
                   (!extractPathStep?.path || extractPathStep.path.length === 0)
               ? {
-                  status: "pending",
+                  status: "unbound",
                   message: "Choose a nested field to continue.",
                   contractId: selectedOutput.contract,
                   value: selectedOutputValue,

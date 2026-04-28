@@ -22,6 +22,10 @@ import {
   normalizeConnectionQueryProps,
   type ConnectionQueryWidgetProps,
 } from "@/widgets/core/connection-query/connectionQueryModel";
+import {
+  resolveUpstreamConsumerState,
+  type ResolvedUpstreamConsumerState,
+} from "@/widgets/shared/upstream-consumer-state";
 
 export type TableWidgetDateRangeMode = "dashboard" | "fixed";
 export type TableWidgetSourceMode = "bound" | "connection" | "manual";
@@ -165,6 +169,50 @@ export function resolveTableWidgetSourceDataset(
     : null;
 }
 
+function resolveInvalidTableInputError(input: ResolvedWidgetInput | undefined) {
+  if (!input) {
+    return "Bind a canonical tabular dataset before this table can publish rows.";
+  }
+
+  if (input.status === "missing-source") {
+    return "The bound source widget is no longer available.";
+  }
+
+  if (input.status === "missing-output") {
+    return "The bound source widget no longer publishes the selected output.";
+  }
+
+  if (input.status === "contract-mismatch") {
+    return "The bound source output is not a canonical tabular dataset.";
+  }
+
+  if (input.status === "self-reference-blocked") {
+    return "A table widget cannot bind to its own published output.";
+  }
+
+  if (input.status === "transform-invalid") {
+    return "The binding transform for the source dataset is invalid.";
+  }
+
+  return "Bind a canonical tabular dataset before this table can publish rows.";
+}
+
+export function resolveTableWidgetSourceConsumerState(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+): ResolvedUpstreamConsumerState<TabularFrameSourceV1> {
+  const sourceInput = resolveTableWidgetSourceInput(resolvedInputs);
+  const sourceValue = sourceInput?.upstreamBase ?? sourceInput?.value;
+
+  return resolveUpstreamConsumerState({
+    hasCanonicalSourceBinding: Boolean(sourceInput?.sourceWidgetId),
+    hasPublishedValue: sourceValue !== undefined,
+    resolvedSourceInput: sourceInput,
+    dataset: normalizeAnyTabularFrameSource(sourceValue),
+    invalidPublishedValueMessage:
+      "The bound source did not publish a compatible canonical tabular frame.",
+  });
+}
+
 function mapTableFieldOptionToFrameField(field: TabularFieldOption) {
   return {
     key: field.key,
@@ -188,18 +236,55 @@ export function resolveTableWidgetOutput(
   const tableSourceMode = normalizeTableSourceMode(migratedProps.tableSourceMode);
 
   if (tableSourceMode !== "manual") {
-    return resolveTableWidgetSourceDataset(resolvedInputs) ?? {
-      status: "idle",
-      columns: [],
-      rows: [],
-      source: {
-        kind: "table-widget",
-        context: {
-          tableSourceMode:
-            tableSourceMode === "connection" ? "connection" : "bound",
-        },
+    const sourceInput = resolveTableWidgetSourceInput(resolvedInputs);
+    const sourceConsumerState = resolveTableWidgetSourceConsumerState(resolvedInputs);
+    const sourceDataset = sourceConsumerState.dataset;
+    const sourceContext = {
+      kind: "table-widget",
+      context: {
+        tableSourceMode:
+          tableSourceMode === "connection" ? "connection" : "bound",
       },
-    };
+    } satisfies TabularFrameSourceV1["source"];
+
+    if (
+      sourceConsumerState.kind === "missing-source" ||
+      sourceConsumerState.kind === "missing-output" ||
+      sourceConsumerState.kind === "contract-mismatch" ||
+      sourceConsumerState.kind === "self-reference-blocked" ||
+      sourceConsumerState.kind === "transform-invalid"
+    ) {
+      return {
+        status: "error",
+        error: resolveInvalidTableInputError(sourceInput),
+        columns: [],
+        rows: [],
+        source: sourceContext,
+      };
+    }
+
+    if (sourceConsumerState.kind === "awaiting-upstream" || !sourceDataset) {
+      return {
+        status: "idle",
+        columns: [],
+        rows: [],
+        source: sourceContext,
+      };
+    }
+
+    if (sourceConsumerState.kind === "error") {
+      return {
+        ...sourceDataset,
+        status: "error",
+        error:
+          sourceConsumerState.error ??
+          sourceDataset.error ??
+          "The bound source failed to publish a canonical tabular frame.",
+        source: sourceDataset.source ?? sourceContext,
+      };
+    }
+
+    return sourceDataset;
   }
 
   const manualFrame = buildTableWidgetFrameFromManualData({

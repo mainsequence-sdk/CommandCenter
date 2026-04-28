@@ -20,12 +20,47 @@ export function ConnectionQueryWidget({ props, runtimeState }: Props) {
     : undefined;
   const frame = normalizeConnectionQueryRuntimeState(runtimeState);
   const status = frame?.status ?? "idle";
+  const queryConfigured = Boolean(
+    normalizedProps.connectionRef?.typeId && normalizedProps.queryModelId,
+  );
   const rowCount = frame && "rows" in frame ? frame.rows.length : 0;
   const columnCount = frame && "columns" in frame ? frame.columns.length : 0;
   const errorMessage =
     frame && "error" in frame && typeof frame.error === "string"
       ? frame.error
       : "Connection query failed.";
+
+  if (!queryConfigured) {
+    return (
+      <div className="flex h-full min-h-[160px] flex-col items-center justify-center gap-3 p-4 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/50 text-muted-foreground">
+          <Database className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Configure a connection query</div>
+          <p className="text-sm text-muted-foreground">
+            Select a connection and query model before this widget can execute.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "idle" || (status === "loading" && rowCount === 0 && columnCount === 0)) {
+    return (
+      <div className="flex h-full min-h-[160px] flex-col items-center justify-center gap-3 p-4 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/50 text-primary">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Running initial query</div>
+          <p className="text-sm text-muted-foreground">
+            Waiting for the first response frame before showing query metrics.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-[160px] flex-col justify-between gap-4 p-4">

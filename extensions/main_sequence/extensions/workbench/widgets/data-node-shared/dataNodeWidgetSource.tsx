@@ -16,6 +16,11 @@ import {
   type TabularFrameFieldType,
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
+import {
+  resolveUpstreamConsumerState,
+  selectPreferredUpstreamDataset,
+  type ResolvedUpstreamConsumerState,
+} from "@/widgets/shared/upstream-consumer-state";
 import type {
   WidgetFieldCanvasRendererProps,
   WidgetFieldDefinition,
@@ -87,6 +92,7 @@ export type DataNodeWidgetLastObservation = Record<string, unknown> | null;
 export interface DataNodeWidgetSourceControllerContext<
   TResolvedConfig extends ResolvedDataNodeWidgetSourceConfig = ResolvedDataNodeWidgetSourceConfig,
 > {
+  consumerState: ResolvedUpstreamConsumerState<DataNodePublishedDataset>;
   currentWidgetInstanceId?: string;
   filterWidgetOptions: PickerOption[];
   fieldPickerOptions: PickerOption[];
@@ -112,6 +118,7 @@ export interface DataNodeWidgetSourceControllerContext<
 }
 
 export interface ResolvedDataNodeWidgetSourceBinding {
+  consumerState: ResolvedUpstreamConsumerState<DataNodePublishedDataset>;
   filterWidgetOptions: PickerOption[];
   hasCanonicalSourceBinding: boolean;
   hasResolvedFilterWidgetSource: boolean;
@@ -622,14 +629,20 @@ export function useResolvedDataNodeWidgetSourceBinding<
         : null,
     [currentWidgetInstanceId, resolvedSourceWidgetId, widgetRegistry],
   );
-  const sourceDatasetValue =
-    resolvedInputBinding?.upstreamBase ??
-    resolvedInputBinding?.value ??
-    referencedFilterWidget?.runtimeState;
+  const inputSourceDatasetValue = resolvedInputBinding?.upstreamBase ?? resolvedInputBinding?.value;
+  const sourceRuntimeValue = referencedFilterWidget?.runtimeState;
   const sourceDeltaDatasetValue = resolvedInputBinding?.upstreamDelta;
+  const inputSourceFrame = useMemo(
+    () => normalizeTabularFrameSource(inputSourceDatasetValue),
+    [inputSourceDatasetValue],
+  );
+  const runtimeSourceFrame = useMemo(
+    () => normalizeTabularFrameSource(sourceRuntimeValue),
+    [sourceRuntimeValue],
+  );
   const resolvedSourceFrame = useMemo(
-    () => normalizeTabularFrameSource(sourceDatasetValue),
-    [sourceDatasetValue],
+    () => selectPreferredUpstreamDataset(inputSourceFrame, runtimeSourceFrame),
+    [inputSourceFrame, runtimeSourceFrame],
   );
   const resolvedSourceDeltaFrame = useMemo(
     () => normalizeTabularFrameSource(sourceDeltaDatasetValue),
@@ -640,8 +653,12 @@ export function useResolvedDataNodeWidgetSourceBinding<
     [resolvedSourceFrame?.source],
   );
   const resolvedSourceDataset = useMemo(
-    () => normalizeDataNodePublishedDataset(sourceDatasetValue),
-    [sourceDatasetValue],
+    () =>
+      selectPreferredUpstreamDataset(
+        normalizeDataNodePublishedDataset(inputSourceDatasetValue),
+        normalizeDataNodePublishedDataset(sourceRuntimeValue),
+      ),
+    [inputSourceDatasetValue, sourceRuntimeValue],
   );
   const resolvedSourceDeltaDataset = useMemo(
     () => normalizeDataNodePublishedDataset(sourceDeltaDatasetValue),
@@ -684,24 +701,36 @@ export function useResolvedDataNodeWidgetSourceBinding<
       ? "filter_widget"
       : normalizeSourceMode(normalizedReference.sourceMode);
   const hasCanonicalSourceBinding = resolvedInputBinding?.sourceWidgetId != null;
-  const resolvedSourceStatus =
-    resolvedSourceDataset?.status ??
-    resolvedSourceFrame?.status ??
-    (sourceDatasetValue === undefined ? "idle" : null);
-  const isAwaitingBoundSourceValue = Boolean(
-    hasCanonicalSourceBinding &&
-      resolvedInputBinding?.status === "valid" &&
-      (sourceDatasetValue === undefined ||
-        resolvedSourceStatus === "idle" ||
-        resolvedSourceStatus === "loading"),
+  const hasPublishedValue = Boolean(
+    inputSourceDatasetValue !== undefined ||
+      sourceRuntimeValue !== undefined,
   );
-  const requiresUpstreamResolution = Boolean(
-    hasCanonicalSourceBinding &&
-      resolvedInputBinding?.status === "valid" &&
-      isAwaitingBoundSourceValue,
+  const consumerState = useMemo(
+    () =>
+      resolveUpstreamConsumerState({
+        hasCanonicalSourceBinding,
+        hasPublishedValue,
+        resolvedSourceInput: resolvedInputBinding,
+        resolvedSourceWidget,
+        dataset: resolvedSourceDataset,
+        deltaDataset: resolvedSourceDeltaDataset,
+        invalidPublishedValueMessage:
+          "The bound source did not publish a compatible canonical tabular frame.",
+      }),
+    [
+      hasCanonicalSourceBinding,
+      hasPublishedValue,
+      resolvedInputBinding,
+      resolvedSourceDataset,
+      resolvedSourceDeltaDataset,
+      resolvedSourceWidget,
+    ],
   );
+  const isAwaitingBoundSourceValue = consumerState.kind === "awaiting-upstream";
+  const requiresUpstreamResolution = consumerState.requiresUpstreamResolution;
 
   return {
+    consumerState,
     filterWidgetOptions,
     hasResolvedFilterWidgetSource:
       resolvedInputBinding?.sourceWidgetId != null
@@ -854,6 +883,7 @@ export function useDataNodeWidgetSourceControllerContext<
   );
 
   return {
+    consumerState: sourceBinding.consumerState,
     currentWidgetInstanceId,
     filterWidgetOptions: sourceBinding.filterWidgetOptions,
     fieldPickerOptions,

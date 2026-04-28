@@ -12,8 +12,9 @@ and pass the upstream responses back through the connection route.
 ## Entry Points
 
 - `app.py`: FastAPI app, Pydantic contract models, well-known contract endpoint, dedicated health
-  endpoint, and graph data endpoints.
-- `requirements.txt`: minimal runtime dependencies for the example.
+  endpoint, and graph data endpoints that return the SDK canonical `TabularFrameResponse`.
+- `requirements.txt`: minimal runtime dependencies for the example, including an editable install
+  of the sibling `mainsequence-sdk` checkout so the example uses the canonical SDK model.
 
 ## Contract Endpoints
 
@@ -31,12 +32,14 @@ parameterized business query as a fake health probe.
 
 ## Query Operations
 
-- `GET /graph-line?slope=1.25`: returns exactly 100 `{ x, y }` points where `y = slope * x`.
-- `GET /graph-random-walk?std=2`: returns exactly 100 `{ x, y }` points from a Gaussian random
-  walk with the requested standard deviation.
+- `GET /graph-line?slope=1.25`: returns a full `core.tabular_frame@v1` payload with exactly 100
+  `{ x, y }` row objects where `y = slope * x`.
+- `GET /graph-random-walk?std=2`: returns a full `core.tabular_frame@v1` payload with exactly 100
+  `{ x, y }` row objects from a Gaussian random walk with the requested standard deviation.
 
-Both operations declare a `core.tabular_frame@v1` response mapping using `$.points` as the rows
-path.
+Both operations use `mainsequence.client.command_center.data_models.TabularFrameResponse` as their
+FastAPI `response_model`. Their well-known operation metadata declares a `core.tabular_frame@v1`
+response mapping using `$.rows` as the rows path.
 
 ## Dynamic Config And Secrets
 
@@ -107,7 +110,10 @@ This uses `uvicorn app:app --host 0.0.0.0 --port 8010` with the working director
 
 - Keep `/health` zero-argument and trivial. Do not turn it into a parameterized business endpoint.
 - Keep operation ids stable: `graphLine` and `graphRandomWalk`.
-- Keep response rows under `points` unless the response mapping is changed at the same time.
+- Keep response rows under the canonical top-level `rows` field unless the response mapping is
+  changed at the same time.
+- Keep the graph operation responses aligned with the SDK `TabularFrameResponse` contract:
+  `status`, `columns`, `rows`, optional `fields`, optional `meta`, and optional `source`.
 - Keep the business operations read-only. Mutating operations are intentionally not represented in
   this first example.
 - Do not add real secrets or provider tokens to this directory.
