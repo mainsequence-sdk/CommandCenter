@@ -59,6 +59,43 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
   },
   workspaceIcon: Shuffle,
   workspaceRuntimeMode: "execution-owner",
+  buildAgentSnapshot: ({ props, resolvedInputs, runtimeState }) => {
+    const normalizedProps = normalizeTabularTransformProps(props);
+    const output = resolveTabularTransformOutput({
+      props: normalizedProps,
+      runtimeState,
+      resolvedInputs,
+    });
+
+    return {
+      displayKind: "custom",
+      state:
+        output.status === "error"
+          ? "error"
+          : output.status === "loading"
+            ? "loading"
+            : output.status === "ready"
+              ? "ready"
+              : output.status === "idle"
+                ? "idle"
+                : "empty",
+      summary:
+        output.status === "error"
+          ? output.error || "Tabular transform failed."
+          : normalizedProps.transformMode === "none"
+            ? "Tabular transform is configured as a passthrough transform."
+            : `Tabular transform is configured in ${normalizedProps.transformMode} mode.`,
+      data: {
+        passthrough: true,
+        widgetRole: "transformer",
+        transformMode: normalizedProps.transformMode,
+        aggregateMode: normalizedProps.aggregateMode,
+        keyFields: normalizedProps.keyFields,
+        projectFields: normalizedProps.projectFields,
+        status: output.status,
+      },
+    };
+  },
   io: {
     inputs: [
       {

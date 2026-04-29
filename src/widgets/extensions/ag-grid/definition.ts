@@ -15,6 +15,17 @@ export const positionsTableWidget = defineWidget<Record<string, unknown>>({
   requiredPermissions: ["main_sequence_markets:view"],
   tags: ["main-sequence", "markets", "portfolio", "positions", "ag-grid", "table"],
   exampleProps: {},
+  buildAgentSnapshot: ({ domTextContent }) => ({
+    displayKind: "table",
+    state: domTextContent?.trim() ? "ready" : "idle",
+    summary: domTextContent?.trim()
+      ? domTextContent.trim().slice(0, 240)
+      : "Positions Table is waiting for a positions snapshot.",
+    data: {
+      widgetRole: "presentation",
+      contentType: "table",
+    },
+  }),
   registryContract: {
     configuration: {
       mode: "none",

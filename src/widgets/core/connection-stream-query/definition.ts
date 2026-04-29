@@ -3,6 +3,8 @@ import { DatabaseZap } from "lucide-react";
 import { getConnectionTypeById } from "@/app/registry";
 import { isConnectionQueryModelStreamable } from "@/connections/types";
 import { connectionQuerySettingsSchema } from "@/widgets/core/connection-query/ConnectionQueryWidgetSchema";
+import { TABULAR_UPDATES_OUTPUT_ID } from "@/widgets/shared/incremental-tabular-consumer";
+import { projectWidgetRuntimeUpdateOutput } from "@/widgets/shared/runtime-update";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
@@ -17,6 +19,7 @@ import { ConnectionStreamQueryWidgetSettings } from "./ConnectionStreamQueryWidg
 import {
   buildConnectionStreamQueryLifecycleFrame,
   normalizeConnectionStreamQueryProps,
+  normalizeConnectionStreamQueryRuntimeState,
   resolveConnectionStreamQueryOutput,
   type ConnectionStreamQueryWidgetProps,
 } from "./connectionStreamQueryModel";
@@ -64,13 +67,36 @@ function resolveConnectionStreamQueryIo(
           });
         },
       },
+      {
+        id: TABULAR_UPDATES_OUTPUT_ID,
+        label: queryModel ? `${queryModel.label} live updates` : "Unconfigured live updates",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        description:
+          `Publishes the ${queryModel?.id ?? "selected"} WebSocket stream as explicit incremental seed/update publications for live consumers.`,
+        valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+        resolveValue: ({ props: outputProps, runtimeState }) => {
+          const publishedFrame = resolveConnectionStreamQueryOutput(runtimeState);
+
+          if (!publishedFrame) {
+            return buildConnectionStreamQueryLifecycleFrame({
+              props: outputProps,
+              status: "idle",
+            });
+          }
+
+          return projectWidgetRuntimeUpdateOutput(publishedFrame, {
+            outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+            sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+          });
+        },
+      },
     ],
   };
 }
 
 export const connectionStreamQueryWidget = defineWidget<ConnectionStreamQueryWidgetProps>({
   id: "connection-stream-query",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: "Connection Stream Query (WS)",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -117,6 +143,46 @@ export const connectionStreamQueryWidget = defineWidget<ConnectionStreamQueryWid
   schema: connectionQuerySettingsSchema as WidgetSettingsSchema<ConnectionStreamQueryWidgetProps>,
   settingsSchemaPlacement: "custom",
   workspaceRuntimeMode: "execution-owner",
+  buildAgentSnapshot: ({ props, runtimeState }) => {
+    const normalizedProps = normalizeConnectionStreamQueryProps(props);
+    const normalizedRuntimeState = normalizeConnectionStreamQueryRuntimeState(runtimeState);
+    const connectionType = normalizedProps.connectionRef?.typeId
+      ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
+      : undefined;
+    const queryModel = normalizedProps.queryModelId
+      ? connectionType?.queryModels?.find((model) => model.id === normalizedProps.queryModelId)
+      : undefined;
+
+    return {
+      displayKind: "custom",
+      state:
+        normalizedRuntimeState?.status === "error"
+          ? "error"
+          : normalizedRuntimeState?.streamStatus === "connecting" ||
+              normalizedRuntimeState?.streamStatus === "reconnecting"
+            ? "loading"
+            : normalizedRuntimeState?.streamStatus === "live"
+              ? "ready"
+              : "idle",
+      summary:
+        normalizedRuntimeState?.status === "error"
+          ? normalizedRuntimeState.error || "Connection stream query failed."
+          : queryModel
+            ? `${connectionType?.title ?? normalizedProps.connectionRef?.typeId ?? "Connection"} stream configured for ${queryModel.label}.`
+            : "Connection stream query source is not fully configured.",
+      data: {
+        passthrough: true,
+        widgetRole: "connection-source",
+        connectionTypeName: connectionType?.title ?? normalizedProps.connectionRef?.typeId,
+        connectionId: normalizedProps.connectionRef?.id ?? null,
+        queryModelId: normalizedProps.queryModelId ?? null,
+        queryModelLabel: queryModel?.label ?? null,
+        status: normalizedRuntimeState?.status ?? "idle",
+        streamStatus: normalizedRuntimeState?.streamStatus ?? "idle",
+        timeRangeMode: normalizedProps.timeRangeMode ?? "dashboard",
+      },
+    };
+  },
   io: resolveConnectionStreamQueryIo({}),
   resolveIo: ({ props }) => resolveConnectionStreamQueryIo(props),
   registryContract: {
@@ -128,14 +194,14 @@ export const connectionStreamQueryWidget = defineWidget<ConnectionStreamQueryWid
         "Select a configured connection instance.",
         "Choose a connection path that advertises stream.transport websocket.",
         "Configure the same typed query payload used by the connection query widget.",
-        "Bind downstream widgets to the dataset output.",
+        "Bind downstream widgets to the updates output for live incremental behavior, or dataset for retained compatibility.",
       ],
       configurationNotes: [
         "The widget stores a stable ConnectionRef, query config, merge-key fields, and retention count. It does not store credentials, endpoint URLs, or provider route fragments.",
         "Only query models with WebSocket stream metadata can be selected.",
         "Connection-specific query editors are reused from the selected connection type.",
-        "Initial snapshots publish the first retained dataset; later live updates merge into retained rows when the stream contract or widget props provide merge keys.",
-        "Delta-origin and snapshot-origin retained-row merges publish widget-runtime-update@v1 metadata for delta-aware consumers.",
+        "Delta-origin messages publish incremental update publications. Snapshot-origin messages republish full seed resets so live consumers can reset instead of misreading replacement snapshots as append-only deltas.",
+        "The dataset output keeps a retained compatibility bridge. The updates output carries the explicit incremental publication contract for seed/update consumers.",
         "The widget is fixed to sidebar placement because it is a source node, not a canvas presentation widget.",
       ],
     },

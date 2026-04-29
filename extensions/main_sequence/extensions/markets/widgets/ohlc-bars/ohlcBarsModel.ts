@@ -15,6 +15,8 @@ import {
 import type { DataNodePublishedDataset } from "../../../workbench/widgets/data-node-shared/dataNodePublishedDataset";
 import type { DataNodeDetail } from "../../../../common/api";
 
+type OhlcRuntimeDatasetLike = Pick<DataNodePublishedDataset, "columns" | "fields" | "rows">;
+
 export interface MainSequenceOhlcBarsWidgetProps
   extends DataNodeWidgetSourceProps,
     DataNodeWidgetSourceReferenceProps {
@@ -283,7 +285,7 @@ export function normalizeOhlcBarsProps(
   } satisfies MainSequenceOhlcBarsWidgetProps;
 }
 
-export function buildOhlcBarsFieldOptionsFromRuntime(dataset?: DataNodePublishedDataset | null) {
+export function buildOhlcBarsFieldOptionsFromRuntime(dataset?: OhlcRuntimeDatasetLike | null) {
   return resolveDataNodeFieldOptionsFromDataset({
     columns: dataset?.columns,
     fields: dataset?.fields,

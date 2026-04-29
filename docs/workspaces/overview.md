@@ -232,8 +232,7 @@ the primary `Workspace` row itself.
 
 This JSON snapshot is intentionally separate from the live workspace agent snapshot archive. The
 JSON export remains the canonical workspace document export/import format, while the agent snapshot
-archive is a separate live-runtime zip artifact for automation,
-graph capture, and widget-output inspection. See
+archive is a separate live-runtime zip artifact for automation and widget-output inspection. See
 [`docs/adr/adr-live-workspace-agent-snapshot-archive.md`](../adr/adr-live-workspace-agent-snapshot-archive.md).
 
 ## Live Agent Snapshot Archive
@@ -242,8 +241,6 @@ The live workspace agent snapshot archive is a different artifact from the JSON 
 
 Its purpose is to capture what the mounted workspace runtime is actually showing, including:
 
-- current workspace view and controls
-- widget relationship graph
 - hidden/sidebar/collapsed widget content
 - per-widget structured live summaries
 - optional JSON data exports for large data widgets
@@ -280,48 +277,24 @@ but skips refresh/logout behavior.
 
 The current archive includes:
 
-- `manifest.json`
-- `workspace-definition.json`
-- `workspace-live-state.json`
-- `controls.json`
-- `relationships/widget-graph.json`
 - `widgets/<instanceId>/snapshot.json`
-- widget data exports such as `data.json`, `chart-data.json`, or `response.json` when
-  the widget snapshot exposes that content
 
 The important structure is:
 
-- `workspace-definition.json`
-  - the normal sanitized JSON workspace snapshot from `createWorkspaceSnapshot(...)`
-- `workspace-live-state.json`
-  - schema: `mainsequence.workspace-agent-live-state`
-  - current live controls
-  - resolved dependency graph
-  - one widget record per runtime-mounted workspace instance, including widgets expanded out of
-    collapsed rows for snapshot mode, hidden/sidebar state, optional layout, artifact paths, and the
-    widget's structured live snapshot
-- `manifest.json`
-  - schema: `mainsequence.workspace-agent-archive`
-  - capture profile
-  - warnings and errors
-  - one manifest entry per file with media type, byte size, and description
+- `widgets/<instanceId>/snapshot.json`
+  - the structured widget state dump, including widget identity and actual widget data
 
 Per-widget snapshot behavior is intentionally conditional:
 
 - every widget gets `widgets/<instanceId>/snapshot.json`
-- widgets that expose rows, series, or response payloads through `buildAgentSnapshot(...)` may also
-  emit `data.json`, `chart-data.json`, or `response.json`
+- passthrough infrastructure widgets such as connection sources and transformers should emit
+  metadata-only snapshots and must not dump transported datasets as agent-facing payloads
 - widgets without a custom snapshot builder still emit a generic fallback snapshot with rendered
   text summary when available
 - the archive contents are JSON-only; screenshots, rendered graph images, hidden-widget report
   images, and CSV/text exports are not generated
-
-The capture profile controls how much widget data is included:
-
-- `snapshotProfile=full-data`
-  - allows widget snapshot builders to include deeper row/series payloads
-- `snapshotProfile=evidence`
-  - keeps the same archive structure but allows widgets to truncate large data-heavy payloads
+- the live snapshot now has one agent-oriented contract only; there are no `evidence` vs
+  `full-data` archive variants
 
 The existing JSON export/import flow remains unchanged and is still the canonical persisted
 workspace document transport.

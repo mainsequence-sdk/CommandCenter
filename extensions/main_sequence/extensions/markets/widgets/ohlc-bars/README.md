@@ -1,8 +1,8 @@
 # OHLC Bars Widget
 
 This folder owns the Markets `OHLC Bars` widget. It renders open-high-low-close market bars with
-TradingView Lightweight Charts and reads its rows from a bound upstream dataset, typically a
-Connection Query or Tabular Transform output.
+TradingView Lightweight Charts and reads its rows from bound upstream tabular publications,
+typically a Connection Query or WebSocket connection stream output.
 
 ## Entry Points
 
@@ -18,12 +18,21 @@ Connection Query or Tabular Transform output.
 ## Data Contract
 
 - The widget expects rows from a bound `core.tabular_frame@v1` dataset.
+- The widget now exposes explicit `seedData` and `liveUpdates` inputs.
+  - `seedData`: retained dataset baseline
+  - `liveUpdates`: explicit incremental `updates` publication
+- Legacy saved `sourceData` bindings are migrated to `seedData` during workspace normalization so
+  old workspaces continue to load.
 - On workspace runtime surfaces it behaves as a `consumer`: it reads the canonical published
   dataset and asks the shared execution layer to resolve upstream executable sources when needed.
 - Bound inputs are read through the shared upstream contract: retained data comes from the resolved
   `upstreamBase` frame and optional delta rows are exposed separately. When the upstream update is
   delta-safe, the chart keeps its mounted Lightweight Charts instance and appends or replaces OHLC
   bars instead of rebuilding from the retained snapshot.
+- When explicit role bindings are present, the widget uses the shared incremental consumer reducer.
+  `seedData` establishes the historical baseline. `liveUpdates` maintains a separate live overlay
+  that is unioned onto that baseline, with live rows replacing baseline rows only when they share
+  the same merge identity.
 - The source table must include one time field plus numeric open, high, low, and close fields.
 - Multi-instrument tables can be constrained with `seriesFilterField` and `seriesFilterValue`.
   The filter is applied before OHLC parsing so one widget instance renders exactly one series.
@@ -47,9 +56,10 @@ Connection Query or Tabular Transform output.
   `../../../workbench/widgets/data-node-shared/` to stay consistent with other Markets dataset
   consumers. If more Markets widgets need the same source contract, move that layer into
   `extensions/main_sequence/common/` instead of growing more cross-extension imports.
-- Runtime fetch ownership should stay with upstream execution owners such as Connection Query or
-  Tabular Transform. This widget may derive local chart bars from published rows, but it must not
-  introduce its own canonical backend data fetch path on workspace surfaces.
+- Runtime fetch ownership should stay with upstream execution owners such as Connection Query,
+  Connection Stream Query, or Tabular Transform. This widget may derive local chart bars from
+  published rows, but it must not introduce its own canonical backend data fetch path on workspace
+  surfaces.
 - `definition.ts` publishes both `widgetVersion` and an explicit backend-facing
   `registryContract`. Keep it aligned with the accepted tabular response shape and Lightweight
   Charts rendering semantics.

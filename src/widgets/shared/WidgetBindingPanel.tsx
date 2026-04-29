@@ -160,7 +160,12 @@ function descriptorCanProduceAcceptedContract(
 function isBindableSourceOutput(
   output: WidgetSourceExplorerWidgetOption["outputs"][number],
   acceptedContracts: WidgetContractId[],
+  acceptedOutputIds?: string[],
 ) {
+  if (acceptedOutputIds?.length && !acceptedOutputIds.includes(output.id)) {
+    return false;
+  }
+
   if (acceptedContracts.includes(output.contract)) {
     return true;
   }
@@ -247,7 +252,9 @@ export function WidgetBindingPanel({
                 valueDescriptor:
                   resolvedOutputs[output.id]?.valueDescriptor ?? output.valueDescriptor,
               }))
-              .filter((output) => isBindableSourceOutput(output, input.accepts));
+              .filter((output) =>
+                isBindableSourceOutput(output, input.accepts, input.acceptedOutputIds),
+              );
 
             if (bindableOutputs.length === 0) {
               return [];

@@ -1,7 +1,7 @@
 # Graph Widget
 
-This folder owns the core `graph` widget. It renders a canonical
-`core.tabular_frame@v1` dataset as a line, area, bar, or markers-only chart.
+This folder owns the core `graph` widget. It renders canonical
+`core.tabular_frame@v1` publications as a line, area, bar, or markers-only chart.
 
 ## Entry Points
 
@@ -21,7 +21,9 @@ This folder owns the core `graph` widget. It renders a canonical
 
 ## Behavior
 
-- The widget consumes one `core.tabular_frame@v1` input on `sourceData`.
+- The widget now exposes two explicit live-capable roles:
+  - `seedData`: retained dataset baseline
+  - `liveUpdates`: explicit incremental `updates` publication
 - Authoring supports two source ownership patterns:
   - normal bound dataset: the graph reads whichever upstream widget is connected to `sourceData`
   - managed connection source: the `Bindings` tab can stage or enable one graph-owned hidden
@@ -29,8 +31,9 @@ This folder owns the core `graph` widget. It renders a canonical
     edits that source by reusing the same shared connection authoring surface as the standalone
     source widget
 - Save/update lifecycle code creates or repairs the hidden managed connection source widget and
-  keeps the canonical binding from that source widget's `dataset` output to this graph's
-  `sourceData` input.
+  keeps the canonical binding aligned with the chosen role:
+  - managed HTTP source -> `dataset` bound to `seedData`
+  - managed WS source -> `updates` bound to `liveUpdates`
 - Even in connection source mode, runtime rendering stays binding-driven. The graph never calls a
   connection API directly and never reads the managed source props at render time.
 - Embedded connection source settings reuse the same request builder, query-model resolution,
@@ -40,19 +43,25 @@ This folder owns the core `graph` widget. It renders a canonical
   hidden-source lifecycle, and `Connection` tab now all go through the shared managed-connection
   consumer adapter/panel layer so future consumer widgets can reuse the same integration path.
 - The `Connection` tab test action also republishes the tested runtime frame onto the hidden
-  managed source widget, so the graph preview resolves through the normal `sourceData` binding
-  instead of waiting on an Explore-local result that the graph cannot see.
+  managed source widget, so the graph preview resolves through the same seed/live bindings the
+  runtime graph uses instead of waiting on an Explore-local result that the graph cannot see.
 - The dedicated `Connection` tab shows the hidden source widget's current runtime status and error
   message even though the source widget stays out of the normal rail.
 - The shared source binding exposes retained `upstreamBase` frames and optional
-  `upstreamDelta` frames. When the incoming update is delta-safe, the chart renderer keeps its
-  mounted chart instance and appends or updates projected points instead of rebuilding from the
-  retained snapshot.
+  `upstreamDelta` frames. For explicit `seedData`/`liveUpdates` bindings, the graph now owns a
+  bounded local queue per series and applies incremental publications into that queue instead of
+  rebuilding from the source widget's retained stream history on every live tick.
+- When a live update only appends the newest point or replaces the latest visible point, the graph
+  keeps the update on the incremental path. When an update rewrites older history, changes series
+  membership, or trims the queue, the graph falls back to a bounded snapshot refresh.
 - When the bound source reports `loading`, the graph only blocks rendering if there is no retained
   dataset yet. If retained rows already exist, the chart stays mounted and shows an inline refresh
   overlay instead of blinking back to a blank skeleton.
 - Authors must explicitly choose X and Y fields; grouping is optional and explicit.
 - Provider selection is local to the widget: TradingView Lightweight Charts or ECharts.
+- Provider behavior differs for high-frequency datetime streams:
+  - ECharts keeps full millisecond-resolution points.
+  - TradingView collapses same-second datetime points to the latest point in that second.
 - `markers` uses point-only rendering. ECharts maps that mode to scatter series, while
   TradingView uses a line series with the stroke hidden and point markers forced on.
 - Marker-only charts expose a widget-level `markerSizePx` setting so authors can tune point size
@@ -71,14 +80,14 @@ This folder owns the core `graph` widget. It renders a canonical
 
 - Keep the registered id as `graph`.
 - Keep accepted input aligned with `core.tabular_frame@v1`.
-- Keep `sourceData` as the only runtime data edge, even when authoring uses embedded connection
-  source mode.
+- Keep the explicit seed/live roles stable for live-capable graphs. Do not collapse them back into
+  one implicit `sourceData` edge.
 - Keep managed connection authoring routed through the shared connection settings surfaces,
   the widget-settings route `Bindings -> Connection` flow, and the managed widget lifecycle
   helpers. Do not add graph-local connection query execution.
-- Keep the graph-local point window separate from upstream source retention. If a live stream
-  source must stop retaining old rows entirely, that belongs on the upstream source widget, not in
-  the graph renderer.
+- Keep the graph-local point window separate from upstream source retention. The graph should stay
+  live from its own bounded queue even if the upstream source is still carrying compatibility
+  retained state.
 - Avoid reintroducing graph-local time-series semantics or upstream metadata-driven auto-mapping.
 - Avoid adding connection-specific or Main Sequence-specific backend calls here.
 - Bump `widgetVersion` when props, accepted input behavior, registry metadata, or user-facing authoring semantics change.

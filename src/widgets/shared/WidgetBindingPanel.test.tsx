@@ -34,6 +34,10 @@ Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
   value: localStorageStub,
 });
+Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+  configurable: true,
+  value: true,
+});
 
 const [
   { DashboardWidgetDependenciesProvider },
@@ -80,6 +84,14 @@ const datasetOutputDefinition = {
   valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
 } as const;
 
+const updatesOutputDefinition = {
+  id: "updates",
+  label: "Updates",
+  contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  description: "Updates",
+  valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+} as const;
+
 const streamSourceDefinition = defineWidget({
   id: "connection-stream-query",
   widgetVersion: "1.0.0",
@@ -96,7 +108,7 @@ const streamSourceDefinition = defineWidget({
     outputs:
       runtimeState && typeof runtimeState === "object" && runtimeState.hideOutput
         ? []
-        : [datasetOutputDefinition],
+        : [datasetOutputDefinition, updatesOutputDefinition],
   }),
 });
 
@@ -113,12 +125,42 @@ const httpSourceDefinition = defineWidget({
     placementMode: "sidebar",
   },
   io: {
-    outputs: [datasetOutputDefinition],
+    outputs: [datasetOutputDefinition, updatesOutputDefinition],
+  },
+});
+
+const incrementalConsumerWidgetDefinition = defineWidget({
+  id: "graph-incremental",
+  widgetVersion: "1.0.0",
+  title: "Graph Incremental",
+  description: "Graph Incremental",
+  category: "Core",
+  kind: "chart",
+  source: "test",
+  component: () => null,
+  io: {
+    inputs: [
+      {
+        id: "seedData",
+        label: "Seed data",
+        accepts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+        acceptedOutputIds: ["dataset", "updates"],
+        required: false,
+      },
+      {
+        id: "liveUpdates",
+        label: "Live updates",
+        accepts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+        acceptedOutputIds: ["updates"],
+        required: false,
+      },
+    ],
   },
 });
 
 const widgetDefinitions = new Map<string, WidgetDefinition>([
   [graphWidgetDefinition.id, graphWidgetDefinition],
+  [incrementalConsumerWidgetDefinition.id, incrementalConsumerWidgetDefinition],
   [streamSourceDefinition.id, streamSourceDefinition],
   [httpSourceDefinition.id, httpSourceDefinition],
 ]);
@@ -216,8 +258,34 @@ function getSourceWidgetTrigger(container: HTMLElement) {
   return getListboxTriggers(container)[0] ?? null;
 }
 
+function getSourceWidgetTriggerAt(container: HTMLElement, index: number) {
+  return getListboxTriggers(container)[index] ?? null;
+}
+
+function findBindingSection(container: HTMLElement, inputLabel: string) {
+  const labelNode = [...container.querySelectorAll("*")].find(
+    (node) => node.textContent?.trim() === inputLabel,
+  );
+
+  return labelNode?.closest("section") as HTMLElement | undefined;
+}
+
+function getSourceWidgetTriggerForInput(container: HTMLElement, inputLabel: string) {
+  return findBindingSection(container, inputLabel)?.querySelector(
+    'button[aria-haspopup="listbox"]',
+  ) ?? null;
+}
+
 function getSourceOutputSelect(container: HTMLElement) {
   return container.querySelector("select.sr-only");
+}
+
+function getSourceOutputSelectAt(container: HTMLElement, index: number) {
+  return container.querySelectorAll("select.sr-only")[index] ?? null;
+}
+
+function getSourceOutputSelectForInput(container: HTMLElement, inputLabel: string) {
+  return findBindingSection(container, inputLabel)?.querySelector("select.sr-only") ?? null;
 }
 
 function getApplyBindingsButton(container: HTMLElement) {
@@ -228,9 +296,27 @@ function getSourceWidgetValue(container: HTMLElement) {
   return getSourceWidgetTrigger(container)?.textContent ?? "";
 }
 
-async function selectSourceWidget(container: HTMLElement, label: string) {
+async function selectSourceWidget(
+  container: HTMLElement,
+  label: string,
+  triggerIndex = 0,
+) {
   await act(async () => {
-    click(getSourceWidgetTrigger(container));
+    click(getSourceWidgetTriggerAt(container, triggerIndex));
+  });
+
+  await act(async () => {
+    click(findButtonByText(container, label));
+  });
+}
+
+async function selectSourceWidgetForInput(
+  container: HTMLElement,
+  inputLabel: string,
+  label: string,
+) {
+  await act(async () => {
+    click(getSourceWidgetTriggerForInput(container, inputLabel));
   });
 
   await act(async () => {
@@ -247,16 +333,22 @@ interface WidgetBindingPanelHarness {
 
 function createHarness(
   initialWidgets: DashboardWidgetInstance[],
+  options?: {
+    consumerWidgetDefinition?: WidgetDefinition;
+    consumerInstanceId?: string;
+  },
 ): WidgetBindingPanelHarness {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
   let latestBindings: WidgetInstanceBindings | undefined;
   let currentWidgets = initialWidgets;
+  const consumerWidgetDefinition = options?.consumerWidgetDefinition ?? graphWidgetDefinition;
+  const consumerInstanceId = options?.consumerInstanceId ?? "graph-1";
 
   async function render(widgets: DashboardWidgetInstance[]) {
     currentWidgets = widgets;
-    const instance = currentWidgets.find((widget) => widget.id === "graph-1");
+    const instance = currentWidgets.find((widget) => widget.id === consumerInstanceId);
 
     if (!instance) {
       throw new Error("Expected graph instance.");
@@ -271,7 +363,7 @@ function createHarness(
           <WidgetBindingPanel
             editable
             instance={instance}
-            widget={graphWidgetDefinition}
+            widget={consumerWidgetDefinition}
             onBindingsChange={(bindings) => {
               latestBindings = bindings;
             }}
@@ -292,6 +384,30 @@ function createHarness(
       container.remove();
     },
   };
+}
+
+function buildIncrementalWidgets(input?: {
+  consumerBindings?: WidgetInstanceBindings;
+  sourceRuntimeState?: Record<string, unknown>;
+  secondStreamRuntimeState?: Record<string, unknown>;
+}) {
+  return [
+    {
+      id: "graph-incremental-1",
+      widgetId: "graph-incremental",
+      title: "Incremental Graph",
+      layout: {
+        cols: 12,
+        rows: 8,
+      },
+      bindings: input?.consumerBindings ?? {},
+    },
+    ...buildWidgets({
+      consumerBindings: {},
+      sourceRuntimeState: input?.sourceRuntimeState,
+      secondStreamRuntimeState: input?.secondStreamRuntimeState,
+    }).filter((widget) => widget.id !== "graph-1"),
+  ] satisfies DashboardWidgetInstance[];
 }
 
 const harnesses: WidgetBindingPanelHarness[] = [];
@@ -523,6 +639,85 @@ describe("WidgetBindingPanel", () => {
       sourceData: {
         sourceWidgetId: "http-1",
         sourceOutputId: "dataset",
+      },
+    });
+  });
+
+  it("lets seedData bind retained dataset outputs and liveUpdates bind only explicit updates outputs", async () => {
+    const harness = createHarness(buildIncrementalWidgets(), {
+      consumerWidgetDefinition: incrementalConsumerWidgetDefinition,
+      consumerInstanceId: "graph-incremental-1",
+    });
+    harnesses.push(harness);
+
+    await harness.render(buildIncrementalWidgets());
+
+    await selectSourceWidgetForInput(harness.container, "Seed data", "HTTP OHLC");
+    await act(async () => {
+      changeSelectValue(getSourceOutputSelectForInput(harness.container, "Seed data"), "dataset");
+    });
+
+    await selectSourceWidgetForInput(harness.container, "Live updates", "WS OHLC");
+    const liveOptions = [
+      ...((getSourceOutputSelectForInput(
+        harness.container,
+        "Live updates",
+      ) as HTMLSelectElement | null)?.options ?? []),
+    ].map((option) => option.value).filter(Boolean);
+
+    expect(liveOptions).toEqual(["updates"]);
+
+    await act(async () => {
+      changeSelectValue(getSourceOutputSelectForInput(harness.container, "Live updates"), "updates");
+    });
+
+    await act(async () => {
+      click(getApplyBindingsButton(harness.container));
+    });
+
+    expect(harness.getLatestBindings()).toEqual({
+      seedData: {
+        sourceWidgetId: "http-1",
+        sourceOutputId: "dataset",
+      },
+      liveUpdates: {
+        sourceWidgetId: "stream-1",
+        sourceOutputId: "updates",
+      },
+    });
+  });
+
+  it("allows seedData to bind incremental updates outputs directly", async () => {
+    const harness = createHarness(buildIncrementalWidgets(), {
+      consumerWidgetDefinition: incrementalConsumerWidgetDefinition,
+      consumerInstanceId: "graph-incremental-1",
+    });
+    harnesses.push(harness);
+
+    await harness.render(buildIncrementalWidgets());
+
+    await selectSourceWidgetForInput(harness.container, "Seed data", "HTTP OHLC");
+    const seedOptions = [
+      ...((getSourceOutputSelectForInput(
+        harness.container,
+        "Seed data",
+      ) as HTMLSelectElement | null)?.options ?? []),
+    ].map((option) => option.value).filter(Boolean);
+
+    expect(seedOptions).toEqual(["dataset", "updates"]);
+
+    await act(async () => {
+      changeSelectValue(getSourceOutputSelectForInput(harness.container, "Seed data"), "updates");
+    });
+
+    await act(async () => {
+      click(getApplyBindingsButton(harness.container));
+    });
+
+    expect(harness.getLatestBindings()).toEqual({
+      seedData: {
+        sourceWidgetId: "http-1",
+        sourceOutputId: "updates",
       },
     });
   });

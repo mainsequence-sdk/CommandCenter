@@ -16,6 +16,9 @@ export interface ManagedConnectionConsumerAdapter<
 > {
   widgetId: string;
   sourceInputId: string;
+  streamSourceInputId?: string;
+  sourceOutputId?: string;
+  streamSourceOutputId?: string;
   connectionMode: ManagedConnectionConsumerSourceMode;
   streamConnectionMode?: ManagedConnectionConsumerSourceMode;
   getSourceMode: (props: TProps) => ManagedConnectionConsumerSourceMode;
@@ -69,6 +72,32 @@ export function resolveManagedConnectionConsumerSourceWidgetId(
   return isManagedConnectionConsumerStreamMode(adapter, mode)
     ? "connection-stream-query"
     : "connection-query";
+}
+
+export function resolveManagedConnectionConsumerInputId(
+  adapter: AnyManagedConnectionConsumerAdapter,
+  props: Record<string, unknown> | undefined,
+) {
+  const mode = adapter.getSourceMode((props ?? {}) as Record<string, unknown>);
+
+  if (isManagedConnectionConsumerStreamMode(adapter, mode) && adapter.streamSourceInputId) {
+    return adapter.streamSourceInputId;
+  }
+
+  return adapter.sourceInputId;
+}
+
+export function resolveManagedConnectionConsumerOutputId(
+  adapter: AnyManagedConnectionConsumerAdapter,
+  props: Record<string, unknown> | undefined,
+) {
+  const mode = adapter.getSourceMode((props ?? {}) as Record<string, unknown>);
+
+  if (isManagedConnectionConsumerStreamMode(adapter, mode) && adapter.streamSourceOutputId) {
+    return adapter.streamSourceOutputId;
+  }
+
+  return adapter.sourceOutputId ?? "dataset";
 }
 
 export function normalizeManagedConnectionEmbeddedSourceProps(

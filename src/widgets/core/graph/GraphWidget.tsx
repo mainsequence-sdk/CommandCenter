@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AlertTriangle, BarChart3, CalendarClock, Database, Loader2 } from "lucide-react";
 
@@ -11,12 +11,15 @@ import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
   buildGraphChartSeries,
+  buildGraphSeriesConfigKey,
   buildGraphSeries,
   normalizeGraphProps,
+  reduceIncrementalGraphSeries,
   resolveGraphDateRange,
   resolveGraphEffectiveTimeAxisMode,
   resolveGraphNormalizationTimeMs,
   resolveGraphConfig,
+  type GraphSeriesResult,
   type GraphWidgetProps,
 } from "./graphModel";
 import { TradingViewSeriesChart } from "./TradingViewSeriesChart";
@@ -24,8 +27,20 @@ import { EChartsSeriesChart } from "./EChartsSeriesChart";
 import { GraphChartErrorBoundary } from "./GraphChartErrorBoundary";
 import { resolveTabularFieldOptionsFromDataset } from "@/widgets/shared/tabular-widget-source";
 import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-widget-source";
+import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
 
 type Props = WidgetComponentProps<GraphWidgetProps>;
+
+interface IncrementalGraphRenderState {
+  configKey: string;
+  deltaResult: GraphSeriesResult;
+  lastLiveSignature?: string;
+  lastLiveSourceRunId?: string;
+  lastSeedSignature?: string;
+  lastSeedSourceRunId?: string;
+  result: GraphSeriesResult;
+  updateMode: WidgetRuntimeUpdateMode;
+}
 
 function shouldBlockGraphRenderingWhileLoading(dataset: {
   status?: string;
@@ -48,6 +63,9 @@ export function GraphWidget({
   presentation,
   instanceId,
   editable,
+  runtimeState,
+  resolvedInputs,
+  onRuntimeStateChange,
 }: Props) {
   const { rangeStartMs, rangeEndMs } = useDashboardControls();
   const transparentSurface = resolveWidgetTransparentSurface(presentation);
@@ -59,13 +77,23 @@ export function GraphWidget({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
   });
-  const sourceConsumerState = sourceBinding.consumerState;
+  const incrementalBinding = useIncrementalTabularConsumerBindingState({
+    instanceId,
+    onRuntimeStateChange,
+    resolvedInputs,
+    runtimeState,
+  });
+  const sourceConsumerState = incrementalBinding.active
+    ? incrementalBinding.consumerState
+    : sourceBinding.consumerState;
   useResolveWidgetUpstream(instanceId, {
-    enabled: sourceBinding.requiresUpstreamResolution,
+    enabled: incrementalBinding.active
+      ? incrementalBinding.requiresUpstreamResolution
+      : sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = useMemo(
-    () => sourceConsumerState.dataset,
-    [sourceConsumerState.dataset],
+    () => (incrementalBinding.active ? incrementalBinding.dataset : sourceConsumerState.dataset),
+    [incrementalBinding.active, incrementalBinding.dataset, sourceConsumerState.dataset],
   );
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
   const effectiveProps = useMemo(
@@ -102,35 +130,191 @@ export function GraphWidget({
     [rangeEndMs, rangeStartMs, resolvedConfig],
   );
   const sourceRows = linkedDataset?.rows ?? [];
-  const sourceDeltaRows = sourceBinding.resolvedSourceDeltaFrame?.rows ?? [];
-  const sourceUpdate = !Array.isArray(sourceBinding.resolvedSourceInput)
-    ? sourceBinding.resolvedSourceInput?.upstreamUpdate
-    : undefined;
+  const sourceDeltaRows = incrementalBinding.active
+    ? incrementalBinding.deltaDataset?.rows ?? []
+    : sourceBinding.resolvedSourceDeltaFrame?.rows ?? [];
+  const sourceUpdate = incrementalBinding.active
+    ? incrementalBinding.liveInput?.upstreamUpdate
+    : !Array.isArray(sourceBinding.resolvedSourceInput)
+      ? sourceBinding.resolvedSourceInput?.upstreamUpdate
+      : undefined;
+  const graphSeriesConfigKey = useMemo(
+    () => buildGraphSeriesConfigKey(resolvedConfig),
+    [resolvedConfig],
+  );
+  const [incrementalRenderState, setIncrementalRenderState] = useState<IncrementalGraphRenderState | null>(null);
+  const incrementalRenderStateRef = useRef<IncrementalGraphRenderState | null>(null);
+
+  useEffect(() => {
+    incrementalRenderStateRef.current = incrementalRenderState;
+  }, [incrementalRenderState]);
+
+  useEffect(() => {
+    if (!incrementalBinding.active) {
+      if (incrementalRenderStateRef.current !== null) {
+        setIncrementalRenderState(null);
+      }
+      return;
+    }
+
+    const previous = incrementalRenderStateRef.current;
+    let nextState = previous;
+
+    if (!nextState || nextState.configKey !== graphSeriesConfigKey) {
+      const seededResult = buildGraphSeries(sourceRows, resolvedConfig);
+      nextState = {
+        configKey: graphSeriesConfigKey,
+        deltaResult: { ...seededResult, series: [] },
+        lastSeedSignature: undefined,
+        lastSeedSourceRunId: undefined,
+        lastLiveSignature: undefined,
+        lastLiveSourceRunId: undefined,
+        result: seededResult,
+        updateMode: "snapshot",
+      };
+    }
+
+    if (
+      incrementalBinding.seedPublication &&
+      incrementalBinding.seedPublication.signature !== nextState.lastSeedSignature
+    ) {
+      const seededResult = buildGraphSeries(
+        (incrementalBinding.seedPublication.baseFrame ?? incrementalBinding.seedPublication.deltaFrame)?.rows ?? [],
+        resolvedConfig,
+      );
+      nextState = {
+        ...nextState,
+        deltaResult: { ...seededResult, series: [] },
+        lastSeedSignature: incrementalBinding.seedPublication.signature,
+        lastSeedSourceRunId: incrementalBinding.seedPublication.sourceRunId,
+        result: seededResult,
+        updateMode: "snapshot",
+      };
+    }
+
+    if (
+      incrementalBinding.livePublication &&
+      incrementalBinding.livePublication.signature !== nextState.lastLiveSignature
+    ) {
+      const liveRows =
+        (incrementalBinding.livePublication.deltaFrame ?? incrementalBinding.livePublication.baseFrame)?.rows ?? [];
+      const sourceRunChanged =
+        Boolean(nextState.lastLiveSourceRunId) &&
+        Boolean(incrementalBinding.livePublication.sourceRunId) &&
+        nextState.lastLiveSourceRunId !== incrementalBinding.livePublication.sourceRunId;
+      const shouldResetFromLiveSeed =
+        incrementalBinding.livePublication.role === "seed" ||
+        incrementalBinding.livePublication.update?.mode === "snapshot" ||
+        sourceRunChanged ||
+        nextState.result.series.length === 0;
+
+      if (shouldResetFromLiveSeed) {
+        const seededResult = buildGraphSeries(
+          (incrementalBinding.livePublication.baseFrame ?? incrementalBinding.livePublication.deltaFrame)?.rows ?? [],
+          resolvedConfig,
+        );
+        nextState = {
+          ...nextState,
+          deltaResult: { ...seededResult, series: [] },
+          lastLiveSignature: incrementalBinding.livePublication.signature,
+          lastLiveSourceRunId: incrementalBinding.livePublication.sourceRunId,
+          result: seededResult,
+          updateMode: "snapshot",
+        };
+      } else {
+        const reduced = reduceIncrementalGraphSeries(
+          nextState.result,
+          liveRows,
+          resolvedConfig,
+        );
+
+        nextState = {
+          ...nextState,
+          deltaResult:
+            reduced.updateMode === "delta"
+              ? {
+                  ...reduced.result,
+                  series: reduced.deltaSeries,
+                  droppedGroups: 0,
+                  filteredGroups: 0,
+                  totalGroups: reduced.deltaSeries.length,
+                }
+              : {
+                  ...reduced.result,
+                  series: [],
+                },
+          lastLiveSignature: incrementalBinding.livePublication.signature,
+          lastLiveSourceRunId: incrementalBinding.livePublication.sourceRunId,
+          result: reduced.result,
+          updateMode:
+            resolvedConfig.normalizeSeries || reduced.updateMode === "snapshot"
+              ? "snapshot"
+              : "delta",
+        };
+      }
+    }
+
+    if (
+      previous &&
+      previous.configKey === nextState.configKey &&
+      previous.lastSeedSignature === nextState.lastSeedSignature &&
+      previous.lastSeedSourceRunId === nextState.lastSeedSourceRunId &&
+      previous.lastLiveSignature === nextState.lastLiveSignature &&
+      previous.lastLiveSourceRunId === nextState.lastLiveSourceRunId &&
+      previous.deltaResult === nextState.deltaResult &&
+      previous.result === nextState.result &&
+      previous.updateMode === nextState.updateMode
+    ) {
+      return;
+    }
+
+    incrementalRenderStateRef.current = nextState;
+    setIncrementalRenderState(nextState);
+  }, [
+    graphSeriesConfigKey,
+    incrementalBinding.active,
+    incrementalBinding.livePublication,
+    incrementalBinding.seedPublication,
+    resolvedConfig,
+    sourceRows,
+  ]);
+
   const seriesResult = useMemo(
-    () => buildGraphSeries(sourceRows, resolvedConfig),
-    [resolvedConfig, sourceRows],
+    () =>
+      incrementalBinding.active
+        ? (incrementalRenderState?.result ?? buildGraphSeries(sourceRows, resolvedConfig))
+        : buildGraphSeries(sourceRows, resolvedConfig),
+    [incrementalBinding.active, incrementalRenderState?.result, resolvedConfig, sourceRows],
   );
   const deltaSeriesResult = useMemo(
-    () => buildGraphSeries(sourceDeltaRows, resolvedConfig),
-    [resolvedConfig, sourceDeltaRows],
+    () =>
+      incrementalBinding.active
+        ? (incrementalRenderState?.deltaResult ?? { ...seriesResult, series: [] })
+        : buildGraphSeries(sourceDeltaRows, resolvedConfig),
+    [incrementalBinding.active, incrementalRenderState?.deltaResult, resolvedConfig, seriesResult, sourceDeltaRows],
   );
   const canUseDeltaUpdate =
+    !incrementalBinding.active &&
     sourceUpdate?.mode === "delta" &&
     sourceDeltaRows.length > 0 &&
     !resolvedConfig.normalizeSeries &&
     (sourceUpdate.operations?.pruned ?? 0) === 0;
-  const chartUpdateMode: WidgetRuntimeUpdateMode = canUseDeltaUpdate ? "delta" : "snapshot";
+  const chartUpdateMode: WidgetRuntimeUpdateMode = incrementalBinding.active
+    ? (incrementalRenderState?.updateMode ?? "snapshot")
+    : canUseDeltaUpdate
+      ? "delta"
+      : "snapshot";
   const effectiveTimeAxisMode = useMemo(
     () => resolveGraphEffectiveTimeAxisMode(resolvedConfig, sourceRows),
     [resolvedConfig, sourceRows],
   );
   const chartSeriesResult = useMemo(
-    () => buildGraphChartSeries(seriesResult.series, effectiveTimeAxisMode),
-    [effectiveTimeAxisMode, seriesResult.series],
+    () => buildGraphChartSeries(seriesResult.series, effectiveTimeAxisMode, resolvedConfig.provider),
+    [effectiveTimeAxisMode, resolvedConfig.provider, seriesResult.series],
   );
   const deltaChartSeriesResult = useMemo(
-    () => buildGraphChartSeries(deltaSeriesResult.series, effectiveTimeAxisMode),
-    [deltaSeriesResult.series, effectiveTimeAxisMode],
+    () => buildGraphChartSeries(deltaSeriesResult.series, effectiveTimeAxisMode, resolvedConfig.provider),
+    [deltaSeriesResult.series, effectiveTimeAxisMode, resolvedConfig.provider],
   );
   const normalizationTimeMs = useMemo(
     () => resolveGraphNormalizationTimeMs(resolvedConfig),

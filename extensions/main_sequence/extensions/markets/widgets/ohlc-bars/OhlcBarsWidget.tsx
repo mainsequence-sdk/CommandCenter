@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
+import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import { useResolvedDataNodeWidgetSourceBinding } from "../../../workbench/widgets/data-node-shared/dataNodeWidgetSource";
@@ -279,7 +280,13 @@ function EmptyState({
   );
 }
 
-export function OhlcBarsWidget({ props, instanceId }: Props) {
+export function OhlcBarsWidget({
+  props,
+  instanceId,
+  runtimeState,
+  resolvedInputs,
+  onRuntimeStateChange,
+}: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<OhlcChartApi | null>(null);
   const barsRef = useRef<OhlcSeriesApi | null>(null);
@@ -300,10 +307,23 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
   });
-  useResolveWidgetUpstream(instanceId, {
-    enabled: sourceBinding.requiresUpstreamResolution,
+  const incrementalBinding = useIncrementalTabularConsumerBindingState({
+    instanceId,
+    onRuntimeStateChange,
+    resolvedInputs,
+    runtimeState,
   });
-  const linkedDataset = sourceBinding.resolvedSourceDataset;
+  const sourceConsumerState = incrementalBinding.active
+    ? incrementalBinding.consumerState
+    : sourceBinding.consumerState;
+  useResolveWidgetUpstream(instanceId, {
+    enabled: incrementalBinding.active
+      ? incrementalBinding.requiresUpstreamResolution
+      : sourceBinding.requiresUpstreamResolution,
+  });
+  const linkedDataset = incrementalBinding.active
+    ? incrementalBinding.dataset
+    : sourceBinding.resolvedSourceDataset;
   const effectiveProps = useMemo(
     () => ({
       ...normalizedProps,
@@ -338,10 +358,23 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
     [resolvedConfig.timeField, runtimeFieldOptions, seriesResult.points],
   );
   const deltaSeriesResult = useMemo(
-    () => buildOhlcBarsSeries(sourceBinding.resolvedSourceDeltaDataset?.rows ?? [], resolvedConfig),
-    [resolvedConfig, sourceBinding.resolvedSourceDeltaDataset?.rows],
+    () =>
+      buildOhlcBarsSeries(
+        (incrementalBinding.active
+          ? incrementalBinding.deltaDataset
+          : sourceBinding.resolvedSourceDeltaDataset)?.rows ?? [],
+        resolvedConfig,
+      ),
+    [
+      incrementalBinding.active,
+      incrementalBinding.deltaDataset?.rows,
+      resolvedConfig,
+      sourceBinding.resolvedSourceDeltaDataset?.rows,
+    ],
   );
-  const sourceUpdate = sourceBinding.resolvedSourceInput?.upstreamUpdate;
+  const sourceUpdate = incrementalBinding.active
+    ? incrementalBinding.liveInput?.upstreamUpdate
+    : sourceBinding.resolvedSourceInput?.upstreamUpdate;
   const chartUpdateMode =
     sourceUpdate?.mode === "delta" &&
     deltaSeriesResult.points.length > 0 &&
@@ -632,12 +665,38 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
     seriesResult.points,
   ]);
 
-  if (sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
+  if (!incrementalBinding.active && sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
     return (
       <EmptyState
         icon="binding"
         title="Bind an OHLC dataset"
         description="Connect this chart to a Connection Query or Tabular Transform dataset."
+      />
+    );
+  }
+
+  if (sourceConsumerState.kind === "unbound") {
+    return (
+      <EmptyState
+        icon="binding"
+        title="Bind an OHLC dataset"
+        description="Connect this chart to seed data, live updates, or a compatible upstream dataset."
+      />
+    );
+  }
+
+  if (
+    sourceConsumerState.kind === "missing-source" ||
+    sourceConsumerState.kind === "missing-output" ||
+    sourceConsumerState.kind === "contract-mismatch" ||
+    sourceConsumerState.kind === "self-reference-blocked" ||
+    sourceConsumerState.kind === "transform-invalid"
+  ) {
+    return (
+      <EmptyState
+        icon="binding"
+        title="Source binding is invalid"
+        description="Fix the OHLC widget bindings so it can resolve a compatible tabular dataset."
       />
     );
   }
@@ -668,7 +727,11 @@ export function OhlcBarsWidget({ props, instanceId }: Props) {
     );
   }
 
-  if (linkedDataset == null || linkedDataset.status === "loading") {
+  if (
+    sourceConsumerState.kind === "awaiting-upstream" ||
+    linkedDataset == null ||
+    linkedDataset.status === "loading"
+  ) {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
 

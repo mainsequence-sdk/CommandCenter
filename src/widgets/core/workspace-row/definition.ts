@@ -23,6 +23,16 @@ export const workspaceRowWidget = defineWidget<WorkspaceRowWidgetProps>({
   mockProps: {
     color: undefined,
   },
+  buildAgentSnapshot: ({ props }) => ({
+    displayKind: "custom",
+    state: "ready",
+    summary: "Structural workspace row used to group and collapse sibling widgets.",
+    data: {
+      widgetRole: "structure",
+      color: props.color ?? null,
+      passthrough: true,
+    },
+  }),
   settingsComponent: WorkspaceRowWidgetSettings,
   registryContract: {
     configuration: {

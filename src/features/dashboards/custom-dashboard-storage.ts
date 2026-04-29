@@ -31,15 +31,17 @@ import type {
   WidgetDefinition,
   WidgetPortBindingValue,
 } from "@/widgets/types";
+import { migrateLegacyIncrementalTabularBindings } from "@/widgets/shared/incremental-tabular-consumer";
 import {
   normalizeWidgetPresentation,
   resolveDefaultWidgetPresentation,
 } from "@/widgets/shared/widget-schema";
-import { TABULAR_SOURCE_OUTPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import { getManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer-registry";
 import {
   isManagedConnectionConsumerMode,
   isManagedConnectionConsumerStreamMode,
+  resolveManagedConnectionConsumerInputId,
+  resolveManagedConnectionConsumerOutputId,
   resolveManagedConnectionConsumerSourceWidgetId,
 } from "@/widgets/shared/managed-connection-consumer";
 import { isConnectionQueryModelStreamable } from "@/connections/types";
@@ -576,7 +578,10 @@ function normalizeDashboardWidgetInstance(
   const rawPosition = getWidgetPosition(instance);
   const scaled: DashboardWidgetInstance = {
     ...instanceWithoutLegacyAutoGrid,
-    bindings: normalizeWidgetInstanceBindings(instance.bindings),
+    bindings: migrateLegacyIncrementalTabularBindings(
+      instance.widgetId,
+      normalizeWidgetInstanceBindings(instance.bindings),
+    ),
     managedBy: normalizeDashboardManagedWidgetOwner(instance.managedBy),
     presentation: normalizeDashboardWidgetPresentation(instance.presentation),
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
@@ -701,7 +706,10 @@ function sanitizeCanonicalDashboardWidgetInstance(
   const rawPosition = getWidgetPosition(instance);
   const nextWidget: DashboardWidgetInstance = {
     ...instance,
-    bindings: normalizeWidgetInstanceBindings(instance.bindings),
+    bindings: migrateLegacyIncrementalTabularBindings(
+      instance.widgetId,
+      normalizeWidgetInstanceBindings(instance.bindings),
+    ),
     managedBy: normalizeDashboardManagedWidgetOwner(instance.managedBy),
     presentation: normalizeDashboardWidgetPresentation(instance.presentation),
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
@@ -2221,22 +2229,30 @@ function syncManagedConnectionConsumerSource(
     }
 
     const currentBindings = normalizeWidgetInstanceBindings(ownerWidget.bindings);
-    const nextSourceBinding = removeBindingReferencesToSourceWidgets(
-      currentBindings?.[adapter.sourceInputId],
-      ownedManagedWidgetIds,
+    const managedInputIds = Array.from(
+      new Set([adapter.sourceInputId, adapter.streamSourceInputId].filter((value): value is string => Boolean(value))),
     );
     let nextDashboard = dashboard;
 
-    if (currentBindings?.[adapter.sourceInputId] !== nextSourceBinding) {
-      nextDashboard = updateDashboardWidgetBindings(
-        nextDashboard,
-        instanceId,
-        replaceWidgetInputBindingValue(
-          currentBindings,
-          adapter.sourceInputId,
-          nextSourceBinding,
-        ),
+    for (const inputId of managedInputIds) {
+      const nextSourceBinding = removeBindingReferencesToSourceWidgets(
+        currentBindings?.[inputId],
+        ownedManagedWidgetIds,
       );
+
+      if (currentBindings?.[inputId] !== nextSourceBinding) {
+        nextDashboard = updateDashboardWidgetBindings(
+          nextDashboard,
+          instanceId,
+          replaceWidgetInputBindingValue(
+            normalizeWidgetInstanceBindings(
+              findDashboardWidgetInTree(nextDashboard.widgets, instanceId)?.bindings,
+            ),
+            inputId,
+            nextSourceBinding,
+          ),
+        );
+      }
     }
 
     return removeManagedDashboardWidgets(nextDashboard, {
@@ -2305,12 +2321,22 @@ function syncManagedConnectionConsumerSource(
   }
 
   const refreshedOwnerWidget = findDashboardWidgetInTree(nextDashboard.widgets, instanceId);
+  const targetInputId = resolveManagedConnectionConsumerInputId(adapter, ownerProps);
+  const targetOutputId = resolveManagedConnectionConsumerOutputId(adapter, ownerProps);
+  let currentBindings = normalizeWidgetInstanceBindings(refreshedOwnerWidget?.bindings);
+
+  for (const inputId of [adapter.sourceInputId, adapter.streamSourceInputId].filter(
+    (value): value is string => Boolean(value && value !== targetInputId),
+  )) {
+    currentBindings = replaceWidgetInputBindingValue(currentBindings, inputId, undefined);
+  }
+
   const nextBindings = updateWidgetInputBinding(
-    refreshedOwnerWidget?.bindings,
-    adapter.sourceInputId,
+    currentBindings,
+    targetInputId,
     {
       sourceWidgetId: nextManagedWidget.id,
-      sourceOutputId: TABULAR_SOURCE_OUTPUT_ID,
+      sourceOutputId: targetOutputId,
     },
   );
 

@@ -5,6 +5,7 @@ import { Calculator, Database, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
+import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
 
 import { StatisticCardGrid } from "./StatisticCardGrid";
 import {
@@ -18,7 +19,13 @@ import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-
 
 type Props = WidgetComponentProps<StatisticWidgetProps>;
 
-export function StatisticWidget({ props, instanceId, resolvedInputs }: Props) {
+export function StatisticWidget({
+  props,
+  instanceId,
+  resolvedInputs,
+  runtimeState,
+  onRuntimeStateChange,
+}: Props) {
   const previewDataset = useMemo(
     () => resolveStatisticSourceDataset(resolvedInputs),
     [resolvedInputs],
@@ -27,11 +34,25 @@ export function StatisticWidget({ props, instanceId, resolvedInputs }: Props) {
     props,
     currentWidgetInstanceId: instanceId,
   });
-  const sourceConsumerState = sourceBinding.consumerState;
-  useResolveWidgetUpstream(instanceId, {
-    enabled: previewDataset == null && sourceBinding.requiresUpstreamResolution,
+  const incrementalBinding = useIncrementalTabularConsumerBindingState({
+    instanceId,
+    onRuntimeStateChange,
+    resolvedInputs,
+    runtimeState,
   });
-  const linkedDataset = previewDataset ?? sourceConsumerState.dataset;
+  const sourceConsumerState = incrementalBinding.active
+    ? incrementalBinding.consumerState
+    : sourceBinding.consumerState;
+  useResolveWidgetUpstream(instanceId, {
+    enabled:
+      previewDataset == null &&
+      (incrementalBinding.active
+        ? incrementalBinding.requiresUpstreamResolution
+        : sourceBinding.requiresUpstreamResolution),
+  });
+  const linkedDataset =
+    previewDataset ??
+    (incrementalBinding.active ? incrementalBinding.dataset : sourceConsumerState.dataset);
   const availableFields = useMemo(
     () =>
       buildStatisticFieldOptions({

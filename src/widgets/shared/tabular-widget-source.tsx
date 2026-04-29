@@ -29,6 +29,8 @@ export const TABULAR_SOURCE_INPUT_ID = "sourceData";
 export const TABULAR_SOURCE_OUTPUT_ID = "dataset";
 export const TABULAR_SOURCE_CONTRACT = CORE_TABULAR_FRAME_SOURCE_CONTRACT;
 export { normalizeTabularFrameSource };
+const incrementalSeedInputId = "seedData";
+const incrementalLiveUpdatesInputId = "liveUpdates";
 
 export function buildTabularSourceDescriptor(input: {
   sourceId?: number;
@@ -925,11 +927,27 @@ export function useResolvedTabularWidgetSourceBinding<
 }): ResolvedTabularWidgetSourceBinding {
   const widgetRegistry = useDashboardWidgetRegistry();
   const resolvedSourceInput = useResolvedWidgetInput(currentWidgetInstanceId, TABULAR_SOURCE_INPUT_ID);
+  const resolvedSeedInput = useResolvedWidgetInput(currentWidgetInstanceId, incrementalSeedInputId);
+  const resolvedLiveInput = useResolvedWidgetInput(currentWidgetInstanceId, incrementalLiveUpdatesInputId);
   const normalizedReference = useMemo(
     () => normalizeTabularWidgetSourceReferenceProps(props),
     [props],
   );
-  const resolvedInputBinding = !Array.isArray(resolvedSourceInput) ? resolvedSourceInput : undefined;
+  const resolvedInputBinding = useMemo(() => {
+    const legacyInput = !Array.isArray(resolvedSourceInput) ? resolvedSourceInput : undefined;
+
+    if (legacyInput) {
+      return legacyInput;
+    }
+
+    const seedInput = !Array.isArray(resolvedSeedInput) ? resolvedSeedInput : undefined;
+
+    if (seedInput) {
+      return seedInput;
+    }
+
+    return !Array.isArray(resolvedLiveInput) ? resolvedLiveInput : undefined;
+  }, [resolvedLiveInput, resolvedSeedInput, resolvedSourceInput]);
   const resolvedSourceWidgetId =
     resolvedInputBinding?.sourceWidgetId ?? normalizedReference.sourceWidgetId;
   const resolvedSourceWidget = useMemo(

@@ -8,7 +8,7 @@ for connection query models that advertise a WebSocket stream contract.
 - `definition.ts`: widget definition, dynamic IO contract, registry metadata, and source runtime
   ownership.
 - `connectionStreamQueryModel.ts`: prop normalization, stream request building, lifecycle frames,
-  snapshot replacement, delta retained-frame merging, and WebSocket runtime session helpers.
+  compatibility dataset projection, incremental publication metadata, and WebSocket runtime session helpers.
 - `ConnectionStreamQueryWidget.tsx`: hidden/sidebar runtime mount that opens one WebSocket
   subscription and publishes runtime state through `onRuntimeStateChange`.
 - `ConnectionStreamQueryWidgetSettings.tsx`: settings wrapper around the shared connection query
@@ -34,19 +34,23 @@ for connection query models that advertise a WebSocket stream contract.
 - Only query models with `stream.transport: "websocket"` and at least one valid stream mode are
   accepted. Settings applies the same validation by filtering the shared connection query workbench
   and by resolving draft defaults only against streamable paths.
-- Snapshot messages normalize the backend `ConnectionQueryResponse` through the same tabular
-  conversion path as the one-shot `connection-query` widget. The first snapshot initializes the
-  retained dataset; later snapshot-origin live updates may merge into retained rows when the stream
-  model publishes default merge keys or the widget is configured with explicit merge keys.
-- Delta messages also normalize through the one-shot conversion path, validate that the incoming
-  schema matches the retained frame, merge rows by `mergeKeyFields` when configured, and attach the
-  shared `widget-runtime-update@v1` envelope with the delta-only output.
+- Snapshot and delta messages normalize through the same tabular conversion path as the one-shot
+  `connection-query` widget and attach explicit incremental `seed` / `update` runtime metadata.
+- Delta-origin stream messages publish real incremental update publications. Snapshot-origin stream
+  messages republish full retained seed resets so downstream live consumers reset correctly instead
+  of treating replacement snapshots as append-only deltas.
+- The widget now publishes two outputs:
+  - `dataset`: compatibility retained dataset for legacy consumers
+  - `updates`: explicit incremental publication output for `seedData` / `liveUpdates` consumers
+- The current runtime still maintains a compatibility retained dataset bridge so legacy dataset
+  consumers keep working while migrated widgets bind the `updates` output directly.
 - Explore and widget settings previews still keep their own bounded stream-history buffer for
   graphing. Canonical widget runtime is separate from that preview buffer, but it can now also
   retain live rows for downstream consumers when the stream contract publishes row identity keys.
-- The widget publishes normal `core.tabular_frame@v1` output from its `dataset` port. Downstream
-  widgets consume it through existing source bindings and shared upstream consumer-state helpers;
-  they do not read socket-specific runtime metadata.
+- Downstream widgets should prefer the `updates` port when they need live incremental behavior.
+  `seedData` now reacts only to seed publications; `liveUpdates` consumes ongoing seed/update
+  publications. Consumers remain socket-agnostic and read only the normalized frame contract plus
+  shared runtime update metadata.
 - Stream lifecycle is exposed on runtime state as `streamStatus`: `idle`, `connecting`, `live`,
   `reconnecting`, `error`, or `closed`. Canonical frame `status` remains `idle`, `loading`,
   `ready`, or `error` so existing consumer-state resolution can distinguish awaiting publication,

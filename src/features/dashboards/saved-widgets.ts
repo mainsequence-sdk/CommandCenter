@@ -17,6 +17,7 @@ import type {
   DashboardWidgetRowState,
 } from "@/dashboards/types";
 import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
+import { migrateLegacyIncrementalTabularBindings } from "@/widgets/shared/incremental-tabular-consumer";
 import type {
   WidgetPortBinding,
 } from "@/widgets/types";
@@ -283,7 +284,10 @@ function buildAtomicSavedWidgetPayload(
     instanceTitle: widget.title ?? "",
     props: cloneJson(widget.props ?? {}),
     presentation: cloneJson(widget.presentation),
-    bindings: normalizeWidgetInstanceBindings(cloneJson(widget.bindings)),
+    bindings: migrateLegacyIncrementalTabularBindings(
+      widget.widgetId,
+      normalizeWidgetInstanceBindings(cloneJson(widget.bindings)),
+    ),
     row: toShallowRowState(widget),
     layout: getWidgetLayout(widget.layout),
     position: cloneJson(widget.position),
@@ -410,7 +414,10 @@ function buildImportedWidgetInstance(
     title: savedWidget.instanceTitle || savedWidget.title || undefined,
     props: cloneJson(savedWidget.props ?? {}),
     presentation: cloneJson(savedWidget.presentation),
-    bindings: normalizeWidgetInstanceBindings(cloneJson(savedWidget.bindings)),
+    bindings: migrateLegacyIncrementalTabularBindings(
+      savedWidget.widgetTypeId,
+      normalizeWidgetInstanceBindings(cloneJson(savedWidget.bindings)),
+    ),
     row: savedWidget.row
       ? toShallowRowState({
           widgetId: savedWidget.widgetTypeId,
@@ -474,7 +481,10 @@ function buildLegacyImportedBindings(
 
   members.forEach((member) => {
     const targetWidgetId = memberKeyToInstanceId.get(member.memberKey);
-    const bindings = normalizeWidgetInstanceBindings(member.widgetInstance.bindings);
+    const bindings = migrateLegacyIncrementalTabularBindings(
+      member.widgetInstance.widgetTypeId,
+      normalizeWidgetInstanceBindings(member.widgetInstance.bindings),
+    );
 
     if (!targetWidgetId || !bindings) {
       return;
@@ -543,7 +553,10 @@ function applyImportedBindings(
 
     return {
       ...widget,
-      bindings: normalizeWidgetInstanceBindings(bindings),
+      bindings: migrateLegacyIncrementalTabularBindings(
+        widget.widgetId,
+        normalizeWidgetInstanceBindings(bindings),
+      ),
     };
   });
 }

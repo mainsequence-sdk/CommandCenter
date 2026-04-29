@@ -5,13 +5,13 @@ This module implements the client-side live workspace snapshot archive described
 ## Purpose
 
 - keep the existing JSON workspace export/import flow unchanged
-- build a separate live archive from the mounted workspace runtime
+- build a separate agent-facing live archive from the mounted workspace runtime
 - expose that archive to automation through browser state instead of uploading it to the backend by default
 
 ## Main Entry Points
 
 - `WorkspaceSnapshotCapture.tsx`: route-driven runtime controller for `snapshot=true`
-- `archive.ts`: assembles structured live state, graph exports, widget payloads, and ZIP contents
+- `archive.ts`: assembles workspace context, per-widget agent snapshots, and ZIP contents
 - `zip.ts`: small stored ZIP writer with no extra client dependency
 - `types.ts`: archive, live-state, and browser completion contracts
 
@@ -38,30 +38,13 @@ This module implements the client-side live workspace snapshot archive described
 - the archive is JSON-only; it does not generate screenshots, rendered graph images, hidden-widget
   report images, or CSV/text exports
 - the archive includes:
-  - `manifest.json`
-  - workspace definition JSON
-  - live runtime state JSON
-  - controls JSON
-  - dependency graph JSON
   - per-widget snapshot files
-  - per-widget `data.json`, `chart-data.json`, or `response.json` files when the
-    widget snapshot exposes row, series, or response payloads
-- `workspace-definition.json` is the normal sanitized JSON workspace export from
-  `createWorkspaceSnapshot(...)`, embedded into the live archive unchanged
-- `workspace-live-state.json` currently has schema `mainsequence.workspace-agent-live-state` and
-  records:
-  - live controls state
-  - the resolved widget dependency graph
-  - one widget record per mounted workspace instance, including row-expanded snapshot runtime
-    instances, title, widget id, placement mode, hidden reason, optional layout, artifact paths, and
-    the widget's structured
-    `WidgetAgentSnapshot`
 - widgets without a custom `buildAgentSnapshot(...)` implementation still produce
   `widgets/<instanceId>/snapshot.json` through the generic fallback snapshot builder
-- capture profiles are widget-driven:
-  - `full-data` lets widget snapshot builders include deeper row/series payloads
-  - `evidence` keeps the same structure but allows widgets to truncate data-heavy payloads before
-    archive files are written
+- passthrough infrastructure widgets such as connection sources and transformers should emit
+  metadata-only snapshots and must not dump transported datasets as agent-facing payloads
+- there is one agent-oriented snapshot contract only; the runtime no longer switches between
+  `evidence` and `full-data` profile variants
 - the finished archive is exposed on `window.__COMMAND_CENTER_SNAPSHOT__` and announced with the
   `command-center:snapshot-ready` event; external runners must inspect `status` because the same
   event is also emitted for `running` and `error` states

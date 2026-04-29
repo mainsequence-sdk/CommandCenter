@@ -15,9 +15,12 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 
 ## Behavior
 
-- Bound mode consumes one `core.tabular_frame@v1` input on `sourceData`.
-- Connection modes still consume `sourceData`, but that binding is automatically repaired to a
-  hidden managed `connection-query` or `connection-stream-query` widget owned by the table.
+- Bound and live-capable modes now expose explicit roles:
+  - `seedData` for retained dataset baselines
+  - `liveUpdates` for explicit incremental `updates` publications
+- Managed connection modes bind those roles automatically:
+  - managed HTTP source -> `dataset` to `seedData`
+  - managed WS source -> `updates` to `liveUpdates`
 - When the table owns a hidden managed connection source, settings show that source's
   current runtime status and error message even though the source widget stays out of the normal
   rail.
@@ -29,8 +32,8 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   the shared upstream consumer contract before applying table-specific schema or formatting logic.
   That keeps invalid bindings, awaiting upstream publication, loading, empty success, and errors
   separate instead of inferring readiness from `null` frames or `0 rows`.
-- The runtime renderer reads the resolved `sourceData` input only. It does not read dashboard
-  refresh controls or source widget runtime state directly.
+- The runtime renderer resolves either the dual-role local incremental state or the legacy bound
+  dataset path. It does not read dashboard refresh controls directly.
 - Legacy backend time-series frames are coerced into canonical tabular rows before table
   formatting is applied.
 - If a bound source incorrectly hands the table a connection response envelope, the table unwraps

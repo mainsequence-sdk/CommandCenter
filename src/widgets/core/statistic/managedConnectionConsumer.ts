@@ -1,11 +1,16 @@
 import type { WidgetInstancePresentation } from "@/widgets/types";
-import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import type { AnyManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer";
 import { normalizeConnectionQueryProps } from "@/widgets/core/connection-query/connectionQueryModel";
 import {
   normalizeConnectionStreamQueryProps,
   type ConnectionStreamQueryWidgetProps,
 } from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
+import {
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
+  TABULAR_UPDATES_OUTPUT_ID,
+} from "@/widgets/shared/incremental-tabular-consumer";
+import { TABULAR_SOURCE_OUTPUT_ID } from "@/widgets/shared/tabular-widget-source";
 
 import {
   normalizeStatisticAuthoringSourceMode,
@@ -22,7 +27,10 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 
 export const statisticManagedConnectionConsumerAdapter = {
   widgetId: "statistic",
-  sourceInputId: TABULAR_SOURCE_INPUT_ID,
+  sourceInputId: TABULAR_SEED_INPUT_ID,
+  streamSourceInputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+  sourceOutputId: TABULAR_SOURCE_OUTPUT_ID,
+  streamSourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
   connectionMode: statisticConnectionMode,
   streamConnectionMode: statisticStreamConnectionMode,
   getSourceMode(props: Record<string, unknown>) {

@@ -55,6 +55,18 @@ export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWid
   schema: zeroCurveSettingsSchema,
   controller: mainSequenceZeroCurveWidgetController,
   workspaceRuntimeMode: "consumer",
+  buildAgentSnapshot: ({ props, domTextContent }) => ({
+    displayKind: "chart",
+    state: domTextContent?.trim() ? "ready" : "idle",
+    summary: domTextContent?.trim()
+      ? domTextContent.trim().slice(0, 240)
+      : "Zero Curve is waiting for a bound curve dataset.",
+    data: {
+      widgetRole: "presentation",
+      contentType: "chart",
+      sourceMode: props.sourceMode ?? null,
+    },
+  }),
   registryContract: {
     configuration: {
       mode: "static-schema",

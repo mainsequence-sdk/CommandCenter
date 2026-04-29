@@ -145,8 +145,6 @@ These flows are all part of one app surface, with instance state selected throug
 - The normal workspace edit toolbar now also exposes `Create snapshot`, which runs the same client-
   side archive pipeline in-place and downloads the generated zip directly from the current mounted
   workspace.
-- Snapshot mode currently supports `snapshotProfile=full-data` by default and
-  `snapshotProfile=evidence` as a lighter alternative.
 - The client-side snapshot contract reuses the shared `command-center.jwt-auth` browser storage
   session shape and returns the generated zip directly from the page runtime through
   `window.__COMMAND_CENTER_SNAPSHOT__` plus the `command-center:snapshot-ready` event instead of
@@ -155,21 +153,14 @@ These flows are all part of one app surface, with instance state selected throug
   `MAINSEQUENCE_ACCESS_TOKEN`, which sends the same bearer header but disables refresh and
   interactive logout behavior.
 - The current archive contents include:
-  - `manifest.json`
-  - `workspace-definition.json` from `createWorkspaceSnapshot(...)`
-  - `workspace-live-state.json` with live controls, dependency graph, and per-widget records
-  - `controls.json`
-  - widget dependency graph JSON
   - `widgets/<instanceId>/snapshot.json` for every widget, including generic fallback snapshots for
     widget families without a custom builder
-  - optional per-widget `data.json`, `chart-data.json`, or `response.json` files when
-    the widget snapshot exposes rows, series, or response payloads
 - The live archive is JSON-only; it does not generate screenshots, PNG graph exports, hidden-widget
   report images, or CSV/text exports.
-- Snapshot profiles control widget data volume, not the outer archive shape:
-  - `full-data` allows widget snapshots to include deeper data payloads
-  - `evidence` keeps the same file structure but allows widgets to truncate large datasets before
-    archive artifacts are written
+- Passthrough infrastructure widgets such as connection sources and transformers should emit
+  metadata-only snapshots and must not dump transported datasets as agent-facing payloads.
+- Snapshot mode now exposes one agent-oriented contract only; there are no `evidence` vs
+  `full-data` archive variants.
 - Widget runtime state can persist in the workspace model when a widget reports it through the shared widget contract.
 - Widget instances can now also persist canonical `bindings` separately from props. Binding changes
   clear widget `runtimeState` by default because the upstream data shape has changed.
@@ -329,7 +320,9 @@ These flows are all part of one app surface, with instance state selected throug
   hidden `connection-query` source should do it through the shared managed-connection consumer
   adapter/registry layer. The Graph widget is the first implementation: it starts managed
   connection creation from `Bindings`, edits the hidden source from a dedicated `Connection` tab,
-  and still persists a normal `sourceData` binding behind the scenes.
+  and now persists explicit logical roles behind the scenes for migrated live-capable widgets:
+  managed HTTP sources bind `dataset -> seedData`, managed WebSocket sources bind
+  `updates -> liveUpdates`, and older retained widgets continue using `sourceData`.
 - The dedicated widget settings route now keeps only the shared dashboard provider stack alive.
   It must not hidden-mount the full workspace widget tree again. Runtime-dependent settings should
   resolve through the dependency and execution providers, and executable source or transform

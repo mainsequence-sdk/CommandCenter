@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildGraphChartSeries,
+  buildGraphSeriesConfigKey,
   buildGraphSeries,
+  reduceIncrementalGraphSeries,
   type ResolvedGraphConfig,
 } from "./graphModel";
 
@@ -85,6 +87,119 @@ describe("graph incremental series projection", () => {
     expect(result.series[0]?.points).toEqual([
       { time: Date.parse("2026-04-25T00:02:00.000Z"), value: 11 },
       { time: Date.parse("2026-04-25T00:03:00.000Z"), value: 12 },
+    ]);
+  });
+
+  it("builds a stable config key for equivalent graph series configs", () => {
+    expect(
+      buildGraphSeriesConfigKey({
+        ...config,
+        seriesOverrides: {
+          MSFT: { lineStyle: "dashed", color: "#ff0000" },
+          AAPL: { color: "#00ff00" },
+        },
+      }),
+    ).toBe(
+      buildGraphSeriesConfigKey({
+        ...config,
+        seriesOverrides: {
+          AAPL: { color: "#00ff00" },
+          MSFT: { color: "#ff0000", lineStyle: "dashed" },
+        },
+      }),
+    );
+  });
+
+  it("keeps the latest points as a bounded queue for incremental updates", () => {
+    const seeded = buildGraphSeries(
+      [
+        { time: "2026-04-25T00:01:00.000Z", symbol: "AAPL", value: 10 },
+        { time: "2026-04-25T00:02:00.000Z", symbol: "AAPL", value: 11 },
+      ],
+      {
+        ...config,
+        limit: 2,
+      },
+    );
+    const updated = reduceIncrementalGraphSeries(
+      seeded,
+      [{ time: "2026-04-25T00:03:00.000Z", symbol: "AAPL", value: 12 }],
+      {
+        ...config,
+        limit: 2,
+      },
+    );
+
+    expect(updated.updateMode).toBe("snapshot");
+    expect(updated.result.series[0]?.points).toEqual([
+      { time: Date.parse("2026-04-25T00:02:00.000Z"), value: 11 },
+      { time: Date.parse("2026-04-25T00:03:00.000Z"), value: 12 },
+    ]);
+  });
+
+  it("keeps delta updates incremental when they only append the newest point", () => {
+    const seeded = buildGraphSeries(
+      [
+        { time: "2026-04-25T00:01:00.000Z", symbol: "AAPL", value: 10 },
+      ],
+      config,
+    );
+    const updated = reduceIncrementalGraphSeries(
+      seeded,
+      [{ time: "2026-04-25T00:02:00.000Z", symbol: "AAPL", value: 11 }],
+      config,
+    );
+
+    expect(updated.updateMode).toBe("delta");
+    expect(updated.result.series[0]?.points).toEqual([
+      { time: Date.parse("2026-04-25T00:01:00.000Z"), value: 10 },
+      { time: Date.parse("2026-04-25T00:02:00.000Z"), value: 11 },
+    ]);
+    expect(updated.deltaSeries[0]?.points).toEqual([
+      { time: Date.parse("2026-04-25T00:02:00.000Z"), value: 11 },
+    ]);
+  });
+
+  it("forces a snapshot when an incremental update mutates older history", () => {
+    const seeded = buildGraphSeries(
+      [
+        { time: "2026-04-25T00:01:00.000Z", symbol: "AAPL", value: 10 },
+        { time: "2026-04-25T00:02:00.000Z", symbol: "AAPL", value: 11 },
+      ],
+      config,
+    );
+    const updated = reduceIncrementalGraphSeries(
+      seeded,
+      [{ time: "2026-04-25T00:01:00.000Z", symbol: "AAPL", value: 12 }],
+      config,
+    );
+
+    expect(updated.updateMode).toBe("snapshot");
+    expect(updated.result.series[0]?.points).toEqual([
+      { time: Date.parse("2026-04-25T00:01:00.000Z"), value: 12 },
+      { time: Date.parse("2026-04-25T00:02:00.000Z"), value: 11 },
+    ]);
+  });
+
+  it("keeps sub-second datetime points for echarts", () => {
+    const sameSecondSeries = buildGraphSeries(
+      [
+        { time: "2026-04-25T00:01:00.100Z", symbol: "AAPL", value: 10 },
+        { time: "2026-04-25T00:01:00.900Z", symbol: "AAPL", value: 11 },
+      ],
+      config,
+    );
+
+    const chartSeries = buildGraphChartSeries(
+      sameSecondSeries.series,
+      "datetime",
+      "echarts",
+    );
+
+    expect(chartSeries.collapsedPointCount).toBe(0);
+    expect(chartSeries.series[0]?.points).toEqual([
+      { time: Date.parse("2026-04-25T00:01:00.100Z"), value: 10 },
+      { time: Date.parse("2026-04-25T00:01:00.900Z"), value: 11 },
     ]);
   });
 });

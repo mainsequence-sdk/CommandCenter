@@ -281,8 +281,11 @@ they should not become a second widget-consumer state machine.
 ### Relationship To Managed Sources And Hydration
 
 Managed connection sources remain normal hidden source widgets. If a visible consumer uses embedded
-connection authoring and later opts into streaming, the managed source still owns the WebSocket and
-the visible consumer still receives data only through the normal `sourceData` binding.
+connection authoring and later opts into streaming, the managed source still owns the WebSocket.
+As of [ADR 044](./adr-044-incremental-connection-publications-seed-live-roles.md), migrated live
+consumers receive that publication through explicit logical roles (`seedData` and
+`liveUpdates`) instead of treating the stream source as one retained `sourceData` dataset.
+Legacy retained consumers may still consume the compatibility `dataset` bridge during migration.
 
 Streaming must also respect the `ADR 038` and `ADR 040` hydration model:
 

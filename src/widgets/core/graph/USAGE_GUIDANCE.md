@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Line, area, bar, or markers-only chart for a canonical `core.tabular_frame@v1` dataset, with optional graph-owned managed connection or stream authoring that still resolves through `sourceData`.
+Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` seed and live-update publications, with optional graph-owned managed connection or stream authoring.
 
 ## whenToUse
 
@@ -19,21 +19,25 @@ Line, area, bar, or markers-only chart for a canonical `core.tabular_frame@v1` d
 ## authoringSteps
 
 - Open the `Bindings` tab.
-- Bind `sourceData` to an upstream `core.tabular_frame@v1` output when this graph should consume an existing dataset.
+- Bind `seedData` when this graph should initialize from the retained baseline dataset.
+- Bind `liveUpdates` when this graph should keep applying explicit incremental `updates` publications.
 - Or click `Add connection` in the `Bindings` tab when this graph should own one hidden managed source widget.
 - Configure that managed source from the dedicated `Connection` tab with the same connection/path/query/runtime controls used by the standalone Connection Query or Connection Stream Query widgets.
-- Apply the connection changes to create or update the hidden source widget and bind its `dataset` output to this graph's `sourceData` input automatically.
+- Apply the connection changes to create or update the hidden source widget and bind it automatically:
+  - HTTP managed source -> `dataset` to `seedData`
+  - WS managed source -> `updates` to `liveUpdates`
 - Choose X and Y fields that match the intended chart.
 - Optionally choose a grouping field, provider, chart type, `Max points per series`, `Max series`, normalization, and series-axis mode. Leave `Normalize at` blank to rebase each series from its first visible usable point.
-- Inspect the resolved source schema before finalizing field mappings. Field pickers and chart rendering always resolve from the live `sourceData` binding, including when that binding points at the hidden managed source widget.
+- Inspect the resolved source schema before finalizing field mappings. Field pickers and chart rendering resolve from the effective seed/live state, including when those bindings point at a hidden managed source widget.
 
 ## blockingRequirements
 
 - A compatible upstream binding is required before field selectors become meaningful.
 - In managed connection mode, the hidden query or stream source must still publish a canonical dataset before the graph can resolve fields.
 - Incremental upstream sources expose retained rows through `upstreamBase` and changed rows through
-  `upstreamDelta`. When the update is safe for incremental rendering, the graph appends or replaces
-  projected points while preserving the mounted chart instance and visible range.
+  `upstreamDelta`. For explicit `seedData`/`liveUpdates` bindings, the graph keeps its own bounded
+  per-series queue from those publications instead of rebuilding from the source widget's retained
+  stream history on every tick.
 - `Max points per series` only trims the graph's rendered window. It does not delete older rows
   from the upstream source dataset.
 - For live stream-backed graphs, `Max points per series` behaves like a rolling queue per series:
@@ -43,15 +47,17 @@ Line, area, bar, or markers-only chart for a canonical `core.tabular_frame@v1` d
 
 ## commonPitfalls
 
-- Managed connection authoring is still not a graph runtime path. The graph renders only from the resolved `sourceData` binding, whether the hidden source is request/response or WebSocket-backed.
+- Managed connection authoring is still not a graph runtime path. The graph renders only from resolved `seedData` and `liveUpdates` bindings, whether the hidden source is request/response or WebSocket-backed.
 - The graph does not auto-map fields from upstream time-series metadata; you must set the field mapping explicitly.
 - Ambiguous date strings can make the inferred time axis behave unexpectedly.
-- Several rows at the same chart timestamp collapse to the latest point for that timestamp.
+- Provider matters for high-frequency datetime data:
+  - ECharts keeps full millisecond points.
+  - TradingView collapses same-second datetime points to the latest point in that second.
 - When grouping is enabled, `Max series` limits how many groups render at once. Remaining groups
   are dropped by descending point count.
-- Live stream graphs can still consume too much memory if the upstream `connection-stream-query`
-  source keeps every retained row. Use both source-side retention and graph-side max points when
-  the stream should stay bounded end to end.
+- Live stream graphs now stay responsive from the graph-local bounded queue, but the upstream
+  source can still waste memory if it keeps an unbounded retained compatibility frame. Use both
+  source-side retention and graph-side max points when the stream should stay bounded end to end.
 - `Markers` suppresses connecting lines; line-style overrides do not visibly change that mode.
 - `Markers` uses the chart's `Marker size` setting, so point size can differ from the default line/area single-point markers.
 - If this graph is backed by a hidden managed connection source, fix any source runtime error in the `Connection` tab before debugging chart field mappings.

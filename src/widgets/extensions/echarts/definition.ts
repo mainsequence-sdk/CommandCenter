@@ -32,6 +32,18 @@ export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
     sourceMode: "json",
     optionJson: starterOptionJson,
   },
+  buildAgentSnapshot: ({ props, domTextContent }) => ({
+    displayKind: "chart",
+    state: domTextContent?.trim() ? "ready" : "idle",
+    summary: domTextContent?.trim()
+      ? domTextContent.trim().slice(0, 240)
+      : "ECharts spec widget is configured from a local or bound chart spec.",
+    data: {
+      widgetRole: "presentation",
+      contentType: "chart-spec",
+      sourceMode: props.sourceMode ?? "json",
+    },
+  }),
   io: {
     inputs: [
       {

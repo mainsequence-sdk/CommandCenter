@@ -1,4 +1,4 @@
-import { getWidgetById } from "@/app/registry";
+import { getConnectionTypeById, getWidgetById } from "@/app/registry";
 import { hasAllPermissions } from "@/auth/permissions";
 import type {
   DashboardControlsState,
@@ -6,18 +6,12 @@ import type {
   DashboardWidgetInstance,
   ResolvedDashboardDefinition,
 } from "@/dashboards/types";
-import {
-  collectDashboardWidgetEntries,
-  type DashboardWidgetDependencyGraph,
-} from "@/dashboards/widget-dependencies";
-import { createWorkspaceSnapshot } from "@/features/dashboards/custom-dashboard-storage";
+import { collectDashboardWidgetEntries } from "@/dashboards/widget-dependencies";
 import type { ResolvedWidgetInputs, WidgetAgentSnapshot } from "@/widgets/types";
 
 import type {
   BuiltWorkspaceSnapshotArchive,
-  WorkspaceAgentLiveState,
   WorkspaceAgentWidgetSnapshotRecord,
-  WorkspaceSnapshotArchiveManifest,
   WorkspaceSnapshotCaptureProfile,
 } from "./types";
 import { createStoredZipBlob } from "./zip";
@@ -116,10 +110,6 @@ function buildGenericWidgetSnapshot(input: {
   } satisfies WidgetAgentSnapshot;
 }
 
-function isRecordArray(value: unknown): value is Array<Record<string, unknown>> {
-  return Array.isArray(value) && value.every((entry) => entry && typeof entry === "object" && !Array.isArray(entry));
-}
-
 function summarizeHiddenReason(input: {
   placementMode: "canvas" | "sidebar";
   hiddenInCollapsedRow: boolean;
@@ -165,57 +155,48 @@ function collectWidgetDomElements() {
   return { visibleElements, hiddenElements };
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function resolveConnectionTypeName(props: Record<string, unknown> | undefined) {
+  if (!isPlainRecord(props)) {
+    return undefined;
+  }
+
+  const connectionRef = props.connectionRef;
+
+  if (!isPlainRecord(connectionRef)) {
+    return undefined;
+  }
+
+  const typeId = typeof connectionRef.typeId === "string" ? connectionRef.typeId.trim() : "";
+
+  if (!typeId) {
+    return undefined;
+  }
+
+  return getConnectionTypeById(typeId)?.title ?? typeId;
+}
+
 function buildWidgetArtifactEntries(
   record: WorkspaceAgentWidgetSnapshotRecord,
 ) {
-  const basePath = `widgets/${buildWidgetArchiveDirectoryName(record.widgetId, record.instanceId)}`;
+  const basePath = `widgets/${buildWidgetArchiveDirectoryName(record.widgetType, record.instanceId)}`;
   const snapshotPath = `${basePath}/snapshot.json`;
-  const payloadEntries: PreparedArchiveEntry[] = [];
-  const snapshotData = record.snapshot.data ?? {};
-
-  if (isRecordArray(snapshotData.rows)) {
-    payloadEntries.push({
-      path: `${basePath}/data.json`,
-      mediaType: "application/json",
-      description: `Structured row export for ${record.title}.`,
-      bytes: jsonBytes(snapshotData.rows),
-    });
-  }
-
-  if (Array.isArray(snapshotData.series)) {
-    payloadEntries.push({
-      path: `${basePath}/chart-data.json`,
-      mediaType: "application/json",
-      description: `Chart series export for ${record.title}.`,
-      bytes: jsonBytes(snapshotData.series),
-    });
-  }
-
-  if (snapshotData.lastResponseBody !== undefined) {
-    payloadEntries.push({
-      path: `${basePath}/response.json`,
-      mediaType: "application/json",
-      description: `Last AppComponent response payload for ${record.title}.`,
-      bytes: jsonBytes(snapshotData.lastResponseBody),
-    });
-  }
-
-  record.artifactPaths.push(snapshotPath, ...payloadEntries.map((entry) => entry.path));
 
   return [
     {
       path: snapshotPath,
       mediaType: "application/json",
-      description: `Structured live widget snapshot for ${record.title}.`,
+      description: `Structured live widget snapshot for ${record.widgetName}.`,
       bytes: jsonBytes(record),
     },
-    ...payloadEntries,
   ];
 }
 
 export async function buildWorkspaceAgentSnapshotArchive(input: {
   dashboard: DashboardDefinition;
-  workspaceDefinitionDashboard?: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
   permissions: string[];
   controlsState: DashboardControlsState & {
@@ -224,7 +205,6 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
     lastRefreshedAt: number | null;
   };
   profile: WorkspaceSnapshotCaptureProfile;
-  dependencyGraph: DashboardWidgetDependencyGraph;
   resolveInputs: (instanceId: string) => ResolvedWidgetInputs | undefined;
 }) {
   const generatedAt = new Date().toISOString();
@@ -235,7 +215,6 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
     input.resolvedDashboard.widgets,
   );
   const { hiddenElements, visibleElements } = collectWidgetDomElements();
-  const widgetRecords: WorkspaceAgentWidgetSnapshotRecord[] = [];
 
   for (const entry of flattenedEntries) {
     const instance = entry.instance;
@@ -277,9 +256,11 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
         widgetKind: widget.kind,
         error: "Widget is not available for the current authenticated user permissions.",
       });
-    } else if (widget.buildAgentSnapshot) {
+    } else if (widget.stateDump || widget.buildAgentSnapshot) {
       try {
-        snapshot = await widget.buildAgentSnapshot({
+        const stateDump = widget.stateDump ?? widget.buildAgentSnapshot;
+
+        snapshot = await stateDump!({
           widgetId: widget.id,
           instanceId: instance.id,
           title: instance.title ?? widget.title,
@@ -290,6 +271,11 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
           resolvedInputs: input.resolveInputs(instance.id),
           dashboardState: input.controlsState,
           domTextContent,
+          resolveWidgetRuntimeState: (instanceId) =>
+            typeof instanceId === "string"
+              ? (input.resolvedDashboard.widgets.find((candidate) => candidate.id === instanceId)
+                  ?.runtimeState as Record<string, unknown> | undefined)
+              : undefined,
         });
       } catch (error) {
         appendSnapshotWarning(
@@ -308,7 +294,7 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
           widgetId: widget.id,
           widgetKind: widget.kind,
           domTextContent,
-          error: "Widget-specific snapshot builder failed during archive capture.",
+          error: "Widget-specific state dump failed during archive capture.",
         });
       }
     } else {
@@ -322,11 +308,12 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
 
     const record: WorkspaceAgentWidgetSnapshotRecord = {
       instanceId: instance.id,
-      widgetId: instance.widgetId,
-      title: instance.title ?? widget?.title ?? instance.widgetId,
-      category: widget?.category,
-      kind: widget?.kind,
+      widgetName: instance.title ?? widget?.title ?? instance.widgetId,
+      widgetType: instance.widgetId,
       source: widget?.source,
+      connectionTypeName: resolveConnectionTypeName(
+        (instance.props ?? {}) as Record<string, unknown>,
+      ),
       placementMode,
       hidden,
       hiddenReason,
@@ -351,89 +338,15 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
         return undefined;
       })(),
       parentRowId: entry.parentRowId,
-      domTextContent,
-      artifactPaths: [],
       snapshot,
     };
 
     const widgetArtifactEntries = buildWidgetArtifactEntries(record);
 
     entries.push(...widgetArtifactEntries);
-    widgetRecords.push(record);
   }
-
-  if (input.dependencyGraph.nodes.length > 0) {
-    entries.push({
-      path: "relationships/widget-graph.json",
-      mediaType: "application/json",
-      description: "Resolved workspace widget dependency graph.",
-      bytes: jsonBytes(input.dependencyGraph),
-    });
-  }
-
-  const liveState: WorkspaceAgentLiveState = {
-    schema: "mainsequence.workspace-agent-live-state",
-    version: 1,
-    generatedAt,
-    profile: input.profile,
-    workspaceId: input.dashboard.id,
-    workspaceTitle: input.dashboard.title,
-    view: "dashboard",
-    controls: input.controlsState,
-    relationshipGraph: input.dependencyGraph,
-    widgets: widgetRecords,
-    summary: {
-      widgetCount: widgetRecords.length,
-      visibleWidgetCount: widgetRecords.filter((record) => !record.hidden).length,
-      hiddenWidgetCount: widgetRecords.filter((record) => record.hidden).length,
-      relationshipEdgeCount: input.dependencyGraph.edges.length,
-    },
-  };
-
-  entries.unshift({
-    path: "workspace-definition.json",
-    mediaType: "application/json",
-    description: "Canonical persisted workspace document export.",
-    bytes: jsonBytes(createWorkspaceSnapshot(input.workspaceDefinitionDashboard ?? input.dashboard)),
-  });
-  entries.push({
-    path: "workspace-live-state.json",
-    mediaType: "application/json",
-    description: "Live runtime workspace state assembled from the mounted client.",
-    bytes: jsonBytes(liveState),
-  });
-  entries.push({
-    path: "controls.json",
-    mediaType: "application/json",
-    description: "Resolved live dashboard control state.",
-    bytes: jsonBytes(input.controlsState),
-  });
-
-  const manifest: WorkspaceSnapshotArchiveManifest = {
-    schema: "mainsequence.workspace-agent-archive",
-    version: 1,
-    generatedAt,
-    profile: input.profile,
-    workspaceId: input.dashboard.id,
-    workspaceTitle: input.dashboard.title,
-    fileCount: entries.length + 1,
-    warnings,
-    errors,
-    entries: entries.map((entry) => ({
-      path: entry.path,
-      mediaType: entry.mediaType,
-      sizeBytes: entry.bytes.byteLength,
-      description: entry.description,
-    })),
-  };
-  const manifestEntry: PreparedArchiveEntry = {
-    path: "manifest.json",
-    mediaType: "application/json",
-    description: "Archive manifest and capture summary.",
-    bytes: jsonBytes(manifest),
-  };
   const zipBlob = await createStoredZipBlob(
-    [...entries, manifestEntry].map((entry) => ({
+    entries.map((entry) => ({
       path: entry.path,
       bytes: entry.bytes,
     })),
@@ -442,19 +355,6 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
   return {
     blob: zipBlob,
     fileName: buildArchiveFileName(input.dashboard.title, generatedAt),
-    manifest: {
-      ...manifest,
-      entries: [
-        ...manifest.entries,
-        {
-          path: manifestEntry.path,
-          mediaType: manifestEntry.mediaType,
-          sizeBytes: manifestEntry.bytes.byteLength,
-          description: manifestEntry.description,
-        },
-      ],
-    },
-    liveState,
     warnings,
     errors,
   } satisfies BuiltWorkspaceSnapshotArchive;

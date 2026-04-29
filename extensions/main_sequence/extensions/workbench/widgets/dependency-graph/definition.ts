@@ -27,6 +27,25 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
   mockRuntimeState: {
     selectedNodeId: "desk-curve-signal",
   },
+  buildAgentSnapshot: ({ props, runtimeState, domTextContent }) => ({
+    displayKind: "graph",
+    state: domTextContent?.trim()
+      ? "ready"
+      : runtimeState
+        ? "loading"
+        : "idle",
+    summary: domTextContent?.trim()
+      ? domTextContent.trim().slice(0, 240)
+      : "Dependency Graph is waiting for graph data.",
+    data: {
+      widgetRole: "presentation",
+      contentType: "graph",
+      sourceKind: props.sourceKind ?? null,
+      dataNodeId: props.dataNodeId ?? null,
+      simpleTableUpdateId: props.simpleTableUpdateId ?? null,
+      direction: props.direction ?? null,
+    },
+  }),
   settingsComponent: MainSequenceDependencyGraphWidgetSettings,
   execution: dependencyGraphExecutionDefinition,
   workspaceRuntimeMode: "execution-owner",

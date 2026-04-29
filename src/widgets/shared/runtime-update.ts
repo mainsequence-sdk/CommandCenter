@@ -2,6 +2,8 @@ export const WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION = "widget-runtime-update@v1"
 export const WIDGET_RUNTIME_UPDATE_CONTEXT_KEY = "runtimeUpdate" as const;
 
 export type WidgetRuntimeUpdateMode = "snapshot" | "delta";
+export type WidgetRuntimePublicationSemantics = "incremental";
+export type WidgetRuntimePublicationRole = "seed" | "update";
 
 export interface WidgetRuntimeUpdateRange {
   from?: string;
@@ -23,6 +25,10 @@ export interface WidgetRuntimeUpdateEnvelope<
 > {
   contractVersion: typeof WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION;
   mode: WidgetRuntimeUpdateMode;
+  publicationSemantics?: WidgetRuntimePublicationSemantics;
+  publicationRole?: WidgetRuntimePublicationRole;
+  sourceRunId?: string;
+  sequence?: number;
   sourceWidgetId?: string;
   sourceOutputId?: string;
   outputContractId?: string;
@@ -110,6 +116,39 @@ export function resolveWidgetRuntimeUpdateParts<TBase = unknown, TDelta = unknow
     upstreamDelta: update.mode === "delta" ? update.deltaOutput : undefined,
     upstreamUpdate: update,
   };
+}
+
+export function projectWidgetRuntimeUpdateOutput<
+  TBase extends { source?: { context?: Record<string, unknown> } },
+  TDelta = unknown,
+>(
+  output: TBase,
+  options?: {
+    outputContractId?: string;
+    sourceOutputId?: string;
+  },
+) {
+  const parts = resolveWidgetRuntimeUpdateParts<TBase, TDelta>(output);
+  const update = parts.upstreamUpdate;
+
+  if (!update) {
+    return output;
+  }
+
+  const carrier =
+    update.mode === "delta" && parts.upstreamDelta !== undefined
+      ? (parts.upstreamDelta as unknown as TBase)
+      : parts.upstreamBase;
+
+  return attachWidgetRuntimeUpdateContext(carrier, {
+    ...update,
+    sourceOutputId: options?.sourceOutputId ?? update.sourceOutputId,
+    outputContractId: options?.outputContractId ?? update.outputContractId,
+    retainedOutputLocation:
+      carrier === parts.upstreamBase ? "carrier" : "envelope",
+    retainedOutput:
+      carrier === parts.upstreamBase ? undefined : parts.upstreamBase,
+  });
 }
 
 export function mapWidgetRuntimeUpdateEnvelope<TBase = unknown, TDelta = unknown>(

@@ -10,6 +10,11 @@ import {
   type TabularFieldOption,
 } from "@/widgets/shared/tabular-widget-source";
 import {
+  resolveIncrementalTabularOutputFrame,
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
+} from "@/widgets/shared/incremental-tabular-consumer";
+import {
   buildManualTableFieldOptions,
   normalizeTabularWidgetSourceReferenceProps,
   normalizeManualTableColumns,
@@ -162,7 +167,17 @@ export function resolveTableWidgetSourceInput(
 
 export function resolveTableWidgetSourceDataset(
   resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeState?: unknown,
 ): TabularFrameSourceV1 | null {
+  const incrementalFrame = resolveIncrementalTabularOutputFrame({
+    resolvedInputs,
+    runtimeState,
+  });
+
+  if (incrementalFrame) {
+    return incrementalFrame;
+  }
+
   const candidate = resolveTableWidgetSourceInput(resolvedInputs);
 
   return candidate?.status === "valid"
@@ -200,7 +215,37 @@ function resolveInvalidTableInputError(input: ResolvedWidgetInput | undefined) {
 
 export function resolveTableWidgetSourceConsumerState(
   resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeState?: unknown,
 ): ResolvedUpstreamConsumerState<TabularFrameSourceV1> {
+  const incrementalDataset = resolveIncrementalTabularOutputFrame({
+    resolvedInputs,
+    runtimeState,
+  });
+
+  if (incrementalDataset) {
+    const seedInput = resolvedInputs?.[TABULAR_SEED_INPUT_ID];
+    const liveInput = resolvedInputs?.[TABULAR_LIVE_UPDATES_INPUT_ID];
+    const resolvedSeedInput = Array.isArray(seedInput)
+      ? seedInput.find((entry) => entry.status === "valid") ?? seedInput[0]
+      : seedInput;
+    const resolvedLiveInput = Array.isArray(liveInput)
+      ? liveInput.find((entry) => entry.status === "valid") ?? liveInput[0]
+      : liveInput;
+    const resolvedSourceInput = resolvedLiveInput ?? resolvedSeedInput;
+
+    return resolveUpstreamConsumerState({
+      hasCanonicalSourceBinding: Boolean(
+        resolvedSeedInput?.sourceWidgetId || resolvedLiveInput?.sourceWidgetId,
+      ),
+      hasPublishedValue: true,
+      resolvedSourceInput,
+      dataset: incrementalDataset,
+      deltaDataset: normalizeAnyTabularFrameSource(resolvedLiveInput?.upstreamDelta),
+      invalidPublishedValueMessage:
+        "The bound source did not publish a compatible canonical tabular frame.",
+    });
+  }
+
   const sourceInput = resolveTableWidgetSourceInput(resolvedInputs);
   const sourceValue = sourceInput?.upstreamBase ?? sourceInput?.value;
 
@@ -232,13 +277,17 @@ function mapTableFieldOptionToFrameField(field: TabularFieldOption) {
 export function resolveTableWidgetOutput(
   props: TableWidgetProps,
   resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeState?: unknown,
 ): TabularFrameSourceV1 {
   const migratedProps = stripLegacyTableWidgetDisplayConfig(props);
   const tableSourceMode = normalizeTableSourceMode(migratedProps.tableSourceMode);
 
   if (tableSourceMode !== "manual") {
     const sourceInput = resolveTableWidgetSourceInput(resolvedInputs);
-    const sourceConsumerState = resolveTableWidgetSourceConsumerState(resolvedInputs);
+    const sourceConsumerState = resolveTableWidgetSourceConsumerState(
+      resolvedInputs,
+      runtimeState,
+    );
     const sourceDataset = sourceConsumerState.dataset;
     const sourceContext = {
       kind: "table-widget",

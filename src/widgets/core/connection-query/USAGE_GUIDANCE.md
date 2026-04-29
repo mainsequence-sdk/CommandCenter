@@ -11,7 +11,7 @@ Runs one explicit connection path and publishes the selected result frame as one
 
 ## whenNotToUse
 
-- Do not use for presentation-only table, chart, or statistic rendering; bind those widgets to this widget's dataset output.
+- Do not use for presentation-only table, chart, or statistic rendering; bind those widgets to this widget's `dataset` or `updates` output depending on whether they need retained seed data or explicit incremental publications.
 - Do not use to store backend endpoints, tokens, or route fragments in workspace props.
 - Do not use for analytical reshaping after the query returns; bind a Tabular Transform widget downstream.
 

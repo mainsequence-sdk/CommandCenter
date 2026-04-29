@@ -114,6 +114,12 @@ export interface GraphChartSeriesResult {
   series: GraphSeries[];
 }
 
+export interface IncrementalGraphSeriesUpdateResult {
+  deltaSeries: GraphSeries[];
+  result: GraphSeriesResult;
+  updateMode: "snapshot" | "delta";
+}
+
 const defaultVisualizerLimit = 14_000;
 const defaultVisualizerMaxSeries = 8;
 const defaultVisualizerMarkerSizePx = 8;
@@ -809,10 +815,214 @@ export function buildGraphSeries(
   };
 }
 
+function serializeSeriesOverrides(
+  overrides: Pick<ResolvedGraphConfig, "seriesOverrides">["seriesOverrides"],
+) {
+  if (!overrides) {
+    return null;
+  }
+
+  return Object.fromEntries(
+    Object.entries(overrides)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([seriesId, override]) => [
+        seriesId,
+        {
+          color: override.color ?? null,
+          lineStyle: override.lineStyle ?? null,
+        },
+      ]),
+  );
+}
+
+export function buildGraphSeriesConfigKey(
+  config: Pick<
+    ResolvedGraphConfig,
+    "groupField" | "limit" | "maxSeries" | "seriesOverrides" | "xField" | "yField"
+  >,
+) {
+  return JSON.stringify({
+    groupField: config.groupField ?? null,
+    limit: config.limit,
+    maxSeries: config.maxSeries,
+    seriesOverrides: serializeSeriesOverrides(config.seriesOverrides),
+    xField: config.xField ?? null,
+    yField: config.yField ?? null,
+  });
+}
+
+function sortGraphSeriesEntries(series: GraphSeries[]) {
+  return [...series].sort((left, right) => {
+    if (right.sourcePointCount !== left.sourcePointCount) {
+      return right.sourcePointCount - left.sourcePointCount;
+    }
+
+    return left.label.localeCompare(right.label);
+  });
+}
+
+function buildGraphSeriesResultFromSeries(
+  series: GraphSeries[],
+  maxSeries: number,
+): GraphSeriesResult {
+  const sortedSeries = sortGraphSeriesEntries(series);
+
+  return {
+    series: sortedSeries.slice(0, maxSeries),
+    droppedGroups: Math.max(sortedSeries.length - maxSeries, 0),
+    filteredGroups: 0,
+    totalGroups: sortedSeries.length,
+  };
+}
+
+function mergeGraphSeriesPoints(
+  existingPoints: Array<{ time: number; value: number }>,
+  deltaPoints: Array<{ time: number; value: number }>,
+  limit: number,
+) {
+  const points = [...existingPoints];
+  let requiresSnapshot = false;
+
+  deltaPoints.forEach((point) => {
+    const existingIndex = points.findIndex((entry) => entry.time === point.time);
+
+    if (existingIndex >= 0) {
+      if (existingIndex !== points.length - 1) {
+        requiresSnapshot = true;
+      }
+
+      points[existingIndex] = point;
+      return;
+    }
+
+    const lastTime = points[points.length - 1]?.time ?? Number.NEGATIVE_INFINITY;
+
+    if (point.time < lastTime) {
+      requiresSnapshot = true;
+      const insertIndex = points.findIndex((entry) => entry.time > point.time);
+
+      if (insertIndex < 0) {
+        points.push(point);
+      } else {
+        points.splice(insertIndex, 0, point);
+      }
+
+      return;
+    }
+
+    points.push(point);
+  });
+
+  if (points.length > limit) {
+    requiresSnapshot = true;
+  }
+
+  const trimmedPoints =
+    points.length > limit
+      ? points.slice(points.length - limit)
+      : points;
+
+  return {
+    points: trimmedPoints,
+    requiresSnapshot,
+  };
+}
+
+export function reduceIncrementalGraphSeries(
+  previous: GraphSeriesResult,
+  deltaRows: TabularDataRow[],
+  config: Pick<
+    ResolvedGraphConfig,
+    "groupField" | "limit" | "maxSeries" | "seriesOverrides" | "xField" | "yField"
+  >,
+): IncrementalGraphSeriesUpdateResult {
+  const deltaResult = buildGraphSeries(deltaRows, config);
+
+  if (deltaResult.series.length === 0) {
+    return {
+      deltaSeries: [],
+      result: previous,
+      updateMode: "delta",
+    };
+  }
+
+  const mergedSeries = previous.series.map((series) => ({
+    ...series,
+    points: [...series.points],
+  }));
+  const mergedSeriesById = new Map(mergedSeries.map((series) => [series.id, series]));
+  let requiresSnapshot = false;
+
+  deltaResult.series.forEach((deltaSeries) => {
+    const existingSeries = mergedSeriesById.get(deltaSeries.id);
+
+    if (!existingSeries) {
+      mergedSeries.push({
+        ...deltaSeries,
+        points: [...deltaSeries.points],
+        sourcePointCount: deltaSeries.points.length,
+        pointCount: deltaSeries.points.length,
+      });
+      mergedSeriesById.set(deltaSeries.id, mergedSeries[mergedSeries.length - 1]!);
+      return;
+    }
+
+    const mergedPoints = mergeGraphSeriesPoints(
+      existingSeries.points,
+      deltaSeries.points,
+      config.limit,
+    );
+
+    requiresSnapshot = requiresSnapshot || mergedPoints.requiresSnapshot;
+    existingSeries.points = mergedPoints.points;
+    existingSeries.pointCount = mergedPoints.points.length;
+    existingSeries.sourcePointCount = mergedPoints.points.length;
+    existingSeries.color = existingSeries.color ?? deltaSeries.color;
+    existingSeries.lineStyle = existingSeries.lineStyle ?? deltaSeries.lineStyle;
+    existingSeries.label = deltaSeries.label;
+  });
+
+  const nextResult = buildGraphSeriesResultFromSeries(
+    mergedSeries,
+    Math.max(1, config.maxSeries),
+  );
+  const previousSeriesIds = previous.series.map((series) => series.id).join("\u001f");
+  const nextSeriesIds = nextResult.series.map((series) => series.id).join("\u001f");
+
+  if (previousSeriesIds !== nextSeriesIds) {
+    requiresSnapshot = true;
+  }
+
+  const deltaSeries = requiresSnapshot
+    ? deltaResult.series
+        .map((series) => nextResult.series.find((entry) => entry.id === series.id))
+        .filter((series): series is GraphSeries => Boolean(series))
+    : deltaResult.series;
+
+  return {
+    deltaSeries,
+    result: nextResult,
+    updateMode: requiresSnapshot ? "snapshot" : "delta",
+  };
+}
+
 export function buildGraphChartSeries(
   series: GraphSeries[],
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto"> = "datetime",
+  provider: GraphProvider = "tradingview",
 ): GraphChartSeriesResult {
+  if (provider === "echarts") {
+    return {
+      series: series.map((entry) => ({
+        ...entry,
+        pointCount: entry.points.length,
+        points: [...entry.points].sort((left, right) => left.time - right.time),
+      })),
+      affectedSeriesCount: 0,
+      collapsedPointCount: 0,
+    };
+  }
+
   let affectedSeriesCount = 0;
   let collapsedPointCount = 0;
 

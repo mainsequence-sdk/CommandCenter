@@ -71,6 +71,18 @@ export const debugStreamWidget = defineWidget<DebugStreamWidgetProps>({
   mockResolvedInputs: debugStreamMockResolvedInputs,
   workspaceIcon: Bug,
   showRawPropsEditor: false,
+  buildAgentSnapshot: ({ domTextContent, resolvedInputs }) => ({
+    displayKind: "custom",
+    state: resolvedInputs?.[TABULAR_SOURCE_INPUT_ID] ? "ready" : "idle",
+    summary: domTextContent?.trim()
+      ? domTextContent.trim().slice(0, 240)
+      : "Debug Stream is a consumer-side binding inspection surface.",
+    data: {
+      widgetRole: "debug",
+      passthrough: true,
+      hasResolvedInput: Boolean(resolvedInputs?.[TABULAR_SOURCE_INPUT_ID]),
+    },
+  }),
   io: {
     inputs: [
       {

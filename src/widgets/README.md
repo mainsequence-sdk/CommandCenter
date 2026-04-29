@@ -58,10 +58,12 @@ Use these local docs before reading the implementation in code:
 - Widget definitions can now also declare optional `organizationConfiguration` metadata. This is an
   opt-in widget capability used when one widget type supports organization-scoped defaults or
   guardrails. Widgets that omit it behave exactly as they do today.
-- Widget definitions can now also expose `buildAgentSnapshot(...)`, a client-side live snapshot
-  hook used by workspace archive capture. This is intentionally separate from the backend-facing
-  widget registry contract: registry metadata explains how to build a widget, while
+- Widget definitions now expose `buildAgentSnapshot(...)`, a client-side per-widget state capture
+  hook used by workspace archive capture. This is intentionally separate from the
+  backend-facing widget registry contract: registry metadata explains how to build a widget, while
   `buildAgentSnapshot(...)` explains what a mounted widget is currently showing.
+- Widgets that participate in agent-facing snapshot capture should treat `buildAgentSnapshot(...)`
+  as required, not optional.
 - Widgets that implement `buildAgentSnapshot(...)` now also publish one synthetic `agent-context`
   output with contract `core.widget-agent-context@v1`. That output is derived from the compact
   `evidence` snapshot profile so agent-facing consumers such as `Agent Terminal` can reason over
@@ -141,8 +143,9 @@ Use these local docs before reading the implementation in code:
   `WidgetComponentProps.editable` plus `WidgetComponentProps.onPropsChange` so the widget can write
   directly into the current workspace draft.
 - Widgets that participate in the live workspace archive should keep `buildAgentSnapshot(...)`
-  deterministic and serialization-friendly. Prefer structured summaries, small evidence payloads,
-  and opt-in larger exports through the archive profile instead of depending on DOM scraping alone.
+  deterministic and serialization-friendly. Prefer actual widget state and data payloads over
+  generic metadata. Use small summaries plus opt-in larger exports through the archive profile
+  instead of depending on DOM scraping alone.
 - `buildAgentSnapshot(...)` now also feeds the synthetic `agent-context` binding output. Keep
   snapshots stable enough that they can be consumed both by archive capture and by bound agent
   widgets.

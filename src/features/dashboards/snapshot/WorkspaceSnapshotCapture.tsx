@@ -1,8 +1,5 @@
-import { Download, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useDashboardWidgetDependencies } from "@/dashboards/DashboardWidgetDependencies";
 import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
@@ -40,6 +37,74 @@ export function downloadWorkspaceSnapshotArchive(url: string, name: string) {
   anchor.click();
 }
 
+function formatSnapshotTimestamp(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Date.parse(value);
+
+  if (!Number.isFinite(parsed)) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(parsed));
+}
+
+function formatSnapshotBytes(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 1,
+    notation: value >= 1_000_000 ? "compact" : "standard",
+  }).format(value);
+}
+
+export function WorkspaceSnapshotStatusCard({
+  snapshotState,
+  profile,
+}: {
+  snapshotState: CommandCenterSnapshotWindowState;
+  profile: WorkspaceSnapshotCaptureProfile;
+}) {
+  const title =
+    snapshotState.status === "ready"
+      ? "Snapshot ready"
+      : snapshotState.status === "running"
+        ? "Creating snapshot"
+        : "Snapshot failed";
+  const description =
+    snapshotState.status === "ready"
+      ? `${profile} archive prepared${snapshotState.archiveSizeBytes ? ` · ${formatSnapshotBytes(snapshotState.archiveSizeBytes)} bytes` : ""}`
+      : snapshotState.status === "running"
+        ? "Workspace snapshot capture is in progress."
+        : snapshotState.error ?? "Workspace snapshot capture failed.";
+  const completedLabel = formatSnapshotTimestamp(
+    snapshotState.completedAt ?? snapshotState.startedAt,
+  );
+  const warnings = snapshotState.warnings?.length ?? 0;
+  const errors = snapshotState.errors?.length ?? 0;
+
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-md border border-border/60 bg-card/80 px-2.5 py-1.5 text-[11px] text-muted-foreground shadow-sm">
+      <div className="min-w-0">
+        <div className="truncate font-medium text-foreground">{title}</div>
+        <div className="truncate">
+          {description}
+          {completedLabel ? ` · ${completedLabel}` : ""}
+          {warnings > 0 ? ` · ${warnings} warning${warnings === 1 ? "" : "s"}` : ""}
+          {errors > 0 ? ` · ${errors} error${errors === 1 ? "" : "s"}` : ""}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 async function waitForWorkspaceToSettle(input: {
   widgetIds: string[];
   activeRefreshCycleId?: string;
@@ -68,11 +133,9 @@ export function useWorkspaceSnapshotCaptureController({
   permissions,
   profile,
   resolvedDashboard,
-  workspaceDefinitionDashboard,
 }: {
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
-  workspaceDefinitionDashboard?: DashboardDefinition;
   permissions: string[];
   profile: WorkspaceSnapshotCaptureProfile;
 }) {
@@ -136,7 +199,6 @@ export function useWorkspaceSnapshotCaptureController({
 
       const archive = await buildWorkspaceAgentSnapshotArchive({
         dashboard,
-        workspaceDefinitionDashboard,
         resolvedDashboard,
         permissions,
         controlsState: {
@@ -149,7 +211,6 @@ export function useWorkspaceSnapshotCaptureController({
           lastRefreshedAt: controls.lastRefreshedAt,
         },
         profile,
-        dependencyGraph: dependencyModel.graph,
         resolveInputs: (instanceId) => dependencyModel.resolveInputs(instanceId),
       });
 
@@ -167,8 +228,6 @@ export function useWorkspaceSnapshotCaptureController({
         archiveUrl,
         archiveBlob: archive.blob,
         archiveSizeBytes: archive.blob.size,
-        manifest: archive.manifest,
-        liveState: archive.liveState,
         warnings: archive.warnings,
         errors: archive.errors,
       };
@@ -179,7 +238,6 @@ export function useWorkspaceSnapshotCaptureController({
           profile,
           warnings: archive.warnings,
           errors: archive.errors,
-          manifest: archive.manifest,
         });
       }
 
@@ -223,7 +281,6 @@ export function useWorkspaceSnapshotCaptureController({
     permissions,
     profile,
     resolvedDashboard,
-    workspaceDefinitionDashboard,
     widgetIds,
   ]);
 
@@ -247,60 +304,23 @@ export function useWorkspaceSnapshotCaptureController({
   };
 }
 
-export function WorkspaceSnapshotStatusCard({
-  snapshotState,
-  profile,
-}: {
-  snapshotState: CommandCenterSnapshotWindowState;
-  profile: WorkspaceSnapshotCaptureProfile;
-}) {
-  return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[220] flex max-w-[420px] justify-end">
-      <div className="pointer-events-auto rounded-[20px] border border-border/70 bg-card/92 px-4 py-3 shadow-[var(--shadow-panel)] backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          {snapshotState.status === "running" ? (
-            <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
-          ) : snapshotState.status === "error" ? (
-            <TriangleAlert className="h-4 w-4 text-danger" />
-          ) : null}
-          <Badge variant={snapshotState.status === "error" ? "warning" : "neutral"}>
-            Snapshot {snapshotState.status}
-          </Badge>
-          <Badge variant="neutral">{profile}</Badge>
-        </div>
-        <div className="mt-2 max-w-[340px] text-sm text-muted-foreground">
-          {snapshotState.status === "running"
-            ? "Building live workspace archive from the mounted client runtime."
-            : snapshotState.status === "ready"
-              ? `Archive ready${snapshotState.archiveSizeBytes ? ` (${Math.round(snapshotState.archiveSizeBytes / 1024)} KB)` : ""}.`
-              : snapshotState.error || "Snapshot capture failed."}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function WorkspaceSnapshotCapture({
   dashboard,
   permissions,
   profile,
   resolvedDashboard,
-  workspaceDefinitionDashboard,
 }: {
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
-  workspaceDefinitionDashboard?: DashboardDefinition;
   permissions: string[];
   profile: WorkspaceSnapshotCaptureProfile;
 }) {
-  const { snapshotState, startCapture, downloadArchive } =
-    useWorkspaceSnapshotCaptureController({
-      dashboard,
-      resolvedDashboard,
-      workspaceDefinitionDashboard,
-      permissions,
-      profile,
-    });
+  const { startCapture } = useWorkspaceSnapshotCaptureController({
+    dashboard,
+    resolvedDashboard,
+    permissions,
+    profile,
+  });
   const autoRunKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -314,36 +334,5 @@ export function WorkspaceSnapshotCapture({
     void startCapture();
   }, [dashboard.id, profile, startCapture]);
 
-  return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[220] flex max-w-[420px] justify-end">
-      <div className="pointer-events-auto rounded-[20px] border border-border/70 bg-card/92 px-4 py-3 shadow-[var(--shadow-panel)] backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          {snapshotState.status === "running" ? (
-            <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
-          ) : snapshotState.status === "error" ? (
-            <TriangleAlert className="h-4 w-4 text-danger" />
-          ) : null}
-          <Badge variant={snapshotState.status === "error" ? "warning" : "neutral"}>
-            Snapshot {snapshotState.status}
-          </Badge>
-          <Badge variant="neutral">{profile}</Badge>
-        </div>
-        <div className="mt-2 max-w-[340px] text-sm text-muted-foreground">
-          {snapshotState.status === "running"
-            ? "Building live workspace archive from the mounted client runtime."
-            : snapshotState.status === "ready"
-              ? `Archive ready${snapshotState.archiveSizeBytes ? ` (${Math.round(snapshotState.archiveSizeBytes / 1024)} KB)` : ""}.`
-              : snapshotState.error || "Snapshot capture failed."}
-        </div>
-        {snapshotState.status === "ready" && snapshotState.archiveUrl && snapshotState.archiveName ? (
-          <div className="mt-3 flex items-center justify-end gap-2">
-            <Button size="sm" onClick={downloadArchive}>
-              <Download className="h-4 w-4" />
-              Download archive
-            </Button>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
+  return null;
 }

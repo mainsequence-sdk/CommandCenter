@@ -21,6 +21,7 @@ import {
   resolveManagedConnectionConsumerDetachedSourceMode,
 } from "@/widgets/shared/managed-connection-consumer";
 import { getManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer-registry";
+import { resolveManagedConnectionConsumerInputId } from "@/widgets/shared/managed-connection-consumer";
 import { fetchAppComponentOpenApiDocument } from "@/widgets/core/app-component/appComponentApi";
 import {
   buildAppComponentBindingSpec,
@@ -703,7 +704,7 @@ export function CustomWidgetSettingsPage({
                                 Keep widget presentation in Settings and manage widget-owned source
                                 creation from here. A managed connection creates one hidden
                                 connection source widget and binds its dataset output to this
-                                widget&apos;s <code>{managedConnectionAdapter.sourceInputId}</code>{" "}
+                                widget&apos;s <code>{resolveManagedConnectionConsumerInputId(managedConnectionAdapter, managedConnectionDraftProps ?? instance.props)}</code>{" "}
                                 input.
                               </p>
                             </div>
@@ -799,7 +800,7 @@ export function CustomWidgetSettingsPage({
                         <p className="max-w-3xl text-sm text-muted-foreground">
                           This tab reuses the same shared connection authoring surface as the
                           standalone Connection Query widget. This {widget.title.toLowerCase()} still renders only from the
-                          resolved <code>{managedConnectionAdapter.sourceInputId}</code> binding.
+                          resolved <code>{resolveManagedConnectionConsumerInputId(managedConnectionAdapter, managedConnectionDraftProps ?? instance.props)}</code> binding.
                         </p>
                       </div>
                     </div>

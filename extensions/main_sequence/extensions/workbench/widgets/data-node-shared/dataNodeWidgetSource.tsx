@@ -17,6 +17,12 @@ import {
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
 import {
+  hasIncrementalTabularRoleBindings,
+  resolveIncrementalTabularOutputFrame,
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
+} from "@/widgets/shared/incremental-tabular-consumer";
+import {
   resolveUpstreamConsumerState,
   selectPreferredUpstreamDataset,
   type ResolvedUpstreamConsumerState,
@@ -591,15 +597,42 @@ export function useResolvedDataNodeWidgetSourceBinding<
   currentWidgetInstanceId?: string;
 }): ResolvedDataNodeWidgetSourceBinding {
   const widgetRegistry = useDashboardWidgetRegistry();
-  const resolvedSourceInput = useResolvedWidgetInput(
+  const resolvedLegacySourceInput = useResolvedWidgetInput(
     currentWidgetInstanceId,
     DATA_NODE_SOURCE_INPUT_ID,
+  );
+  const resolvedSeedInput = useResolvedWidgetInput(
+    currentWidgetInstanceId,
+    TABULAR_SEED_INPUT_ID,
+  );
+  const resolvedLiveInput = useResolvedWidgetInput(
+    currentWidgetInstanceId,
+    TABULAR_LIVE_UPDATES_INPUT_ID,
   );
   const normalizedReference = useMemo(
     () => normalizeDataNodeWidgetSourceReferenceProps(props),
     [props],
   );
-  const resolvedInputBinding = !Array.isArray(resolvedSourceInput) ? resolvedSourceInput : undefined;
+  const resolvedLegacyInputBinding = !Array.isArray(resolvedLegacySourceInput)
+    ? resolvedLegacySourceInput
+    : undefined;
+  const resolvedSeedInputBinding = !Array.isArray(resolvedSeedInput)
+    ? resolvedSeedInput
+    : undefined;
+  const resolvedLiveInputBinding = !Array.isArray(resolvedLiveInput)
+    ? resolvedLiveInput
+    : undefined;
+  const incrementalResolvedInputs = useMemo(
+    () => ({
+      [TABULAR_SEED_INPUT_ID]: resolvedSeedInputBinding,
+      [TABULAR_LIVE_UPDATES_INPUT_ID]: resolvedLiveInputBinding,
+    }),
+    [resolvedLiveInputBinding, resolvedSeedInputBinding],
+  );
+  const usesIncrementalRoleBindings = hasIncrementalTabularRoleBindings(incrementalResolvedInputs);
+  const resolvedInputBinding = usesIncrementalRoleBindings
+    ? resolvedLiveInputBinding ?? resolvedSeedInputBinding
+    : resolvedLegacyInputBinding;
   const resolvedSourceWidgetId =
     resolvedInputBinding?.sourceWidgetId ?? normalizedReference.sourceWidgetId;
   const referencedFilterWidget = useMemo(
@@ -618,6 +651,15 @@ export function useResolvedDataNodeWidgetSourceBinding<
       widgetRegistry,
     ],
   );
+  const incrementalInputDatasetValue = useMemo(
+    () =>
+      usesIncrementalRoleBindings
+        ? resolveIncrementalTabularOutputFrame({
+            resolvedInputs: incrementalResolvedInputs,
+          })
+        : null,
+    [incrementalResolvedInputs, usesIncrementalRoleBindings],
+  );
   const resolvedSourceWidget = useMemo(
     () =>
       resolvedSourceWidgetId
@@ -629,9 +671,13 @@ export function useResolvedDataNodeWidgetSourceBinding<
         : null,
     [currentWidgetInstanceId, resolvedSourceWidgetId, widgetRegistry],
   );
-  const inputSourceDatasetValue = resolvedInputBinding?.upstreamBase ?? resolvedInputBinding?.value;
+  const inputSourceDatasetValue = usesIncrementalRoleBindings
+    ? incrementalInputDatasetValue
+    : resolvedLegacyInputBinding?.upstreamBase ?? resolvedLegacyInputBinding?.value;
   const sourceRuntimeValue = referencedFilterWidget?.runtimeState;
-  const sourceDeltaDatasetValue = resolvedInputBinding?.upstreamDelta;
+  const sourceDeltaDatasetValue = usesIncrementalRoleBindings
+    ? resolvedLiveInputBinding?.upstreamDelta
+    : resolvedLegacyInputBinding?.upstreamDelta;
   const inputSourceFrame = useMemo(
     () => normalizeTabularFrameSource(inputSourceDatasetValue),
     [inputSourceDatasetValue],
@@ -665,7 +711,7 @@ export function useResolvedDataNodeWidgetSourceBinding<
     [sourceDeltaDatasetValue],
   );
   const expectsFilterWidgetSource =
-    resolvedSourceWidgetId != null || normalizedReference.sourceMode === "filter_widget";
+    normalizedReference.sourceMode === "filter_widget" || referencedFilterWidget !== null;
   const filterWidgetOptions = useMemo(
     () => buildFilterWidgetOptions(widgetRegistry, currentWidgetInstanceId),
     [currentWidgetInstanceId, widgetRegistry],
@@ -700,9 +746,15 @@ export function useResolvedDataNodeWidgetSourceBinding<
     expectsFilterWidgetSource
       ? "filter_widget"
       : normalizeSourceMode(normalizedReference.sourceMode);
-  const hasCanonicalSourceBinding = resolvedInputBinding?.sourceWidgetId != null;
+  const hasCanonicalSourceBinding = usesIncrementalRoleBindings
+    ? Boolean(
+        resolvedSeedInputBinding?.sourceWidgetId != null ||
+          resolvedLiveInputBinding?.sourceWidgetId != null,
+      )
+    : resolvedInputBinding?.sourceWidgetId != null;
   const hasPublishedValue = Boolean(
-    inputSourceDatasetValue !== undefined ||
+    inputSourceDatasetValue != null ||
+      sourceDeltaDatasetValue !== undefined ||
       sourceRuntimeValue !== undefined,
   );
   const consumerState = useMemo(

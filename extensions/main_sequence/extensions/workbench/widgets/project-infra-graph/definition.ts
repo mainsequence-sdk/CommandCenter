@@ -28,6 +28,18 @@ export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProj
   mockProps: {
     projectId: 81,
   },
+  buildAgentSnapshot: ({ props, domTextContent }) => ({
+    displayKind: "graph",
+    state: domTextContent?.trim() ? "ready" : "idle",
+    summary: domTextContent?.trim()
+      ? domTextContent.trim().slice(0, 240)
+      : "Project Infrastructure Graph is waiting for project graph data.",
+    data: {
+      widgetRole: "presentation",
+      contentType: "graph",
+      projectId: props.projectId ?? null,
+    },
+  }),
   settingsComponent: MainSequenceProjectInfraGraphWidgetSettings,
   showRawPropsEditor: false,
   workspaceIcon: Network,

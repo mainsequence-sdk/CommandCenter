@@ -47,6 +47,7 @@ export interface DashboardWidgetDependencyGraphNode {
     id: string;
     label: string;
     accepts: string[];
+    acceptedOutputIds?: string[];
   }>;
   outputs: Array<{
     id: string;
@@ -648,6 +649,21 @@ function resolveSingleInput(
       } satisfies ResolvedWidgetInput;
     }
 
+    if (input.acceptedOutputIds?.length && !input.acceptedOutputIds.includes(binding.sourceOutputId)) {
+      return {
+        inputId: input.id,
+        label: input.label,
+        sourceWidgetId: binding.sourceWidgetId,
+        sourceOutputId: binding.sourceOutputId,
+        contractId: resolvedSourceOutput.contractId,
+        binding,
+        value: resolvedSourceOutput.value,
+        valueDescriptor: resolvedSourceOutput.valueDescriptor,
+        status: "contract-mismatch",
+        effects: input.effects ?? [],
+      } satisfies ResolvedWidgetInput;
+    }
+
     const sourceRuntimeParts = resolveWidgetRuntimeUpdateParts(resolvedSourceOutput.value);
     const transformed = applyWidgetBindingTransform(binding, {
       contractId: resolvedSourceOutput.contractId,
@@ -765,6 +781,7 @@ function buildGraph(
         id: input.id,
         label: input.label,
         accepts: [...input.accepts],
+        acceptedOutputIds: input.acceptedOutputIds ? [...input.acceptedOutputIds] : undefined,
       })),
       outputs: (io?.outputs ?? []).map((output) => ({
         id: output.id,

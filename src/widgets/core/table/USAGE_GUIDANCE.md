@@ -20,8 +20,9 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 ## authoringSteps
 
 - Choose `Bound dataset` when the table should render an upstream `core.tabular_frame@v1` output, `Connection query` when the table should own a hidden `connection-query` source, `Stream connection` when it should own a hidden `connection-stream-query` source, or `Manual table` when rows should be authored directly in this widget.
-- For bound mode, bind the inbound `sourceData` port to a Connection Query or Tabular Transform `dataset` output.
-- For connection mode, open `Bindings`, click `Add connection`, then configure the dedicated `Connection` tab. The table still renders only from the resolved `sourceData` binding, but that binding is automatically repaired to the hidden managed source widget.
+- For bound mode, bind `seedData` to a retained `dataset` output or an incremental `updates` seed publication.
+- Bind `liveUpdates` only to explicit `updates` outputs when this table should keep applying incremental publications.
+- For connection mode, open `Bindings`, click `Add connection`, then configure the dedicated `Connection` tab. Managed HTTP sources bind `dataset` to `seedData`; managed WS sources bind `updates` to `liveUpdates`.
 - For manual mode, define columns and rows in the table editor. Manual rows are stored in this table widget's props and are published as the table `dataset` output.
 - Inspect the incoming field schema before editing columns. Prefer upstream `fields` metadata when available; otherwise the table infers labels, types, and numeric eligibility from the current row sample.
 - Configure table-level presentation first. In the per-column editor, the default row keeps only key, label, format, and visibility inline; expand `Advanced` when a column needs descriptions, pinning, Date/time input or output patterns, numeric visuals, or display overrides.

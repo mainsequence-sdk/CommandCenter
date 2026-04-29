@@ -22,9 +22,9 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset or a widge
 
 ## authoringSteps
 
-- Bind the required `sourceData` input to an upstream `core.tabular_frame@v1` output, or open
-  `Bindings`, click `Add connection`, and configure the dedicated `Connection` tab for a hidden
-  managed source.
+- Bind `seedData` to a retained `dataset` output or an incremental `updates` seed publication.
+- Bind `liveUpdates` to explicit `updates` outputs when this statistic should keep applying incremental publications.
+- Or open `Bindings`, click `Add connection`, and configure the dedicated `Connection` tab for a hidden managed source. Managed HTTP sources bind `dataset` to `seedData`; managed WS sources bind `updates` to `liveUpdates`.
 - Inspect the resolved source schema before choosing fields.
 - Choose the statistic mode and value field.
 - Optionally choose one group field and one order field.

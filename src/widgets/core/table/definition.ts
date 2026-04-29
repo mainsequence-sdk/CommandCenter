@@ -9,10 +9,15 @@ import { defineWidget } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
+  TABULAR_UPDATES_OUTPUT_ID,
+} from "@/widgets/shared/incremental-tabular-consumer";
+import {
   isEmptyTabularFrameSource,
   TABULAR_SOURCE_CONTRACT,
+  TABULAR_SOURCE_OUTPUT_ID,
 } from "@/widgets/shared/tabular-widget-source";
-import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import { TableWidget } from "./TableWidget";
 import { TableWidgetSettings } from "./TableWidgetSettings";
 import {
@@ -29,7 +34,7 @@ import {
 
 export const tableWidget = defineWidget<TableWidgetProps>({
   id: "table",
-  widgetVersion: "2.6.0",
+  widgetVersion: "3.0.1",
   title: "Table",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -55,9 +60,10 @@ export const tableWidget = defineWidget<TableWidgetProps>({
   io: {
     inputs: [
       {
-        id: TABULAR_SOURCE_INPUT_ID,
-        label: "Source data",
+        id: TABULAR_SEED_INPUT_ID,
+        label: "Seed data",
         accepts: [TABULAR_SOURCE_CONTRACT],
+        acceptedOutputIds: [TABULAR_SOURCE_OUTPUT_ID],
         required: false,
         effects: [
           {
@@ -74,6 +80,27 @@ export const tableWidget = defineWidget<TableWidgetProps>({
           },
         ],
       },
+      {
+        id: TABULAR_LIVE_UPDATES_INPUT_ID,
+        label: "Live updates",
+        accepts: [TABULAR_SOURCE_CONTRACT],
+        acceptedOutputIds: [TABULAR_UPDATES_OUTPUT_ID],
+        required: false,
+        effects: [
+          {
+            kind: "drives-render",
+            sourcePath: "rows",
+            target: { kind: "render", id: "table" },
+            description: "Incoming incremental rows update the rendered table frame.",
+          },
+          {
+            kind: "drives-options",
+            sourcePath: "fields",
+            target: { kind: "render", id: "schema" },
+            description: "Incremental source fields define the table schema and formatter choices.",
+          },
+        ],
+      },
     ],
     outputs: [
       {
@@ -83,15 +110,15 @@ export const tableWidget = defineWidget<TableWidgetProps>({
         description:
           "Publishes the table's canonical tabular dataset so downstream widgets can consume either a bound or manual table source.",
         valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
-        resolveValue: ({ props, resolvedInputs }) =>
-          resolveTableWidgetOutput(props as TableWidgetProps, resolvedInputs),
+        resolveValue: ({ props, resolvedInputs, runtimeState }) =>
+          resolveTableWidgetOutput(props as TableWidgetProps, resolvedInputs, runtimeState),
       },
     ],
   },
   workspaceRuntimeMode: "consumer",
   workspaceIcon: Table,
-  buildAgentSnapshot: ({ props, resolvedInputs, snapshotProfile }) => {
-    const resolvedSourceDataset = resolveTableWidgetSourceDataset(resolvedInputs);
+  buildAgentSnapshot: ({ props, resolvedInputs, runtimeState }) => {
+    const resolvedSourceDataset = resolveTableWidgetSourceDataset(resolvedInputs, runtimeState);
     const sourceDataset =
       resolvedSourceDataset && !isEmptyTabularFrameSource(resolvedSourceDataset)
         ? resolvedSourceDataset
@@ -160,27 +187,28 @@ export const tableWidget = defineWidget<TableWidgetProps>({
           ? `${resolvedRows.length.toLocaleString()} manual rows across ${resolvedColumns.length.toLocaleString()} visible columns.`
         : "Table is waiting for a bound dataset.",
       data: {
+        widgetRole: "presentation",
+        contentType: "table",
         sourceStatus,
         rowCount: sourceDataset?.rows.length ?? resolvedRows.length,
-        visibleColumns: resolvedColumns.map((column) => ({
+        columnCount: resolvedColumns.length,
+        columns: resolvedColumns.map((column) => ({
           key: column.key,
           label: column.label,
           format: column.format,
         })),
-        rows: (
-          snapshotProfile === "full-data"
-            ? (sourceDataset?.rows ?? resolvedRows)
-            : (sourceDataset?.rows ?? resolvedRows).slice(0, 25)
-        ).map((row) =>
+        rows: (sourceDataset?.rows ?? resolvedRows).slice(0, 25).map((row) =>
           Object.fromEntries(
             resolvedColumns.map((column) => [column.key, row[column.key] ?? null]),
           ),
         ),
-        pagination: resolvedProps.pagination,
-        pageSize: resolvedProps.pageSize,
-        density: resolvedProps.density,
-        showSearch: resolvedProps.showSearch,
-        zebraRows: resolvedProps.zebraRows,
+        tableOptions: {
+          pagination: resolvedProps.pagination,
+          pageSize: resolvedProps.pageSize,
+          density: resolvedProps.density,
+          showSearch: resolvedProps.showSearch,
+          zebraRows: resolvedProps.zebraRows,
+        },
       },
     };
   },
@@ -210,7 +238,7 @@ export const tableWidget = defineWidget<TableWidgetProps>({
       inputContracts: [TABULAR_SOURCE_CONTRACT],
       outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       ioNotes: [
-        "The sourceData input is optional because manual table mode stores rows on this table widget.",
+        "seedData initializes or replaces the local table frame. liveUpdates applies incremental publications when bound.",
         "Display formatting, hidden columns, and value styling do not mutate the published dataset.",
       ],
     },

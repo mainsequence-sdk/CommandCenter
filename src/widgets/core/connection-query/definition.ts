@@ -2,7 +2,9 @@ import { Database } from "lucide-react";
 
 import { getConnectionTypeById } from "@/app/registry";
 import { buildDashboardExecutionRequestTraceMeta } from "@/dashboards/dashboard-request-trace";
+import { TABULAR_UPDATES_OUTPUT_ID } from "@/widgets/shared/incremental-tabular-consumer";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
+import { projectWidgetRuntimeUpdateOutput } from "@/widgets/shared/runtime-update";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
@@ -93,13 +95,37 @@ function resolveConnectionQueryIo(
           };
         },
       },
+      {
+        id: TABULAR_UPDATES_OUTPUT_ID,
+        label: queryModel ? `${queryModel.label} incremental updates` : "Unconfigured incremental updates",
+        contract: outputContract,
+        description:
+          `Publishes the ${queryModel?.id ?? "selected"} connection path as one explicit incremental publication stream for seed/update consumers.`,
+        valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+        resolveValue: ({ runtimeState: resolvedRuntimeState }) => {
+          const publishedFrame = normalizeConnectionQueryRuntimeState(resolvedRuntimeState);
+
+          if (!publishedFrame) {
+            return {
+              status: "idle",
+              columns: [],
+              rows: [],
+            };
+          }
+
+          return projectWidgetRuntimeUpdateOutput(publishedFrame, {
+            outputContractId: outputContract,
+            sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+          });
+        },
+      },
     ],
   };
 }
 
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   id: "connection-query",
-  widgetVersion: "1.5.3",
+  widgetVersion: "1.6.0",
   title: "Connection Query (HTTP)",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -143,6 +169,45 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   schema: connectionQuerySettingsSchema,
   settingsSchemaPlacement: "custom",
   workspaceRuntimeMode: "execution-owner",
+  buildAgentSnapshot: ({ props, runtimeState }) => {
+    const normalizedProps = normalizeConnectionQueryProps(props);
+    const normalizedRuntimeState = normalizeConnectionQueryRuntimeState(runtimeState);
+    const connectionType = normalizedProps.connectionRef?.typeId
+      ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
+      : undefined;
+    const queryModel = normalizedProps.queryModelId
+      ? connectionType?.queryModels?.find((model) => model.id === normalizedProps.queryModelId)
+      : undefined;
+
+    return {
+      displayKind: "custom",
+      state:
+        normalizedRuntimeState?.status === "error"
+          ? "error"
+          : normalizedRuntimeState?.status === "loading"
+            ? "loading"
+            : normalizedRuntimeState?.status === "ready"
+              ? "ready"
+              : "idle",
+      summary:
+        normalizedRuntimeState?.status === "error"
+          ? normalizedRuntimeState.error || "Connection query failed."
+          : queryModel
+            ? `${connectionType?.title ?? normalizedProps.connectionRef?.typeId ?? "Connection"} source configured for ${queryModel.label}.`
+            : "Connection query source is not fully configured.",
+      data: {
+        passthrough: true,
+        widgetRole: "connection-source",
+        connectionTypeName: connectionType?.title ?? normalizedProps.connectionRef?.typeId,
+        connectionId: normalizedProps.connectionRef?.id ?? null,
+        queryModelId: normalizedProps.queryModelId ?? null,
+        queryModelLabel: queryModel?.label ?? null,
+        outputContract: resolveConfiguredOutputContract(normalizedProps),
+        status: normalizedRuntimeState?.status ?? "idle",
+        timeRangeMode: normalizedProps.timeRangeMode ?? "dashboard",
+      },
+    };
+  },
   io: resolveConnectionQueryIo({}),
   resolveIo: ({ props, runtimeState }) => resolveConnectionQueryIo(props, runtimeState),
   execution: {

@@ -9,7 +9,13 @@ import {
   TABULAR_SOURCE_CONTRACT,
 } from "@/widgets/shared/tabular-widget-source";
 import { resolveTabularFieldOptionsFromDataset } from "@/widgets/shared/tabular-widget-source";
-import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
+import {
+  resolveIncrementalTabularOutputFrame,
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
+  TABULAR_UPDATES_OUTPUT_ID,
+} from "@/widgets/shared/incremental-tabular-consumer";
+import { TABULAR_SOURCE_INPUT_ID, TABULAR_SOURCE_OUTPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import { GraphWidget } from "./GraphWidget";
 import { graphWidgetController } from "./controller";
 import { GraphWidgetSettings } from "./GraphWidgetSettings";
@@ -22,9 +28,18 @@ import {
 import { graphSettingsSchema } from "./schema";
 
 function resolveSourceDataset(
-  resolvedInputs: ResolvedWidgetInputs | undefined,
+  input: {
+    resolvedInputs: ResolvedWidgetInputs | undefined;
+    runtimeState?: Record<string, unknown>;
+  },
 ) {
-  const resolvedEntry = resolvedInputs?.[TABULAR_SOURCE_INPUT_ID];
+  const incrementalFrame = resolveIncrementalTabularOutputFrame(input);
+
+  if (incrementalFrame) {
+    return incrementalFrame;
+  }
+
+  const resolvedEntry = input.resolvedInputs?.[TABULAR_SOURCE_INPUT_ID];
   const candidate = Array.isArray(resolvedEntry)
     ? resolvedEntry.find((entry) => entry.status === "valid")
     : resolvedEntry;
@@ -34,9 +49,36 @@ function resolveSourceDataset(
     : null;
 }
 
+const graphTabularFieldEffects = [
+  {
+    kind: "drives-options" as const,
+    sourcePath: "fields",
+    target: { kind: "schema-field" as const, id: "xField" },
+    description: "Upstream fields populate X-axis choices when the source is tabular.",
+  },
+  {
+    kind: "drives-options" as const,
+    sourcePath: "fields",
+    target: { kind: "schema-field" as const, id: "yField" },
+    description: "Upstream fields populate Y-axis choices when the source is tabular.",
+  },
+  {
+    kind: "drives-options" as const,
+    sourcePath: "fields",
+    target: { kind: "schema-field" as const, id: "groupField" },
+    description: "Upstream fields populate grouping choices.",
+  },
+  {
+    kind: "drives-render" as const,
+    sourcePath: "rows",
+    target: { kind: "render" as const, id: "chart" },
+    description: "Incoming rows drive the rendered chart series.",
+  },
+];
+
 export const graphWidget = defineWidget<GraphWidgetProps>({
   id: "graph",
-  widgetVersion: "2.8.0",
+  widgetVersion: "3.1.3",
   title: "Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -67,43 +109,27 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
   io: {
     inputs: [
       {
-        id: TABULAR_SOURCE_INPUT_ID,
-        label: "Source data",
+        id: TABULAR_SEED_INPUT_ID,
+        label: "Seed data",
         accepts: [TABULAR_SOURCE_CONTRACT],
-        required: true,
-        effects: [
-          {
-            kind: "drives-options",
-            sourcePath: "fields",
-            target: { kind: "schema-field", id: "xField" },
-            description: "Upstream fields populate X-axis choices when the source is tabular.",
-          },
-          {
-            kind: "drives-options",
-            sourcePath: "fields",
-            target: { kind: "schema-field", id: "yField" },
-            description: "Upstream fields populate Y-axis choices when the source is tabular.",
-          },
-          {
-            kind: "drives-options",
-            sourcePath: "fields",
-            target: { kind: "schema-field", id: "groupField" },
-            description: "Upstream fields populate grouping choices.",
-          },
-          {
-            kind: "drives-render",
-            sourcePath: "rows",
-            target: { kind: "render", id: "chart" },
-            description: "Incoming rows drive the rendered chart series.",
-          },
-        ],
+        acceptedOutputIds: [TABULAR_SOURCE_OUTPUT_ID],
+        required: false,
+        effects: graphTabularFieldEffects,
+      },
+      {
+        id: TABULAR_LIVE_UPDATES_INPUT_ID,
+        label: "Live updates",
+        accepts: [TABULAR_SOURCE_CONTRACT],
+        acceptedOutputIds: [TABULAR_UPDATES_OUTPUT_ID],
+        required: false,
+        effects: graphTabularFieldEffects,
       },
     ],
   },
   workspaceIcon: BarChart3,
   workspaceRuntimeMode: "consumer",
-  buildAgentSnapshot: ({ props, resolvedInputs, snapshotProfile }) => {
-    const sourceDataset = resolveSourceDataset(resolvedInputs);
+  buildAgentSnapshot: ({ props, resolvedInputs, runtimeState }) => {
+    const sourceDataset = resolveSourceDataset({ resolvedInputs, runtimeState });
     const fieldOptions = resolveTabularFieldOptionsFromDataset({
       columns: sourceDataset?.columns,
       rows: sourceDataset?.rows,
@@ -114,6 +140,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     const chartSeries = buildGraphChartSeries(
       rawSeries.series,
       config.timeAxisMode === "date" ? "date" : "datetime",
+      config.provider,
     );
 
     return {
@@ -131,15 +158,19 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
         ? `${chartSeries.series.length.toLocaleString()} series rendered from ${sourceDataset.rows.length.toLocaleString()} rows.`
         : "Graph is waiting for a bound dataset.",
       data: {
+        widgetRole: "presentation",
+        contentType: "chart",
         sourceStatus: sourceDataset?.status ?? "idle",
         sourceContract: sourceDataset?.source?.context?.sourceContract ?? TABULAR_SOURCE_CONTRACT,
-        provider: config.provider,
-        chartType: config.chartType,
-        xField: config.xField,
-        yField: config.yField,
-        groupField: config.groupField,
-        seriesAxisMode: config.seriesAxisMode,
-        timeAxisMode: config.timeAxisMode,
+        chartConfig: {
+          provider: config.provider,
+          chartType: config.chartType,
+          xField: config.xField,
+          yField: config.yField,
+          groupField: config.groupField,
+          seriesAxisMode: config.seriesAxisMode,
+          timeAxisMode: config.timeAxisMode,
+        },
         rowCount: sourceDataset?.rows.length ?? 0,
         seriesCount: chartSeries.series.length,
         droppedGroups: rawSeries.droppedGroups,
@@ -151,10 +182,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
           color: series.color,
           lineStyle: series.lineStyle,
           pointCount: series.pointCount,
-          points:
-            snapshotProfile === "full-data"
-              ? series.points
-              : series.points.slice(0, 200),
+          points: series.points.slice(0, 200),
         })),
       },
     };
@@ -174,9 +202,12 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
         "Optionally choose grouping, provider, and chart style settings.",
       ],
       configurationNotes: [
-        "This widget still renders only from the canonical resolved sourceData binding, even when the Bindings and Connection tabs create and manage a hidden connection-query or connection-stream-query source widget behind the scenes.",
+        "Bind seedData when this graph needs an initial retained dataset. Bind liveUpdates when this graph should receive incremental publications.",
+        "Managed HTTP connections bind the hidden source dataset output to seedData. Managed WebSocket connections bind the hidden source updates output to liveUpdates.",
         "This widget does not infer field mappings from upstream time-series metadata.",
-        "Max points per series caps only the local chart render window. It does not trim retained upstream rows; use source-side retention on live stream widgets when the upstream dataset itself should stay bounded.",
+        "For explicit live updates, tail-safe updates use the graph-local rolling queue and delta renderer path. Queue trims, history rewrites, and normalization fall back to snapshot refresh for correctness.",
+        "ECharts keeps full millisecond datetime points for high-frequency streams. TradingView collapses same-second datetime points to the latest point in that second.",
+        "Max points per series does not trim retained upstream rows; use source-side retention on live stream widgets when the upstream dataset itself should stay bounded.",
         "When grouping is enabled, Max series limits how many grouped series render at once; remaining groups are dropped deterministically by point count.",
         "The chart provider changes rendering behavior but not the canonical upstream dataset contract.",
       ],

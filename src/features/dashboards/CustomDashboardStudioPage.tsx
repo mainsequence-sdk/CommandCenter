@@ -2856,13 +2856,6 @@ export function CustomDashboardStudioPage({
         style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
       />
 
-        <div
-          className={cn(
-            "relative h-full min-h-full",
-            widgetSettingsOpen ? "pointer-events-none select-none" : undefined,
-          )}
-          aria-hidden={widgetSettingsOpen}
-        >
         {editMode ? (
           <WorkspaceWidgetRail
             widgets={railWidgets}
@@ -2879,6 +2872,14 @@ export function CustomDashboardStudioPage({
             }}
           />
         ) : null}
+
+        <div
+          className={cn(
+            "relative h-full min-h-full",
+            widgetSettingsOpen ? "pointer-events-none select-none" : undefined,
+          )}
+          aria-hidden={widgetSettingsOpen}
+        >
 
         <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
           <SidebarOnlyRuntimeMounts

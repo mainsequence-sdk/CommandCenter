@@ -162,6 +162,7 @@ export interface WidgetInputPortDefinition<
   id: string;
   label: string;
   accepts: WidgetContractId[];
+  acceptedOutputIds?: string[];
   description?: string;
   required?: boolean;
   cardinality?: "one" | "many";
@@ -282,13 +283,14 @@ export interface WidgetAgentSnapshotContext<
   widgetId: string;
   instanceId: string;
   title: string;
-  snapshotProfile: "evidence" | "full-data";
+  snapshotProfile: "agent";
   props: TProps;
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
   resolvedInputs?: ResolvedWidgetInputs;
   dashboardState?: WidgetExecutionDashboardState;
   domTextContent?: string;
+  resolveWidgetRuntimeState?: (instanceId: string | undefined) => Record<string, unknown> | undefined;
 }
 
 export interface WidgetExecutionTargetOverrides<
@@ -559,7 +561,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   workspaceIcon?: ComponentType<{ className?: string }>;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
-  buildAgentSnapshot?: (
+  buildAgentSnapshot: (
     context: WidgetAgentSnapshotContext<TProps>,
   ) => WidgetAgentSnapshot | Promise<WidgetAgentSnapshot>;
   component: ComponentType<WidgetComponentProps<TProps>>;

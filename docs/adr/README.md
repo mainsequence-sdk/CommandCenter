@@ -15,6 +15,7 @@ feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles](./adr-044-incremental-connection-publications-seed-live-roles.md)
 - [ADR 043: WebSocket Stream Preview And Graphing Semantics](./adr-043-websocket-stream-preview-graphing-semantics.md)
 - [ADR 042: Lightweight Row Filtering in Tabular Transform](./adr-042-tabular-transform-row-filtering.md)
 - [ADR 041: Query-Shaped WebSocket Streaming for Connections](./adr-041-connection-query-websocket-streaming.md)
@@ -36,6 +37,7 @@ feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles](./adr-044-incremental-connection-publications-seed-live-roles.md)
 - [ADR 043: WebSocket Stream Preview And Graphing Semantics](./adr-043-websocket-stream-preview-graphing-semantics.md)
 - [ADR 042: Lightweight Row Filtering in Tabular Transform](./adr-042-tabular-transform-row-filtering.md)
 - [ADR 041: Query-Shaped WebSocket Streaming for Connections](./adr-041-connection-query-websocket-streaming.md)
@@ -72,6 +74,7 @@ feature folder.
 - [ADR: Shared Connection Authoring Contract](./adr-connection-authoring-contract.md)
 - [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
 - [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
+- [ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles](./adr-044-incremental-connection-publications-seed-live-roles.md)
 - [ADR 043: WebSocket Stream Preview And Graphing Semantics](./adr-043-websocket-stream-preview-graphing-semantics.md)
 - [ADR 041: Query-Shaped WebSocket Streaming for Connections](./adr-041-connection-query-websocket-streaming.md)
 - [ADR: Main Sequence Simple Table Connection](./adr-main-sequence-simple-table-connection.md)

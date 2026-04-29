@@ -74,6 +74,9 @@ describe("incremental connection refresh", () => {
     });
 
     expect(initial.delta.mode).toBe("snapshot");
+    expect(initial.delta.publicationSemantics).toBe("incremental");
+    expect(initial.delta.publicationRole).toBe("seed");
+    expect(initial.delta.sourceRunId).toEqual(expect.any(String));
     expect(initial.frame.rows).toHaveLength(2);
 
     const deltaDecision = resolveConnectionQueryIncrementalDecision({
@@ -96,6 +99,8 @@ describe("incremental connection refresh", () => {
     expect(deltaDecision.reason).toBe("delta");
     expect(deltaDecision.request.timeRange?.from).toBe("2026-04-25T00:03:00.000Z");
     expect(merged.delta.mode).toBe("delta");
+    expect(merged.delta.publicationRole).toBe("update");
+    expect(merged.delta.sourceRunId).toBe(deltaDecision.identityKey);
     expect(merged.delta.rowsAppended).toBe(1);
     expect(merged.delta.rowsReplaced).toBe(1);
     expect(merged.frame.rows).toEqual([
@@ -180,6 +185,8 @@ describe("incremental connection refresh", () => {
       to: "2026-04-25T00:20:00.000Z",
     });
     expect(forced.delta.mode).toBe("snapshot");
+    expect(forced.delta.publicationRole).toBe("seed");
+    expect(forced.delta.sourceRunId).toEqual(expect.any(String));
     expect(forced.frame.rows).toEqual([
       { time: "2026-04-25T00:15:00.000Z", symbol: "AAPL", value: 15 },
     ]);

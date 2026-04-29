@@ -220,7 +220,10 @@ describe("connection stream query runtime model", () => {
     expect(next.status).toBe("ready");
     expect(next.streamStatus).toBe("live");
     expect(next.rows).toEqual([{ symbol: "ETHUSDT", price: 3500 }]);
-    expect(readWidgetRuntimeUpdateContext(next)?.mode).toBe("snapshot");
+    expect(readWidgetRuntimeUpdateContext(next)).toMatchObject({
+      mode: "snapshot",
+      publicationRole: "seed",
+    });
   });
 
   it("merges delta messages into the retained frame and exposes runtime update metadata", () => {
@@ -253,6 +256,8 @@ describe("connection stream query runtime model", () => {
       { symbol: "SOLUSDT", price: 150 },
     ]);
     expect(update?.mode).toBe("delta");
+    expect(update?.publicationRole).toBe("update");
+    expect(update?.sourceRunId).toBe(retained.sourceRunId);
     expect(update?.operations).toMatchObject({
       appended: 1,
       replaced: 1,
@@ -265,7 +270,7 @@ describe("connection stream query runtime model", () => {
     ]);
   });
 
-  it("accumulates snapshot messages into retained rows when the stream model publishes default merge keys", () => {
+  it("re-publishes later snapshot messages as retained seed resets when merge keys accumulate rows", () => {
     const retained = reduceConnectionStreamQueryMessage({
       message: streamMessage("snapshot", [{ symbol: "BTCUSDT", price: 70000 }]),
       props: {
@@ -293,14 +298,13 @@ describe("connection stream query runtime model", () => {
       { symbol: "BTCUSDT", price: 70000 },
       { symbol: "ETHUSDT", price: 3500 },
     ]);
-    expect(update?.mode).toBe("delta");
+    expect(update?.mode).toBe("snapshot");
+    expect(update?.publicationRole).toBe("seed");
     expect(update?.diagnostics).toMatchObject({
       sourceMessageType: "snapshot",
       mergeKeyFields: ["symbol"],
     });
-    expect((update?.deltaOutput as ConnectionStreamQueryRuntimeState | undefined)?.rows).toEqual([
-      { symbol: "ETHUSDT", price: 3500 },
-    ]);
+    expect(update?.deltaOutput).toBeUndefined();
   });
 
   it("rejects delta frames with a different schema", () => {

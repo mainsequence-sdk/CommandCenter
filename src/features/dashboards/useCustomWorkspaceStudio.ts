@@ -45,10 +45,7 @@ export function useCustomWorkspaceStudio() {
   const requestedWidgetId = searchParams.get("widget");
   const requestedWidgetTabParam = searchParams.get("tab");
   const snapshotMode = searchParams.get("snapshot") === "true";
-  const snapshotProfile: WorkspaceSnapshotCaptureProfile =
-    searchParams.get("snapshotProfile") === "evidence"
-      ? "evidence"
-      : "full-data";
+  const snapshotProfile: WorkspaceSnapshotCaptureProfile = "agent";
   const requestedWidgetSettingsTab =
     requestedWidgetTabParam === "bindings"
       ? "bindings"

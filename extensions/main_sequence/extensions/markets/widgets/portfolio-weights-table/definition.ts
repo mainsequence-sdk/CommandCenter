@@ -23,6 +23,24 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
     portfolioId: 1,
     variant: "positions",
   },
+  buildAgentSnapshot: ({ props, domTextContent, runtimeState }) => ({
+    displayKind: "table",
+    state: domTextContent?.trim()
+      ? "ready"
+      : runtimeState
+        ? "loading"
+        : "idle",
+    summary: domTextContent?.trim()
+      ? domTextContent.trim().slice(0, 240)
+      : "Portfolio Weights is waiting for portfolio data.",
+    data: {
+      widgetRole: "presentation",
+      contentType: "table",
+      portfolioId: props.portfolioId ?? null,
+      targetPortfolioId: props.targetPortfolioId ?? null,
+      variant: props.variant ?? null,
+    },
+  }),
   settingsComponent: PortfolioWeightsWidgetSettings,
   execution: portfolioWeightsExecutionDefinition,
   workspaceRuntimeMode: "execution-owner",

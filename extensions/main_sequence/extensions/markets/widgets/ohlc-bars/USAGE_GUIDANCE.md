@@ -1,14 +1,15 @@
 ## buildPurpose
 
-OHLC bar chart for a bound tabular market dataset. The upstream tabular response must publish one
-row per bar with time, open, high, low, and close values, and may include a numeric volume field.
-If the bound table contains several tickers or instruments, configure a series filter column and one
-filter value so the chart renders a single OHLC series.
+OHLC bar chart for bound tabular market publications. The upstream tabular response must publish
+one row per bar with time, open, high, low, and close values, and may include a numeric volume
+field. If the bound table contains several tickers or instruments, configure a series filter column
+and one filter value so the chart renders a single OHLC series.
 
 ## whenToUse
 
-- Use when an upstream Connection Query or Tabular Transform publishes market bars that should be
-  plotted as open-high-low-close bars with TradingView Lightweight Charts.
+- Use when an upstream Connection Query, Connection Stream Query, or Tabular Transform publishes
+  market bars that should be plotted as open-high-low-close bars with TradingView Lightweight
+  Charts.
 - Use when the dataset is already shaped as a tabular frame and the widget only needs to map columns
   into a chart.
 - Use when optional volume should be shown as a lower histogram pane or simple close-price studies
@@ -25,7 +26,9 @@ filter value so the chart renders a single OHLC series.
 
 ## authoringSteps
 
-- Bind the widget to a compatible upstream dataset through the Source data input.
+- Bind `seedData` to the retained historical dataset that should establish the baseline chart state.
+- Bind `liveUpdates` when this chart should keep applying explicit incremental `updates` publications.
+- Legacy saved `sourceData` bindings are migrated to `seedData` automatically.
 - Ensure the upstream rows contain one temporal field plus numeric open, high, low, and close fields.
 - If rows contain multiple instruments, choose the filter column and then choose one value from that
   column.
@@ -40,6 +43,7 @@ filter value so the chart renders a single OHLC series.
 - Incremental upstream sources expose retained rows through `upstreamBase` and changed rows through
   `upstreamDelta`. When the update is safe for incremental rendering, the OHLC chart appends or
   replaces bars while preserving the mounted chart instance and visible range.
+- `seedData` establishes the baseline frame. `liveUpdates` applies ongoing seed/update publications as a separate live overlay that is unioned onto the baseline.
 - The tabular response must include rows equivalent to:
 
 ```json

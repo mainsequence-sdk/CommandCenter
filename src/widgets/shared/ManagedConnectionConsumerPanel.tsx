@@ -15,6 +15,8 @@ import type {
 } from "@/widgets/shared/managed-connection-consumer";
 import {
   isManagedConnectionConsumerStreamMode,
+  resolveManagedConnectionConsumerInputId,
+  resolveManagedConnectionConsumerOutputId,
   resolveManagedConnectionConsumerSourceWidgetId,
 } from "@/widgets/shared/managed-connection-consumer";
 import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
@@ -41,6 +43,8 @@ export function ManagedConnectionConsumerPanel({
 }) {
   const widgetRegistry = useDashboardWidgetRegistry();
   const sourceMode = adapter.getSourceMode(draftProps);
+  const sourceInputId = resolveManagedConnectionConsumerInputId(adapter, draftProps);
+  const sourceOutputId = resolveManagedConnectionConsumerOutputId(adapter, draftProps);
   const sourceWidgetId = resolveManagedConnectionConsumerSourceWidgetId(adapter, draftProps);
   const isStreamConnectionMode = isManagedConnectionConsumerStreamMode(adapter, sourceMode);
   const connectionSourceWidgetDefinition = useMemo(
@@ -216,7 +220,7 @@ export function ManagedConnectionConsumerPanel({
         publishPreviewRuntimeStateToInstanceId={matchingManagedConnectionSource?.id}
         runtimeState={matchingManagedConnectionSource?.runtimeState ?? undefined}
         runtimeStatusTitle="Managed source runtime"
-        runtimeStatusDescription={`This ${consumerLabel} still renders from resolved ${adapter.sourceInputId}. Applying connection changes creates or updates the hidden connection source and keeps ${adapter.sourceInputId} bound to its dataset output.`}
+        runtimeStatusDescription={`This ${consumerLabel} still renders from resolved ${sourceInputId}. Applying connection changes creates or updates the hidden connection source and keeps ${sourceInputId} bound to its ${sourceOutputId} output.`}
         runtimeStatusEmptyMessage={
           matchingManagedConnectionSource
             ? "The managed source exists, but it has not published a live dataset yet."
@@ -254,7 +258,7 @@ export function ManagedConnectionConsumerPanel({
         )}
         showConnectionPicker
         showQueryEditor={useTypedQueryEditor}
-        resultDescription={`Preview of the normalized source frame this ${consumerLabel} will receive through ${adapter.sourceInputId}.`}
+        resultDescription={`Preview of the normalized source frame this ${consumerLabel} will receive through ${sourceInputId}.`}
       />
     </div>
   );

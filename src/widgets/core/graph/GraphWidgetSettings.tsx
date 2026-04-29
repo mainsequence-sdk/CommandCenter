@@ -217,8 +217,13 @@ export function GraphWidgetSettings({
     [previewRows, resolvedConfig],
   );
   const previewChartSeriesResult = useMemo(
-    () => buildGraphChartSeries(previewSeriesResult.series, previewTimeAxisMode),
-    [previewSeriesResult.series, previewTimeAxisMode],
+    () =>
+      buildGraphChartSeries(
+        previewSeriesResult.series,
+        previewTimeAxisMode,
+        resolvedConfig?.provider ?? "tradingview",
+      ),
+    [previewSeriesResult.series, previewTimeAxisMode, resolvedConfig?.provider],
   );
   const previewTableColumns = useMemo(
     () =>

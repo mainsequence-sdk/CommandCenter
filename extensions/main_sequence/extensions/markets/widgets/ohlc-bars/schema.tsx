@@ -209,8 +209,8 @@ export const ohlcBarsSettingsSchema: WidgetSettingsSchema<
   filterWidgetOnly: true,
   dataNodeCanvasQueryScope: "ohlc_bars_canvas",
   dataSourceSectionDescription:
-    "Use the Bindings tab to connect this OHLC bars widget to the upstream dataset that publishes market bars.",
-  selectionHelpText: "Bind this OHLC chart to a Connection Query or Tabular Transform dataset.",
+    "Use the Bindings tab to connect this OHLC bars widget to seedData and optional liveUpdates from the upstream market source.",
+  selectionHelpText: "Bind this OHLC chart to a Connection Query, Connection Stream Query, or Tabular Transform dataset.",
   additionalSections: [
     {
       id: "field-mapping",

@@ -63,6 +63,19 @@ export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWid
   schema: curvePlotSettingsSchema,
   controller: mainSequenceCurvePlotWidgetController,
   workspaceRuntimeMode: "consumer",
+  buildAgentSnapshot: ({ props, domTextContent }) => ({
+    displayKind: "chart",
+    state: domTextContent?.trim() ? "ready" : "idle",
+    summary: domTextContent?.trim()
+      ? domTextContent.trim().slice(0, 240)
+      : "Curve Plot is waiting for a bound curve dataset.",
+    data: {
+      widgetRole: "presentation",
+      contentType: "chart",
+      sourceMode: props.sourceMode ?? null,
+      maturityUnit: props.maturityUnit ?? null,
+    },
+  }),
   registryContract: {
     configuration: {
       mode: "static-schema",

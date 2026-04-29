@@ -241,6 +241,29 @@ function withIncrementalContext(
   } satisfies TabularFrameSourceV1, delta);
 }
 
+function buildConnectionQueryPublicationRole(input: {
+  active: boolean;
+  retainedState?: RetainedConnectionQueryState;
+}) {
+  if (!input.active || !input.retainedState) {
+    return "seed" as const;
+  }
+
+  return "update" as const;
+}
+
+function buildConnectionQuerySourceRunId(input: {
+  identityKey?: string;
+  publicationRole: "seed" | "update";
+}) {
+  if (input.publicationRole === "update" && input.identityKey) {
+    return input.identityKey;
+  }
+
+  const scope = input.identityKey ?? "connection-query";
+  return `${scope}:${Date.now().toString(36)}`;
+}
+
 function getFrameWatermark(frame: TabularFrameSourceV1, timeField: string, fallbackMs: number) {
   const watermarkMs = getFrameMaxTimestampMs(frame, timeField);
 
@@ -424,12 +447,22 @@ export function mergeConnectionQueryIncrementalFrame(input: {
   const fullRange = parseRange(input.decision.fullRequest.timeRange);
 
   if (!input.decision.active || !input.decision.identityKey || !requestRange || !fullRange) {
+    const publicationRole = buildConnectionQueryPublicationRole({
+      active: input.decision.active,
+      retainedState: input.decision.retainedState,
+    });
     const watermarkMs = input.settings.timeField
       ? getFrameWatermark(input.incomingFrame, input.settings.timeField, requestRange?.toMs ?? Date.now())
       : Date.now();
     const delta: ConnectionQueryRuntimeDeltaSummary = {
       contractVersion: WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION,
       mode: "snapshot",
+      publicationSemantics: "incremental",
+      publicationRole,
+      sourceRunId: buildConnectionQuerySourceRunId({
+        identityKey: input.decision.identityKey,
+        publicationRole,
+      }),
       retainedOutputLocation: "carrier",
       sourceOutputId: "dataset",
       sourceWidgetId: input.decision.sourceWidgetId,
@@ -544,9 +577,19 @@ export function mergeConnectionQueryIncrementalFrame(input: {
     columns,
     fields,
   });
+  const publicationRole = buildConnectionQueryPublicationRole({
+    active: input.decision.active,
+    retainedState: input.decision.retainedState,
+  });
   const delta: ConnectionQueryRuntimeDeltaSummary = {
     contractVersion: WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION,
     mode: input.decision.retainedState ? "delta" : "snapshot",
+    publicationSemantics: "incremental",
+    publicationRole,
+    sourceRunId: buildConnectionQuerySourceRunId({
+      identityKey: input.decision.identityKey,
+      publicationRole,
+    }),
     retainedOutputLocation: "carrier",
     sourceOutputId: "dataset",
     sourceWidgetId: input.decision.sourceWidgetId,

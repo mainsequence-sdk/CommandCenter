@@ -18,6 +18,7 @@ import { useTheme } from "@/themes/ThemeProvider";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
 import type { ThemeTokens } from "@/themes/types";
 import { createAgGridTerminalTheme } from "@/widgets/extensions/ag-grid/grid-theme";
+import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
 import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-widget-source";
 import type { WidgetComponentProps } from "@/widgets/types";
 
@@ -533,7 +534,13 @@ function TableWidgetCellRenderer({
   );
 }
 
-export function TableWidget({ props, resolvedInputs, instanceId }: Props) {
+export function TableWidget({
+  props,
+  resolvedInputs,
+  instanceId,
+  runtimeState,
+  onRuntimeStateChange,
+}: Props) {
   const { resolvedTokens, tightness } = useTheme();
   const tightnessMetrics = useMemo(() => getThemeTightnessMetrics(tightness), [tightness]);
   const normalizedProps = useMemo(
@@ -545,16 +552,29 @@ export function TableWidget({ props, resolvedInputs, instanceId }: Props) {
     props: normalizedProps as unknown as TableWidgetProps,
     currentWidgetInstanceId: instanceId,
   });
-  const sourceConsumerState = sourceBinding.consumerState;
+  const incrementalBinding = useIncrementalTabularConsumerBindingState({
+    instanceId,
+    onRuntimeStateChange,
+    resolvedInputs,
+    runtimeState,
+  });
+  const sourceConsumerState =
+    !isManualTableMode && incrementalBinding.active
+      ? incrementalBinding.consumerState
+      : sourceBinding.consumerState;
   useResolveWidgetUpstream(instanceId, {
-    enabled: !isManualTableMode && sourceBinding.requiresUpstreamResolution,
+    enabled:
+      !isManualTableMode &&
+      (incrementalBinding.active
+        ? incrementalBinding.requiresUpstreamResolution
+        : sourceBinding.requiresUpstreamResolution),
   });
   const resolvedInputDataset = useMemo(
     () =>
       !isManualTableMode
         ? sourceConsumerState.dataset
-        : resolveTableWidgetSourceDataset(resolvedInputs),
-    [isManualTableMode, resolvedInputs, sourceConsumerState.dataset],
+        : resolveTableWidgetSourceDataset(resolvedInputs, runtimeState),
+    [isManualTableMode, resolvedInputs, runtimeState, sourceConsumerState.dataset],
   );
   const linkedDataset = resolvedInputDataset;
   const sourceColumns = linkedDataset?.columns ?? [];

@@ -56,6 +56,7 @@ export interface ConnectionStreamQueryWidgetProps extends Record<string, unknown
 
 export interface ConnectionStreamQueryRuntimeState extends TabularFrameSourceV1 {
   streamStatus: ConnectionStreamLifecycleStatus;
+  sourceRunId?: string;
   sequence?: number;
   connectedAtMs?: number;
   lastMessageAtMs?: number;
@@ -74,6 +75,7 @@ export interface ConnectionStreamQueryRuntimeSession {
 
 interface StreamRuntimeContext {
   status: ConnectionStreamLifecycleStatus;
+  sourceRunId?: string;
   sequence?: number;
   connectedAtMs?: number;
   lastMessageAtMs?: number;
@@ -169,6 +171,7 @@ function buildStreamContext(input: {
     stream: {
       ...(isPlainRecord(input.existing?.stream) ? input.existing.stream : {}),
       status: input.lifecycle.status,
+      sourceRunId: input.lifecycle.sourceRunId,
       sequence: input.lifecycle.sequence,
       connectedAtMs: input.lifecycle.connectedAtMs,
       lastMessageAtMs: input.lifecycle.lastMessageAtMs,
@@ -195,6 +198,7 @@ function withStreamLifecycle(
     ...frame,
     status: lifecycleStatusToFrameStatus(lifecycle.status, frame.status === "ready"),
     streamStatus: lifecycle.status,
+    sourceRunId: lifecycle.sourceRunId,
     sequence: lifecycle.sequence,
     connectedAtMs: lifecycle.connectedAtMs,
     lastMessageAtMs: lifecycle.lastMessageAtMs,
@@ -231,6 +235,7 @@ function buildEmptyStreamFrame(input: {
   acceptedAt?: string;
   resumeToken?: string;
   traceId?: string;
+  sourceRunId?: string;
 }) {
   const normalizedProps = normalizeConnectionStreamQueryProps(input.props);
   const frame: TabularFrameSourceV1 = {
@@ -252,6 +257,7 @@ function buildEmptyStreamFrame(input: {
 
   return withStreamLifecycle(frame, {
     status: input.status,
+    sourceRunId: input.sourceRunId,
     sequence: input.sequence,
     connectedAtMs: input.connectedAtMs,
     lastMessageAtMs: input.lastMessageAtMs,
@@ -378,6 +384,7 @@ function mergeDeltaFrame(input: {
   props: ConnectionStreamQueryWidgetProps;
   queryModel: ConnectionQueryModel;
   sourceWidgetId?: string;
+  sourceRunId?: string;
   sequence?: number;
   emittedAt?: string;
 }) {
@@ -443,6 +450,10 @@ function mergeDeltaFrame(input: {
   const update = {
     contractVersion: WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION,
     mode: "delta",
+    publicationSemantics: "incremental",
+    publicationRole: "update",
+    sourceRunId: input.sourceRunId,
+    sequence: input.sequence,
     retainedOutputLocation: "carrier",
     sourceWidgetId: input.sourceWidgetId,
     sourceOutputId: "dataset",
@@ -473,6 +484,7 @@ function accumulateSnapshotFrame(input: {
   props: ConnectionStreamQueryWidgetProps;
   queryModel: ConnectionQueryModel;
   sourceWidgetId?: string;
+  sourceRunId?: string;
   sequence?: number;
   emittedAt?: string;
 }) {
@@ -485,8 +497,15 @@ function accumulateSnapshotFrame(input: {
     return attachSnapshotRuntimeUpdate({
       frame: input.snapshotFrame,
       sourceWidgetId: input.sourceWidgetId,
+      sourceRunId: input.sourceRunId,
+      publicationRole: "seed",
       sequence: input.sequence,
       emittedAt: input.emittedAt,
+      diagnostics: {
+        stream: true,
+        sourceMessageType: "snapshot",
+        mergeKeyFields,
+      },
     });
   }
 
@@ -497,8 +516,15 @@ function accumulateSnapshotFrame(input: {
     return attachSnapshotRuntimeUpdate({
       frame: input.snapshotFrame,
       sourceWidgetId: input.sourceWidgetId,
+      sourceRunId: input.sourceRunId,
+      publicationRole: "seed",
       sequence: input.sequence,
       emittedAt: input.emittedAt,
+      diagnostics: {
+        stream: true,
+        sourceMessageType: "snapshot",
+        mergeKeyFields,
+      },
     });
   }
 
@@ -546,18 +572,13 @@ function accumulateSnapshotFrame(input: {
       },
     },
   } satisfies TabularFrameSourceV1;
-  const deltaOutput = buildDeltaOnlyFrame({
-    deltaFrame: input.snapshotFrame,
-    rows: input.snapshotFrame.rows,
-  });
-  const update = {
-    contractVersion: WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION,
-    mode: "delta",
-    retainedOutputLocation: "carrier",
+  return attachSnapshotRuntimeUpdate({
+    frame: retainedFrame,
     sourceWidgetId: input.sourceWidgetId,
-    sourceOutputId: "dataset",
-    outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
-    deltaOutput,
+    sourceRunId: input.sourceRunId,
+    publicationRole: "seed",
+    sequence: input.sequence,
+    emittedAt: input.emittedAt,
     operations: {
       appended: rowsAppended,
       replaced: rowsReplaced,
@@ -573,25 +594,32 @@ function accumulateSnapshotFrame(input: {
       mergeKeyFields,
       retentionMaxRows,
     },
-  } satisfies WidgetRuntimeUpdateEnvelope<TabularFrameSourceV1, TabularFrameSourceV1>;
-
-  return attachWidgetRuntimeUpdateContext(retainedFrame, update);
+  });
 }
 
 function attachSnapshotRuntimeUpdate(input: {
   frame: TabularFrameSourceV1;
   sourceWidgetId?: string;
+  sourceRunId?: string;
+  publicationRole?: "seed" | "update";
   sequence?: number;
   emittedAt?: string;
+  diagnostics?: Record<string, unknown>;
+  operations?: WidgetRuntimeUpdateEnvelope<TabularFrameSourceV1, TabularFrameSourceV1>["operations"];
 }) {
   const update = {
     contractVersion: WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION,
     mode: "snapshot",
+    publicationSemantics: "incremental",
+    publicationRole: input.publicationRole ?? "seed",
+    sourceRunId: input.sourceRunId,
+    sequence: input.sequence,
     retainedOutputLocation: "carrier",
     sourceWidgetId: input.sourceWidgetId,
     sourceOutputId: "dataset",
     outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
     operations: {
+      ...(input.operations ?? {}),
       returned: input.frame.rows.length,
       retained: input.frame.rows.length,
     },
@@ -599,6 +627,7 @@ function attachSnapshotRuntimeUpdate(input: {
       stream: true,
       sequence: input.sequence,
       emittedAt: input.emittedAt,
+      ...(input.diagnostics ?? {}),
     },
   } satisfies WidgetRuntimeUpdateEnvelope<TabularFrameSourceV1, TabularFrameSourceV1>;
 
@@ -703,6 +732,9 @@ export function normalizeConnectionStreamQueryRuntimeState(
   return {
     ...frame,
     streamStatus: status,
+    sourceRunId:
+      normalizeTimestamp((value as { sourceRunId?: unknown }).sourceRunId) ??
+      normalizeTimestamp(streamContext?.sourceRunId),
     sequence: normalizeNumber(value.sequence) ?? normalizeNumber(streamContext?.sequence),
     connectedAtMs:
       normalizeNumber(value.connectedAtMs) ?? normalizeNumber(streamContext?.connectedAtMs),
@@ -736,6 +768,7 @@ export function buildConnectionStreamQueryLifecycleFrame(input: {
   acceptedAt?: string;
   resumeToken?: string;
   traceId?: string;
+  sourceRunId?: string;
 }) {
   const retainedFrame = resolveRetainedFrame(input.retainedState);
 
@@ -745,6 +778,7 @@ export function buildConnectionStreamQueryLifecycleFrame(input: {
 
   return withStreamLifecycle(retainedFrame, {
     status: input.status,
+    sourceRunId: input.sourceRunId ?? retainedFrame.sourceRunId,
     sequence: input.sequence ?? retainedFrame.sequence,
     connectedAtMs: input.connectedAtMs ?? retainedFrame.connectedAtMs,
     lastMessageAtMs: input.lastMessageAtMs ?? retainedFrame.lastMessageAtMs,
@@ -764,6 +798,7 @@ export function reduceConnectionStreamQueryMessage(input: {
   queryModel: ConnectionQueryModel;
   retainedState?: unknown;
   sourceWidgetId?: string;
+  sourceRunId?: string;
   nowMs?: number;
 }) {
   assertConnectionQueryModelStreamable(input.queryModel);
@@ -789,6 +824,7 @@ export function reduceConnectionStreamQueryMessage(input: {
         acceptedAt: input.message.acceptedAt,
         resumeToken: input.message.resumeToken,
         traceId: input.message.traceId,
+        sourceRunId: input.sourceRunId,
       });
     case "heartbeat":
       return buildConnectionStreamQueryLifecycleFrame({
@@ -800,6 +836,7 @@ export function reduceConnectionStreamQueryMessage(input: {
         lastMessageAtMs: nowMs,
         emittedAt: input.message.emittedAt,
         traceId: input.message.traceId,
+        sourceRunId: input.sourceRunId,
       });
     case "snapshot": {
       const frame = normalizeConnectionQueryResponsePayload(input.message.response, {
@@ -820,12 +857,15 @@ export function reduceConnectionStreamQueryMessage(input: {
             props: normalizedProps,
             queryModel: input.queryModel,
             sourceWidgetId: input.sourceWidgetId,
+            sourceRunId: input.sourceRunId,
             sequence: input.message.sequence,
             emittedAt: input.message.emittedAt,
           })
         : attachSnapshotRuntimeUpdate({
             frame: normalizedFrame,
             sourceWidgetId: input.sourceWidgetId,
+            sourceRunId: input.sourceRunId,
+            publicationRole: "seed",
             sequence: input.message.sequence,
             emittedAt: input.message.emittedAt,
           });
@@ -838,6 +878,7 @@ export function reduceConnectionStreamQueryMessage(input: {
           emittedAt: input.message.emittedAt,
           resumeToken: input.message.resumeToken,
           traceId: input.message.traceId,
+          sourceRunId: input.sourceRunId,
         },
       );
     }
@@ -860,12 +901,15 @@ export function reduceConnectionStreamQueryMessage(input: {
             props: normalizedProps,
             queryModel: input.queryModel,
             sourceWidgetId: input.sourceWidgetId,
+            sourceRunId: input.sourceRunId,
             sequence: input.message.sequence,
             emittedAt: input.message.emittedAt,
           })
         : attachSnapshotRuntimeUpdate({
             frame: normalizedFrame,
             sourceWidgetId: input.sourceWidgetId,
+            sourceRunId: input.sourceRunId,
+            publicationRole: "seed",
             sequence: input.message.sequence,
             emittedAt: input.message.emittedAt,
           });
@@ -876,6 +920,7 @@ export function reduceConnectionStreamQueryMessage(input: {
         emittedAt: input.message.emittedAt,
         resumeToken: input.message.resumeToken,
         traceId: input.message.traceId,
+        sourceRunId: input.sourceRunId,
       });
     }
     case "error":
@@ -889,6 +934,7 @@ export function reduceConnectionStreamQueryMessage(input: {
         lastMessageAtMs: nowMs,
         emittedAt: input.message.emittedAt,
         traceId: input.message.traceId,
+        sourceRunId: input.sourceRunId,
       });
     case "complete":
       return buildConnectionStreamQueryLifecycleFrame({
@@ -900,6 +946,7 @@ export function reduceConnectionStreamQueryMessage(input: {
         closedAtMs: nowMs,
         emittedAt: input.message.emittedAt,
         traceId: input.message.traceId,
+        sourceRunId: input.sourceRunId,
       });
     default:
       return input.retainedState as ConnectionStreamQueryRuntimeState;
@@ -959,6 +1006,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
 
   let active = true;
   let retainedState: unknown = input.initialRuntimeState;
+  const sourceRunId = `${subscriptionKey}:${Date.now().toString(36)}`;
 
   function publish(state: ConnectionStreamQueryRuntimeState) {
     if (!active) {
@@ -975,6 +1023,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
       status: "connecting",
       retainedState,
       lastMessageAtMs: Date.now(),
+      sourceRunId,
     }),
   );
 
@@ -986,6 +1035,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
           status: "connecting",
           retainedState,
           lastMessageAtMs: Date.now(),
+          sourceRunId,
         }),
       );
     },
@@ -998,6 +1048,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
             queryModel: input.queryModel,
             retainedState,
             sourceWidgetId: input.sourceWidgetId,
+            sourceRunId,
           }),
         );
       } catch (error) {
@@ -1008,6 +1059,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
             retainedState: undefined,
             error: error instanceof Error ? error.message : "Connection stream message failed.",
             lastMessageAtMs: Date.now(),
+            sourceRunId,
           }),
         );
       }
@@ -1019,6 +1071,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
           status: "error",
           error: error.message,
           lastMessageAtMs: Date.now(),
+          sourceRunId,
         }),
       );
     },
@@ -1029,6 +1082,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
           status: "error",
           error: "Connection stream WebSocket error.",
           lastMessageAtMs: Date.now(),
+          sourceRunId,
         }),
       );
     },
@@ -1041,6 +1095,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
           retainedState,
           closedAtMs: Date.now(),
           error: event.reason || undefined,
+          sourceRunId,
         }),
       );
     },
@@ -1076,6 +1131,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
           retainedState,
           error: error instanceof Error ? error.message : "Connection stream could not start.",
           lastMessageAtMs: Date.now(),
+          sourceRunId,
         }),
       );
     });

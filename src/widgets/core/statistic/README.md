@@ -16,9 +16,12 @@ into one or more KPI-style cards.
 
 ## Behavior
 
-- The widget consumes one `core.tabular_frame@v1` input on `sourceData`.
-- Connection-backed authoring still resolves through `sourceData`; the hidden managed
-  `connection-query` or `connection-stream-query` widget owns execution and dataset publication.
+- The widget now exposes explicit `seedData` and `liveUpdates` inputs.
+- `seedData` is the retained dataset baseline.
+- `liveUpdates` is the explicit incremental updates lane.
+- Connection-backed authoring binds those roles automatically:
+  - managed HTTP source -> `dataset` to `seedData`
+  - managed WS source -> `updates` to `liveUpdates`
 - The widget reads the resolved input's generic `upstreamBase` frame when an incremental upstream
   source publishes retained base plus delta metadata. It recomputes cards from the retained
   snapshot rather than applying row deltas directly.

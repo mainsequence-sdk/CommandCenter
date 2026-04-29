@@ -29,6 +29,17 @@ export const lightweightChartsSpecWidget = defineWidget<LightweightChartsSpecWid
   mockProps: {
     specJson: starterSpecJson,
   },
+  buildAgentSnapshot: ({ domTextContent }) => ({
+    displayKind: "chart",
+    state: domTextContent?.trim() ? "ready" : "idle",
+    summary: domTextContent?.trim()
+      ? domTextContent.trim().slice(0, 240)
+      : "Lightweight Charts spec widget is configured from a declarative chart spec.",
+    data: {
+      widgetRole: "presentation",
+      contentType: "chart-spec",
+    },
+  }),
   io: {
     inputs: [
       {

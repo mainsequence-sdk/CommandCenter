@@ -71,9 +71,11 @@ backend-owned connection instances.
   full snapshot request and replace the retained base before later dashboard refreshes request
   deltas. Persisted widget runtime output is not treated as a successful live refresh cursor.
 - Incremental refresh remains frontend-only. The backend receives the same query envelope; only
-  follow-up request ranges are narrower. The published `dataset` output remains the retained full
-  tabular frame, with the shared `widget-runtime-update@v1` envelope attached under
-  `source.context.runtimeUpdate` for delta-aware consumers.
+  follow-up request ranges are narrower. The widget now publishes:
+  - `dataset`: retained full tabular frame for legacy consumers
+  - `updates`: explicit incremental publication output for `seedData` / `liveUpdates` consumers
+  Both outputs share the same `widget-runtime-update@v1` envelope so HTTP incremental behavior
+  stays backward compatible while live-capable widgets can bind the role they actually need.
 - Identical in-flight incremental requests for the same widget/query identity are deduped so rapid
   overlapping refresh triggers share one backend call instead of racing duplicate writes into the
   retained frame.

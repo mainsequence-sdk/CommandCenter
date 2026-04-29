@@ -450,8 +450,8 @@ describe("custom dashboard storage managed widgets", () => {
       placementMode: "sidebar",
       railVisibility: "hidden",
     });
-    expect(owner?.bindings).toEqual({
-      sourceData: {
+    expect(owner?.bindings).toMatchObject({
+      seedData: {
         sourceWidgetId: managedSource?.id,
         sourceOutputId: "dataset",
       },
@@ -498,9 +498,42 @@ describe("custom dashboard storage managed widgets", () => {
       mergeKeyFields: ["symbol"],
       retentionMaxRows: 250,
     });
-    expect(owner?.bindings).toEqual({
-      sourceData: {
+    expect(owner?.bindings).toMatchObject({
+      liveUpdates: {
         sourceWidgetId: managedSource?.id,
+        sourceOutputId: "updates",
+      },
+    });
+  });
+
+  it("migrates legacy OHLC sourceData bindings to seedData", () => {
+    const normalized = sanitizeDashboardDefinition({
+      id: "workspace-ohlc",
+      title: "OHLC Workspace",
+      description: "Legacy OHLC binding migration",
+      source: "test",
+      widgets: [
+        {
+          id: "ohlc-1",
+          widgetId: "main-sequence-ohlc-bars",
+          title: "OHLC Bars",
+          layout: {
+            cols: 12,
+            rows: 8,
+          },
+          bindings: {
+            sourceData: {
+              sourceWidgetId: "connection-1",
+              sourceOutputId: "dataset",
+            },
+          },
+        },
+      ],
+    });
+
+    expect(normalized.widgets[0]?.bindings).toEqual({
+      seedData: {
+        sourceWidgetId: "connection-1",
         sourceOutputId: "dataset",
       },
     });
@@ -665,8 +698,8 @@ describe("custom dashboard storage managed widgets", () => {
     expect(duplicatedManagedSource).not.toBeNull();
     expect(duplicatedManagedSource?.id).not.toBe(originalManagedSource?.id);
     expect(duplicatedManagedSource?.props).toEqual(originalManagedSource?.props);
-    expect(duplicatedGraph?.bindings).toEqual({
-      sourceData: {
+    expect(duplicatedGraph?.bindings).toMatchObject({
+      seedData: {
         sourceWidgetId: duplicatedManagedSource?.id,
         sourceOutputId: "dataset",
       },
@@ -782,8 +815,8 @@ describe("custom dashboard storage managed widgets", () => {
       queryModelId: "sql",
       maxRows: 100,
     });
-    expect(owner?.bindings).toEqual({
-      sourceData: {
+    expect(owner?.bindings).toMatchObject({
+      seedData: {
         sourceWidgetId: managedSource?.id,
         sourceOutputId: "dataset",
       },
@@ -936,8 +969,8 @@ describe("custom dashboard storage managed widgets", () => {
 
     expect(duplicatedManagedSource?.id).not.toBe(originalManagedSource?.id);
     expect(duplicatedManagedSource?.props).toEqual(originalManagedSource?.props);
-    expect(duplicatedTable?.bindings).toEqual({
-      sourceData: {
+    expect(duplicatedTable?.bindings).toMatchObject({
+      seedData: {
         sourceWidgetId: duplicatedManagedSource?.id,
         sourceOutputId: "dataset",
       },
@@ -1050,8 +1083,8 @@ describe("custom dashboard storage managed widgets", () => {
       },
       queryModelId: "promql-range",
     });
-    expect(owner?.bindings).toEqual({
-      sourceData: {
+    expect(owner?.bindings).toMatchObject({
+      seedData: {
         sourceWidgetId: managedSource?.id,
         sourceOutputId: "dataset",
       },
@@ -1096,8 +1129,8 @@ describe("custom dashboard storage managed widgets", () => {
       : null;
 
     expect(duplicatedManagedSource?.id).not.toBe(originalManagedSource?.id);
-    expect(duplicatedStatistic?.bindings).toEqual({
-      sourceData: {
+    expect(duplicatedStatistic?.bindings).toMatchObject({
+      seedData: {
         sourceWidgetId: duplicatedManagedSource?.id,
         sourceOutputId: "dataset",
       },

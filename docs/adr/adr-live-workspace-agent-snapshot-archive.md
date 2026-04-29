@@ -1,6 +1,6 @@
 # ADR: Live Workspace Agent Snapshot Archive
 
-- Status: Accepted
+- Status: Superseded by `adr-045-agent-facing-workspace-snapshot-contract.md`
 - Date: 2026-04-14
 - Related:
   - [Workspaces](../workspaces/overview.md)

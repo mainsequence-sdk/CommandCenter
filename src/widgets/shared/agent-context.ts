@@ -14,7 +14,7 @@ import type {
 export const CORE_WIDGET_AGENT_CONTEXT_CONTRACT = "core.widget-agent-context@v1" as const;
 export const WIDGET_AGENT_CONTEXT_OUTPUT_ID = "agent-context";
 export const WIDGET_AGENT_CONTEXT_OUTPUT_LABEL = "Agent context";
-export const WIDGET_AGENT_CONTEXT_SNAPSHOT_PROFILE = "evidence" as const;
+export const WIDGET_AGENT_CONTEXT_SNAPSHOT_PROFILE = "agent" as const;
 
 const WIDGET_AGENT_SNAPSHOT_VALUE_DESCRIPTOR: WidgetValueDescriptor = {
   kind: "object",
@@ -130,7 +130,7 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 export function widgetSupportsAgentContext<TProps extends Record<string, unknown>>(
   widget: WidgetDefinition<TProps>,
 ) {
-  return typeof widget.buildAgentSnapshot === "function";
+  return typeof widget.stateDump === "function" || typeof widget.buildAgentSnapshot === "function";
 }
 
 export function buildWidgetAgentContextValue<TProps extends Record<string, unknown>>(
