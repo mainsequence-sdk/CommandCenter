@@ -3,12 +3,21 @@ import { Select } from "@/components/ui/select";
 import type { ConnectionConfigEditorProps } from "@/connections/types";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 
-import type { BinanceMarketType, BinancePublicConfig, BinanceQueryCachePolicy } from "./index";
+import type {
+  BinanceMarketType,
+  BinancePublicConfig,
+  BinanceQueryCachePolicy,
+  BinanceWebSocketTimeUnit,
+} from "./index";
 
 const marketTypeOptions = [
   { label: "Spot", value: "spot" },
   { label: "USD-M futures", value: "usdm_futures" },
 ] satisfies Array<{ label: string; value: BinanceMarketType }>;
+
+const webSocketTimeUnitOptions = [
+  { label: "MILLISECOND", value: "MILLISECOND" },
+] satisfies Array<{ label: string; value: BinanceWebSocketTimeUnit }>;
 
 function normalizeMarketTypes(value: BinancePublicConfig["marketTypes"]) {
   const fallback: BinanceMarketType[] = ["spot"];
@@ -90,6 +99,36 @@ export function BinanceConnectionConfigEditor({
         </Field>
 
         <Field
+          label="Spot WebSocket base URL"
+          help="Binance Spot WebSocket Streams root for backend-owned provider subscriptions. Default: wss://stream.binance.com:9443."
+        >
+          <Input
+            value={value.spotWebSocketBaseUrl ?? ""}
+            onChange={(event) =>
+              updateConfig(value, onChange, { spotWebSocketBaseUrl: event.target.value })
+            }
+            disabled={disabled}
+            placeholder="wss://stream.binance.com:9443"
+          />
+        </Field>
+
+        <Field
+          label="Spot market-data WebSocket base URL"
+          help="Optional Binance market-data-only Spot WebSocket endpoint used by backend stream subscriptions. Default: wss://data-stream.binance.vision."
+        >
+          <Input
+            value={value.spotWebSocketMarketDataBaseUrl ?? ""}
+            onChange={(event) =>
+              updateConfig(value, onChange, {
+                spotWebSocketMarketDataBaseUrl: event.target.value,
+              })
+            }
+            disabled={disabled}
+            placeholder="wss://data-stream.binance.vision"
+          />
+        </Field>
+
+        <Field
           label="USD-M futures base URL"
           help="Binance USD-M Futures REST API root used by the backend adapter for futures prices, klines, and trades. Default: https://fapi.binance.com."
         >
@@ -102,12 +141,28 @@ export function BinanceConnectionConfigEditor({
             placeholder="https://fapi.binance.com"
           />
         </Field>
+
+        <Field
+          label="USD-M futures WebSocket base URL"
+          help="Binance USD-M futures WebSocket Streams root used by backend stream subscriptions. Default: wss://fstream.binance.com."
+        >
+          <Input
+            value={value.usdmFuturesWebSocketBaseUrl ?? ""}
+            onChange={(event) =>
+              updateConfig(value, onChange, {
+                usdmFuturesWebSocketBaseUrl: event.target.value,
+              })
+            }
+            disabled={disabled}
+            placeholder="wss://fstream.binance.com"
+          />
+        </Field>
       </section>
 
       <section className="space-y-2">
         <WidgetSettingFieldLabel
           className="text-xs font-medium text-muted-foreground"
-          help="Market types enabled for this connection. The backend rejects queries for disabled market types. Default: spot."
+          help="Market types enabled for this connection. The backend rejects queries and streams for disabled market types. Default: spot."
           required
         >
           Market types
@@ -195,6 +250,84 @@ export function BinanceConnectionConfigEditor({
             placeholder="10000"
           />
         </Field>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <Field
+          label="WebSocket time unit"
+          help="Timestamp unit for Binance WebSocket provider streams. The current backend implementation supports MILLISECOND only."
+        >
+          <Select
+            value={value.webSocketTimeUnit ?? "MILLISECOND"}
+            onChange={(event) =>
+              updateConfig(value, onChange, {
+                webSocketTimeUnit: event.target.value as BinanceWebSocketTimeUnit,
+              })
+            }
+            disabled={disabled}
+          >
+            {webSocketTimeUnitOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field
+          label="WebSocket reconnect before seconds"
+          help="Backend reconnect window for long-lived Binance provider sockets. Default: 82800 seconds, just under 24 hours."
+        >
+          <Input
+            type="number"
+            min={1}
+            value={value.webSocketReconnectBeforeSeconds ?? ""}
+            onChange={(event) =>
+              updateConfig(value, onChange, {
+                webSocketReconnectBeforeSeconds: readOptionalNumber(event.target.value),
+              })
+            }
+            disabled={disabled}
+            placeholder="82800"
+          />
+        </Field>
+
+        <Field
+          label="WebSocket max streams per provider connection"
+          help="Maximum provider stream count per backend-owned Binance WebSocket connection. Default: 1024."
+        >
+          <Input
+            type="number"
+            min={1}
+            max={1024}
+            value={value.webSocketMaxStreamsPerProviderConnection ?? ""}
+            onChange={(event) =>
+              updateConfig(value, onChange, {
+                webSocketMaxStreamsPerProviderConnection: readOptionalNumber(event.target.value),
+              })
+            }
+            disabled={disabled}
+            placeholder="1024"
+          />
+        </Field>
+
+        <Field
+          label="WebSocket incoming message limit per second"
+          help="Optional explicit incoming-message limit per second for backend stream guards. Leave blank to use provider defaults: 5 for spot and 10 for USD-M futures."
+        >
+          <Input
+            type="number"
+            min={1}
+            value={value.webSocketIncomingMessageLimitPerSecond ?? ""}
+            onChange={(event) =>
+              updateConfig(value, onChange, {
+                webSocketIncomingMessageLimitPerSecond: readOptionalNumber(event.target.value),
+              })
+            }
+            disabled={disabled}
+            placeholder="Provider default"
+          />
+        </Field>
 
         <Field
           label="Query cache policy"
@@ -250,6 +383,24 @@ export function BinanceConnectionConfigEditor({
           />
         </Field>
       </section>
+
+      <label className="flex items-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2.5">
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-border bg-transparent accent-primary"
+          checked={value.webSocketCombinedStreams ?? true}
+          onChange={(event) =>
+            updateConfig(value, onChange, { webSocketCombinedStreams: event.target.checked })
+          }
+          disabled={disabled}
+        />
+        <WidgetSettingFieldLabel
+          help="When enabled, the backend uses Binance combined streams when more than one provider stream is needed. Default: true."
+          textClassName="text-sm font-medium text-foreground"
+        >
+          Use combined provider streams
+        </WidgetSettingFieldLabel>
+      </label>
 
       <label className="flex items-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2.5">
         <input

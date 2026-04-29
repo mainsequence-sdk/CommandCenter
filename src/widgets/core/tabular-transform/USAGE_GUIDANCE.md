@@ -6,6 +6,7 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
 
 - Use between a source widget and downstream render widgets when rows need reshaping.
 - Use to aggregate rows by key fields.
+- Use to filter rows by lightweight field predicates before downstream rendering.
 - Use to pivot a categorical field into columns.
 - Use to unpivot wide columns into long-form series/value rows.
 - Use to project a smaller set of columns for downstream widgets.
@@ -20,7 +21,7 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
 
 - Bind `sourceData` to a widget that publishes `core.tabular_frame@v1`.
 - Select a transform mode.
-- Configure key fields, pivot fields, unpivot value fields, or projection fields as needed.
+- Configure filter rules, key fields, pivot fields, unpivot value fields, or projection fields as needed.
 - Bind downstream widgets to this widget's `dataset` output.
 
 ## blockingRequirements
@@ -30,11 +31,13 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
   `upstreamDelta`. Pass-through/projection transforms can publish transformed deltas; aggregate,
   pivot, and unpivot modes recompute from the retained frame and publish a snapshot result.
 - Aggregate mode requires one or more key fields to reduce rows.
+- Filter mode requires at least one valid rule.
 - Pivot mode requires a pivot field and a value field.
 - Unpivot mode requires at least one value column.
 
 ## commonPitfalls
 
 - Projection runs after the selected transform. Projecting away key, value, or generated fields can make downstream widgets empty.
+- Filter mode is intentionally limited to lightweight field comparisons. Regex, substring search, and computed expressions do not belong here.
 - Aggregate, pivot, and unpivot preserve source fields only when they survive the transform unchanged; generated fields are marked as derived.
 - This widget intentionally owns analytical reshaping as a visible graph node so execution and debugging stay inspectable.

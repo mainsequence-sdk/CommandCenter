@@ -1225,7 +1225,7 @@ function AddNewConnectionContent() {
     () =>
       (typesQuery.data ?? [])
         .filter(isActiveBackendType)
-        .map(hydrateConnectionRuntime)
+        .map((connection) => hydrateConnectionRuntime(connection))
         .sort((left, right) => left.title.localeCompare(right.title)),
     [typesQuery.data],
   );
@@ -1531,7 +1531,7 @@ function ConnectionsPage({ mode }: { mode: ConnectionsPageMode }) {
     () =>
       (typesQuery.data ?? [])
         .filter(isActiveBackendType)
-        .map(hydrateConnectionRuntime)
+        .map((connection) => hydrateConnectionRuntime(connection))
         .sort((left, right) => left.title.localeCompare(right.title)),
     [typesQuery.data],
   );

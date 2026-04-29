@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-connection-first-workspace-dataflow" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: Connection-First Workspace Dataflow | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-connection-first-workspace-dataflow"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: Connection-First Workspace Dataflow | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-connection-first-workspace-dataflow"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-connection-first-workspace-dataflow" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-connection-first-workspace-dataflow" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.da07f2d7.js" defer="defer"></script>
+<script src="/docs/assets/js/main.1b45566c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: Connection-First Workspace Dataflow</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-04-25</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/adr-first-class-connection-model">ADR: First-Class Connection Model</a></li>
+<li class=""><a class="" href="/docs/adr/adr-single-runtime-owner-workspace-widgets">ADR: Single Runtime Owner for Workspace Widgets</a></li>
+<li class=""><a class="" href="/docs/adr/adr-widget-bindings-and-dependency-graph">ADR: First-Class Widget Bindings and Dependency Graph</a></li>
+<li class=""><a class="" href="/docs/adr/adr-executable-widget-graph-runner">ADR: Executable Widget Graph Runner and Refresh Coordination</a></li>
+<li class=""><a class="" href="/docs/adr/adr-binding-output-transforms">ADR: Binding-Level Output Transforms for Structured Widget Outputs</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Workspace dataflow is partly connection-first today, but the Main Sequence Data Node widget family
+still carries an older source-widget model.</p>
+<p>The connection layer already models backend-owned data access:</p>
+<ul>
+<li class="">connection types are code-owned and registry-synced</li>
+<li class="">connection instances are backend-owned configured data sources</li>
+<li class="">widgets should persist stable <code>ConnectionRef</code> values instead of endpoint details</li>
+<li class="">connection queries can return normalized <code>core.tabular_frame@v1</code> frames</li>
+</ul>
+<p>The remaining mismatch is <code>main-sequence-data-node</code>. It is currently a widget that acts as:</p>
+<ul>
+<li class="">a connection-backed source selector</li>
+<li class="">a Data Node query executor</li>
+<li class="">a manual table source</li>
+<li class="">an aggregate, pivot, unpivot, and projection transform</li>
+<li class="">the canonical published dataset owner for downstream widgets</li>
+</ul>
+<p>That makes Data Node a special platform concept inside the workspace graph even though the platform
+already has a generic connection abstraction. It also forces downstream authoring language to say
+&quot;bind to a Data Node widget&quot; instead of &quot;bind to a tabular source&quot;, which prevents the workspace
+model from feeling like a Grafana-style source, transform, and visualization graph.</p>
+<p>Backward compatibility is explicitly not a goal for this migration. Existing saved workspaces,
+saved widget groups, demo workspaces, and backend widget-type rows may need direct replacement.
+Do not add compatibility guards that preserve old Data Node widget semantics.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Workspace data access will become connection-first.</p>
+<p>Connections remain backend-owned resources, not widgets. Widgets can query connections, transform
+published frames, or render published frames, but no widget family should become a source-specific
+platform inside the workspace model.</p>
+<p>The target workspace dataflow is:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">Connection instance</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; Connection Query widget</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; Tabular Transform widget</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; Table / Chart / Statistic / Curve / other consumers</span><br></span></code></pre></div></div>
+<p>The <code>main-sequence-data-node</code> widget will be removed from the live widget catalog instead of
+preserved as the canonical source widget. Its source and transform responsibilities will be split
+into generic graph nodes:</p>
+<ol>
+<li class="">a generic <code>Connection Query</code> execution-owner widget that calls configured connection query
+models and publishes <code>core.tabular_frame@v1</code> or <code>core.time_series_frame@v1</code></li>
+<li class="">a generic <code>Tabular Transform</code> execution-owner widget that consumes <code>core.tabular_frame@v1</code>,
+applies analytical transforms, and republishes <code>core.tabular_frame@v1</code></li>
+</ol>
+<p>Data Node access continues through the <code>mainsequence.data-node</code> connection type. A configured Data
+Node connection instance owns the selected Data Node in its public config. Workspace widgets should
+not store direct Data Node ids as the canonical source selector.</p>
+<p>Connection query authoring must have one frontend implementation. The workspace Connection Query
+widget settings and Data Sources Explore both use the same query workbench, request builder, typed
+connection query editors, runtime range controls, generated request preview, execution helper, and
+normalized frame preview. The only semantic difference is ownership of the draft: a workspace
+widget persists <code>ConnectionQueryWidgetProps</code> in a workspace document, while Explore owns a local
+draft unless the user saves it as a reusable backend query.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="target-contracts">Target Contracts<a href="#target-contracts" class="hash-link" aria-label="Direct link to Target Contracts" title="Direct link to Target Contracts" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-query-widget">Connection Query Widget<a href="#connection-query-widget" class="hash-link" aria-label="Direct link to Connection Query Widget" title="Direct link to Connection Query Widget" translate="no">​</a></h3>
+<p>The Connection Query widget is the generic source node for connection-backed datasets.</p>
+<p>It should be an <code>execution-owner</code> widget with saved props shaped around the connection contract:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">ConnectionQueryWidgetProps</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  connectionRef</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ConnectionRef</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  queryModelId</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  query</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> Record</span><span class="token operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">unknown</span><span class="token operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  timeRangeMode</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;dashboard&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;fixed&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;none&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  fixedStartMs</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  fixedEndMs</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  variables</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> Record</span><span class="token operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  maxRows</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Runtime behavior:</p>
+<ul>
+<li class="">resolve the selected connection instance by <code>connectionRef</code></li>
+<li class="">resolve the selected query model by <code>queryModelId</code></li>
+<li class="">pass dashboard or fixed time range into <code>queryConnection(...)</code> as top-level <code>timeRange</code> ISO
+strings when the query model is time-range aware</li>
+<li class="">derive the requested output contract from the selected connection query model metadata; users do
+not select output frame type manually</li>
+<li class="">normalize the selected matching <code>ConnectionQueryResponse.frames[]</code> entry into
+<code>core.tabular_frame@v1</code> or <code>core.time_series_frame@v1</code></li>
+<li class="">publish a canonical <code>dataset</code> output with the resolved frame contract</li>
+<li class="">optionally publish a raw response output later for debugging or advanced consumers</li>
+</ul>
+<p>The widget should use a connection type&#x27;s custom <code>queryEditor</code> when available and fall back to a
+generic JSON query editor only when the connection type does not provide one. The <code>queryEditor</code>
+receives the selected connection instance, connection type, query model, current typed query
+payload, and <code>onChange</code>. Connection-specific kwargs such as Data Node columns, identifier filters,
+SQL parameters, PostgreSQL time-series field mapping, Prometheus matchers, and adapter-specific
+limits must be rendered there rather than as static fields in the generic widget.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="shared-query-workbench">Shared Query Workbench<a href="#shared-query-workbench" class="hash-link" aria-label="Direct link to Shared Query Workbench" title="Direct link to Shared Query Workbench" translate="no">​</a></h3>
+<p><code>ConnectionQueryWorkbench</code> is the shared authoring and test surface for connection query drafts.
+It is used by:</p>
+<ul>
+<li class="">workspace Connection Query widget settings</li>
+<li class="">generic Data Sources Explore fallback</li>
+<li class="">connection-specific Explore shells that need source metadata around the same query form</li>
+</ul>
+<p>The workbench is responsible for selecting the connection path, invoking typed connection
+<code>queryEditor</code> components, building the exact <code>ConnectionQueryRequest</code>, showing the generated
+request preview, executing test queries through the same helper used by widget runtime execution,
+and rendering the normalized frame response. Do not add per-connection Explore code that calls
+<code>queryConnection(...)</code> directly unless the connection is explicitly outside the standard query
+contract.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="reusable-saved-connection-queries">Reusable Saved Connection Queries<a href="#reusable-saved-connection-queries" class="hash-link" aria-label="Direct link to Reusable Saved Connection Queries" title="Direct link to Reusable Saved Connection Queries" translate="no">​</a></h3>
+<p>The platform needs a backend-owned saved query model per data source so Explore and workspace
+widgets can reuse the same authored query. This is separate from extension-owned connection
+<code>queryModels</code>: connection <code>queryModels</code> define available operation kinds, while saved connection
+queries are user/org-authored instances of one operation against one connection instance.</p>
+<p>A saved connection query backend record should store at least:</p>
+<ul>
+<li class="">stable id and display name</li>
+<li class="">owner or organization scope and permission metadata</li>
+<li class=""><code>connectionId</code> and <code>connectionTypeId</code></li>
+<li class="">selected <code>queryModelId</code></li>
+<li class="">typed query payload, including <code>query.kind</code></li>
+<li class=""><code>timeRangeMode</code>, fixed date defaults when applicable, and any future relative range default</li>
+<li class="">standard <code>variables</code> and <code>maxRows</code></li>
+<li class="">derived output contract metadata from the selected query model, for validation and display</li>
+<li class="">audit timestamps and the connection instance version marker if needed for invalidation</li>
+</ul>
+<p>It must not store endpoint URLs, route fragments, tokens, credentials, or mutable connection
+display labels as authoritative runtime data. Backend APIs must validate the saved query against
+the current connection type metadata, the connection instance, and the caller permissions before
+reuse. Frontend workspaces may persist an inline query draft or a future <code>savedQueryId</code>, but the
+saved backend record is the reusable source of truth when the author chooses to save a query.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tabular-transform-widget">Tabular Transform Widget<a href="#tabular-transform-widget" class="hash-link" aria-label="Direct link to Tabular Transform Widget" title="Direct link to Tabular Transform Widget" translate="no">​</a></h3>
+<p>The Tabular Transform widget owns analytical reshaping that used to live inside the Data Node
+widget.</p>
+<p>It should be an <code>execution-owner</code> widget with:</p>
+<ul>
+<li class="">input: <code>sourceData</code> accepting <code>core.tabular_frame@v1</code></li>
+<li class="">output: <code>dataset</code> publishing <code>core.tabular_frame@v1</code></li>
+<li class="">supported initial transform modes: <code>none</code>, <code>aggregate</code>, <code>pivot</code>, <code>unpivot</code>, and <code>projection</code></li>
+</ul>
+<p>This widget should replace the old &quot;Advanced transform&quot; section from the Data Node widget. It is a
+visible graph node, not a binding-level transform.</p>
+<p>Binding-level transforms should stay intentionally small. They are for structural output
+selection, such as selecting an array item or extracting an object path. Analytical transforms must
+remain explicit widgets so users can inspect, refresh, debug, and bind them like every other graph
+node.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="consumer-widgets">Consumer Widgets<a href="#consumer-widgets" class="hash-link" aria-label="Direct link to Consumer Widgets" title="Direct link to Consumer Widgets" translate="no">​</a></h3>
+<p>Table, chart, statistic, curve, and zero-curve widgets should become generic consumers of
+<code>core.tabular_frame@v1</code>.</p>
+<p>They should not require a Data Node source widget. User-facing language should refer to a bound
+tabular dataset, connection query, or upstream transform, depending on context.</p>
+<p>Current candidates:</p>
+<ul>
+<li class=""><code>data-node-table-visualizer</code> becomes core widget id <code>table</code></li>
+<li class=""><code>main-sequence-data-node-visualizer</code> becomes core widget id <code>graph</code></li>
+<li class=""><code>main-sequence-data-node-statistic</code> becomes core widget id <code>statistic</code></li>
+<li class="">curve and zero-curve widgets consume tabular curve datasets instead of &quot;Data Node widgets&quot;</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-and-storage-impact">Backend And Storage Impact<a href="#backend-and-storage-impact" class="hash-link" aria-label="Direct link to Backend And Storage Impact" title="Direct link to Backend And Storage Impact" translate="no">​</a></h2>
+<p>This is a backend-visible breaking change.</p>
+<p>Workspace storage impact:</p>
+<ul>
+<li class="">remove old <code>main-sequence-data-node</code> widget instances from supported workspace documents</li>
+<li class="">remove canonical reliance on <code>sourceMode</code>, <code>sourceWidgetId</code>, <code>dataNodeId</code>, and Data Node-specific
+direct source props</li>
+<li class="">persist <code>connectionRef</code>, query model id, query config, time range config, and transform config on
+the new generic source and transform widgets</li>
+<li class="">later allow workspace source widgets to reference a backend saved connection query id when the
+backend saved-query model lands</li>
+<li class="">keep widget bindings as the canonical graph edge model</li>
+<li class="">continue using <code>runtimeState</code> for execution-owned published datasets</li>
+</ul>
+<p>Backend contract impact:</p>
+<ul>
+<li class="">backend widget-type registry must receive new widget type rows</li>
+<li class="">old Data Node widget type rows should be deactivated or removed from normal catalogs</li>
+<li class="">backend workspace validation must understand the new widget ids and props</li>
+<li class="">saved-widget validation must understand the new widget ids and props</li>
+<li class="">backend must add a reusable saved connection query model/API per data source before saved query
+reuse can be considered complete</li>
+<li class="">connection query adapters must return normalized <code>ConnectionQueryResponse</code> frames for tabular
+data</li>
+<li class=""><code>mainsequence.data-node</code> should resolve the Data Node from the connection instance public config
+rather than trusting a widget-level <code>dataNodeId</code></li>
+</ul>
+<p>Because compatibility is not required, this ADR does not require migration code for old workspace
+documents. Checked-in mock workspaces and demos should be replaced with the new graph shape.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">all data access enters workspaces through the same connection abstraction</li>
+<li class="">Data Node becomes one connection type rather than a privileged widget family</li>
+<li class="">source, transform, and render responsibilities are inspectable as separate graph nodes</li>
+<li class="">downstream widgets can work with Data Node, Simple Table SQL, PostgreSQL, Prometheus, or future
+tabular connections when they publish the same contract</li>
+<li class="">the graph becomes closer to the Grafana mental model without hiding execution inside render
+widgets</li>
+</ul>
+<p>Negative:</p>
+<ul>
+<li class="">existing Data Node workspaces will break until they are rebuilt</li>
+<li class="">registry and backend validation need a coordinated update</li>
+<li class="">generic query authoring requires better connection query editors</li>
+<li class="">transform settings need to move from a mature Data Node-specific settings screen into a new
+generic transform widget</li>
+<li class="">some user-facing widget names, docs, and demos will need broad cleanup</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="guardrails">Guardrails<a href="#guardrails" class="hash-link" aria-label="Direct link to Guardrails" title="Direct link to Guardrails" translate="no">​</a></h2>
+<ul>
+<li class="">Do not add backwards-compatibility guards for old Data Node widget props or ids.</li>
+<li class="">Do not make table, chart, statistic, curve, or zero-curve widgets query connections directly.
+They should consume <code>core.tabular_frame@v1</code>.</li>
+<li class="">Do not expand binding-level transforms into analytical transforms.</li>
+<li class="">Do not store endpoint URLs, tokens, backend route fragments, or raw connection instance display
+names in workspace widget props.</li>
+<li class="">Do not keep Data Node-specific language in generic widgets after the split.</li>
+<li class="">Do not add hidden runtime fetch owners. Connection Query and Tabular Transform own execution;
+consumers render published outputs.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-checklist">Implementation Checklist<a href="#implementation-checklist" class="hash-link" aria-label="Direct link to Implementation Checklist" title="Direct link to Implementation Checklist" translate="no">​</a></h2>
+<p>Use this checklist as the rollout tracker. Mark items complete by changing <code>[ ]</code> to <code>[x]</code> in this
+ADR when the corresponding implementation has landed.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="platform-contracts">Platform Contracts<a href="#platform-contracts" class="hash-link" aria-label="Direct link to Platform Contracts" title="Direct link to Platform Contracts" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the generic Connection Query widget props, IO, execution contract, and registry
+contract.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the generic Tabular Transform widget props, IO, execution contract, and registry
+contract.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Decide the final widget ids for generic table, generic chart, and generic statistic widgets.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Share one frontend Connection Query workbench between workspace widget settings and Data
+Sources Explore.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add or update value descriptors for <code>core.tabular_frame@v1</code> outputs so graph binding tools
+can inspect fields consistently.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep binding-level transforms limited to structural extraction and array item selection.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-runtime">Connection Runtime<a href="#connection-runtime" class="hash-link" aria-label="Direct link to Connection Runtime" title="Direct link to Connection Runtime" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure <code>queryConnection(...)</code> can support the Connection Query widget for all configured
+connection types.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure <code>mainsequence.data-node</code> returns normalized <code>ConnectionQueryResponse</code> frames for row
+queries.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure <code>mainsequence.simple-table</code> returns normalized <code>ConnectionQueryResponse</code> frames for SQL
+queries.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove default/system Data Node fallback behavior from workspace source execution.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Make configured Data Node connection instances authoritative for Data Node selection.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update connection type sync metadata and bump the connection registry version if the
+connection manifest shape or query model metadata changes.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-refactor">Widget Refactor<a href="#widget-refactor" class="hash-link" aria-label="Direct link to Widget Refactor" title="Direct link to Widget Refactor" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Implement the Connection Query widget as an execution-owner source.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Pass selected connection instance context into Connection Query <code>queryEditor</code> components.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add typed Connection Query editors for Data Node, Simple Table, PostgreSQL, and Prometheus
+query payload kwargs.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Implement the Tabular Transform widget as an execution-owner transform.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Move aggregate, pivot, unpivot, and projection logic into the generic transform module.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Convert Data Node Table into a generic tabular table consumer.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Convert Data Node Graph into a generic tabular chart consumer.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Convert Data Node Statistic into a generic statistic consumer.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update curve plot and zero-curve widgets to describe their input as tabular curve datasets
+instead of Data Node widget outputs.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove <code>main-sequence-data-node</code> from the live widget registry.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove Data Node-specific source helpers from generic consumer widgets.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove Data Node-specific layout special cases such as compact layout handling keyed by
+<code>main-sequence-data-node</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="workspace-and-demo-data">Workspace And Demo Data<a href="#workspace-and-demo-data" class="hash-link" aria-label="Direct link to Workspace And Demo Data" title="Direct link to Workspace And Demo Data" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Replace checked-in mock workspace graphs with Connection Query -&gt; Transform -&gt; Consumer graph
+examples.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Replace demo overview workspace widget examples that instantiate old Data Node consumer ids.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update saved-widget import/export examples to use the new source and transform widgets.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Verify workspace graph editor rendering and binding validation with the new source and
+transform nodes.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Verify dashboard refresh executes connection query and transform nodes before passive
+consumers.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-coordination">Backend Coordination<a href="#backend-coordination" class="hash-link" aria-label="Direct link to Backend Coordination" title="Direct link to Backend Coordination" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add backend validation support for the new widget ids and props.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Deactivate or remove old Data Node widget type rows from normal backend catalogs.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Sync new widget type registry metadata and bump the widget registry version.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update saved-widget backend validation for the new graph shape.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Confirm backend connection query adapters enforce permissions before cache and in-flight
+dedupe.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Confirm backend connection query adapters never trust frontend-provided endpoint paths or
+credentials.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a backend saved connection query model/API scoped per data source for reusable authored
+queries.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Let Explore and Connection Query widgets load, apply, and save backend saved connection
+queries by id.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-and-ui-language">Documentation And UI Language<a href="#documentation-and-ui-language" class="hash-link" aria-label="Direct link to Documentation And UI Language" title="Direct link to Documentation And UI Language" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>src/features/dashboards/README.md</code> for connection-first workspace authoring.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>src/connections/README.md</code> to describe workspace source-widget usage.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update Main Sequence workbench widget READMEs and <code>USAGE_GUIDANCE.md</code> files.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update markets widget READMEs and <code>USAGE_GUIDANCE.md</code> files that still say &quot;Data Node
+widget&quot; for generic tabular inputs.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update admin/widget registry docs to describe the new source, transform, and consumer split.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove user-facing Data Node terminology from generic table, chart, and statistic widgets.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="verification">Verification<a href="#verification" class="hash-link" aria-label="Direct link to Verification" title="Direct link to Verification" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>npm run check</code> passes after TypeScript changes.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Workspace graph with one Connection Query and one table consumer refreshes successfully.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Workspace graph with Connection Query -&gt; Tabular Transform -&gt; chart/stat/table refreshes
+successfully.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Settings preview for consumers resolves upstream execution through the shared execution
+provider.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Request debugger shows one canonical owner for connection query execution.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Backend registry sync preview includes the new widget types and no active old Data Node source
+widget.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-connection-first-workspace-dataflow.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#target-contracts" class="table-of-contents__link toc-highlight">Target Contracts</a><ul><li><a href="#connection-query-widget" class="table-of-contents__link toc-highlight">Connection Query Widget</a></li><li><a href="#shared-query-workbench" class="table-of-contents__link toc-highlight">Shared Query Workbench</a></li><li><a href="#reusable-saved-connection-queries" class="table-of-contents__link toc-highlight">Reusable Saved Connection Queries</a></li><li><a href="#tabular-transform-widget" class="table-of-contents__link toc-highlight">Tabular Transform Widget</a></li><li><a href="#consumer-widgets" class="table-of-contents__link toc-highlight">Consumer Widgets</a></li></ul></li><li><a href="#backend-and-storage-impact" class="table-of-contents__link toc-highlight">Backend And Storage Impact</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li><li><a href="#implementation-checklist" class="table-of-contents__link toc-highlight">Implementation Checklist</a><ul><li><a href="#platform-contracts" class="table-of-contents__link toc-highlight">Platform Contracts</a></li><li><a href="#connection-runtime" class="table-of-contents__link toc-highlight">Connection Runtime</a></li><li><a href="#widget-refactor" class="table-of-contents__link toc-highlight">Widget Refactor</a></li><li><a href="#workspace-and-demo-data" class="table-of-contents__link toc-highlight">Workspace And Demo Data</a></li><li><a href="#backend-coordination" class="table-of-contents__link toc-highlight">Backend Coordination</a></li><li><a href="#documentation-and-ui-language" class="table-of-contents__link toc-highlight">Documentation And UI Language</a></li><li><a href="#verification" class="table-of-contents__link toc-highlight">Verification</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

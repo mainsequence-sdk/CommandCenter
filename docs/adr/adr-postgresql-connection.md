@@ -122,10 +122,10 @@ The backend dispatch table is:
 
 | `request.query.kind` | Required payload | Required request fields | Adapter behavior | Response contract |
 | --- | --- | --- | --- | --- |
-| `sql-table` | `{ sql: string; maxRows?: number }` | `connectionUid`, `query` | Execute user-authored SQL through the configured pool after authorization, variable expansion, timeout, and row-limit enforcement. | `core.tabular_frame@v1` |
-| `sql-timeseries` | `{ sql: string; maxRows?: number }` | `connectionUid`, `query`, `timeRange` | Expand time macros, execute SQL, validate a usable time column, sort by time when possible, and shape rows as time series. | `core.time_series_frame@v1`, with warning/fallback behavior when shaping fails |
-| `schema-tables` | `{ schema?: string }` | `connectionUid`, `query` | Read safe PostgreSQL catalog metadata for the requested schema or configured default schema. | `core.option_list@v1` |
-| `schema-columns` | `{ schema?: string; table: string }` | `connectionUid`, `query` | Read safe PostgreSQL catalog metadata for the requested table. | `core.option_list@v1` |
+| `sql-table` | `{ sql: string; maxRows?: number }` | `connectionId`, `query` | Execute user-authored SQL through the configured pool after authorization, variable expansion, timeout, and row-limit enforcement. | `core.tabular_frame@v1` |
+| `sql-timeseries` | `{ sql: string; maxRows?: number }` | `connectionId`, `query`, `timeRange` | Expand time macros, execute SQL, validate a usable time column, sort by time when possible, and shape rows as time series. | `core.time_series_frame@v1`, with warning/fallback behavior when shaping fails |
+| `schema-tables` | `{ schema?: string }` | `connectionId`, `query` | Read safe PostgreSQL catalog metadata for the requested schema or configured default schema. | `core.option_list@v1` |
+| `schema-columns` | `{ schema?: string; table: string }` | `connectionId`, `query` | Read safe PostgreSQL catalog metadata for the requested table. | `core.option_list@v1` |
 
 Unknown `kind` values must be rejected with a typed bad-request error. The adapter should include
 the query kind in audit logs and response metadata.
@@ -185,7 +185,7 @@ query kind, elapsed time, and backend trace id.
 
 ## Health Checks
 
-`testConnection(uid)` should call the backend adapter health check. Health should:
+`testConnection(id)` should call the backend adapter health check. Health should:
 
 - acquire or create the instance pool
 - ping the database
@@ -205,7 +205,7 @@ Security must rely on:
 - database-side permissions
 - dedicated read-only database users for production data sources
 - statement timeouts and row limits
-- audit logging of connection uid, user, query kind, duration, and trace id
+- audit logging of connection id, user, query kind, duration, and trace id
 
 Do not attempt to parse arbitrary SQL to prove it is safe. That approach is brittle. The correct
 control is least-privilege database credentials plus backend authorization and limits.

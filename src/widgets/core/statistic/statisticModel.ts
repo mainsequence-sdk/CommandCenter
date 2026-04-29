@@ -12,6 +12,7 @@ import {
   normalizeConnectionQueryProps,
   type ConnectionQueryWidgetProps,
 } from "@/widgets/core/connection-query/connectionQueryModel";
+import type { ConnectionStreamQueryWidgetProps } from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
 
 export type StatisticMode =
   | "count"
@@ -24,7 +25,7 @@ export type StatisticMode =
 export type StatisticOperator = "gt" | "gte" | "lt" | "lte" | "eq";
 export type StatisticTone = "neutral" | "primary" | "success" | "warning" | "danger";
 export type StatisticColorMode = "none" | "range-rules" | "change-from-last";
-export type StatisticAuthoringSourceMode = "bound" | "connection";
+export type StatisticAuthoringSourceMode = "bound" | "connection" | "connection-stream";
 
 export interface StatisticColorStyle {
   tone?: StatisticTone;
@@ -52,7 +53,7 @@ export interface StatisticWidgetProps
   colorMode?: StatisticColorMode;
   decimals?: number;
   embeddedConnectionPresentation?: WidgetInstancePresentation;
-  embeddedConnectionQuery?: ConnectionQueryWidgetProps;
+  embeddedConnectionQuery?: ConnectionQueryWidgetProps | ConnectionStreamQueryWidgetProps;
   groupField?: string;
   orderField?: string;
   prefix?: string;
@@ -144,7 +145,7 @@ function normalizeStatisticMode(value: unknown): StatisticMode {
 export function normalizeStatisticAuthoringSourceMode(
   value: unknown,
 ): StatisticAuthoringSourceMode {
-  return value === "connection" ? "connection" : "bound";
+  return value === "connection" || value === "connection-stream" ? value : "bound";
 }
 
 function normalizeColorMode(value: unknown): StatisticColorMode {

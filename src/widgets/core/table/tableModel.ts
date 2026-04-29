@@ -22,13 +22,14 @@ import {
   normalizeConnectionQueryProps,
   type ConnectionQueryWidgetProps,
 } from "@/widgets/core/connection-query/connectionQueryModel";
+import type { ConnectionStreamQueryWidgetProps } from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
 import {
   resolveUpstreamConsumerState,
   type ResolvedUpstreamConsumerState,
 } from "@/widgets/shared/upstream-consumer-state";
 
 export type TableWidgetDateRangeMode = "dashboard" | "fixed";
-export type TableWidgetSourceMode = "bound" | "connection" | "manual";
+export type TableWidgetSourceMode = "bound" | "connection" | "connection-stream" | "manual";
 export type TableWidgetColumnFormat =
   | "auto"
   | "text"
@@ -126,7 +127,7 @@ export interface TableWidgetProps
     TabularWidgetSourceReferenceProps {
   tableSourceMode?: TableWidgetSourceMode;
   embeddedConnectionPresentation?: WidgetInstancePresentation;
-  embeddedConnectionQuery?: ConnectionQueryWidgetProps;
+  embeddedConnectionQuery?: ConnectionQueryWidgetProps | ConnectionStreamQueryWidgetProps;
   sourceId?: number;
   dateRangeMode?: TableWidgetDateRangeMode;
   fixedEndMs?: number;
@@ -243,7 +244,9 @@ export function resolveTableWidgetOutput(
       kind: "table-widget",
       context: {
         tableSourceMode:
-          tableSourceMode === "connection" ? "connection" : "bound",
+          tableSourceMode === "connection" || tableSourceMode === "connection-stream"
+            ? tableSourceMode
+            : "bound",
       },
     } satisfies TabularFrameSourceV1["source"];
 
@@ -441,7 +444,9 @@ function normalizeCellValue(value: unknown): TableWidgetCellValue {
 }
 
 export function normalizeTableSourceMode(value: unknown): TableWidgetSourceMode {
-  return value === "manual" || value === "connection" ? value : "bound";
+  return value === "manual" || value === "connection" || value === "connection-stream"
+    ? value
+    : "bound";
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

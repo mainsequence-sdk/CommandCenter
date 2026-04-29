@@ -26,6 +26,30 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "adr/adr-038-progressive-workspace-widget-hydration",
+              "path": "/docs/adr/adr-038-progressive-workspace-widget-hydration"
+            },
+            {
+              "id": "adr/adr-039-unified-upstream-consumer-state-contract",
+              "path": "/docs/adr/adr-039-unified-upstream-consumer-state-contract"
+            },
+            {
+              "id": "adr/adr-040-dashboard-surface-return-hydration",
+              "path": "/docs/adr/adr-040-dashboard-surface-return-hydration"
+            },
+            {
+              "id": "adr/adr-041-connection-query-websocket-streaming",
+              "path": "/docs/adr/adr-041-connection-query-websocket-streaming"
+            },
+            {
+              "id": "adr/adr-042-tabular-transform-row-filtering",
+              "path": "/docs/adr/adr-042-tabular-transform-row-filtering"
+            },
+            {
+              "id": "adr/adr-adapter-from-api-connection",
+              "path": "/docs/adr/adr-adapter-from-api-connection"
+            },
+            {
               "id": "adr/adr-agent-monitor-workspace-reference-widget",
               "path": "/docs/adr/adr-agent-monitor-workspace-reference-widget"
             },
@@ -33,6 +57,10 @@
               "id": "adr/adr-agent-ready-widget-type-registry-contract",
               "path": "/docs/adr/adr-agent-ready-widget-type-registry-contract",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-agent-session-interaction-readiness-gate",
+              "path": "/docs/adr/adr-agent-session-interaction-readiness-gate"
             },
             {
               "id": "adr/adr-agent-terminal-managed-session-creation",
@@ -64,6 +92,14 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "adr/adr-connection-authoring-contract",
+              "path": "/docs/adr/adr-connection-authoring-contract"
+            },
+            {
+              "id": "adr/adr-connection-first-workspace-dataflow",
+              "path": "/docs/adr/adr-connection-first-workspace-dataflow"
+            },
+            {
               "id": "adr/adr-executable-widget-graph-runner",
               "path": "/docs/adr/adr-executable-widget-graph-runner",
               "sidebar": "docsSidebar"
@@ -81,6 +117,10 @@
               "id": "adr/adr-headless-workspace-settings-runtime",
               "path": "/docs/adr/adr-headless-workspace-settings-runtime",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-incremental-connection-response-refresh",
+              "path": "/docs/adr/adr-incremental-connection-response-refresh"
             },
             {
               "id": "adr/adr-incremental-workspace-normalization",
@@ -113,9 +153,21 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "adr/adr-main-sequence-simple-table-connection",
+              "path": "/docs/adr/adr-main-sequence-simple-table-connection"
+            },
+            {
+              "id": "adr/adr-managed-connection-query-widget-sources",
+              "path": "/docs/adr/adr-managed-connection-query-widget-sources"
+            },
+            {
               "id": "adr/adr-organization-widget-type-configurations",
               "path": "/docs/adr/adr-organization-widget-type-configurations",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-postgresql-connection",
+              "path": "/docs/adr/adr-postgresql-connection"
             },
             {
               "id": "adr/adr-rgl-v2-workspace-studio",
@@ -141,6 +193,10 @@
               "id": "adr/adr-source-driven-downstream-execution",
               "path": "/docs/adr/adr-source-driven-downstream-execution",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "adr/adr-standardized-connection-result-contracts",
+              "path": "/docs/adr/adr-standardized-connection-result-contracts"
             },
             {
               "id": "adr/adr-widget-agent-context-bindings",
@@ -179,6 +235,22 @@
               "id": "auth/backend-and-auth",
               "path": "/docs/auth/backend-and-auth",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "connections/adapters/README",
+              "path": "/docs/connections/adapters/"
+            },
+            {
+              "id": "connections/extension-guide",
+              "path": "/docs/connections/extension-guide"
+            },
+            {
+              "id": "connections/models-and-contracts",
+              "path": "/docs/connections/models-and-contracts"
+            },
+            {
+              "id": "connections/README",
+              "path": "/docs/connections/"
             },
             {
               "id": "extensions/extensions-index",
@@ -234,6 +306,10 @@
               "id": "README",
               "path": "/docs/",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "todos/assistant_ui",
+              "path": "/docs/todos/assistant_ui"
             },
             {
               "id": "widgets/core-widgets",

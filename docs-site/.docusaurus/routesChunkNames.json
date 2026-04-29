@@ -1,15 +1,15 @@
 {
-  "/docs/-c39": {
+  "/docs/-b15": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "aba21aa0"
     }
   },
-  "/docs/-6d1": {
+  "/docs/-959": {
     "__comp": "a7bd4aaa",
     "__props": "11b43341"
   },
-  "/docs/-517": {
+  "/docs/-e6e": {
     "__comp": "a94703ab"
   },
   "/docs/access-control-073": {
@@ -28,6 +28,30 @@
     "__comp": "17896441",
     "content": "b03f83d9"
   },
+  "/docs/adr/adr-038-progressive-workspace-widget-hydration-586": {
+    "__comp": "17896441",
+    "content": "32530055"
+  },
+  "/docs/adr/adr-039-unified-upstream-consumer-state-contract-a6f": {
+    "__comp": "17896441",
+    "content": "0100432a"
+  },
+  "/docs/adr/adr-040-dashboard-surface-return-hydration-8a5": {
+    "__comp": "17896441",
+    "content": "3c37eb16"
+  },
+  "/docs/adr/adr-041-connection-query-websocket-streaming-8e1": {
+    "__comp": "17896441",
+    "content": "8902d398"
+  },
+  "/docs/adr/adr-042-tabular-transform-row-filtering-358": {
+    "__comp": "17896441",
+    "content": "f086e316"
+  },
+  "/docs/adr/adr-adapter-from-api-connection-055": {
+    "__comp": "17896441",
+    "content": "38a63f9e"
+  },
   "/docs/adr/adr-agent-monitor-workspace-reference-widget-29b": {
     "__comp": "17896441",
     "content": "4e10f2f5"
@@ -35,6 +59,10 @@
   "/docs/adr/adr-agent-ready-widget-type-registry-contract-005": {
     "__comp": "17896441",
     "content": "de2ea857"
+  },
+  "/docs/adr/adr-agent-session-interaction-readiness-gate-d43": {
+    "__comp": "17896441",
+    "content": "a7d0c16f"
   },
   "/docs/adr/adr-agent-terminal-managed-session-creation-bfa": {
     "__comp": "17896441",
@@ -60,6 +88,14 @@
     "__comp": "17896441",
     "content": "afdf42b8"
   },
+  "/docs/adr/adr-connection-authoring-contract-e5a": {
+    "__comp": "17896441",
+    "content": "29a8c091"
+  },
+  "/docs/adr/adr-connection-first-workspace-dataflow-864": {
+    "__comp": "17896441",
+    "content": "c86eddfc"
+  },
   "/docs/adr/adr-executable-widget-graph-runner-4e5": {
     "__comp": "17896441",
     "content": "f4636ece"
@@ -75,6 +111,10 @@
   "/docs/adr/adr-headless-workspace-settings-runtime-609": {
     "__comp": "17896441",
     "content": "68b9c37e"
+  },
+  "/docs/adr/adr-incremental-connection-response-refresh-971": {
+    "__comp": "17896441",
+    "content": "428f5ab7"
   },
   "/docs/adr/adr-incremental-workspace-normalization-c0c": {
     "__comp": "17896441",
@@ -96,9 +136,21 @@
     "__comp": "17896441",
     "content": "4fd55335"
   },
+  "/docs/adr/adr-main-sequence-simple-table-connection-6a5": {
+    "__comp": "17896441",
+    "content": "f89edaab"
+  },
+  "/docs/adr/adr-managed-connection-query-widget-sources-8be": {
+    "__comp": "17896441",
+    "content": "a632cb5a"
+  },
   "/docs/adr/adr-organization-widget-type-configurations-286": {
     "__comp": "17896441",
     "content": "75b4b6df"
+  },
+  "/docs/adr/adr-postgresql-connection-279": {
+    "__comp": "17896441",
+    "content": "7bcf1c3c"
   },
   "/docs/adr/adr-rgl-v2-workspace-studio-563": {
     "__comp": "17896441",
@@ -119,6 +171,10 @@
   "/docs/adr/adr-source-driven-downstream-execution-84c": {
     "__comp": "17896441",
     "content": "d3f94d7a"
+  },
+  "/docs/adr/adr-standardized-connection-result-contracts-bee": {
+    "__comp": "17896441",
+    "content": "a8f5aa5b"
   },
   "/docs/adr/adr-widget-agent-context-bindings-bbe": {
     "__comp": "17896441",
@@ -151,6 +207,22 @@
   "/docs/auth/backend-and-auth-2b0": {
     "__comp": "17896441",
     "content": "57559bef"
+  },
+  "/docs/connections/-35f": {
+    "__comp": "17896441",
+    "content": "da2bfbbe"
+  },
+  "/docs/connections/adapters/-6b1": {
+    "__comp": "17896441",
+    "content": "214cf2a4"
+  },
+  "/docs/connections/extension-guide-f00": {
+    "__comp": "17896441",
+    "content": "6848020b"
+  },
+  "/docs/connections/models-and-contracts-963": {
+    "__comp": "17896441",
+    "content": "ab21c280"
   },
   "/docs/extensions-40c": {
     "__comp": "17896441",
@@ -191,6 +263,10 @@
   "/docs/platform/theming-bbf": {
     "__comp": "17896441",
     "content": "5a8ed451"
+  },
+  "/docs/todos/assistant_ui-630": {
+    "__comp": "17896441",
+    "content": "e5f9e8e1"
   },
   "/docs/widgets-66d": {
     "__comp": "17896441",

@@ -13,7 +13,6 @@ contract across the platform.
 1. [Models and Contracts](./models-and-contracts.md): the core frontend and runtime shapes.
 2. [Extension Guide](./extension-guide.md): how to create a new connection type.
 3. [Adapters](./adapters/README.md): backend adapter responsibilities and lifecycle.
-4. [Python Adapters](./adapters/python/README.md): FastAPI and Pydantic adapter contract.
 
 Related ADRs:
 

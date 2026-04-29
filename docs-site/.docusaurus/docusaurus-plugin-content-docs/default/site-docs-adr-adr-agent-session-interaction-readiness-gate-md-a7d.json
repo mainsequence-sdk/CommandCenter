@@ -1,0 +1,15 @@
+{
+  "id": "adr/adr-agent-session-interaction-readiness-gate",
+  "title": "ADR: AgentSession Interaction Readiness Gate",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/adr-agent-session-interaction-readiness-gate.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-agent-session-interaction-readiness-gate",
+  "permalink": "/docs/adr/adr-agent-session-interaction-readiness-gate",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-agent-session-interaction-readiness-gate.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

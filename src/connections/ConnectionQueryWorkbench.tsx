@@ -11,8 +11,8 @@ import {
   resolveConnectionQueryDraftModel,
 } from "@/connections/connectionQueryDraftDefaults";
 import {
-  resolveConnectionAuthoringQueryModels,
   resolveConnectionAuthoringSummaryComponent,
+  resolveConnectionAuthoringQueryModelsForMode,
 } from "@/connections/connectionAuthoringContract";
 import { resolveConnectionRefSelection } from "@/connections/connectionRefResolution";
 import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
@@ -24,10 +24,17 @@ import { ConnectionQueryResponsePreview } from "@/connections/ConnectionQueryRes
 import { useConnectionInstances } from "@/connections/hooks";
 import type {
   AnyConnectionTypeDefinition,
+  ConnectionAuthoringMode,
+  ConnectionCapability,
   ConnectionInstance,
   ConnectionRef,
   ConnectionQueryEditorProps,
   ConnectionQueryModel,
+} from "@/connections/types";
+import {
+  formatConnectionQueryModelTransportLabel,
+  isConnectionQueryModelStreamable,
+  resolveConnectionQueryModelDescription,
 } from "@/connections/types";
 import {
   buildConnectionQueryRequest,
@@ -59,6 +66,10 @@ type QueryPreviewState =
 export interface ConnectionQueryWorkbenchProps {
   value: ConnectionQueryWidgetProps;
   onChange: (value: ConnectionQueryWidgetProps) => void;
+  onTransportVariantChange?: (
+    value: ConnectionQueryWidgetProps,
+    nextMode: ConnectionAuthoringMode,
+  ) => void;
   editable?: boolean;
   connectionInstance?: ConnectionInstance;
   connectionType?: AnyConnectionTypeDefinition;
@@ -67,13 +78,25 @@ export interface ConnectionQueryWorkbenchProps {
   fixedRangeFallback?: { rangeStartMs: number; rangeEndMs: number };
   showConnectionPicker?: boolean;
   showQueryEditor?: boolean;
+  showIncrementalRefreshControls?: boolean;
+  showTestAction?: boolean;
   connectionPathSettings?: ReactNode;
+  queryModelFilter?: (model: ConnectionQueryModel) => boolean;
+  authoringMode?: ConnectionAuthoringMode;
+  allowTransportVariantSelection?: boolean;
   autoSelectFirstQueryModel?: boolean;
   titlePrefix?: string;
   runButtonLabel?: string;
   resultDescription?: string;
   resultTitle?: string;
   publishPreviewRuntimeStateToInstanceId?: string;
+}
+
+interface ConnectionPathOption {
+  key: string;
+  queryModel: ConnectionQueryModel;
+  mode: ConnectionAuthoringMode;
+  transportLabel: "HTTP" | "WS";
 }
 
 function formatJson(value: unknown) {
@@ -569,6 +592,7 @@ function sameConnectionId(
 }
 
 export function ConnectionQueryWorkbench({
+  authoringMode = "query",
   autoSelectFirstQueryModel = false,
   connectionInstance,
   connectionType: providedConnectionType,
@@ -582,9 +606,12 @@ export function ConnectionQueryWorkbench({
   resultTitle = "Query result",
   runButtonLabel = "Test",
   showConnectionPicker = true,
+  showIncrementalRefreshControls = true,
   showQueryEditor = true,
+  showTestAction = true,
   titlePrefix = "",
   publishPreviewRuntimeStateToInstanceId,
+  queryModelFilter,
   value,
 }: ConnectionQueryWorkbenchProps) {
   const widgetExecution = useDashboardWidgetExecution();
@@ -618,13 +645,17 @@ export function ConnectionQueryWorkbench({
       ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
       : undefined);
   const selectedConnectionInstance = resolvedConnectionSelection.connectionInstance;
+  const isStreamAuthoring = authoringMode === "stream";
   const queryModels = useMemo(
     () =>
-      resolveConnectionAuthoringQueryModels({
+      resolveConnectionAuthoringQueryModelsForMode({
+        authoringMode,
         connectionInstance: selectedConnectionInstance,
         connectionType,
-      }).filter(isRuntimeFrameQueryModel),
-    [connectionType, selectedConnectionInstance],
+      })
+        .filter(isRuntimeFrameQueryModel)
+        .filter((model) => queryModelFilter?.(model) ?? true),
+    [authoringMode, connectionType, queryModelFilter, selectedConnectionInstance],
   );
   const autoSelectQueryModel = autoSelectFirstQueryModel || queryModels.length === 1;
   const selectedQueryModel = normalizedProps.queryModelId
@@ -699,6 +730,14 @@ export function ConnectionQueryWorkbench({
     id: normalizedProps.connectionRef?.id,
     queryModelId: resolvedQueryModel?.id,
   });
+  const resolvedQueryTransportLabel =
+    resolvedQueryModel
+      ? (isStreamAuthoring ? "WS" : "HTTP")
+      : formatConnectionQueryModelTransportLabel(resolvedQueryModel);
+  const resolvedQueryDescription = resolveConnectionQueryModelDescription(
+    resolvedQueryModel,
+    authoringMode,
+  );
   const canRunPreview = Boolean(previewRequest && previewState.status !== "loading");
   const publishedPreviewInstanceId =
     typeof publishPreviewRuntimeStateToInstanceId === "string" &&
@@ -706,8 +745,11 @@ export function ConnectionQueryWorkbench({
       ? publishPreviewRuntimeStateToInstanceId.trim()
       : undefined;
   const incrementalSettings = resolveConnectionQueryIncrementalSettings(normalizedProps);
+  const transportCapabilityFilter: ConnectionCapability[] = isStreamAuthoring
+    ? ["stream"]
+    : ["query"];
   const incrementalControlsAvailable =
-    queryPathUsesTimeRange && workspaceDateRuntimeAvailable;
+    showIncrementalRefreshControls && queryPathUsesTimeRange && workspaceDateRuntimeAvailable;
   const incrementalControlsEnabled =
     incrementalControlsAvailable && effectiveProps.timeRangeMode === "dashboard";
   const fieldSuggestions = useMemo(() => {
@@ -779,6 +821,7 @@ export function ConnectionQueryWorkbench({
       return;
     }
     const nextDefaults = resolveConnectionQueryDraftDefaults({
+      authoringMode,
       connectionInstance: selectedConnectionInstance,
       connectionType,
       queryModels,
@@ -805,6 +848,7 @@ export function ConnectionQueryWorkbench({
         : {}),
     });
   }, [
+    authoringMode,
     connectionType,
     autoSelectQueryModel,
     effectiveFixedRange,
@@ -885,7 +929,9 @@ export function ConnectionQueryWorkbench({
               {titlePrefix}Connection
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Select the backend-owned data source that will execute this query.
+              {isStreamAuthoring
+                ? "Select the backend-owned connection instance that will own this WebSocket subscription."
+                : "Select the backend-owned data source that will execute this query."}
             </p>
           </div>
           <ConnectionPicker
@@ -902,31 +948,36 @@ export function ConnectionQueryWorkbench({
                 nextConnectionInstance && nextConnectionInstance.typeId === nextRef?.typeId
                   ? nextConnectionInstance
                   : undefined;
-              const nextRuntimeQueryModels = resolveConnectionAuthoringQueryModels({
+              const nextRuntimeQueryModels = resolveConnectionAuthoringQueryModelsForMode({
+                authoringMode,
                 connectionInstance: resolvedNextConnectionInstance,
                 connectionType: nextType,
               }).filter(isRuntimeFrameQueryModel);
+              const filteredNextRuntimeQueryModels = nextRuntimeQueryModels.filter(
+                (model) => queryModelFilter?.(model) ?? true,
+              );
               const selectedModelStillValid = sameQueryModelAvailable(
                 normalizedProps.queryModelId,
-                nextRuntimeQueryModels,
+                filteredNextRuntimeQueryModels,
               );
               const fallbackQueryModel = selectedModelStillValid
-                ? nextRuntimeQueryModels.find(
+                ? filteredNextRuntimeQueryModels.find(
                     (model) => model.id === normalizedProps.queryModelId,
                   )
-                : nextRuntimeQueryModels.length === 1 || autoSelectFirstQueryModel
-                  ? nextRuntimeQueryModels[0]
+                : filteredNextRuntimeQueryModels.length === 1 || autoSelectFirstQueryModel
+                  ? filteredNextRuntimeQueryModels[0]
                   : undefined;
               const nextQueryModel = resolveConnectionQueryDraftModel({
                 connectionInstance: resolvedNextConnectionInstance,
                 connectionType: nextType,
-                queryModels: nextRuntimeQueryModels,
+                queryModels: filteredNextRuntimeQueryModels,
                 fallbackQueryModel,
               });
               const nextDefaults = resolveConnectionQueryDraftDefaults({
+                authoringMode,
                 connectionInstance: resolvedNextConnectionInstance,
                 connectionType: nextType,
-                queryModels: nextRuntimeQueryModels,
+                queryModels: filteredNextRuntimeQueryModels,
                 selectedQueryModel: nextQueryModel,
               });
               const connectionChanged = !sameConnectionId(
@@ -960,9 +1011,9 @@ export function ConnectionQueryWorkbench({
                   : {}),
               });
             }}
-            accepts={{ capabilities: ["query"] }}
+            accepts={{ capabilities: transportCapabilityFilter }}
             disabled={!editable}
-            placeholder="Select a connection"
+            placeholder={isStreamAuthoring ? "Select a stream-capable connection" : "Select a connection"}
           />
         </section>
       ) : null}
@@ -971,11 +1022,30 @@ export function ConnectionQueryWorkbench({
         <section className="space-y-3">
           <div>
             <h3 className="text-sm font-semibold text-foreground">
-              {titlePrefix}Connection path
+              {titlePrefix}{isStreamAuthoring ? "Subscription path" : "Connection path"}
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Choose the exact operation sent as <code>query.kind</code> for this connection.
+              {isStreamAuthoring ? (
+                <>
+                  Choose the exact WebSocket subscription sent as <code>query.kind</code> for this
+                  connection.
+                </>
+              ) : (
+                <>
+                  Choose the exact operation sent as <code>query.kind</code> for this connection.
+                </>
+              )}
             </p>
+            {isStreamAuthoring ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Only paths that advertise <code>stream.transport = websocket</code> appear here.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                All paths in this surface execute over <code>HTTP</code>. Stream-capable paths stay
+                available separately through the WebSocket stream source.
+              </p>
+            )}
           </div>
           <select
             value={selectedQueryModel?.id ?? ""}
@@ -985,6 +1055,7 @@ export function ConnectionQueryWorkbench({
                 ? queryModels.find((model) => model.id === nextQueryModelId)
                 : undefined;
               const nextDefaults = resolveConnectionQueryDraftDefaults({
+                authoringMode,
                 connectionInstance: selectedConnectionInstance,
                 connectionType,
                 queryModels,
@@ -1023,15 +1094,19 @@ export function ConnectionQueryWorkbench({
           >
             {queryModels.length > 0 ? (
               <>
-                <option value="">Select a connection path</option>
+                <option value="">
+                  {isStreamAuthoring ? "Select a stream subscription path" : "Select a connection path"}
+                </option>
                 {queryModels.map((model) => (
                   <option key={model.id} value={model.id}>
-                    {model.label} ({model.id})
+                    {model.label} ({model.id}) [{isStreamAuthoring ? "WS" : "HTTP"}]
                   </option>
                 ))}
               </>
             ) : (
-              <option value="">No frame query models</option>
+              <option value="">
+                {isStreamAuthoring ? "No streamable frame query models" : "No frame query models"}
+              </option>
             )}
           </select>
           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2 text-xs text-muted-foreground">
@@ -1039,6 +1114,34 @@ export function ConnectionQueryWorkbench({
             <code className="mt-1 block break-all text-[11px] text-muted-foreground">
               {connectionPath || "Select a connection and path"}
             </code>
+            <div className="mt-2">
+              <span className="font-medium text-foreground">Transport</span>:{" "}
+              {resolvedQueryModel ? resolvedQueryTransportLabel : "Select a path"}
+            </div>
+            {resolvedQueryDescription ? (
+              <div className="mt-2 leading-relaxed">
+                <span className="font-medium text-foreground">
+                  {isStreamAuthoring ? "Subscription behavior" : "Behavior"}
+                </span>
+                : {resolvedQueryDescription}
+              </div>
+            ) : null}
+            {isStreamAuthoring && isConnectionQueryModelStreamable(resolvedQueryModel) ? (
+              <div className="mt-2 leading-relaxed">
+                <span className="font-medium text-foreground">Delivery</span>:{" "}
+                {resolvedQueryModel.stream.modes.join(" + ")}
+                {resolvedQueryModel.stream.heartbeatMs
+                  ? `, heartbeat ${resolvedQueryModel.stream.heartbeatMs} ms`
+                  : ""}
+                {resolvedQueryModel.stream.supportsResume ? ", resumable" : ""}
+              </div>
+            ) : null}
+            {!isStreamAuthoring && isConnectionQueryModelStreamable(resolvedQueryModel) ? (
+              <div className="mt-2 leading-relaxed">
+                <span className="font-medium text-foreground">Also available</span>: WS stream path
+                on the Connection Stream Query surface
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -1055,9 +1158,13 @@ export function ConnectionQueryWorkbench({
       {showQueryEditor ? (
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">{titlePrefix}Query</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {titlePrefix}{isStreamAuthoring ? "Subscription payload" : "Query"}
+            </h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Configure the payload passed to the selected connection query model.
+              {isStreamAuthoring
+                ? "Configure the payload passed to the selected WebSocket subscription model."
+                : "Configure the payload passed to the selected connection query model."}
             </p>
           </div>
           {QueryEditor && resolvedQueryModel ? (
@@ -1083,6 +1190,7 @@ export function ConnectionQueryWorkbench({
               connectionInstance={selectedConnectionInstance}
               connectionType={connectionType}
               queryModel={resolvedQueryModel}
+              authoringMode={authoringMode}
             />
           ) : resolvedQueryModel ? (
             <JsonObjectEditor
@@ -1101,8 +1209,17 @@ export function ConnectionQueryWorkbench({
             />
           ) : (
             <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-4 text-sm text-muted-foreground">
-              Select a query before editing its payload. The workbench stores the selected query in{" "}
-              <code>query.kind</code>.
+              {isStreamAuthoring ? (
+                <>
+                  Select a subscription path before editing its payload. The workbench stores the
+                  selected path in <code>query.kind</code>.
+                </>
+              ) : (
+                <>
+                  Select a query before editing its payload. The workbench stores the selected
+                  query in <code>query.kind</code>.
+                </>
+              )}
             </div>
           )}
         </section>
@@ -1111,10 +1228,13 @@ export function ConnectionQueryWorkbench({
       {showRuntimeSection ? (
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">{titlePrefix}Runtime</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {titlePrefix}{isStreamAuthoring ? "Subscription runtime" : "Runtime"}
+            </h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Configure row limits, optional variables, and date runtime when the selected query
-              supports it.
+              {isStreamAuthoring
+                ? "Configure opening-snapshot row limits, optional variables, and snapshot date runtime when the selected subscription supports them."
+                : "Configure row limits, optional variables, and date runtime when the selected query supports it."}
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
@@ -1132,13 +1252,19 @@ export function ConnectionQueryWorkbench({
               />
             ) : queryPathUsesTimeRange ? (
               <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2 text-sm text-muted-foreground md:col-span-2">
-                This query runs outside a workspace, so it uses custom fixed dates.
+                {isStreamAuthoring
+                  ? "This subscription runs outside a workspace, so it uses custom fixed dates for the opening snapshot."
+                  : "This query runs outside a workspace, so it uses custom fixed dates."}
               </div>
             ) : null}
             {queryPathSupportsMaxRows ? (
               <NumberInput
-                label="Max rows"
-                help="Maximum rows requested from the connection for each run. Leave blank when the connection default should apply."
+                label={isStreamAuthoring ? "Initial snapshot rows" : "Max rows"}
+                help={
+                  isStreamAuthoring
+                    ? "Maximum rows requested for the opening snapshot before live updates continue. Leave blank when the connection default should apply."
+                    : "Maximum rows requested from the connection for each run. Leave blank when the connection default should apply."
+                }
                 value={normalizedProps.maxRows}
                 min={1}
                 disabled={!editable}
@@ -1260,15 +1386,19 @@ export function ConnectionQueryWorkbench({
                 help="The effective date range that will be sent to this query at runtime. In incremental mode this is the retained range; follow-up requests may ask only for the tail range based on overlap and watermark."
                 textClassName="font-medium text-foreground"
               >
-                Runtime range:
+                {isStreamAuthoring ? "Snapshot range:" : "Runtime range:"}
               </WidgetSettingFieldLabel>{" "}
               {runtimeRangeSummary}
             </div>
           ) : null}
           {queryPathSupportsVariables ? (
             <JsonObjectEditor
-              label="Variables JSON"
-              help="Optional standard request-envelope variables for backend template expansion. Use connector-specific fields above for query kwargs."
+              label={isStreamAuthoring ? "Subscription variables JSON" : "Variables JSON"}
+              help={
+                isStreamAuthoring
+                  ? "Optional standard request-envelope variables for backend template expansion on the stream subscription. Use connector-specific fields above for subscription kwargs."
+                  : "Optional standard request-envelope variables for backend template expansion. Use connector-specific fields above for query kwargs."
+              }
               value={normalizedProps.variables}
               onChange={(variables) => {
                 updateValue({
@@ -1282,6 +1412,7 @@ export function ConnectionQueryWorkbench({
         </section>
       ) : null}
 
+      {showTestAction ? (
       <section className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -1339,6 +1470,7 @@ export function ConnectionQueryWorkbench({
           </div>
         ) : null}
       </section>
+      ) : null}
     </div>
   );
 }

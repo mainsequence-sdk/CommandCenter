@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -132,6 +132,10 @@ function buildBindingsFromDraftRows(
   );
 }
 
+function serializeBindingsSignature(bindings: WidgetInstanceBindings | undefined) {
+  return JSON.stringify(bindings ?? null);
+}
+
 function descriptorCanProduceAcceptedContract(
   descriptor: WidgetValueDescriptor | undefined,
   acceptedContracts: WidgetContractId[],
@@ -187,16 +191,22 @@ export function WidgetBindingPanel({
     () => normalizeWidgetInstanceBindings(instance.bindings),
     [instance.bindings],
   );
+  const initialBindingsSignature = useMemo(
+    () => serializeBindingsSignature(initialBindings),
+    [initialBindings],
+  );
   const initialBindingDraftRows = useMemo(
     () => buildInitialBindingDraftRows(initialBindings),
-    [initialBindings],
+    [initialBindingsSignature],
   );
   const [draftBindingRowsByInputId, setDraftBindingRowsByInputId] =
     useState<Record<string, BindingDraftRow[]>>(initialBindingDraftRows);
+  const sourceWidgetOptionCacheRef =
+    useRef<Map<string, Map<string, WidgetSourceExplorerWidgetOption>>>(new Map());
 
   useEffect(() => {
     setDraftBindingRowsByInputId(initialBindingDraftRows);
-  }, [initialBindingDraftRows, instance.id]);
+  }, [initialBindingDraftRows, initialBindingsSignature, instance.id]);
 
   const inputs = resolvedIo?.inputs ?? widget.io?.inputs ?? [];
   const draftBindings = useMemo(
@@ -209,46 +219,79 @@ export function WidgetBindingPanel({
       return new Map<string, WidgetSourceExplorerWidgetOption[]>();
     }
 
+    const selectableSourceWidgetIds = new Set(
+      dependencies.entries
+        .flatMap(({ instance: sourceInstance }) =>
+          sourceInstance.id === instance.id ? [] : [sourceInstance.id],
+        ),
+    );
+
     return new Map(
       inputs.map((input) => {
-        const options = dependencies.entries.flatMap(({ instance: sourceInstance }) => {
-          if (sourceInstance.id === instance.id) {
-            return [];
+        const options: WidgetSourceExplorerWidgetOption[] = dependencies.entries.flatMap(
+          ({ instance: sourceInstance }) => {
+            if (sourceInstance.id === instance.id) {
+              return [];
+            }
+
+            const sourceDefinition = dependencies.getWidgetDefinition(sourceInstance.widgetId);
+            const declaredOutputs = dependencies.resolveIo(sourceInstance.id)?.outputs ?? [];
+            const resolvedOutputs = dependencies.resolveOutputs(sourceInstance.id) ?? {};
+            const bindableOutputs = declaredOutputs
+              .map((output) => ({
+                id: output.id,
+                label: output.label,
+                contract: output.contract,
+                description: output.description,
+                value: resolvedOutputs[output.id]?.value,
+                valueDescriptor:
+                  resolvedOutputs[output.id]?.valueDescriptor ?? output.valueDescriptor,
+              }))
+              .filter((output) => isBindableSourceOutput(output, input.accepts));
+
+            if (bindableOutputs.length === 0) {
+              return [];
+            }
+
+            return [{
+              id: sourceInstance.id,
+              label: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
+              title: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
+              widgetTypeLabel: sourceDefinition?.title ?? sourceInstance.widgetId,
+              instanceLabel: sourceInstance.id,
+              outputs: bindableOutputs,
+            } satisfies WidgetSourceExplorerWidgetOption];
+          },
+        );
+        const optionIndex = new Map(options.map((option) => [option.id, option] as const));
+        const cachedOptions = sourceWidgetOptionCacheRef.current.get(input.id);
+
+        cachedOptions?.forEach((cachedOption, cachedOptionId) => {
+          if (optionIndex.has(cachedOptionId) || !selectableSourceWidgetIds.has(cachedOptionId)) {
+            return;
           }
 
-          const sourceDefinition = dependencies.getWidgetDefinition(sourceInstance.widgetId);
-          const declaredOutputs = dependencies.resolveIo(sourceInstance.id)?.outputs ?? [];
-          const resolvedOutputs = dependencies.resolveOutputs(sourceInstance.id) ?? {};
-          const bindableOutputs = declaredOutputs
-            .map((output) => ({
-              id: output.id,
-              label: output.label,
-              contract: output.contract,
-              description: output.description,
-              value: resolvedOutputs[output.id]?.value,
-              valueDescriptor:
-                resolvedOutputs[output.id]?.valueDescriptor ?? output.valueDescriptor,
-            }))
-            .filter((output) => isBindableSourceOutput(output, input.accepts));
-
-          if (bindableOutputs.length === 0) {
-            return [];
-          }
-
-          return [{
-            id: sourceInstance.id,
-            label: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
-            title: sourceInstance.title ?? sourceDefinition?.title ?? sourceInstance.widgetId,
-            widgetTypeLabel: sourceDefinition?.title ?? sourceInstance.widgetId,
-            instanceLabel: sourceInstance.id,
-            outputs: bindableOutputs,
-          } satisfies WidgetSourceExplorerWidgetOption];
+          options.push(cachedOption);
+          optionIndex.set(cachedOptionId, cachedOption);
         });
 
         return [input.id, options] as const;
       }),
     );
   }, [dependencies, inputs, instance.id]);
+
+  useEffect(() => {
+    sourceWidgetsByInputId.forEach((options, inputId) => {
+      const cachedOptions =
+        sourceWidgetOptionCacheRef.current.get(inputId) ?? new Map<string, WidgetSourceExplorerWidgetOption>();
+
+      options.forEach((option) => {
+        cachedOptions.set(option.id, option);
+      });
+
+      sourceWidgetOptionCacheRef.current.set(inputId, cachedOptions);
+    });
+  }, [sourceWidgetsByInputId]);
 
   const dirty =
     JSON.stringify(draftBindings ?? null) !== JSON.stringify(initialBindings ?? null);

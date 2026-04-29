@@ -1,5 +1,6 @@
 import { useAuthStore } from "@/auth/auth-store";
 import { handleMockAuthRequest } from "@/auth/mock-jwt-auth";
+import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
@@ -81,6 +82,19 @@ export interface VerifyCurrentUserMfaSetupResponse {
   detail: string;
   mfa_enabled: boolean;
 }
+
+export interface WebSocketTicketRequestInput {
+  audience?: string;
+}
+
+export interface WebSocketTicketResponse {
+  ticket: string;
+  ticketType: string;
+  audience: string;
+  expiresAt: string;
+}
+
+export const DEFAULT_WEBSOCKET_TICKET_AUDIENCE = "command_center_ws";
 
 async function readResponsePayload(response: Response) {
   if (response.status === 204) {
@@ -275,6 +289,27 @@ export function verifyCurrentUserMfaSetup(input: VerifyCurrentUserMfaSetupInput)
     {
       method: "POST",
       body: JSON.stringify(input),
+    },
+    {
+      requiresAuth: true,
+    },
+  );
+}
+
+export function requestWebSocketTicket(input: WebSocketTicketRequestInput = {}) {
+  const path = commandCenterConfig.auth.websocketTicketUrl.trim();
+
+  if (!path) {
+    throw new Error("Command Center WebSocket ticket endpoint is not configured.");
+  }
+
+  return requestAuthJson<WebSocketTicketResponse>(
+    path,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        audience: input.audience ?? DEFAULT_WEBSOCKET_TICKET_AUDIENCE,
+      }),
     },
     {
       requiresAuth: true,

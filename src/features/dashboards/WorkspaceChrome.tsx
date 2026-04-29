@@ -480,7 +480,7 @@ export function WorkspaceWidgetRail({
   return (
     <aside
       className={cn(
-        "pointer-events-auto absolute left-2 bottom-4 z-30 flex w-8 flex-col items-center gap-1 overflow-hidden",
+        "pointer-events-auto absolute left-2 bottom-4 z-40 flex w-8 flex-col items-center gap-1 overflow-hidden",
         topOffsetClassName,
       )}
       aria-label="Canvas widget rail"

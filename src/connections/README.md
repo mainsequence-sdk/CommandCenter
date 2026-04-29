@@ -8,19 +8,33 @@ connection ADR. Connections are platform data-access resources, not widgets.
 - `types.ts`: extension-facing connection type metadata, backend-owned connection instance shapes,
   query/resource contracts, and health results.
 - `api.ts`: authenticated frontend client for connection type, instance, health, query, resource,
-  and stream endpoints. Instance list reads are backend-authoritative, do not inject local
-  fallback records, and execution-time ref repair reloads the connection list from the backend
-  instead of trusting a local module cache.
-- `hooks.ts`: React Query wrappers for connection catalogs, instances, queries, and resources.
+  legacy EventSource stream endpoints, and query-shaped WebSocket stream endpoints. Instance list
+  reads are backend-authoritative, do not inject local fallback records, and execution-time ref
+  repair reloads the connection list from the backend instead of trusting a local module cache.
+  Browser WebSocket callers mint a short-lived handshake ticket through the shared auth endpoint
+  before opening `stream-query`.
+- `hooks.ts`: React Query wrappers for connection catalogs, instances, queries, and resources, plus
+  lifecycle helpers for legacy EventSource streams and query-shaped WebSocket streams.
 - `ConnectionQueryResponsePreview.tsx`: shared renderer for normalized connection query responses.
-  It renders one canonical tabular frame as a table or, when `meta.timeSeries` hints are present,
-  as a graph/table preview using the core graph renderer.
+  It renders one canonical tabular frame as a table or, when the normalized frame exposes graphable
+  semantics, as a graph/table preview using the core graph renderer. It now also respects explicit
+  `source.context.graphDefaults` on plain streamed tabular rows, so adapters can chart fields such
+  as `openTime -> close` without reviving legacy time-series metadata.
+- `connectionStreamPreview.ts`: preview-only accumulation helper for WebSocket test and Explore
+  surfaces. It keeps bounded chart history, projects query-model graph hints into preview graph
+  defaults, and preserves canonical source-widget runtime semantics.
 - `ConnectionExploreSurface.tsx`: generic Data Sources Explore surface. It reuses the same shared
-  workbench used by connection-query widgets and delegates connection-specific behavior to each
-  connection type's authoring contract.
+  workbench used by connection-query widgets, exposes an explicit HTTP-vs-WS transport selector
+  when the selected connection has streamable query models, and delegates connection-specific
+  behavior to each connection type's authoring contract.
 - `ConnectionQueryWorkbench.tsx`: shared query authoring, generated request preview, test
   execution, and normalized response preview surface used by workspace Connection Query widget
   settings and Data Sources Explore.
+- `ConnectionStreamQueryTestPanel.tsx`: shared WebSocket test action for streamable connection
+  queries. It sends the query-shaped subscribe payload, previews streamed frames through
+  `ConnectionQueryResponsePreview.tsx`, and shows lifecycle, sequence, emitted-time, heartbeat,
+  preview retention metrics, error metadata, plus explicit ticket-request and socket-connect
+  diagnostics for stream startup.
 - `connectionAuthoringContract.tsx`: shared helpers for resolving connection-specific authoring
   behavior such as query-model filtering, draft seeding, summary cards, and Explore copy.
 - `connectionQueryDraftDefaults.ts`: shared helper for connection-type draft initialization.
@@ -53,8 +67,6 @@ connection ADR. Connections are platform data-access resources, not widgets.
 - Connection authorization is enforced through the existing platform and Main Sequence permission
   systems. This package does not define a separate connection-permission model.
 - Widgets and workspaces should store stable `ConnectionRef` values: `{ id, typeId }`.
-- Legacy saved refs that still contain `{ uid, typeId }` are normalized on read so existing
-  workspaces continue to resolve the selected backend connection instance.
 - The core connection layer must not fabricate system/default connection instances such as
   `prometheus-default` for widgets, Explore, or picker surfaces. Connection selection and runtime
   execution use backend-owned instances only.
@@ -67,8 +79,7 @@ connection ADR. Connections are platform data-access resources, not widgets.
   The core Connection Query widget is the generic workspace source for connection data and
   publishes one normalized `core.tabular_frame@v1` frame; downstream table, chart, statistic, and
   transform widgets should bind to that output rather than storing connection ids or query
-  endpoints themselves. Chartable datasets can still carry `meta.timeSeries` hints inside that
-  frame.
+  endpoints themselves.
 - Execution-time ref resolution must reload the backend connection catalog when fetch is allowed.
   Do not treat an in-memory frontend cache as authoritative for repairing or validating runtime
   `ConnectionRef` values.
@@ -76,10 +87,15 @@ connection ADR. Connections are platform data-access resources, not widgets.
   `ConnectionQueryWorkbench.tsx` so they generate the same `ConnectionQueryRequest`, use the same
   typed connection editors, and preview the same normalized runtime frame. Do not add another
   direct Explore-only `queryConnection(...)` path for standard query-capable connections.
+- Data Sources Explore must expose WebSocket-capable query models through the shared
+  `ConnectionExploreSurface.tsx` transport selector rather than hiding them behind connection-
+  specific Explore wrappers. HTTP request/response and WS subscription authoring must stay visibly
+  distinct in the Explore shell.
 - The shared Connections app must render Explore through `ConnectionExploreSurface.tsx`. Do not
   add per-connection Explore wrapper components for normal query authoring; connection-specific
   behavior belongs in `ConnectionTypeDefinition.authoringContract`.
-- Embedded consumer settings must route managed `connection-query` authoring through
+- Embedded consumer settings must route managed `connection-query` and `connection-stream-query`
+  authoring through
   `ConnectionQuerySettingsSurface.tsx` or `ConnectionQueryWorkbench.tsx` so managed sources reuse
   the same request builder, typed query editors, incremental refresh fields, preview runner, and
   normalized response preview as the standalone `connection-query` widget.
@@ -96,12 +112,28 @@ connection ADR. Connections are platform data-access resources, not widgets.
   query model. Use them for per-connection query kwargs such as Data Node columns, SQL parameters,
   PromQL matchers, or PostgreSQL time-series field mapping instead of forcing users through a
   generic JSON object.
+- Query-shaped WebSocket streaming is advertised per `ConnectionQueryModel.stream`. Frontend
+  streaming callers must validate the selected query model with the shared streamability helpers
+  before opening `/stream-query/`; non-streamable query models must stay on the request/response
+  `queryConnection(...)` path.
+- Streamed query models may also publish frontend-only `stream.defaultMergeKeyFields`. The generic
+  `connection-stream-query` widget uses those keys as the default retained-row identity when it
+  merges snapshot-origin or delta-origin live updates for downstream widgets.
+- Query-shaped WebSocket streams use `streamQueryUrl` as a WebSocket route template. The frontend
+  resolves the configured API origin from `http`/`https` to `ws`/`wss` and sends a single
+  `subscribe` message containing the standard query-shaped request after the socket opens. For SPA
+  JWT auth, callers first `POST` `auth.websocketTicketUrl`, then append the returned
+  `ws_ticket` query param to the socket URL. The legacy channel-based `streamUrl` remains
+  EventSource-only.
 - When a connection type provides a typed `queryEditor`, widget settings should use that editor as
   the primary settings source of truth instead of duplicating the same payload fields through the
   Connection Query widget schema. Schema-backed path controls remain the fallback for connections
   that do not provide a typed editor and for canvas companion-card exposure.
 - Explore surfaces and widget test previews should use `ConnectionQueryResponsePreview.tsx` for
   response rendering so frame contracts are interpreted consistently across adapters.
+- Preview accumulation for WebSocket testing is diagnostic UI state only. Keep it in
+  `connectionStreamPreview.ts` and the test/explore shell; do not write accumulated preview rows
+  back into canonical widget runtime state or workspace storage.
 - Do not reintroduce synthetic system connection instances anywhere in connection-owned code. Legacy
   placeholder ids may be recognized only to clear or repair saved refs; they must never appear as
   selectable instances or runtime execution ids.

@@ -1,0 +1,15 @@
+{
+  "id": "connections/models-and-contracts",
+  "title": "Connection Models And Contracts",
+  "description": "The canonical TypeScript definitions live in src/connections/types.ts. This page explains how",
+  "source": "@site/../docs/connections/models-and-contracts.md",
+  "sourceDirName": "connections",
+  "slug": "/connections/models-and-contracts",
+  "permalink": "/docs/connections/models-and-contracts",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/connections/models-and-contracts.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

@@ -220,6 +220,11 @@ function buildMockMfaSetupVerifyUrl() {
   return new URL("/user/api/user/mfa/setup/verify/", window.location.origin).toString();
 }
 
+function buildMockWebSocketTicketAudience(body: Record<string, unknown> | null) {
+  const audience = readString(body?.audience);
+  return audience || "command_center_ws";
+}
+
 function issueMockMfaSetup(user: MockAuthUserRecord) {
   const setupToken = `mock-setup.${user.id}.${Date.now()}`;
   mockMfaSetups.set(setupToken, {
@@ -657,6 +662,25 @@ export function handleMockAuthRequest(
 
     return {
       detail: "Password change email sent. Please check your inbox.",
+    };
+  }
+
+  if (
+    pathname ===
+      new URL(commandCenterConfig.auth.websocketTicketUrl, window.location.origin).pathname &&
+    method === "POST"
+  ) {
+    const user = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
+
+    if (!user) {
+      throw new Error(getMockUnauthorizedMessage());
+    }
+
+    return {
+      ticket: `mock-ws-ticket.${user.id}.${Date.now()}`,
+      ticketType: "websocket_ticket",
+      audience: buildMockWebSocketTicketAudience(body),
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
     };
   }
 

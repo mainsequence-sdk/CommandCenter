@@ -6,8 +6,8 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 
 - Use when a workspace needs row-level inspection, sorting, filtering, search, pagination, pinned columns, or compact table density.
 - Use when a tabular frame needs display configuration: header labels, descriptions, visibility, alignment, pinning, datetime rendering, numeric precision, prefix, suffix, compact-number notation, heatmaps, data bars, gauges, threshold rules, or value-label chips.
-- Use the managed connection flow when this table should own its own hidden `connection-query`
-  source instead of sharing a visible upstream source widget.
+- Use the managed connection flow when this table should own its own hidden `connection-query` or
+  `connection-stream-query` source instead of sharing a visible upstream source widget.
 - Use manual mode only for display-only rows that should not become a reusable dataset source.
 - Use it as a lightweight tabular source when a downstream widget should consume the table's canonical underlying rows.
 
@@ -19,7 +19,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 
 ## authoringSteps
 
-- Choose `Bound dataset` when the table should render an upstream `core.tabular_frame@v1` output, `Connection query` when the table should own a hidden `connection-query` source, or `Manual table` when rows should be authored directly in this widget.
+- Choose `Bound dataset` when the table should render an upstream `core.tabular_frame@v1` output, `Connection query` when the table should own a hidden `connection-query` source, `Stream connection` when it should own a hidden `connection-stream-query` source, or `Manual table` when rows should be authored directly in this widget.
 - For bound mode, bind the inbound `sourceData` port to a Connection Query or Tabular Transform `dataset` output.
 - For connection mode, open `Bindings`, click `Add connection`, then configure the dedicated `Connection` tab. The table still renders only from the resolved `sourceData` binding, but that binding is automatically repaired to the hidden managed source widget.
 - For manual mode, define columns and rows in the table editor. Manual rows are stored in this table widget's props and are published as the table `dataset` output.
@@ -32,8 +32,9 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 ## blockingRequirements
 
 - Bound mode requires a compatible upstream `core.tabular_frame@v1` binding.
-- Connection mode requires a valid backend-owned connection instance selected in the managed
-  hidden source widget.
+- Connection and stream connection modes require a valid backend-owned connection instance selected
+  in the managed hidden source widget. Stream connection mode also requires a streamable connection
+  path.
 - When the upstream source publishes incremental metadata, the table consumes the retained
   full `upstreamBase` frame and renders it as a snapshot.
 - Manual mode requires at least one manual column before the table can render a schema.
@@ -47,7 +48,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 ## commonPitfalls
 
 - Bound mode stays empty until it is bound to a compatible source in the workspace bindings.
-- Connection mode still depends on the hidden managed source publishing a canonical dataset. Fix
+- Connection modes still depend on the hidden managed source publishing a canonical dataset. Fix
   source runtime failures in the `Connection` tab before debugging table schema or formatting.
 - If this table is backed by an embedded hidden connection source, fix any source runtime error in
   the settings status card before debugging schema or formatting rules.

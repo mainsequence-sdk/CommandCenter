@@ -702,7 +702,7 @@ export function CustomWidgetSettingsPage({
                               <p className="max-w-3xl text-sm text-muted-foreground">
                                 Keep widget presentation in Settings and manage widget-owned source
                                 creation from here. A managed connection creates one hidden
-                                connection-query widget and binds its dataset output to this
+                                connection source widget and binds its dataset output to this
                                 widget&apos;s <code>{managedConnectionAdapter.sourceInputId}</code>{" "}
                                 input.
                               </p>
@@ -744,7 +744,7 @@ export function CustomWidgetSettingsPage({
                               </div>
                               <p className="mt-1 text-sm text-muted-foreground">
                                 {managedConnectionSource
-                                  ? `This ${widget.title.toLowerCase()} now manages its own hidden connection-query source. Use the Connection tab to edit the full query configuration.`
+                                  ? `This ${widget.title.toLowerCase()} now manages its own hidden connection source. Use the Connection tab to edit the full query or stream configuration.`
                                   : "A managed connection has been staged locally. Open the Connection tab and apply those changes to create the hidden source widget."}
                               </p>
                             </div>
@@ -797,7 +797,7 @@ export function CustomWidgetSettingsPage({
                           {widget.title} connection
                         </div>
                         <p className="max-w-3xl text-sm text-muted-foreground">
-                          This tab reuses the same connection-query authoring surface as the
+                          This tab reuses the same shared connection authoring surface as the
                           standalone Connection Query widget. This {widget.title.toLowerCase()} still renders only from the
                           resolved <code>{managedConnectionAdapter.sourceInputId}</code> binding.
                         </p>

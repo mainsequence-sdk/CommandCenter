@@ -415,6 +415,11 @@ export function TradingViewSeriesChart({
         return;
       }
 
+      if (fullSeries.entry.sourcePointCount > fullSeries.entry.pointCount) {
+        seriesApi.setData(mapGraphSeriesPoints(fullSeries.entry, timeAxisMode));
+        return;
+      }
+
       mapGraphSeriesPoints(entry, timeAxisMode).forEach((point) => {
         seriesApi.update(point, true);
       });

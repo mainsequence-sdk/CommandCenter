@@ -1,0 +1,275 @@
+import { useEffect, useMemo, useRef } from "react";
+
+import { AlertTriangle, DatabaseZap, Loader2, Wifi, WifiOff } from "lucide-react";
+
+import { getConnectionTypeById } from "@/app/registry";
+import { useDashboardControls } from "@/dashboards/DashboardControls";
+import type { WidgetComponentProps } from "@/widgets/types";
+
+import {
+  buildConnectionStreamQueryRequest,
+  buildConnectionStreamQuerySubscriptionKey,
+  buildConnectionStreamQueryValidationError,
+  buildConnectionStreamQueryLifecycleFrame,
+  createConnectionStreamQueryWidgetRuntimeSession,
+  normalizeConnectionStreamQueryProps,
+  normalizeConnectionStreamQueryRuntimeState,
+  type ConnectionStreamQueryRuntimeState,
+  type ConnectionStreamQueryWidgetProps,
+} from "./connectionStreamQueryModel";
+
+type Props = WidgetComponentProps<ConnectionStreamQueryWidgetProps>;
+
+function stableJsonStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJsonStringify(entry)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJsonStringify((value as Record<string, unknown>)[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+export function buildConnectionStreamQueryExecutionKey(input: {
+  instanceId?: string;
+  props: ConnectionStreamQueryWidgetProps;
+  queryModel?: {
+    id: string;
+    stream?: unknown;
+  };
+  request: unknown;
+  validationError?: string | null;
+}) {
+  return stableJsonStringify({
+    instanceId: input.instanceId?.trim() || undefined,
+    props: input.props,
+    queryModel: input.queryModel
+      ? {
+          id: input.queryModel.id,
+          stream: input.queryModel.stream,
+        }
+      : null,
+    request: input.request,
+    validationError: input.validationError ?? null,
+  });
+}
+
+function formatStatus(status: string) {
+  return status.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function isStreamingActive(status: string) {
+  return status === "connecting" || status === "live" || status === "reconnecting";
+}
+
+export function ConnectionStreamQueryWidget({
+  instanceId,
+  props,
+  runtimeState,
+  onRuntimeStateChange,
+}: Props) {
+  const dashboardControls = useDashboardControls();
+  const normalizedProps = useMemo(() => normalizeConnectionStreamQueryProps(props), [props]);
+  const connectionType = normalizedProps.connectionRef?.typeId
+    ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
+    : undefined;
+  const queryModel = normalizedProps.queryModelId
+    ? connectionType?.queryModels?.find((model) => model.id === normalizedProps.queryModelId)
+    : undefined;
+  const dashboardState = useMemo(
+    () => ({
+      timeRangeKey: dashboardControls.timeRangeKey,
+      rangeStartMs: dashboardControls.rangeStartMs,
+      rangeEndMs: dashboardControls.rangeEndMs,
+      refreshIntervalMs: dashboardControls.refreshIntervalMs,
+    }),
+    [
+      dashboardControls.rangeEndMs,
+      dashboardControls.rangeStartMs,
+      dashboardControls.refreshIntervalMs,
+      dashboardControls.timeRangeKey,
+    ],
+  );
+  const request = useMemo(
+    () => buildConnectionStreamQueryRequest(normalizedProps, dashboardState, queryModel),
+    [dashboardState, normalizedProps, queryModel],
+  );
+  const validationError = useMemo(
+    () => buildConnectionStreamQueryValidationError({ props: normalizedProps, queryModel }),
+    [normalizedProps, queryModel],
+  );
+  const executionKey = useMemo(
+    () =>
+      buildConnectionStreamQueryExecutionKey({
+        instanceId,
+        props: normalizedProps,
+        queryModel,
+        request,
+        validationError,
+      }),
+    [instanceId, normalizedProps, queryModel, request, validationError],
+  );
+  const normalizedRuntimeState = useMemo(
+    () => normalizeConnectionStreamQueryRuntimeState(runtimeState),
+    [runtimeState],
+  );
+  const runtimeRef = useRef<ConnectionStreamQueryRuntimeState | null>(normalizedRuntimeState);
+  const onRuntimeStateChangeRef = useRef(onRuntimeStateChange);
+
+  useEffect(() => {
+    runtimeRef.current = normalizedRuntimeState;
+  }, [normalizedRuntimeState]);
+
+  useEffect(() => {
+    onRuntimeStateChangeRef.current = onRuntimeStateChange;
+  }, [onRuntimeStateChange]);
+
+  useEffect(() => {
+    const publishRuntimeState = onRuntimeStateChangeRef.current;
+
+    if (!publishRuntimeState) {
+      return undefined;
+    }
+
+    if (validationError) {
+      publishRuntimeState(
+        buildConnectionStreamQueryLifecycleFrame({
+          props: normalizedProps,
+          status: normalizedProps.connectionRef?.id && normalizedProps.queryModelId
+            ? "error"
+            : "idle",
+          error: normalizedProps.connectionRef?.id && normalizedProps.queryModelId
+            ? validationError
+            : undefined,
+        }) as unknown as Record<string, unknown>,
+      );
+      return undefined;
+    }
+
+    if (!request || !queryModel) {
+      publishRuntimeState(
+        buildConnectionStreamQueryLifecycleFrame({
+          props: normalizedProps,
+          status: "idle",
+        }) as unknown as Record<string, unknown>,
+      );
+      return undefined;
+    }
+
+    let session: ReturnType<typeof createConnectionStreamQueryWidgetRuntimeSession>;
+
+    try {
+      session = createConnectionStreamQueryWidgetRuntimeSession({
+        subscriptionKey: buildConnectionStreamQuerySubscriptionKey({
+          instanceId,
+          request,
+        }),
+        request,
+        props: normalizedProps,
+        queryModel,
+        initialRuntimeState: runtimeRef.current,
+        sourceWidgetId: instanceId,
+        onRuntimeStateChange: (nextRuntimeState) => {
+          runtimeRef.current = nextRuntimeState;
+          onRuntimeStateChangeRef.current?.(nextRuntimeState as unknown as Record<string, unknown>);
+        },
+      });
+    } catch (error) {
+      publishRuntimeState(
+        buildConnectionStreamQueryLifecycleFrame({
+          props: normalizedProps,
+          status: "error",
+          error: error instanceof Error ? error.message : "Connection stream could not start.",
+        }) as unknown as Record<string, unknown>,
+      );
+      return undefined;
+    }
+
+    return () => {
+      session.close();
+    };
+  }, [
+    executionKey,
+  ]);
+
+  const streamStatus = normalizedRuntimeState?.streamStatus ?? "idle";
+  const frameStatus = normalizedRuntimeState?.status ?? "idle";
+  const rowCount = normalizedRuntimeState?.rows.length ?? 0;
+  const columnCount = normalizedRuntimeState?.columns.length ?? 0;
+  const errorMessage =
+    normalizedRuntimeState?.error ??
+    (validationError && normalizedProps.connectionRef?.id && normalizedProps.queryModelId
+      ? validationError
+      : undefined);
+  const StreamIcon =
+    frameStatus === "error"
+      ? AlertTriangle
+      : streamStatus === "closed"
+        ? WifiOff
+        : isStreamingActive(streamStatus)
+          ? Wifi
+          : DatabaseZap;
+
+  return (
+    <div className="flex h-full min-h-[160px] flex-col justify-between gap-4 p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/50 text-muted-foreground">
+          {streamStatus === "connecting" || streamStatus === "reconnecting" ? (
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          ) : (
+            <StreamIcon
+              className={[
+                "h-5 w-5",
+                frameStatus === "error"
+                  ? "text-danger"
+                  : streamStatus === "live"
+                    ? "text-success"
+                    : "text-muted-foreground",
+              ].join(" ")}
+            />
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium text-foreground">
+            {queryModel?.label ?? normalizedProps.queryModelId ?? "Select stream path"}
+          </div>
+          <div className="mt-1 truncate text-xs text-muted-foreground">
+            {connectionType?.title ?? normalizedProps.connectionRef?.typeId ?? "No connection selected"}
+          </div>
+        </div>
+      </div>
+
+      {frameStatus === "error" && errorMessage ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/8 px-3 py-2 text-xs text-danger">
+          {errorMessage}
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Stream</div>
+            <div className="mt-1 truncate text-sm font-semibold text-foreground">
+              {formatStatus(streamStatus)}
+            </div>
+          </div>
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Rows</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">
+              {rowCount.toLocaleString()}
+            </div>
+          </div>
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Cols</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">
+              {columnCount.toLocaleString()}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

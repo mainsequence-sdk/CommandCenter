@@ -58,6 +58,6 @@ Runs one explicit connection path and publishes the selected result frame as one
 - The dedupe key is not inferred from time-series semantics. It is the saved `incrementalMergeKeyFields` column combination selected by the user.
 - Overlapping refreshes for the same widget/query/request identity are deduped while the request is in flight.
 - If downstream widgets do not understand delta metadata, they still consume the retained full dataset as a normal snapshot. They must not cause this source widget to issue a second full backend query.
-- The widget always publishes one canonical tabular dataset. When the backend knows chart semantics, they are carried in `meta.timeSeries`.
+- The widget always publishes one canonical tabular dataset.
 - Consumers should bind to this widget's `dataset` output rather than repeating the same connection query.
 - This widget is a sidebar-only source. Do not use it as the visible table or chart; bind a presentation widget downstream.

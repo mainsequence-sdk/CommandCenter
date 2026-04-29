@@ -1,0 +1,15 @@
+{
+  "id": "adr/adr-040-dashboard-surface-return-hydration",
+  "title": "ADR 040: Dashboard Surface Return Hydration",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/adr-040-dashboard-surface-return-hydration.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-040-dashboard-surface-return-hydration",
+  "permalink": "/docs/adr/adr-040-dashboard-surface-return-hydration",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-040-dashboard-surface-return-hydration.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

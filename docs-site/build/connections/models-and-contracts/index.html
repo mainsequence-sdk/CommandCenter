@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-connections/models-and-contracts" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Connection Models And Contracts | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/connections/models-and-contracts"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Connection Models And Contracts | Main Sequence Command Center"><meta data-rh="true" name="description" content="The canonical TypeScript definitions live in src/connections/types.ts. This page explains how"><meta data-rh="true" property="og:description" content="The canonical TypeScript definitions live in src/connections/types.ts. This page explains how"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/connections/models-and-contracts"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/connections/models-and-contracts" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/connections/models-and-contracts" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.da07f2d7.js" defer="defer"></script>
+<script src="/docs/assets/js/main.1b45566c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Connection Models And Contracts</h1></header>
+<p>The canonical TypeScript definitions live in <code>src/connections/types.ts</code>. This page explains how
+those models are meant to be used when extending the platform.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-type-definition">Connection Type Definition<a href="#connection-type-definition" class="hash-link" aria-label="Direct link to Connection Type Definition" title="Direct link to Connection Type Definition" translate="no">​</a></h2>
+<p><code>ConnectionTypeDefinition&lt;TPublicConfig, TQuery&gt;</code> is frontend-owned metadata. It is registered by
+an extension and synced to the backend registry as a JSON-safe manifest.</p>
+<p>Required fields:</p>
+<ul>
+<li class=""><code>id</code>: globally unique stable type id; review backend registered types and adapter ids before
+choosing it, and make it match backend adapter <code>type_id</code></li>
+<li class=""><code>version</code>: positive integer; increment when schemas, query models, or guidance materially change</li>
+<li class=""><code>title</code>: catalog label</li>
+<li class=""><code>description</code>: short catalog summary</li>
+<li class=""><code>source</code>: provider or extension namespace</li>
+<li class=""><code>category</code>: catalog grouping, such as <code>Databases</code>, <code>Observability</code>, or <code>Market Data</code></li>
+<li class=""><code>capabilities</code>: supported runtime capabilities</li>
+<li class=""><code>accessMode</code>: where runtime access is allowed</li>
+<li class=""><code>publicConfigSchema</code>: persisted non-secret instance config</li>
+</ul>
+<p>Optional fields:</p>
+<ul>
+<li class=""><code>iconUrl</code>: logo used by picker and catalog UI</li>
+<li class=""><code>tags</code>: search and catalog hints</li>
+<li class=""><code>secureConfigSchema</code>: write-only secret fields</li>
+<li class=""><code>queryModels</code>: query paths the shared workbench and widgets can run</li>
+<li class=""><code>requiredPermissions</code>: minimum frontend-advertised platform permissions</li>
+<li class=""><code>configEditor</code>: custom React editor for public config</li>
+<li class=""><code>queryEditor</code>: custom React editor for query payloads</li>
+<li class=""><code>authoringContract</code>: shared Explore/widget authoring behavior</li>
+<li class=""><code>usageGuidance</code>: agent-facing and catalog-facing Markdown</li>
+<li class=""><code>examples</code>: realistic public config and query examples</li>
+</ul>
+<p>The definition must not contain organization-specific values, tokens, passwords, mutable instance
+state, health state, or runtime clients.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="capabilities">Capabilities<a href="#capabilities" class="hash-link" aria-label="Direct link to Capabilities" title="Direct link to Capabilities" translate="no">​</a></h2>
+<p><code>capabilities</code> advertises which backend adapter operations exist:</p>
+<ul>
+<li class=""><code>query</code>: accepts <code>ConnectionQueryRequest</code> and returns <code>ConnectionQueryResponse</code></li>
+<li class=""><code>resource</code>: accepts named resource requests for metadata or editor support</li>
+<li class=""><code>stream</code>: supports long-lived channels</li>
+<li class=""><code>mutation</code>: performs write-like provider operations</li>
+<li class=""><code>health-check</code>: supports <code>testConnection(id)</code></li>
+</ul>
+<p>Only advertise capabilities the backend adapter actually implements.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="access-mode">Access Mode<a href="#access-mode" class="hash-link" aria-label="Direct link to Access Mode" title="Direct link to Access Mode" translate="no">​</a></h2>
+<p><code>accessMode</code> describes the runtime boundary:</p>
+<ul>
+<li class=""><code>proxy</code>: browser sends requests to Command Center backend; backend talks to provider</li>
+<li class=""><code>browser</code>: browser may directly access the provider; use only for safe public/browser-native
+providers</li>
+<li class=""><code>server-only</code>: backend-only runtime; browser can configure and request execution but must never
+directly interact with the provider</li>
+</ul>
+<p>Most real data-source connections should use <code>proxy</code>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="config-schemas">Config Schemas<a href="#config-schemas" class="hash-link" aria-label="Direct link to Config Schemas" title="Direct link to Config Schemas" translate="no">​</a></h2>
+<p><code>publicConfigSchema</code> describes non-secret fields stored on the backend connection instance.
+Examples: host, database, selected resource id, default limit, timeout, cache policy, dedupe flag.</p>
+<p><code>secureConfigSchema</code> describes write-only secret fields. Examples: password, bearer token, private
+key, TLS material, service account JSON. The frontend may send these values on create/update, but
+later reads receive only <code>secureFields</code> masks.</p>
+<p>Field contract:</p>
+<ul>
+<li class=""><code>id</code>: exact stored key</li>
+<li class=""><code>sectionId</code>: optional grouping section</li>
+<li class=""><code>label</code>: UI label</li>
+<li class=""><code>description</code>: required help text; this is the source for the config form help affordance</li>
+<li class=""><code>type</code>: <code>string</code>, <code>number</code>, <code>boolean</code>, <code>select</code>, <code>json</code>, or <code>secret</code></li>
+<li class=""><code>required</code>: whether the user must provide it</li>
+<li class=""><code>defaultValue</code>: initial/default value when available</li>
+<li class=""><code>options</code>: select options</li>
+<li class=""><code>visibleWhen</code>: conditional visibility rules tied to another field id</li>
+</ul>
+<p>Every public or secure field must also be documented in <code>usageGuidance</code> with field key, UI label,
+type, required/optional status, default, example, meaning, validation constraints, and whether the
+frontend, backend adapter, or both use it.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="query-models">Query Models<a href="#query-models" class="hash-link" aria-label="Direct link to Query Models" title="Direct link to Query Models" translate="no">​</a></h2>
+<p><code>queryModels</code> describe query paths exposed by the connection. They are not the query payload
+itself; they are catalog metadata and workbench controls.</p>
+<p>Fields:</p>
+<ul>
+<li class=""><code>id</code>: stable query model id; should match <code>query.kind</code></li>
+<li class=""><code>label</code>: UI label</li>
+<li class=""><code>description</code>: what the query does</li>
+<li class=""><code>outputContracts</code>: normalized widget contracts the backend can return</li>
+<li class=""><code>defaultOutputContract</code>: preferred response contract when more than one is possible</li>
+<li class=""><code>defaultQuery</code>: seed payload merged with <code>{ kind: id }</code></li>
+<li class=""><code>controls</code>: descriptive list of provider-specific controls exposed by the custom query editor</li>
+<li class=""><code>timeRangeAware</code>: whether the shared workbench sends top-level <code>timeRange</code></li>
+<li class=""><code>supportsVariables</code>: whether the shared variables editor is shown and <code>variables</code> are sent</li>
+<li class=""><code>supportsMaxRows</code>: set <code>false</code> when the shared <code>maxRows</code> field should be hidden and omitted</li>
+<li class=""><code>stream</code>: optional WebSocket stream metadata for query-shaped streaming. When present,
+<code>transport</code> must be <code>websocket</code>, <code>modes</code> must include <code>snapshot</code> and/or <code>delta</code>, and optional
+fields such as <code>defaultMode</code>, <code>supportsResume</code>, <code>heartbeatMs</code>, and <code>description</code> must be JSON
+primitives. A connection type that publishes <code>queryModels[].stream</code> must also include the
+top-level <code>stream</code> capability.</li>
+</ul>
+<p>The shared <code>ConnectionQueryWorkbench</code> filters query models to runtime frame paths that advertise
+supported frame contracts. It uses <code>timeRangeAware</code>, <code>supportsVariables</code>, and <code>supportsMaxRows</code> to
+render shared runtime controls.</p>
+<p><code>controls</code> is documentation/catalog metadata. It does not automatically render fields. The actual
+provider-specific fields come from <code>queryEditor</code>.</p>
+<p>Connection type sync projects query models through the backend registry payload as JSON-safe
+objects, including <code>queryModels[].stream</code>. The backend registry model must store and return that
+field unchanged so hydrated runtime definitions can keep streamability decisions aligned with local
+connection definitions.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="query-payload">Query Payload<a href="#query-payload" class="hash-link" aria-label="Direct link to Query Payload" title="Direct link to Query Payload" translate="no">​</a></h2>
+<p>Use a discriminated <code>kind</code> field in <code>TQuery</code>:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">MyConnectionQuery</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> kind</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;rows&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"> table</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"> columns</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"> limit</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> kind</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;metadata&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"> table</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><br></span></code></pre></div></div>
+<p>Rules:</p>
+<ul>
+<li class="">keep <code>queryModels[].id</code> aligned with <code>query.kind</code></li>
+<li class="">keep stable config in public config, not query payload</li>
+<li class="">keep ad hoc execution parameters in query payload</li>
+<li class="">use top-level <code>ConnectionQueryRequest.timeRange</code> for date windows when <code>timeRangeAware</code> is true</li>
+<li class="">use top-level <code>variables</code> only when the query model advertises <code>supportsVariables</code></li>
+<li class="">use top-level <code>maxRows</code> only when <code>supportsMaxRows</code> is not <code>false</code></li>
+<li class="">backend adapters must reject unknown <code>kind</code> values</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-request">Runtime Request<a href="#runtime-request" class="hash-link" aria-label="Direct link to Runtime Request" title="Direct link to Runtime Request" translate="no">​</a></h2>
+<p>The shared workbench and Connection Query widget send:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">ConnectionQueryRequest</span><span class="token class-name operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token class-name" style="color:rgb(255, 203, 107)">TQuery</span><span class="token class-name operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  connectionId</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  query</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> TQuery</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  requestedOutputContract</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ConnectionResponseContractId</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  timeRange</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> from</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"> to</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  variables</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> Record</span><span class="token operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  maxRows</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  cacheMode</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;default&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;bypass&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;refresh&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  cacheTtlMs</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>The backend adapter resolves <code>connectionId</code> to a backend-owned instance and treats the instance
+public config as authoritative. Query payloads should not silently override resource-scoped public
+config such as a selected Simple Table or Data Node.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-response">Runtime Response<a href="#runtime-response" class="hash-link" aria-label="Direct link to Runtime Response" title="Direct link to Runtime Response" translate="no">​</a></h2>
+<p>Widget-bound queries return:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">ConnectionQueryResponse</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  frames</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> CommandCenterFrame</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  warnings</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  traceId</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Frame rules:</p>
+<ul>
+<li class=""><code>fields</code> are columnar</li>
+<li class="">field names are unique within a frame</li>
+<li class="">every field in a frame has the same <code>values.length</code></li>
+<li class=""><code>meta.rowCount</code>, when present, matches field length</li>
+<li class=""><code>warnings</code> describe truncation, cache behavior, coercion, provider limitations, or inferred
+metadata</li>
+<li class=""><code>traceId</code> should be included when the backend has one</li>
+</ul>
+<p>Primary contracts:</p>
+<ul>
+<li class=""><code>core.tabular_frame@v1</code>: generic tabular rows</li>
+<li class=""><code>core.chart_data@v1</code>: render-engine-neutral chart-ready data</li>
+<li class=""><code>core.time_series_frame@v1</code>: legacy semantic time-series contract; current widgets generally
+consume tabular frames with <code>meta.timeSeries</code> hints</li>
+</ul>
+<p>Provider-native JSON belongs in resource endpoints unless the query model explicitly advertises a
+raw JSON-style widget contract.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-instance">Connection Instance<a href="#connection-instance" class="hash-link" aria-label="Direct link to Connection Instance" title="Direct link to Connection Instance" translate="no">​</a></h2>
+<p><code>ConnectionInstance</code> is backend-owned and sanitized for the frontend:</p>
+<ul>
+<li class=""><code>id</code>: stable runtime reference</li>
+<li class=""><code>typeId</code> and <code>typeVersion</code>: connection type identity</li>
+<li class=""><code>name</code> and optional <code>description</code></li>
+<li class=""><code>organizationId</code> and optional <code>workspaceId</code></li>
+<li class=""><code>publicConfig</code>: non-secret instance config</li>
+<li class=""><code>secureFields</code>: boolean masks indicating which secret fields are set</li>
+<li class=""><code>status</code>, <code>statusMessage</code>, <code>lastHealthCheckAt</code></li>
+<li class="">audit metadata such as creator and timestamps</li>
+</ul>
+<p>The frontend must treat <code>publicConfig</code> as read-only instance state except through connection create
+or update flows. It must never expect secure values to come back.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-ref">Connection Ref<a href="#connection-ref" class="hash-link" aria-label="Direct link to Connection Ref" title="Direct link to Connection Ref" translate="no">​</a></h2>
+<p>Widgets and workspaces store only:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">ConnectionRef</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  id</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  typeId</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>They should not store denormalized connection names, URLs, credentials, provider IDs, or backend
+resource handles unless that value is part of the widget&#x27;s actual query payload.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="editors-and-controls">Editors And Controls<a href="#editors-and-controls" class="hash-link" aria-label="Direct link to Editors And Controls" title="Direct link to Editors And Controls" translate="no">​</a></h2>
+<p><code>configEditor</code> edits stable public config during connection create/update. Use it when a schema
+field alone is not enough, such as selecting a resource from a picker.</p>
+<p><code>queryEditor</code> edits provider-specific query payload fields inside the shared Connection Query
+widget and shared Explore workbench. It receives:</p>
+<ul>
+<li class="">current query payload</li>
+<li class=""><code>onChange</code></li>
+<li class="">selected connection instance</li>
+<li class="">selected connection type</li>
+<li class="">selected query model</li>
+</ul>
+<p>Use shared controls from <code>src/connections/components/ConnectionQueryEditorFields.tsx</code> so query
+editors behave consistently. Do not make query editors call provider APIs directly unless they call
+connection resource endpoints for metadata.</p>
+<p><code>authoringContract</code> is optional. Use it when the connection needs shared query-model filtering,
+draft defaults, summary UI, or Explore copy. Data Sources Explore should use the shared
+<code>ConnectionExploreSurface.tsx</code>; do not add per-connection normal-query Explore wrapper components.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="registry-sync">Registry Sync<a href="#registry-sync" class="hash-link" aria-label="Direct link to Registry Sync" title="Direct link to Registry Sync" translate="no">​</a></h2>
+<p>The frontend app registry collects connection definitions from root custom connections and
+extension modules. Admin Settings publishes a JSON-safe sync payload to the backend registry.</p>
+<p>The sync payload includes metadata, schemas, query models, required permissions, usage guidance,
+examples, and active state. It does not include React components or runtime functions.</p>
+<p>Backend add/manage UI should use backend-synced active connection types, not unsynced local
+definitions.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/connections/models-and-contracts.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#connection-type-definition" class="table-of-contents__link toc-highlight">Connection Type Definition</a></li><li><a href="#capabilities" class="table-of-contents__link toc-highlight">Capabilities</a></li><li><a href="#access-mode" class="table-of-contents__link toc-highlight">Access Mode</a></li><li><a href="#config-schemas" class="table-of-contents__link toc-highlight">Config Schemas</a></li><li><a href="#query-models" class="table-of-contents__link toc-highlight">Query Models</a></li><li><a href="#query-payload" class="table-of-contents__link toc-highlight">Query Payload</a></li><li><a href="#runtime-request" class="table-of-contents__link toc-highlight">Runtime Request</a></li><li><a href="#runtime-response" class="table-of-contents__link toc-highlight">Runtime Response</a></li><li><a href="#connection-instance" class="table-of-contents__link toc-highlight">Connection Instance</a></li><li><a href="#connection-ref" class="table-of-contents__link toc-highlight">Connection Ref</a></li><li><a href="#editors-and-controls" class="table-of-contents__link toc-highlight">Editors And Controls</a></li><li><a href="#registry-sync" class="table-of-contents__link toc-highlight">Registry Sync</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

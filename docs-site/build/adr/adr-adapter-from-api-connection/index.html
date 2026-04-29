@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/adr-adapter-from-api-connection" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR: AdapterFromApi Dynamic OpenAPI Connection | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/adr-adapter-from-api-connection"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR: AdapterFromApi Dynamic OpenAPI Connection | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/adr-adapter-from-api-connection"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-adapter-from-api-connection" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/adr-adapter-from-api-connection" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.da07f2d7.js" defer="defer"></script>
+<script src="/docs/assets/js/main.1b45566c.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR: AdapterFromApi Dynamic OpenAPI Connection</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-04-26</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/adr-first-class-connection-model">ADR: First-Class Connection Model</a></li>
+<li class=""><a class="" href="/docs/adr/adr-standardized-connection-result-contracts">ADR: Standardized Connection Result Contracts</a></li>
+<li class=""><a class="" href="/docs/adr/adr-connection-first-workspace-dataflow">ADR: Connection-First Workspace Dataflow</a></li>
+<li class=""><a class="" href="/docs/adr/adr-app-component-binding-native-api-widget">ADR: AppComponent as a Binding-Native API Widget</a></li>
+<li class=""><a class="" href="/docs/adr/adr-app-component-caching">ADR: Shared AppComponent Discovery and Safe-Response Caching</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Command Center now has two relevant systems:</p>
+<ul>
+<li class=""><code>AppComponent</code> can discover OpenAPI operations and render dynamic request forms from API
+definitions.</li>
+<li class="">Connections model backend-owned data access, secrets, health checks, query execution, resources,
+caching, and normalized widget-bound responses.</li>
+</ul>
+<p>The missing piece is a generic connection that can be configured from an API definition without
+writing a bespoke adapter for every provider. The user should be able to provide one API root URL,
+let Command Center inspect a contract derived from OpenAPI, configure required public and secret
+variables, then use the resulting connection from Explore and workspace source widgets.</p>
+<p>This must not turn the browser into the provider client. Connection queries still go through the
+Command Center backend. The backend stores secret values, injects credentials, enforces operation
+allowlists, applies cache/dedupe policy, calls the upstream API, and passes the upstream response
+back through the connection route.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>We will plan a new generic connection called <code>AdapterFromApi</code>.</p>
+<p>The final connection type id must be chosen only after reviewing backend registered connection
+types and adapter ids. The working id for this ADR is:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">command_center.adapter_from_api</span><br></span></code></pre></div></div>
+<p>The connection is a backend-routed dynamic adapter:</p>
+<ul>
+<li class="">a single static frontend <code>ConnectionTypeDefinition</code> provides the catalog entry and setup shell</li>
+<li class="">a custom config editor discovers and renders API-provided config and secret fields</li>
+<li class="">the backend fetches and validates the API contract</li>
+<li class="">the backend stores public config and secure config for each configured instance</li>
+<li class="">query execution always routes through the backend adapter</li>
+<li class="">the adapter calls only operations declared in the API contract</li>
+<li class="">operation responses are passed back through the backend mirror/proxy route</li>
+</ul>
+<p>The design intentionally borrows from <code>AppComponent</code> OpenAPI compilation, but the runtime ownership
+is different. <code>AppComponent</code> is a widget-level API UI. <code>AdapterFromApi</code> is a connection-level,
+backend-owned data access adapter.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-command-center-implementation-plan">1. Command Center Implementation Plan<a href="#1-command-center-implementation-plan" class="hash-link" aria-label="Direct link to 1. Command Center Implementation Plan" title="Direct link to 1. Command Center Implementation Plan" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="11-frontend-connection-type">1.1 Frontend Connection Type<a href="#11-frontend-connection-type" class="hash-link" aria-label="Direct link to 1.1 Frontend Connection Type" title="Direct link to 1.1 Frontend Connection Type" translate="no">​</a></h3>
+<p>Add one generic connection definition after backend id review.</p>
+<p>Initial metadata:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  id</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;command_center.adapter_from_api&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  title</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Adapter From API&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  source</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;command_center&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  category</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;APIs&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  capabilities</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;query&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;resource&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;health-check&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  accessMode</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;proxy&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>The static schema should include only bootstrap fields that are needed before contract discovery:</p>
+<ul>
+<li class="">required <code>apiBaseUrl</code></li>
+<li class="">derived <code>contractDefinitionUrl</code> and <code>openApiUrl</code> for observability and compatibility</li>
+<li class="">optional <code>contractVersion</code> pin</li>
+<li class="">backend timeout/cache/dedupe policy fields</li>
+</ul>
+<p>Provider-specific public variables and secrets are not statically known. They are rendered by a
+custom config editor from the discovered contract and then saved through the normal backend
+connection create/update path.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="12-dynamic-contract-discovery">1.2 Dynamic Contract Discovery<a href="#12-dynamic-contract-discovery" class="hash-link" aria-label="Direct link to 1.2 Dynamic Contract Discovery" title="Direct link to 1.2 Dynamic Contract Discovery" translate="no">​</a></h3>
+<p>The config editor should not fetch arbitrary API URLs directly from the browser. The backend must
+own discovery.</p>
+<p>Discovery flow:</p>
+<ol>
+<li class="">user enters <code>apiBaseUrl</code></li>
+<li class="">frontend may derive <code>{apiBaseUrl}/openapi.json</code> and
+<code>{apiBaseUrl}/.well-known/command-center/connection-contract</code> for display, but the backend must
+derive these URLs again server-side and must not trust browser-provided discovery URLs</li>
+<li class="">create/update or an optional preview helper asks the backend to discover the contract</li>
+<li class="">backend validates that <code>apiBaseUrl</code> is an absolute <code>http</code> or <code>https</code> URL, rejects query strings
+and fragments, normalizes trailing slashes, and may allow a path prefix when the API root is not
+the origin root</li>
+<li class="">backend applies SSRF, scheme, host, timeout, redirect, and response-size controls</li>
+<li class="">backend fetches <code>/.well-known/command-center/connection-contract</code>; if that endpoint is
+unavailable or invalid, discovery fails</li>
+<li class="">backend may fetch <code>/openapi.json</code> only as supporting metadata when the well-known contract points
+to it or when backend compilation needs schema details, but OpenAPI is not the discovery
+contract in the first slice</li>
+<li class="">backend normalizes the source document into one sanitized compiled contract</li>
+<li class="">backend writes the sanitized compiled contract back to <code>publicConfig.compiledContract</code>, writes
+the derived <code>contractDefinitionUrl</code> and <code>openApiUrl</code>, and persists public/secure values after
+validating them against the compiled contract</li>
+<li class="">frontend renders public config fields and secure-config instructions from the stored compiled
+contract snapshot</li>
+</ol>
+<p>The backend must treat any browser-supplied <code>compiledContract</code> JSON as untrusted preview data. On
+create and update, the backend must recompute the authoritative compiled contract from
+<code>apiBaseUrl</code>/<code>contractVersion</code> and overwrite any stale or user-edited client copy before
+persistence.</p>
+<p>The backend must keep a compiled contract snapshot with the instance so query rendering and runtime
+execution do not depend on refetching the upstream OpenAPI document on every screen load. The first
+slice should store that sanitized snapshot in <code>publicConfig.compiledContract</code> because the frontend
+already treats that field as the source of dynamic config and query UI.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="13-instance-scoped-query-models">1.3 Instance-Scoped Query Models<a href="#13-instance-scoped-query-models" class="hash-link" aria-label="Direct link to 1.3 Instance-Scoped Query Models" title="Direct link to 1.3 Instance-Scoped Query Models" translate="no">​</a></h3>
+<p><code>AdapterFromApi</code> needs query models derived from a configured API contract. Static
+<code>ConnectionTypeDefinition.queryModels</code> is not enough by itself because each configured API exposes
+different operations.</p>
+<p>Plan:</p>
+<ul>
+<li class="">first slice may expose one static query model, <code>api-operation</code>, and let the custom <code>queryEditor</code>
+render operation selection and operation-specific inputs from the instance contract</li>
+<li class="">target architecture should add instance-scoped query model resolution to the connection workbench,
+similar to AppComponent&#x27;s instance-scoped resolved IO</li>
+<li class="">resolved query models must be pure and derived from the sanitized compiled contract already
+present on the selected <code>ConnectionInstance</code> or loaded through a backend resource endpoint</li>
+<li class="">graph/workbench code must not fetch upstream OpenAPI documents directly</li>
+</ul>
+<p>Potential target frontend hook:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">resolveQueryModels</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token plain">args</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  connectionInstance</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ConnectionInstance</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  connectionType</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ConnectionTypeDefinition</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=&gt;</span><span class="token plain"> ConnectionQueryModel</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><br></span></code></pre></div></div>
+<p>If this resolver is added, <code>ConnectionQueryWorkbench</code> should prefer resolved instance models and
+fall back to static <code>queryModels</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="14-query-editor">1.4 Query Editor<a href="#14-query-editor" class="hash-link" aria-label="Direct link to 1.4 Query Editor" title="Direct link to 1.4 Query Editor" translate="no">​</a></h3>
+<p>The <code>AdapterFromApi</code> query editor should render from the compiled operation contract:</p>
+<ul>
+<li class="">operation selector</li>
+<li class="">path parameters</li>
+<li class="">query parameters</li>
+<li class="">header parameters that are safe/user-configurable</li>
+<li class="">request body fields</li>
+<li class="">variables supported by the operation</li>
+<li class="">max rows when the operation supports result limits</li>
+<li class="">response contract selection when multiple mappings are available</li>
+</ul>
+<p>The query payload should not contain raw URLs or credentials.</p>
+<p>Example query payload:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token string-property property">&quot;kind&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;api-operation&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token string-property property">&quot;operationId&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;listOrders&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token string-property property">&quot;parameters&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token string-property property">&quot;path&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token string-property property">&quot;query&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> </span><span class="token string-property property">&quot;status&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;open&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token string-property property">&quot;headers&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token string-property property">&quot;body&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">null</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token string-property property">&quot;responseMappingId&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;orders_table&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="15-backend-adapter">1.5 Backend Adapter<a href="#15-backend-adapter" class="hash-link" aria-label="Direct link to 1.5 Backend Adapter" title="Direct link to 1.5 Backend Adapter" translate="no">​</a></h3>
+<p>The backend adapter is the runtime owner.</p>
+<p>The backend behavior must be explicit and deterministic. The adapter implementation should follow
+the rules below rather than treating the contract as advisory text.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="151-discovery-input-and-derivation">1.5.1 Discovery Input And Derivation<a href="#151-discovery-input-and-derivation" class="hash-link" aria-label="Direct link to 1.5.1 Discovery Input And Derivation" title="Direct link to 1.5.1 Discovery Input And Derivation" translate="no">​</a></h4>
+<ul>
+<li class="">The authoritative discovery input is <code>publicConfig.apiBaseUrl</code>.</li>
+<li class=""><code>publicConfig.contractDefinitionUrl</code> and <code>publicConfig.openApiUrl</code> are derived values. The
+backend must recompute them from <code>apiBaseUrl</code> and ignore client overrides.</li>
+<li class=""><code>apiBaseUrl</code> must be an absolute <code>http</code> or <code>https</code> URL. Reject opaque URLs, relative URLs, query
+strings, and fragments. A path prefix is allowed only when the backend supports a non-root API
+base.</li>
+<li class="">Normalize <code>apiBaseUrl</code> before use by trimming whitespace and removing trailing slashes, except
+for a bare scheme while the user is still typing in the frontend.</li>
+<li class="">Derive:<!-- -->
+<ul>
+<li class=""><code>contractDefinitionUrl = {apiBaseUrl}/.well-known/command-center/connection-contract</code></li>
+<li class=""><code>openApiUrl = {apiBaseUrl}/openapi.json</code></li>
+</ul>
+</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="152-discovery-fetch-and-compilation">1.5.2 Discovery Fetch And Compilation<a href="#152-discovery-fetch-and-compilation" class="hash-link" aria-label="Direct link to 1.5.2 Discovery Fetch And Compilation" title="Direct link to 1.5.2 Discovery Fetch And Compilation" translate="no">​</a></h4>
+<ul>
+<li class="">Fetch the well-known contract from <code>contractDefinitionUrl</code>.</li>
+<li class="">If the well-known contract is unavailable or invalid, reject the create/update request with a
+clear validation error. Do not persist the instance with an empty or partial compiled contract.</li>
+<li class="">Apply SSRF controls to both fetches:<!-- -->
+<ul>
+<li class="">allow only approved schemes and hosts</li>
+<li class="">disallow private-network hops unless explicitly allowlisted</li>
+<li class="">do not follow redirects to a host that would fail the same allowlist check</li>
+<li class="">enforce timeout and response-size limits</li>
+</ul>
+</li>
+<li class=""><code>openApiUrl</code> is supplementary metadata only. The backend may fetch it after a valid well-known
+contract is loaded, but it must not treat <code>openapi.json</code> as an alternative source of truth for
+adapter discovery in the first slice.</li>
+<li class="">Normalize the discovery source into one sanitized compiled contract with at least:<!-- -->
+<ul>
+<li class=""><code>contractVersion</code></li>
+<li class=""><code>adapter</code></li>
+<li class=""><code>openapi</code></li>
+<li class=""><code>configVariables</code></li>
+<li class=""><code>secretVariables</code></li>
+<li class=""><code>availableOperations</code></li>
+<li class="">optional <code>health</code></li>
+</ul>
+</li>
+<li class="">Compute a stable checksum for the compiled contract or the normalized discovery source and keep it
+with the stored snapshot for cache invalidation and auditability.</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="153-create-and-update-persistence">1.5.3 Create And Update Persistence<a href="#153-create-and-update-persistence" class="hash-link" aria-label="Direct link to 1.5.3 Create And Update Persistence" title="Direct link to 1.5.3 Create And Update Persistence" translate="no">​</a></h4>
+<ul>
+<li class="">On <code>POST</code> and <code>PATCH</code>, the backend must validate <code>configValues</code> against
+<code>compiledContract.configVariables</code>.</li>
+<li class="">Unknown keys must be rejected.</li>
+<li class="">Missing required public values must be rejected unless the compiled contract provides a default.</li>
+<li class="">Type validation must use the compiled contract semantic type (<code>string</code>, <code>number</code>, <code>boolean</code>,
+<code>select</code>, <code>json</code>, <code>secret</code>) and any declared validation constraints such as <code>pattern</code>, enum
+options, or numeric bounds.</li>
+<li class="">Dynamic secrets must be validated against <code>compiledContract.secretVariables</code>.</li>
+<li class="">On <code>POST</code>, all required secrets must be present.</li>
+<li class="">On <code>PATCH</code>, omitted secrets keep the existing stored value. Explicit clearing of a required secret
+must be rejected.</li>
+<li class="">Raw secret values must be written only to the backend secret store. They must not be returned in
+the connection instance payload, logs, traces, cache keys, or error bodies.</li>
+<li class="">The persisted connection instance returned to the frontend must include:<!-- -->
+<ul>
+<li class="">normalized <code>apiBaseUrl</code></li>
+<li class="">derived <code>contractDefinitionUrl</code></li>
+<li class="">derived <code>openApiUrl</code></li>
+<li class="">sanitized <code>compiledContract</code></li>
+<li class="">public <code>configValues</code></li>
+<li class=""><code>secureFields</code> metadata only, never decrypted secret values</li>
+</ul>
+</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="154-query-validation">1.5.4 Query Validation<a href="#154-query-validation" class="hash-link" aria-label="Direct link to 1.5.4 Query Validation" title="Direct link to 1.5.4 Query Validation" translate="no">​</a></h4>
+<ul>
+<li class="">Query execution must load the stored connection instance by backend <code>id</code>.</li>
+<li class="">The backend must read the stored compiled contract snapshot attached to that instance. Query
+execution must not refetch upstream discovery documents.</li>
+<li class=""><code>query.kind</code> must equal <code>api-operation</code>.</li>
+<li class=""><code>operationId</code> must exist in <code>compiledContract.availableOperations</code>.</li>
+<li class="">The selected operation must advertise query capability (<code>kind: &quot;query&quot;</code> or
+<code>capabilities</code> containing <code>query</code>).</li>
+<li class=""><code>responseMappingId</code>, when provided, must exist on the selected operation. If it is omitted and
+the operation exposes mappings, the backend may default to the first declared mapping.</li>
+<li class="">The frontend must not be allowed to override method, path, host, auth injection point, or raw
+request URL. Those come only from the compiled contract.</li>
+<li class=""><code>parameters.path</code>, <code>parameters.query</code>, and <code>parameters.headers</code> may contain only keys declared for
+the selected operation and location.</li>
+<li class="">Header parameters must be limited to fields explicitly declared as user-configurable. Credential
+headers must never be accepted from query payloads.</li>
+<li class=""><code>body</code> must validate against the operation request-body schema when one exists; if the operation
+has no request body contract, a non-null body must be rejected.</li>
+<li class=""><code>maxRows</code>, if supported, must be clamped to the smaller of:<!-- -->
+<ul>
+<li class="">the operation contract limit</li>
+<li class="">the connection runtime policy</li>
+<li class="">any global deployment maximum</li>
+</ul>
+</li>
+<li class="">Top-level <code>timeRange</code> may influence execution only when the selected operation explicitly declares
+that it requires or supports time-range inputs. Otherwise the backend should ignore it rather than
+inventing provider parameters.</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="155-upstream-request-construction">1.5.5 Upstream Request Construction<a href="#155-upstream-request-construction" class="hash-link" aria-label="Direct link to 1.5.5 Upstream Request Construction" title="Direct link to 1.5.5 Upstream Request Construction" translate="no">​</a></h4>
+<ul>
+<li class="">Start from the compiled contract&#x27;s declared method, path, and server/base URL.</li>
+<li class="">Substitute validated path parameters.</li>
+<li class="">Append validated query parameters.</li>
+<li class="">Add validated user-configurable headers.</li>
+<li class="">Serialize the validated request body using the declared content type.</li>
+<li class="">Inject credentials only through the declared secret-variable injection rules after payload
+validation succeeds.</li>
+<li class="">Provider requests must use the effective timeout from the connection instance, clamped to a
+deployment maximum.</li>
+<li class="">If the compiled contract declares a host or server set that differs from <code>apiBaseUrl</code>, the
+backend must reject the request unless that alternate host also passes the allowlist policy.</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="156-mirror--pass-through-response-handling">1.5.6 Mirror / Pass-Through Response Handling<a href="#156-mirror--pass-through-response-handling" class="hash-link" aria-label="Direct link to 1.5.6 Mirror / Pass-Through Response Handling" title="Direct link to 1.5.6 Mirror / Pass-Through Response Handling" translate="no">​</a></h4>
+<ul>
+<li class="">The backend should act as a mirror/proxy between Command Center and the upstream API.</li>
+<li class="">After the backend validates the selected operation and builds the upstream request, query
+execution should mean one thing: the backend performs that API request and returns the upstream
+response back through the Command Center connection route.</li>
+<li class="">The backend must not perform hot-path response-contract validation against <code>responseMappings</code>,
+<code>outputContracts</code>, JSONPath row extraction, or schema coercion before returning the response.</li>
+<li class=""><code>responseMappings</code> and <code>responseMappingId</code> are optional metadata for frontend tooling and future
+transforms. They are not runtime guarantees that the backend must validate against every
+response.</li>
+<li class="">The backend may wrap the response in the platform&#x27;s normal <code>ConnectionQueryResponse</code> envelope, but
+the response body itself should pass through without expensive contract validation or reshaping.</li>
+<li class="">Redacted diagnostic metadata may include operation id, status code, content type, and contract
+checksum. It must not include secrets or credential-bearing headers.</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="157-cache-and-in-flight-dedupe">1.5.7 Cache And In-Flight Dedupe<a href="#157-cache-and-in-flight-dedupe" class="hash-link" aria-label="Direct link to 1.5.7 Cache And In-Flight Dedupe" title="Direct link to 1.5.7 Cache And In-Flight Dedupe" translate="no">​</a></h4>
+<ul>
+<li class="">Discovery caching and query-result caching are separate concerns.</li>
+<li class="">Discovery-cache keys should include at least:<!-- -->
+<ul>
+<li class="">organization</li>
+<li class="">auth scope</li>
+<li class="">normalized <code>apiBaseUrl</code></li>
+<li class=""><code>contractVersion</code> pin</li>
+<li class="">discovery-source checksum when available</li>
+</ul>
+</li>
+<li class="">Query-result cache keys should include at least:<!-- -->
+<ul>
+<li class="">organization</li>
+<li class="">auth scope</li>
+<li class="">connection <code>id</code></li>
+<li class="">connection <code>type_id</code></li>
+<li class="">compiled-contract checksum or version</li>
+<li class=""><code>operationId</code></li>
+<li class=""><code>responseMappingId</code></li>
+<li class="">sanitized path/query/header/body payload</li>
+<li class="">effective public config values</li>
+<li class="">time range</li>
+<li class="">max rows</li>
+</ul>
+</li>
+<li class="">Query caches and in-flight joins must exclude raw secret values.</li>
+<li class="">In-flight dedupe must happen only after permission checks succeed.</li>
+<li class="">Cache only successful pass-through responses for operations whose effective cache policy is <code>safe</code>.</li>
+<li class="">Never cache permission denials, auth failures, contract-validation failures, rate-limit responses,
+timeouts, or malformed upstream responses.</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="158-health-checks">1.5.8 Health Checks<a href="#158-health-checks" class="hash-link" aria-label="Direct link to 1.5.8 Health Checks" title="Direct link to 1.5.8 Health Checks" translate="no">​</a></h4>
+<ul>
+<li class=""><code>testConnection(id)</code> must use the stored compiled contract&#x27;s health strategy.</li>
+<li class="">If the contract declares <code>health.operationId</code>, execute that operation with its static/default
+parameters using the same validation and credential-injection rules as normal execution.</li>
+<li class="">If the health strategy declares an expected status, enforce it.</li>
+<li class="">If no health strategy is declared, return an explicit unsupported/unknown result instead of
+inventing a provider probe that the contract did not authorize.</li>
+</ul>
+<p>Query execution path:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">widget/explore -&gt; Command Center backend /connections/{id}/query/</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; AdapterFromApi backend adapter</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; upstream API operation declared by contract</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; upstream response passed back through Command Center</span><br></span></code></pre></div></div>
+<p>The browser never calls the upstream API directly for connection queries.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="16-backend-resources">1.6 Backend Resources<a href="#16-backend-resources" class="hash-link" aria-label="Direct link to 1.6 Backend Resources" title="Direct link to 1.6 Backend Resources" translate="no">​</a></h3>
+<p>When the adapter exposes helper resources, the payloads and semantics should be concrete:</p>
+<ul>
+<li class=""><code>contract-definition</code>
+<ul>
+<li class="">purpose: preview discovery without saving, or re-run discovery for an existing instance</li>
+<li class="">input: <code>{ &quot;apiBaseUrl&quot;: &quot;https://api.example.com&quot;, &quot;contractVersion&quot;: &quot;optional-pin&quot; }</code></li>
+<li class="">output:<!-- -->
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;apiBaseUrl&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;https://api.example.com&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;contractDefinitionUrl&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;https://api.example.com/.well-known/command-center/connection-contract&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;openApiUrl&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;https://api.example.com/openapi.json&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;compiledContract&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+</li>
+<li class="">notes: output must be sanitized and must match the same discovery algorithm used by
+create/update persistence</li>
+</ul>
+</li>
+<li class=""><code>available-operations</code>
+<ul>
+<li class="">purpose: list operations for an already configured instance</li>
+<li class="">input: optional filters such as <code>{ &quot;capability&quot;: &quot;query&quot; }</code></li>
+<li class="">output: operation summaries derived from the stored <code>compiledContract</code></li>
+<li class="">notes: this resource must not refetch upstream discovery documents</li>
+</ul>
+</li>
+<li class=""><code>operation-schema</code>
+<ul>
+<li class="">purpose: return one operation&#x27;s effective parameters, request-body metadata, and response
+mappings for an already configured instance</li>
+<li class="">input: <code>{ &quot;operationId&quot;: &quot;listOrders&quot; }</code></li>
+<li class="">output: one operation definition taken from the stored <code>compiledContract</code></li>
+</ul>
+</li>
+<li class=""><code>health-target</code>
+<ul>
+<li class="">purpose: expose the compiled-contract health strategy and any static metadata useful to the UI</li>
+<li class="">input: <code>{}</code></li>
+<li class="">output: <code>{ &quot;health&quot;: { ... } }</code> or <code>{ &quot;health&quot;: null }</code></li>
+</ul>
+</li>
+</ul>
+<p>Instance-scoped resources must apply normal permission checks, use the stored compiled contract, and
+never expose decrypted secrets. Preview/discovery helpers must apply the same SSRF and allowlist
+rules as instance persistence.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="17-response-handling">1.7 Response Handling<a href="#17-response-handling" class="hash-link" aria-label="Direct link to 1.7 Response Handling" title="Direct link to 1.7 Response Handling" translate="no">​</a></h3>
+<p>The first slice should keep response handling simple:</p>
+<ul>
+<li class="">the contract may describe <code>responseMappings</code> for frontend/editor metadata</li>
+<li class="">the backend may preserve the selected <code>responseMappingId</code> in request/trace context</li>
+<li class="">the backend must not validate the upstream body against the declared mapping on every request</li>
+<li class="">the upstream response payload should pass through as returned by the API</li>
+<li class="">any future table extraction or contract-specific shaping should be an explicit later feature, not
+hidden hot-path backend work</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="18-security">1.8 Security<a href="#18-security" class="hash-link" aria-label="Direct link to 1.8 Security" title="Direct link to 1.8 Security" translate="no">​</a></h3>
+<p>The backend must treat API-provided contracts as untrusted input.</p>
+<p>Required controls:</p>
+<ul>
+<li class="">SSRF protection for contract fetch and upstream calls</li>
+<li class="">allowed scheme and host policy</li>
+<li class="">request timeout and response size limits</li>
+<li class="">operation allowlist from compiled contract</li>
+<li class="">method allowlist; mutating methods require explicit contract opt-in</li>
+<li class="">header allowlist; reject arbitrary credential-bearing headers from query payloads</li>
+<li class="">secret redaction in logs, warnings, metadata, cache keys, and errors</li>
+<li class="">no frontend-readable decrypted secrets</li>
+<li class="">permission checks before cache reads, in-flight joins, contract resources, and upstream calls</li>
+<li class="">cache keys include auth scope and effective public config</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-expected-openapi-and-api-contract">2. Expected OpenAPI And API Contract<a href="#2-expected-openapi-and-api-contract" class="hash-link" aria-label="Direct link to 2. Expected OpenAPI And API Contract" title="Direct link to 2. Expected OpenAPI And API Contract" translate="no">​</a></h2>
+<p><code>AdapterFromApi</code> should not accept arbitrary OpenAPI and guess everything. The API must provide a
+Command Center adapter contract through a companion well-known endpoint.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="21-discovery-endpoints">2.1 Discovery Endpoints<a href="#21-discovery-endpoints" class="hash-link" aria-label="Direct link to 2.1 Discovery Endpoints" title="Direct link to 2.1 Discovery Endpoints" translate="no">​</a></h3>
+<p>Preferred endpoint:</p>
+<div class="language-http codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-http codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">GET /.well-known/command-center/connection-contract</span><br></span></code></pre></div></div>
+<p>Response:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;contractVersion&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">1</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;adapter&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;type&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;adapter-from-api&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;id&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;example.orders&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;title&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Orders API&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;description&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Order read APIs exposed for Command Center connections&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;openapi&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;url&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;https://api.example.com/openapi.json&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;version&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;3.1.0&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;checksum&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;sha256:...&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;configVariables&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;secretVariables&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;availableOperations&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>FastAPI or any equivalent backend can and should expose this route. In the first slice, the
+well-known route is the only adapter discovery contract.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="22-contract-definition">2.2 Contract Definition<a href="#22-contract-definition" class="hash-link" aria-label="Direct link to 2.2 Contract Definition" title="Direct link to 2.2 Contract Definition" translate="no">​</a></h3>
+<p>The contract definition must include:</p>
+<ul>
+<li class="">contract version</li>
+<li class="">API identity and human-readable labels</li>
+<li class="">OpenAPI document URL or embedded OpenAPI document reference</li>
+<li class="">public config variables</li>
+<li class="">secret variables</li>
+<li class="">auth injection rules</li>
+<li class="">available operations</li>
+<li class="">optional response metadata</li>
+<li class="">cache and dedupe hints</li>
+<li class="">health-check operation</li>
+</ul>
+<p>Public config variable shape:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;key&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;tenantId&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;label&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Tenant ID&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;description&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Tenant scope used in upstream requests.&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;type&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;string&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;required&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">true</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;defaultValue&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token null keyword" style="font-style:italic">null</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;example&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;tenant_123&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;renderAs&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;text&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;validation&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;pattern&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;^[a-zA-Z0-9_-]+$&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Secret variable shape:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;key&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;apiToken&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;label&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;API token&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;description&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Bearer token injected by the backend.&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;type&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;secret&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;required&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">true</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;renderAs&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;password&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;injection&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;type&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;header&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;name&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Authorization&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;template&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Bearer {{secret.apiToken}}&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Supported dynamic field types should align with Command Center connection schemas:</p>
+<ul>
+<li class=""><code>string</code></li>
+<li class=""><code>number</code></li>
+<li class=""><code>boolean</code></li>
+<li class=""><code>select</code></li>
+<li class=""><code>json</code></li>
+<li class=""><code>secret</code></li>
+</ul>
+<p>Additional UI hints may be allowed, but the backend must validate the semantic type rather than
+trust UI-only hints.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="23-available-operations">2.3 Available Operations<a href="#23-available-operations" class="hash-link" aria-label="Direct link to 2.3 Available Operations" title="Direct link to 2.3 Available Operations" translate="no">​</a></h3>
+<p>Operations may be derived from OpenAPI <code>paths</code>, but the Command Center contract must identify which
+operations are safe and useful as connection queries or resources.</p>
+<p>Operation shape:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;operationId&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;listOrders&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;label&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;List orders&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;description&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Returns orders visible to the configured tenant.&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;method&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;GET&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;path&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;/v1/orders&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;kind&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;query&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;capabilities&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;query&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;requiresTimeRange&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">false</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;supportsVariables&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">true</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;supportsMaxRows&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">true</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;parameters&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;path&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;query&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;key&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;status&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;label&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Status&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;type&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;select&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;required&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">false</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;options&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">          </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> </span><span class="token property">&quot;label&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Open&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token property">&quot;value&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;open&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">          </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> </span><span class="token property">&quot;label&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Closed&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token property">&quot;value&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;closed&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;headers&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;requestBody&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token null keyword" style="font-style:italic">null</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;responseMappings&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token property">&quot;id&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;orders_table&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token property">&quot;label&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Orders table&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token property">&quot;contract&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;core.tabular_frame@v1&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token property">&quot;statusCode&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;200&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token property">&quot;contentType&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;application/json&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token property">&quot;rowsPath&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;$.data.orders&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token property">&quot;fieldTypes&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;created_at&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;time&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;amount&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;number&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;status&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;string&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;cache&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;policy&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;safe&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;ttlMs&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">300000</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;dedupeInFlight&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">true</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>The adapter must reject operations that are not present in the compiled <code>availableOperations</code>
+contract.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="24-openapi-requirements">2.4 OpenAPI Requirements<a href="#24-openapi-requirements" class="hash-link" aria-label="Direct link to 2.4 OpenAPI Requirements" title="Direct link to 2.4 OpenAPI Requirements" translate="no">​</a></h3>
+<p>If the contract references an OpenAPI document, that document should provide:</p>
+<ul>
+<li class="">stable <code>operationId</code> for each exposed operation</li>
+<li class="">schemas for parameters and request bodies</li>
+<li class="">security schemes for credential injection</li>
+<li class="">server definitions or a base URL compatible with backend allowlist policy</li>
+<li class="">optional response examples when the API owner wants better human-readable docs, not runtime
+validation</li>
+</ul>
+<p>The well-known Command Center contract remains the adapter discovery source of truth.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="25-health-contract">2.5 Health Contract<a href="#25-health-contract" class="hash-link" aria-label="Direct link to 2.5 Health Contract" title="Direct link to 2.5 Health Contract" translate="no">​</a></h3>
+<p>The contract should identify one health-check strategy:</p>
+<ul>
+<li class="">dedicated health endpoint</li>
+<li class="">declared operation with static safe parameters</li>
+<li class="">OpenAPI document reachability plus optional provider status call</li>
+</ul>
+<p>Example:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;health&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;operationId&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;getStatus&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;expectedStatus&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">200</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;timeoutMs&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">5000</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="26-credential-handling">2.6 Credential Handling<a href="#26-credential-handling" class="hash-link" aria-label="Direct link to 2.6 Credential Handling" title="Direct link to 2.6 Credential Handling" translate="no">​</a></h3>
+<p>The contract must describe where credentials are injected. Users enter secrets in Command Center.
+The backend stores them. Query payloads never contain secret values.</p>
+<p>Supported first-slice injection targets:</p>
+<ul>
+<li class="">header</li>
+<li class="">query parameter</li>
+<li class="">basic auth</li>
+<li class="">bearer token</li>
+</ul>
+<p>OAuth flows, token refresh, mTLS, and signed requests should be explicit later extensions, not
+implicit guesses from OpenAPI alone.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-phases">Implementation Phases<a href="#implementation-phases" class="hash-link" aria-label="Direct link to Implementation Phases" title="Direct link to Implementation Phases" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-1-adr-and-contract-documentation">Phase 1: ADR And Contract Documentation<a href="#phase-1-adr-and-contract-documentation" class="hash-link" aria-label="Direct link to Phase 1: ADR And Contract Documentation" title="Direct link to Phase 1: ADR And Contract Documentation" translate="no">​</a></h3>
+<ul>
+<li class="">finalize this ADR</li>
+<li class="">document the API contract under <code>docs/connections/adapters/</code></li>
+<li class="">document frontend extension expectations under <code>docs/connections/</code></li>
+<li class="">choose final globally unique type id after backend registry review</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-2-frontend-shell">Phase 2: Frontend Shell<a href="#phase-2-frontend-shell" class="hash-link" aria-label="Direct link to Phase 2: Frontend Shell" title="Direct link to Phase 2: Frontend Shell" translate="no">​</a></h3>
+<ul>
+<li class="">add static <code>AdapterFromApi</code> connection type</li>
+<li class="">add custom config editor for backend-routed contract discovery</li>
+<li class="">add custom query editor for operation selection and dynamic inputs</li>
+<li class="">add Explore flow using <code>ConnectionQueryWorkbench</code> where possible</li>
+<li class="">add usage guidance and local README</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-3-backend-adapter">Phase 3: Backend Adapter<a href="#phase-3-backend-adapter" class="hash-link" aria-label="Direct link to Phase 3: Backend Adapter" title="Direct link to Phase 3: Backend Adapter" translate="no">​</a></h3>
+<ul>
+<li class="">implement backend adapter registration for the final <code>type_id</code></li>
+<li class="">implement contract fetch, validation, redaction, and compiled snapshot storage</li>
+<li class="">implement dynamic public/secure config persistence</li>
+<li class="">implement health check</li>
+<li class="">implement query operation dispatch</li>
+<li class="">implement pass-through response handling</li>
+<li class="">implement resources for contract and operation metadata</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-4-instance-scoped-query-models">Phase 4: Instance-Scoped Query Models<a href="#phase-4-instance-scoped-query-models" class="hash-link" aria-label="Direct link to Phase 4: Instance-Scoped Query Models" title="Direct link to Phase 4: Instance-Scoped Query Models" translate="no">​</a></h3>
+<ul>
+<li class="">decide whether one static <code>api-operation</code> query model is enough</li>
+<li class="">if not, add instance-scoped query model resolution to the connection workbench</li>
+<li class="">keep resolution pure and based on sanitized compiled contract state</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-5-hardening">Phase 5: Hardening<a href="#phase-5-hardening" class="hash-link" aria-label="Direct link to Phase 5: Hardening" title="Direct link to Phase 5: Hardening" translate="no">​</a></h3>
+<ul>
+<li class="">SSRF tests</li>
+<li class="">secret redaction tests</li>
+<li class="">operation allowlist tests</li>
+<li class="">cache/dedupe key tests</li>
+<li class="">pass-through response tests</li>
+<li class="">contract version migration tests</li>
+<li class="">provider error mapping tests</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-checklist">Implementation Checklist<a href="#implementation-checklist" class="hash-link" aria-label="Direct link to Implementation Checklist" title="Direct link to Implementation Checklist" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="implemented-in-this-repo">Implemented In This Repo<a href="#implemented-in-this-repo" class="hash-link" aria-label="Direct link to Implemented In This Repo" title="Direct link to Implemented In This Repo" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Draft the <code>AdapterFromApi</code> ADR and define the backend-routed dynamic adapter direction.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add the ADR to the ADR index.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add developer documentation under <code>docs/connections/</code> for connection models, extension
+contracts, and backend ownership.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add adapter documentation under <code>docs/connections/adapters/</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add Python adapter documentation under <code>docs/connections/adapters/python/</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Document that every <code>ConnectionTypeDefinition.id</code> must be globally unique and must be
+checked against backend registered type ids before finalizing.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Check the current client and referenced backend adapter directories for an existing
+<code>command_center.adapter_from_api</code> id collision.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add the static frontend <code>AdapterFromApi</code> connection type using the working type id
+<code>command_center.adapter_from_api</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add bootstrap public config fields for API root, derived discovery URLs, contract version,
+request timeout, cache policy, and compiled contract JSON.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a secure config placeholder for dynamic secret values.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add schema descriptions for every static config field so the shared connection form can show
+<code>(i)</code> help.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a custom config editor that renders bootstrap fields and dynamic public variables from
+the compiled contract.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a custom query editor that renders operation selection, path/query/header parameters,
+request body JSON, max rows, and response mapping selection from the compiled contract.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add the first static query model, <code>api-operation</code>, for dynamic operation execution.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add config and query examples that match the current TypeScript payloads.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add connection usage guidance describing when to use the adapter, when not to use it,
+configuration fields, query model, backend resources, and backend ownership.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a local README for <code>connections/adapter-from-api/</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Register the connection in the frontend connection registry.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Bump the connection type sync registry version.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a FastAPI/Pydantic mock provider under <code>mock_data/adapters/example/</code> with the
+well-known contract endpoint and example query operations.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Run <code>npm run check</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Run <code>git diff --check</code>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="still-needed">Still Needed<a href="#still-needed" class="hash-link" aria-label="Direct link to Still Needed" title="Direct link to Still Needed" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Finalize and reserve the globally unique backend type id after reviewing the authoritative
+backend adapter registry.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement backend adapter registration for the final <code>type_id</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement the <code>contract-definition</code> backend resource.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Apply SSRF protection, scheme/host allowlists, timeouts, and response size limits when
+fetching contract definitions and OpenAPI documents.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Parse the companion <code>/.well-known/command-center/connection-contract</code> endpoint.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Normalize the well-known contract into one sanitized compiled contract, optionally enriched
+with supplementary OpenAPI metadata.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write the sanitized compiled contract snapshot to <code>publicConfig.compiledContract</code> for each
+connection instance and keep any extra backend-only metadata needed for cache invalidation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Validate dynamic public config values against <code>configVariables</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Store and validate dynamic secure config values against <code>secretVariables</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Decide whether the first backend slice keeps dynamic secrets in one secure JSON object or
+expands them into generated secure fields.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement the <code>available-operations</code> backend resource.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement the <code>operation-schema</code> backend resource.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement backend health checks from the compiled contract health strategy.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement backend execution for the <code>api-operation</code> query payload.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Inject credentials only through declared contract injection rules.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Reject undeclared operations, paths, methods, hosts, headers, credential injection points, and
+parameter keys.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Pass upstream API responses through the connection route without hot-path response-contract
+validation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Define provider error mapping, trace ids, warnings, and redacted diagnostic metadata.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Define cache and in-flight dedupe behavior for contract discovery and query execution.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure cache keys include organization, user/auth scope, connection id, type id, contract
+version/checksum, operation id, sanitized query payload, time range, variables, max rows, and
+public config values, while excluding secrets.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add backend permission checks for contract resources, operation resources, health checks,
+query execution, cache reads, and in-flight dedupe joins.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Decide whether instance-scoped query model resolution should become a core connection API or
+remain local to this adapter&#x27;s query editor.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Decide whether mutating operations are out of scope for the first slice or require explicit
+contract opt-in.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add frontend tests for config editor rendering and query editor payload generation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add backend tests for SSRF controls, contract validation, secret redaction, operation
+allowlists, cache keys, pass-through response behavior, health checks, and provider error mapping.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Verify the full flow end to end: create connection, save secrets, test health, use Explore,
+and run the Connection Query widget through the backend adapter.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="open-questions">Open Questions<a href="#open-questions" class="hash-link" aria-label="Direct link to Open Questions" title="Direct link to Open Questions" translate="no">​</a></h2>
+<ul>
+<li class="">Should dynamic query models become a first-class core connection API or remain local to the
+<code>AdapterFromApi</code> query editor?</li>
+<li class="">Should mutating operations be supported at all in the first slice, or should this connection be
+read/query-only until mutation semantics are designed?</li>
+<li class="">What backend allowlist policy is required before users can enter arbitrary API roots?</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rejected-alternatives">Rejected Alternatives<a href="#rejected-alternatives" class="hash-link" aria-label="Direct link to Rejected Alternatives" title="Direct link to Rejected Alternatives" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="browser-executes-the-api-directly">Browser Executes The API Directly<a href="#browser-executes-the-api-directly" class="hash-link" aria-label="Direct link to Browser Executes The API Directly" title="Direct link to Browser Executes The API Directly" translate="no">​</a></h3>
+<p>Rejected. It would expose credentials, bypass backend permission checks, make caching/dedupe
+inconsistent, and violate the connection model.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="generate-a-new-frontend-connection-type-per-api">Generate A New Frontend Connection Type Per API<a href="#generate-a-new-frontend-connection-type-per-api" class="hash-link" aria-label="Direct link to Generate A New Frontend Connection Type Per API" title="Direct link to Generate A New Frontend Connection Type Per API" translate="no">​</a></h3>
+<p>Rejected for the first design. It would require registry sync churn for every API and would still
+need a generic backend adapter. A single generic type with instance-level compiled contracts better
+matches the dynamic OpenAPI use case.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="accept-arbitrary-openapi-without-command-center-contract-metadata">Accept Arbitrary OpenAPI Without Command Center Contract Metadata<a href="#accept-arbitrary-openapi-without-command-center-contract-metadata" class="hash-link" aria-label="Direct link to Accept Arbitrary OpenAPI Without Command Center Contract Metadata" title="Direct link to Accept Arbitrary OpenAPI Without Command Center Contract Metadata" translate="no">​</a></h3>
+<p>Rejected. OpenAPI alone is not enough to safely infer secrets, config variables, credential
+injection, operation allowlists, response frame mappings, cache policy, and mutation safety.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-and-backend-contract-assessment">Storage And Backend Contract Assessment<a href="#storage-and-backend-contract-assessment" class="hash-link" aria-label="Direct link to Storage And Backend Contract Assessment" title="Direct link to Storage And Backend Contract Assessment" translate="no">​</a></h2>
+<p>This ADR proposes a new connection type and backend adapter. It changes backend contract
+requirements by adding:</p>
+<ul>
+<li class="">dynamic contract discovery resources</li>
+<li class="">dynamic public/secure config handling</li>
+<li class="">compiled contract storage or snapshot references</li>
+<li class="">operation allowlist enforcement</li>
+<li class="">dynamic query payload execution</li>
+<li class="">backend mirror/proxy pass-through of upstream API responses</li>
+</ul>
+<p>Workspace storage should still store only stable <code>ConnectionRef</code> values and query payloads. Secrets
+remain backend-only.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-adapter-from-api-connection.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#1-command-center-implementation-plan" class="table-of-contents__link toc-highlight">1. Command Center Implementation Plan</a><ul><li><a href="#11-frontend-connection-type" class="table-of-contents__link toc-highlight">1.1 Frontend Connection Type</a></li><li><a href="#12-dynamic-contract-discovery" class="table-of-contents__link toc-highlight">1.2 Dynamic Contract Discovery</a></li><li><a href="#13-instance-scoped-query-models" class="table-of-contents__link toc-highlight">1.3 Instance-Scoped Query Models</a></li><li><a href="#14-query-editor" class="table-of-contents__link toc-highlight">1.4 Query Editor</a></li><li><a href="#15-backend-adapter" class="table-of-contents__link toc-highlight">1.5 Backend Adapter</a></li><li><a href="#16-backend-resources" class="table-of-contents__link toc-highlight">1.6 Backend Resources</a></li><li><a href="#17-response-handling" class="table-of-contents__link toc-highlight">1.7 Response Handling</a></li><li><a href="#18-security" class="table-of-contents__link toc-highlight">1.8 Security</a></li></ul></li><li><a href="#2-expected-openapi-and-api-contract" class="table-of-contents__link toc-highlight">2. Expected OpenAPI And API Contract</a><ul><li><a href="#21-discovery-endpoints" class="table-of-contents__link toc-highlight">2.1 Discovery Endpoints</a></li><li><a href="#22-contract-definition" class="table-of-contents__link toc-highlight">2.2 Contract Definition</a></li><li><a href="#23-available-operations" class="table-of-contents__link toc-highlight">2.3 Available Operations</a></li><li><a href="#24-openapi-requirements" class="table-of-contents__link toc-highlight">2.4 OpenAPI Requirements</a></li><li><a href="#25-health-contract" class="table-of-contents__link toc-highlight">2.5 Health Contract</a></li><li><a href="#26-credential-handling" class="table-of-contents__link toc-highlight">2.6 Credential Handling</a></li></ul></li><li><a href="#implementation-phases" class="table-of-contents__link toc-highlight">Implementation Phases</a><ul><li><a href="#phase-1-adr-and-contract-documentation" class="table-of-contents__link toc-highlight">Phase 1: ADR And Contract Documentation</a></li><li><a href="#phase-2-frontend-shell" class="table-of-contents__link toc-highlight">Phase 2: Frontend Shell</a></li><li><a href="#phase-3-backend-adapter" class="table-of-contents__link toc-highlight">Phase 3: Backend Adapter</a></li><li><a href="#phase-4-instance-scoped-query-models" class="table-of-contents__link toc-highlight">Phase 4: Instance-Scoped Query Models</a></li><li><a href="#phase-5-hardening" class="table-of-contents__link toc-highlight">Phase 5: Hardening</a></li></ul></li><li><a href="#implementation-checklist" class="table-of-contents__link toc-highlight">Implementation Checklist</a><ul><li><a href="#implemented-in-this-repo" class="table-of-contents__link toc-highlight">Implemented In This Repo</a></li><li><a href="#still-needed" class="table-of-contents__link toc-highlight">Still Needed</a></li></ul></li><li><a href="#open-questions" class="table-of-contents__link toc-highlight">Open Questions</a></li><li><a href="#rejected-alternatives" class="table-of-contents__link toc-highlight">Rejected Alternatives</a><ul><li><a href="#browser-executes-the-api-directly" class="table-of-contents__link toc-highlight">Browser Executes The API Directly</a></li><li><a href="#generate-a-new-frontend-connection-type-per-api" class="table-of-contents__link toc-highlight">Generate A New Frontend Connection Type Per API</a></li><li><a href="#accept-arbitrary-openapi-without-command-center-contract-metadata" class="table-of-contents__link toc-highlight">Accept Arbitrary OpenAPI Without Command Center Contract Metadata</a></li></ul></li><li><a href="#storage-and-backend-contract-assessment" class="table-of-contents__link toc-highlight">Storage And Backend Contract Assessment</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

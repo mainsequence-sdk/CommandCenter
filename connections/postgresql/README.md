@@ -43,7 +43,7 @@ The backend adapter must switch on `request.query.kind`; PostgreSQL accepts one 
   `{ kind: "sql", sql: string }`. Execute the SQL through the configured backend pool, apply
   authorization, statement timeout, and data-source-level row limits. Return one
   `core.tabular_frame@v1`. When the backend can validate chart semantics, publish them inside
-  `meta.timeSeries` on that tabular frame instead of switching contracts.
+  normalized graph semantics on that tabular frame instead of switching contracts.
 
 Backend implementations should reject unknown `kind` values with a typed bad-request error and
 should include the query kind in audit logs and response metadata.

@@ -9,6 +9,7 @@ export type AssistantUiProtocol = "ui-message-stream" | "data-stream";
 export interface CommandCenterAuthConfig {
   identifierLabel: string;
   identifierPlaceholder: string;
+  websocketTicketUrl: string;
   jwt: {
     tokenUrl: string;
     refreshUrl: string;
@@ -118,6 +119,7 @@ export interface CommandCenterConfig {
       queryUrl: string;
       resourceUrl: string;
       streamUrl: string;
+      streamQueryUrl: string;
     };
   };
   auth: CommandCenterAuthConfig;
@@ -226,11 +228,13 @@ interface DefaultCommandCenterConfig {
       query_url: string;
       resource_url: string;
       stream_url: string;
+      stream_query_url: string;
     };
   };
   auth: {
     identifier_label: string;
     identifier_placeholder: string;
+    websocket_ticket_url: string;
     jwt: {
       token_url: string;
       refresh_url: string;
@@ -387,11 +391,13 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
       query_url: "/api/v1/command_center/connections/{id}/query/",
       resource_url: "/api/v1/command_center/connections/{id}/resources/{resource}/",
       stream_url: "/api/v1/command_center/connections/{id}/stream/",
+      stream_query_url: "/api/v1/command_center/connections/{id}/stream-query/",
     },
   },
   auth: {
     identifier_label: "Email",
     identifier_placeholder: "Please enter your email",
+    websocket_ticket_url: "/auth/websocket-ticket/",
     jwt: {
       token_url: "/auth/jwt-token/token/",
       refresh_url: "/auth/jwt-token/token/refresh/",
@@ -773,6 +779,10 @@ export const commandCenterConfig: CommandCenterConfig = {
         parsedConnectionInstances.stream_url,
         defaultRawConfig.connections.instances.stream_url,
       ),
+      streamQueryUrl: readString(
+        parsedConnectionInstances.stream_query_url,
+        defaultRawConfig.connections.instances.stream_query_url,
+      ),
     },
   },
   auth: {
@@ -783,6 +793,10 @@ export const commandCenterConfig: CommandCenterConfig = {
     identifierPlaceholder: readString(
       parsedAuth.identifier_placeholder,
       defaultRawConfig.auth.identifier_placeholder,
+    ),
+    websocketTicketUrl: readString(
+      parsedAuth.websocket_ticket_url,
+      defaultRawConfig.auth.websocket_ticket_url,
     ),
     jwt: {
       tokenUrl: readString(parsedAuthJwt.token_url, defaultRawConfig.auth.jwt.token_url),

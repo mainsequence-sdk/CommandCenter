@@ -278,6 +278,7 @@ export function GraphWidgetSettings({
       id: series.id,
       label: series.label,
       pointCount: series.pointCount,
+      sourcePointCount: series.sourcePointCount,
       color: toColorInputValue(
         resolvedConfig?.seriesOverrides?.[series.id]?.color,
         toColorInputValue(palette[index % palette.length], "#2563eb"),
@@ -400,9 +401,11 @@ export function GraphWidgetSettings({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-foreground">{series.label}</div>
-                  <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       {series.pointCount > 0
-                        ? `${series.pointCount.toLocaleString()} preview points`
+                        ? series.sourcePointCount > series.pointCount
+                          ? `${series.pointCount.toLocaleString()} plotted / ${series.sourcePointCount.toLocaleString()} source points`
+                          : `${series.pointCount.toLocaleString()} preview points`
                         : "Uses the active series id when data becomes available."}
                     </div>
                   </div>

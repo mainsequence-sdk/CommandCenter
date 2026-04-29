@@ -1,3 +1,9 @@
+import {
+  DEFAULT_WEBSOCKET_TICKET_AUDIENCE,
+  requestWebSocketTicket,
+  type WebSocketTicketRequestInput,
+  type WebSocketTicketResponse,
+} from "@/auth/api";
 import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
@@ -6,15 +12,20 @@ import {
   type DashboardRequestTraceMeta,
 } from "@/dashboards/dashboard-request-trace";
 import { resolveConnectionRefSelection } from "@/connections/connectionRefResolution";
+import { assertConnectionQueryModelStreamable } from "@/connections/types";
 import type {
   ConnectionId,
   ConnectionHealthResult,
   ConnectionInstance,
+  ConnectionQueryModel,
   ConnectionQueryRequest,
   ConnectionQueryResponse,
   ConnectionRef,
   ConnectionResourceRequest,
+  ConnectionStreamQueryRequest,
   ConnectionStreamRequest,
+  ConnectionStreamServerMessage,
+  ConnectionStreamSubscribeMessage,
   AnyConnectionTypeDefinition,
 } from "@/connections/types";
 
@@ -47,6 +58,399 @@ function applyTemplate(
       result.replace(`{${key}}`, encodeURIComponent(String(value))),
     template,
   );
+}
+
+function toError(error: unknown) {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function isConnectionId(value: unknown): value is ConnectionId {
+  return (
+    typeof value === "string" ||
+    (typeof value === "number" && Number.isSafeInteger(value))
+  );
+}
+
+function assertString(value: unknown, field: string) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`Connection stream message is missing ${field}.`);
+  }
+}
+
+function assertSequence(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error("Connection stream message is missing sequence.");
+  }
+}
+
+function assertConnectionId(value: unknown) {
+  if (!isConnectionId(value)) {
+    throw new Error("Connection stream message is missing connectionId.");
+  }
+}
+
+function assertConnectionQueryResponse(value: unknown) {
+  if (!isRecord(value) || !Array.isArray(value.frames)) {
+    throw new Error("Connection stream data message is missing response frames.");
+  }
+}
+
+export function buildWebSocketEndpointUrl(
+  path: string,
+  options?: {
+    apiBaseUrl?: string;
+  },
+) {
+  if (!path.trim()) {
+    throw new Error("Command Center WebSocket endpoint is not configured.");
+  }
+
+  const url = new URL(path, options?.apiBaseUrl ?? env.apiBaseUrl);
+
+  if (url.protocol === "http:") {
+    url.protocol = "ws:";
+  } else if (url.protocol === "https:") {
+    url.protocol = "wss:";
+  } else if (url.protocol !== "ws:" && url.protocol !== "wss:") {
+    throw new Error(`Unsupported WebSocket endpoint protocol: ${url.protocol}`);
+  }
+
+  return url.toString();
+}
+
+export function buildConnectionQueryWebSocketUrl(
+  connectionId: ConnectionId,
+  options?: {
+    apiBaseUrl?: string;
+    webSocketTicket?: string;
+  },
+) {
+  const template = commandCenterConfig.connections.instances.streamQueryUrl.trim();
+
+  if (!template) {
+    throw new Error("Command Center connection stream query endpoint is not configured.");
+  }
+
+  const url = new URL(
+    buildWebSocketEndpointUrl(
+      applyTemplate(template, {
+        id: connectionId,
+      }),
+      options,
+    ),
+  );
+
+  if (options?.webSocketTicket) {
+    url.searchParams.set("ws_ticket", options.webSocketTicket);
+  }
+
+  return url.toString();
+}
+
+export function buildConnectionQueryUrl(
+  connectionId: ConnectionId,
+  options?: {
+    apiBaseUrl?: string;
+  },
+) {
+  const template = commandCenterConfig.connections.instances.queryUrl.trim();
+
+  if (!template) {
+    throw new Error("Command Center connection query endpoint is not configured.");
+  }
+
+  return buildEndpointUrl(
+    applyTemplate(template, {
+      id: connectionId,
+    }),
+  );
+}
+
+export type ConnectionWebSocketTicketProvider = (
+  input?: WebSocketTicketRequestInput,
+) => Promise<WebSocketTicketResponse>;
+
+export interface ConnectionQueryWebSocketAuthenticationOptions
+  extends OpenConnectionQueryWebSocketOptions {
+  ticketAudience?: string;
+  ticketProvider?: ConnectionWebSocketTicketProvider;
+}
+
+export async function requestConnectionQueryWebSocketTicket(
+  options?: Pick<ConnectionQueryWebSocketAuthenticationOptions, "ticketAudience" | "ticketProvider">,
+) {
+  const provider = options?.ticketProvider ?? requestWebSocketTicket;
+
+  return provider({
+    audience: options?.ticketAudience ?? DEFAULT_WEBSOCKET_TICKET_AUDIENCE,
+  });
+}
+
+export async function createAuthenticatedConnectionQueryWebSocketSubscription<
+  TQuery = Record<string, unknown>,
+>(
+  request: ConnectionStreamQueryRequest<TQuery>,
+  handlers: ConnectionQueryWebSocketHandlers,
+  options: ConnectionQueryWebSocketAuthenticationOptions,
+): Promise<ConnectionQueryWebSocketSubscription> {
+  assertConnectionQueryModelStreamable(options.queryModel);
+  const ticketUrl = buildEndpointUrl(commandCenterConfig.auth.websocketTicketUrl.trim());
+
+  options.onLifecycleEvent?.({
+    type: "ticket-request-start",
+    url: ticketUrl,
+  });
+
+  const ticket = await requestConnectionQueryWebSocketTicket({
+    ticketAudience: options.ticketAudience,
+    ticketProvider: options.ticketProvider,
+  });
+
+  options.onLifecycleEvent?.({
+    type: "ticket-response",
+    url: ticketUrl,
+    audience: ticket.audience,
+    expiresAt: ticket.expiresAt,
+  });
+
+  return createConnectionQueryWebSocketSubscription(request, handlers, {
+    ...options,
+    webSocketTicket: ticket.ticket,
+  });
+}
+
+export function buildConnectionStreamSubscribeMessage<TQuery = Record<string, unknown>>(
+  request: ConnectionStreamQueryRequest<TQuery>,
+): ConnectionStreamSubscribeMessage<TQuery> {
+  return {
+    type: "subscribe",
+    request,
+  };
+}
+
+export function parseConnectionStreamServerMessage(
+  data: unknown,
+): ConnectionStreamServerMessage {
+  const payload = typeof data === "string" ? JSON.parse(data) : data;
+
+  if (!isRecord(payload) || typeof payload.type !== "string") {
+    throw new Error("Connection stream message must be a JSON object with a type.");
+  }
+
+  switch (payload.type) {
+    case "ack": {
+      const connectionId = payload.connectionId;
+      assertConnectionId(connectionId);
+      assertString(payload.queryKind, "queryKind");
+      assertSequence(payload.sequence);
+      assertString(payload.acceptedAt, "acceptedAt");
+      return { ...payload, connectionId } as unknown as ConnectionStreamServerMessage;
+    }
+    case "snapshot":
+    case "delta": {
+      const connectionId = payload.connectionId;
+      assertConnectionId(connectionId);
+      assertString(payload.queryKind, "queryKind");
+      assertSequence(payload.sequence);
+      assertString(payload.emittedAt, "emittedAt");
+      assertConnectionQueryResponse(payload.response);
+      return { ...payload, connectionId } as unknown as ConnectionStreamServerMessage;
+    }
+    case "heartbeat":
+      assertSequence(payload.sequence);
+      assertString(payload.emittedAt, "emittedAt");
+      return payload as unknown as ConnectionStreamServerMessage;
+    case "error":
+      assertSequence(payload.sequence);
+      assertString(payload.emittedAt, "emittedAt");
+      assertString(payload.code, "code");
+      assertString(payload.message, "message");
+      if (typeof payload.retryable !== "boolean") {
+        throw new Error("Connection stream error message is missing retryable.");
+      }
+      return payload as unknown as ConnectionStreamServerMessage;
+    case "complete":
+      assertSequence(payload.sequence);
+      assertString(payload.emittedAt, "emittedAt");
+      return payload as unknown as ConnectionStreamServerMessage;
+    default:
+      throw new Error(`Unsupported connection stream message type: ${payload.type}`);
+  }
+}
+
+export interface OpenConnectionQueryWebSocketOptions {
+  apiBaseUrl?: string;
+  protocols?: string | string[];
+  queryModel: ConnectionQueryModel | null | undefined;
+  webSocketFactory?: ConnectionWebSocketFactory;
+  webSocketTicket?: string;
+  onLifecycleEvent?: (event: ConnectionQueryWebSocketLifecycleEvent) => void;
+}
+
+export interface ConnectionQueryWebSocketHandlers {
+  onOpen?: (event: Event) => void;
+  onMessage: (message: ConnectionStreamServerMessage, event: MessageEvent) => void;
+  onParseError?: (error: Error, event: MessageEvent) => void;
+  onError?: (event: Event) => void;
+  onClose?: (event: CloseEvent) => void;
+}
+
+export interface ConnectionQueryWebSocketSubscription {
+  socket: WebSocket;
+  close: (code?: number, reason?: string) => void;
+}
+
+export type ConnectionQueryWebSocketLifecycleEvent =
+  | {
+      type: "ticket-request-start";
+      url: string;
+    }
+  | {
+      type: "ticket-response";
+      url: string;
+      audience: string;
+      expiresAt: string;
+    }
+  | {
+      type: "socket-connect-start";
+      url: string;
+    }
+  | {
+      type: "socket-open";
+      url: string;
+    }
+  | {
+      type: "subscribe-sent";
+      url: string;
+    }
+  | {
+      type: "socket-error";
+      url: string;
+    }
+  | {
+      type: "socket-close";
+      url: string;
+      code: number;
+      reason: string;
+    };
+
+export type ConnectionWebSocketFactory = (
+  url: string,
+  protocols?: string | string[],
+) => WebSocket;
+
+function openDefaultWebSocket(url: string, protocols?: string | string[]) {
+  const WebSocketCtor = globalThis.WebSocket;
+
+  if (typeof WebSocketCtor !== "function") {
+    throw new Error("WebSocket is not available in this browser runtime.");
+  }
+
+  return protocols === undefined
+    ? new WebSocketCtor(url)
+    : new WebSocketCtor(url, protocols);
+}
+
+export function openConnectionQueryWebSocket<TQuery = Record<string, unknown>>(
+  request: ConnectionStreamQueryRequest<TQuery>,
+  options: OpenConnectionQueryWebSocketOptions,
+) {
+  assertConnectionQueryModelStreamable(options.queryModel);
+
+  const url = buildConnectionQueryWebSocketUrl(request.connectionId, {
+    apiBaseUrl: options.apiBaseUrl,
+    webSocketTicket: options.webSocketTicket,
+  });
+  const factory = options.webSocketFactory ?? openDefaultWebSocket;
+
+  return factory(url, options.protocols);
+}
+
+export function createConnectionQueryWebSocketSubscription<
+  TQuery = Record<string, unknown>,
+>(
+  request: ConnectionStreamQueryRequest<TQuery>,
+  handlers: ConnectionQueryWebSocketHandlers,
+  options: OpenConnectionQueryWebSocketOptions,
+): ConnectionQueryWebSocketSubscription {
+  const socket = openConnectionQueryWebSocket(request, options);
+  const socketUrl = socket.url;
+  let closed = false;
+
+  options.onLifecycleEvent?.({
+    type: "socket-connect-start",
+    url: socketUrl,
+  });
+
+  socket.onopen = (event) => {
+    if (closed) {
+      return;
+    }
+
+    socket.send(JSON.stringify(buildConnectionStreamSubscribeMessage(request)));
+    options.onLifecycleEvent?.({
+      type: "socket-open",
+      url: socketUrl,
+    });
+    options.onLifecycleEvent?.({
+      type: "subscribe-sent",
+      url: socketUrl,
+    });
+    handlers.onOpen?.(event);
+  };
+
+  socket.onmessage = (event) => {
+    if (closed) {
+      return;
+    }
+
+    try {
+      handlers.onMessage(parseConnectionStreamServerMessage(event.data), event);
+    } catch (error) {
+      handlers.onParseError?.(toError(error), event);
+    }
+  };
+
+  socket.onerror = (event) => {
+    if (!closed) {
+      options.onLifecycleEvent?.({
+        type: "socket-error",
+        url: socketUrl,
+      });
+      handlers.onError?.(event);
+    }
+  };
+
+  socket.onclose = (event) => {
+    if (!closed) {
+      options.onLifecycleEvent?.({
+        type: "socket-close",
+        url: socketUrl,
+        code: event.code,
+        reason: event.reason,
+      });
+      handlers.onClose?.(event);
+    }
+  };
+
+  return {
+    socket,
+    close(code = 1000, reason = "closed") {
+      if (closed) {
+        return;
+      }
+
+      closed = true;
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.onclose = null;
+
+      if (socket.readyState !== 2 && socket.readyState !== 3) {
+        socket.close(code, reason);
+      }
+    },
+  };
 }
 
 function getSessionHeaders() {
@@ -262,7 +666,7 @@ function normalizeIdentifier(value: unknown): ConnectionId | undefined {
 
 function normalizeConnectionInstancePayload(instance: ConnectionInstance): ConnectionInstance | null {
   const record = instance as unknown as Record<string, unknown>;
-  const id = normalizeIdentifier(record.id) ?? normalizeIdentifier(record.uid);
+  const id = normalizeIdentifier(record.id);
 
   if (!id) {
     return null;

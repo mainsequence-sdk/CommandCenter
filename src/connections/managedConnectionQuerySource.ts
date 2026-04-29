@@ -6,6 +6,10 @@ import {
   type ConnectionQueryRuntimeState,
   type ConnectionQueryWidgetProps,
 } from "@/widgets/core/connection-query/connectionQueryModel";
+import {
+  normalizeConnectionStreamQueryProps,
+  normalizeConnectionStreamQueryRuntimeState,
+} from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
 
 export interface ManagedConnectionQueryWidgetEntry {
   id: string;
@@ -26,6 +30,7 @@ export interface ConnectionQueryRuntimeSummary {
 
 export interface ManagedConnectionQuerySourceDescriptor {
   id: string;
+  widgetId: string;
   title: string;
   props: ConnectionQueryWidgetProps;
   runtimeState: ConnectionQueryRuntimeState | null;
@@ -76,7 +81,8 @@ export function isEmbeddedManagedConnectionQueryWidget(
 } {
   if (
     !widget ||
-    widget.widgetId !== "connection-query" ||
+    (widget.widgetId !== "connection-query" &&
+      widget.widgetId !== "connection-stream-query") ||
     widget.managedBy?.role !== "embedded-connection-source"
   ) {
     return false;
@@ -176,12 +182,18 @@ export function resolveManagedConnectionQuerySource(
     return null;
   }
 
-  const runtimeState = normalizeConnectionQueryRuntimeState(widget.runtimeState);
+  const runtimeState =
+    widget.widgetId === "connection-stream-query"
+      ? normalizeConnectionStreamQueryRuntimeState(widget.runtimeState)
+      : normalizeConnectionQueryRuntimeState(widget.runtimeState);
 
   return {
     id: widget.id,
+    widgetId: widget.widgetId,
     title: widget.title?.trim() || "Embedded connection source",
-    props: normalizeConnectionQueryProps((widget.props ?? {}) as ConnectionQueryWidgetProps),
+    props: widget.widgetId === "connection-stream-query"
+      ? normalizeConnectionStreamQueryProps((widget.props ?? {}) as ConnectionQueryWidgetProps)
+      : normalizeConnectionQueryProps((widget.props ?? {}) as ConnectionQueryWidgetProps),
     runtimeState,
     runtimeSummary: resolveConnectionQueryRuntimeSummary(widget.runtimeState),
     managedBy: widget.managedBy,

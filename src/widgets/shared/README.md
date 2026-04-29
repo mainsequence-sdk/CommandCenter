@@ -31,12 +31,12 @@ This directory contains reusable widget presentation primitives that are shared 
 - `tabular-date-time-field.tsx`: compact date/time input field shared by source and connection
   configuration surfaces.
 - `managed-connection-consumer.ts`: shared adapter contract plus draft/apply helpers for widgets
-  that own a hidden managed `connection-query` source.
+  that own a hidden managed `connection-query` or `connection-stream-query` source.
 - `managed-connection-consumer-registry.ts`: registry lookup for widgets that implement the shared
   managed-connection adapter.
 - `ManagedConnectionConsumerPanel.tsx`: reusable `Bindings -> Connection` settings surface for
-  managed `connection-query` consumers. It reuses the standard connection-query workbench and
-  writes back through the widget-specific adapter.
+  managed `connection-query` and `connection-stream-query` consumers. It reuses the standard
+  connection authoring surfaces and writes back through the widget-specific adapter.
 - `chart-data-source.ts`: shared renderer-neutral chart-data contract helper for
   `core.chart_data@v1`, including value-descriptor metadata and frame normalization for backend
   adapters that return chart-ready data rather than source time-series data.

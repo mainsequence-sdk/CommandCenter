@@ -8,7 +8,7 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 - `definition.ts`: core widget definition, IO metadata, registry contract, agent snapshot, and settings/component wiring.
 - `TableWidget.tsx`: runtime table renderer backed by AG Grid Community.
 - `TableWidgetSettings.tsx`: settings editor for source binding status, manual rows, compact per-column schema controls, collapsible advanced formatting, datetime display patterns, value labels, and numeric rules.
-- `managedConnectionConsumer.ts`: shared managed-connection adapter that lets the generic widget-settings route create one hidden `connection-query` source for this table.
+- `managedConnectionConsumer.ts`: shared managed-connection adapter that lets the generic widget-settings route create one hidden `connection-query` or `connection-stream-query` source for this table.
 - `ManualTableEditor.tsx`: spreadsheet-style editor for manual display rows.
 - `tableModel.ts`: table configuration normalization, frame adaptation, schema resolution, formatting helpers, datetime parsing/rendering, and validation.
 - `USAGE_GUIDANCE.md`: registry-synced authoring guidance.
@@ -16,9 +16,9 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 ## Behavior
 
 - Bound mode consumes one `core.tabular_frame@v1` input on `sourceData`.
-- Connection mode still consumes `sourceData`, but that binding is automatically repaired to a
-  hidden managed `connection-query` widget owned by the table.
-- When the table owns a hidden managed `connection-query` source, settings show that source's
+- Connection modes still consume `sourceData`, but that binding is automatically repaired to a
+  hidden managed `connection-query` or `connection-stream-query` widget owned by the table.
+- When the table owns a hidden managed connection source, settings show that source's
   current runtime status and error message even though the source widget stays out of the normal
   rail.
 - Bound mode reads the resolved input's generic `upstreamBase` frame when an incremental upstream

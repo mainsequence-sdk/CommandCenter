@@ -11,7 +11,8 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset or a widge
 - Use when single-stat and grouped multi-stat views should keep the same large centered card presentation.
 - Use when a one-row grouped statistic should stretch its cards to fill the available widget height instead of leaving empty panel space.
 - Use the managed connection flow when this statistic should own its own hidden
-  `connection-query` source instead of sharing a visible upstream source widget.
+  `connection-query` or `connection-stream-query` source instead of sharing a visible upstream
+  source widget.
 
 ## whenNotToUse
 
@@ -33,7 +34,7 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset or a widge
 
 - A compatible upstream tabular binding is required.
 - Managed connection mode requires a valid backend-owned connection instance selected in the hidden
-  managed source widget.
+  managed source widget. Managed WebSocket streaming also requires a streamable connection path.
 - When the upstream source publishes incremental metadata, the statistic consumes the retained
   full `upstreamBase` frame and recomputes the cards as a snapshot.
 - Field pickers are populated from the bound dataset's `columns`, `fields`, and representative rows.
@@ -42,7 +43,7 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset or a widge
 ## commonPitfalls
 
 - Choosing a non-numeric value field makes `max`, `min`, `sum`, and `mean` produce no usable statistic.
-- Managed connection mode still depends on the hidden `connection-query` widget publishing one
+- Managed connection mode still depends on the hidden query or stream source widget publishing one
   canonical tabular frame. Fix source runtime failures in the `Connection` tab before debugging
   statistic field choices or reduction rules.
 - `first` and `last` use the selected order field only when one is configured. Without an order field, they follow the upstream row order.

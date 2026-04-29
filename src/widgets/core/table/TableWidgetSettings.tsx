@@ -82,7 +82,7 @@ const colorInputClass = widgetTightFormColorInputClass;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
 const tableFieldHelp = {
   density: "Controls row and cell spacing in the rendered table.",
-  tableSourceMode: "Selects whether this table formats a bound dataset, owns a hidden connection-query source, or renders manually authored rows stored on this table widget.",
+  tableSourceMode: "Selects whether this table formats a bound dataset, owns a hidden connection source, owns a hidden WebSocket stream source, or renders manually authored rows stored on this table widget.",
   sourceBinding: "Shows the upstream Connection Query or transform widget bound to this table. The binding supplies one canonical tabular dataset; this widget only formats it.",
   pageSize: "Sets how many rows AG Grid shows per page when pagination is enabled.",
   surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset.",
@@ -347,7 +347,8 @@ export function TableWidgetSettings({
     (draftProps as TableWidgetProps).tableSourceMode,
   );
   const isManualTableMode = tableSourceMode === "manual";
-  const isConnectionTableMode = tableSourceMode === "connection";
+  const isConnectionTableMode = tableSourceMode === "connection" || tableSourceMode === "connection-stream";
+  const isStreamConnectionTableMode = tableSourceMode === "connection-stream";
   const resolvedSourceInput = useMemo(
     () => resolveTableWidgetSourceInput(resolvedInputs),
     [resolvedInputs],
@@ -669,6 +670,7 @@ export function TableWidgetSettings({
             >
               <option value="bound">Bound dataset</option>
               <option value="connection">Connection query</option>
+              <option value="connection-stream">Stream connection</option>
               <option value="manual">Manual table</option>
             </Select>
           </div>
@@ -701,7 +703,9 @@ export function TableWidgetSettings({
                       </div>
                       <div className="mt-1">
                         {isConnectionTableMode
-                          ? "This table reads the published dataset from its hidden managed connection-query source."
+                          ? `This table reads the published dataset from its hidden managed ${
+                              isStreamConnectionTableMode ? "stream" : "query"
+                            } source.`
                           : "This table reads the published dataset from the selected source widget."}
                       </div>
                     </div>
@@ -713,14 +717,18 @@ export function TableWidgetSettings({
                 </div>
                 <p className={descriptionClass}>
                   {isConnectionTableMode
-                    ? "The hidden connection-query widget still owns execution and dataset publication. This table only formats the incoming rows."
+                    ? `The hidden ${
+                        isStreamConnectionTableMode ? "connection-stream-query" : "connection-query"
+                      } widget still owns execution and dataset publication. This table only formats the incoming rows.`
                     : "The linked source widget owns dataset publication. This table only formats the incoming rows."}
                 </p>
 
                 {managedConnectionSource ? (
                   <ConnectionQueryRuntimeStatusCard
                     title="Embedded connection source"
-                    description="This table owns a hidden connection-query source widget. Fix source query failures here before debugging table schema or formatting."
+                    description={`This table owns a hidden ${
+                      isStreamConnectionTableMode ? "connection stream" : "connection query"
+                    } source widget. Fix source failures here before debugging table schema or formatting.`}
                     runtimeState={managedConnectionSource.runtimeState ?? undefined}
                     draftProps={managedConnectionSource.props}
                     sourceTitle={managedConnectionSource.title}

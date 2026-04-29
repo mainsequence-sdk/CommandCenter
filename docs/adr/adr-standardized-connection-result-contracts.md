@@ -147,7 +147,7 @@ export interface CommandCenterFrameField {
 
 export interface BaseFrameSourceMeta {
   kind: string;
-  connectionUid?: string;
+  connectionId?: string;
   connectionTypeId?: string;
   queryModelId?: string;
   queryKind?: string;
@@ -613,7 +613,7 @@ Required Data Node row metadata:
     "source": {
       "kind": "mainsequence.data-node",
       "dataNodeId": 714,
-      "connectionUid": "main-sequence-data-node",
+      "connectionId": "main-sequence-data-node",
       "queryKind": "data-node-rows-between-dates"
     }
   }

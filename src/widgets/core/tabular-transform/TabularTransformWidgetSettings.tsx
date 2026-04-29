@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 
+import { Plus, Trash2 } from "lucide-react";
+
 import { normalizeTabularFrameSource } from "@/widgets/shared/tabular-frame-source";
+import type { TabularFrameFieldType } from "@/widgets/shared/tabular-frame-source";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
@@ -9,11 +12,113 @@ import {
   normalizeTabularTransformProps,
   parseFieldListText,
   type TabularAggregateMode,
+  type TabularFilterOperator,
+  type TabularFilterRule,
   type TabularTransformMode,
   type TabularTransformWidgetProps,
 } from "./tabularTransformModel";
 
 type Props = WidgetSettingsComponentProps<TabularTransformWidgetProps>;
+
+const FILTER_OPERATOR_OPTIONS: Array<{ value: TabularFilterOperator; label: string }> = [
+  { value: "equals", label: "Equals" },
+  { value: "not-equals", label: "Does not equal" },
+  { value: "in", label: "In list" },
+  { value: "not-in", label: "Not in list" },
+  { value: "gt", label: "Greater than" },
+  { value: "gte", label: "Greater than or equal" },
+  { value: "lt", label: "Less than" },
+  { value: "lte", label: "Less than or equal" },
+  { value: "is-empty", label: "Is empty" },
+  { value: "is-not-empty", label: "Is not empty" },
+];
+
+function operatorNeedsValue(operator: TabularFilterOperator | undefined) {
+  return operator !== "is-empty" && operator !== "is-not-empty";
+}
+
+function operatorUsesListValue(operator: TabularFilterOperator | undefined) {
+  return operator === "in" || operator === "not-in";
+}
+
+function normalizeFilterTextToken(token: string) {
+  const normalized = token.trim();
+
+  if (normalized === "") {
+    return undefined;
+  }
+
+  if (normalized === "null") {
+    return null;
+  }
+
+  return normalized;
+}
+
+function parseFilterScalarValue(rawValue: string, fieldType: TabularFrameFieldType | undefined) {
+  const normalized = normalizeFilterTextToken(rawValue);
+
+  if (normalized === undefined || normalized === null) {
+    return normalized;
+  }
+
+  if (fieldType === "number" || fieldType === "integer") {
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : normalized;
+  }
+
+  if (fieldType === "boolean") {
+    if (normalized.toLowerCase() === "true") {
+      return true;
+    }
+
+    if (normalized.toLowerCase() === "false") {
+      return false;
+    }
+  }
+
+  if (fieldType === "datetime" || fieldType === "date" || fieldType === "time") {
+    const numeric = Number(normalized);
+    return Number.isFinite(numeric) ? numeric : normalized;
+  }
+
+  return normalized;
+}
+
+function parseFilterRuleValue(
+  rawValue: string,
+  operator: TabularFilterOperator | undefined,
+  fieldType: TabularFrameFieldType | undefined,
+) {
+  if (!operatorNeedsValue(operator)) {
+    return undefined;
+  }
+
+  if (operatorUsesListValue(operator)) {
+    const values = rawValue
+      .split(/[\n,]+/)
+      .map((entry) => parseFilterScalarValue(entry, fieldType))
+      .filter((entry) => entry !== undefined);
+
+    return values.length > 0 ? values : undefined;
+  }
+
+  return parseFilterScalarValue(rawValue, fieldType);
+}
+
+function formatFilterRuleValue(value: TabularFilterRule["value"]) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => (entry === null ? "null" : String(entry)))
+      .join(", ");
+  }
+
+  if (value === null) {
+    return "null";
+  }
+
+  return value === undefined ? "" : String(value);
+}
 
 function FieldListInput({
   disabled,
@@ -75,6 +180,42 @@ function TextInput({
   );
 }
 
+function FieldSelect({
+  disabled,
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  disabled: boolean;
+  label: string;
+  onChange: (value: string | undefined) => void;
+  options: Array<{ key: string; label: string }>;
+  value: string | undefined;
+}) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <select
+        value={value ?? ""}
+        onChange={(event) => {
+          const nextValue = event.target.value.trim();
+          onChange(nextValue || undefined);
+        }}
+        disabled={disabled}
+        className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <option value="">Select field</option>
+        {options.map((option) => (
+          <option key={option.key} value={option.key}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function TabularTransformWidgetSettings({
   draftProps,
   editable,
@@ -93,6 +234,38 @@ export function TabularTransformWidgetSettings({
     () => sourceFrame?.columns ?? [],
     [sourceFrame?.columns],
   );
+  const availableFields = useMemo(() => {
+    const sourceFields = sourceFrame?.fields ?? [];
+
+    if (sourceFields.length > 0) {
+      return sourceFields.map((field) => ({
+        key: field.key,
+        label: field.label?.trim() || field.key,
+        type: field.type,
+      }));
+    }
+
+    return availableColumns.map((column) => ({
+      key: column,
+      label: column,
+      type: undefined,
+    }));
+  }, [availableColumns, sourceFrame?.fields]);
+  const fieldTypeByKey = useMemo(
+    () =>
+      new Map(
+        availableFields.map((field) => [field.key, field.type] as const),
+      ),
+    [availableFields],
+  );
+  const filterRules = props.filterRules ?? [];
+
+  function updateFilterRules(nextRules: TabularFilterRule[] | undefined) {
+    onDraftPropsChange({
+      ...draftProps,
+      filterRules: nextRules && nextRules.length > 0 ? nextRules : undefined,
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -132,6 +305,7 @@ export function TabularTransformWidgetSettings({
               className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <option value="none">None</option>
+              <option value="filter">Filter</option>
               <option value="aggregate">Aggregate</option>
               <option value="pivot">Pivot</option>
               <option value="unpivot">Unpivot</option>
@@ -147,7 +321,7 @@ export function TabularTransformWidgetSettings({
                   aggregateMode: event.target.value as TabularAggregateMode,
                 });
               }}
-              disabled={!editable}
+              disabled={!editable || (props.transformMode !== "aggregate" && props.transformMode !== "pivot")}
               className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <option value="first">First</option>
@@ -160,6 +334,174 @@ export function TabularTransformWidgetSettings({
           </label>
         </div>
       </section>
+
+      {props.transformMode === "filter" ? (
+        <section className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Filters</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Apply lightweight row predicates to the bound dataset before republishing it.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Combine rules</span>
+              <select
+                value={props.filterCombineMode}
+                onChange={(event) => {
+                  onDraftPropsChange({
+                    ...draftProps,
+                    filterCombineMode: event.target.value === "any" ? "any" : "all",
+                  });
+                }}
+                disabled={!editable}
+                className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="all">All rules</option>
+                <option value="any">Any rule</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="space-y-3">
+            {filterRules.length === 0 ? (
+              <div className="rounded-[calc(var(--radius)-4px)] border border-dashed border-border/70 bg-background/25 px-3 py-3 text-xs text-muted-foreground">
+                Add at least one rule. Available fields:{" "}
+                {availableColumns.length > 0 ? availableColumns.join(", ") : "none resolved"}.
+              </div>
+            ) : null}
+
+            {filterRules.map((rule, index) => {
+              const fieldOptions = [...availableFields];
+
+              if (
+                rule.field &&
+                !fieldOptions.some((field) => field.key === rule.field)
+              ) {
+                fieldOptions.unshift({
+                  key: rule.field,
+                  label: `${rule.field} (saved)`,
+                  type: undefined,
+                });
+              }
+
+              const fieldType = rule.field ? fieldTypeByKey.get(rule.field) : undefined;
+
+              return (
+                <div
+                  key={`${rule.field ?? "field"}:${rule.operator ?? "op"}:${index}`}
+                  className="space-y-3 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/25 p-3"
+                >
+                  <div className="grid gap-3 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_auto]">
+                    <FieldSelect
+                      label="Field"
+                      value={rule.field}
+                      disabled={!editable}
+                      options={fieldOptions}
+                      onChange={(field) => {
+                        const nextRules = [...filterRules];
+                        nextRules[index] = {
+                          ...rule,
+                          field,
+                        };
+                        updateFilterRules(nextRules);
+                      }}
+                    />
+                    <label className="block space-y-2">
+                      <span className="text-xs font-medium text-muted-foreground">Operator</span>
+                      <select
+                        value={rule.operator ?? ""}
+                        onChange={(event) => {
+                          const nextOperator =
+                            (event.target.value as TabularFilterOperator | "") || undefined;
+                          const nextRules = [...filterRules];
+                          nextRules[index] = {
+                            ...rule,
+                            operator: nextOperator,
+                            value: operatorNeedsValue(nextOperator) ? rule.value : undefined,
+                          };
+                          updateFilterRules(nextRules);
+                        }}
+                        disabled={!editable}
+                        className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <option value="">Select operator</option>
+                        {FILTER_OPERATOR_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateFilterRules(filterRules.filter((_, ruleIndex) => ruleIndex !== index));
+                        }}
+                        disabled={!editable}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground transition-colors hover:border-danger/40 hover:text-danger disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+
+                  {operatorNeedsValue(rule.operator) ? (
+                    <label className="block space-y-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {operatorUsesListValue(rule.operator) ? "Values" : "Value"}
+                      </span>
+                      <input
+                        value={formatFilterRuleValue(rule.value)}
+                        onChange={(event) => {
+                          const nextRules = [...filterRules];
+                          nextRules[index] = {
+                            ...rule,
+                            value: parseFilterRuleValue(
+                              event.target.value,
+                              rule.operator,
+                              fieldType,
+                            ),
+                          };
+                          updateFilterRules(nextRules);
+                        }}
+                        disabled={!editable}
+                        placeholder={
+                          operatorUsesListValue(rule.operator)
+                            ? "value_a, value_b"
+                            : fieldType === "boolean"
+                              ? "true"
+                              : "value"
+                        }
+                        className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    </label>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              updateFilterRules([
+                ...filterRules,
+                {
+                  operator: "equals",
+                },
+              ]);
+            }}
+            disabled={!editable}
+            className="inline-flex h-10 items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Plus className="h-4 w-4" />
+            Add rule
+          </button>
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <div>

@@ -222,7 +222,9 @@ export function StatisticWidgetSettings({
   const sourceMode = normalizeStatisticAuthoringSourceMode(
     draftProps.statisticSourceMode,
   );
-  const isManagedConnectionMode = sourceMode === "connection";
+  const isManagedConnectionMode =
+    sourceMode === "connection" || sourceMode === "connection-stream";
+  const isStreamManagedConnectionMode = sourceMode === "connection-stream";
 
   return (
     <div className="space-y-3">
@@ -253,7 +255,9 @@ export function StatisticWidgetSettings({
                 </div>
                 <div className="mt-1">
                   {isManagedConnectionMode
-                    ? "This statistic is consuming the published dataset from its hidden managed connection-query source."
+                    ? `This statistic is consuming the published dataset from its hidden managed ${
+                        isStreamManagedConnectionMode ? "stream" : "query"
+                      } source.`
                     : "This statistic is consuming the published dataset from the selected source widget."}
                 </div>
               </>
@@ -269,7 +273,9 @@ export function StatisticWidgetSettings({
       {managedConnectionSource ? (
         <ConnectionQueryRuntimeStatusCard
           title="Embedded connection source"
-          description="This statistic owns a hidden connection-query source widget. Fix source query failures here before debugging field choices or reduction rules."
+          description={`This statistic owns a hidden ${
+            isStreamManagedConnectionMode ? "connection stream" : "connection query"
+          } source widget. Fix source failures here before debugging field choices or reduction rules.`}
           runtimeState={managedConnectionSource.runtimeState ?? undefined}
           draftProps={managedConnectionSource.props}
           sourceTitle={managedConnectionSource.title}

@@ -1,0 +1,15 @@
+{
+  "id": "connections/adapters/README",
+  "title": "Connection Adapters",
+  "description": "Connection adapters are backend runtime implementations for frontend connection types. The",
+  "source": "@site/../docs/connections/adapters/README.md",
+  "sourceDirName": "connections/adapters",
+  "slug": "/connections/adapters/",
+  "permalink": "/docs/connections/adapters/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/connections/adapters/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

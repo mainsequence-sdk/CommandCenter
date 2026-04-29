@@ -1,0 +1,15 @@
+{
+  "id": "todos/assistant_ui",
+  "title": "Assistant UI Notes",
+  "description": "This note captures the current assistant_ui chat request flow and the concrete argument behavior for the Command Center base-session call.",
+  "source": "@site/../docs/todos/assistant_ui.md",
+  "sourceDirName": "todos",
+  "slug": "/todos/assistant_ui",
+  "permalink": "/docs/todos/assistant_ui",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/todos/assistant_ui.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

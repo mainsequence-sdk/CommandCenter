@@ -22,7 +22,7 @@ The connection exposes Massive REST market data, reference data, news, filings, 
 - Backend implementation: `timeseries_orm/command_center/adapters/connections/massive_market_data.py`
 - Routes: generic `/test/`, `/query/`, and `/resources/<resource>/` connection routes only.
 - Provider access: backend uses `requests.Session.get`; no Massive, Polygon, `httpx`, `aiohttp`, pandas, or provider SDK dependency.
-- Output contract: every widget-bound query returns exactly one `core.tabular_frame@v1`; the adapter must not set `meta.timeSeries`.
+- Output contract: every widget-bound query returns exactly one `core.tabular_frame@v1`.
 - Secure config: `apiKey`, sent by the backend as `Authorization: Bearer <apiKey>` and never returned to the frontend.
 
 ## Configuration Ownership

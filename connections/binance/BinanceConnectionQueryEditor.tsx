@@ -59,6 +59,7 @@ function readDefaultQuoteAsset(value: unknown) {
 }
 
 export function BinanceConnectionQueryEditor({
+  authoringMode = "query",
   connectionInstance,
   disabled = false,
   onChange,
@@ -68,6 +69,7 @@ export function BinanceConnectionQueryEditor({
   const kind = readKind(queryModel?.id, value);
   const isOhlc = kind.endsWith("-ohlc");
   const isAggregateTrades = kind.endsWith("-aggregate-trades");
+  const isStreamAuthoring = authoringMode === "stream";
   const symbolSuggestions = useMemo(() => {
     const quoteAsset = readDefaultQuoteAsset(connectionInstance?.publicConfig.defaultQuoteAsset);
 
@@ -92,8 +94,16 @@ export function BinanceConnectionQueryEditor({
       </div>
 
       <ConnectionQueryEditorSection
-        title={queryModel?.label ?? "Binance market data"}
-        description="The backend adapter sends this payload through Binance public market-data REST APIs and returns one canonical tabular frame."
+        title={
+          isStreamAuthoring
+            ? `${queryModel?.label ?? "Binance market data"} subscription`
+            : queryModel?.label ?? "Binance market data"
+        }
+        description={
+          isStreamAuthoring
+            ? "The backend adapter validates this subscription payload against the selected Binance stream path, builds the opening snapshot from the standard request envelope when applicable, then keeps the provider WebSocket subscription open and emits canonical snapshot or delta frames."
+            : "The backend adapter validates this payload against the selected Binance query model, executes one backend-owned request, and returns one canonical tabular frame contract."
+        }
       >
         <QueryStringListField
           label="Symbols"
@@ -118,13 +128,17 @@ export function BinanceConnectionQueryEditor({
         ) : null}
 
         <QueryNumberField
-          label="Limit"
+          label={isStreamAuthoring ? "Initial snapshot limit" : "Limit"}
           value={value.limit}
           min={1}
           onChange={(limit) => patchQuery(value, onChange, kind, { limit })}
           disabled={disabled}
           placeholder="1000"
-          help="Provider row limit. Backend caps this to each Binance endpoint maximum."
+          help={
+            isStreamAuthoring
+              ? "Maximum rows requested for the opening snapshot before live stream updates continue. Backend caps this to each Binance endpoint maximum."
+              : "Provider row limit. Backend caps this to each Binance endpoint maximum."
+          }
         />
 
         {isAggregateTrades ? (
@@ -136,7 +150,11 @@ export function BinanceConnectionQueryEditor({
               onChange={(fromId) => patchQuery(value, onChange, kind, { fromId })}
               disabled={disabled}
               placeholder="Optional aggregate trade id"
-              help="Optional aggregate trade id cursor. When present, the backend omits startTime and endTime."
+              help={
+                isStreamAuthoring
+                  ? "Optional aggregate trade id cursor for the opening snapshot. When present, the backend omits startTime and endTime before live aggregate-trade updates continue."
+                  : "Optional aggregate trade id cursor. When present, the backend omits startTime and endTime."
+              }
             />
           </>
         ) : null}

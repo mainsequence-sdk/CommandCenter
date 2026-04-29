@@ -15,6 +15,9 @@ feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 043: WebSocket Stream Preview And Graphing Semantics](./adr-043-websocket-stream-preview-graphing-semantics.md)
+- [ADR 042: Lightweight Row Filtering in Tabular Transform](./adr-042-tabular-transform-row-filtering.md)
+- [ADR 041: Query-Shaped WebSocket Streaming for Connections](./adr-041-connection-query-websocket-streaming.md)
 - [ADR 040: Dashboard Surface Return Hydration](./adr-040-dashboard-surface-return-hydration.md)
 - [ADR 039: Unified Upstream Consumer State Contract](./adr-039-unified-upstream-consumer-state-contract.md)
 - [ADR 038: Progressive Workspace Initial Rendering and Per-Widget Hydration](./adr-038-progressive-workspace-widget-hydration.md)
@@ -27,13 +30,15 @@ feature folder.
 - [ADR: Managed Connection Query Sources for Consumer Widgets](./adr-managed-connection-query-widget-sources.md)
 - [ADR: Incremental Workspace Normalization and Resource-Scoped Save](./adr-incremental-workspace-normalization.md)
 - [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
-- [ADR: Query-Shaped WebSocket Streaming for Connections](./adr-connection-query-websocket-streaming.md)
 - [ADR: Live Workspace Agent Snapshot Archive](./adr-live-workspace-agent-snapshot-archive.md)
 - [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](./adr-widget-agent-context-bindings.md)
 - [ADR: Workspace Widget Referenced Workspace Graph Expansion](./adr-workspace-widget-referenced-graph-expansion.md)
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 043: WebSocket Stream Preview And Graphing Semantics](./adr-043-websocket-stream-preview-graphing-semantics.md)
+- [ADR 042: Lightweight Row Filtering in Tabular Transform](./adr-042-tabular-transform-row-filtering.md)
+- [ADR 041: Query-Shaped WebSocket Streaming for Connections](./adr-041-connection-query-websocket-streaming.md)
 - [ADR 040: Dashboard Surface Return Hydration](./adr-040-dashboard-surface-return-hydration.md)
 - [ADR 039: Unified Upstream Consumer State Contract](./adr-039-unified-upstream-consumer-state-contract.md)
 - [ADR 038: Progressive Workspace Initial Rendering and Per-Widget Hydration](./adr-038-progressive-workspace-widget-hydration.md)
@@ -42,7 +47,6 @@ feature folder.
 - [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
 - [ADR: Shared Connection Authoring Contract](./adr-connection-authoring-contract.md)
 - [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
-- [ADR: Query-Shaped WebSocket Streaming for Connections](./adr-connection-query-websocket-streaming.md)
 - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
 - [ADR: Source-Driven Downstream Execution After Manual Widget Actions](./adr-source-driven-downstream-execution.md)
 - [ADR: Connection-First Workspace Dataflow](./adr-connection-first-workspace-dataflow.md)
@@ -68,7 +72,8 @@ feature folder.
 - [ADR: Shared Connection Authoring Contract](./adr-connection-authoring-contract.md)
 - [ADR: Standardized Connection Result Contracts](./adr-standardized-connection-result-contracts.md)
 - [ADR: Incremental In-Memory Connection Response Refresh](./adr-incremental-connection-response-refresh.md)
-- [ADR: Query-Shaped WebSocket Streaming for Connections](./adr-connection-query-websocket-streaming.md)
+- [ADR 043: WebSocket Stream Preview And Graphing Semantics](./adr-043-websocket-stream-preview-graphing-semantics.md)
+- [ADR 041: Query-Shaped WebSocket Streaming for Connections](./adr-041-connection-query-websocket-streaming.md)
 - [ADR: Main Sequence Simple Table Connection](./adr-main-sequence-simple-table-connection.md)
 - [ADR: PostgreSQL Custom Connection](./adr-postgresql-connection.md)
 

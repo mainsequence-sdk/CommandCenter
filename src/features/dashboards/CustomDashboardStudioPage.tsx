@@ -1259,6 +1259,7 @@ function BuilderWidgetCard({
         <WidgetCanvasControls
           widget={widget}
           instanceId={instanceId}
+          instanceTitle={instanceTitle}
           props={widgetProps}
           presentation={widgetPresentation}
           runtimeState={widgetRuntimeState}
@@ -3283,6 +3284,7 @@ export function CustomDashboardStudioPage({
                       key={instance.id}
                       widget={widget}
                       instanceId={instance.id}
+                      instanceTitle={instance.title}
                       props={(instance.props ?? {}) as Record<string, unknown>}
                       presentation={instance.presentation}
                       runtimeState={instance.runtimeState}
@@ -3302,6 +3304,10 @@ export function CustomDashboardStudioPage({
                             presentation,
                           }),
                         );
+                      }}
+                      onOpenSettings={() => {
+                        setSelectedInstanceId(instance.id);
+                        openWidgetSettings(instance.id);
                       }}
                       editable={editMode}
                       containerStyle={layoutToStyle(instance.layout)}

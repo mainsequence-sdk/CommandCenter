@@ -101,4 +101,24 @@ describe("connection authoring contract", () => {
     expect(fredDraft.maxRows).toBe(1000);
     expect(fredDraft.timeRangeMode).toBe("fixed");
   });
+
+  it("seeds stream drafts from streamable query models instead of HTTP defaults", () => {
+    const streamDraft = buildConnectionQueryDraftSeed({
+      authoringMode: "stream",
+      connectionInstance: createConnectionInstance(binanceMarketDataConnection, {
+        marketTypes: ["spot", "usdm_futures"],
+      }),
+      connectionType: binanceMarketDataConnection,
+    });
+
+    expect(streamDraft.queryModelId).toBe("binance-spot-ohlc");
+    expect(streamDraft.query).toEqual({
+      kind: "binance-spot-ohlc",
+      symbols: [],
+      interval: "1m",
+    });
+    expect(streamDraft.timeRangeMode).toBe("fixed");
+    expect(typeof streamDraft.fixedStartMs).toBe("number");
+    expect(typeof streamDraft.fixedEndMs).toBe("number");
+  });
 });

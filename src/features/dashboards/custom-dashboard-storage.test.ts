@@ -458,6 +458,85 @@ describe("custom dashboard storage managed widgets", () => {
     });
   });
 
+  it("creates and binds a managed connection-stream-query source when graph stream mode is saved", () => {
+    const dashboard = dashboardWithWidgets([
+      graphWidget("graph-1", { x: 0, y: 0 }),
+    ]);
+
+    const updated = updateDashboardWidgetSettings(dashboard, "graph-1", {
+      title: "Ticker Graph",
+      props: {
+        graphSourceMode: "connection-stream",
+        embeddedConnectionQuery: {
+          connectionRef: {
+            id: 88,
+            typeId: "binance",
+          },
+          query: {
+            kind: "ticker",
+            symbols: ["BTCUSDT"],
+          },
+          mergeKeyFields: ["symbol"],
+          retentionMaxRows: 250,
+        },
+      },
+    });
+
+    const managedSource = findManagedDashboardWidget(updated, {
+      ownerInstanceId: "graph-1",
+      role: "embedded-connection-source",
+    });
+    const owner = updated.widgets.find((widget) => widget.id === "graph-1");
+
+    expect(managedSource?.widgetId).toBe("connection-stream-query");
+    expect(managedSource?.title).toBe("Ticker Graph Source");
+    expect(managedSource?.props).toMatchObject({
+      connectionRef: {
+        id: 88,
+        typeId: "binance",
+      },
+      mergeKeyFields: ["symbol"],
+      retentionMaxRows: 250,
+    });
+    expect(owner?.bindings).toEqual({
+      sourceData: {
+        sourceWidgetId: managedSource?.id,
+        sourceOutputId: "dataset",
+      },
+    });
+  });
+
+  it("keeps managed stream mode from saving when the selected query model is not streamable", () => {
+    const dashboard = dashboardWithWidgets([
+      graphWidget("graph-1", { x: 0, y: 0 }),
+    ]);
+
+    const updated = updateDashboardWidgetSettings(dashboard, "graph-1", {
+      props: {
+        graphSourceMode: "connection-stream",
+        embeddedConnectionQuery: {
+          connectionRef: {
+            id: 7,
+            typeId: "unknown-connection-type",
+          },
+          queryModelId: "not-streamable",
+          query: {
+            kind: "not-streamable",
+          },
+        },
+      },
+    });
+
+    const managedSource = findManagedDashboardWidget(updated, {
+      ownerInstanceId: "graph-1",
+      role: "embedded-connection-source",
+    });
+    const owner = updated.widgets.find((widget) => widget.id === "graph-1");
+
+    expect(owner?.props?.graphSourceMode).toBe("connection");
+    expect(managedSource?.widgetId).toBe("connection-query");
+  });
+
   it("updates the existing managed connection-query source when graph connection settings change", () => {
     const dashboard = updateDashboardWidgetSettings(
       dashboardWithWidgets([graphWidget("graph-1", { x: 0, y: 0 })]),

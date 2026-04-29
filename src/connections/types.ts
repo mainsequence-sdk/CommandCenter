@@ -33,6 +33,9 @@ export type ConnectionCapability =
 
 export type ConnectionAccessMode = "proxy" | "browser" | "server-only";
 
+export type ConnectionStreamMode = "snapshot" | "delta";
+export type ConnectionAuthoringMode = "query" | "stream";
+
 export type ConnectionSchemaFieldType =
   | "string"
   | "number"
@@ -69,6 +72,29 @@ export interface ConnectionConfigSchema {
   fields: ConnectionSchemaField[];
 }
 
+export interface ConnectionQueryStreamModel {
+  transport: "websocket";
+  modes: ConnectionStreamMode[];
+  defaultMode?: ConnectionStreamMode;
+  supportsResume?: boolean;
+  heartbeatMs?: number;
+  description?: string;
+  defaultMergeKeyFields?: string[];
+}
+
+export interface ConnectionQueryGraphPreviewModel {
+  xField: string;
+  yField: string;
+  groupField?: string;
+  rowIdentityFields?: string[];
+  preferredChartType?: "line" | "area" | "bar";
+  maxRetainedRows?: number;
+}
+
+export interface ConnectionQueryPreviewModel {
+  graph?: ConnectionQueryGraphPreviewModel;
+}
+
 export interface ConnectionQueryModel {
   id: string;
   label: string;
@@ -80,6 +106,50 @@ export interface ConnectionQueryModel {
   timeRangeAware?: boolean;
   supportsVariables?: boolean;
   supportsMaxRows?: boolean;
+  stream?: ConnectionQueryStreamModel;
+  preview?: ConnectionQueryPreviewModel;
+}
+
+export function isConnectionQueryModelStreamable(
+  queryModel: ConnectionQueryModel | null | undefined,
+): queryModel is ConnectionQueryModel & { stream: ConnectionQueryStreamModel } {
+  const stream = queryModel?.stream;
+
+  return (
+    stream?.transport === "websocket" &&
+    Array.isArray(stream.modes) &&
+    stream.modes.length > 0 &&
+    stream.modes.every((mode) => mode === "snapshot" || mode === "delta")
+  );
+}
+
+export function assertConnectionQueryModelStreamable(
+  queryModel: ConnectionQueryModel | null | undefined,
+): asserts queryModel is ConnectionQueryModel & { stream: ConnectionQueryStreamModel } {
+  if (!isConnectionQueryModelStreamable(queryModel)) {
+    throw new Error("The selected connection query model does not support WebSocket streaming.");
+  }
+}
+
+export function formatConnectionQueryModelTransportLabel(
+  queryModel: ConnectionQueryModel | null | undefined,
+): "HTTP" | "WS" {
+  return isConnectionQueryModelStreamable(queryModel) ? "WS" : "HTTP";
+}
+
+export function resolveConnectionQueryModelDescription(
+  queryModel: ConnectionQueryModel | null | undefined,
+  authoringMode: ConnectionAuthoringMode = "query",
+) {
+  if (!queryModel) {
+    return undefined;
+  }
+
+  if (authoringMode === "stream" && isConnectionQueryModelStreamable(queryModel)) {
+    return queryModel.stream.description?.trim() || queryModel.description?.trim();
+  }
+
+  return queryModel.description?.trim();
 }
 
 export interface ConnectionConfigEditorProps<
@@ -101,6 +171,7 @@ export interface ConnectionQueryEditorProps<
   connectionInstance?: ConnectionInstance;
   connectionType?: ConnectionTypeDefinition<any, any>;
   queryModel?: ConnectionQueryModel;
+  authoringMode?: ConnectionAuthoringMode;
 }
 
 export interface ConnectionQueryDraftDefaults {
@@ -116,6 +187,7 @@ export interface ConnectionQueryDraftDefaultsResolverInput {
   connectionType: ConnectionTypeDefinition<any, any>;
   queryModels: ConnectionQueryModel[];
   selectedQueryModel?: ConnectionQueryModel;
+  authoringMode?: ConnectionAuthoringMode;
 }
 
 export interface ConnectionAuthoringQueryModelsResolverInput {
@@ -142,6 +214,9 @@ export interface ConnectionAuthoringContract {
   exploreRunButtonLabel?: string;
   exploreResultTitle?: string;
   exploreResultDescription?: string;
+  streamRunButtonLabel?: string;
+  streamResultTitle?: string;
+  streamResultDescription?: string;
 }
 
 export interface ConnectionExploreProps {
@@ -264,6 +339,74 @@ export interface ConnectionQueryResponse {
   warnings?: string[];
   traceId?: string;
 }
+
+export type ConnectionStreamQueryRequest<TQuery = Record<string, unknown>> = Omit<
+  ConnectionQueryRequest<TQuery>,
+  "cacheMode" | "cacheTtlMs"
+> & {
+  resumeToken?: string;
+};
+
+export interface ConnectionStreamSubscribeMessage<TQuery = Record<string, unknown>> {
+  type: "subscribe";
+  request: ConnectionStreamQueryRequest<TQuery>;
+}
+
+export interface ConnectionStreamAckMessage {
+  type: "ack";
+  connectionId: ConnectionId;
+  queryKind: string;
+  sequence: number;
+  acceptedAt: string;
+  traceId?: string;
+  heartbeatMs?: number;
+  resumeToken?: string;
+}
+
+export interface ConnectionStreamDataMessage {
+  type: "snapshot" | "delta";
+  connectionId: ConnectionId;
+  queryKind: string;
+  sequence: number;
+  emittedAt: string;
+  response: ConnectionQueryResponse;
+  traceId?: string;
+  resumeToken?: string;
+  warnings?: string[];
+}
+
+export interface ConnectionStreamHeartbeatMessage {
+  type: "heartbeat";
+  sequence: number;
+  emittedAt: string;
+  traceId?: string;
+}
+
+export interface ConnectionStreamErrorMessage {
+  type: "error";
+  sequence: number;
+  emittedAt: string;
+  code: string;
+  message: string;
+  retryable: boolean;
+  traceId?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface ConnectionStreamCompleteMessage {
+  type: "complete";
+  sequence: number;
+  emittedAt: string;
+  reason?: string;
+  traceId?: string;
+}
+
+export type ConnectionStreamServerMessage =
+  | ConnectionStreamAckMessage
+  | ConnectionStreamDataMessage
+  | ConnectionStreamHeartbeatMessage
+  | ConnectionStreamErrorMessage
+  | ConnectionStreamCompleteMessage;
 
 export interface ConnectionResourceRequest {
   connectionId: ConnectionId;

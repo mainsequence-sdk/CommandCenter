@@ -1,0 +1,15 @@
+{
+  "id": "adr/adr-standardized-connection-result-contracts",
+  "title": "ADR: Standardized Connection Result Contracts",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/adr-standardized-connection-result-contracts.md",
+  "sourceDirName": "adr",
+  "slug": "/adr/adr-standardized-connection-result-contracts",
+  "permalink": "/docs/adr/adr-standardized-connection-result-contracts",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/adr-standardized-connection-result-contracts.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

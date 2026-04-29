@@ -2,12 +2,19 @@ import type { WidgetInstancePresentation } from "@/widgets/types";
 import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import type { AnyManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer";
 import { normalizeConnectionQueryProps } from "@/widgets/core/connection-query/connectionQueryModel";
+import {
+  normalizeConnectionStreamQueryProps,
+  type ConnectionStreamQueryWidgetProps,
+} from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
 
 import {
   normalizeStatisticAuthoringSourceMode,
   resolveStatisticEmbeddedConnectionQueryProps,
   type StatisticWidgetProps,
 } from "./statisticModel";
+
+const statisticConnectionMode = "connection";
+const statisticStreamConnectionMode = "connection-stream";
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -16,7 +23,8 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 export const statisticManagedConnectionConsumerAdapter = {
   widgetId: "statistic",
   sourceInputId: TABULAR_SOURCE_INPUT_ID,
-  connectionMode: "connection",
+  connectionMode: statisticConnectionMode,
+  streamConnectionMode: statisticStreamConnectionMode,
   getSourceMode(props: Record<string, unknown>) {
     return normalizeStatisticAuthoringSourceMode(
       (props as StatisticWidgetProps).statisticSourceMode,
@@ -32,14 +40,27 @@ export const statisticManagedConnectionConsumerAdapter = {
     } satisfies StatisticWidgetProps;
   },
   getEmbeddedConnectionQuery(props: Record<string, unknown>) {
-    return resolveStatisticEmbeddedConnectionQueryProps(
-      props as StatisticWidgetProps,
-    );
+    const statisticProps = props as StatisticWidgetProps;
+
+    return normalizeStatisticAuthoringSourceMode(statisticProps.statisticSourceMode) ===
+      statisticStreamConnectionMode
+      ? normalizeConnectionStreamQueryProps(
+          (isPlainRecord(statisticProps.embeddedConnectionQuery)
+            ? statisticProps.embeddedConnectionQuery
+            : {}) as ConnectionStreamQueryWidgetProps,
+        )
+      : resolveStatisticEmbeddedConnectionQueryProps(statisticProps);
   },
   setEmbeddedConnectionQuery(props: Record<string, unknown>, value) {
+    const statisticProps = props as StatisticWidgetProps;
+
     return {
-      ...(props as StatisticWidgetProps),
-      embeddedConnectionQuery: normalizeConnectionQueryProps(value),
+      ...statisticProps,
+      embeddedConnectionQuery:
+        normalizeStatisticAuthoringSourceMode(statisticProps.statisticSourceMode) ===
+        statisticStreamConnectionMode
+          ? normalizeConnectionStreamQueryProps(value as ConnectionStreamQueryWidgetProps)
+          : normalizeConnectionQueryProps(value),
     } satisfies StatisticWidgetProps;
   },
   getEmbeddedConnectionPresentation(props: Record<string, unknown>) {

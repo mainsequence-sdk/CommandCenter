@@ -263,6 +263,7 @@ function buildNumericGraphSeries(
       id: series.id,
       label: series.label,
       pointCount: series.pointMap.size,
+      sourcePointCount: series.pointMap.size,
       points: [...series.pointMap.entries()]
         .sort((left, right) => left[0] - right[0])
         .map(([time, value]) => ({ time, value })),
@@ -304,20 +305,18 @@ function buildGraphPreview(
     fieldOptions,
   );
 
-  if (hasTabularTimeSeriesSemantics(sourceFrame)) {
-    const seriesResult = buildGraphSeries(sourceFrame.rows, config);
-    const effectiveTimeAxisMode = resolveGraphEffectiveTimeAxisMode(config, sourceFrame.rows);
-    const chartSeriesResult = buildGraphChartSeries(seriesResult.series, effectiveTimeAxisMode);
+  const timeSeriesResult = buildGraphSeries(sourceFrame.rows, config);
+  const effectiveTimeAxisMode = resolveGraphEffectiveTimeAxisMode(config, sourceFrame.rows);
+  const chartSeriesResult = buildGraphChartSeries(timeSeriesResult.series, effectiveTimeAxisMode);
 
-    if (chartSeriesResult.series.length > 0) {
-      return {
-        chartSeries: chartSeriesResult.series,
-        chartType: config.chartType,
-        effectiveTimeAxisMode,
-        normalizationTimeMs: resolveGraphNormalizationTimeMs(config),
-        xAxisType: "time",
-      };
-    }
+  if (chartSeriesResult.series.length > 0) {
+    return {
+      chartSeries: chartSeriesResult.series,
+      chartType: config.chartType,
+      effectiveTimeAxisMode,
+      normalizationTimeMs: resolveGraphNormalizationTimeMs(config),
+      xAxisType: "time",
+    };
   }
 
   const numericDefaults = resolveNumericGraphDefaults(sourceFrame);

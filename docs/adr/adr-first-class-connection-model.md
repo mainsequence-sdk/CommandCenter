@@ -199,7 +199,6 @@ Add a backend-owned `ConnectionInstance` model and expose only sanitized data to
 ```ts
 export interface ConnectionInstance {
   id: string;
-  uid: string;
   typeId: string;
   typeVersion: number;
 
@@ -232,7 +231,7 @@ Widgets and dashboards should store:
 
 ```ts
 export interface ConnectionRef {
-  uid: string;
+  id: string;
   typeId: string;
 }
 ```
@@ -245,7 +244,7 @@ Connections should return typed frames that can feed widget IO contracts:
 
 ```ts
 export interface ConnectionQueryRequest<TQuery = Record<string, unknown>> {
-  connectionUid: string;
+  connectionId: string;
   query: TQuery;
   timeRange?: {
     from: string;
@@ -299,11 +298,11 @@ connections:
 
   instances:
     list_url: /api/v1/command_center/connections/
-    detail_url: /api/v1/command_center/connections/{uid}/
-    test_url: /api/v1/command_center/connections/{uid}/test/
-    query_url: /api/v1/command_center/connections/{uid}/query/
-    resource_url: /api/v1/command_center/connections/{uid}/resources/{resource}/
-    stream_url: /api/v1/command_center/connections/{uid}/stream/
+    detail_url: /api/v1/command_center/connections/{id}/
+    test_url: /api/v1/command_center/connections/{id}/test/
+    query_url: /api/v1/command_center/connections/{id}/query/
+    resource_url: /api/v1/command_center/connections/{id}/resources/{resource}/
+    stream_url: /api/v1/command_center/connections/{id}/stream/
 ```
 
 `src/config/command-center.ts` should parse these paths the same way it already parses workspaces,
@@ -376,7 +375,7 @@ Recommended schema concept:
 
 ```ts
 {
-  id: "connectionUid",
+  id: "connectionId",
   label: "Market data connection",
   sectionId: "data",
   type: "connection",
@@ -392,7 +391,7 @@ Runtime helpers should provide:
 
 ```ts
 useConnectionQuery({
-  connectionUid: props.connectionUid,
+  connectionId: props.connectionId,
   query: {
     kind: "price-history",
     symbol: props.symbol,
@@ -401,7 +400,7 @@ useConnectionQuery({
 });
 
 useConnectionStream({
-  connectionUid: props.connectionUid,
+  connectionId: props.connectionId,
   channel: "prices",
   params: { symbol: props.symbol },
   onMessage: handleStreamMessage,
@@ -534,7 +533,7 @@ Direct mode should change from calling fixed helpers to issuing a connection que
 
 ```ts
 queryConnection({
-  connectionUid: props.connectionRef.uid,
+  connectionId: props.connectionRef.id,
   query: {
     kind: "data-node-rows-between-dates",
     startDate,
@@ -610,7 +609,6 @@ field masks directly.
 ### ConnectionInstance
 
 - `id`
-- `uid`
 - `organization_id`
 - `workspace_id`
 - `type_id`
@@ -683,7 +681,7 @@ The frontend must never receive secret values after create/update.
 ### ConnectionHealthCheck
 
 - `id`
-- `connection_uid`
+- `connection_id`
 - `status`
 - `message`
 - `latency_ms`
@@ -747,7 +745,7 @@ Recommended identity:
 
 ```text
 typeId: command-center.system-api
-uid: system-default
+id: system-default
 source: core
 visibility: hidden/system
 ```
@@ -861,7 +859,7 @@ The desired persisted widget shape is:
 ```ts
 {
   connectionRef: {
-    uid: "<connection-uid>",
+    id: "<connection-id>",
     typeId: "<connection-type-id>"
   }
 }

@@ -100,13 +100,13 @@ function resolveConnectionQueryIo(
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   id: "connection-query",
   widgetVersion: "1.5.3",
-  title: "Connection Query",
+  title: "Connection Query (HTTP)",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
   kind: "custom",
   source: "core",
   requiredPermissions: ["workspaces:view"],
-  tags: ["connection", "query", "source", "tabular", "data-source"],
+  tags: ["connection", "query", "http", "source", "tabular", "data-source"],
   exampleProps: {
     query: {},
     timeRangeMode: "dashboard",

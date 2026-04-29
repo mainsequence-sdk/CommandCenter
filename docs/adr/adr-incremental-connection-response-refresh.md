@@ -93,7 +93,7 @@ This ADR does not require:
 The shared connection query runtime should maintain an in-memory retained response keyed by a stable
 query identity:
 
-- connection uid
+- connection id
 - connection type id
 - query model id
 - requested output contract
@@ -401,7 +401,7 @@ remain optional. It must not become a prerequisite for this ADR.
 - [x] Add settings UI that lets the user choose the time field and merge-key columns from
       response/schema candidates and still type fields manually.
 - [x] Add an in-memory retained connection response store keyed by stable connection query identity.
-- [x] Add query identity normalization for connection uid, type id, query model, payload, variables,
+- [x] Add query identity normalization for connection id, type id, query model, payload, variables,
       requested contract, max rows, incremental time field, incremental merge key fields, and
       retention policy.
 - [x] Add full-window initial load behavior.

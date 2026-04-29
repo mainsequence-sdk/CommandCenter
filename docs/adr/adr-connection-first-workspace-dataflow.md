@@ -143,7 +143,7 @@ A saved connection query backend record should store at least:
 
 - stable id and display name
 - owner or organization scope and permission metadata
-- `connectionUid` and `connectionTypeId`
+- `connectionId` and `connectionTypeId`
 - selected `queryModelId`
 - typed query payload, including `query.kind`
 - `timeRangeMode`, fixed date defaults when applicable, and any future relative range default

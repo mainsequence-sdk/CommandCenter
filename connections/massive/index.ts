@@ -190,7 +190,7 @@ Connects widgets and Explore flows to Massive REST market data, reference data, 
 
 ## queryModels
 
-The frontend manifest publishes one query model per catalog entry. All models return \`core.tabular_frame@v1\`, do not support variables, support request \`maxRows\`, and keep chart semantics out of \`meta.timeSeries\`.
+The frontend manifest publishes one query model per catalog entry. All models return \`core.tabular_frame@v1\`, do not support variables, and support request \`maxRows\`.
 
 ${buildMassiveCatalogUsageMarkdown()}
 
@@ -221,7 +221,7 @@ ${buildMassiveCatalogUsageMarkdown()}
 - Backend owns credential decryption, bearer auth, requests-only provider HTTP calls, endpoint allowlisting, path and query parameter validation, pagination host validation, health checks, permissions, cache policy, cache-key dimensions, in-flight dedupe, entitlement errors, response normalization, and secret redaction.
 - Backend implementation module: \`timeseries_orm/command_center/adapters/connections/massive_market_data.py\`.
 - Generic routes only: \`/test/\`, \`/query/\`, and \`/resources/<resource>/\`.
-- Query responses must contain exactly one \`core.tabular_frame@v1\` frame for widget-bound queries and must not set \`meta.timeSeries\`.
+- Query responses must contain exactly one \`core.tabular_frame@v1\` frame for widget-bound queries.
 - Unsafe operations rejected by the backend include unknown kinds, unknown path params, unknown provider params, malformed dates, disabled asset classes, disabled beta/deprecated entries, arbitrary URL pass-through, unsafe \`next_url\` hosts, and credential leakage through logs or metadata.`;
 
 export const massiveMarketDataConnection: ConnectionTypeDefinition<

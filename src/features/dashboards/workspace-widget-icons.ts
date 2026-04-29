@@ -73,7 +73,7 @@ export function resolveWorkspaceWidgetIcon({
   workspaceIcon,
   railIcon,
 }: WorkspaceWidgetIconDescriptor): ComponentType<{ className?: string }> {
-  if (id === "connection-query") {
+  if (id === "connection-query" || id === "connection-stream-query") {
     const connectionTypeIcon = resolveConnectionQueryTypeIcon(props);
 
     if (connectionTypeIcon) {

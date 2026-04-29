@@ -21,7 +21,7 @@ The connection exposes Federal Reserve Economic Data series observations and sel
 - Backend implementation: `timeseries_orm/command_center/adapters/connections/fred_economic_data.py`
 - Routes: generic `/test/`, `/query/`, and `/resources/<resource>/` connection routes only.
 - Provider access: backend uses `requests`; no `fredapi`, `pandas_datareader`, async HTTP client, or provider-specific dependency.
-- Output contract: `fred-series-observations` returns exactly one `core.tabular_frame@v1` frame. The adapter must not set `meta.timeSeries`.
+- Output contract: `fred-series-observations` returns exactly one `core.tabular_frame@v1` frame.
 - Secure config: `apiKey` is write-only and must never be serialized back to the frontend.
 
 ## Configuration Ownership

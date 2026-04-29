@@ -4,15 +4,15 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 export default [
   {
     path: '/docs/',
-    component: ComponentCreator('/docs/', 'c39'),
+    component: ComponentCreator('/docs/', 'b15'),
     routes: [
       {
         path: '/docs/',
-        component: ComponentCreator('/docs/', '6d1'),
+        component: ComponentCreator('/docs/', '959'),
         routes: [
           {
             path: '/docs/',
-            component: ComponentCreator('/docs/', '517'),
+            component: ComponentCreator('/docs/', 'e6e'),
             routes: [
               {
                 path: '/docs/access-control',
@@ -39,6 +39,36 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
+                path: '/docs/adr/adr-038-progressive-workspace-widget-hydration',
+                component: ComponentCreator('/docs/adr/adr-038-progressive-workspace-widget-hydration', '586'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/adr-039-unified-upstream-consumer-state-contract',
+                component: ComponentCreator('/docs/adr/adr-039-unified-upstream-consumer-state-contract', 'a6f'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/adr-040-dashboard-surface-return-hydration',
+                component: ComponentCreator('/docs/adr/adr-040-dashboard-surface-return-hydration', '8a5'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/adr-041-connection-query-websocket-streaming',
+                component: ComponentCreator('/docs/adr/adr-041-connection-query-websocket-streaming', '8e1'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/adr-042-tabular-transform-row-filtering',
+                component: ComponentCreator('/docs/adr/adr-042-tabular-transform-row-filtering', '358'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/adr-adapter-from-api-connection',
+                component: ComponentCreator('/docs/adr/adr-adapter-from-api-connection', '055'),
+                exact: true
+              },
+              {
                 path: '/docs/adr/adr-agent-monitor-workspace-reference-widget',
                 component: ComponentCreator('/docs/adr/adr-agent-monitor-workspace-reference-widget', '29b'),
                 exact: true
@@ -48,6 +78,11 @@ export default [
                 component: ComponentCreator('/docs/adr/adr-agent-ready-widget-type-registry-contract', '005'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-agent-session-interaction-readiness-gate',
+                component: ComponentCreator('/docs/adr/adr-agent-session-interaction-readiness-gate', 'd43'),
+                exact: true
               },
               {
                 path: '/docs/adr/adr-agent-terminal-managed-session-creation',
@@ -85,6 +120,16 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
+                path: '/docs/adr/adr-connection-authoring-contract',
+                component: ComponentCreator('/docs/adr/adr-connection-authoring-contract', 'e5a'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/adr-connection-first-workspace-dataflow',
+                component: ComponentCreator('/docs/adr/adr-connection-first-workspace-dataflow', '864'),
+                exact: true
+              },
+              {
                 path: '/docs/adr/adr-executable-widget-graph-runner',
                 component: ComponentCreator('/docs/adr/adr-executable-widget-graph-runner', '4e5'),
                 exact: true,
@@ -106,6 +151,11 @@ export default [
                 component: ComponentCreator('/docs/adr/adr-headless-workspace-settings-runtime', '609'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-incremental-connection-response-refresh',
+                component: ComponentCreator('/docs/adr/adr-incremental-connection-response-refresh', '971'),
+                exact: true
               },
               {
                 path: '/docs/adr/adr-incremental-workspace-normalization',
@@ -138,10 +188,25 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
+                path: '/docs/adr/adr-main-sequence-simple-table-connection',
+                component: ComponentCreator('/docs/adr/adr-main-sequence-simple-table-connection', '6a5'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/adr-managed-connection-query-widget-sources',
+                component: ComponentCreator('/docs/adr/adr-managed-connection-query-widget-sources', '8be'),
+                exact: true
+              },
+              {
                 path: '/docs/adr/adr-organization-widget-type-configurations',
                 component: ComponentCreator('/docs/adr/adr-organization-widget-type-configurations', '286'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-postgresql-connection',
+                component: ComponentCreator('/docs/adr/adr-postgresql-connection', '279'),
+                exact: true
               },
               {
                 path: '/docs/adr/adr-rgl-v2-workspace-studio',
@@ -172,6 +237,11 @@ export default [
                 component: ComponentCreator('/docs/adr/adr-source-driven-downstream-execution', '84c'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/adr-standardized-connection-result-contracts',
+                component: ComponentCreator('/docs/adr/adr-standardized-connection-result-contracts', 'bee'),
+                exact: true
               },
               {
                 path: '/docs/adr/adr-widget-agent-context-bindings',
@@ -218,6 +288,26 @@ export default [
                 component: ComponentCreator('/docs/auth/backend-and-auth', '2b0'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/connections/',
+                component: ComponentCreator('/docs/connections/', '35f'),
+                exact: true
+              },
+              {
+                path: '/docs/connections/adapters/',
+                component: ComponentCreator('/docs/connections/adapters/', '6b1'),
+                exact: true
+              },
+              {
+                path: '/docs/connections/extension-guide',
+                component: ComponentCreator('/docs/connections/extension-guide', 'f00'),
+                exact: true
+              },
+              {
+                path: '/docs/connections/models-and-contracts',
+                component: ComponentCreator('/docs/connections/models-and-contracts', '963'),
+                exact: true
               },
               {
                 path: '/docs/extensions',
@@ -278,6 +368,11 @@ export default [
                 component: ComponentCreator('/docs/platform/theming', 'bbf'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/todos/assistant_ui',
+                component: ComponentCreator('/docs/todos/assistant_ui', '630'),
+                exact: true
               },
               {
                 path: '/docs/widgets',

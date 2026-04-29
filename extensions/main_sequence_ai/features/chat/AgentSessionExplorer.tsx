@@ -49,16 +49,15 @@ export function AgentSessionExplorer({
 }) {
   const navigate = useNavigate();
   const {
-    activeSessionSummary,
     activeAgentName,
     agentSessions,
     currentSessionId,
     deleteAgentSession,
+    hasActiveChatStream,
     isActiveSessionLoading,
     isCreatingAgentSession,
     isLoadingLatestSessions,
     latestSessionsError,
-    runStatus,
     selectAgentSession,
     startAgentSession,
   } = useChatFeature();
@@ -70,13 +69,8 @@ export function AgentSessionExplorer({
   const [isSearching, setIsSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const trimmedQuery = searchValue.trim();
-  const busy =
-    runStatus === "queued" ||
-    runStatus === "thinking" ||
-    runStatus === "responding" ||
-    isActiveSessionLoading ||
-    isCreatingAgentSession ||
-    Boolean(activeSessionSummary?.working);
+  const sessionMutationBusy =
+    hasActiveChatStream || isActiveSessionLoading || isCreatingAgentSession;
   const showAgentSearchResults =
     isSearching || Boolean(searchError) || trimmedQuery.length >= 3;
 
@@ -214,10 +208,10 @@ export function AgentSessionExplorer({
                     <button
                       key={agent.id}
                       type="button"
-                      disabled={busy}
+                      disabled={sessionMutationBusy}
                       className={cn(
                         "flex w-full items-start gap-3 rounded-[16px] border border-transparent px-3 py-3 text-left transition-colors hover:bg-background/45",
-                        busy && "cursor-not-allowed opacity-60",
+                        sessionMutationBusy && "cursor-not-allowed opacity-60",
                       )}
                       onClick={() => {
                         startAgentSession(agent);
@@ -287,10 +281,10 @@ export function AgentSessionExplorer({
                       <div className="flex items-start gap-2">
                         <button
                           type="button"
-                          disabled={busy}
+                          disabled={sessionMutationBusy}
                           className={cn(
                             "min-w-0 flex-1 text-left",
-                            busy && !active && "cursor-not-allowed opacity-60",
+                            sessionMutationBusy && !active && "cursor-not-allowed opacity-60",
                           )}
                           onClick={() => {
                             selectAgentSession(session.id);
@@ -330,7 +324,7 @@ export function AgentSessionExplorer({
                         <button
                           type="button"
                           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background/70 hover:text-danger"
-                          disabled={busy}
+                          disabled={sessionMutationBusy}
                           title="Delete session"
                           aria-label={`Delete session ${session.id}`}
                           onClick={async (event) => {

@@ -662,7 +662,6 @@ export function WidgetSourceExplorer({
             options={sourceWidgets}
             onChange={(nextSourceWidgetId) => {
               onSelectedSourceWidgetIdChange(nextSourceWidgetId);
-              onBindingChange(undefined);
             }}
           />
         </div>

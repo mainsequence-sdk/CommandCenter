@@ -33,8 +33,7 @@ backend-owned connection instances.
   editor cannot redirect a saved widget to another connection path.
 - Runtime execution calls `queryConnection(...)` and publishes one dataset from the first matching
   response frame. The widget always publishes `core.tabular_frame@v1`. Legacy backend
-  series-shaped responses are coerced into tabular rows plus `meta.timeSeries` defaults at the
-  widget edge.
+  series-shaped responses are coerced into canonical tabular rows at the widget edge.
 - The settings test action uses the same request builder as runtime execution. Workspace dates are
   read from dashboard controls; custom fixed dates are stored in props. Returned frames render
   through `src/connections/ConnectionQueryResponsePreview.tsx`, matching Data Sources Explore

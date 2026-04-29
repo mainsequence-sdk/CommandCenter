@@ -134,6 +134,7 @@ interface ChatFeatureContextValue {
   deleteAgentSession: (sessionId: string) => Promise<void>;
   expandToPage: () => void;
   hasVisibleAssistantOutput: boolean;
+  hasActiveChatStream: boolean;
   isRailOpen: boolean;
   isLoadingAvailableModels: boolean;
   isLoadingBaseSession: boolean;
@@ -564,6 +565,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
   const [agentId, setAgentId] = useState<string | null>(null);
   const [hasVisibleAssistantOutput, setHasVisibleAssistantOutput] = useState(false);
+  const [hasActiveChatStream, setHasActiveChatStream] = useState(false);
   const [isLoadingAvailableModels, setIsLoadingAvailableModels] = useState(false);
   const [isLoadingLatestSessions, setIsLoadingLatestSessions] = useState(false);
   const [isLoadingBaseSession, setIsLoadingBaseSession] = useState(false);
@@ -633,12 +635,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }) => {
       activeChatStreamSessionIdRef.current = sessionId;
       activeChatStreamLookupSessionIdRef.current = lookupSessionId;
+      setHasActiveChatStream(true);
     },
     [],
   );
   const clearActiveChatStream = useCallback(() => {
     activeChatStreamSessionIdRef.current = null;
     activeChatStreamLookupSessionIdRef.current = null;
+    setHasActiveChatStream(false);
   }, []);
   const isSessionHistoryBlockedByActiveStream = useCallback(
     ({
@@ -2806,6 +2810,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       currentSessionId,
       deleteAgentSession,
       expandToPage,
+      hasActiveChatStream,
       hasVisibleAssistantOutput,
       isRailOpen,
       isLoadingAvailableModels,
@@ -2860,6 +2865,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       createAgentSession,
       deleteAgentSession,
       expandToPage,
+      hasActiveChatStream,
       hasVisibleAssistantOutput,
       handleSelectedModelChange,
       handleSelectedProviderChange,

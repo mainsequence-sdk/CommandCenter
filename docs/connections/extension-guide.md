@@ -330,9 +330,6 @@ activated, Add New should not show it as an available connection type.
 The backend adapter must implement the same `type_id`. See:
 
 - [Adapters](./adapters/README.md)
-- [Python Adapters](./adapters/python/README.md)
-- [Python Contract](./adapters/python/contract.md)
-- [Python Adapter Guide](./adapters/python/adapter-guide.md)
 
 Do not treat the frontend definition as complete until the backend can create instances, store
 secrets, health check, execute supported query/resource operations, enforce permissions, and return

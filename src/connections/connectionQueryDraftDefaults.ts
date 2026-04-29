@@ -22,14 +22,22 @@ export function resolveConnectionQueryDraftDefaults(input: {
   connectionType?: AnyConnectionTypeDefinition;
   queryModels: ConnectionQueryModel[];
   selectedQueryModel?: ConnectionQueryModel;
+  authoringMode?: "query" | "stream";
 }): ConnectionQueryDraftDefaults {
-  const { connectionInstance, connectionType, queryModels, selectedQueryModel } = input;
+  const {
+    authoringMode,
+    connectionInstance,
+    connectionType,
+    queryModels,
+    selectedQueryModel,
+  } = input;
 
   if (!connectionInstance || !connectionType) {
     return {};
   }
 
   const resolverInput: ConnectionQueryDraftDefaultsResolverInput = {
+    authoringMode,
     connectionInstance,
     connectionType,
     queryModels,

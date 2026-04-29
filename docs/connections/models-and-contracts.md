@@ -45,7 +45,7 @@ state, health state, or runtime clients.
 - `resource`: accepts named resource requests for metadata or editor support
 - `stream`: supports long-lived channels
 - `mutation`: performs write-like provider operations
-- `health-check`: supports `testConnection(uid)`
+- `health-check`: supports `testConnection(id)`
 
 Only advertise capabilities the backend adapter actually implements.
 
@@ -103,6 +103,11 @@ Fields:
 - `timeRangeAware`: whether the shared workbench sends top-level `timeRange`
 - `supportsVariables`: whether the shared variables editor is shown and `variables` are sent
 - `supportsMaxRows`: set `false` when the shared `maxRows` field should be hidden and omitted
+- `stream`: optional WebSocket stream metadata for query-shaped streaming. When present,
+  `transport` must be `websocket`, `modes` must include `snapshot` and/or `delta`, and optional
+  fields such as `defaultMode`, `supportsResume`, `heartbeatMs`, and `description` must be JSON
+  primitives. A connection type that publishes `queryModels[].stream` must also include the
+  top-level `stream` capability.
 
 The shared `ConnectionQueryWorkbench` filters query models to runtime frame paths that advertise
 supported frame contracts. It uses `timeRangeAware`, `supportsVariables`, and `supportsMaxRows` to
@@ -110,6 +115,11 @@ render shared runtime controls.
 
 `controls` is documentation/catalog metadata. It does not automatically render fields. The actual
 provider-specific fields come from `queryEditor`.
+
+Connection type sync projects query models through the backend registry payload as JSON-safe
+objects, including `queryModels[].stream`. The backend registry model must store and return that
+field unchanged so hydrated runtime definitions can keep streamability decisions aligned with local
+connection definitions.
 
 ## Query Payload
 

@@ -234,7 +234,7 @@ Connects widgets and Explore flows to Federal Reserve Economic Data through the 
 - Payload: { "kind": "fred-series-observations", "seriesId": "UNRATE", "units": "lin", "frequency": null, "aggregationMethod": "avg", "sortOrder": "asc", "limit": 1000, "offset": 0 }
 - Returns: exactly one core.tabular_frame@v1 with date, seriesId, value, valueRaw, realtimeStart, and realtimeEnd fields.
 - Time-range-aware: yes. The request envelope timeRange maps to FRED observation_start and observation_end dates.
-- Notes: value is numeric or null when FRED returns the missing-value marker "."; valueRaw preserves the provider string. The adapter must not set meta.timeSeries.
+- Notes: value is numeric or null when FRED returns the missing-value marker "."; valueRaw preserves the provider string.
 
 ## resources
 

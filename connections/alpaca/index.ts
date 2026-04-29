@@ -300,7 +300,6 @@ Connects widgets and Explore flows to Alpaca Market Data for equities and crypto
 ## backendOwnership
 
 - Backend owns credential decryption, APCA headers, provider HTTP calls through requests, health checks, permissions, caching, cache keys, in-flight dedupe, pagination metadata, response normalization, and rejection of unsafe or unsupported operations.
-- Backend must not set meta.timeSeries for Alpaca frames; widgets consume core.tabular_frame@v1.
 - Generic routes only: /test/, /query/, and /resources/assets/.`;
 
 export const alpacaMarketDataConnection: ConnectionTypeDefinition<

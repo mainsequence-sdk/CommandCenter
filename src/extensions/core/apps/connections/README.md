@@ -26,7 +26,10 @@ registered by `src/extensions/connections/index.ts` as a standalone extension ga
   and secret metadata.
 - The generic Explore surface uses `src/connections/ConnectionQueryWorkbench.tsx`, matching the
   workspace Connection Query widget settings path for connection path selection, typed query
-  editors, generated request preview, test execution, and normalized frame preview.
+  editors, generated request preview, test execution, and normalized frame preview. When the
+  selected connection advertises streamable query models, Explore also exposes a shared `WS`
+  transport mode that reuses the same typed query editors and mounts the shared
+  `ConnectionStreamQueryTestPanel.tsx`.
 - The data-source edit/detail screen supports deleting one backend-owned connection instance
   through a confirmation modal before returning to the list.
 - The Explore surface renders a shared health-test action next to the selected data source before

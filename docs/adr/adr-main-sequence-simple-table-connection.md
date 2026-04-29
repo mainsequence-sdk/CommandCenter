@@ -294,7 +294,7 @@ incrementally, but the target contract is a normalized connection frame.
 
 ### Health Check
 
-`testConnection(uid)` should:
+`testConnection(id)` should:
 
 1. Require `public_config.simpleTableId`.
 2. Fetch Simple Table detail.
@@ -312,7 +312,7 @@ Cache key dimensions:
 
 - organization id
 - user id or auth scope
-- connection uid
+- connection id
 - connection type id
 - connection instance version/update marker
 - resolved Simple Table id

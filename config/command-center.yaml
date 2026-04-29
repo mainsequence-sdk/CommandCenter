@@ -54,10 +54,12 @@ connections:
     query_url: /api/v1/command_center/connections/{id}/query/
     resource_url: /api/v1/command_center/connections/{id}/resources/{resource}/
     stream_url: /api/v1/command_center/connections/{id}/stream/
+    stream_query_url: /api/v1/command_center/connections/{id}/stream-query/
 
 auth:
   identifier_label: Email
   identifier_placeholder: "Please enter your email"
+  websocket_ticket_url: /auth/websocket-ticket/
   jwt:
     token_url: /auth/jwt-token/token/
     refresh_url: /auth/jwt-token/token/refresh/

@@ -52,6 +52,42 @@ describe("managed connection query source helpers", () => {
     );
   });
 
+  it("resolves owner-managed stream sources and preserves stream props", () => {
+    const managedSource = resolveManagedConnectionQuerySource(
+      [
+        {
+          id: "graph-stream-source-1",
+          widgetId: "connection-stream-query",
+          title: "Ticker source",
+          managedBy: {
+            ownerInstanceId: "graph-1",
+            role: "embedded-connection-source",
+          },
+          props: {
+            connectionRef: {
+              id: 99,
+              typeId: "binance",
+            },
+            queryModelId: "ticker-stream",
+            query: {
+              kind: "ticker",
+            },
+            mergeKeyFields: ["symbol"],
+            retentionMaxRows: 500,
+          },
+        },
+      ],
+      "graph-1",
+    );
+
+    expect(managedSource).not.toBeNull();
+    expect(managedSource?.props.mergeKeyFields).toEqual(["symbol"]);
+    expect(managedSource?.props.retentionMaxRows).toBe(500);
+    expect(buildConnectionQuerySourceIdentityLabel(managedSource?.props ?? {})).toBe(
+      "binance / 99 / ticker-stream",
+    );
+  });
+
   it("summarizes runtime error states for owner settings surfaces", () => {
     expect(
       resolveConnectionQueryRuntimeSummary({

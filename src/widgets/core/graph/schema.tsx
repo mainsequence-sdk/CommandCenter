@@ -235,6 +235,30 @@ export const graphSettingsSchema: WidgetSettingsSchema<
       ),
     },
     {
+      id: "limit",
+      label: "Max points per series",
+      description:
+        "Limits the plotted history window per rendered series. This only caps chart rendering; it does not prune upstream source rows.",
+      settingsColumnSpan: 1,
+      sectionId: "visualization",
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <Input
+          type="number"
+          min={1}
+          max={14000}
+          step={1}
+          value={String(context.resolvedConfig.limit)}
+          disabled={!editable}
+          onChange={(event) => {
+            onDraftPropsChange({
+              ...draftProps,
+              limit: Number(event.target.value),
+            });
+          }}
+        />
+      ),
+    },
+    {
       id: "maxSeries",
       label: "Max series",
       description: "Limits how many grouped series render at once. Extra groups are dropped by descending point count.",

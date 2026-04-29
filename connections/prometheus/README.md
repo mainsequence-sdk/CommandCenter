@@ -56,8 +56,8 @@ extension and must not register sidebar surfaces, widgets, or shell menu entries
   query already has custom PromQL text, the editor should reopen in Code mode instead of silently
   dropping the user back into Builder.
 - `promql-range` must publish a canonical `core.tabular_frame@v1` for widget/runtime flows. When
-  the backend can identify chart semantics, preserve them in `meta.timeSeries` on that tabular
-  frame while keeping Prometheus labels available as series metadata.
+  the backend can identify chart semantics, preserve them in the normalized tabular frame while
+  keeping Prometheus labels available as series metadata.
 - `promql-instant` remains tabular for widget/runtime flows.
 
 ## Maintenance Constraints

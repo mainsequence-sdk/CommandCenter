@@ -7,7 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { GripHorizontal } from "lucide-react";
+import { GripHorizontal, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   resolveWidgetFieldState,
@@ -114,6 +114,7 @@ function companionConnectorClass(anchor: WidgetFieldAnchor) {
 
 function renderCompanionField<TProps extends Record<string, unknown>>(
   widget: WidgetDefinition<TProps>,
+  instanceTitle: string | undefined,
   props: TProps,
   runtimeState: Record<string, unknown> | undefined,
   onPropsChange: (props: TProps) => void,
@@ -121,6 +122,7 @@ function renderCompanionField<TProps extends Record<string, unknown>>(
   editable: boolean,
   context: unknown,
   entry: ExposedFieldEntry<TProps>,
+  onOpenSettings: (() => void) | undefined,
   onStartDrag: (
     event: React.PointerEvent<HTMLElement>,
     entry: ExposedFieldEntry<TProps>,
@@ -166,9 +168,32 @@ function renderCompanionField<TProps extends Record<string, unknown>>(
       }}
     >
       {editable ? (
-        <div className="pointer-events-none absolute -top-2 -right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-background/92 text-muted-foreground shadow-[var(--shadow-panel)]">
-          <GripHorizontal className="h-3 w-3" />
-        </div>
+        <>
+          {onOpenSettings ? (
+            <button
+              type="button"
+              data-no-widget-drag="true"
+              className="absolute -top-2 -left-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-background/92 text-muted-foreground shadow-[var(--shadow-panel)] transition-colors hover:border-primary/40 hover:text-foreground"
+              title={`Open settings for ${instanceTitle ?? widget.title}`}
+              aria-label={`Open settings for ${instanceTitle ?? widget.title}`}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onOpenSettings();
+              }}
+            >
+              <Settings2 className="h-3 w-3" />
+            </button>
+          ) : null}
+
+          <div className="pointer-events-none absolute -top-2 -right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-background/92 text-muted-foreground shadow-[var(--shadow-panel)]">
+            <GripHorizontal className="h-3 w-3" />
+          </div>
+        </>
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-auto p-3">
@@ -218,24 +243,28 @@ export function WidgetCanvasControls<
 >({
   widget,
   instanceId,
+  instanceTitle,
   props,
   presentation,
   runtimeState,
   onPropsChange,
   onRuntimeStateChange,
   onPresentationChange,
+  onOpenSettings,
   editable = false,
   containerClassName,
   containerStyle,
 }: {
   widget: WidgetDefinition<TProps>;
   instanceId?: string;
+  instanceTitle?: string;
   props: TProps;
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
   onPropsChange: (props: TProps) => void;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   onPresentationChange?: (presentation: WidgetInstancePresentation) => void;
+  onOpenSettings?: () => void;
   editable?: boolean;
   containerClassName?: string;
   containerStyle?: CSSProperties;
@@ -387,6 +416,7 @@ export function WidgetCanvasControls<
       {exposedFields.map((entry) =>
         renderCompanionField(
           widget,
+          instanceTitle,
           props,
           runtimeState,
           onPropsChange,
@@ -394,6 +424,7 @@ export function WidgetCanvasControls<
           editable,
           context,
           entry,
+          onOpenSettings,
           handleStartDrag,
           handleStartResize,
         ),

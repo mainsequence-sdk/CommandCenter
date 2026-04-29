@@ -237,6 +237,7 @@ function WidgetRegistrySettingsSection({
   syncUrl: string;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const draftQuery = useQuery({
     queryKey: ["widget-registry", "sync-payload"],
     queryFn: buildWidgetTypeSyncDraft,
@@ -290,6 +291,7 @@ function WidgetRegistrySettingsSection({
     onSuccess: ({ draft, result }) => {
       setLastResult(result);
       void draftQuery.refetch();
+      void queryClient.invalidateQueries({ queryKey: ["registered-widget-types", "list"] });
       toast({
         variant: "success",
         title: "Widget registry published",

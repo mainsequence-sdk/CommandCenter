@@ -1,4 +1,5 @@
 import {
+  buildConnectionQueryUrl,
   fetchConnectionResource,
   queryConnection,
   resolveConnectionRefFromInstances,
@@ -700,6 +701,22 @@ function firstConnectionFramePayload(
   return null;
 }
 
+export function normalizeConnectionQueryResponsePayload(
+  payload: unknown,
+  input: {
+    connectionRef: ConnectionRef;
+    queryModelId: string;
+    queryModel?: ConnectionQueryModel;
+  },
+) {
+  return firstConnectionFramePayload(payload, {
+    connectionRef: input.connectionRef,
+    queryModelId: input.queryModelId,
+    requestedOutputContract: resolveConnectionQueryRequestedOutputContract(input.queryModel),
+    allowedOutputContracts: resolveConnectionQueryAllowedOutputContracts(input.queryModel),
+  });
+}
+
 function resolveDashboardRange(dashboardState?: WidgetExecutionDashboardState) {
   if (!dashboardState) {
     return null;
@@ -1020,6 +1037,7 @@ export async function executeConnectionQueryWidgetRequest(
   });
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute request ready", {
+      url: buildConnectionQueryUrl(incrementalDecision.request.connectionId),
       originalRequest: summarizeConnectionQueryRequestForDebug(request),
       enrichedRequest: summarizeConnectionQueryRequestForDebug(enrichedRequest),
       incrementalRequest: summarizeConnectionQueryRequestForDebug(incrementalDecision.request),

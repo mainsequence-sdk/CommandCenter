@@ -1,0 +1,15 @@
+{
+  "id": "connections/README",
+  "title": "Connections",
+  "description": "Connections are Command Center's first-class data-access model. They let extensions describe a",
+  "source": "@site/../docs/connections/README.md",
+  "sourceDirName": "connections",
+  "slug": "/connections/",
+  "permalink": "/docs/connections/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/connections/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

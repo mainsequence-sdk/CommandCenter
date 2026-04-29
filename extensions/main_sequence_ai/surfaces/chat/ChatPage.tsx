@@ -61,6 +61,7 @@ export function ChatPage() {
     activeSessionSummary,
     context,
     createAgentSession,
+    hasActiveChatStream,
     isActiveSessionLoading,
     isCreatingAgentSession,
     minimizeToRail,
@@ -70,13 +71,7 @@ export function ChatPage() {
   const [explorerOpen, setExplorerOpen] = useState(false);
   const [sessionDetailOpen, setSessionDetailOpen] = useState(true);
   const contextPayload = JSON.stringify(context, null, 2);
-  const busy =
-    runStatus === "queued" ||
-    runStatus === "thinking" ||
-    runStatus === "responding" ||
-    isActiveSessionLoading ||
-    isCreatingAgentSession ||
-    Boolean(activeSessionSummary?.working);
+  const busy = hasActiveChatStream || isActiveSessionLoading || isCreatingAgentSession;
   const displayedRunStatus =
     activeSessionSummary?.working &&
     (runStatus === "idle" || runStatus === "complete")

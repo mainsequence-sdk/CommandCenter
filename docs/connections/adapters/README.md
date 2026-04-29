@@ -151,8 +151,8 @@ It is useful for behavior and examples:
 - Main Sequence Data Node and Simple Table resource-scoped behavior
 - market-data adapter query models
 
-New Python adapter documentation should follow the FastAPI/Pydantic contract in
-[python/](./python/README.md), not the Django/DRF framework shape.
+New Python adapter documentation should follow the FastAPI/Pydantic contract for the owning
+project, not the Django/DRF framework shape documented here.
 
 ## Adapter Documentation Checklist
 

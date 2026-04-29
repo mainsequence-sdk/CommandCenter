@@ -21,7 +21,7 @@ The connection exposes Alpaca equity and crypto market-data queries through the 
 - Backend implementation: `timeseries_orm/command_center/adapters/connections/alpaca_market_data.py`
 - Routes: generic `/test/`, `/query/`, and `/resources/assets/` connection routes only.
 - Provider access: backend uses `requests` and sends `APCA-API-KEY-ID` and `APCA-API-SECRET-KEY`; no provider SDK or browser-side credential use.
-- Output contract: all query models advertise `core.tabular_frame@v1`; the adapter must not set `meta.timeSeries`.
+- Output contract: all query models advertise `core.tabular_frame@v1`.
 
 ## Configuration Ownership
 

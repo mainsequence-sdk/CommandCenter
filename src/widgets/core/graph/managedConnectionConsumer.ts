@@ -2,12 +2,19 @@ import type { WidgetInstancePresentation } from "@/widgets/types";
 import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import type { AnyManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer";
 import { normalizeConnectionQueryProps } from "@/widgets/core/connection-query/connectionQueryModel";
+import {
+  normalizeConnectionStreamQueryProps,
+  type ConnectionStreamQueryWidgetProps,
+} from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
 
 import {
   normalizeGraphAuthoringSourceMode,
   resolveGraphEmbeddedConnectionQueryProps,
   type GraphWidgetProps,
 } from "./graphModel";
+
+const graphConnectionMode = "connection";
+const graphStreamConnectionMode = "connection-stream";
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -16,7 +23,8 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 export const graphManagedConnectionConsumerAdapter = {
   widgetId: "graph",
   sourceInputId: TABULAR_SOURCE_INPUT_ID,
-  connectionMode: "connection",
+  connectionMode: graphConnectionMode,
+  streamConnectionMode: graphStreamConnectionMode,
   getSourceMode(props: Record<string, unknown>) {
     return normalizeGraphAuthoringSourceMode(
       (props as GraphWidgetProps).graphSourceMode,
@@ -29,12 +37,25 @@ export const graphManagedConnectionConsumerAdapter = {
     } satisfies GraphWidgetProps;
   },
   getEmbeddedConnectionQuery(props: Record<string, unknown>) {
-    return resolveGraphEmbeddedConnectionQueryProps(props as GraphWidgetProps);
+    const graphProps = props as GraphWidgetProps;
+
+    return normalizeGraphAuthoringSourceMode(graphProps.graphSourceMode) === graphStreamConnectionMode
+      ? normalizeConnectionStreamQueryProps(
+          (isPlainRecord(graphProps.embeddedConnectionQuery)
+            ? graphProps.embeddedConnectionQuery
+            : {}) as ConnectionStreamQueryWidgetProps,
+        )
+      : resolveGraphEmbeddedConnectionQueryProps(graphProps);
   },
   setEmbeddedConnectionQuery(props: Record<string, unknown>, value) {
+    const graphProps = props as GraphWidgetProps;
+
     return {
-      ...(props as GraphWidgetProps),
-      embeddedConnectionQuery: normalizeConnectionQueryProps(value),
+      ...graphProps,
+      embeddedConnectionQuery:
+        normalizeGraphAuthoringSourceMode(graphProps.graphSourceMode) === graphStreamConnectionMode
+          ? normalizeConnectionStreamQueryProps(value as ConnectionStreamQueryWidgetProps)
+          : normalizeConnectionQueryProps(value),
     } satisfies GraphWidgetProps;
   },
   getEmbeddedConnectionPresentation(props: Record<string, unknown>) {

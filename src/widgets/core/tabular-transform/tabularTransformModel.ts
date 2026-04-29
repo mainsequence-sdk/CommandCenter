@@ -21,12 +21,65 @@ import {
 export const TABULAR_TRANSFORM_SOURCE_INPUT_ID = "sourceData";
 export const TABULAR_TRANSFORM_DATASET_OUTPUT_ID = "dataset";
 
-export type TabularTransformMode = "none" | "aggregate" | "pivot" | "unpivot";
+export type TabularTransformMode = "none" | "filter" | "aggregate" | "pivot" | "unpivot";
 export type TabularAggregateMode = "first" | "last" | "sum" | "mean" | "min" | "max";
+export type TabularFilterCombineMode = "all" | "any";
+export type TabularFilterOperator =
+  | "equals"
+  | "not-equals"
+  | "in"
+  | "not-in"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "is-empty"
+  | "is-not-empty";
+export type TabularFilterRuleValue = string | number | boolean | null;
+
+export interface TabularFilterRule {
+  field?: string;
+  operator?: TabularFilterOperator;
+  value?: TabularFilterRuleValue | TabularFilterRuleValue[];
+}
+
+interface TabularTransformDataset {
+  columns: string[];
+  rows: Record<string, unknown>[];
+  derivedColumns: Set<string>;
+}
+
+interface TabularTransformErrorResult extends TabularTransformDataset {
+  error: string;
+}
+
+interface CompiledTabularFilterRule {
+  field: string;
+  operator: TabularFilterOperator;
+  fieldType: TabularFrameFieldType;
+  normalizedValue:
+    | TabularFilterRuleValue
+    | string
+    | number
+    | boolean
+    | null
+    | Array<string | number | boolean | null | undefined>
+    | undefined;
+}
+
+interface BuiltFilterPredicate {
+  predicate: (row: Record<string, unknown>) => boolean;
+}
+
+interface BuiltFilterPredicateError {
+  error: string;
+}
 
 export interface TabularTransformWidgetProps extends Record<string, unknown> {
   transformMode?: TabularTransformMode;
   aggregateMode?: TabularAggregateMode;
+  filterCombineMode?: TabularFilterCombineMode;
+  filterRules?: TabularFilterRule[];
   keyFields?: string[];
   pivotField?: string;
   pivotValueField?: string;
@@ -70,7 +123,9 @@ function normalizeOptionalField(value: unknown) {
 }
 
 function normalizeTransformMode(value: unknown): TabularTransformMode {
-  return value === "aggregate" || value === "pivot" || value === "unpivot" ? value : "none";
+  return value === "filter" || value === "aggregate" || value === "pivot" || value === "unpivot"
+    ? value
+    : "none";
 }
 
 function normalizeAggregateMode(value: unknown): TabularAggregateMode {
@@ -97,12 +152,99 @@ function normalizeOutputFieldName(value: unknown, fallback: string) {
   return normalized || fallback;
 }
 
+function normalizeFilterCombineMode(value: unknown): TabularFilterCombineMode {
+  return value === "any" ? "any" : "all";
+}
+
+function normalizeFilterOperator(value: unknown): TabularFilterOperator | undefined {
+  return value === "equals" ||
+    value === "not-equals" ||
+    value === "in" ||
+    value === "not-in" ||
+    value === "gt" ||
+    value === "gte" ||
+    value === "lt" ||
+    value === "lte" ||
+    value === "is-empty" ||
+    value === "is-not-empty"
+    ? value
+    : undefined;
+}
+
+function normalizeFilterScalarValue(value: unknown): TabularFilterRuleValue | undefined {
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function normalizeFilterRuleValue(
+  value: unknown,
+): TabularFilterRuleValue | TabularFilterRuleValue[] | undefined {
+  if (Array.isArray(value)) {
+    const normalized = value.flatMap((entry) => {
+      const scalar = normalizeFilterScalarValue(entry);
+      return scalar === undefined ? [] : [scalar];
+    });
+
+    return normalized.length > 0 ? normalized : undefined;
+  }
+
+  return normalizeFilterScalarValue(value);
+}
+
+function normalizeFilterRule(value: unknown): TabularFilterRule | null {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const field = normalizeOptionalField(value.field);
+  const operator = normalizeFilterOperator(value.operator);
+  const normalizedValue = normalizeFilterRuleValue(value.value);
+
+  if (!field && !operator && normalizedValue === undefined) {
+    return null;
+  }
+
+  return {
+    field,
+    operator,
+    value: normalizedValue,
+  };
+}
+
+function normalizeFilterRules(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value.flatMap((entry) => {
+    const rule = normalizeFilterRule(entry);
+    return rule ? [rule] : [];
+  });
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 export function normalizeTabularTransformProps(
   props: TabularTransformWidgetProps,
 ): Required<
   Pick<
     TabularTransformWidgetProps,
-    "aggregateMode" | "transformMode" | "unpivotFieldName" | "unpivotValueFieldName"
+    | "aggregateMode"
+    | "filterCombineMode"
+    | "transformMode"
+    | "unpivotFieldName"
+    | "unpivotValueFieldName"
   >
 > &
   TabularTransformWidgetProps {
@@ -110,6 +252,8 @@ export function normalizeTabularTransformProps(
     ...props,
     transformMode: normalizeTransformMode(props.transformMode),
     aggregateMode: normalizeAggregateMode(props.aggregateMode),
+    filterCombineMode: normalizeFilterCombineMode(props.filterCombineMode),
+    filterRules: normalizeFilterRules(props.filterRules),
     keyFields: normalizeFieldList(props.keyFields),
     pivotField: normalizeOptionalField(props.pivotField),
     pivotValueField: normalizeOptionalField(props.pivotValueField),
@@ -291,7 +435,377 @@ function buildGroupedDataset(
     columns: outputColumns,
     rows: transformedRows,
     derivedColumns: new Set(outputColumns.filter((column) => !groupColumns.includes(column))),
+  } satisfies TabularTransformDataset;
+}
+
+function isEmptyFilterValue(value: unknown) {
+  return value === null || value === undefined || (typeof value === "string" && value.trim() === "");
+}
+
+function resolveFieldType(
+  field: string,
+  sourceFields: readonly TabularFrameFieldSchema[] | undefined,
+  rows: readonly Record<string, unknown>[],
+): TabularFrameFieldType {
+  const declared = sourceFields?.find((entry) => entry.key === field)?.type;
+
+  if (declared) {
+    return declared;
+  }
+
+  return inferFieldType(rows.map((row) => row[field]));
+}
+
+function normalizeConfiguredComparableValue(
+  value: TabularFilterRuleValue,
+  fieldType: TabularFrameFieldType,
+) {
+  if (value === null) {
+    return null;
+  }
+
+  if (fieldType === "number" || fieldType === "integer") {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : undefined;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+
+    return undefined;
+  }
+
+  if (fieldType === "boolean") {
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+
+      if (normalized === "true") {
+        return true;
+      }
+
+      if (normalized === "false") {
+        return false;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (fieldType === "datetime" || fieldType === "date" || fieldType === "time") {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : undefined;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const numeric = Number(value);
+
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return undefined;
+}
+
+function normalizeRowComparableValue(value: unknown, fieldType: TabularFrameFieldType) {
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  if (fieldType === "number" || fieldType === "integer") {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : undefined;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+
+    return undefined;
+  }
+
+  if (fieldType === "boolean") {
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+
+      if (normalized === "true") {
+        return true;
+      }
+
+      if (normalized === "false") {
+        return false;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (fieldType === "datetime" || fieldType === "date" || fieldType === "time") {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : undefined;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const numeric = Number(value);
+
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function valuesEqual(left: unknown, right: unknown) {
+  return left === right;
+}
+
+function isOrderableValue(value: unknown): value is number | string {
+  return typeof value === "number" || typeof value === "string";
+}
+
+function validateFilterRuleValue(
+  rule: TabularFilterRule,
+  fieldType: TabularFrameFieldType,
+  label: string,
+) {
+  if (rule.operator === "is-empty" || rule.operator === "is-not-empty") {
+    return null;
+  }
+
+  if (rule.value === undefined) {
+    return `${label} requires a value.`;
+  }
+
+  if (rule.operator === "in" || rule.operator === "not-in") {
+    if (!Array.isArray(rule.value) || rule.value.length === 0) {
+      return `${label} requires one or more values.`;
+    }
+
+    return rule.value.some(
+      (entry) => normalizeConfiguredComparableValue(entry, fieldType) === undefined,
+    )
+      ? `${label} contains a value that does not match the selected field type.`
+      : null;
+  }
+
+  if (Array.isArray(rule.value)) {
+    return `${label} expects a single value.`;
+  }
+
+  const normalizedValue = normalizeConfiguredComparableValue(rule.value, fieldType);
+
+  if (normalizedValue === undefined) {
+    return `${label} does not match the selected field type.`;
+  }
+
+  if (
+    (rule.operator === "gt" ||
+      rule.operator === "gte" ||
+      rule.operator === "lt" ||
+      rule.operator === "lte") &&
+    !isOrderableValue(normalizedValue)
+  ) {
+    return `${label} requires an orderable value.`;
+  }
+
+  return null;
+}
+
+function buildFilterPredicate(
+  source: TabularFrameSourceV1,
+  props: ReturnType<typeof normalizeTabularTransformProps>,
+): BuiltFilterPredicate | BuiltFilterPredicateError {
+  const rules = props.filterRules ?? [];
+
+  if (props.transformMode !== "filter") {
+    return {
+      predicate: (_row: Record<string, unknown>) => true,
+    };
+  }
+
+  if (rules.length === 0) {
+    return {
+      error: "Add at least one filter rule before this transform can run.",
+    };
+  }
+
+  const compiledRules: Array<{ error: string } | CompiledTabularFilterRule> = rules.map((rule, index) => {
+    const label = `Filter rule ${index + 1}`;
+
+    if (!rule.field) {
+      return {
+        error: `${label} is missing a field.`,
+      };
+    }
+
+    if (!rule.operator) {
+      return {
+        error: `${label} is missing an operator.`,
+      };
+    }
+
+    const fieldType = resolveFieldType(rule.field, source.fields, source.rows);
+    const valueError = validateFilterRuleValue(rule, fieldType, label);
+
+    if (valueError) {
+      return {
+        error: valueError,
+      };
+    }
+
+    const normalizedValue = Array.isArray(rule.value)
+      ? rule.value.map((entry) => normalizeConfiguredComparableValue(entry, fieldType))
+      : rule.value === undefined
+        ? undefined
+        : normalizeConfiguredComparableValue(rule.value, fieldType);
+
+    return {
+      field: rule.field,
+      operator: rule.operator,
+      fieldType,
+      normalizedValue,
+    };
+  });
+
+  const failedRule = compiledRules.find((entry) => "error" in entry);
+
+  if (failedRule && "error" in failedRule) {
+    return {
+      error: failedRule.error,
+    };
+  }
+
+  const validRules = compiledRules.filter(
+    (entry): entry is CompiledTabularFilterRule => !("error" in entry),
+  );
+
+  return {
+    predicate: (row: Record<string, unknown>) => {
+      const matches = validRules.map((rule) => {
+        const actualValue = row[rule.field];
+
+        if (rule.operator === "is-empty") {
+          return isEmptyFilterValue(actualValue);
+        }
+
+        if (rule.operator === "is-not-empty") {
+          return !isEmptyFilterValue(actualValue);
+        }
+
+        const normalizedActual = normalizeRowComparableValue(actualValue, rule.fieldType);
+
+        if (rule.operator === "in" || rule.operator === "not-in") {
+          const expectedValues = Array.isArray(rule.normalizedValue) ? rule.normalizedValue : [];
+          const contained = expectedValues.some((expected) => valuesEqual(normalizedActual, expected));
+          return rule.operator === "in" ? contained : !contained;
+        }
+
+        if (normalizedActual === undefined) {
+          return false;
+        }
+
+        const expectedValue = Array.isArray(rule.normalizedValue)
+          ? rule.normalizedValue[0]
+          : rule.normalizedValue;
+
+        if (rule.operator === "equals") {
+          return valuesEqual(normalizedActual, expectedValue);
+        }
+
+        if (rule.operator === "not-equals") {
+          return !valuesEqual(normalizedActual, expectedValue);
+        }
+
+        if (!isOrderableValue(normalizedActual) || !isOrderableValue(expectedValue)) {
+          return false;
+        }
+
+        if (rule.operator === "gt") {
+          return normalizedActual > expectedValue;
+        }
+
+        if (rule.operator === "gte") {
+          return normalizedActual >= expectedValue;
+        }
+
+        if (rule.operator === "lt") {
+          return normalizedActual < expectedValue;
+        }
+
+        return normalizedActual <= expectedValue;
+      });
+
+      return props.filterCombineMode === "any" ? matches.some(Boolean) : matches.every(Boolean);
+    },
   };
+}
+
+function buildFilteredDataset(
+  source: TabularFrameSourceV1,
+  rows: readonly Record<string, unknown>[],
+  columns: readonly string[],
+  props: ReturnType<typeof normalizeTabularTransformProps>,
+) {
+  const compiled = buildFilterPredicate(source, props);
+
+  if ("error" in compiled) {
+    return {
+      columns: [...columns],
+      rows: [] as Record<string, unknown>[],
+      derivedColumns: new Set<string>(),
+      error: compiled.error,
+    } satisfies TabularTransformErrorResult;
+  }
+
+  return {
+    columns: [...columns],
+    rows: rows.filter(compiled.predicate),
+    derivedColumns: new Set<string>(),
+  } satisfies TabularTransformDataset;
 }
 
 function formatPivotValue(value: unknown) {
@@ -383,7 +897,7 @@ function buildPivotedDataset(
     columns: uniqueStrings([...rowKeyColumns, ...pivotColumnNames]),
     rows: outputRows,
     derivedColumns: new Set(pivotColumnNames),
-  };
+  } satisfies TabularTransformDataset;
 }
 
 function buildUnpivotedDataset(
@@ -423,7 +937,7 @@ function buildUnpivotedDataset(
     columns: uniqueStrings([...keyColumns, props.unpivotFieldName, props.unpivotValueFieldName]),
     rows: outputRows,
     derivedColumns: new Set([props.unpivotFieldName, props.unpivotValueFieldName]),
-  };
+  } satisfies TabularTransformDataset;
 }
 
 function projectDataset(
@@ -450,32 +964,38 @@ function projectDataset(
       Object.fromEntries(projectedColumns.map((column) => [column, row[column] ?? null])),
     ),
     derivedColumns: new Set([...derivedColumns].filter((column) => projectedColumns.includes(column))),
-  };
+  } satisfies TabularTransformDataset;
 }
 
 function transformFrame(
   source: TabularFrameSourceV1,
   props: ReturnType<typeof normalizeTabularTransformProps>,
-) {
+): TabularTransformDataset | TabularTransformErrorResult {
   const columns = uniqueStrings([...source.columns, ...collectRowKeys(source.rows)]);
   const base =
-    props.transformMode === "aggregate"
+    props.transformMode === "filter"
+      ? buildFilteredDataset(source, source.rows, columns, props)
+      : props.transformMode === "aggregate"
       ? buildGroupedDataset(source.rows, columns, props)
       : props.transformMode === "pivot"
         ? buildPivotedDataset(source.rows, columns, props)
         : props.transformMode === "unpivot"
           ? buildUnpivotedDataset(source.rows, columns, props)
-          : {
+          : ({
               columns,
               rows: [...source.rows],
               derivedColumns: new Set<string>(),
-            };
+            } satisfies TabularTransformDataset);
+
+  if ("error" in base) {
+    return base;
+  }
 
   return projectDataset(base.rows, base.columns, props.projectFields, base.derivedColumns);
 }
 
 function canTransformDeltaFromRows(props: ReturnType<typeof normalizeTabularTransformProps>) {
-  return props.transformMode === "none";
+  return props.transformMode === "none" || props.transformMode === "filter";
 }
 
 function resolveSourceInput(resolvedInputs: ResolvedWidgetInputs | undefined) {
@@ -599,6 +1119,25 @@ export function resolveTabularTransformOutput(input: {
 
     const transformed = transformFrame(source, props);
 
+    if ("error" in transformed) {
+      return {
+        status: "error",
+        error: transformed.error,
+        columns: source.columns,
+        rows: [],
+        fields: source.fields,
+        source: {
+          kind: "tabular-transform",
+          label: "Tabular transform",
+          updatedAtMs: source.source?.updatedAtMs,
+          context: {
+            transformMode: props.transformMode,
+            upstreamSource: source.source,
+          },
+        },
+      };
+    }
+
     const outputFrame = {
       status: "ready",
       columns: transformed.columns,
@@ -616,6 +1155,8 @@ export function resolveTabularTransformOutput(input: {
         context: {
           transformMode: props.transformMode,
           aggregateMode: props.aggregateMode,
+          filterCombineMode: props.filterCombineMode,
+          filterRuleCount: props.filterRules?.length ?? 0,
           upstreamSource: source.source,
         },
       },
@@ -634,7 +1175,7 @@ export function resolveTabularTransformOutput(input: {
       ? transformFrame(deltaSource, props)
       : null;
     const deltaFrame =
-      transformedDelta && canPublishDelta
+      transformedDelta && !("error" in transformedDelta) && canPublishDelta
         ? {
             ...outputFrame,
             rows: transformedDelta.rows,
@@ -697,6 +1238,20 @@ export function normalizeTabularTransformRuntimeState(
 
 export function formatTabularTransformSummary(props: TabularTransformWidgetProps) {
   const normalized = normalizeTabularTransformProps(props);
+
+  if (normalized.transformMode === "filter") {
+    const ruleCount = normalized.filterRules?.length ?? 0;
+
+    if (ruleCount === 1 && normalized.filterRules?.[0]?.field && normalized.filterRules[0].operator) {
+      return `Filter ${normalized.filterRules[0].field} (${normalized.filterRules[0].operator})`;
+    }
+
+    if (ruleCount > 1) {
+      return `Filter ${ruleCount.toLocaleString()} rules (${normalized.filterCombineMode})`;
+    }
+
+    return "Filter rows";
+  }
 
   if (normalized.transformMode === "aggregate" && normalized.keyFields?.length) {
     return `Aggregate by ${normalized.keyFields.join(", ")} (${normalized.aggregateMode})`;

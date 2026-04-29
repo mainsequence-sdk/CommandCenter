@@ -20,14 +20,14 @@ import {
 
 export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>({
   id: "tabular-transform",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: "Tabular Transform",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
   kind: "custom",
   source: "core",
   requiredPermissions: ["workspaces:view"],
-  tags: ["tabular", "transform", "aggregate", "pivot", "unpivot", "projection"],
+  tags: ["tabular", "transform", "filter", "aggregate", "pivot", "unpivot", "projection"],
   exampleProps: {
     transformMode: "none",
     aggregateMode: "last",
@@ -151,15 +151,16 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     configuration: {
       mode: "custom-settings",
       summary:
-        "Configures a visible graph transform over one tabular dataset, including aggregate, pivot, unpivot, and projection.",
+        "Configures a visible graph transform over one tabular dataset, including filter, aggregate, pivot, unpivot, and projection.",
       requiredSetupSteps: [
         "Bind sourceData to an upstream tabular dataset.",
         "Select a transform mode.",
-        "Configure key, pivot, unpivot, or projection fields.",
+        "Configure filter, key, pivot, unpivot, or projection fields.",
         "Bind downstream widgets to the transformed dataset output.",
       ],
       configurationNotes: [
         "Projection runs after the selected transform.",
+        "Filter mode is intentionally limited to lightweight field predicates.",
         "Analytical transforms are explicit graph nodes, not binding-level transforms.",
       ],
     },
@@ -178,7 +179,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     capabilities: {
       acceptedContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       publishesContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
-      supportedTransformModes: ["none", "aggregate", "pivot", "unpivot"],
+      supportedTransformModes: ["none", "filter", "aggregate", "pivot", "unpivot"],
       supportedAggregateModes: ["first", "last", "sum", "mean", "min", "max"],
       supportsProjection: true,
     },
@@ -190,6 +191,21 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
         props: {
           transformMode: "aggregate",
           aggregateMode: "mean",
+        },
+      },
+      {
+        label: "Filter one metric family",
+        summary: "Filters one broad tabular frame to the rows that match a saved field predicate.",
+        props: {
+          transformMode: "filter",
+          filterCombineMode: "all",
+          filterRules: [
+            {
+              field: "__name__",
+              operator: "equals",
+              value: "celery_task_failed_total",
+            },
+          ],
         },
       },
     ],

@@ -56,7 +56,8 @@ export const connectionRuntimeDefinitions = [
   ...Object.values(extensionConnectionModules).flatMap(readConnectionModule),
 ];
 
-export function getConnectionRuntimeDefinition(
+function findConnectionRuntimeDefinition(
+  definitions: AnyConnectionTypeDefinition[],
   connection: Pick<AnyConnectionTypeDefinition, "id" | "source" | "title"> | string | undefined,
 ) {
   if (!connection) {
@@ -65,7 +66,7 @@ export function getConnectionRuntimeDefinition(
 
   if (typeof connection === "string") {
     const id = normalizeConnectionRuntimeKey(connection);
-    return connectionRuntimeDefinitions.find((definition) => {
+    return definitions.find((definition) => {
       const definitionId = normalizeConnectionRuntimeKey(definition.id);
       return (
         definitionId === id ||
@@ -75,7 +76,7 @@ export function getConnectionRuntimeDefinition(
     });
   }
 
-  const exactMatch = connectionRuntimeDefinitions.find(
+  const exactMatch = definitions.find(
     (definition) =>
       normalizeConnectionRuntimeKey(definition.id) === normalizeConnectionRuntimeKey(connection.id),
   );
@@ -88,7 +89,7 @@ export function getConnectionRuntimeDefinition(
   const backendSource = normalizeConnectionRuntimeKey(connection.source);
   const backendTitle = normalizeConnectionRuntimeKey(connection.title);
 
-  return connectionRuntimeDefinitions.find((definition) => {
+  return definitions.find((definition) => {
     const localId = normalizeConnectionRuntimeKey(definition.id);
     const localSource = normalizeConnectionRuntimeKey(definition.source);
     const localTitle = normalizeConnectionRuntimeKey(definition.title);
@@ -101,10 +102,22 @@ export function getConnectionRuntimeDefinition(
   });
 }
 
+export function getConnectionRuntimeDefinition(
+  connection: Pick<AnyConnectionTypeDefinition, "id" | "source" | "title"> | string | undefined,
+) {
+  return findConnectionRuntimeDefinition(connectionRuntimeDefinitions, connection);
+}
+
 export function hydrateConnectionRuntime(
   connection: AnyConnectionTypeDefinition,
+  options?: {
+    runtimeDefinitions?: AnyConnectionTypeDefinition[];
+  },
 ): AnyConnectionTypeDefinition {
-  const runtimeDefinition = getConnectionRuntimeDefinition(connection);
+  const runtimeDefinition = findConnectionRuntimeDefinition(
+    options?.runtimeDefinitions ?? connectionRuntimeDefinitions,
+    connection,
+  );
 
   if (!runtimeDefinition) {
     return connection;

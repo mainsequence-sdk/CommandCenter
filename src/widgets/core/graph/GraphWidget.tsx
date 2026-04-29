@@ -106,12 +106,6 @@ export function GraphWidget({
   const sourceUpdate = !Array.isArray(sourceBinding.resolvedSourceInput)
     ? sourceBinding.resolvedSourceInput?.upstreamUpdate
     : undefined;
-  const canUseDeltaUpdate =
-    sourceUpdate?.mode === "delta" &&
-    sourceDeltaRows.length > 0 &&
-    !resolvedConfig.normalizeSeries &&
-    (sourceUpdate.operations?.pruned ?? 0) === 0;
-  const chartUpdateMode: WidgetRuntimeUpdateMode = canUseDeltaUpdate ? "delta" : "snapshot";
   const seriesResult = useMemo(
     () => buildGraphSeries(sourceRows, resolvedConfig),
     [resolvedConfig, sourceRows],
@@ -120,6 +114,12 @@ export function GraphWidget({
     () => buildGraphSeries(sourceDeltaRows, resolvedConfig),
     [resolvedConfig, sourceDeltaRows],
   );
+  const canUseDeltaUpdate =
+    sourceUpdate?.mode === "delta" &&
+    sourceDeltaRows.length > 0 &&
+    !resolvedConfig.normalizeSeries &&
+    (sourceUpdate.operations?.pruned ?? 0) === 0;
+  const chartUpdateMode: WidgetRuntimeUpdateMode = canUseDeltaUpdate ? "delta" : "snapshot";
   const effectiveTimeAxisMode = useMemo(
     () => resolveGraphEffectiveTimeAxisMode(resolvedConfig, sourceRows),
     [resolvedConfig, sourceRows],

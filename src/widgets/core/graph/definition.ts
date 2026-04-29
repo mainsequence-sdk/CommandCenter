@@ -36,7 +36,7 @@ function resolveSourceDataset(
 
 export const graphWidget = defineWidget<GraphWidgetProps>({
   id: "graph",
-  widgetVersion: "2.6.0",
+  widgetVersion: "2.8.0",
   title: "Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -50,18 +50,20 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     provider: "tradingview",
     chartType: "line",
     dateRangeMode: "dashboard",
+    limit: 500,
     maxSeries: 8,
     minBarSpacingPx: 0.01,
   },
-  mockProps: {
-    sourceMode: "filter_widget",
-    graphSourceMode: "bound",
-    provider: "tradingview",
-    chartType: "line",
-    dateRangeMode: "dashboard",
-    maxSeries: 8,
-    minBarSpacingPx: 0.01,
-  },
+    mockProps: {
+      sourceMode: "filter_widget",
+      graphSourceMode: "bound",
+      provider: "tradingview",
+      chartType: "line",
+      dateRangeMode: "dashboard",
+      limit: 500,
+      maxSeries: 8,
+      minBarSpacingPx: 0.01,
+    },
   io: {
     inputs: [
       {
@@ -172,8 +174,9 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
         "Optionally choose grouping, provider, and chart style settings.",
       ],
       configurationNotes: [
-        "This widget still renders only from the canonical resolved sourceData binding, even when the Bindings and Connection tabs create and manage a hidden connection-query source widget behind the scenes.",
+        "This widget still renders only from the canonical resolved sourceData binding, even when the Bindings and Connection tabs create and manage a hidden connection-query or connection-stream-query source widget behind the scenes.",
         "This widget does not infer field mappings from upstream time-series metadata.",
+        "Max points per series caps only the local chart render window. It does not trim retained upstream rows; use source-side retention on live stream widgets when the upstream dataset itself should stay bounded.",
         "When grouping is enabled, Max series limits how many grouped series render at once; remaining groups are dropped deterministically by point count.",
         "The chart provider changes rendering behavior but not the canonical upstream dataset contract.",
       ],
@@ -194,6 +197,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
       supportedProviders: ["tradingview", "echarts"],
       supportedChartTypes: ["line", "area", "bar", "markers"],
       supportedTimeAxisModes: ["auto", "date", "datetime"],
+      supportsPointLimit: true,
       supportsMaxSeriesLimit: true,
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),

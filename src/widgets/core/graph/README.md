@@ -10,7 +10,8 @@ This folder owns the core `graph` widget. It renders a canonical
 - `GraphWidgetSettings.tsx`: custom chart-focused settings surface for graph field mapping and
   per-series styling.
 - `managedConnectionConsumer.ts`: Graph implementation of the shared managed-connection consumer
-  adapter. It maps Graph props onto the generic hidden `connection-query` authoring lifecycle.
+  adapter. It maps Graph props onto the generic hidden `connection-query` or
+  `connection-stream-query` authoring lifecycle.
 - `schema.tsx`: schema-backed chart settings for provider, chart type, field mappings, grouping, normalization, and axes.
 - `controller.ts`: controller context for resolved source fields and picker options.
 - `graphModel.ts`: chart configuration normalization, graph source-mode normalization, embedded
@@ -24,16 +25,17 @@ This folder owns the core `graph` widget. It renders a canonical
 - Authoring supports two source ownership patterns:
   - normal bound dataset: the graph reads whichever upstream widget is connected to `sourceData`
   - managed connection source: the `Bindings` tab can stage or enable one graph-owned hidden
-    `connection-query` widget, and the dedicated `Connection` tab edits that source by reusing the
-    same full connection-query settings surface as the standalone widget
-- Save/update lifecycle code creates or repairs the hidden managed `connection-query` widget and
+    `connection-query` or `connection-stream-query` widget, and the dedicated `Connection` tab
+    edits that source by reusing the same shared connection authoring surface as the standalone
+    source widget
+- Save/update lifecycle code creates or repairs the hidden managed connection source widget and
   keeps the canonical binding from that source widget's `dataset` output to this graph's
   `sourceData` input.
 - Even in connection source mode, runtime rendering stays binding-driven. The graph never calls a
   connection API directly and never reads the managed source props at render time.
 - Embedded connection source settings reuse the same request builder, query-model resolution,
-  typed query editors, test execution, incremental refresh controls, and normalized response
-  preview as the standalone `connection-query` widget.
+  typed query editors, test execution, stream test controls, and normalized response preview as the
+  standalone connection source widgets.
 - Graph no longer owns a private managed-source settings implementation. The widget-settings route,
   hidden-source lifecycle, and `Connection` tab now all go through the shared managed-connection
   consumer adapter/panel layer so future consumer widgets can reuse the same integration path.
@@ -55,6 +57,10 @@ This folder owns the core `graph` widget. It renders a canonical
   TradingView uses a line series with the stroke hidden and point markers forced on.
 - Marker-only charts expose a widget-level `markerSizePx` setting so authors can tune point size
   without switching providers.
+- Graphs expose a widget-level `limit` setting as `Max points per series`. This trims the plotted
+  history window per series to the latest N points without mutating the upstream dataset.
+- On live delta updates, that point window behaves as a rolling queue per series: once the plotted
+  window is full, the oldest plotted point is dropped and the newest point is kept.
 - Grouped charts expose a widget-level `maxSeries` setting so authors can decide how many grouped
   series render before the widget drops the remainder by point count.
 - Normalization, per-series colors, and line styles are chart-local and do not mutate upstream data.
@@ -67,9 +73,12 @@ This folder owns the core `graph` widget. It renders a canonical
 - Keep accepted input aligned with `core.tabular_frame@v1`.
 - Keep `sourceData` as the only runtime data edge, even when authoring uses embedded connection
   source mode.
-- Keep managed connection authoring routed through the shared connection-query settings surface,
+- Keep managed connection authoring routed through the shared connection settings surfaces,
   the widget-settings route `Bindings -> Connection` flow, and the managed widget lifecycle
   helpers. Do not add graph-local connection query execution.
+- Keep the graph-local point window separate from upstream source retention. If a live stream
+  source must stop retaining old rows entirely, that belongs on the upstream source widget, not in
+  the graph renderer.
 - Avoid reintroducing graph-local time-series semantics or upstream metadata-driven auto-mapping.
 - Avoid adding connection-specific or Main Sequence-specific backend calls here.
 - Bump `widgetVersion` when props, accepted input behavior, registry metadata, or user-facing authoring semantics change.

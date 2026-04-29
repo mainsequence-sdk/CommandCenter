@@ -7,16 +7,42 @@ import type {
   ConnectionCapability,
   ConnectionConfigSchema,
   ConnectionQueryModel,
+  ConnectionQueryStreamModel,
   AnyConnectionTypeDefinition,
 } from "@/connections/types";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 
 export const CONNECTION_REGISTRY_VERSION =
-  "2026-04-26-adapter-from-api-massive-market-data";
+  "2026-04-28-query-stream-metadata";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+
+export type SyncedConnectionQueryStreamMode = "snapshot" | "delta";
+
+export interface SyncedConnectionQueryStreamModel {
+  transport: "websocket";
+  modes: SyncedConnectionQueryStreamMode[];
+  defaultMode?: SyncedConnectionQueryStreamMode;
+  supportsResume?: boolean;
+  heartbeatMs?: number;
+  description?: string;
+}
+
+export interface SyncedConnectionQueryModel {
+  id: string;
+  label: string;
+  description?: string;
+  outputContracts: string[];
+  defaultOutputContract?: string;
+  defaultQuery?: JsonValue;
+  controls?: string[];
+  timeRangeAware?: boolean;
+  supportsVariables?: boolean;
+  supportsMaxRows?: boolean;
+  stream?: SyncedConnectionQueryStreamModel;
+}
 
 export interface SyncedConnectionTypePayload {
   typeId: string;
@@ -31,7 +57,7 @@ export interface SyncedConnectionTypePayload {
   accessMode: ConnectionAccessMode;
   publicConfigSchema: ConnectionConfigSchema;
   secureConfigSchema?: ConnectionConfigSchema;
-  queryModels: ConnectionQueryModel[];
+  queryModels: SyncedConnectionQueryModel[];
   requiredPermissions: string[];
   usageGuidance?: string;
   examples: JsonValue;
@@ -79,6 +105,10 @@ class ConnectionTypeSyncError extends Error {
 }
 
 const inFlightSyncs = new Map<string, Promise<ConnectionTypeSyncResponse>>();
+const validConnectionQueryStreamModes = new Set<SyncedConnectionQueryStreamMode>([
+  "snapshot",
+  "delta",
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -167,7 +197,124 @@ function appendRequiredStringIssue(
   }
 }
 
-function validateConnectionType(
+function appendValidationIssue(
+  issues: ConnectionTypeSyncValidationIssue[],
+  connection: AnyConnectionTypeDefinition,
+  section: string,
+  message: string,
+) {
+  issues.push({
+    typeId: connection.id || "(missing id)",
+    section,
+    message,
+  });
+}
+
+function isStreamMode(value: unknown): value is SyncedConnectionQueryStreamMode {
+  return (
+    typeof value === "string" &&
+    validConnectionQueryStreamModes.has(value as SyncedConnectionQueryStreamMode)
+  );
+}
+
+function validateConnectionQueryStreamMetadata(
+  connection: AnyConnectionTypeDefinition,
+  model: ConnectionQueryModel,
+  index: number,
+  issues: ConnectionTypeSyncValidationIssue[],
+) {
+  const stream = (model as { stream?: unknown }).stream;
+
+  if (stream === undefined) {
+    return;
+  }
+
+  const queryModelId = typeof model.id === "string" && model.id.trim()
+    ? model.id
+    : `index-${index}`;
+  const section = `queryModels.${queryModelId}.stream`;
+
+  if (!connection.capabilities.includes("stream")) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "connection capability stream is required when a query model advertises stream metadata.",
+    );
+  }
+
+  if (!isRecord(stream)) {
+    appendValidationIssue(issues, connection, section, "stream must be an object.");
+    return;
+  }
+
+  if (stream.transport !== "websocket") {
+    appendValidationIssue(issues, connection, section, "stream.transport must be websocket.");
+  }
+
+  if (!Array.isArray(stream.modes) || stream.modes.length === 0) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "stream.modes must include at least one mode.",
+    );
+  } else {
+    const invalidModes = stream.modes.filter((mode) => !isStreamMode(mode));
+
+    if (invalidModes.length > 0) {
+      appendValidationIssue(
+        issues,
+        connection,
+        section,
+        "stream.modes may only include snapshot or delta.",
+      );
+    }
+  }
+
+  if (stream.defaultMode !== undefined && !isStreamMode(stream.defaultMode)) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "stream.defaultMode must be snapshot or delta.",
+    );
+  }
+
+  if (stream.supportsResume !== undefined && typeof stream.supportsResume !== "boolean") {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "stream.supportsResume must be a boolean when provided.",
+    );
+  }
+
+  if (
+    stream.heartbeatMs !== undefined &&
+    (typeof stream.heartbeatMs !== "number" ||
+      !Number.isFinite(stream.heartbeatMs) ||
+      stream.heartbeatMs <= 0)
+  ) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "stream.heartbeatMs must be a positive number when provided.",
+    );
+  }
+
+  if (stream.description !== undefined && typeof stream.description !== "string") {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "stream.description must be a string when provided.",
+    );
+  }
+}
+
+export function validateConnectionTypeForSync(
   connection: AnyConnectionTypeDefinition,
 ): ConnectionTypeSyncValidationIssue[] {
   const issues: ConnectionTypeSyncValidationIssue[] = [];
@@ -202,10 +349,77 @@ function validateConnectionType(
     });
   }
 
+  connection.queryModels?.forEach((model, index) => {
+    validateConnectionQueryStreamMetadata(connection, model, index, issues);
+  });
+
   return issues;
 }
 
-function projectConnectionType(
+function projectConnectionQueryStreamModel(
+  stream: ConnectionQueryStreamModel | undefined,
+): SyncedConnectionQueryStreamModel | undefined {
+  if (!stream) {
+    return undefined;
+  }
+
+  return {
+    transport: "websocket",
+    modes: [...stream.modes],
+    defaultMode: stream.defaultMode,
+    supportsResume: stream.supportsResume,
+    heartbeatMs: stream.heartbeatMs,
+    description: stream.description,
+  };
+}
+
+export function projectConnectionQueryModelForSync(
+  model: ConnectionQueryModel,
+): SyncedConnectionQueryModel {
+  const projected: SyncedConnectionQueryModel = {
+    id: model.id,
+    label: model.label,
+    outputContracts: [...model.outputContracts],
+  };
+
+  if (model.description !== undefined) {
+    projected.description = model.description;
+  }
+
+  if (model.defaultOutputContract !== undefined) {
+    projected.defaultOutputContract = model.defaultOutputContract;
+  }
+
+  if (model.defaultQuery !== undefined) {
+    projected.defaultQuery = toJsonValue(model.defaultQuery);
+  }
+
+  if (model.controls !== undefined) {
+    projected.controls = [...model.controls];
+  }
+
+  if (model.timeRangeAware !== undefined) {
+    projected.timeRangeAware = model.timeRangeAware;
+  }
+
+  if (model.supportsVariables !== undefined) {
+    projected.supportsVariables = model.supportsVariables;
+  }
+
+  if (model.supportsMaxRows !== undefined) {
+    projected.supportsMaxRows = model.supportsMaxRows;
+  }
+
+  const stream = projectConnectionQueryStreamModel(model.stream);
+
+  if (stream) {
+    projected.stream = stream;
+  }
+
+  return projected;
+}
+
+export function projectConnectionTypeForSync(
   connection: AnyConnectionTypeDefinition,
 ): SyncedConnectionTypePayload {
   return {
@@ -221,7 +435,7 @@ function projectConnectionType(
     accessMode: connection.accessMode,
     publicConfigSchema: connection.publicConfigSchema,
     secureConfigSchema: connection.secureConfigSchema,
-    queryModels: connection.queryModels ?? [],
+    queryModels: (connection.queryModels ?? []).map(projectConnectionQueryModelForSync),
     requiredPermissions: connection.requiredPermissions ?? [],
     usageGuidance: connection.usageGuidance,
     examples: toJsonValue(connection.examples ?? []),
@@ -237,14 +451,14 @@ function formatValidationIssues(issues: ConnectionTypeSyncValidationIssue[]) {
 
 export async function buildConnectionTypeSyncDraft(): Promise<ConnectionTypeSyncDraft> {
   const validationIssues = [...appRegistry.connections]
-    .flatMap((connection) => validateConnectionType(connection))
+    .flatMap((connection) => validateConnectionTypeForSync(connection))
     .sort((left, right) =>
       left.typeId === right.typeId
         ? left.section.localeCompare(right.section)
         : left.typeId.localeCompare(right.typeId),
     );
   const connections = [...appRegistry.connections]
-    .map((connection) => projectConnectionType(connection))
+    .map((connection) => projectConnectionTypeForSync(connection))
     .sort((left, right) => left.typeId.localeCompare(right.typeId));
 
   const registryBody = {

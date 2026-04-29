@@ -1,0 +1,15 @@
+{
+  "id": "connections/extension-guide",
+  "title": "Extending Connections",
+  "description": "This guide explains how to add a new Command Center connection type. It covers the frontend",
+  "source": "@site/../docs/connections/extension-guide.md",
+  "sourceDirName": "connections",
+  "slug": "/connections/extension-guide",
+  "permalink": "/docs/connections/extension-guide",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/connections/extension-guide.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

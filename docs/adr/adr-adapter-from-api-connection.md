@@ -250,7 +250,7 @@ the rules below rather than treating the contract as advisory text.
 
 #### 1.5.4 Query Validation
 
-- Query execution must load the stored connection instance by backend `id`, not `uid`.
+- Query execution must load the stored connection instance by backend `id`.
 - The backend must read the stored compiled contract snapshot attached to that instance. Query
   execution must not refetch upstream discovery documents.
 - `query.kind` must equal `api-operation`.

@@ -26,6 +26,7 @@ import {
   normalizeConnectionQueryProps,
   type ConnectionQueryWidgetProps,
 } from "@/widgets/core/connection-query/connectionQueryModel";
+import type { ConnectionStreamQueryWidgetProps } from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
 
 export type GraphProvider = "tradingview" | "echarts";
 export type GraphChartType = "line" | "area" | "bar" | "markers";
@@ -33,7 +34,7 @@ export type GraphViewMode = "chart" | "table";
 export type GraphSeriesAxisMode = "shared" | "separate";
 export type GraphTimeAxisMode = "auto" | "date" | "datetime";
 export type GraphNormalizationAnchor = number | "series-start" | null;
-export type GraphAuthoringSourceMode = "bound" | "connection";
+export type GraphAuthoringSourceMode = "bound" | "connection" | "connection-stream";
 export type GraphLineStyle =
   | "solid"
   | "dotted"
@@ -53,7 +54,7 @@ export interface GraphWidgetProps
   extends TabularWidgetSourceProps,
     TabularWidgetSourceReferenceProps {
   graphSourceMode?: GraphAuthoringSourceMode;
-  embeddedConnectionQuery?: ConnectionQueryWidgetProps;
+  embeddedConnectionQuery?: ConnectionQueryWidgetProps | ConnectionStreamQueryWidgetProps;
   embeddedConnectionPresentation?: WidgetInstancePresentation;
   chartType?: GraphChartType;
   groupField?: string;
@@ -96,6 +97,7 @@ export interface GraphSeries {
   label: string;
   lineStyle?: GraphLineStyle;
   pointCount: number;
+  sourcePointCount: number;
   points: Array<{ time: number; value: number }>;
 }
 
@@ -174,7 +176,7 @@ function normalizeTimeAxisMode(value: unknown): GraphTimeAxisMode {
 }
 
 export function normalizeGraphAuthoringSourceMode(value: unknown): GraphAuthoringSourceMode {
-  return value === "connection" ? "connection" : "bound";
+  return value === "connection" || value === "connection-stream" ? value : "bound";
 }
 
 function normalizeProvider(value: unknown): GraphProvider {
@@ -723,7 +725,7 @@ export function buildGraphSeries(
   rows: TabularDataRow[],
   config: Pick<
     ResolvedGraphConfig,
-    "groupField" | "maxSeries" | "seriesOverrides" | "xField" | "yField"
+    "groupField" | "limit" | "maxSeries" | "seriesOverrides" | "xField" | "yField"
   >,
 ): GraphSeriesResult {
   if (!config.xField || !config.yField) {
@@ -773,18 +775,27 @@ export function buildGraphSeries(
     groupedPoints.set(groupKey, current);
   });
 
+  const maxPointsPerSeries = Math.max(1, config.limit);
   const sortedGroups = [...groupedPoints.values()]
-    .map((series) => ({
-      id: series.id,
-      label: series.label,
-      color: series.color,
-      lineStyle: series.lineStyle,
-      points: [...series.pointMap.entries()]
+    .map((series) => {
+      const sourcePoints = [...series.pointMap.entries()]
         .sort((left, right) => left[0] - right[0])
-        .map(([time, value]) => ({ time, value })),
-      pointCount: series.pointMap.size,
-    }))
-    .sort((left, right) => right.pointCount - left.pointCount);
+        .map(([time, value]) => ({ time, value }));
+      const points = sourcePoints.length > maxPointsPerSeries
+        ? sourcePoints.slice(-maxPointsPerSeries)
+        : sourcePoints;
+
+      return {
+        id: series.id,
+        label: series.label,
+        color: series.color,
+        lineStyle: series.lineStyle,
+        points,
+        pointCount: points.length,
+        sourcePointCount: sourcePoints.length,
+      };
+    })
+    .sort((left, right) => right.sourcePointCount - left.sourcePointCount);
   const totalGroups = groupField
     ? uniqueStrings(rows.map((row) => String(row[groupField] ?? "__empty__"))).length
     : sortedGroups.length;
@@ -840,6 +851,7 @@ export function buildGraphChartSeries(
 
     return {
       ...entry,
+      sourcePointCount: entry.sourcePointCount,
       pointCount: points.length,
       points,
     };

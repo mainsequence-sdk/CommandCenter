@@ -8,7 +8,7 @@ into one or more KPI-style cards.
 - `definition.ts`: core widget definition, IO metadata, registry contract, demo inputs, and settings/component wiring.
 - `StatisticWidget.tsx`: mounted renderer for statistic cards and empty/error states.
 - `StatisticWidgetSettings.tsx`: settings editor for binding status, reduction mode, field choices, grouping, formatting, and color rules.
-- `managedConnectionConsumer.ts`: shared managed-connection adapter that lets the generic widget-settings route create one hidden `connection-query` source for this statistic widget.
+- `managedConnectionConsumer.ts`: shared managed-connection adapter that lets the generic widget-settings route create one hidden `connection-query` or `connection-stream-query` source for this statistic widget.
 - `StatisticCardGrid.tsx`: responsive KPI card renderer.
 - `statisticModel.ts`: configuration normalization, field inference, grouping, reduction, formatting, and color-rule evaluation.
 - `statisticPreview.ts`: demo resolved-input fixture for settings preview mode.
@@ -18,7 +18,7 @@ into one or more KPI-style cards.
 
 - The widget consumes one `core.tabular_frame@v1` input on `sourceData`.
 - Connection-backed authoring still resolves through `sourceData`; the hidden managed
-  `connection-query` widget owns execution and dataset publication.
+  `connection-query` or `connection-stream-query` widget owns execution and dataset publication.
 - The widget reads the resolved input's generic `upstreamBase` frame when an incremental upstream
   source publishes retained base plus delta metadata. It recomputes cards from the retained
   snapshot rather than applying row deltas directly.

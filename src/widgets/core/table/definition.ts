@@ -29,7 +29,7 @@ import {
 
 export const tableWidget = defineWidget<TableWidgetProps>({
   id: "table",
-  widgetVersion: "2.5.0",
+  widgetVersion: "2.6.0",
   title: "Table",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -188,11 +188,11 @@ export const tableWidget = defineWidget<TableWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Formats a bound tabular dataset, a widget-owned hidden connection-query source, or a manually authored table into a user-facing table with saved field formatting and visibility preferences.",
+        "Formats a bound tabular dataset, a widget-owned hidden connection or stream source, or a manually authored table into a user-facing table with saved field formatting and visibility preferences.",
       requiredSetupSteps: [
-        "Choose Bound dataset, Connection query, or Manual table in settings.",
+        "Choose Bound dataset, Connection query, Stream connection, or Manual table in settings.",
         "For Bound dataset, bind the widget to one upstream tabular dataset.",
-        "For Connection query, use Bindings -> Add connection and configure the Connection tab.",
+        "For Connection query or Stream connection, use Bindings -> Add connection and configure the Connection tab.",
         "For Manual table, add columns and rows in the table editor.",
         "Adjust visible fields and formatting options in settings.",
       ],
