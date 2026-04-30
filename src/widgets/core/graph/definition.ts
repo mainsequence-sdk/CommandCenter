@@ -2,6 +2,7 @@ import { BarChart3 } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
+import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
@@ -31,6 +32,7 @@ function resolveSourceDataset(
   input: {
     resolvedInputs: ResolvedWidgetInputs | undefined;
     runtimeState?: Record<string, unknown>;
+    runtimeDataStore?: RuntimeDataStore | null;
   },
 ) {
   const incrementalFrame = resolveIncrementalTabularOutputFrame(input);
@@ -128,8 +130,12 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
   },
   workspaceIcon: BarChart3,
   workspaceRuntimeMode: "consumer",
-  buildAgentSnapshot: ({ props, resolvedInputs, runtimeState }) => {
-    const sourceDataset = resolveSourceDataset({ resolvedInputs, runtimeState });
+  buildAgentSnapshot: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) => {
+    const sourceDataset = resolveSourceDataset({
+      resolvedInputs,
+      runtimeState,
+      runtimeDataStore,
+    });
     const fieldOptions = resolveTabularFieldOptionsFromDataset({
       columns: sourceDataset?.columns,
       rows: sourceDataset?.rows,

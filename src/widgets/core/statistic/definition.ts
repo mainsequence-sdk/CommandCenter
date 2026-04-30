@@ -2,6 +2,7 @@ import { Calculator } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
+import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import {
   resolveIncrementalTabularOutputFrame,
   TABULAR_LIVE_UPDATES_INPUT_ID,
@@ -32,6 +33,7 @@ function resolveStatisticSnapshotSourceDataset(input: {
   props: StatisticWidgetProps;
   resolvedInputs: ResolvedWidgetInputs | undefined;
   runtimeState?: Record<string, unknown>;
+  runtimeDataStore?: RuntimeDataStore | null;
   resolveWidgetRuntimeState?: (instanceId: string | undefined) => Record<string, unknown> | undefined;
 }) {
   const legacyDataset = resolveStatisticSourceDataset(input.resolvedInputs);
@@ -43,6 +45,7 @@ function resolveStatisticSnapshotSourceDataset(input: {
   const incrementalDataset = resolveIncrementalTabularOutputFrame({
     resolvedInputs: input.resolvedInputs,
     runtimeState: input.runtimeState,
+    runtimeDataStore: input.runtimeDataStore,
   });
 
   if (incrementalDataset) {
@@ -175,11 +178,18 @@ export const statisticWidget = defineWidget<StatisticWidgetProps>({
   },
   workspaceRuntimeMode: "consumer",
   workspaceIcon: Calculator,
-  buildAgentSnapshot: ({ props, resolvedInputs, runtimeState, resolveWidgetRuntimeState }) => {
+  buildAgentSnapshot: ({
+    props,
+    resolvedInputs,
+    runtimeState,
+    runtimeDataStore,
+    resolveWidgetRuntimeState,
+  }) => {
     const sourceDataset = resolveStatisticSnapshotSourceDataset({
       props,
       resolvedInputs,
       runtimeState,
+      runtimeDataStore,
       resolveWidgetRuntimeState,
     });
     const availableFields = buildStatisticFieldOptions({
@@ -235,7 +245,7 @@ export const statisticWidget = defineWidget<StatisticWidgetProps>({
           formattedValue: card.formattedValue,
           formattedPrimaryValue: card.formattedPrimaryValue,
           formattedSuffix: card.formattedSuffix,
-          chartPoints: card.chartPoints.slice(0, 100),
+          chartPoints: card.chartPoints?.slice(0, 100) ?? [],
           resolvedStyle: card.resolvedStyle ?? null,
         })),
       },

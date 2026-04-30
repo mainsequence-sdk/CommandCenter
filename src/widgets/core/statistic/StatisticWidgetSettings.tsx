@@ -34,7 +34,7 @@ import {
   type StatisticTone,
   type StatisticWidgetProps,
 } from "./statisticModel";
-import { resolveStatisticSourceDataset } from "./statisticPreview";
+import { resolveStatisticSettingsDataset } from "./statisticPreview";
 import { TabularFieldSchemaInspector } from "@/widgets/shared/tabular-field-schema-inspector";
 import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-widget-source";
 
@@ -157,7 +157,7 @@ export function StatisticWidgetSettings({
     [instanceId, widgetRegistry],
   );
   const previewDataset = useMemo(
-    () => resolveStatisticSourceDataset(resolvedInputs),
+    () => resolveStatisticSettingsDataset(resolvedInputs),
     [resolvedInputs],
   );
   const sourceBinding = useResolvedTabularWidgetSourceBinding({

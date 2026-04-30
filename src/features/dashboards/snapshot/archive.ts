@@ -256,11 +256,9 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
         widgetKind: widget.kind,
         error: "Widget is not available for the current authenticated user permissions.",
       });
-    } else if (widget.stateDump || widget.buildAgentSnapshot) {
+    } else if (widget.buildAgentSnapshot) {
       try {
-        const stateDump = widget.stateDump ?? widget.buildAgentSnapshot;
-
-        snapshot = await stateDump!({
+        snapshot = await widget.buildAgentSnapshot({
           widgetId: widget.id,
           instanceId: instance.id,
           title: instance.title ?? widget.title,
@@ -271,9 +269,9 @@ export async function buildWorkspaceAgentSnapshotArchive(input: {
           resolvedInputs: input.resolveInputs(instance.id),
           dashboardState: input.controlsState,
           domTextContent,
-          resolveWidgetRuntimeState: (instanceId) =>
-            typeof instanceId === "string"
-              ? (input.resolvedDashboard.widgets.find((candidate) => candidate.id === instanceId)
+          resolveWidgetRuntimeState: (targetInstanceId) =>
+            typeof targetInstanceId === "string"
+              ? (input.resolvedDashboard.widgets.find((candidate) => candidate.id === targetInstanceId)
                   ?.runtimeState as Record<string, unknown> | undefined)
               : undefined,
         });

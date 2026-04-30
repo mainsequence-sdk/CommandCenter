@@ -45,17 +45,24 @@ function buildSeedResolvedInput() {
 
 describe("mainSequenceOhlcBarsWidget", () => {
   it("documents the new seed/live authoring contract", () => {
+    const io = mainSequenceOhlcBarsWidget.io;
+    const registryContract = mainSequenceOhlcBarsWidget.registryContract;
+
+    expect(io).toBeDefined();
+    expect(registryContract?.configuration).toBeDefined();
+    expect(registryContract?.io).toBeDefined();
+
     expect(mainSequenceOhlcBarsWidget.widgetVersion).toBe("1.1.1");
-    expect(mainSequenceOhlcBarsWidget.io.inputs?.[0]?.acceptedOutputIds).toEqual([
+    expect(io!.inputs?.[0]?.acceptedOutputIds).toEqual([
       DATA_NODE_SOURCE_OUTPUT_ID,
     ]);
-    expect(mainSequenceOhlcBarsWidget.registryContract?.configuration.requiredSetupSteps[0]).toContain("seedData");
-    expect(mainSequenceOhlcBarsWidget.registryContract?.io.ioNotes?.[0]).toContain("seedData");
-    expect(mainSequenceOhlcBarsWidget.registryContract?.io.ioNotes?.[1]).toContain("liveUpdates");
+    expect(registryContract!.configuration!.requiredSetupSteps?.[0]).toContain("seedData");
+    expect(registryContract!.io!.ioNotes?.[0]).toContain("seedData");
+    expect(registryContract!.io!.ioNotes?.[1]).toContain("liveUpdates");
   });
 
-  it("builds an agent snapshot from seed role bindings", () => {
-    const snapshot = mainSequenceOhlcBarsWidget.buildAgentSnapshot?.({
+  it("builds an agent snapshot from seed role bindings", async () => {
+    const snapshot = await Promise.resolve(mainSequenceOhlcBarsWidget.buildAgentSnapshot!({
       props: {
         timeField: "time",
         openField: "open",
@@ -67,10 +74,10 @@ describe("mainSequenceOhlcBarsWidget", () => {
         [TABULAR_SEED_INPUT_ID]: buildSeedResolvedInput(),
       },
       runtimeState: undefined,
-    } as never);
+    } as never));
 
-    expect(snapshot?.state).toBe("ready");
-    expect(snapshot?.data).toMatchObject({
+    expect(snapshot.state).toBe("ready");
+    expect(snapshot.data).toMatchObject({
       rowCount: 1,
       pointCount: 1,
     });

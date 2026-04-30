@@ -48,6 +48,10 @@ This directory contains reusable widget presentation primitives that are shared 
   output, and the dashboard binding resolver exposes it to widgets as `upstreamBase`,
   `upstreamDelta`, and `upstreamUpdate` on resolved inputs. Consumers should read those generic
   fields instead of source-specific metadata names when they need incremental behavior.
+- `runtime-data-store.tsx`: workspace-scoped in-memory runtime data store for large tabular
+  frames. Connection sources write snapshots/deltas into this store and publish small
+  `RuntimeTabularFrameRef` shells through runtime state and binding resolution. Ref-aware
+  consumers should materialize rows only at the point of rendering or view projection.
 - `widget-schema.ts`: shared helpers for widget schema visibility, controller context resolution, and exposed-field presentation state.
 - `widget-schema-form.tsx`: generic settings form renderer for schema-based widget fields. The form
   now supports per-field layout width through `WidgetFieldDefinition.settingsColumnSpan`, so shared
@@ -90,6 +94,9 @@ This directory contains reusable widget presentation primitives that are shared 
 - Structured output exploration belongs in the shared source explorer contract, not in widget-specific binding hacks. Widgets should expose `valueDescriptor` metadata on outputs, and shared binding surfaces should consume that metadata to render whole-output binding, array-item selection, and nested-field extraction consistently. When a descriptor is generic but a runtime value is already available, the explorer may infer temporary nested paths from that value so API-driven JSON outputs remain bindable.
 - Array outputs are not flattened into pseudo-ports by the shared binding layer. The explorer keeps the graph edge anchored to the source output port, then optionally applies ordered binding transforms such as `select-array-item` followed by `extract-path`.
 - Generic table-like widget bindings should use `tabular-frame-source.ts` instead of inventing extension-specific row contracts. Keep source-specific metadata nested under `source` and keep field schemas limited to generic metadata like `key`, `label`, `type`, `description`, and `nullable`.
+- Large runtime datasets should move through `runtime-data-store.tsx` references instead of being
+  copied through widget runtime state, resolved inputs, or `widget-runtime-update@v1` envelopes.
+  Runtime state may carry ref metadata and lifecycle fields, but not retained live row history.
 - Upstream consumer widgets should render from `upstream-consumer-state.ts` instead of
   independently combining binding status, runtime-state nullability, dataset status, and row-count
   heuristics. In particular, `awaiting-upstream`, `loading`, `empty`, and `error` must stay

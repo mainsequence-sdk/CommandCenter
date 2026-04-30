@@ -34,6 +34,10 @@ backend-owned connection instances.
 - Runtime execution calls `queryConnection(...)` and publishes one dataset from the first matching
   response frame. The widget always publishes `core.tabular_frame@v1`. Legacy backend
   series-shaped responses are coerced into canonical tabular rows at the widget edge.
+- Runtime publication writes HTTP snapshots and incremental batches into the workspace runtime data
+  store when one is available. The saved widget runtime state carries a ref-backed shell plus
+  small update metadata, while legacy consumers can still materialize the retained tabular frame
+  through the shared compatibility path.
 - The settings test action uses the same request builder as runtime execution. Workspace dates are
   read from dashboard controls; custom fixed dates are stored in props. Returned frames render
   through `src/connections/ConnectionQueryResponsePreview.tsx`, matching Data Sources Explore

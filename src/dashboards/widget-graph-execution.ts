@@ -19,6 +19,7 @@ import type {
   WidgetExecutionResult,
   WidgetExecutionTargetOverrides,
 } from "@/widgets/types";
+import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -257,6 +258,7 @@ export function buildDashboardExecutionSnapshot(args: {
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
   targetInstanceId?: string;
   targetOverrides?: WidgetExecutionTargetOverrides;
+  runtimeDataStore?: RuntimeDataStore | null;
 }): DashboardExecutionSnapshot {
   const effectiveWidgets =
     args.targetInstanceId && args.targetOverrides
@@ -271,6 +273,7 @@ export function buildDashboardExecutionSnapshot(args: {
   const dependencies = createDashboardWidgetDependencyModel(
     effectiveWidgets,
     args.resolveWidgetDefinition,
+    { runtimeDataStore: args.runtimeDataStore },
   );
 
   return {
@@ -618,6 +621,7 @@ export interface ExecuteDashboardWidgetGraphArgs {
   targetOverrides?: WidgetExecutionTargetOverrides;
   signal?: AbortSignal;
   executedInstanceIds?: Set<string>;
+  runtimeDataStore?: RuntimeDataStore | null;
   onRuntimeStateWrite?: (
     instanceId: string,
     runtimeState: Record<string, unknown> | undefined,
@@ -649,6 +653,7 @@ export async function executeDashboardWidgetGraph(
     resolveWidgetDefinition: args.resolveWidgetDefinition,
     targetInstanceId: args.targetInstanceId,
     targetOverrides: args.targetOverrides,
+    runtimeDataStore: args.runtimeDataStore,
   });
   const targetInstance = snapshot.getInstance(args.targetInstanceId);
 
@@ -718,6 +723,7 @@ export async function executeDashboardWidgetGraph(
       resolveWidgetDefinition: args.resolveWidgetDefinition,
       targetInstanceId: args.targetInstanceId,
       targetOverrides: args.targetOverrides,
+      runtimeDataStore: args.runtimeDataStore,
     });
 
     const instance = snapshot.getInstance(instanceId);
@@ -748,6 +754,7 @@ export async function executeDashboardWidgetGraph(
       runtimeState: instance.runtimeState,
       resolvedInputs: snapshot.dependencies.resolveInputs(instanceId),
       dashboardState: args.dashboardState,
+      runtimeDataStore: args.runtimeDataStore,
       targetOverrides:
         instanceId === args.targetInstanceId ? args.targetOverrides : undefined,
       refreshCycleId: args.refreshCycleId,

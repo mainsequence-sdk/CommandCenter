@@ -527,6 +527,24 @@ export function ConnectionStreamQueryTestPanel({
             </div>
             <div className="grid gap-2 md:grid-cols-4">
               <StatusMetric
+                label="Retry attempts"
+                value={String(statusFrame?.reconnectAttemptCount ?? 0)}
+              />
+              <StatusMetric
+                label="Next retry"
+                value={formatTimestamp(statusFrame?.nextRetryAtMs)}
+              />
+              <StatusMetric
+                label="Last disconnect"
+                value={formatTimestamp(statusFrame?.lastDisconnectAtMs)}
+              />
+              <StatusMetric
+                label="Disconnect reason"
+                value={statusFrame?.lastDisconnectReason ?? "none"}
+              />
+            </div>
+            <div className="grid gap-2 md:grid-cols-4">
+              <StatusMetric
                 label="Preview rows"
                 value={previewFrame ? previewFrame.rows.length.toLocaleString() : "0"}
               />

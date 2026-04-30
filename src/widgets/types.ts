@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 
+import type { RuntimeDataRef, RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import type { WidgetRuntimeUpdateEnvelope } from "@/widgets/shared/runtime-update";
 
 export type WidgetKind = "kpi" | "chart" | "table" | "feed" | "custom";
@@ -179,6 +180,7 @@ export interface WidgetOutputResolverArgs<
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
   resolvedInputs?: ResolvedWidgetInputs;
+  runtimeDataStore?: RuntimeDataStore | null;
 }
 
 export interface WidgetOutputPortDefinition<
@@ -217,10 +219,13 @@ export interface ResolvedWidgetInput {
   contractId?: WidgetContractId;
   binding?: WidgetPortBinding;
   value?: unknown;
+  valueRef?: RuntimeDataRef;
   /** Retained/full upstream value after binding transforms, for snapshot-safe consumers. */
   upstreamBase?: unknown;
+  upstreamBaseRef?: RuntimeDataRef;
   /** Incremental upstream value after the same binding transforms, when available and safe. */
   upstreamDelta?: unknown;
+  upstreamDeltaRef?: RuntimeDataRef;
   /** Shared frontend runtime update metadata for snapshot/delta-aware consumers. */
   upstreamUpdate?: WidgetRuntimeUpdateEnvelope;
   valueDescriptor?: WidgetValueDescriptor;
@@ -288,6 +293,7 @@ export interface WidgetAgentSnapshotContext<
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
   resolvedInputs?: ResolvedWidgetInputs;
+  runtimeDataStore?: RuntimeDataStore | null;
   dashboardState?: WidgetExecutionDashboardState;
   domTextContent?: string;
   resolveWidgetRuntimeState?: (instanceId: string | undefined) => Record<string, unknown> | undefined;
@@ -313,6 +319,7 @@ export interface WidgetExecutionContext<
   runtimeState?: Record<string, unknown>;
   resolvedInputs?: ResolvedWidgetInputs;
   dashboardState?: WidgetExecutionDashboardState;
+  runtimeDataStore?: RuntimeDataStore | null;
   targetOverrides?: WidgetExecutionTargetOverrides<TProps>;
   refreshCycleId?: string;
   signal?: AbortSignal;
@@ -561,7 +568,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   workspaceIcon?: ComponentType<{ className?: string }>;
   railIcon?: ComponentType<{ className?: string }>;
   railSummaryComponent?: ComponentType<WidgetRailSummaryComponentProps<TProps>>;
-  buildAgentSnapshot: (
+  buildAgentSnapshot?: (
     context: WidgetAgentSnapshotContext<TProps>,
   ) => WidgetAgentSnapshot | Promise<WidgetAgentSnapshot>;
   component: ComponentType<WidgetComponentProps<TProps>>;
@@ -569,15 +576,51 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
 
 export type WidgetDefinitionInput<
   TProps extends Record<string, unknown> = Record<string, unknown>,
-> = Omit<WidgetDefinition<TProps>, "defaultSize"> & {
+> = Omit<WidgetDefinition<TProps>, "buildAgentSnapshot" | "defaultSize"> & {
+  buildAgentSnapshot?: WidgetDefinition<TProps>["buildAgentSnapshot"];
   defaultSize?: WidgetDefinition<TProps>["defaultSize"];
 };
+
+function resolveDefaultWidgetAgentSnapshotDisplayKind(
+  kind: WidgetKind,
+): WidgetAgentSnapshot["displayKind"] {
+  if (kind === "chart") {
+    return "chart";
+  }
+
+  if (kind === "table") {
+    return "table";
+  }
+
+  return "custom";
+}
+
+function buildDefaultWidgetAgentSnapshot<TProps extends Record<string, unknown>>(
+  definition: Pick<WidgetDefinitionInput<TProps>, "kind" | "title">,
+): WidgetDefinition<TProps>["buildAgentSnapshot"] {
+  return ({ domTextContent }) => {
+    const renderedText = domTextContent?.trim();
+
+    return {
+      displayKind: resolveDefaultWidgetAgentSnapshotDisplayKind(definition.kind),
+      state: renderedText ? "ready" : "idle",
+      summary: renderedText || `${definition.title} does not provide a widget-specific agent snapshot.`,
+      data: renderedText
+        ? {
+            renderedText,
+          }
+        : undefined,
+    } satisfies WidgetAgentSnapshot;
+  };
+}
 
 export function defineWidget<TProps extends Record<string, unknown> = Record<string, unknown>>(
   definition: WidgetDefinitionInput<TProps>,
 ): WidgetDefinition<TProps> {
   return {
     ...definition,
+    buildAgentSnapshot:
+      definition.buildAgentSnapshot ?? buildDefaultWidgetAgentSnapshot(definition),
     defaultSize: definition.defaultSize ?? { ...DEFAULT_WIDGET_SIZE },
   };
 }
@@ -591,6 +634,7 @@ export interface WidgetComponentProps<TProps extends Record<string, unknown> = R
   presentation?: WidgetInstancePresentation;
   runtimeState?: Record<string, unknown>;
   resolvedInputs?: ResolvedWidgetInputs;
+  runtimeDataStore?: RuntimeDataStore | null;
   onPropsChange?: (props: TProps) => void;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
 }

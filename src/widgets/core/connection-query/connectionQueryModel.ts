@@ -30,6 +30,10 @@ import {
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
 import type { WidgetContractId } from "@/widgets/types";
+import {
+  storeTabularFrameRuntimeState,
+  type RuntimeDataStore,
+} from "@/widgets/shared/runtime-data-store";
 
 import {
   mergeConnectionQueryIncrementalFrame,
@@ -977,6 +981,8 @@ export async function executeConnectionQueryWidgetRequest(
   dashboardState?: WidgetExecutionDashboardState,
   queryModel?: ConnectionQueryModel,
   options?: {
+    ownerId?: string;
+    runtimeDataStore?: RuntimeDataStore | null;
     scopeId?: string;
     forceFullRefresh?: boolean;
     traceMeta?: DashboardRequestTraceMeta;
@@ -1096,11 +1102,21 @@ export async function executeConnectionQueryWidgetRequest(
   }
 
   if (frame.status === "ready") {
-    return mergeConnectionQueryIncrementalFrame({
+    const mergedFrame = mergeConnectionQueryIncrementalFrame({
       incomingFrame: frame,
       decision: incrementalDecision,
       settings: incrementalSettings,
     }).frame;
+
+    return storeTabularFrameRuntimeState({
+      frame: mergedFrame,
+      ownerId: options?.ownerId ?? options?.scopeId ?? "connection-query",
+      outputId: "dataset",
+      store: options?.runtimeDataStore,
+      refKey: incrementalDecision.identityKey
+        ? `${options?.ownerId ?? options?.scopeId ?? "connection-query"}:dataset:${incrementalDecision.identityKey}`
+        : undefined,
+    });
   }
 
   return frame;

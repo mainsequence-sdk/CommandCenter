@@ -4,6 +4,10 @@ import { AlertTriangle, DatabaseZap, Loader2, Wifi, WifiOff } from "lucide-react
 
 import { getConnectionTypeById } from "@/app/registry";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
+import {
+  getRuntimeDataRef,
+  useRuntimeDataStore,
+} from "@/widgets/shared/runtime-data-store";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -74,6 +78,7 @@ export function ConnectionStreamQueryWidget({
   onRuntimeStateChange,
 }: Props) {
   const dashboardControls = useDashboardControls();
+  const runtimeDataStore = useRuntimeDataStore();
   const normalizedProps = useMemo(() => normalizeConnectionStreamQueryProps(props), [props]);
   const connectionType = normalizedProps.connectionRef?.typeId
     ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
@@ -178,6 +183,9 @@ export function ConnectionStreamQueryWidget({
           runtimeRef.current = nextRuntimeState;
           onRuntimeStateChangeRef.current?.(nextRuntimeState as unknown as Record<string, unknown>);
         },
+        options: {
+          runtimeDataStore,
+        },
       });
     } catch (error) {
       publishRuntimeState(
@@ -192,20 +200,42 @@ export function ConnectionStreamQueryWidget({
 
     return () => {
       session.close();
+      if (instanceId) {
+        runtimeDataStore?.releaseOwner(instanceId);
+      }
     };
   }, [
     executionKey,
+    runtimeDataStore,
   ]);
 
   const streamStatus = normalizedRuntimeState?.streamStatus ?? "idle";
   const frameStatus = normalizedRuntimeState?.status ?? "idle";
-  const rowCount = normalizedRuntimeState?.rows.length ?? 0;
+  const runtimeDataRef = getRuntimeDataRef(runtimeState);
+  const rowCount = runtimeDataRef?.rowCount ?? normalizedRuntimeState?.rows.length ?? 0;
   const columnCount = normalizedRuntimeState?.columns.length ?? 0;
   const errorMessage =
     normalizedRuntimeState?.error ??
     (validationError && normalizedProps.connectionRef?.id && normalizedProps.queryModelId
       ? validationError
       : undefined);
+  const reconnectAttemptCount = normalizedRuntimeState?.reconnectAttemptCount ?? 0;
+  const nextRetryAtMs = normalizedRuntimeState?.nextRetryAtMs;
+  const lastDisconnectReason = normalizedRuntimeState?.lastDisconnectReason;
+  const degradedMessage =
+    streamStatus === "reconnecting"
+      ? [
+          lastDisconnectReason ?? "Connection stream disconnected.",
+          reconnectAttemptCount > 0 ? `Retry ${reconnectAttemptCount} scheduled.` : null,
+          typeof nextRetryAtMs === "number"
+            ? `Next retry ${new Date(nextRetryAtMs).toLocaleTimeString()}.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : streamStatus === "closed" && lastDisconnectReason
+        ? lastDisconnectReason
+        : undefined;
   const StreamIcon =
     frameStatus === "error"
       ? AlertTriangle
@@ -247,6 +277,10 @@ export function ConnectionStreamQueryWidget({
       {frameStatus === "error" && errorMessage ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/8 px-3 py-2 text-xs text-danger">
           {errorMessage}
+        </div>
+      ) : degradedMessage ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          {degradedMessage}
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-2">

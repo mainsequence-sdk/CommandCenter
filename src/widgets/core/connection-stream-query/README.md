@@ -42,8 +42,10 @@ for connection query models that advertise a WebSocket stream contract.
 - The widget now publishes two outputs:
   - `dataset`: compatibility retained dataset for legacy consumers
   - `updates`: explicit incremental publication output for `seedData` / `liveUpdates` consumers
-- The current runtime still maintains a compatibility retained dataset bridge so legacy dataset
-  consumers keep working while migrated widgets bind the `updates` output directly.
+- The current runtime writes retained compatibility frames and delta frames into the workspace
+  runtime data store, then publishes small ref-backed runtime-state shells. Legacy dataset
+  consumers keep working through compatibility materialization while migrated widgets bind the
+  `updates` output directly.
 - Explore and widget settings previews still keep their own bounded stream-history buffer for
   graphing. Canonical widget runtime is separate from that preview buffer, but it can now also
   retain live rows for downstream consumers when the stream contract publishes row identity keys.
@@ -55,6 +57,20 @@ for connection query models that advertise a WebSocket stream contract.
   `reconnecting`, `error`, or `closed`. Canonical frame `status` remains `idle`, `loading`,
   `ready`, or `error` so existing consumer-state resolution can distinguish awaiting publication,
   loading, ready, empty, and error states.
+- Runtime now includes a browser-side reconnect supervisor that:
+  - retries after socket close/error and retryable stream errors
+  - reacquires a fresh SPA WebSocket ticket before each reconnect
+  - uses bounded exponential backoff with jitter
+  - keeps the last retained visible dataset while degraded
+  - marks the source `error` after the retry budget is exhausted
+- Current reconnect policy constants live in `connectionStreamQueryModel.ts`:
+  - initial retry delay: `1000 ms`
+  - max retry delay: `30000 ms`
+  - jitter ratio: `0.2`
+  - max reconnect attempts: `8`
+  - heartbeat timeout: `max(heartbeatMs * 3, 5000 ms)`
+- The longer-term survivability contract, including backend resume coordination, is tracked in
+  [ADR 046](../../../docs/adr/adr-046-websocket-stream-survivability-and-reconnect-supervision.md).
 - The widget is fixed to sidebar placement. It can be used as a normal hidden source widget because
   its output contract and bindings are identical to other tabular source widgets.
 
@@ -71,6 +87,7 @@ for connection query models that advertise a WebSocket stream contract.
   identity assumptions in the widget runtime.
 - Keep downstream consumers socket-agnostic. Any new lifecycle or retry metadata belongs in source
   runtime state or `source.context`, not in consumer props or binding contracts.
-- If managed consumer workflows add a streaming mode, they should create a hidden
-  `connection-stream-query` widget and bind its `dataset` output to the visible consumer's existing
-  tabular input.
+- Managed consumer workflows that add a streaming mode should create a hidden
+  `connection-stream-query` widget and bind its `updates` output to the visible consumer's
+  `liveUpdates` tabular input. Historical/HTTP seed sources should remain separately bindable to
+  `seedData`.

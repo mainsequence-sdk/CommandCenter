@@ -1,5 +1,5 @@
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
-import type { WidgetDefinition } from "@/widgets/types";
+import { defineWidget } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
@@ -8,7 +8,7 @@ import {
 } from "./YieldCurvePlotWidget";
 import { YieldCurvePlotWidgetSettings } from "./YieldCurvePlotWidgetSettings";
 
-export const yieldCurvePlotWidget: WidgetDefinition<YieldCurvePlotWidgetProps> = {
+export const yieldCurvePlotWidget = defineWidget<YieldCurvePlotWidgetProps>({
   id: "yield-curve-plot",
   widgetVersion: "1.0.0",
   title: "Yield Curve Plot",
@@ -38,4 +38,4 @@ export const yieldCurvePlotWidget: WidgetDefinition<YieldCurvePlotWidgetProps> =
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: YieldCurvePlotWidget,
-};
+});

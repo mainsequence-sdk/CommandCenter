@@ -193,8 +193,8 @@ export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidge
     const fieldOptions = buildOhlcBarsFieldOptionsFromRuntime(
       dataset
         ? {
-            columns: Array.isArray(dataset.columns) ? (dataset.columns as string[]) : undefined,
-            fields: Array.isArray(dataset.fields) ? (dataset.fields as never[]) : undefined,
+            columns: Array.isArray(dataset.columns) ? (dataset.columns as string[]) : [],
+            fields: Array.isArray(dataset.fields) ? (dataset.fields as never[]) : [],
             rows: rows as never[],
           }
         : null,

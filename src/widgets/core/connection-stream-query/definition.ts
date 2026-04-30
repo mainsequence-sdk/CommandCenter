@@ -96,7 +96,7 @@ function resolveConnectionStreamQueryIo(
 
 export const connectionStreamQueryWidget = defineWidget<ConnectionStreamQueryWidgetProps>({
   id: "connection-stream-query",
-  widgetVersion: "1.1.0",
+  widgetVersion: "1.1.1",
   title: "Connection Stream Query (WS)",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",

@@ -130,7 +130,7 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 export function widgetSupportsAgentContext<TProps extends Record<string, unknown>>(
   widget: WidgetDefinition<TProps>,
 ) {
-  return typeof widget.stateDump === "function" || typeof widget.buildAgentSnapshot === "function";
+  return typeof widget.buildAgentSnapshot === "function";
 }
 
 export function buildWidgetAgentContextValue<TProps extends Record<string, unknown>>(
@@ -195,6 +195,7 @@ export function appendWidgetAgentContextOutput<TProps extends Record<string, unk
         presentation: args.presentation,
         runtimeState: args.runtimeState,
         resolvedInputs: args.resolvedInputs,
+        runtimeDataStore: args.runtimeDataStore,
       }),
   };
 

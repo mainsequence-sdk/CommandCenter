@@ -17,6 +17,10 @@ import {
   selectPreferredUpstreamDataset,
   type ResolvedUpstreamConsumerState,
 } from "@/widgets/shared/upstream-consumer-state";
+import {
+  materializeRuntimeTabularFrame,
+  useRuntimeDataStore,
+} from "@/widgets/shared/runtime-data-store";
 import type {
   WidgetFieldDefinition,
   WidgetFieldSection,
@@ -926,6 +930,7 @@ export function useResolvedTabularWidgetSourceBinding<
   currentWidgetInstanceId?: string;
 }): ResolvedTabularWidgetSourceBinding {
   const widgetRegistry = useDashboardWidgetRegistry();
+  const runtimeDataStore = useRuntimeDataStore();
   const resolvedSourceInput = useResolvedWidgetInput(currentWidgetInstanceId, TABULAR_SOURCE_INPUT_ID);
   const resolvedSeedInput = useResolvedWidgetInput(currentWidgetInstanceId, incrementalSeedInputId);
   const resolvedLiveInput = useResolvedWidgetInput(currentWidgetInstanceId, incrementalLiveUpdatesInputId);
@@ -964,20 +969,32 @@ export function useResolvedTabularWidgetSourceBinding<
   const resolvedInputBaseValue = resolvedInputBinding?.upstreamBase ?? resolvedInputBinding?.value;
   const sourceRuntimeValue = resolvedSourceWidget?.runtimeState;
   const inputFrame = useMemo(
-    () => normalizeAnyTabularFrameSource(resolvedInputBaseValue),
-    [resolvedInputBaseValue],
+    () =>
+      materializeRuntimeTabularFrame(resolvedInputBaseValue, runtimeDataStore) ??
+      normalizeAnyTabularFrameSource(resolvedInputBaseValue),
+    [resolvedInputBaseValue, runtimeDataStore],
   );
   const runtimeFrame = useMemo(
-    () => normalizeAnyTabularFrameSource(sourceRuntimeValue),
-    [sourceRuntimeValue],
+    () =>
+      materializeRuntimeTabularFrame(sourceRuntimeValue, runtimeDataStore) ??
+      normalizeAnyTabularFrameSource(sourceRuntimeValue),
+    [runtimeDataStore, sourceRuntimeValue],
   );
   const resolvedSourceFrame = useMemo(
     () => selectPreferredUpstreamDataset(inputFrame, runtimeFrame),
     [inputFrame, runtimeFrame],
   );
   const resolvedSourceDeltaFrame = useMemo(
-    () => normalizeAnyTabularFrameSource(resolvedInputBinding?.upstreamDelta),
-    [resolvedInputBinding?.upstreamDelta],
+    () =>
+      materializeRuntimeTabularFrame(
+        resolvedInputBinding?.upstreamDeltaRef ?? resolvedInputBinding?.upstreamDelta,
+        runtimeDataStore,
+      ) ?? normalizeAnyTabularFrameSource(resolvedInputBinding?.upstreamDelta),
+    [
+      resolvedInputBinding?.upstreamDelta,
+      resolvedInputBinding?.upstreamDeltaRef,
+      runtimeDataStore,
+    ],
   );
   const resolvedSourceDataset = resolvedSourceFrame;
   const hasCanonicalSourceBinding = resolvedInputBinding?.sourceWidgetId != null;

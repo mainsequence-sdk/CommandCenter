@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import { getWidgetById } from "@/app/registry";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
+import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import type { WidgetDefinition } from "@/widgets/types";
 
 import {
@@ -21,13 +22,15 @@ export function DashboardWidgetDependenciesProvider({
   resolveWidgetDefinition?: (widgetId: string) => WidgetDefinition | undefined;
   widgets: DashboardWidgetInstance[];
 }) {
+  const runtimeDataStore = useRuntimeDataStore();
   const model = useMemo(
     () =>
       createDashboardWidgetDependencyModel(
         widgets,
         resolveWidgetDefinition ?? getWidgetById,
+        { runtimeDataStore },
       ),
-    [resolveWidgetDefinition, widgets],
+    [resolveWidgetDefinition, runtimeDataStore, widgets],
   );
 
   return (

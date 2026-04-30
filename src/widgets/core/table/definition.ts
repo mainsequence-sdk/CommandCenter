@@ -110,15 +110,24 @@ export const tableWidget = defineWidget<TableWidgetProps>({
         description:
           "Publishes the table's canonical tabular dataset so downstream widgets can consume either a bound or manual table source.",
         valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
-        resolveValue: ({ props, resolvedInputs, runtimeState }) =>
-          resolveTableWidgetOutput(props as TableWidgetProps, resolvedInputs, runtimeState),
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveTableWidgetOutput(
+            props as TableWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          ),
       },
     ],
   },
   workspaceRuntimeMode: "consumer",
   workspaceIcon: Table,
-  buildAgentSnapshot: ({ props, resolvedInputs, runtimeState }) => {
-    const resolvedSourceDataset = resolveTableWidgetSourceDataset(resolvedInputs, runtimeState);
+  buildAgentSnapshot: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) => {
+    const resolvedSourceDataset = resolveTableWidgetSourceDataset(
+      resolvedInputs,
+      runtimeState,
+      runtimeDataStore,
+    );
     const sourceDataset =
       resolvedSourceDataset && !isEmptyTabularFrameSource(resolvedSourceDataset)
         ? resolvedSourceDataset

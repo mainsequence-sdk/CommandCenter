@@ -43,14 +43,22 @@ const [
   { CORE_TABULAR_FRAME_SOURCE_CONTRACT },
   { attachWidgetRuntimeUpdateContext, projectWidgetRuntimeUpdateOutput, resolveWidgetRuntimeUpdateParts },
   { TABULAR_LIVE_UPDATES_INPUT_ID, TABULAR_SEED_INPUT_ID, useIncrementalTabularConsumerBindingState },
+  {
+    createRuntimeDataStore,
+    getRuntimeDataRef,
+    RuntimeDataStoreProvider,
+    storeTabularFrameRuntimeState,
+  },
 ] = await Promise.all([
   import("@/widgets/shared/tabular-frame-source"),
   import("@/widgets/shared/runtime-update"),
   import("./incremental-tabular-consumer"),
+  import("./runtime-data-store"),
 ]);
 
 type ResolvedWidgetInput = import("@/widgets/types").ResolvedWidgetInput;
 type ResolvedWidgetInputs = import("@/widgets/types").ResolvedWidgetInputs;
+type RuntimeDataStore = import("./runtime-data-store").RuntimeDataStore;
 type TabularFrameSourceV1 = import("@/widgets/shared/tabular-frame-source").TabularFrameSourceV1;
 
 function frame(
@@ -140,7 +148,7 @@ interface SnapshotState {
   active: boolean;
 }
 
-function Harness({
+function HarnessContent({
   resolvedInputs,
   onSnapshot,
   onRuntimeStateEvent,
@@ -171,6 +179,30 @@ function Harness({
   return null;
 }
 
+function Harness({
+  resolvedInputs,
+  runtimeDataStore,
+  onSnapshot,
+  onRuntimeStateEvent,
+}: {
+  resolvedInputs?: ResolvedWidgetInputs;
+  runtimeDataStore?: RuntimeDataStore;
+  onSnapshot: (snapshot: SnapshotState) => void;
+  onRuntimeStateEvent?: (runtimeState: Record<string, unknown> | undefined) => void;
+}) {
+  const content = (
+    <HarnessContent
+      resolvedInputs={resolvedInputs}
+      onSnapshot={onSnapshot}
+      onRuntimeStateEvent={onRuntimeStateEvent}
+    />
+  );
+
+  return runtimeDataStore
+    ? <RuntimeDataStoreProvider store={runtimeDataStore}>{content}</RuntimeDataStoreProvider>
+    : content;
+}
+
 async function flushEffects() {
   await act(async () => {
     await Promise.resolve();
@@ -185,7 +217,7 @@ interface HarnessDriver {
   cleanup: () => void;
 }
 
-function createHarness(): HarnessDriver {
+function createHarness(runtimeDataStore?: RuntimeDataStore): HarnessDriver {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root: Root = createRoot(container);
@@ -198,6 +230,7 @@ function createHarness(): HarnessDriver {
         root.render(
           <Harness
             resolvedInputs={resolvedInputs}
+            runtimeDataStore={runtimeDataStore}
             onSnapshot={(snapshot) => {
               latestSnapshot = snapshot;
             }}
@@ -487,5 +520,60 @@ describe("incremental tabular consumer", () => {
     await harness.render(resolvedInputs);
 
     expect(harness.getRuntimeEventCount()).toBe(runtimeEventCountAfterFirstRender);
+  });
+
+  it("stores consumer runtime state as refs when a runtime data store is available", async () => {
+    const runtimeDataStore = createRuntimeDataStore("workspace-1");
+    const sourceFrame = frame(
+      [
+        { time: "2026-04-29T00:00:00.000Z", value: 1 },
+        { time: "2026-04-29T00:01:00.000Z", value: 2 },
+      ],
+      100,
+    );
+    const sourceShell = storeTabularFrameRuntimeState({
+      frame: sourceFrame,
+      ownerId: "seed-source",
+      outputId: "dataset",
+      store: runtimeDataStore,
+    });
+    const sourceRef = getRuntimeDataRef(sourceShell);
+    const harness = createHarness(runtimeDataStore);
+    harnesses.push(harness);
+
+    await harness.render({
+      [TABULAR_SEED_INPUT_ID]: {
+        inputId: TABULAR_SEED_INPUT_ID,
+        label: TABULAR_SEED_INPUT_ID,
+        status: "valid",
+        sourceWidgetId: "seed-source",
+        sourceOutputId: "dataset",
+        contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        value: sourceShell,
+        valueRef: sourceRef,
+        upstreamBase: sourceShell,
+        upstreamBaseRef: sourceRef,
+      },
+    });
+
+    const snapshot = harness.getSnapshot();
+    const runtimeState = snapshot?.runtimeState as
+      | { rows?: unknown[]; source?: { context?: { incrementalConsumer?: Record<string, unknown> } } }
+      | undefined;
+    const consumerMeta = runtimeState?.source?.context?.incrementalConsumer;
+
+    expect(snapshot?.dataset?.rows).toEqual(sourceFrame.rows);
+    expect(runtimeState?.rows).toEqual([]);
+    expect(getRuntimeDataRef(snapshot?.runtimeState)?.rowCount).toBe(2);
+    expect(consumerMeta?.seedRef).toMatchObject({
+      kind: "runtime-data-ref",
+      rowCount: 2,
+    });
+    expect(consumerMeta?.outputRef).toMatchObject({
+      kind: "runtime-data-ref",
+      rowCount: 2,
+    });
+    expect(consumerMeta?.seedFrame).toBeNull();
+    expect(consumerMeta?.liveFrame).toBeNull();
   });
 });

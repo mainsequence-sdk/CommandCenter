@@ -42,7 +42,8 @@ surfaces and the editable workspace studio.
   surface return hydration for `graph -> dashboard` transitions through
   `dashboardSurfaceHydrationActive` / `dashboardSurfaceHydrationReason`, so visible consumers do
   not replay their own upstream-resolution wave while the shared execution layer owns the return
-  transition.
+  transition. It also scopes the workspace runtime data store used by ref-backed connection and
+  incremental tabular publications.
 - `dashboard-request-trace.ts`: shared refresh-cycle request trace store. Execution-driven
   widgets and component-side widget queries can attach request metadata there so graph/debug
   surfaces inspect one canonical refresh request log instead of inventing local endpoint trackers.
@@ -133,6 +134,9 @@ surfaces and the editable workspace studio.
   `resolvedInputs`, which lets intermediate republisher widgets expose fresh downstream values
   immediately after an upstream request/computation resolves instead of waiting for a mounted
   runtime side effect to write `runtimeState`.
+- The dependency model propagates runtime data refs alongside materialized values. Identity
+  bindings should keep refs intact and only materialize rows for compatibility paths or explicit
+  binding transforms.
 - Dashboard refresh now also treats passive consumers with executable upstream dependencies as
   refresh roots. That means a table/statistic bound to an executable source can trigger its
   upstream execution on refresh even though the consumer itself is not executable.

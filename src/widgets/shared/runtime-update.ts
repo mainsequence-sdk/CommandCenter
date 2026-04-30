@@ -1,3 +1,5 @@
+import type { RuntimeDataRef } from "@/widgets/shared/runtime-data-store";
+
 export const WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION = "widget-runtime-update@v1" as const;
 export const WIDGET_RUNTIME_UPDATE_CONTEXT_KEY = "runtimeUpdate" as const;
 
@@ -35,6 +37,9 @@ export interface WidgetRuntimeUpdateEnvelope<
   retainedOutputLocation?: "carrier" | "envelope";
   retainedOutput?: TRetainedOutput;
   deltaOutput?: TDeltaOutput;
+  retainedOutputRef?: RuntimeDataRef;
+  deltaOutputRef?: RuntimeDataRef;
+  outputRef?: RuntimeDataRef;
   range?: WidgetRuntimeUpdateRange;
   retainedRange?: WidgetRuntimeUpdateRange;
   watermarkBeforeMs?: number;
@@ -50,6 +55,8 @@ export interface WidgetRuntimeUpdateParts<
   upstreamBase: TBase;
   upstreamDelta?: TDelta;
   upstreamUpdate?: WidgetRuntimeUpdateEnvelope<TBase, TDelta>;
+  upstreamBaseRef?: RuntimeDataRef;
+  upstreamDeltaRef?: RuntimeDataRef;
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -107,7 +114,7 @@ export function resolveWidgetRuntimeUpdateParts<TBase = unknown, TDelta = unknow
   }
 
   const upstreamBase =
-    update.retainedOutputLocation === "envelope" && "retainedOutput" in update
+    update.retainedOutputLocation === "envelope" && update.retainedOutput !== undefined
       ? update.retainedOutput
       : output;
 
@@ -115,6 +122,8 @@ export function resolveWidgetRuntimeUpdateParts<TBase = unknown, TDelta = unknow
     upstreamBase: upstreamBase as TBase,
     upstreamDelta: update.mode === "delta" ? update.deltaOutput : undefined,
     upstreamUpdate: update,
+    upstreamBaseRef: update.outputRef ?? update.retainedOutputRef,
+    upstreamDeltaRef: update.mode === "delta" ? update.deltaOutputRef : undefined,
   };
 }
 
@@ -148,6 +157,9 @@ export function projectWidgetRuntimeUpdateOutput<
       carrier === parts.upstreamBase ? "carrier" : "envelope",
     retainedOutput:
       carrier === parts.upstreamBase ? undefined : parts.upstreamBase,
+    retainedOutputRef: update.retainedOutputRef ?? update.outputRef,
+    deltaOutputRef: update.deltaOutputRef,
+    outputRef: update.outputRef,
   });
 }
 
@@ -170,6 +182,9 @@ export function mapWidgetRuntimeUpdateEnvelope<TBase = unknown, TDelta = unknown
     retainedOutputLocation: "carrier",
     retainedOutput: undefined,
     deltaOutput: mode === "delta" ? output.upstreamDelta : undefined,
+    retainedOutputRef: update.retainedOutputRef ?? update.outputRef,
+    deltaOutputRef: update.deltaOutputRef,
+    outputRef: update.outputRef,
     diagnostics: output.diagnostics
       ? {
           ...(update.diagnostics ?? {}),

@@ -1,5 +1,6 @@
 import type { ResolvedWidgetInput, ResolvedWidgetInputs } from "@/widgets/types";
 import type { WidgetInstancePresentation } from "@/widgets/types";
+import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { TabularSourceDetail, TabularDataRow } from "@/widgets/shared/tabular-widget-source";
 import {
@@ -168,10 +169,12 @@ export function resolveTableWidgetSourceInput(
 export function resolveTableWidgetSourceDataset(
   resolvedInputs: ResolvedWidgetInputs | undefined,
   runtimeState?: unknown,
+  runtimeDataStore?: RuntimeDataStore | null,
 ): TabularFrameSourceV1 | null {
   const incrementalFrame = resolveIncrementalTabularOutputFrame({
     resolvedInputs,
     runtimeState,
+    runtimeDataStore,
   });
 
   if (incrementalFrame) {
@@ -216,10 +219,12 @@ function resolveInvalidTableInputError(input: ResolvedWidgetInput | undefined) {
 export function resolveTableWidgetSourceConsumerState(
   resolvedInputs: ResolvedWidgetInputs | undefined,
   runtimeState?: unknown,
+  runtimeDataStore?: RuntimeDataStore | null,
 ): ResolvedUpstreamConsumerState<TabularFrameSourceV1> {
   const incrementalDataset = resolveIncrementalTabularOutputFrame({
     resolvedInputs,
     runtimeState,
+    runtimeDataStore,
   });
 
   if (incrementalDataset) {
@@ -278,6 +283,7 @@ export function resolveTableWidgetOutput(
   props: TableWidgetProps,
   resolvedInputs: ResolvedWidgetInputs | undefined,
   runtimeState?: unknown,
+  runtimeDataStore?: RuntimeDataStore | null,
 ): TabularFrameSourceV1 {
   const migratedProps = stripLegacyTableWidgetDisplayConfig(props);
   const tableSourceMode = normalizeTableSourceMode(migratedProps.tableSourceMode);
@@ -287,6 +293,7 @@ export function resolveTableWidgetOutput(
     const sourceConsumerState = resolveTableWidgetSourceConsumerState(
       resolvedInputs,
       runtimeState,
+      runtimeDataStore,
     );
     const sourceDataset = sourceConsumerState.dataset;
     const sourceContext = {

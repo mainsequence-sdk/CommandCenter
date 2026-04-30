@@ -1,10 +1,10 @@
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
-import type { WidgetDefinition } from "@/widgets/types";
+import { defineWidget } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { HeatmapMatrixWidget } from "./HeatmapMatrixWidget";
 
-export const heatmapMatrixWidget: WidgetDefinition<{ desk?: string }> = {
+export const heatmapMatrixWidget = defineWidget<{ desk?: string }>({
   id: "heatmap-matrix-chart",
   widgetVersion: "1.0.0",
   title: "Heatmap Matrix",
@@ -29,4 +29,4 @@ export const heatmapMatrixWidget: WidgetDefinition<{ desk?: string }> = {
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
   component: HeatmapMatrixWidget,
-};
+});

@@ -1,6 +1,12 @@
+import { useEffect } from "react";
+
 import { AlertTriangle, Database, Loader2 } from "lucide-react";
 
 import { getConnectionTypeById } from "@/app/registry";
+import {
+  getRuntimeDataRef,
+  useRuntimeDataStore,
+} from "@/widgets/shared/runtime-data-store";
 import {
   normalizeConnectionQueryProps,
   normalizeConnectionQueryRuntimeState,
@@ -10,7 +16,8 @@ import type { WidgetComponentProps } from "@/widgets/types";
 
 type Props = WidgetComponentProps<ConnectionQueryWidgetProps>;
 
-export function ConnectionQueryWidget({ props, runtimeState }: Props) {
+export function ConnectionQueryWidget({ instanceId, props, runtimeState }: Props) {
+  const runtimeDataStore = useRuntimeDataStore();
   const normalizedProps = normalizeConnectionQueryProps(props);
   const connectionType = normalizedProps.connectionRef?.typeId
     ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
@@ -19,16 +26,26 @@ export function ConnectionQueryWidget({ props, runtimeState }: Props) {
     ? connectionType?.queryModels?.find((model) => model.id === normalizedProps.queryModelId)
     : undefined;
   const frame = normalizeConnectionQueryRuntimeState(runtimeState);
+  const runtimeDataRef = getRuntimeDataRef(runtimeState);
   const status = frame?.status ?? "idle";
   const queryConfigured = Boolean(
     normalizedProps.connectionRef?.typeId && normalizedProps.queryModelId,
   );
-  const rowCount = frame && "rows" in frame ? frame.rows.length : 0;
+  const rowCount = runtimeDataRef?.rowCount ?? (frame && "rows" in frame ? frame.rows.length : 0);
   const columnCount = frame && "columns" in frame ? frame.columns.length : 0;
   const errorMessage =
     frame && "error" in frame && typeof frame.error === "string"
       ? frame.error
       : "Connection query failed.";
+
+  useEffect(
+    () => () => {
+      if (instanceId) {
+        runtimeDataStore?.releaseOwner(instanceId);
+      }
+    },
+    [instanceId, runtimeDataStore],
+  );
 
   if (!queryConfigured) {
     return (

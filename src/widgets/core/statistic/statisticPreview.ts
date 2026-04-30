@@ -1,4 +1,5 @@
 import type { ResolvedWidgetInputs } from "@/widgets/types";
+import { resolveIncrementalTabularOutputFrame } from "@/widgets/shared/incremental-tabular-consumer";
 
 import {
   buildTabularSourceDescriptor,
@@ -113,4 +114,14 @@ export function resolveStatisticSourceDataset(
   return candidate?.status === "valid"
     ? normalizeAnyTabularFrameSource(candidate.upstreamBase ?? candidate.value)
     : null;
+}
+
+export function resolveStatisticSettingsDataset(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+) {
+  const incrementalDataset = resolveIncrementalTabularOutputFrame({
+    resolvedInputs,
+  });
+
+  return incrementalDataset ?? resolveStatisticSourceDataset(resolvedInputs);
 }

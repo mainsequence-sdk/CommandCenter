@@ -18,8 +18,15 @@ import {
   buildWidgetBindingTransformSignature,
   inferWidgetValueDescriptor,
   normalizeWidgetBindingTransformSteps,
+  resolveWidgetBindingTransformSteps,
 } from "@/dashboards/widget-binding-transforms";
 import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
+import {
+  getRuntimeDataRef,
+  materializeRuntimeTabularFrame,
+  type RuntimeDataRef,
+  type RuntimeDataStore,
+} from "@/widgets/shared/runtime-data-store";
 import {
   mapWidgetRuntimeUpdateEnvelope,
   readWidgetRuntimeUpdateContext,
@@ -88,6 +95,7 @@ export interface ResolvedWidgetOutput {
   contractId: WidgetContractId;
   description?: string;
   value?: unknown;
+  valueRef?: RuntimeDataRef;
   valueDescriptor?: WidgetValueDescriptor;
 }
 
@@ -97,29 +105,44 @@ function resolveTransformedRuntimeUpdate(input: {
   transformedBase: {
     contractId: WidgetContractId;
     value: unknown;
+    valueRef?: RuntimeDataRef;
     valueDescriptor?: WidgetValueDescriptor;
   };
+  runtimeDataStore?: RuntimeDataStore | null;
 }) {
   const sourceUpdate = readWidgetRuntimeUpdateContext(input.sourceOutput.value);
 
   if (!sourceUpdate) {
     return {
       upstreamBase: input.transformedBase.value,
+      upstreamBaseRef: input.transformedBase.valueRef,
     };
   }
 
+  const hasTransforms = Boolean(resolveWidgetBindingTransformSteps(input.binding).length);
+  const deltaValue =
+    sourceUpdate.deltaOutput ??
+    (hasTransforms && sourceUpdate.deltaOutputRef
+      ? materializeRuntimeTabularFrame(sourceUpdate.deltaOutputRef, input.runtimeDataStore)
+      : undefined);
   const transformedDelta =
-    sourceUpdate.mode === "delta" && sourceUpdate.deltaOutput !== undefined
+    sourceUpdate.mode === "delta" && deltaValue !== undefined
       ? applyWidgetBindingTransform(input.binding, {
           contractId: input.sourceOutput.contractId,
-          value: sourceUpdate.deltaOutput,
+          value: deltaValue,
           valueDescriptor: input.sourceOutput.valueDescriptor,
         })
       : undefined;
   const upstreamDelta =
     transformedDelta?.status === "valid" ? transformedDelta.value : undefined;
+  const upstreamDeltaRef =
+    sourceUpdate.mode === "delta" && !hasTransforms && sourceUpdate.deltaOutputRef
+      ? sourceUpdate.deltaOutputRef
+      : transformedDelta?.status === "valid" && !hasTransforms
+      ? sourceUpdate.deltaOutputRef
+      : undefined;
   const updateMode =
-    sourceUpdate.mode === "delta" && upstreamDelta === undefined
+    sourceUpdate.mode === "delta" && upstreamDelta === undefined && !upstreamDeltaRef
       ? "snapshot"
       : sourceUpdate.mode;
   const upstreamUpdate = mapWidgetRuntimeUpdateEnvelope(sourceUpdate, {
@@ -137,7 +160,12 @@ function resolveTransformedRuntimeUpdate(input: {
 
   return {
     upstreamBase: input.transformedBase.value,
+    upstreamBaseRef:
+      input.transformedBase.valueRef ??
+      sourceUpdate.outputRef ??
+      sourceUpdate.retainedOutputRef,
     upstreamDelta,
+    upstreamDeltaRef,
     upstreamUpdate,
   };
 }
@@ -568,6 +596,7 @@ function resolveSingleOutput(
   instance: DashboardWidgetInstance,
   output: WidgetOutputPortDefinition<Record<string, unknown>>,
   resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeDataStore?: RuntimeDataStore | null,
 ): ResolvedWidgetOutput {
   const value = output.resolveValue?.({
     widgetId: instance.widgetId,
@@ -577,7 +606,9 @@ function resolveSingleOutput(
     presentation: instance.presentation,
     runtimeState: instance.runtimeState,
     resolvedInputs,
+    runtimeDataStore,
   });
+  const valueRef = getRuntimeDataRef(value);
 
   return {
     outputId: output.id,
@@ -585,6 +616,7 @@ function resolveSingleOutput(
     contractId: output.contract,
     description: output.description,
     value,
+    valueRef,
     valueDescriptor: output.valueDescriptor ?? inferWidgetValueDescriptor(value, output.contract),
   } satisfies ResolvedWidgetOutput;
 }
@@ -597,6 +629,7 @@ function resolveSingleInput(
   getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
   resolveIo: (instanceId: string) => WidgetIoDefinition | undefined,
   resolveOutputs: (instanceId: string) => ResolvedWidgetOutputs | undefined,
+  runtimeDataStore?: RuntimeDataStore | null,
 ): ResolvedWidgetInput | ResolvedWidgetInput[] {
   if (bindings.length === 0) {
     return {
@@ -665,11 +698,23 @@ function resolveSingleInput(
     }
 
     const sourceRuntimeParts = resolveWidgetRuntimeUpdateParts(resolvedSourceOutput.value);
+    const hasTransforms = Boolean(resolveWidgetBindingTransformSteps(binding).length);
+    const materializedBase =
+      hasTransforms
+        ? (
+            materializeRuntimeTabularFrame(sourceRuntimeParts.upstreamBase, runtimeDataStore) ??
+            sourceRuntimeParts.upstreamBase
+          )
+        : sourceRuntimeParts.upstreamBase;
     const transformed = applyWidgetBindingTransform(binding, {
       contractId: resolvedSourceOutput.contractId,
-      value: sourceRuntimeParts.upstreamBase,
+      value: materializedBase,
       valueDescriptor: resolvedSourceOutput.valueDescriptor,
     });
+    const transformedValueRef =
+      !hasTransforms
+        ? resolvedSourceOutput.valueRef ?? sourceRuntimeParts.upstreamBaseRef
+        : undefined;
 
     if (transformed.status !== "valid") {
       return {
@@ -690,7 +735,11 @@ function resolveSingleInput(
       const runtimeUpdate = resolveTransformedRuntimeUpdate({
         binding,
         sourceOutput: resolvedSourceOutput,
-        transformedBase: transformed,
+        transformedBase: {
+          ...transformed,
+          valueRef: transformedValueRef,
+        },
+        runtimeDataStore,
       });
 
       return {
@@ -701,8 +750,11 @@ function resolveSingleInput(
         contractId: transformed.contractId,
         binding,
         value: transformed.value,
+        valueRef: transformedValueRef,
         upstreamBase: runtimeUpdate.upstreamBase,
+        upstreamBaseRef: runtimeUpdate.upstreamBaseRef,
         upstreamDelta: runtimeUpdate.upstreamDelta,
+        upstreamDeltaRef: runtimeUpdate.upstreamDeltaRef,
         upstreamUpdate: runtimeUpdate.upstreamUpdate,
         valueDescriptor: transformed.valueDescriptor,
         status: "contract-mismatch",
@@ -713,7 +765,11 @@ function resolveSingleInput(
     const runtimeUpdate = resolveTransformedRuntimeUpdate({
       binding,
       sourceOutput: resolvedSourceOutput,
-      transformedBase: transformed,
+      transformedBase: {
+        ...transformed,
+        valueRef: transformedValueRef,
+      },
+      runtimeDataStore,
     });
 
     return {
@@ -724,8 +780,11 @@ function resolveSingleInput(
       contractId: transformed.contractId,
       binding,
       value: transformed.value,
+      valueRef: transformedValueRef,
       upstreamBase: runtimeUpdate.upstreamBase,
+      upstreamBaseRef: runtimeUpdate.upstreamBaseRef,
       upstreamDelta: runtimeUpdate.upstreamDelta,
+      upstreamDeltaRef: runtimeUpdate.upstreamDeltaRef,
       upstreamUpdate: runtimeUpdate.upstreamUpdate,
       valueDescriptor: transformed.valueDescriptor,
       status: "valid",
@@ -827,6 +886,9 @@ function buildGraph(
 export function createDashboardWidgetDependencyModel(
   widgets: DashboardWidgetInstance[],
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
+  options?: {
+    runtimeDataStore?: RuntimeDataStore | null;
+  },
 ): DashboardWidgetDependencyModel {
   const entries = collectDashboardWidgetEntries(widgets);
   const instanceIndex = createDashboardWidgetEntryIndex(entries);
@@ -890,7 +952,15 @@ export function createDashboardWidgetDependencyModel(
     resolvedOutputCache.set(instanceId, undefined);
     const resolvedInputs: ResolvedWidgetInputs | undefined = resolveInputs(instanceId);
     const resolvedOutputs: ResolvedWidgetOutputs = Object.fromEntries(
-      outputs.map((output) => [output.id, resolveSingleOutput(instance, output, resolvedInputs)]),
+      outputs.map((output) => [
+        output.id,
+        resolveSingleOutput(
+          instance,
+          output,
+          resolvedInputs,
+          options?.runtimeDataStore,
+        ),
+      ]),
     ) satisfies ResolvedWidgetOutputs;
 
     if (import.meta.env.DEV) {
@@ -944,6 +1014,7 @@ export function createDashboardWidgetDependencyModel(
           getWidgetDefinition,
           resolveIo,
           resolveOutputs,
+          options?.runtimeDataStore,
         ),
       ]),
     ) satisfies ResolvedWidgetInputs;

@@ -15,6 +15,8 @@ feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 047: Workspace Runtime Data Reference Store](./adr-047-workspace-runtime-data-reference-store.md)
+- [ADR 046: WebSocket Stream Survivability And Reconnect Supervision](./adr-046-websocket-stream-survivability-and-reconnect-supervision.md)
 - [ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles](./adr-044-incremental-connection-publications-seed-live-roles.md)
 - [ADR 043: WebSocket Stream Preview And Graphing Semantics](./adr-043-websocket-stream-preview-graphing-semantics.md)
 - [ADR 042: Lightweight Row Filtering in Tabular Transform](./adr-042-tabular-transform-row-filtering.md)
@@ -37,6 +39,8 @@ feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 047: Workspace Runtime Data Reference Store](./adr-047-workspace-runtime-data-reference-store.md)
+- [ADR 046: WebSocket Stream Survivability And Reconnect Supervision](./adr-046-websocket-stream-survivability-and-reconnect-supervision.md)
 - [ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles](./adr-044-incremental-connection-publications-seed-live-roles.md)
 - [ADR 043: WebSocket Stream Preview And Graphing Semantics](./adr-043-websocket-stream-preview-graphing-semantics.md)
 - [ADR 042: Lightweight Row Filtering in Tabular Transform](./adr-042-tabular-transform-row-filtering.md)
@@ -68,6 +72,8 @@ feature folder.
 
 ## Shell And Extension ADRs
 
+- [ADR 047: Workspace Runtime Data Reference Store](./adr-047-workspace-runtime-data-reference-store.md)
+- [ADR 046: WebSocket Stream Survivability And Reconnect Supervision](./adr-046-websocket-stream-survivability-and-reconnect-supervision.md)
 - [ADR: Extension-Contributed Shell Settings Menus](./adr-extension-contributed-shell-settings-menus.md)
 - [ADR: Runtime Credential Browser Auth](./adr-runtime-credential-browser-auth.md)
 - [ADR: First-Class Connection Model](./adr-first-class-connection-model.md)

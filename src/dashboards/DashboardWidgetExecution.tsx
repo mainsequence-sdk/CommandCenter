@@ -43,6 +43,10 @@ import type {
   WidgetExecutionReason,
   WidgetExecutionTargetOverrides,
 } from "@/widgets/types";
+import {
+  createRuntimeDataStore,
+  RuntimeDataStoreProvider,
+} from "@/widgets/shared/runtime-data-store";
 
 export interface WidgetExecutionState {
   status: "idle" | "running" | "success" | "error";
@@ -193,6 +197,10 @@ export function DashboardWidgetExecutionProvider({
   resolveWidgetDefinition?: (widgetId: string) => WidgetDefinition | undefined;
 }) {
   const effectiveResolveWidgetDefinition = resolveWidgetDefinition ?? getWidgetById;
+  const runtimeDataStore = useMemo(
+    () => createRuntimeDataStore(scopeId),
+    [scopeId],
+  );
   const {
     lastRefreshedAt,
     rangeEndMs,
@@ -323,6 +331,7 @@ export function DashboardWidgetExecutionProvider({
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
       targetInstanceId,
       targetOverrides: options.targetOverrides,
+      runtimeDataStore,
     });
     let executionOrder: string[] = [];
     const upstreamResolutionKey = buildDashboardUpstreamResolutionKey(
@@ -381,6 +390,7 @@ export function DashboardWidgetExecutionProvider({
       signal: options.signal,
       executedInstanceIds: sharedExecutedInstanceIds,
       dashboardState: executionDashboardState,
+      runtimeDataStore,
       onRuntimeStateWrite: (instanceId, runtimeState) => {
         if (!isExecutionCurrent()) {
           return;
@@ -490,6 +500,7 @@ export function DashboardWidgetExecutionProvider({
           let snapshot = buildDashboardExecutionSnapshot({
             widgets: workingWidgets,
             resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+            runtimeDataStore,
           });
           const downstreamTargets = listDashboardDownstreamExecutionTargets(
             sourceInstanceId,
@@ -500,6 +511,7 @@ export function DashboardWidgetExecutionProvider({
             snapshot = buildDashboardExecutionSnapshot({
               widgets: workingWidgets,
               resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+              runtimeDataStore,
             });
 
             const requirement = resolveDashboardUpstreamRequirement(
@@ -934,6 +946,7 @@ export function DashboardWidgetExecutionProvider({
           resolveWidgetDefinition: effectiveResolveWidgetDefinition,
           targetInstanceId: instanceId,
           targetOverrides: options?.targetOverrides,
+          runtimeDataStore,
         });
         const requirement = resolveDashboardUpstreamRequirement(instanceId, snapshot);
 
@@ -959,14 +972,17 @@ export function DashboardWidgetExecutionProvider({
       effectiveResolveWidgetDefinition,
       executionStates,
       initialHydrationActive,
+      runtimeDataStore,
       scopeId,
     ],
   );
 
   return (
-    <DashboardWidgetExecutionContext.Provider value={value}>
-      {children}
-    </DashboardWidgetExecutionContext.Provider>
+    <RuntimeDataStoreProvider store={runtimeDataStore}>
+      <DashboardWidgetExecutionContext.Provider value={value}>
+        {children}
+      </DashboardWidgetExecutionContext.Provider>
+    </RuntimeDataStoreProvider>
   );
 }
 

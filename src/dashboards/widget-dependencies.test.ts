@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
+import {
+  createRuntimeDataStore,
+  materializeRuntimeTabularFrame,
+  storeTabularFrameRuntimeState,
+} from "@/widgets/shared/runtime-data-store";
 import { defineWidget, type WidgetDefinition } from "@/widgets/types";
 
 import { createDashboardWidgetDependencyModel } from "./widget-dependencies";
@@ -23,6 +28,11 @@ const graphWidget = defineWidget({
       },
     ],
   },
+  buildAgentSnapshot: () => ({
+    displayKind: "chart",
+    state: "idle",
+    summary: "Graph test widget.",
+  }),
   component: () => null,
 });
 
@@ -40,9 +50,15 @@ const connectionQueryWidget = defineWidget({
         id: "dataset",
         label: "Dataset",
         contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        resolveValue: ({ runtimeState }) => runtimeState,
       },
     ],
   },
+  buildAgentSnapshot: () => ({
+    displayKind: "custom",
+    state: "idle",
+    summary: "Connection query test widget.",
+  }),
   component: () => null,
 });
 
@@ -101,5 +117,58 @@ describe("createDashboardWidgetDependencyModel", () => {
     expect(ownerNode?.ownedManagedConnectionSourceCount).toBe(1);
     expect(managedNode?.managedRole).toBe("embedded-connection-source");
     expect(managedNode?.hiddenFromNormalRail).toBe(true);
+  });
+
+  it("propagates runtime data refs without materializing identity bindings", () => {
+    const runtimeDataStore = createRuntimeDataStore("workspace-1");
+    const sourceRuntimeState = storeTabularFrameRuntimeState({
+      frame: {
+        status: "ready",
+        columns: ["id", "value"],
+        rows: [
+          { id: "a", value: 1 },
+          { id: "b", value: 2 },
+        ],
+        source: {
+          kind: "test-frame",
+        },
+      },
+      ownerId: "source-1",
+      outputId: "dataset",
+      store: runtimeDataStore,
+    });
+    const widgets: DashboardWidgetInstance[] = [
+      widget({
+        id: "graph-1",
+        widgetId: "graph",
+        bindings: {
+          sourceData: {
+            sourceWidgetId: "source-1",
+            sourceOutputId: "dataset",
+          },
+        },
+      }),
+      widget({
+        id: "source-1",
+        widgetId: "connection-query",
+        runtimeState: sourceRuntimeState as unknown as Record<string, unknown>,
+      }),
+    ];
+
+    const model = createDashboardWidgetDependencyModel(widgets, resolveWidgetDefinition, {
+      runtimeDataStore,
+    });
+    const input = model.resolveInputs("graph-1")?.sourceData;
+    const resolvedInput = Array.isArray(input) ? input[0] : input;
+
+    expect(resolvedInput?.status).toBe("valid");
+    expect(resolvedInput?.valueRef?.rowCount).toBe(2);
+    expect(materializeRuntimeTabularFrame(resolvedInput?.value, runtimeDataStore)?.rows).toEqual([
+      { id: "a", value: 1 },
+      { id: "b", value: 2 },
+    ]);
+    expect(
+      (resolvedInput?.value as { rows?: Array<Record<string, unknown>> } | undefined)?.rows,
+    ).toEqual([]);
   });
 });

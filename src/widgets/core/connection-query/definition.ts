@@ -125,7 +125,7 @@ function resolveConnectionQueryIo(
 
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   id: "connection-query",
-  widgetVersion: "1.6.0",
+  widgetVersion: "1.6.1",
   title: "Connection Query (HTTP)",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -227,6 +227,8 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
           context.dashboardState,
           queryModel,
           {
+            ownerId: context.instanceId,
+            runtimeDataStore: context.runtimeDataStore,
             scopeId: context.instanceId,
             forceFullRefresh:
               context.reason === "manual-submit" ||

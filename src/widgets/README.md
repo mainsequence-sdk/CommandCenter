@@ -58,7 +58,7 @@ Use these local docs before reading the implementation in code:
 - Widget definitions can now also declare optional `organizationConfiguration` metadata. This is an
   opt-in widget capability used when one widget type supports organization-scoped defaults or
   guardrails. Widgets that omit it behave exactly as they do today.
-- Widget definitions now expose `buildAgentSnapshot(...)`, a client-side per-widget state capture
+- Widget definitions can expose `buildAgentSnapshot(...)`, a client-side per-widget state capture
   hook used by workspace archive capture. This is intentionally separate from the
   backend-facing widget registry contract: registry metadata explains how to build a widget, while
   `buildAgentSnapshot(...)` explains what a mounted widget is currently showing.
@@ -69,6 +69,9 @@ Use these local docs before reading the implementation in code:
   `evidence` snapshot profile so agent-facing consumers such as `Agent Terminal` can reason over
   what widgets currently show without maintaining a second serializer. See
   [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../docs/adr/adr-widget-agent-context-bindings.md).
+- Large tabular runtime payloads should use the workspace runtime data store and carry
+  `RuntimeTabularFrameRef` metadata through outputs, resolved inputs, and runtime-update envelopes.
+  Widgets that render rows remain responsible for materializing only the view they need.
 - Output ports can optionally describe their structured value shape through `valueDescriptor`, and
   canonical bindings can attach lightweight transform metadata such as array-item selection and
   nested path extraction without changing the underlying port-to-port graph model.

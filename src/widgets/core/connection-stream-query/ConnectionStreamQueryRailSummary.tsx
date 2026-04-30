@@ -74,8 +74,23 @@ export function ConnectionStreamQueryRailSummary({
             {connectionIdLabel}
           </span>
         </div>
+        {runtime?.reconnectAttemptCount ? (
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Retries</span>
+            <span className="font-medium text-foreground">
+              {runtime.reconnectAttemptCount}
+            </span>
+          </div>
+        ) : null}
+        {runtime?.lastDisconnectReason ? (
+          <div className="space-y-1 pt-1">
+            <div className="text-muted-foreground">Last disconnect</div>
+            <div className="line-clamp-2 text-[11px] text-foreground">
+              {runtime.lastDisconnectReason}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
-

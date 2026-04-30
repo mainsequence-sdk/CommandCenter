@@ -30,6 +30,11 @@ import {
   attachWidgetRuntimeUpdateContext,
   type WidgetRuntimeUpdateEnvelope,
 } from "@/widgets/shared/runtime-update";
+import {
+  materializeRuntimeTabularFrame,
+  storeTabularFrameRuntimeState,
+  type RuntimeDataStore,
+} from "@/widgets/shared/runtime-data-store";
 import type { WidgetExecutionDashboardState } from "@/widgets/types";
 
 export type ConnectionStreamLifecycleStatus =
@@ -67,6 +72,10 @@ export interface ConnectionStreamQueryRuntimeState extends TabularFrameSourceV1 
   resumeToken?: string;
   traceId?: string;
   streamErrorCode?: string;
+  reconnectAttemptCount?: number;
+  nextRetryAtMs?: number;
+  lastDisconnectAtMs?: number;
+  lastDisconnectReason?: string;
 }
 
 export interface ConnectionStreamQueryRuntimeSession {
@@ -86,9 +95,19 @@ interface StreamRuntimeContext {
   resumeToken?: string;
   traceId?: string;
   errorCode?: string;
+  reconnectAttemptCount?: number;
+  nextRetryAtMs?: number;
+  lastDisconnectAtMs?: number;
+  lastDisconnectReason?: string;
 }
 
 const activeStreamRuntimeSessions = new Set<string>();
+const STREAM_RECONNECT_INITIAL_DELAY_MS = 1_000;
+const STREAM_RECONNECT_MAX_DELAY_MS = 30_000;
+const STREAM_RECONNECT_JITTER_RATIO = 0.2;
+const STREAM_RECONNECT_MAX_ATTEMPTS = 8;
+const STREAM_HEARTBEAT_TIMEOUT_MULTIPLIER = 3;
+const STREAM_HEARTBEAT_TIMEOUT_MIN_MS = 5_000;
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -182,6 +201,10 @@ function buildStreamContext(input: {
       resumeToken: input.lifecycle.resumeToken,
       traceId: input.lifecycle.traceId,
       errorCode: input.lifecycle.errorCode,
+      reconnectAttemptCount: input.lifecycle.reconnectAttemptCount,
+      nextRetryAtMs: input.lifecycle.nextRetryAtMs,
+      lastDisconnectAtMs: input.lifecycle.lastDisconnectAtMs,
+      lastDisconnectReason: input.lifecycle.lastDisconnectReason,
     },
   };
 }
@@ -209,6 +232,10 @@ function withStreamLifecycle(
     resumeToken: lifecycle.resumeToken,
     traceId: lifecycle.traceId,
     streamErrorCode: lifecycle.errorCode,
+    reconnectAttemptCount: lifecycle.reconnectAttemptCount,
+    nextRetryAtMs: lifecycle.nextRetryAtMs,
+    lastDisconnectAtMs: lifecycle.lastDisconnectAtMs,
+    lastDisconnectReason: lifecycle.lastDisconnectReason,
     source: {
       ...frame.source,
       kind: frame.source?.kind ?? "connection-stream-query",
@@ -236,6 +263,10 @@ function buildEmptyStreamFrame(input: {
   resumeToken?: string;
   traceId?: string;
   sourceRunId?: string;
+  reconnectAttemptCount?: number;
+  nextRetryAtMs?: number;
+  lastDisconnectAtMs?: number;
+  lastDisconnectReason?: string;
 }) {
   const normalizedProps = normalizeConnectionStreamQueryProps(input.props);
   const frame: TabularFrameSourceV1 = {
@@ -268,6 +299,10 @@ function buildEmptyStreamFrame(input: {
     resumeToken: input.resumeToken,
     traceId: input.traceId,
     errorCode: input.errorCode,
+    reconnectAttemptCount: input.reconnectAttemptCount,
+    nextRetryAtMs: input.nextRetryAtMs,
+    lastDisconnectAtMs: input.lastDisconnectAtMs,
+    lastDisconnectReason: input.lastDisconnectReason,
   });
 }
 
@@ -750,6 +785,18 @@ export function normalizeConnectionStreamQueryRuntimeState(
     traceId: normalizeTimestamp(value.traceId) ?? normalizeTimestamp(streamContext?.traceId),
     streamErrorCode:
       normalizeTimestamp(value.streamErrorCode) ?? normalizeTimestamp(streamContext?.errorCode),
+    reconnectAttemptCount:
+      normalizeNumber((value as { reconnectAttemptCount?: unknown }).reconnectAttemptCount) ??
+      normalizeNumber(streamContext?.reconnectAttemptCount),
+    nextRetryAtMs:
+      normalizeNumber((value as { nextRetryAtMs?: unknown }).nextRetryAtMs) ??
+      normalizeNumber(streamContext?.nextRetryAtMs),
+    lastDisconnectAtMs:
+      normalizeNumber((value as { lastDisconnectAtMs?: unknown }).lastDisconnectAtMs) ??
+      normalizeNumber(streamContext?.lastDisconnectAtMs),
+    lastDisconnectReason:
+      normalizeTimestamp((value as { lastDisconnectReason?: unknown }).lastDisconnectReason) ??
+      normalizeTimestamp(streamContext?.lastDisconnectReason),
   };
 }
 
@@ -769,6 +816,10 @@ export function buildConnectionStreamQueryLifecycleFrame(input: {
   resumeToken?: string;
   traceId?: string;
   sourceRunId?: string;
+  reconnectAttemptCount?: number;
+  nextRetryAtMs?: number;
+  lastDisconnectAtMs?: number;
+  lastDisconnectReason?: string;
 }) {
   const retainedFrame = resolveRetainedFrame(input.retainedState);
 
@@ -776,7 +827,19 @@ export function buildConnectionStreamQueryLifecycleFrame(input: {
     return buildEmptyStreamFrame(input);
   }
 
-  return withStreamLifecycle(retainedFrame, {
+  const nextError = input.error !== undefined
+    ? input.error
+    : input.status === "live" || input.status === "connecting"
+      ? undefined
+      : retainedFrame.error;
+  const nextFrame = nextError === retainedFrame.error
+    ? retainedFrame
+    : {
+        ...retainedFrame,
+        error: nextError,
+      };
+
+  return withStreamLifecycle(nextFrame, {
     status: input.status,
     sourceRunId: input.sourceRunId ?? retainedFrame.sourceRunId,
     sequence: input.sequence ?? retainedFrame.sequence,
@@ -789,6 +852,13 @@ export function buildConnectionStreamQueryLifecycleFrame(input: {
     resumeToken: input.resumeToken ?? retainedFrame.resumeToken,
     traceId: input.traceId ?? retainedFrame.traceId,
     errorCode: input.errorCode ?? retainedFrame.streamErrorCode,
+    reconnectAttemptCount:
+      input.reconnectAttemptCount ?? retainedFrame.reconnectAttemptCount,
+    nextRetryAtMs: input.nextRetryAtMs ?? retainedFrame.nextRetryAtMs,
+    lastDisconnectAtMs:
+      input.lastDisconnectAtMs ?? retainedFrame.lastDisconnectAtMs,
+    lastDisconnectReason:
+      input.lastDisconnectReason ?? retainedFrame.lastDisconnectReason,
   });
 }
 
@@ -986,7 +1056,13 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
   initialRuntimeState?: unknown;
   sourceWidgetId?: string;
   onRuntimeStateChange: (state: ConnectionStreamQueryRuntimeState) => void;
-  options?: Omit<ConnectionQueryWebSocketAuthenticationOptions, "queryModel">;
+  options?: Omit<ConnectionQueryWebSocketAuthenticationOptions, "queryModel"> & {
+    now?: () => number;
+    random?: () => number;
+    setTimer?: typeof setTimeout;
+    clearTimer?: typeof clearTimeout;
+    runtimeDataStore?: RuntimeDataStore | null;
+  };
 }): ConnectionStreamQueryRuntimeSession {
   const subscriptionKey = input.subscriptionKey.trim();
 
@@ -1007,134 +1083,400 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
   let active = true;
   let retainedState: unknown = input.initialRuntimeState;
   const sourceRunId = `${subscriptionKey}:${Date.now().toString(36)}`;
+  const now = input.options?.now ?? (() => Date.now());
+  const random = input.options?.random ?? Math.random;
+  const setTimer = input.options?.setTimer ?? globalThis.setTimeout.bind(globalThis);
+  const clearTimer = input.options?.clearTimer ?? globalThis.clearTimeout.bind(globalThis);
+  const runtimeDataStore = input.options?.runtimeDataStore;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+  let subscription: ConnectionQueryWebSocketSubscription | null = null;
+  let attemptFinished = false;
+  let reconnectAttemptCount = 0;
+  let nextRetryAtMs: number | undefined;
+  let lastDisconnectAtMs: number | undefined;
+  let lastDisconnectReason: string | undefined;
 
   function publish(state: ConnectionStreamQueryRuntimeState) {
     if (!active) {
       return;
     }
 
-    retainedState = state;
-    input.onRuntimeStateChange(state);
+    const storedState = storeTabularFrameRuntimeState({
+      frame: state,
+      ownerId: input.sourceWidgetId ?? subscriptionKey,
+      outputId: "dataset",
+      store: runtimeDataStore,
+      refKey: `${subscriptionKey}:dataset`,
+    }) as ConnectionStreamQueryRuntimeState;
+
+    retainedState = storedState;
+    input.onRuntimeStateChange(storedState);
   }
 
-  publish(
-    buildConnectionStreamQueryLifecycleFrame({
-      props: input.props,
-      status: "connecting",
-      retainedState,
-      lastMessageAtMs: Date.now(),
-      sourceRunId,
-    }),
-  );
+  function clearReconnectTimer() {
+    if (reconnectTimer) {
+      clearTimer(reconnectTimer);
+      reconnectTimer = null;
+    }
+  }
 
-  const handlers: ConnectionQueryWebSocketHandlers = {
-    onOpen: () => {
-      publish(
-        buildConnectionStreamQueryLifecycleFrame({
-          props: input.props,
-          status: "connecting",
-          retainedState,
-          lastMessageAtMs: Date.now(),
-          sourceRunId,
-        }),
+  function clearHeartbeatTimer() {
+    if (heartbeatTimer) {
+      clearTimer(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  }
+
+  function publishLifecycleFrame(
+    lifecycle: Omit<Parameters<typeof buildConnectionStreamQueryLifecycleFrame>[0], "props">,
+  ) {
+    publish(
+      buildConnectionStreamQueryLifecycleFrame({
+        props: input.props,
+        ...lifecycle,
+      }),
+    );
+  }
+
+  function decorateRuntimeState(state: ConnectionStreamQueryRuntimeState) {
+    return buildConnectionStreamQueryLifecycleFrame({
+      props: input.props,
+      status: state.streamStatus,
+      retainedState: state,
+      error: state.error,
+      errorCode: state.streamErrorCode,
+      sequence: state.sequence,
+      connectedAtMs: state.connectedAtMs,
+      lastMessageAtMs: state.lastMessageAtMs,
+      lastHeartbeatAtMs: state.lastHeartbeatAtMs,
+      closedAtMs: state.closedAtMs,
+      emittedAt: state.emittedAt,
+      acceptedAt: state.acceptedAt,
+      resumeToken: state.resumeToken,
+      traceId: state.traceId,
+      sourceRunId: state.sourceRunId,
+      reconnectAttemptCount,
+      nextRetryAtMs,
+      lastDisconnectAtMs,
+      lastDisconnectReason,
+    });
+  }
+
+  function resolveHeartbeatTimeoutMs() {
+    if (!isConnectionQueryModelStreamable(input.queryModel) || !input.queryModel.stream.heartbeatMs) {
+      return null;
+    }
+
+    return Math.max(
+      Math.trunc(input.queryModel.stream.heartbeatMs * STREAM_HEARTBEAT_TIMEOUT_MULTIPLIER),
+      STREAM_HEARTBEAT_TIMEOUT_MIN_MS,
+    );
+  }
+
+  function closeSubscription(code: number, reason: string) {
+    const currentSubscription = subscription;
+    subscription = null;
+    clearHeartbeatTimer();
+    currentSubscription?.close(code, reason);
+  }
+
+  function armHeartbeatTimeout() {
+    clearHeartbeatTimer();
+    const timeoutMs = resolveHeartbeatTimeoutMs();
+
+    if (!timeoutMs || !active) {
+      return;
+    }
+
+    heartbeatTimer = setTimer(() => {
+      heartbeatTimer = null;
+      handleRecoverableDisconnect({
+        reason: "Connection stream heartbeat timed out.",
+        errorCode: "heartbeat_timeout",
+        closeCode: 4001,
+        closeReason: "heartbeat timeout",
+      });
+    }, timeoutMs);
+  }
+
+  function buildReconnectDelayMs(attempt: number) {
+    const baseDelay = Math.min(
+      STREAM_RECONNECT_INITIAL_DELAY_MS * 2 ** Math.max(attempt - 1, 0),
+      STREAM_RECONNECT_MAX_DELAY_MS,
+    );
+    const jitterScale =
+      1 + ((random() * 2) - 1) * STREAM_RECONNECT_JITTER_RATIO;
+
+    return Math.max(
+      STREAM_RECONNECT_INITIAL_DELAY_MS,
+      Math.min(
+        STREAM_RECONNECT_MAX_DELAY_MS,
+        Math.round(baseDelay * jitterScale),
+      ),
+    );
+  }
+
+  function markHealthy() {
+    reconnectAttemptCount = 0;
+    nextRetryAtMs = undefined;
+  }
+
+  function buildReconnectRequest() {
+    const normalizedRuntimeState =
+      normalizeConnectionStreamQueryRuntimeState(
+        materializeRuntimeTabularFrame(retainedState, runtimeDataStore) ?? retainedState,
       );
-    },
-    onMessage: (message) => {
-      try {
-        publish(
-          reduceConnectionStreamQueryMessage({
+
+    if (input.queryModel.stream?.supportsResume && normalizedRuntimeState?.resumeToken) {
+      return {
+        ...input.request,
+        resumeToken: normalizedRuntimeState.resumeToken,
+      } satisfies ConnectionStreamQueryRequest<Record<string, unknown>>;
+    }
+
+    return input.request;
+  }
+
+  function scheduleReconnect(reason: string, errorCode?: string) {
+    if (!active) {
+      return;
+    }
+
+    clearReconnectTimer();
+    clearHeartbeatTimer();
+
+    if (reconnectAttemptCount >= STREAM_RECONNECT_MAX_ATTEMPTS) {
+      nextRetryAtMs = undefined;
+      publishLifecycleFrame({
+        status: "error",
+        retainedState,
+        error: reason,
+        errorCode: errorCode ?? "reconnect_exhausted",
+        lastMessageAtMs: now(),
+        sourceRunId,
+        reconnectAttemptCount,
+        lastDisconnectAtMs,
+        lastDisconnectReason,
+      });
+      return;
+    }
+
+    reconnectAttemptCount += 1;
+    const delayMs = buildReconnectDelayMs(reconnectAttemptCount);
+    nextRetryAtMs = now() + delayMs;
+
+    publishLifecycleFrame({
+      status: "reconnecting",
+      retainedState,
+      error: reason,
+      errorCode,
+      lastMessageAtMs: now(),
+      sourceRunId,
+      reconnectAttemptCount,
+      nextRetryAtMs,
+      lastDisconnectAtMs,
+      lastDisconnectReason,
+    });
+
+    reconnectTimer = setTimer(() => {
+      reconnectTimer = null;
+      nextRetryAtMs = undefined;
+      startSubscription(buildReconnectRequest(), true);
+    }, delayMs);
+  }
+
+  function handleRecoverableDisconnect(inputDisconnect: {
+    reason: string;
+    errorCode?: string;
+    closeCode?: number;
+    closeReason?: string;
+  }) {
+    if (!active || attemptFinished) {
+      return;
+    }
+
+    attemptFinished = true;
+    lastDisconnectAtMs = now();
+    lastDisconnectReason = inputDisconnect.reason;
+
+    closeSubscription(
+      inputDisconnect.closeCode ?? 1000,
+      inputDisconnect.closeReason ?? "connection stream reconnecting",
+    );
+    scheduleReconnect(inputDisconnect.reason, inputDisconnect.errorCode);
+  }
+
+  function startSubscription(
+    request: ConnectionStreamQueryRequest<Record<string, unknown>>,
+    isReconnect: boolean,
+  ) {
+    if (!active) {
+      return;
+    }
+
+    attemptFinished = false;
+    publishLifecycleFrame({
+      status: isReconnect ? "reconnecting" : "connecting",
+      retainedState,
+      error: isReconnect ? lastDisconnectReason : undefined,
+      lastMessageAtMs: now(),
+      sourceRunId,
+      reconnectAttemptCount,
+      nextRetryAtMs,
+      lastDisconnectAtMs,
+      lastDisconnectReason,
+    });
+
+    const handlers: ConnectionQueryWebSocketHandlers = {
+      onOpen: () => {
+        publishLifecycleFrame({
+          status: isReconnect ? "reconnecting" : "connecting",
+          retainedState,
+          error: isReconnect ? lastDisconnectReason : undefined,
+          lastMessageAtMs: now(),
+          sourceRunId,
+          reconnectAttemptCount,
+          nextRetryAtMs,
+          lastDisconnectAtMs,
+          lastDisconnectReason,
+        });
+        armHeartbeatTimeout();
+      },
+      onMessage: (message) => {
+        try {
+          const nextState = reduceConnectionStreamQueryMessage({
             message,
             props: input.props,
             queryModel: input.queryModel,
-            retainedState,
+            retainedState:
+              materializeRuntimeTabularFrame(retainedState, runtimeDataStore) ?? retainedState,
             sourceWidgetId: input.sourceWidgetId,
             sourceRunId,
-          }),
-        );
-      } catch (error) {
-        publish(
-          buildConnectionStreamQueryLifecycleFrame({
-            props: input.props,
+          });
+
+          if (
+            message.type === "ack" ||
+            message.type === "heartbeat" ||
+            message.type === "snapshot" ||
+            message.type === "delta"
+          ) {
+            markHealthy();
+            armHeartbeatTimeout();
+          }
+
+          publish(decorateRuntimeState(nextState));
+
+          if (message.type === "error" && message.retryable) {
+            handleRecoverableDisconnect({
+              reason: message.message,
+              errorCode: message.code,
+              closeCode: 1012,
+              closeReason: "retryable stream error",
+            });
+            return;
+          }
+
+          if (message.type === "complete") {
+            attemptFinished = true;
+            clearHeartbeatTimer();
+            closeSubscription(1000, "stream complete");
+          }
+        } catch (error) {
+          attemptFinished = true;
+          clearHeartbeatTimer();
+          publishLifecycleFrame({
             status: "error",
             retainedState: undefined,
             error: error instanceof Error ? error.message : "Connection stream message failed.",
-            lastMessageAtMs: Date.now(),
+            lastMessageAtMs: now(),
             sourceRunId,
-          }),
-        );
-      }
-    },
-    onParseError: (error) => {
-      publish(
-        buildConnectionStreamQueryLifecycleFrame({
-          props: input.props,
+            reconnectAttemptCount,
+            lastDisconnectAtMs,
+            lastDisconnectReason,
+          });
+        }
+      },
+      onParseError: (error) => {
+        attemptFinished = true;
+        clearHeartbeatTimer();
+        publishLifecycleFrame({
           status: "error",
           error: error.message,
-          lastMessageAtMs: Date.now(),
+          lastMessageAtMs: now(),
           sourceRunId,
-        }),
-      );
-    },
-    onError: () => {
-      publish(
-        buildConnectionStreamQueryLifecycleFrame({
-          props: input.props,
-          status: "error",
-          error: "Connection stream WebSocket error.",
-          lastMessageAtMs: Date.now(),
-          sourceRunId,
-        }),
-      );
-    },
-    onClose: (event) => {
-      activeStreamRuntimeSessions.delete(subscriptionKey);
-      publish(
-        buildConnectionStreamQueryLifecycleFrame({
-          props: input.props,
-          status: "closed",
-          retainedState,
-          closedAtMs: Date.now(),
-          error: event.reason || undefined,
-          sourceRunId,
-        }),
-      );
-    },
-  };
-  let subscription: ConnectionQueryWebSocketSubscription | null = null;
+          reconnectAttemptCount,
+          lastDisconnectAtMs,
+          lastDisconnectReason,
+        });
+      },
+      onError: () => {
+        handleRecoverableDisconnect({
+          reason: "Connection stream WebSocket error.",
+          errorCode: "socket_error",
+        });
+      },
+      onClose: (event) => {
+        if (!active || attemptFinished) {
+          return;
+        }
 
-  void createAuthenticatedConnectionQueryWebSocketSubscription(
-    input.request,
-    handlers,
-    {
-      ...input.options,
-      queryModel: input.queryModel,
-    },
-  )
-    .then((nextSubscription) => {
-      if (!active) {
-        nextSubscription.close(1000, "connection stream query widget unmounted");
-        return;
-      }
+        lastDisconnectAtMs = now();
+        lastDisconnectReason = event.reason?.trim() || `Connection stream socket closed (${event.code}).`;
 
-      subscription = nextSubscription;
-    })
-    .catch((error) => {
-      if (!active) {
-        return;
-      }
+        if (event.code === 1000) {
+          attemptFinished = true;
+          subscription = null;
+          clearHeartbeatTimer();
+          publishLifecycleFrame({
+            status: "closed",
+            retainedState,
+            closedAtMs: now(),
+            error: event.reason || undefined,
+            sourceRunId,
+            reconnectAttemptCount,
+            lastDisconnectAtMs,
+            lastDisconnectReason,
+          });
+          return;
+        }
 
-      activeStreamRuntimeSessions.delete(subscriptionKey);
-      publish(
-        buildConnectionStreamQueryLifecycleFrame({
-          props: input.props,
-          status: "error",
-          retainedState,
-          error: error instanceof Error ? error.message : "Connection stream could not start.",
-          lastMessageAtMs: Date.now(),
-          sourceRunId,
-        }),
-      );
-    });
+        handleRecoverableDisconnect({
+          reason: lastDisconnectReason,
+          errorCode: `close_${event.code}`,
+        });
+      },
+    };
+
+    void createAuthenticatedConnectionQueryWebSocketSubscription(
+      request,
+      handlers,
+      {
+        ...input.options,
+        queryModel: input.queryModel,
+      },
+    )
+      .then((nextSubscription) => {
+        if (!active) {
+          nextSubscription.close(1000, "connection stream query widget unmounted");
+          return;
+        }
+
+        subscription = nextSubscription;
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+
+        lastDisconnectAtMs = now();
+        lastDisconnectReason =
+          error instanceof Error ? error.message : "Connection stream could not start.";
+        scheduleReconnect(lastDisconnectReason, "subscription_start_failed");
+      });
+  }
+
+  startSubscription(input.request, false);
 
   return {
     close(code = 1000, reason = "connection stream query widget unmounted") {
@@ -1143,8 +1485,11 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
       }
 
       active = false;
+      attemptFinished = true;
+      clearReconnectTimer();
+      clearHeartbeatTimer();
       activeStreamRuntimeSessions.delete(subscriptionKey);
-      subscription?.close(code, reason);
+      closeSubscription(code, reason);
     },
   };
 }

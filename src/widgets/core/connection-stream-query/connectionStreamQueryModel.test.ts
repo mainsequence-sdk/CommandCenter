@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ConnectionQueryModel, ConnectionStreamServerMessage } from "@/connections/types";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
@@ -111,6 +111,20 @@ class MockConnectionWebSocket {
     this.closeCalls.push({ code, reason });
   }
 
+  open() {
+    this.readyState = 1;
+    this.onopen?.({} as Event);
+  }
+
+  error() {
+    this.onerror?.({} as Event);
+  }
+
+  closeFromServer(code = 1006, reason = "") {
+    this.readyState = 3;
+    this.onclose?.({ code, reason } as CloseEvent);
+  }
+
   message(data: unknown) {
     this.onmessage?.({ data } as MessageEvent);
   }
@@ -165,10 +179,14 @@ function createDeferredTicketProvider() {
 async function flushAsyncSubscriptionStart() {
   await Promise.resolve();
   await Promise.resolve();
-  await new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("connection stream query runtime model", () => {
   it("drops credentials and route fragments from normalized stream props", () => {
@@ -403,5 +421,171 @@ describe("connection stream query runtime model", () => {
     expect(sockets[0]?.closeCalls).toEqual([
       { code: 1000, reason: "connection stream query widget unmounted" },
     ]);
+  });
+
+  it("reconnects after a recoverable socket close and refreshes ticket auth", async () => {
+    vi.useFakeTimers();
+    const sockets: MockConnectionWebSocket[] = [];
+    const states: ConnectionStreamQueryRuntimeState[] = [];
+    let ticketRequests = 0;
+    const session = createConnectionStreamQueryWidgetRuntimeSession({
+      subscriptionKey: "stream-reconnect",
+      request: {
+        connectionId: 42,
+        query: {
+          kind: "ticker",
+          symbols: ["BTCUSDT"],
+        },
+        requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      },
+      props,
+      queryModel,
+      sourceWidgetId: "stream-reconnect",
+      onRuntimeStateChange: (state) => states.push(state),
+      options: {
+        apiBaseUrl: "https://api.example.test",
+        webSocketFactory: createMockSocketFactory(sockets),
+        random: () => 0.5,
+        ticketProvider: async () => {
+          ticketRequests += 1;
+          return {
+            ticket: `mock-ws-ticket-${ticketRequests}`,
+            ticketType: "websocket_ticket",
+            audience: "command_center_ws",
+            expiresAt: "2026-04-29T12:00:00.000Z",
+          };
+        },
+      },
+    });
+
+    await flushAsyncSubscriptionStart();
+    const firstSocket = sockets[0]!;
+    firstSocket.open();
+    firstSocket.message(
+      JSON.stringify({
+        type: "ack",
+        connectionId: 42,
+        queryKind: "ticker",
+        sequence: 1,
+        acceptedAt: "2026-04-28T00:00:00.000Z",
+      }),
+    );
+
+    firstSocket.closeFromServer(1012, "upstream closed");
+    await vi.advanceTimersByTimeAsync(1_000);
+    await flushAsyncSubscriptionStart();
+
+    expect(ticketRequests).toBe(2);
+    expect(sockets).toHaveLength(2);
+    expect(states.at(-1)?.streamStatus).toBe("reconnecting");
+    expect(states.at(-1)?.reconnectAttemptCount).toBe(1);
+    expect(states.at(-1)?.lastDisconnectReason).toContain("upstream closed");
+
+    session.close();
+  });
+
+  it("keeps retained rows visible while reconnecting after heartbeat timeout", async () => {
+    vi.useFakeTimers();
+    const sockets: MockConnectionWebSocket[] = [];
+    const states: ConnectionStreamQueryRuntimeState[] = [];
+    const session = createConnectionStreamQueryWidgetRuntimeSession({
+      subscriptionKey: "stream-heartbeat-timeout",
+      request: {
+        connectionId: 42,
+        query: {
+          kind: "ticker",
+          symbols: ["BTCUSDT"],
+        },
+        requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      },
+      props,
+      queryModel: {
+        ...queryModel,
+        stream: {
+          ...queryModel.stream!,
+          heartbeatMs: 1_000,
+        },
+      },
+      sourceWidgetId: "stream-heartbeat-timeout",
+      onRuntimeStateChange: (state) => states.push(state),
+      options: {
+        apiBaseUrl: "https://api.example.test",
+        webSocketFactory: createMockSocketFactory(sockets),
+        random: () => 0.5,
+        ticketProvider: createMockTicketProvider(),
+      },
+    });
+
+    await flushAsyncSubscriptionStart();
+    const socket = sockets[0]!;
+    socket.open();
+    socket.message(JSON.stringify({
+      type: "ack",
+      connectionId: 42,
+      queryKind: "ticker",
+      sequence: 1,
+      acceptedAt: "2026-04-28T00:00:00.000Z",
+    }));
+    socket.message(JSON.stringify({
+      type: "snapshot",
+      connectionId: 42,
+      queryKind: "ticker",
+      sequence: 2,
+      emittedAt: "2026-04-28T00:00:01.000Z",
+      response: {
+        frames: [
+          {
+            contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+            fields: [
+              { name: "symbol", type: "string", values: ["BTCUSDT"] },
+              { name: "price", type: "number", values: [70_000] },
+            ],
+          },
+        ],
+      },
+    }));
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    const reconnectingState = states.at(-1)!;
+    expect(reconnectingState.streamStatus).toBe("reconnecting");
+    expect(reconnectingState.rows).toEqual([{ symbol: "BTCUSDT", price: 70_000 }]);
+    expect(reconnectingState.lastDisconnectReason).toBe("Connection stream heartbeat timed out.");
+
+    session.close();
+  });
+
+  it("does not reconnect after intentional session close", async () => {
+    vi.useFakeTimers();
+    const sockets: MockConnectionWebSocket[] = [];
+    const session = createConnectionStreamQueryWidgetRuntimeSession({
+      subscriptionKey: "stream-intentional-close",
+      request: {
+        connectionId: 42,
+        query: {
+          kind: "ticker",
+          symbols: ["BTCUSDT"],
+        },
+        requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      },
+      props,
+      queryModel,
+      sourceWidgetId: "stream-intentional-close",
+      onRuntimeStateChange: () => {},
+      options: {
+        apiBaseUrl: "https://api.example.test",
+        webSocketFactory: createMockSocketFactory(sockets),
+        random: () => 0.5,
+        ticketProvider: createMockTicketProvider(),
+      },
+    });
+
+    await flushAsyncSubscriptionStart();
+    expect(sockets).toHaveLength(1);
+
+    session.close();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(sockets).toHaveLength(1);
   });
 });

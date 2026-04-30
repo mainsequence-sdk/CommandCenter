@@ -525,7 +525,7 @@ export function WorkspaceComponentBrowser({
   return (
     <aside
       className={cn(
-        "absolute left-4 bottom-4 z-30 w-[420px] max-w-[calc(100%-2rem)] overflow-hidden rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform] duration-200",
+        "absolute left-12 bottom-4 z-30 w-[420px] max-w-[calc(100%-4rem)] overflow-hidden rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform] duration-200",
         topOffsetClassName,
         open ? "translate-x-0" : "-translate-x-[calc(100%+24px)]",
       )}

@@ -13,6 +13,15 @@ import type {
   WidgetInstanceBindings,
 } from "@/widgets/types";
 import type { WidgetRuntimeUpdateEnvelope } from "@/widgets/shared/runtime-update";
+import {
+  attachRuntimeDataRefToFrame,
+  getRuntimeDataRef,
+  isRuntimeTabularFrameRef,
+  materializeRuntimeTabularFrame,
+  useRuntimeDataStore,
+  type RuntimeDataStore,
+  type RuntimeTabularFrameRef,
+} from "@/widgets/shared/runtime-data-store";
 
 export const TABULAR_SEED_INPUT_ID = "seedData";
 export const TABULAR_LIVE_UPDATES_INPUT_ID = "liveUpdates";
@@ -36,6 +45,9 @@ interface IncrementalTabularConsumerMeta {
   lastLiveSignature?: string;
   lastLiveSourceRunId?: string;
   liveMergeKeyFields?: string[];
+  seedRef?: RuntimeTabularFrameRef | null;
+  liveRef?: RuntimeTabularFrameRef | null;
+  outputRef?: RuntimeTabularFrameRef | null;
   seedFrame?: TabularFrameSourceV1 | null;
   liveFrame?: TabularFrameSourceV1 | null;
 }
@@ -54,7 +66,9 @@ export interface IncrementalTabularConsumerBindingState {
 
 interface IncrementalTabularPublication {
   baseFrame: TabularFrameSourceV1 | null;
+  baseRef?: RuntimeTabularFrameRef;
   deltaFrame: TabularFrameSourceV1 | null;
+  deltaRef?: RuntimeTabularFrameRef;
   role: IncrementalPublicationRole;
   signature: string;
   sourceRunId?: string;
@@ -216,6 +230,9 @@ function readConsumerMeta(
         lastLiveSourceRunId:
           typeof meta.lastLiveSourceRunId === "string" ? meta.lastLiveSourceRunId : undefined,
         liveMergeKeyFields: normalizeStringArray(meta.liveMergeKeyFields),
+        seedRef: isRuntimeTabularFrameRef(meta.seedRef) ? meta.seedRef : null,
+        liveRef: isRuntimeTabularFrameRef(meta.liveRef) ? meta.liveRef : null,
+        outputRef: isRuntimeTabularFrameRef(meta.outputRef) ? meta.outputRef : null,
         seedFrame: stripConsumerContextFromFrame(
           normalizeAnyTabularFrameSource(meta.seedFrame),
         ),
@@ -299,14 +316,29 @@ function buildPublicationSignature(input: {
 function buildPublication(
   input: ResolvedWidgetInput | undefined,
   fallbackRole: IncrementalPublicationRole,
+  runtimeDataStore?: RuntimeDataStore | null,
 ): IncrementalTabularPublication | null {
   if (!input || input.status !== "valid") {
     return null;
   }
 
-  const baseFrame = normalizeAnyTabularFrameSource(input.upstreamBase ?? input.value);
-  const deltaFrame = normalizeAnyTabularFrameSource(input.upstreamDelta);
   const update = input.upstreamUpdate;
+  const baseRef =
+    (isRuntimeTabularFrameRef(input.upstreamBaseRef) ? input.upstreamBaseRef : undefined) ??
+    (isRuntimeTabularFrameRef(input.valueRef) ? input.valueRef : undefined) ??
+    (isRuntimeTabularFrameRef(update?.outputRef) ? update.outputRef : undefined) ??
+    (isRuntimeTabularFrameRef(update?.retainedOutputRef) ? update.retainedOutputRef : undefined) ??
+    getRuntimeDataRef(input.upstreamBase ?? input.value);
+  const deltaRef =
+    (isRuntimeTabularFrameRef(input.upstreamDeltaRef) ? input.upstreamDeltaRef : undefined) ??
+    (isRuntimeTabularFrameRef(update?.deltaOutputRef) ? update.deltaOutputRef : undefined) ??
+    getRuntimeDataRef(input.upstreamDelta);
+  const baseFrame =
+    (baseRef ? materializeRuntimeTabularFrame(baseRef, runtimeDataStore) : null) ??
+    normalizeAnyTabularFrameSource(input.upstreamBase ?? input.value);
+  const deltaFrame =
+    (deltaRef ? materializeRuntimeTabularFrame(deltaRef, runtimeDataStore) : null) ??
+    normalizeAnyTabularFrameSource(input.upstreamDelta);
   const role = normalizePublicationRole(update, fallbackRole);
   const sourceRunId =
     typeof update?.sourceRunId === "string" && update.sourceRunId.trim()
@@ -319,7 +351,9 @@ function buildPublication(
 
   return {
     baseFrame,
+    baseRef,
     deltaFrame,
+    deltaRef,
     role,
     sourceRunId,
     update,
@@ -828,19 +862,24 @@ export function hasIncrementalTabularRoleBindings(
 
 export function resolveIncrementalTabularRuntimeFrame(
   runtimeState: unknown,
+  runtimeDataStore?: RuntimeDataStore | null,
 ): TabularFrameSourceV1 | null {
-  return normalizeTabularFrameSource(runtimeState);
+  return materializeRuntimeTabularFrame(runtimeState, runtimeDataStore);
 }
 
 export function resolveIncrementalTabularOutputFrame(input: {
   resolvedInputs: ResolvedWidgetInputs | undefined;
   runtimeState?: unknown;
+  runtimeDataStore?: RuntimeDataStore | null;
 }) {
   if (!hasIncrementalTabularRoleBindings(input.resolvedInputs)) {
     return null;
   }
 
-  const runtimeFrame = resolveIncrementalTabularRuntimeFrame(input.runtimeState);
+  const runtimeFrame = resolveIncrementalTabularRuntimeFrame(
+    input.runtimeState,
+    input.runtimeDataStore,
+  );
 
   if (runtimeFrame) {
     return runtimeFrame;
@@ -849,11 +888,14 @@ export function resolveIncrementalTabularOutputFrame(input: {
   const seedInput = normalizeResolvedWidgetInput(input.resolvedInputs?.[TABULAR_SEED_INPUT_ID]);
   const liveInput = normalizeResolvedWidgetInput(input.resolvedInputs?.[TABULAR_LIVE_UPDATES_INPUT_ID]);
 
-  return normalizeAnyTabularFrameSource(
-    seedInput?.upstreamBase ??
-      seedInput?.value ??
-      liveInput?.upstreamBase ??
-      liveInput?.value,
+  const seedValue = seedInput?.upstreamBaseRef ?? seedInput?.valueRef ?? seedInput?.upstreamBase ?? seedInput?.value;
+  const liveValue = liveInput?.upstreamBaseRef ?? liveInput?.valueRef ?? liveInput?.upstreamBase ?? liveInput?.value;
+
+  return (
+    materializeRuntimeTabularFrame(seedValue, input.runtimeDataStore) ??
+    materializeRuntimeTabularFrame(liveValue, input.runtimeDataStore) ??
+    normalizeAnyTabularFrameSource(seedInput?.upstreamBase ?? seedInput?.value) ??
+    normalizeAnyTabularFrameSource(liveInput?.upstreamBase ?? liveInput?.value)
   );
 }
 
@@ -863,20 +905,31 @@ export function useIncrementalTabularConsumerBindingState(input: {
   resolvedInputs?: ResolvedWidgetInputs;
   runtimeState?: Record<string, unknown>;
 }) {
+  const runtimeDataStore = useRuntimeDataStore();
   const seedInput = normalizeResolvedWidgetInput(input.resolvedInputs?.[TABULAR_SEED_INPUT_ID]);
   const liveInput = normalizeResolvedWidgetInput(input.resolvedInputs?.[TABULAR_LIVE_UPDATES_INPUT_ID]);
   const seedState = useMemo(() => buildInputConsumerState(seedInput), [seedInput]);
   const liveState = useMemo(() => buildInputConsumerState(liveInput), [liveInput]);
   const active = hasIncrementalTabularRoleBindings(input.resolvedInputs);
-  const seedPublication = useMemo(() => buildPublication(seedInput, "seed"), [seedInput]);
-  const livePublication = useMemo(() => buildPublication(liveInput, "update"), [liveInput]);
+  const seedPublication = useMemo(
+    () => buildPublication(seedInput, "seed", runtimeDataStore),
+    [runtimeDataStore, seedInput],
+  );
+  const livePublication = useMemo(
+    () => buildPublication(liveInput, "update", runtimeDataStore),
+    [liveInput, runtimeDataStore],
+  );
   const runtimeFrame = useMemo(
-    () => resolveIncrementalTabularRuntimeFrame(input.runtimeState),
+    () => resolveIncrementalTabularRuntimeFrame(input.runtimeState, runtimeDataStore),
+    [input.runtimeState, runtimeDataStore],
+  );
+  const runtimeStateFrame = useMemo(
+    () => normalizeAnyTabularFrameSource(input.runtimeState),
     [input.runtimeState],
   );
   const runtimeFrameSignature = useMemo(
-    () => serializeFrameState(runtimeFrame),
-    [runtimeFrame],
+    () => serializeFrameState(runtimeStateFrame ?? runtimeFrame),
+    [runtimeFrame, runtimeStateFrame],
   );
 
   useEffect(() => {
@@ -887,10 +940,19 @@ export function useIncrementalTabularConsumerBindingState(input: {
       return;
     }
 
-    const currentFrame = resolveIncrementalTabularRuntimeFrame(input.runtimeState);
-    const currentMeta = readConsumerMeta(currentFrame);
-    let nextSeedFrame = currentMeta?.seedFrame ?? null;
-    let nextLiveFrame = currentMeta?.liveFrame ?? null;
+    const currentRuntimeStateFrame = normalizeAnyTabularFrameSource(input.runtimeState);
+    const currentFrame =
+      resolveIncrementalTabularRuntimeFrame(input.runtimeState, runtimeDataStore) ??
+      currentRuntimeStateFrame;
+    const currentMeta = readConsumerMeta(currentRuntimeStateFrame) ?? readConsumerMeta(currentFrame);
+    let nextSeedFrame =
+      (currentMeta?.seedRef ? runtimeDataStore?.readFrame(currentMeta.seedRef) : null) ??
+      currentMeta?.seedFrame ??
+      null;
+    let nextLiveFrame =
+      (currentMeta?.liveRef ? runtimeDataStore?.readFrame(currentMeta.liveRef) : null) ??
+      currentMeta?.liveFrame ??
+      null;
     let nextLiveMergeKeyFields = currentMeta?.liveMergeKeyFields ?? [];
     let nextMeta = currentMeta ?? buildConsumerMeta(undefined, {});
     let frameChanged = false;
@@ -941,9 +1003,50 @@ export function useIncrementalTabularConsumerBindingState(input: {
       return;
     }
 
+    let nextRuntimeFrame = nextFrame;
+    const ownerId = input.instanceId ?? "incremental-tabular-consumer";
+    const seedRef =
+      seedPublication?.baseRef ??
+      currentMeta?.seedRef ??
+      (nextSeedFrame && runtimeDataStore
+        ? runtimeDataStore.putSnapshot({
+          ownerId,
+          outputId: TABULAR_SEED_INPUT_ID,
+          frame: nextSeedFrame,
+          refKey: `${ownerId}:${TABULAR_SEED_INPUT_ID}`,
+        })
+        : null);
+    const liveRef =
+      livePublication?.baseRef ??
+      livePublication?.deltaRef ??
+      currentMeta?.liveRef ??
+      (nextLiveFrame && runtimeDataStore
+        ? runtimeDataStore.putSnapshot({
+          ownerId,
+          outputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          frame: nextLiveFrame,
+          refKey: `${ownerId}:${TABULAR_LIVE_UPDATES_INPUT_ID}`,
+        })
+        : null);
+    const outputRef = runtimeDataStore
+      ? runtimeDataStore.putSnapshot({
+        ownerId,
+        outputId: "dataset",
+        frame: nextFrame,
+        refKey: `${ownerId}:dataset`,
+      })
+      : null;
+
+    if (outputRef) {
+      nextRuntimeFrame = attachRuntimeDataRefToFrame(nextFrame, outputRef);
+    }
+
     nextMeta = buildConsumerMeta(nextMeta, {
-      seedFrame: stripConsumerContextFromFrame(nextSeedFrame),
-      liveFrame: stripConsumerContextFromFrame(nextLiveFrame),
+      seedRef,
+      liveRef,
+      outputRef,
+      seedFrame: runtimeDataStore ? null : stripConsumerContextFromFrame(nextSeedFrame),
+      liveFrame: runtimeDataStore ? null : stripConsumerContextFromFrame(nextLiveFrame),
       liveMergeKeyFields: nextLiveMergeKeyFields,
     });
     metaChanged = metaChanged || !sameConsumerMeta(currentMeta, nextMeta);
@@ -952,24 +1055,26 @@ export function useIncrementalTabularConsumerBindingState(input: {
       return;
     }
 
-    const nextRuntimeFrame = withConsumerMeta(nextFrame, nextMeta);
-    const nextSignature = serializeFrameState(nextRuntimeFrame);
+    const nextRuntimeFrameWithMeta = withConsumerMeta(nextRuntimeFrame, nextMeta);
+    const nextSignature = serializeFrameState(nextRuntimeFrameWithMeta);
 
     if (nextSignature !== runtimeFrameSignature) {
-      input.onRuntimeStateChange?.(nextRuntimeFrame as unknown as Record<string, unknown>);
+      input.onRuntimeStateChange?.(nextRuntimeFrameWithMeta as unknown as Record<string, unknown>);
     }
   }, [
     active,
+    input.instanceId,
     input.onRuntimeStateChange,
     input.runtimeState,
     livePublication,
     runtimeFrameSignature,
+    runtimeDataStore,
     seedPublication,
   ]);
 
   const dataset = useMemo(
-    () => resolveIncrementalTabularRuntimeFrame(input.runtimeState),
-    [input.runtimeState],
+    () => resolveIncrementalTabularRuntimeFrame(input.runtimeState, runtimeDataStore),
+    [input.runtimeState, runtimeDataStore],
   );
   const deltaDataset = livePublication?.deltaFrame ?? null;
   const consumerState = useMemo(
