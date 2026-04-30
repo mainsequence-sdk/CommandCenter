@@ -416,3 +416,5 @@ Recommended mapping:
 - Theme state is intentionally not persisted yet. Add Zustand `persist` when saved preferences or per-app state become important.
 - Dashboards are still code-defined, but they now live inside apps as one surface type among dashboards, pages, and tools.
 - If you choose to ship Lightweight Charts publicly through the optional charts extension, review its attribution requirement before production rollout.
+
+New deployment
