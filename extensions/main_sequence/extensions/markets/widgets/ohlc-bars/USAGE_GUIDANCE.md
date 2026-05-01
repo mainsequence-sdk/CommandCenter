@@ -44,6 +44,9 @@ and one filter value so the chart renders a single OHLC series.
   `upstreamDelta`. When the update is safe for incremental rendering, the OHLC chart appends or
   replaces bars while preserving the mounted chart instance and visible range.
 - `seedData` establishes the baseline frame. `liveUpdates` applies ongoing seed/update publications as a separate live overlay that is unioned onto the baseline.
+- When both `seedData` and `liveUpdates` are bound, initial rendering waits until both lanes have
+  produced non-empty frames. This prevents a live WebSocket publication from replacing the chart
+  baseline before the historical query has returned rows.
 - The tabular response must include rows equivalent to:
 
 ```json

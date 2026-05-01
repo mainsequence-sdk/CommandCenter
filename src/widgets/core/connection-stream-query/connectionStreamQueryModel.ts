@@ -31,6 +31,7 @@ import {
   type WidgetRuntimeUpdateEnvelope,
 } from "@/widgets/shared/runtime-update";
 import {
+  getRuntimeDataRef,
   materializeRuntimeTabularFrame,
   storeTabularFrameRuntimeState,
   type RuntimeDataStore,
@@ -167,7 +168,7 @@ function lifecycleStatusToFrameStatus(
   }
 
   if (status === "connecting" || status === "reconnecting") {
-    return "loading";
+    return hasRetainedFrame ? "ready" : "loading";
   }
 
   if (status === "live") {
@@ -309,7 +310,15 @@ function buildEmptyStreamFrame(input: {
 function resolveRetainedFrame(runtimeState: unknown) {
   const normalized = normalizeConnectionStreamQueryRuntimeState(runtimeState);
 
-  return normalized?.status === "ready" ? normalized : null;
+  if (!normalized || normalized.status === "error") {
+    return null;
+  }
+
+  return normalized.status === "ready" ||
+    normalized.rows.length > 0 ||
+    Boolean(getRuntimeDataRef(normalized))
+    ? normalized
+    : null;
 }
 
 function stableJsonStringify(value: unknown): string {

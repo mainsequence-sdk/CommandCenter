@@ -1,11 +1,8 @@
-import { useEffect } from "react";
-
 import { AlertTriangle, Database, Loader2 } from "lucide-react";
 
 import { getConnectionTypeById } from "@/app/registry";
 import {
   getRuntimeDataRef,
-  useRuntimeDataStore,
 } from "@/widgets/shared/runtime-data-store";
 import {
   normalizeConnectionQueryProps,
@@ -16,8 +13,7 @@ import type { WidgetComponentProps } from "@/widgets/types";
 
 type Props = WidgetComponentProps<ConnectionQueryWidgetProps>;
 
-export function ConnectionQueryWidget({ instanceId, props, runtimeState }: Props) {
-  const runtimeDataStore = useRuntimeDataStore();
+export function ConnectionQueryWidget({ props, runtimeState }: Props) {
   const normalizedProps = normalizeConnectionQueryProps(props);
   const connectionType = normalizedProps.connectionRef?.typeId
     ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
@@ -37,15 +33,6 @@ export function ConnectionQueryWidget({ instanceId, props, runtimeState }: Props
     frame && "error" in frame && typeof frame.error === "string"
       ? frame.error
       : "Connection query failed.";
-
-  useEffect(
-    () => () => {
-      if (instanceId) {
-        runtimeDataStore?.releaseOwner(instanceId);
-      }
-    },
-    [instanceId, runtimeDataStore],
-  );
 
   if (!queryConfigured) {
     return (

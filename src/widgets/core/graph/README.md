@@ -67,7 +67,8 @@ This folder owns the core `graph` widget. It renders canonical
 - Marker-only charts expose a widget-level `markerSizePx` setting so authors can tune point size
   without switching providers.
 - Graphs expose a widget-level `limit` setting as `Max points per series`. This trims the plotted
-  history window per series to the latest N points without mutating the upstream dataset.
+  history window per series and the graph's ref-backed consumer view without mutating the upstream
+  source dataset.
 - On live delta updates, that point window behaves as a rolling queue per series: once the plotted
   window is full, the oldest plotted point is dropped and the newest point is kept.
 - Grouped charts expose a widget-level `maxSeries` setting so authors can decide how many grouped
@@ -85,9 +86,9 @@ This folder owns the core `graph` widget. It renders canonical
 - Keep managed connection authoring routed through the shared connection settings surfaces,
   the widget-settings route `Bindings -> Connection` flow, and the managed widget lifecycle
   helpers. Do not add graph-local connection query execution.
-- Keep the graph-local point window separate from upstream source retention. The graph should stay
-  live from its own bounded queue even if the upstream source is still carrying compatibility
-  retained state.
+- Keep the graph-local point window and bounded runtime data view separate from upstream source
+  retention. The graph should stay live from its own bounded queue even if the upstream source is
+  still carrying compatibility retained state.
 - Avoid reintroducing graph-local time-series semantics or upstream metadata-driven auto-mapping.
 - Avoid adding connection-specific or Main Sequence-specific backend calls here.
 - Bump `widgetVersion` when props, accepted input behavior, registry metadata, or user-facing authoring semantics change.

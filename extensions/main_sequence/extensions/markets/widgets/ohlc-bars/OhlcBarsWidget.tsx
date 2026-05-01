@@ -27,6 +27,7 @@ import {
   type MainSequenceOhlcBarsWidgetProps,
   type OhlcBarsStudyConfig,
 } from "./ohlcBarsModel";
+import { shouldForceOhlcSnapshot } from "./ohlcBarsRender";
 
 type Props = WidgetComponentProps<MainSequenceOhlcBarsWidgetProps>;
 type OhlcChartApi = ReturnType<typeof createChart>;
@@ -297,6 +298,9 @@ export function OhlcBarsWidget({
   const hasFittedRef = useRef(false);
   const lastPointCountRef = useRef(0);
   const lastShapeKeyRef = useRef<string | null>(null);
+  const lastFirstPointTimeRef = useRef<number | null>(null);
+  const lastAppliedSeedSignatureRef = useRef<string | undefined>(undefined);
+  const lastAppliedLiveSourceRunIdRef = useRef<string | undefined>(undefined);
   const { resolvedTokens } = useTheme();
 
   const normalizedProps = useMemo(
@@ -528,6 +532,9 @@ export function OhlcBarsWidget({
     hasFittedRef.current = false;
     lastPointCountRef.current = 0;
     lastShapeKeyRef.current = null;
+    lastFirstPointTimeRef.current = null;
+    lastAppliedSeedSignatureRef.current = undefined;
+    lastAppliedLiveSourceRunIdRef.current = undefined;
 
     const resizeObserver = new ResizeObserver(() => {
       chartRef.current?.applyOptions(getChartSize(container));
@@ -609,11 +616,28 @@ export function OhlcBarsWidget({
     const visibleRange = chart.timeScale().getVisibleLogicalRange();
     const wasFollowingRightEdge =
       !visibleRange || visibleRange.to >= lastPointCountRef.current - 2;
-    const forceSnapshot =
-      chartUpdateMode !== "delta" ||
-      deltaSeriesResult.points.length === 0 ||
-      lastShapeKeyRef.current !== chartDataShapeKey ||
-      resolvedConfig.studies.length > 0;
+    const nextFirstPointTime = seriesResult.points[0]?.timeMs ?? null;
+    const currentSeedSignature = incrementalBinding.seedPublication?.signature;
+    const currentLiveSourceRunId = incrementalBinding.livePublication?.sourceRunId;
+    const forceSnapshot = shouldForceOhlcSnapshot({
+      chartUpdateMode,
+      deltaPointCount: deltaSeriesResult.points.length,
+      hasStudies: resolvedConfig.studies.length > 0,
+      shapeKeyChanged: lastShapeKeyRef.current !== chartDataShapeKey,
+      seedPublicationChanged:
+        currentSeedSignature !== undefined &&
+        currentSeedSignature !== lastAppliedSeedSignatureRef.current,
+      livePublicationRole: incrementalBinding.livePublication?.role,
+      liveMode: sourceUpdate?.mode,
+      liveSourceRunChanged:
+        Boolean(lastAppliedLiveSourceRunIdRef.current) &&
+        Boolean(currentLiveSourceRunId) &&
+        lastAppliedLiveSourceRunIdRef.current !== currentLiveSourceRunId,
+      nextPointCount: seriesResult.points.length,
+      previousPointCount: lastPointCountRef.current,
+      nextFirstPointTime,
+      previousFirstPointTime: lastFirstPointTimeRef.current,
+    });
 
     if (forceSnapshot) {
       pointByChartTimeRef.current = new Map(seriesResult.points.map((point) => [point.time, point]));
@@ -631,6 +655,9 @@ export function OhlcBarsWidget({
       });
       lastShapeKeyRef.current = chartDataShapeKey;
       lastPointCountRef.current = seriesResult.points.length;
+      lastFirstPointTimeRef.current = nextFirstPointTime;
+      lastAppliedSeedSignatureRef.current = currentSeedSignature;
+      lastAppliedLiveSourceRunIdRef.current = currentLiveSourceRunId;
 
       if (!hasFittedRef.current || wasFollowingRightEdge || !visibleRange) {
         chart.timeScale().fitContent();
@@ -652,6 +679,9 @@ export function OhlcBarsWidget({
       volume?.update(point, true);
     });
     lastPointCountRef.current = seriesResult.points.length;
+    lastFirstPointTimeRef.current = nextFirstPointTime;
+    lastAppliedSeedSignatureRef.current = currentSeedSignature;
+    lastAppliedLiveSourceRunIdRef.current = currentLiveSourceRunId;
 
     if (!wasFollowingRightEdge && visibleRange) {
       chart.timeScale().setVisibleLogicalRange(visibleRange);
@@ -660,9 +690,13 @@ export function OhlcBarsWidget({
     chartDataShapeKey,
     chartUpdateMode,
     deltaSeriesResult.points,
+    incrementalBinding.livePublication?.role,
+    incrementalBinding.livePublication?.sourceRunId,
+    incrementalBinding.seedPublication?.signature,
     resolvedConfig.studies,
     resolvedTokens,
     seriesResult.points,
+    sourceUpdate?.mode,
   ]);
 
   if (!incrementalBinding.active && sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
@@ -702,6 +736,14 @@ export function OhlcBarsWidget({
   }
 
   if (
+    sourceConsumerState.kind === "awaiting-upstream" ||
+    linkedDataset == null ||
+    linkedDataset.status === "loading"
+  ) {
+    return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
+  }
+
+  if (
     !resolvedConfig.timeField ||
     !resolvedConfig.openField ||
     !resolvedConfig.highField ||
@@ -725,14 +767,6 @@ export function OhlcBarsWidget({
         description="Select the ticker, symbol, or other value to render from the mapped filter column."
       />
     );
-  }
-
-  if (
-    sourceConsumerState.kind === "awaiting-upstream" ||
-    linkedDataset == null ||
-    linkedDataset.status === "loading"
-  ) {
-    return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;
   }
 
   if (linkedDataset.status === "error") {

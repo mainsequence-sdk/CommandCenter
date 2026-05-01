@@ -161,9 +161,9 @@ function resolveTransformedRuntimeUpdate(input: {
   return {
     upstreamBase: input.transformedBase.value,
     upstreamBaseRef:
-      input.transformedBase.valueRef ??
       sourceUpdate.outputRef ??
-      sourceUpdate.retainedOutputRef,
+      sourceUpdate.retainedOutputRef ??
+      input.transformedBase.valueRef,
     upstreamDelta,
     upstreamDeltaRef,
     upstreamUpdate,

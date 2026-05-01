@@ -84,6 +84,113 @@ describe("runtime data store", () => {
     ]);
   });
 
+  it("combines seed and live refs with keyed replacement and retention", () => {
+    const store = createRuntimeDataStore("workspace-1");
+    const seedRef = store.putSnapshot({
+      ownerId: "seed-source",
+      outputId: "dataset",
+      frame: frame([
+        { id: "a", value: 1 },
+        { id: "b", value: 2 },
+      ]),
+    });
+    const liveRef = store.putSnapshot({
+      ownerId: "live-source",
+      outputId: "updates",
+      frame: frame([
+        { id: "b", value: 20 },
+        { id: "c", value: 3 },
+      ]),
+    });
+
+    const outputRef = store.combine({
+      ownerId: "consumer-1",
+      outputId: "dataset",
+      seedRef,
+      liveRef,
+      mergeKeyFields: ["id"],
+      retention: { maxRows: 2 },
+    });
+
+    expect(outputRef).toMatchObject({
+      ownerId: "consumer-1",
+      outputId: "dataset",
+      rowCount: 2,
+    });
+    expect(outputRef ? store.readFrame(outputRef)?.rows : null).toEqual([
+      { id: "b", value: 20 },
+      { id: "c", value: 3 },
+    ]);
+  });
+
+  it("reuses the combined ref when publication identity and reduced rows are unchanged", () => {
+    const store = createRuntimeDataStore("workspace-1");
+    const seedRef = store.putSnapshot({
+      ownerId: "seed-source",
+      outputId: "dataset",
+      frame: frame([{ id: "a", value: 1 }]),
+    });
+    const liveRef = store.putSnapshot({
+      ownerId: "live-source",
+      outputId: "updates",
+      frame: frame([{ id: "b", value: 2 }]),
+    });
+
+    const firstRef = store.combine({
+      ownerId: "consumer-1",
+      outputId: "dataset",
+      seedRef,
+      liveRef,
+      mergeKeyFields: ["id"],
+      signature: "seed:v1|live:v1",
+    });
+    const secondRef = store.combine({
+      ownerId: "consumer-1",
+      outputId: "dataset",
+      seedRef,
+      liveRef,
+      mergeKeyFields: ["id"],
+      signature: "seed:v1|live:v1",
+    });
+
+    expect(secondRef).toEqual(firstRef);
+    expect(secondRef?.version).toBe(firstRef?.version);
+  });
+
+  it("reuses the combined ref when publication identity changes but the reduced data does not", () => {
+    const store = createRuntimeDataStore("workspace-1");
+    const seedRef = store.putSnapshot({
+      ownerId: "seed-source",
+      outputId: "dataset",
+      frame: frame([{ id: "a", value: 1 }]),
+    });
+    const liveRef = store.putSnapshot({
+      ownerId: "live-source",
+      outputId: "updates",
+      frame: frame([{ id: "b", value: 2 }]),
+    });
+
+    const firstRef = store.combine({
+      ownerId: "consumer-1",
+      outputId: "dataset",
+      seedRef,
+      liveRef,
+      mergeKeyFields: ["id"],
+      signature: "seed:v1|live:v1",
+    });
+    const secondRef = store.combine({
+      ownerId: "consumer-1",
+      outputId: "dataset",
+      seedRef,
+      liveRef,
+      mergeKeyFields: ["id"],
+      signature: "seed:v1|live:v2-lifecycle-only",
+    });
+
+    expect(secondRef).toEqual(firstRef);
+    expect(secondRef?.version).toBe(firstRef?.version);
+  });
+
   it("treats released-owner refs as stale", () => {
     const store = createRuntimeDataStore("workspace-1");
     const ref = store.putSnapshot({

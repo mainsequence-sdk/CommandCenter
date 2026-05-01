@@ -15,6 +15,7 @@ import {
   removeDashboardWidget,
   removeManagedDashboardWidgets,
   sanitizeDashboardDefinition,
+  updateDashboardWidgetRuntimeState,
   updateDashboardWidgetSettings,
   updateDashboardWidgetBindings,
   updateManagedDashboardWidget,
@@ -153,6 +154,49 @@ function connectionQueryWidget(
   };
 }
 
+function buildRuntimeDataRef(version: number, updatedAtMs: number) {
+  return {
+    kind: "runtime-data-ref" as const,
+    refId: "ohlc-1:dataset",
+    workspaceRuntimeId: "workspace-runtime",
+    ownerId: "ohlc-1",
+    outputId: "dataset",
+    contractId: TABULAR_CONTRACT,
+    version,
+    rowCount: 2,
+    schemaSignature: "schema-v1",
+    updatedAtMs,
+    columns: ["openTime", "open", "high", "low", "close"],
+    status: "ready" as const,
+  };
+}
+
+function buildRefBackedRuntimeState(input: {
+  sourceUpdatedAtMs: number;
+  refVersion: number;
+  refUpdatedAtMs: number;
+}) {
+  const outputRef = buildRuntimeDataRef(input.refVersion, input.refUpdatedAtMs);
+
+  return {
+    status: "ready",
+    columns: ["openTime", "open", "high", "low", "close"],
+    rows: [],
+    runtimeDataRef: outputRef,
+    source: {
+      kind: "runtime-data-store",
+      updatedAtMs: input.sourceUpdatedAtMs,
+      context: {
+        runtimeDataRef: outputRef,
+        incrementalConsumer: {
+          mode: "incremental-tabular-consumer",
+          outputRef,
+        },
+      },
+    },
+  } satisfies Record<string, unknown>;
+}
+
 describe("custom dashboard storage managed widgets", () => {
   it("normalizes managed ownership and hidden rail visibility in workspace storage", () => {
     const normalized = sanitizeDashboardDefinition({
@@ -209,6 +253,63 @@ describe("custom dashboard storage managed widgets", () => {
     });
     expect(normalized.widgets[1]?.managedBy).toBeUndefined();
     expect(normalized.widgets[1]?.presentation).toBeUndefined();
+  });
+
+  it("ignores volatile runtime frame timestamps when comparing ref-backed runtime state", () => {
+    const initialRuntimeState = buildRefBackedRuntimeState({
+      sourceUpdatedAtMs: 1_000,
+      refVersion: 4,
+      refUpdatedAtMs: 2_000,
+    });
+    const dashboard = dashboardWithWidgets([
+      {
+        ...graphWidget("ohlc-1", { x: 0, y: 0 }),
+        runtimeState: initialRuntimeState,
+      },
+    ]);
+
+    const updated = updateDashboardWidgetRuntimeState(
+      dashboard,
+      "ohlc-1",
+      buildRefBackedRuntimeState({
+        sourceUpdatedAtMs: 3_000,
+        refVersion: 4,
+        refUpdatedAtMs: 4_000,
+      }),
+    );
+
+    expect(updated).toBe(dashboard);
+  });
+
+  it("still writes runtime state when the ref-backed payload version changes", () => {
+    const initialRuntimeState = buildRefBackedRuntimeState({
+      sourceUpdatedAtMs: 1_000,
+      refVersion: 4,
+      refUpdatedAtMs: 2_000,
+    });
+    const dashboard = dashboardWithWidgets([
+      {
+        ...graphWidget("ohlc-1", { x: 0, y: 0 }),
+        runtimeState: initialRuntimeState,
+      },
+    ]);
+
+    const updated = updateDashboardWidgetRuntimeState(
+      dashboard,
+      "ohlc-1",
+      buildRefBackedRuntimeState({
+        sourceUpdatedAtMs: 3_000,
+        refVersion: 5,
+        refUpdatedAtMs: 4_000,
+      }),
+    );
+
+    expect(updated).not.toBe(dashboard);
+    expect(updated.widgets[0]?.runtimeState).toMatchObject({
+      runtimeDataRef: {
+        version: 5,
+      },
+    });
   });
 
   it("creates, updates, detaches, and removes managed widgets", () => {

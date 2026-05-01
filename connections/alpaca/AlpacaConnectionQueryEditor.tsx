@@ -15,10 +15,20 @@ import type {
   AlpacaFeed,
   AlpacaQueryKind,
   AlpacaSortDirection,
+  AlpacaWebSocketCryptoLocation,
+  AlpacaWebSocketStockFeed,
 } from "./index";
 
 const equityFeeds = ["iex", "sip", "delayed_sip", "boats", "overnight", "otc"] satisfies AlpacaFeed[];
 const cryptoLocations = ["us", "us-1", "us-2", "eu-1", "bs-1"] satisfies AlpacaCryptoLocation[];
+const webSocketEquityFeeds = [
+  "iex",
+  "sip",
+  "delayed_sip",
+  "boats",
+  "overnight",
+] satisfies AlpacaWebSocketStockFeed[];
+const webSocketCryptoLocations = ["us", "us-1", "eu-1"] satisfies AlpacaWebSocketCryptoLocation[];
 const commonAlpacaTimeframes = [
   "1Min",
   "5Min",
@@ -61,6 +71,12 @@ function patchQuery(
 
 function isCommonAlpacaTimeframe(value: string | undefined): value is CommonAlpacaTimeframe {
   return !!value && commonAlpacaTimeframes.includes(value as CommonAlpacaTimeframe);
+}
+
+function normalizeAlpacaSymbol(value: string, isCrypto: boolean) {
+  const trimmed = value.trim().replace(/\s+/g, "");
+
+  return isCrypto ? trimmed.toUpperCase() : trimmed.toUpperCase();
 }
 
 function QuerySelectField({
@@ -134,6 +150,7 @@ function QueryTimeframeField({
 }
 
 export function AlpacaConnectionQueryEditor({
+  authoringMode = "query",
   connectionInstance,
   disabled = false,
   onChange,
@@ -145,7 +162,9 @@ export function AlpacaConnectionQueryEditor({
   const isCrypto = kind.startsWith("alpaca-crypto-");
   const isOhlc = kind.endsWith("-ohlc");
   const isHistorical = kind.includes("historical");
-  const supportsPageToken = isOhlc || isHistorical;
+  const isLive = kind.includes("-live-");
+  const isStreamAuthoring = authoringMode === "stream";
+  const supportsPageToken = !isLive && (isOhlc || isHistorical);
 
   return (
     <div className="space-y-5">
@@ -157,8 +176,18 @@ export function AlpacaConnectionQueryEditor({
       </div>
 
       <ConnectionQueryEditorSection
-        title={queryModel?.label ?? "Alpaca market data"}
-        description="The backend adapter sends this payload through Alpaca's market-data REST API and returns canonical tabular frames."
+        title={
+          isStreamAuthoring
+            ? `${queryModel?.label ?? "Alpaca market data"} subscription`
+            : queryModel?.label ?? "Alpaca market data"
+        }
+        description={
+          isStreamAuthoring
+            ? isOhlc
+              ? "The backend adapter validates this Alpaca live subscription, opens the generic Command Center WebSocket stream, and emits canonical snapshot or delta frames. Live bars are provider minute bars in the first slice."
+              : "The backend adapter validates this Alpaca live subscription, opens the generic Command Center WebSocket stream, and emits canonical snapshot or delta frames."
+            : "The backend adapter sends this payload through Alpaca's market-data REST API and returns canonical tabular frames."
+        }
       >
         <QueryStringListField
           label="Symbols"
@@ -166,10 +195,15 @@ export function AlpacaConnectionQueryEditor({
           onChange={(symbols) => patchQuery(value, onChange, kind, { symbols: symbols ?? [] })}
           disabled={disabled}
           placeholder={isCrypto ? "BTC/USD, ETH/USD" : "AAPL, MSFT"}
-          help="Provider symbols to request. The backend normalizes format and rejects empty or oversized lists."
+          normalizeEntry={(symbol) => normalizeAlpacaSymbol(symbol, isCrypto)}
+          help={
+            isStreamAuthoring
+              ? "Provider symbols to subscribe to. The backend requires at least one symbol at runtime, uppercases equity symbols, preserves crypto pairs with '/', and rejects unsupported symbols."
+              : "Provider symbols to request. The backend normalizes format and rejects empty or oversized lists."
+          }
         />
 
-        {isOhlc ? (
+        {isOhlc && !isLive ? (
           <QueryTimeframeField
             value={value.timeframe}
             onChange={(timeframe) => patchQuery(value, onChange, kind, { timeframe })}
@@ -181,10 +215,18 @@ export function AlpacaConnectionQueryEditor({
           <QuerySelectField
             label="Feed"
             value={value.feed}
-            onChange={(feed) => patchQuery(value, onChange, kind, { feed: feed as AlpacaFeed | undefined })}
+            onChange={(feed) =>
+              patchQuery(value, onChange, kind, {
+                feed: feed as AlpacaFeed | AlpacaWebSocketStockFeed | undefined,
+              })
+            }
             disabled={disabled}
-            options={equityFeeds}
-            help="Optional stock data feed override for this query. Provider entitlements determine which feeds work."
+            options={isLive ? webSocketEquityFeeds : equityFeeds}
+            help={
+              isLive
+                ? "Optional Alpaca equity WebSocket feed override for this live subscription. Provider entitlements determine which feeds work."
+                : "Optional stock data feed override for this query. Provider entitlements determine which feeds work."
+            }
           />
         ) : null}
 
@@ -194,24 +236,33 @@ export function AlpacaConnectionQueryEditor({
             value={value.cryptoLocation}
             onChange={(cryptoLocation) =>
               patchQuery(value, onChange, kind, {
-                cryptoLocation: cryptoLocation as AlpacaCryptoLocation | undefined,
+                cryptoLocation: cryptoLocation as
+                  | AlpacaCryptoLocation
+                  | AlpacaWebSocketCryptoLocation
+                  | undefined,
               })
             }
             disabled={disabled}
-            options={cryptoLocations}
-            help="Optional crypto endpoint location override for this query."
+            options={isLive ? webSocketCryptoLocations : cryptoLocations}
+            help={
+              isLive
+                ? "Optional Alpaca crypto WebSocket location override for this live subscription."
+                : "Optional crypto endpoint location override for this query."
+            }
           />
         ) : null}
 
-        <QueryNumberField
-          label="Limit"
-          value={value.limit}
-          min={1}
-          onChange={(limit) => patchQuery(value, onChange, kind, { limit })}
-          disabled={disabled}
-          placeholder="1000"
-          help="Provider page size or latest-record symbol budget. Maximum is enforced by the backend adapter."
-        />
+        {!isLive ? (
+          <QueryNumberField
+            label="Limit"
+            value={value.limit}
+            min={1}
+            onChange={(limit) => patchQuery(value, onChange, kind, { limit })}
+            disabled={disabled}
+            placeholder="1000"
+            help="Provider page size or latest-record symbol budget. Maximum is enforced by the backend adapter."
+          />
+        ) : null}
 
         {supportsPageToken ? (
           <QueryTextField

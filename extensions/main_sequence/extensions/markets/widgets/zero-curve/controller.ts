@@ -23,9 +23,13 @@ export interface ZeroCurveControllerContext
 export function useZeroCurveControllerContext({
   props,
   instanceId,
+  resolvedInputs,
+  runtimeState,
 }: {
   props: MainSequenceZeroCurveWidgetProps;
   instanceId?: string;
+  resolvedInputs?: import("@/widgets/types").ResolvedWidgetInputs;
+  runtimeState?: Record<string, unknown>;
 }): ZeroCurveControllerContext {
   const normalizedProps = useMemo(
     () => normalizeZeroCurveProps(props),
@@ -34,6 +38,8 @@ export function useZeroCurveControllerContext({
   const sourceContext = useDataNodeWidgetSourceControllerContext({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
+    resolvedInputs,
+    runtimeState,
     queryKeyScope: "zero_curve",
     resolveConfig: resolveZeroCurveConfig,
   });
@@ -74,6 +80,6 @@ export const mainSequenceZeroCurveWidgetController: WidgetController<
   ZeroCurveControllerContext
 > = {
   normalizeProps: (props) => normalizeZeroCurveProps(props),
-  useContext: ({ props, instanceId }) =>
-    useZeroCurveControllerContext({ props, instanceId }),
+  useContext: ({ props, instanceId, resolvedInputs, runtimeState }) =>
+    useZeroCurveControllerContext({ props, instanceId, resolvedInputs, runtimeState }),
 };

@@ -80,7 +80,7 @@ const graphTabularFieldEffects = [
 
 export const graphWidget = defineWidget<GraphWidgetProps>({
   id: "graph",
-  widgetVersion: "3.1.3",
+  widgetVersion: "3.1.4",
   title: "Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -213,7 +213,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
         "This widget does not infer field mappings from upstream time-series metadata.",
         "For explicit live updates, tail-safe updates use the graph-local rolling queue and delta renderer path. Queue trims, history rewrites, and normalization fall back to snapshot refresh for correctness.",
         "ECharts keeps full millisecond datetime points for high-frequency streams. TradingView collapses same-second datetime points to the latest point in that second.",
-        "Max points per series does not trim retained upstream rows; use source-side retention on live stream widgets when the upstream dataset itself should stay bounded.",
+        "Max points per series bounds the graph's rendered series and ref-backed consumer row view; source-side retention still controls how much retained data the upstream source keeps.",
         "When grouping is enabled, Max series limits how many grouped series render at once; remaining groups are dropped deterministically by point count.",
         "The chart provider changes rendering behavior but not the canonical upstream dataset contract.",
       ],

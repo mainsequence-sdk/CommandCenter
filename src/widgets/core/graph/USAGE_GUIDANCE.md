@@ -38,8 +38,8 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
   `upstreamDelta`. For explicit `seedData`/`liveUpdates` bindings, the graph keeps its own bounded
   per-series queue from those publications instead of rebuilding from the source widget's retained
   stream history on every tick.
-- `Max points per series` only trims the graph's rendered window. It does not delete older rows
-  from the upstream source dataset.
+- `Max points per series` trims the rendered window and the graph's ref-backed consumer view. It
+  does not delete older rows from the upstream source dataset.
 - For live stream-backed graphs, `Max points per series` behaves like a rolling queue per series:
   once the plotted window is full, the oldest plotted point falls off and the newest point stays visible.
 - Tabular sources need a selected Y field with numeric values.
@@ -55,9 +55,9 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
   - TradingView collapses same-second datetime points to the latest point in that second.
 - When grouping is enabled, `Max series` limits how many groups render at once. Remaining groups
   are dropped by descending point count.
-- Live stream graphs now stay responsive from the graph-local bounded queue, but the upstream
-  source can still waste memory if it keeps an unbounded retained compatibility frame. Use both
-  source-side retention and graph-side max points when the stream should stay bounded end to end.
+- Live stream graphs now stay responsive from the graph-local bounded queue and bounded runtime
+  data view, but the upstream source still needs source-side retention when its retained
+  compatibility dataset should stay bounded too.
 - `Markers` suppresses connecting lines; line-style overrides do not visibly change that mode.
 - `Markers` uses the chart's `Marker size` setting, so point size can differ from the default line/area single-point markers.
 - If this graph is backed by a hidden managed connection source, fix any source runtime error in the `Connection` tab before debugging chart field mappings.

@@ -73,6 +73,18 @@ export interface RuntimeDataStore {
     deltaRef: RuntimeTabularFrameRef;
     operations: NonNullable<WidgetRuntimeUpdateEnvelope["operations"]>;
   };
+  combine(input: {
+    ownerId: string;
+    outputId: string;
+    seedRef?: RuntimeTabularFrameRef | null;
+    liveRef?: RuntimeTabularFrameRef | null;
+    seedFrame?: TabularFrameSourceV1 | null;
+    liveFrame?: TabularFrameSourceV1 | null;
+    mergeKeyFields: string[];
+    retention?: RuntimeRetentionPolicy;
+    refKey?: string;
+    signature?: string;
+  }): RuntimeTabularFrameRef | null;
   readFrame(ref: RuntimeTabularFrameRef): TabularFrameSourceV1 | null;
   readRows(
     ref: RuntimeTabularFrameRef,
@@ -85,6 +97,11 @@ interface RuntimeDataEntry {
   ownerId: string;
   frame: TabularFrameSourceV1;
   ref: RuntimeTabularFrameRef;
+}
+
+interface RuntimeCombinedEntry {
+  signature?: string;
+  frameSignature: string;
 }
 
 const RuntimeDataStoreContext = createContext<RuntimeDataStore | null>(null);
@@ -187,6 +204,17 @@ function buildSchemaSignature(frame: TabularFrameSourceV1) {
   });
 }
 
+function buildFrameDataSignature(frame: TabularFrameSourceV1) {
+  return stableJsonStringify({
+    status: frame.status,
+    error: frame.error,
+    columns: frame.columns,
+    fields: frame.fields,
+    rows: frame.rows,
+    meta: frame.meta,
+  });
+}
+
 function getRuntimeDataRefFromContext(value: unknown): RuntimeTabularFrameRef | undefined {
   if (!isPlainRecord(value)) {
     return undefined;
@@ -255,7 +283,7 @@ export function attachRuntimeDataRefToFrame(
   };
 }
 
-function selectRows(
+export function selectRuntimeRows(
   rows: Array<Record<string, unknown>>,
   selector: RuntimeRowSelector | undefined,
 ) {
@@ -274,9 +302,130 @@ function selectRows(
   return rows.slice(Math.max(0, end - limit), end);
 }
 
+function applyRetention(
+  rows: Array<Record<string, unknown>>,
+  retention: RuntimeRetentionPolicy | undefined,
+) {
+  const maxRows = normalizePositiveInteger(retention?.maxRows);
+
+  return maxRows ? rows.slice(-maxRows) : rows;
+}
+
+function resolveRenderableFrameStatus(
+  frames: Array<TabularFrameSourceV1 | null | undefined>,
+  rowCount: number,
+): TabularFrameSourceV1["status"] {
+  if (frames.some((frame) => frame?.status === "error")) {
+    return "error";
+  }
+
+  if (rowCount > 0) {
+    return "ready";
+  }
+
+  if (frames.some((frame) => frame?.status === "loading")) {
+    return "loading";
+  }
+
+  return "ready";
+}
+
+function normalizeCombinedFrame(frame: TabularFrameSourceV1) {
+  return {
+    ...frame,
+    status: resolveRenderableFrameStatus([frame], frame.rows.length),
+    source: {
+      ...frame.source,
+      kind: frame.source?.kind ?? "runtime-data-store",
+      updatedAtMs: Date.now(),
+    },
+  } satisfies TabularFrameSourceV1;
+}
+
+function combineTabularFrames(input: {
+  seedFrame: TabularFrameSourceV1 | null;
+  liveFrame: TabularFrameSourceV1 | null;
+  mergeKeyFields: string[];
+  retention?: RuntimeRetentionPolicy;
+}) {
+  if (!input.seedFrame && !input.liveFrame) {
+    return null;
+  }
+
+  if (!input.seedFrame && input.liveFrame) {
+    const frame = normalizeCombinedFrame(input.liveFrame);
+
+    return {
+      ...frame,
+      rows: applyRetention(frame.rows, input.retention),
+    } satisfies TabularFrameSourceV1;
+  }
+
+  if (input.seedFrame && !input.liveFrame) {
+    const frame = normalizeCombinedFrame(input.seedFrame);
+
+    return {
+      ...frame,
+      rows: applyRetention(frame.rows, input.retention),
+    } satisfies TabularFrameSourceV1;
+  }
+
+  const seedFrame = input.seedFrame;
+  const liveFrame = input.liveFrame;
+
+  if (!seedFrame || !liveFrame) {
+    return null;
+  }
+
+  const rows: Array<Record<string, unknown>> = [];
+  const mergeKeyFields = input.mergeKeyFields.filter(Boolean);
+
+  if (mergeKeyFields.length > 0) {
+    const rowsByKey = new Map<string, Record<string, unknown>>();
+
+    seedFrame.rows.forEach((row) => {
+      rowsByKey.set(buildRowMergeKey(row, mergeKeyFields), row);
+    });
+
+    liveFrame.rows.forEach((row) => {
+      rowsByKey.set(buildRowMergeKey(row, mergeKeyFields), row);
+    });
+
+    rows.push(...rowsByKey.values());
+  } else {
+    const seenRows = new Set<string>();
+
+    [...seedFrame.rows, ...liveFrame.rows].forEach((row) => {
+      const serializedRow = stableJsonStringify(row);
+
+      if (seenRows.has(serializedRow)) {
+        return;
+      }
+
+      seenRows.add(serializedRow);
+      rows.push(row);
+    });
+  }
+
+  return {
+    ...seedFrame,
+    status: resolveRenderableFrameStatus([seedFrame, liveFrame], rows.length),
+    columns: collectColumns(seedFrame, liveFrame),
+    fields: collectFields(seedFrame, liveFrame),
+    rows: applyRetention(rows, input.retention),
+    meta: liveFrame.meta ?? seedFrame.meta,
+    source: {
+      ...seedFrame.source,
+      kind: seedFrame.source?.kind ?? "runtime-data-store",
+      updatedAtMs: Date.now(),
+    },
+  } satisfies TabularFrameSourceV1;
+}
+
 class InMemoryRuntimeDataStore implements RuntimeDataStore {
   readonly workspaceRuntimeId: string;
   private entries = new Map<string, RuntimeDataEntry>();
+  private combinedEntries = new Map<string, RuntimeCombinedEntry>();
 
   constructor(workspaceRuntimeId: string) {
     this.workspaceRuntimeId = workspaceRuntimeId;
@@ -412,6 +561,71 @@ class InMemoryRuntimeDataStore implements RuntimeDataStore {
     };
   }
 
+  combine(input: {
+    ownerId: string;
+    outputId: string;
+    seedRef?: RuntimeTabularFrameRef | null;
+    liveRef?: RuntimeTabularFrameRef | null;
+    seedFrame?: TabularFrameSourceV1 | null;
+    liveFrame?: TabularFrameSourceV1 | null;
+    mergeKeyFields: string[];
+    retention?: RuntimeRetentionPolicy;
+    refKey?: string;
+    signature?: string;
+  }) {
+    const refKey = input.refKey ?? `${input.ownerId}:${input.outputId}`;
+    const previousEntry = this.entries.get(refKey);
+    const previousCombinedEntry = this.combinedEntries.get(refKey);
+
+    if (input.signature && previousEntry && previousCombinedEntry?.signature === input.signature) {
+      return previousEntry.ref;
+    }
+
+    const seedFrame =
+      (input.seedRef ? this.readFrame(input.seedRef) : null) ??
+      input.seedFrame ??
+      null;
+    const liveFrame =
+      (input.liveRef ? this.readFrame(input.liveRef) : null) ??
+      input.liveFrame ??
+      null;
+    const combinedFrame = combineTabularFrames({
+      seedFrame,
+      liveFrame,
+      mergeKeyFields: input.mergeKeyFields,
+      retention: input.retention,
+    });
+
+    if (!combinedFrame) {
+      this.combinedEntries.delete(refKey);
+      return null;
+    }
+
+    const frameSignature = buildFrameDataSignature(combinedFrame);
+
+    if (previousEntry && previousCombinedEntry?.frameSignature === frameSignature) {
+      this.combinedEntries.set(refKey, {
+        signature: input.signature,
+        frameSignature,
+      });
+      return previousEntry.ref;
+    }
+
+    const ref = this.putSnapshot({
+      ownerId: input.ownerId,
+      outputId: input.outputId,
+      frame: combinedFrame,
+      refKey,
+    });
+
+    this.combinedEntries.set(refKey, {
+      signature: input.signature,
+      frameSignature,
+    });
+
+    return ref;
+  }
+
   readFrame(ref: RuntimeTabularFrameRef) {
     if (ref.workspaceRuntimeId !== this.workspaceRuntimeId) {
       return null;
@@ -421,13 +635,14 @@ class InMemoryRuntimeDataStore implements RuntimeDataStore {
   }
 
   readRows(ref: RuntimeTabularFrameRef, selector?: RuntimeRowSelector) {
-    return selectRows(this.readFrame(ref)?.rows ?? [], selector);
+    return selectRuntimeRows(this.readFrame(ref)?.rows ?? [], selector);
   }
 
   releaseOwner(ownerId: string) {
     for (const [refId, entry] of this.entries.entries()) {
       if (entry.ownerId === ownerId) {
         this.entries.delete(refId);
+        this.combinedEntries.delete(refId);
       }
     }
   }

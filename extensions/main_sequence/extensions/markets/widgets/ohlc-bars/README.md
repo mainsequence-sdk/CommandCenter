@@ -32,7 +32,9 @@ typically a Connection Query or WebSocket connection stream output.
 - When explicit role bindings are present, the widget uses the shared incremental consumer reducer.
   `seedData` establishes the historical baseline. `liveUpdates` maintains a separate live overlay
   that is unioned onto that baseline, with live rows replacing baseline rows only when they share
-  the same merge identity.
+  the same merge identity. When both roles are bound, the widget remains in loading state until
+  both the historical seed lane and live lane have published non-empty frames; live rows may
+  accumulate in the background, but they are not rendered alone ahead of the historical baseline.
 - The source table must include one time field plus numeric open, high, low, and close fields.
 - Multi-instrument tables can be constrained with `seriesFilterField` and `seriesFilterValue`.
   The filter is applied before OHLC parsing so one widget instance renders exactly one series.

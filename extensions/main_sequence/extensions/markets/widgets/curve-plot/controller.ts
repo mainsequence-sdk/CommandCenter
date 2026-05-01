@@ -42,9 +42,13 @@ function toPickerOption(option: DataNodeFieldOption) {
 export function useCurvePlotControllerContext({
   props,
   instanceId,
+  resolvedInputs,
+  runtimeState,
 }: {
   props: MainSequenceCurvePlotWidgetProps;
   instanceId?: string;
+  resolvedInputs?: import("@/widgets/types").ResolvedWidgetInputs;
+  runtimeState?: Record<string, unknown>;
 }): CurvePlotControllerContext {
   const normalizedProps = useMemo(
     () => normalizeCurvePlotProps(props),
@@ -53,6 +57,8 @@ export function useCurvePlotControllerContext({
   const sourceContext = useDataNodeWidgetSourceControllerContext({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
+    resolvedInputs,
+    runtimeState,
     queryKeyScope: "curve_plot",
     resolveConfig: resolveCurvePlotConfig,
   });
@@ -140,6 +146,6 @@ export const mainSequenceCurvePlotWidgetController: WidgetController<
   CurvePlotControllerContext
 > = {
   normalizeProps: (props) => normalizeCurvePlotProps(props),
-  useContext: ({ props, instanceId }) =>
-    useCurvePlotControllerContext({ props, instanceId }),
+  useContext: ({ props, instanceId, resolvedInputs, runtimeState }) =>
+    useCurvePlotControllerContext({ props, instanceId, resolvedInputs, runtimeState }),
 };

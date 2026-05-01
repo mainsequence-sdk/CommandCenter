@@ -3264,58 +3264,6 @@ export function CustomDashboardStudioPage({
                     style: layoutToStyle(layout),
                   });
                 })}
-                {sidebarOnlyWidgets.map((instance) => {
-                  const widget = getWidgetById(instance.widgetId);
-
-                  if (!widget) {
-                    return null;
-                  }
-
-                  const required = [
-                    ...(widget.requiredPermissions ?? []),
-                    ...(instance.requiredPermissions ?? []),
-                  ];
-
-                  if (!hasAllPermissions(permissions, required)) {
-                    return null;
-                  }
-
-                  return (
-                    <WidgetCanvasControls
-                      key={instance.id}
-                      widget={widget}
-                      instanceId={instance.id}
-                      instanceTitle={instance.title}
-                      props={(instance.props ?? {}) as Record<string, unknown>}
-                      presentation={instance.presentation}
-                      runtimeState={instance.runtimeState}
-                      onPropsChange={(props) => {
-                        updateSelectedWorkspace((dashboard) =>
-                          updateDashboardWidgetSettings(dashboard, instance.id, {
-                            props,
-                          }),
-                        );
-                      }}
-                      onRuntimeStateChange={(state) => {
-                        handleWidgetRuntimeStateChange(instance.id, state);
-                      }}
-                      onPresentationChange={(presentation) => {
-                        updateSelectedWorkspace((dashboard) =>
-                          updateDashboardWidgetSettings(dashboard, instance.id, {
-                            presentation,
-                          }),
-                        );
-                      }}
-                      onOpenSettings={() => {
-                        setSelectedInstanceId(instance.id);
-                        openWidgetSettings(instance.id);
-                      }}
-                      editable={editMode}
-                      containerStyle={layoutToStyle(instance.layout)}
-                      containerClassName="relative isolate h-full overflow-visible"
-                    />
-                  );
-                })}
               </div>
             )}
 
@@ -3334,10 +3282,13 @@ export function CustomDashboardStudioPage({
       </div>
 
         <aside
+          aria-hidden={!libraryOpen}
           className={cn(
-            "absolute left-12 bottom-4 z-30 w-[420px] max-w-[calc(100%-4rem)] overflow-hidden rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform] duration-200",
+            "absolute left-12 bottom-4 z-30 w-[420px] max-w-[calc(100%-4rem)] overflow-hidden rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform,opacity] duration-200",
             dashboardMenuHidden ? "top-4" : "top-12",
-            libraryOpen ? "translate-x-0" : "-translate-x-[calc(100%+24px)]",
+            libraryOpen
+              ? "translate-x-0 opacity-100"
+              : "pointer-events-none -translate-x-[calc(100%+5rem)] opacity-0",
           )}
         >
           <div className="flex h-full flex-col">

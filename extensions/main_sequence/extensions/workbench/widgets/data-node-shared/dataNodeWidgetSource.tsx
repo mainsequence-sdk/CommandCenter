@@ -18,16 +18,18 @@ import {
 } from "@/widgets/shared/tabular-frame-source";
 import {
   hasIncrementalTabularRoleBindings,
-  resolveIncrementalTabularOutputFrame,
+  resolveIncrementalTabularBindingSnapshot,
   TABULAR_LIVE_UPDATES_INPUT_ID,
   TABULAR_SEED_INPUT_ID,
 } from "@/widgets/shared/incremental-tabular-consumer";
+import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import {
   resolveUpstreamConsumerState,
   selectPreferredUpstreamDataset,
   type ResolvedUpstreamConsumerState,
 } from "@/widgets/shared/upstream-consumer-state";
 import type {
+  ResolvedWidgetInputs,
   WidgetFieldCanvasRendererProps,
   WidgetFieldDefinition,
   WidgetFieldSection,
@@ -592,26 +594,43 @@ export function useResolvedDataNodeWidgetSourceBinding<
 >({
   props,
   currentWidgetInstanceId,
+  resolvedInputs,
+  runtimeState,
 }: {
   props: TProps;
   currentWidgetInstanceId?: string;
+  resolvedInputs?: ResolvedWidgetInputs;
+  runtimeState?: unknown;
 }): ResolvedDataNodeWidgetSourceBinding {
+  const runtimeDataStore = useRuntimeDataStore();
   const widgetRegistry = useDashboardWidgetRegistry();
-  const resolvedLegacySourceInput = useResolvedWidgetInput(
+  const contextResolvedLegacySourceInput = useResolvedWidgetInput(
     currentWidgetInstanceId,
     DATA_NODE_SOURCE_INPUT_ID,
   );
-  const resolvedSeedInput = useResolvedWidgetInput(
+  const contextResolvedSeedInput = useResolvedWidgetInput(
     currentWidgetInstanceId,
     TABULAR_SEED_INPUT_ID,
   );
-  const resolvedLiveInput = useResolvedWidgetInput(
+  const contextResolvedLiveInput = useResolvedWidgetInput(
     currentWidgetInstanceId,
     TABULAR_LIVE_UPDATES_INPUT_ID,
   );
   const normalizedReference = useMemo(
     () => normalizeDataNodeWidgetSourceReferenceProps(props),
     [props],
+  );
+  const resolvedLegacySourceInput = useMemo(
+    () => resolvedInputs?.[DATA_NODE_SOURCE_INPUT_ID] ?? contextResolvedLegacySourceInput,
+    [contextResolvedLegacySourceInput, resolvedInputs],
+  );
+  const resolvedSeedInput = useMemo(
+    () => resolvedInputs?.[TABULAR_SEED_INPUT_ID] ?? contextResolvedSeedInput,
+    [contextResolvedSeedInput, resolvedInputs],
+  );
+  const resolvedLiveInput = useMemo(
+    () => resolvedInputs?.[TABULAR_LIVE_UPDATES_INPUT_ID] ?? contextResolvedLiveInput,
+    [contextResolvedLiveInput, resolvedInputs],
   );
   const resolvedLegacyInputBinding = !Array.isArray(resolvedLegacySourceInput)
     ? resolvedLegacySourceInput
@@ -630,8 +649,17 @@ export function useResolvedDataNodeWidgetSourceBinding<
     [resolvedLiveInputBinding, resolvedSeedInputBinding],
   );
   const usesIncrementalRoleBindings = hasIncrementalTabularRoleBindings(incrementalResolvedInputs);
+  const incrementalBinding = useMemo(
+    () =>
+      resolveIncrementalTabularBindingSnapshot({
+        resolvedInputs: incrementalResolvedInputs,
+        runtimeState,
+        runtimeDataStore,
+      }),
+    [incrementalResolvedInputs, runtimeDataStore, runtimeState],
+  );
   const resolvedInputBinding = usesIncrementalRoleBindings
-    ? resolvedLiveInputBinding ?? resolvedSeedInputBinding
+    ? resolvedSeedInputBinding ?? resolvedLiveInputBinding
     : resolvedLegacyInputBinding;
   const resolvedSourceWidgetId =
     resolvedInputBinding?.sourceWidgetId ?? normalizedReference.sourceWidgetId;
@@ -654,11 +682,9 @@ export function useResolvedDataNodeWidgetSourceBinding<
   const incrementalInputDatasetValue = useMemo(
     () =>
       usesIncrementalRoleBindings
-        ? resolveIncrementalTabularOutputFrame({
-            resolvedInputs: incrementalResolvedInputs,
-          })
+        ? incrementalBinding.dataset
         : null,
-    [incrementalResolvedInputs, usesIncrementalRoleBindings],
+    [incrementalBinding.dataset, usesIncrementalRoleBindings],
   );
   const resolvedSourceWidget = useMemo(
     () =>
@@ -676,7 +702,7 @@ export function useResolvedDataNodeWidgetSourceBinding<
     : resolvedLegacyInputBinding?.upstreamBase ?? resolvedLegacyInputBinding?.value;
   const sourceRuntimeValue = referencedFilterWidget?.runtimeState;
   const sourceDeltaDatasetValue = usesIncrementalRoleBindings
-    ? resolvedLiveInputBinding?.upstreamDelta
+    ? incrementalBinding.deltaDataset
     : resolvedLegacyInputBinding?.upstreamDelta;
   const inputSourceFrame = useMemo(
     () => normalizeTabularFrameSource(inputSourceDatasetValue),
@@ -747,35 +773,43 @@ export function useResolvedDataNodeWidgetSourceBinding<
       ? "filter_widget"
       : normalizeSourceMode(normalizedReference.sourceMode);
   const hasCanonicalSourceBinding = usesIncrementalRoleBindings
-    ? Boolean(
-        resolvedSeedInputBinding?.sourceWidgetId != null ||
-          resolvedLiveInputBinding?.sourceWidgetId != null,
-      )
+    ? incrementalBinding.consumerState.hasCanonicalSourceBinding
     : resolvedInputBinding?.sourceWidgetId != null;
   const hasPublishedValue = Boolean(
-    inputSourceDatasetValue != null ||
-      sourceDeltaDatasetValue !== undefined ||
-      sourceRuntimeValue !== undefined,
+    usesIncrementalRoleBindings
+      ? incrementalBinding.consumerState.hasPublishedValue || sourceRuntimeValue !== undefined
+      : inputSourceDatasetValue != null ||
+        sourceDeltaDatasetValue !== undefined ||
+        sourceRuntimeValue !== undefined,
   );
   const consumerState = useMemo(
     () =>
-      resolveUpstreamConsumerState({
-        hasCanonicalSourceBinding,
-        hasPublishedValue,
-        resolvedSourceInput: resolvedInputBinding,
-        resolvedSourceWidget,
-        dataset: resolvedSourceDataset,
-        deltaDataset: resolvedSourceDeltaDataset,
-        invalidPublishedValueMessage:
-          "The bound source did not publish a compatible canonical tabular frame.",
-      }),
+      usesIncrementalRoleBindings
+        ? {
+            ...incrementalBinding.consumerState,
+            dataset: resolvedSourceDataset,
+            deltaDataset: resolvedSourceDeltaDataset,
+            sourceWidgetTitle: resolvedSourceWidget?.title ?? incrementalBinding.consumerState.sourceWidgetTitle,
+          }
+        : resolveUpstreamConsumerState({
+            hasCanonicalSourceBinding,
+            hasPublishedValue,
+            resolvedSourceInput: resolvedInputBinding,
+            resolvedSourceWidget,
+            dataset: resolvedSourceDataset,
+            deltaDataset: resolvedSourceDeltaDataset,
+            invalidPublishedValueMessage:
+              "The bound source did not publish a compatible canonical tabular frame.",
+          }),
     [
+      incrementalBinding.consumerState,
       hasCanonicalSourceBinding,
       hasPublishedValue,
       resolvedInputBinding,
       resolvedSourceDataset,
       resolvedSourceDeltaDataset,
       resolvedSourceWidget,
+      usesIncrementalRoleBindings,
     ],
   );
   const isAwaitingBoundSourceValue = consumerState.kind === "awaiting-upstream";
@@ -887,15 +921,24 @@ export function useDataNodeWidgetSourceControllerContext<
 >({
   props,
   currentWidgetInstanceId,
+  resolvedInputs,
+  runtimeState,
   queryKeyScope: _queryKeyScope,
   resolveConfig,
 }: {
   props: TProps;
   currentWidgetInstanceId?: string;
+  resolvedInputs?: ResolvedWidgetInputs;
+  runtimeState?: unknown;
   queryKeyScope: string;
   resolveConfig: (props: TProps, detail?: DataNodeDetail | null) => TResolvedConfig;
 }): DataNodeWidgetSourceControllerContext<TResolvedConfig> {
-  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({ props, currentWidgetInstanceId });
+  const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
+    props,
+    currentWidgetInstanceId,
+    resolvedInputs,
+    runtimeState,
+  });
   const selectedDataNodeId = Number(sourceBinding.resolvedSourceProps.dataNodeId ?? 0);
   const selectedConnectionRef = sourceBinding.resolvedSourceProps.connectionRef;
   const selectedDataNodeDetailQuery = useQuery({

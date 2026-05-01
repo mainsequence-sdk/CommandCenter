@@ -33,8 +33,9 @@ export function resolveConnectionAuthoringContract(
 export function resolveConnectionAuthoringQueryModels(input: {
   connectionInstance?: ConnectionInstance;
   connectionType?: AnyConnectionTypeDefinition;
+  authoringMode?: ConnectionAuthoringMode;
 }): ConnectionQueryModel[] {
-  const { connectionInstance, connectionType } = input;
+  const { authoringMode, connectionInstance, connectionType } = input;
   const queryModels = connectionType?.queryModels ?? [];
 
   if (!connectionInstance || !connectionType) {
@@ -43,6 +44,7 @@ export function resolveConnectionAuthoringQueryModels(input: {
 
   return (
     resolveConnectionAuthoringContract(connectionType)?.resolveQueryModels?.({
+      authoringMode,
       connectionInstance,
       connectionType,
       queryModels,
@@ -62,7 +64,10 @@ export function resolveConnectionStreamAuthoringQueryModels(input: {
   connectionInstance?: ConnectionInstance;
   connectionType?: AnyConnectionTypeDefinition;
 }): ConnectionQueryModel[] {
-  return resolveConnectionAuthoringQueryModels(input).filter(isConnectionQueryModelStreamable);
+  return resolveConnectionAuthoringQueryModels({
+    ...input,
+    authoringMode: "stream",
+  }).filter(isConnectionQueryModelStreamable);
 }
 
 export function resolveConnectionAuthoringQueryModelsForMode(input: {

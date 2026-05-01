@@ -3,6 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ConnectionQueryModel, ConnectionStreamServerMessage } from "@/connections/types";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import { readWidgetRuntimeUpdateContext } from "@/widgets/shared/runtime-update";
+import {
+  createRuntimeDataStore,
+  getRuntimeDataRef,
+  materializeRuntimeTabularFrame,
+} from "@/widgets/shared/runtime-data-store";
 
 import {
   createConnectionStreamQueryWidgetRuntimeSession,
@@ -551,6 +556,87 @@ describe("connection stream query runtime model", () => {
     expect(reconnectingState.streamStatus).toBe("reconnecting");
     expect(reconnectingState.rows).toEqual([{ symbol: "BTCUSDT", price: 70_000 }]);
     expect(reconnectingState.lastDisconnectReason).toBe("Connection stream heartbeat timed out.");
+
+    session.close();
+  });
+
+  it("keeps retained ref-backed rows visible while reconnecting before the next socket opens", async () => {
+    vi.useFakeTimers();
+    const runtimeDataStore = createRuntimeDataStore("workspace-1");
+    const sockets: MockConnectionWebSocket[] = [];
+    const states: ConnectionStreamQueryRuntimeState[] = [];
+    const session = createConnectionStreamQueryWidgetRuntimeSession({
+      subscriptionKey: "stream-runtime-ref-reconnect",
+      request: {
+        connectionId: 42,
+        query: {
+          kind: "ticker",
+          symbols: ["BTCUSDT"],
+        },
+        requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      },
+      props,
+      queryModel,
+      sourceWidgetId: "stream-runtime-ref-reconnect",
+      onRuntimeStateChange: (state) => states.push(state),
+      options: {
+        apiBaseUrl: "https://api.example.test",
+        webSocketFactory: createMockSocketFactory(sockets),
+        random: () => 0.5,
+        runtimeDataStore,
+        ticketProvider: createMockTicketProvider(),
+      },
+    });
+
+    await flushAsyncSubscriptionStart();
+    const firstSocket = sockets[0]!;
+    firstSocket.open();
+    firstSocket.message(JSON.stringify({
+      type: "ack",
+      connectionId: 42,
+      queryKind: "ticker",
+      sequence: 1,
+      acceptedAt: "2026-04-28T00:00:00.000Z",
+    }));
+    firstSocket.message(JSON.stringify({
+      type: "snapshot",
+      connectionId: 42,
+      queryKind: "ticker",
+      sequence: 2,
+      emittedAt: "2026-04-28T00:00:01.000Z",
+      response: {
+        frames: [
+          {
+            contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+            fields: [
+              { name: "symbol", type: "string", values: ["BTCUSDT"] },
+              { name: "price", type: "number", values: [70_000] },
+            ],
+          },
+        ],
+      },
+    }));
+
+    firstSocket.closeFromServer(1012, "upstream closed");
+
+    const reconnectingState = states.at(-1)!;
+    expect(reconnectingState.streamStatus).toBe("reconnecting");
+    expect(reconnectingState.status).toBe("ready");
+    expect(reconnectingState.rows).toEqual([]);
+    expect(getRuntimeDataRef(reconnectingState)).toBeTruthy();
+    expect(materializeRuntimeTabularFrame(reconnectingState, runtimeDataStore)?.rows).toEqual([
+      { symbol: "BTCUSDT", price: 70_000 },
+    ]);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    await flushAsyncSubscriptionStart();
+
+    const reconnectAttemptState = states.at(-1)!;
+    expect(reconnectAttemptState.streamStatus).toBe("reconnecting");
+    expect(reconnectAttemptState.status).toBe("ready");
+    expect(materializeRuntimeTabularFrame(reconnectAttemptState, runtimeDataStore)?.rows).toEqual([
+      { symbol: "BTCUSDT", price: 70_000 },
+    ]);
 
     session.close();
   });

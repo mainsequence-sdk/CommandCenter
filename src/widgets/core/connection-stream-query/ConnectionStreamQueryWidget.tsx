@@ -200,9 +200,6 @@ export function ConnectionStreamQueryWidget({
 
     return () => {
       session.close();
-      if (instanceId) {
-        runtimeDataStore?.releaseOwner(instanceId);
-      }
     };
   }, [
     executionKey,

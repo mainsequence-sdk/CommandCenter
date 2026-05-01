@@ -107,7 +107,9 @@ connection ADR. Connections are platform data-access resources, not widgets.
   through `authoringContract.resolveDraftDefaults(...)` on the connection definition instead of
   hard-coding a separate Explore-only initialization path. Widget settings and Explore should then
   consume that same contract. Query-model filtering and connection-specific summary cards also
-  belong in the same authoring contract so the two surfaces cannot drift.
+  belong in the same authoring contract so the two surfaces cannot drift. When a connector has
+  stream-only paths, `authoringContract.resolveQueryModels(...)` may filter by `authoringMode` so
+  HTTP and WS surfaces expose different path sets without adding a custom Explore wrapper.
 - Connection type `queryEditor` components receive the selected connection instance and selected
   query model. Use them for per-connection query kwargs such as Data Node columns, SQL parameters,
   PromQL matchers, or PostgreSQL time-series field mapping instead of forcing users through a

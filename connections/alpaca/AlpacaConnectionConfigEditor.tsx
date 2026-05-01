@@ -9,6 +9,8 @@ import type {
   AlpacaFeed,
   AlpacaPublicConfig,
   AlpacaQueryCachePolicy,
+  AlpacaWebSocketCryptoLocation,
+  AlpacaWebSocketStockFeed,
 } from "./index";
 
 const assetClassOptions = [
@@ -26,6 +28,18 @@ const feedOptions = [
 ] satisfies AlpacaFeed[];
 
 const cryptoLocationOptions = ["us", "us-1", "us-2", "eu-1", "bs-1"] satisfies AlpacaCryptoLocation[];
+const webSocketEquityFeedOptions = [
+  "iex",
+  "sip",
+  "delayed_sip",
+  "boats",
+  "overnight",
+] satisfies AlpacaWebSocketStockFeed[];
+const webSocketCryptoLocationOptions = [
+  "us",
+  "us-1",
+  "eu-1",
+] satisfies AlpacaWebSocketCryptoLocation[];
 
 function normalizeAssetClasses(value: AlpacaPublicConfig["assetClasses"]) {
   const defaultAssetClasses: AlpacaAssetClass[] = ["us_equity"];
@@ -291,6 +305,143 @@ export function AlpacaConnectionConfigEditor({
             placeholder="300000"
           />
         </Field>
+      </section>
+
+      <section className="space-y-4 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 p-4">
+        <div>
+          <div className="text-sm font-semibold text-foreground">WebSocket streams</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Optional backend-owned defaults for Alpaca live subscriptions opened through the generic
+            stream-query route.
+          </p>
+        </div>
+
+        <section className="grid gap-4 xl:grid-cols-2">
+          <Field
+            label="WebSocket base URL"
+            help="Alpaca production Market Data WebSocket root used only by the backend adapter. Default: wss://stream.data.alpaca.markets."
+          >
+            <Input
+              value={value.webSocketBaseUrl ?? ""}
+              onChange={(event) => updateConfig(value, onChange, { webSocketBaseUrl: event.target.value })}
+              disabled={disabled}
+              placeholder="wss://stream.data.alpaca.markets"
+            />
+          </Field>
+
+          <Field
+            label="WebSocket sandbox base URL"
+            help="Alpaca sandbox Market Data WebSocket root used only when WebSocket sandbox mode is enabled."
+          >
+            <Input
+              value={value.webSocketSandboxBaseUrl ?? ""}
+              onChange={(event) =>
+                updateConfig(value, onChange, { webSocketSandboxBaseUrl: event.target.value })
+              }
+              disabled={disabled}
+              placeholder="wss://stream.data.sandbox.alpaca.markets"
+            />
+          </Field>
+
+          <Field
+            label="WebSocket equity feed"
+            help="Default Alpaca equity WebSocket feed for live trades, quotes, and bars. IEX works for basic plans; SIP and other feeds require provider entitlements."
+          >
+            <Select
+              value={value.webSocketStockFeed ?? "iex"}
+              onChange={(event) =>
+                updateConfig(value, onChange, {
+                  webSocketStockFeed: event.target.value as AlpacaWebSocketStockFeed,
+                })
+              }
+              disabled={disabled}
+            >
+              {webSocketEquityFeedOptions.map((feed) => (
+                <option key={feed} value={feed}>
+                  {feed}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field
+            label="WebSocket crypto location"
+            help="Default Alpaca crypto WebSocket location for live trades, quotes, and bars. Unsupported REST-only locations are rejected for streams."
+          >
+            <Select
+              value={value.webSocketCryptoLocation ?? "us"}
+              onChange={(event) =>
+                updateConfig(value, onChange, {
+                  webSocketCryptoLocation: event.target.value as AlpacaWebSocketCryptoLocation,
+                })
+              }
+              disabled={disabled}
+            >
+              {webSocketCryptoLocationOptions.map((location) => (
+                <option key={location} value={location}>
+                  {location}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field
+            label="WebSocket auth timeout ms"
+            help="Alpaca provider authentication timeout for backend-owned WebSocket sessions. Must be at most 10000 milliseconds."
+          >
+            <Input
+              type="number"
+              min={1}
+              max={10000}
+              value={value.webSocketAuthTimeoutMs ?? ""}
+              onChange={(event) =>
+                updateConfig(value, onChange, {
+                  webSocketAuthTimeoutMs: readOptionalNumber(event.target.value),
+                })
+              }
+              disabled={disabled}
+              placeholder="10000"
+            />
+          </Field>
+
+          <Field
+            label="Provider WS endpoint limit"
+            help="Documents Alpaca's provider connection limit per endpoint. Keep at 1 unless the backend adapter and provider plan explicitly support more."
+          >
+            <Input
+              type="number"
+              min={1}
+              value={value.webSocketProviderConnectionLimitPerEndpoint ?? ""}
+              onChange={(event) =>
+                updateConfig(value, onChange, {
+                  webSocketProviderConnectionLimitPerEndpoint: readOptionalNumber(
+                    event.target.value,
+                  ),
+                })
+              }
+              disabled={disabled}
+              placeholder="1"
+            />
+          </Field>
+        </section>
+
+        <label className="flex items-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2.5">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-border bg-transparent accent-primary"
+            checked={value.webSocketUseSandbox ?? false}
+            onChange={(event) =>
+              updateConfig(value, onChange, { webSocketUseSandbox: event.target.checked })
+            }
+            disabled={disabled}
+          />
+          <WidgetSettingFieldLabel
+            help="Route live Alpaca subscriptions through the sandbox WebSocket host. HTTP REST routes continue to use their own configured base URLs."
+            textClassName="text-sm font-medium text-foreground"
+          >
+            Use WebSocket sandbox
+          </WidgetSettingFieldLabel>
+        </label>
       </section>
 
       <label className="flex items-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2.5">

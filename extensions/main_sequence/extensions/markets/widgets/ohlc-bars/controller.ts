@@ -56,9 +56,13 @@ function fieldPickerOptions(fieldPickerOptions: PickerOption[], label: string, d
 export function useOhlcBarsControllerContext({
   props,
   instanceId,
+  resolvedInputs,
+  runtimeState,
 }: {
   props: MainSequenceOhlcBarsWidgetProps;
   instanceId?: string;
+  resolvedInputs?: import("@/widgets/types").ResolvedWidgetInputs;
+  runtimeState?: Record<string, unknown>;
 }): OhlcBarsControllerContext {
   const normalizedProps = useMemo(
     () => normalizeOhlcBarsProps(props),
@@ -67,6 +71,8 @@ export function useOhlcBarsControllerContext({
   const sourceContext = useDataNodeWidgetSourceControllerContext({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
+    resolvedInputs,
+    runtimeState,
     queryKeyScope: "ohlc_bars",
     resolveConfig: resolveOhlcBarsConfig,
   });
@@ -117,6 +123,6 @@ export const mainSequenceOhlcBarsWidgetController: WidgetController<
   OhlcBarsControllerContext
 > = {
   normalizeProps: (props) => normalizeOhlcBarsProps(props),
-  useContext: ({ props, instanceId }) =>
-    useOhlcBarsControllerContext({ props, instanceId }),
+  useContext: ({ props, instanceId, resolvedInputs, runtimeState }) =>
+    useOhlcBarsControllerContext({ props, instanceId, resolvedInputs, runtimeState }),
 };

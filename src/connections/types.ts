@@ -194,6 +194,7 @@ export interface ConnectionAuthoringQueryModelsResolverInput {
   connectionInstance: ConnectionInstance;
   connectionType: ConnectionTypeDefinition<any, any>;
   queryModels: ConnectionQueryModel[];
+  authoringMode?: ConnectionAuthoringMode;
 }
 
 export interface ConnectionAuthoringSummaryProps {

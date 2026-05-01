@@ -166,9 +166,11 @@ interface RuntimeDataStore {
     outputId: string;
     seedRef?: RuntimeTabularFrameRef;
     liveRef?: RuntimeTabularFrameRef;
+    seedFrame?: TabularFrameSourceV1 | null;
+    liveFrame?: TabularFrameSourceV1 | null;
     mergeKeyFields: string[];
     retention?: RuntimeRetentionPolicy;
-  }): RuntimeTabularFrameRef;
+  }): RuntimeTabularFrameRef | null;
 
   readFrame(ref: RuntimeTabularFrameRef): TabularFrameSourceV1 | null;
 
@@ -507,7 +509,7 @@ Safer first implementation path:
 
 - [x] Replace stored `seedFrame` and `liveFrame` metadata with `seedRef`, `liveRef`, and
   `outputRef`.
-- [ ] Move seed/live merge into the runtime data store.
+- [x] Move seed/live merge into the runtime data store.
 - [x] Keep sourceRunId reset behavior from ADR 044.
 - [x] Ensure HTTP and WebSocket updates use the same reducer path.
 - [x] Add tests for seed replacement, live delta merge, seed plus live union, sourceRunId reset,
@@ -515,7 +517,7 @@ Safer first implementation path:
 
 ### Widget migration
 
-- [ ] Migrate graph to read bounded latest-point views from refs.
+- [x] Migrate graph to read bounded latest-point views from refs.
 - [ ] Migrate table to read bounded row windows/pages from refs.
 - [ ] Migrate statistic to read latest row or aggregation-window views from refs.
 - [ ] Migrate OHLC to read bounded bar windows from refs.

@@ -42,6 +42,19 @@ interface IncrementalGraphRenderState {
   updateMode: WidgetRuntimeUpdateMode;
 }
 
+const GRAPH_RUNTIME_ROW_WINDOW_MULTIPLIER = 4;
+const GRAPH_RUNTIME_ROW_WINDOW_MAX_ROWS = 250_000;
+
+function resolveGraphRuntimeRowWindowLimit(config: { limit: number; maxSeries: number }) {
+  return Math.min(
+    GRAPH_RUNTIME_ROW_WINDOW_MAX_ROWS,
+    Math.max(
+      config.limit,
+      config.limit * Math.max(1, config.maxSeries) * GRAPH_RUNTIME_ROW_WINDOW_MULTIPLIER,
+    ),
+  );
+}
+
 function shouldBlockGraphRenderingWhileLoading(dataset: {
   status?: string;
   columns?: string[];
@@ -77,10 +90,39 @@ export function GraphWidget({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
   });
+  const effectiveSourceProps = sourceBinding.resolvedSourceProps;
+  const effectiveProps = useMemo(
+    () => ({
+      ...normalizedProps,
+      ...effectiveSourceProps,
+    }),
+    [
+      effectiveSourceProps,
+      normalizedProps,
+    ],
+  );
+  const preliminaryConfig = useMemo(
+    () => resolveGraphConfig(effectiveProps),
+    [effectiveProps],
+  );
+  const runtimeRowWindowLimit = useMemo(
+    () => resolveGraphRuntimeRowWindowLimit(preliminaryConfig),
+    [preliminaryConfig],
+  );
+  const runtimeRowSelector = useMemo(
+    () => ({ direction: "latest" as const, limit: runtimeRowWindowLimit }),
+    [runtimeRowWindowLimit],
+  );
+  const runtimeRetention = useMemo(
+    () => ({ maxRows: runtimeRowWindowLimit }),
+    [runtimeRowWindowLimit],
+  );
   const incrementalBinding = useIncrementalTabularConsumerBindingState({
     instanceId,
     onRuntimeStateChange,
     resolvedInputs,
+    runtimeRetention,
+    runtimeRowSelector,
     runtimeState,
   });
   const sourceConsumerState = incrementalBinding.active
@@ -94,17 +136,6 @@ export function GraphWidget({
   const linkedDataset = useMemo(
     () => (incrementalBinding.active ? incrementalBinding.dataset : sourceConsumerState.dataset),
     [incrementalBinding.active, incrementalBinding.dataset, sourceConsumerState.dataset],
-  );
-  const effectiveSourceProps = sourceBinding.resolvedSourceProps;
-  const effectiveProps = useMemo(
-    () => ({
-      ...normalizedProps,
-      ...effectiveSourceProps,
-    }),
-    [
-      effectiveSourceProps,
-      normalizedProps,
-    ],
   );
   const runtimeFieldOptions = useMemo(
     () =>

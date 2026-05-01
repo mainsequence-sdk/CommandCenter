@@ -270,12 +270,13 @@ function WidgetPanelPreview<
   const previewShellWidget = widget as unknown as WidgetDefinition<Record<string, unknown>>;
   const PreviewComponent = widget.component;
   const showHeader = resolveWidgetHeaderVisibility(props);
+  const previewInstanceId = `${instanceId}::settings-preview`;
 
   return (
     <WidgetErrorBoundary
       widgetId={widget.id}
       widgetTitle={instanceTitle}
-      instanceId={instanceId}
+      instanceId={previewInstanceId}
       surface="settings"
     >
       <section className="space-y-3">
@@ -312,7 +313,7 @@ function WidgetPanelPreview<
             <div className="h-full min-h-0">
               <WidgetFrame
                 widget={previewShellWidget}
-                instanceId={instanceId}
+                instanceId={previewInstanceId}
                 instance={{
                   title: instanceTitle,
                   props,
@@ -327,7 +328,7 @@ function WidgetPanelPreview<
               >
                 <PreviewComponent
                   widget={widget}
-                  instanceId={instanceId}
+                  instanceId={previewInstanceId}
                   instanceTitle={instanceTitle}
                   props={props}
                   presentation={presentation}

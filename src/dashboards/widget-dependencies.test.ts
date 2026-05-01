@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import type { DashboardWidgetInstance } from "@/dashboards/types";
-import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
+import {
+  CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  type TabularFrameSourceV1,
+} from "@/widgets/shared/tabular-frame-source";
+import {
+  attachWidgetRuntimeUpdateContext,
+  projectWidgetRuntimeUpdateOutput,
+} from "@/widgets/shared/runtime-update";
 import {
   createRuntimeDataStore,
+  getRuntimeDataRef,
   materializeRuntimeTabularFrame,
   storeTabularFrameRuntimeState,
 } from "@/widgets/shared/runtime-data-store";
@@ -62,9 +70,42 @@ const connectionQueryWidget = defineWidget({
   component: () => null,
 });
 
+const connectionStreamWidget = defineWidget({
+  id: "connection-stream-query",
+  widgetVersion: "1.0.0",
+  title: "Connection Stream Query",
+  description: "Connection Stream Query",
+  category: "Core",
+  kind: "custom",
+  source: "core",
+  io: {
+    outputs: [
+      {
+        id: "updates",
+        label: "Updates",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        resolveValue: ({ runtimeState }) =>
+          runtimeState
+            ? projectWidgetRuntimeUpdateOutput(runtimeState, {
+                sourceOutputId: "updates",
+                outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+              })
+            : runtimeState,
+      },
+    ],
+  },
+  buildAgentSnapshot: () => ({
+    displayKind: "custom",
+    state: "idle",
+    summary: "Connection stream query test widget.",
+  }),
+  component: () => null,
+});
+
 const widgetDefinitions = new Map<string, WidgetDefinition>([
   ["graph", graphWidget],
   ["connection-query", connectionQueryWidget],
+  ["connection-stream-query", connectionStreamWidget],
 ]);
 
 function resolveWidgetDefinition(widgetId: string) {
@@ -170,5 +211,72 @@ describe("createDashboardWidgetDependencyModel", () => {
     expect(
       (resolvedInput?.value as { rows?: Array<Record<string, unknown>> } | undefined)?.rows,
     ).toEqual([]);
+  });
+
+  it("prefers retained output refs over carrier refs for incremental updates outputs", () => {
+    const runtimeDataStore = createRuntimeDataStore("workspace-1");
+    const retainedFrame: TabularFrameSourceV1 = {
+      status: "ready" as const,
+      columns: ["id", "value"],
+      rows: [
+        { id: "a", value: 1 },
+        { id: "b", value: 2 },
+      ],
+      source: { kind: "test-frame", context: {} },
+    };
+    const deltaFrame: TabularFrameSourceV1 = {
+      status: "ready" as const,
+      columns: ["id", "value"],
+      rows: [{ id: "b", value: 20 }],
+      source: { kind: "test-frame", context: {} },
+    };
+    const retainedRuntimeState = storeTabularFrameRuntimeState({
+      frame: attachWidgetRuntimeUpdateContext(retainedFrame, {
+        contractVersion: "widget-runtime-update@v1",
+        mode: "delta",
+        publicationSemantics: "incremental",
+        publicationRole: "update",
+        sourceRunId: "ws-run-1",
+        sourceOutputId: "dataset",
+        outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        retainedOutputLocation: "carrier",
+        deltaOutput: deltaFrame,
+      }),
+      ownerId: "stream-1",
+      outputId: "dataset",
+      store: runtimeDataStore,
+    });
+    const retainedRef = getRuntimeDataRef(retainedRuntimeState);
+
+    const widgets: DashboardWidgetInstance[] = [
+      widget({
+        id: "graph-1",
+        widgetId: "graph",
+        bindings: {
+          sourceData: {
+            sourceWidgetId: "stream-1",
+            sourceOutputId: "updates",
+          },
+        },
+      }),
+      widget({
+        id: "stream-1",
+        widgetId: "connection-stream-query",
+        runtimeState: retainedRuntimeState as unknown as Record<string, unknown>,
+      }),
+    ];
+
+    const model = createDashboardWidgetDependencyModel(widgets, resolveWidgetDefinition, {
+      runtimeDataStore,
+    });
+    const input = model.resolveInputs("graph-1")?.sourceData;
+    const resolvedInput = Array.isArray(input) ? input[0] : input;
+
+    expect(resolvedInput?.status).toBe("valid");
+    expect(resolvedInput?.upstreamBaseRef).toEqual(retainedRef);
+    expect(materializeRuntimeTabularFrame(resolvedInput?.upstreamBase, runtimeDataStore)?.rows).toEqual([
+      { id: "a", value: 1 },
+      { id: "b", value: 2 },
+    ]);
   });
 });

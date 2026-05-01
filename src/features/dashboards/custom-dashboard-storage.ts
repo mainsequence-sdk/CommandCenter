@@ -36,6 +36,7 @@ import {
   normalizeWidgetPresentation,
   resolveDefaultWidgetPresentation,
 } from "@/widgets/shared/widget-schema";
+import { isRuntimeDataRef } from "@/widgets/shared/runtime-data-store";
 import { getManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer-registry";
 import {
   isManagedConnectionConsumerMode,
@@ -149,6 +150,21 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function stableJsonStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJsonStringify(entry)).join(",")}]`;
+  }
+
+  if (isPlainRecord(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJsonStringify(value[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && !Array.isArray(value) && typeof value === "object";
 }
@@ -175,6 +191,46 @@ function normalizeWidgetRuntimeState(
   }
 
   return cloneJson(runtimeState);
+}
+
+function stripVolatileRuntimeStateFields(
+  value: unknown,
+  path: string[] = [],
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => stripVolatileRuntimeStateFields(entry, path));
+  }
+
+  if (!isPlainRecord(value)) {
+    return value;
+  }
+
+  const stripped: Record<string, unknown> = {};
+  const parentKey = path[path.length - 1];
+  const runtimeDataRefRecord = isRuntimeDataRef(value);
+
+  Object.entries(value).forEach(([key, entry]) => {
+    if (
+      key === "updatedAtMs" &&
+      (runtimeDataRefRecord || parentKey === "source")
+    ) {
+      return;
+    }
+
+    stripped[key] = stripVolatileRuntimeStateFields(entry, [...path, key]);
+  });
+
+  return stripped;
+}
+
+function serializeWidgetRuntimeStateForComparison(
+  runtimeState: Record<string, unknown> | undefined,
+) {
+  if (!isPlainRecord(runtimeState)) {
+    return "null";
+  }
+
+  return stableJsonStringify(stripVolatileRuntimeStateFields(runtimeState));
 }
 
 function normalizeDashboardManagedWidgetRole(
@@ -1904,6 +1960,7 @@ export function updateDashboardWidgetRuntimeState(
   runtimeState: Record<string, unknown> | undefined,
 ) {
   const nextRuntimeState = normalizeWidgetRuntimeState(runtimeState);
+  const nextComparableRuntimeState = serializeWidgetRuntimeStateForComparison(nextRuntimeState);
   const summarizeRuntimeStateForDebug = (value: unknown) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return value === undefined ? { kind: "undefined" } : { kind: typeof value };
@@ -1944,7 +2001,8 @@ export function updateDashboardWidgetRuntimeState(
 
     if (widget.id === instanceId) {
       if (
-        JSON.stringify(widget.runtimeState ?? null) !== JSON.stringify(nextRuntimeState ?? null)
+        serializeWidgetRuntimeStateForComparison(widget.runtimeState) !==
+        nextComparableRuntimeState
       ) {
         changed = true;
         nextWidget = {
