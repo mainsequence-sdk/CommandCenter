@@ -5,9 +5,12 @@ import type {
   ResolvedDashboardWidgetInstance,
 } from "@/dashboards/types";
 import {
+  isWorkspaceFullWidthWidgetId,
   isWorkspaceRowCollapsed,
   isWorkspaceRowWidgetId,
+  isWorkspaceSlideWidgetId,
   WORKSPACE_ROW_HEIGHT_ROWS,
+  WORKSPACE_SLIDE_MIN_HEIGHT_ROWS,
 } from "@/dashboards/structural-widgets";
 import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
 
@@ -15,7 +18,7 @@ export const workspaceGridDraggableHandleClassName = "workspace-grid-handle";
 export const workspaceGridDraggableCancelClassName = "workspace-grid-cancel";
 export const workspaceGridDraggableHandleSelector = `.${workspaceGridDraggableHandleClassName}`;
 export const workspaceGridDraggableCancelSelector =
-  `.${workspaceGridDraggableCancelClassName}, button, a, input, textarea, select, [data-no-widget-drag='true']`;
+  `.${workspaceGridDraggableCancelClassName}, button, a, input, textarea, select, [contenteditable='true'], [data-no-widget-drag='true']`;
 
 export interface WorkspaceGridLayoutItem {
   i: string;
@@ -41,9 +44,9 @@ interface ComparableGridItem {
 }
 
 function isGridManagedWidget(
-  widget: Pick<DashboardWidgetInstance, "presentation" | "widgetId">,
+  widget: Pick<DashboardWidgetInstance, "presentation" | "widgetId" | "slidePlacement">,
 ) {
-  return !resolveWidgetSidebarOnly(widget.presentation);
+  return !resolveWidgetSidebarOnly(widget.presentation) && !widget.slidePlacement;
 }
 
 function compareGridItems(
@@ -81,6 +84,21 @@ export function resolvedWidgetToGridLayoutItem(
       minH: WORKSPACE_ROW_HEIGHT_ROWS,
       maxH: WORKSPACE_ROW_HEIGHT_ROWS,
       isResizable: false,
+      isDraggable: true,
+    };
+  }
+
+  if (isWorkspaceSlideWidgetId(widget.widgetId)) {
+    return {
+      i: widget.id,
+      x: 0,
+      y: widget.layout.y,
+      w: columns,
+      h: Math.max(widget.layout.h, WORKSPACE_SLIDE_MIN_HEIGHT_ROWS),
+      minW: columns,
+      maxW: columns,
+      minH: WORKSPACE_SLIDE_MIN_HEIGHT_ROWS,
+      isResizable: true,
       isDraggable: true,
     };
   }
@@ -130,12 +148,16 @@ export function applyGridLayoutToDashboardWidgets(
       return widget;
     }
 
-    if (isWorkspaceRowWidgetId(widget.widgetId)) {
+    if (isWorkspaceFullWidthWidgetId(widget.widgetId)) {
       return {
         ...widget,
         layout: {
           cols: nextLayout.cols,
-          rows: WORKSPACE_ROW_HEIGHT_ROWS,
+          rows: isWorkspaceRowWidgetId(widget.widgetId)
+            ? WORKSPACE_ROW_HEIGHT_ROWS
+            : isWorkspaceSlideWidgetId(widget.widgetId)
+              ? Math.max(nextLayout.rows, WORKSPACE_SLIDE_MIN_HEIGHT_ROWS)
+            : nextLayout.rows,
         },
         position: {
           x: 0,

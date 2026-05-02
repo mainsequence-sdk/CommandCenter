@@ -1,9 +1,9 @@
 import { Extension } from "@tiptap/core";
 
 export const richTextFontSizeOptions = [
-  { value: "default", label: "Body" },
+  { value: "default", label: "Default" },
   { value: "sm", label: "Small" },
-  { value: "base", label: "Base" },
+  { value: "base", label: "Medium" },
   { value: "lg", label: "Large" },
   { value: "xl", label: "XL" },
   { value: "2xl", label: "2XL" },

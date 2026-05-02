@@ -16,7 +16,10 @@ These flows are all part of one app surface, with instance state selected throug
 ## Entry Points
 
 - `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance.
+- `SlideStudioPage.tsx`: curated `workspace-studio` surface that reuses the shared workspace list/canvas host but filters to `type=slide-studio` and re-enables the `Slide` widget in that surface only.
 - `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio.
+- `WorkspaceCanvasWidgetHost.tsx`: shared widget renderer used by both the root canvas host and the slide subgrid host so widget chrome, headers, actions, inline edit gating, and body rendering stay identical across both layout hosts.
+- `WorkspaceSlideSubgridHost.tsx`: slide-only region layout host. It keeps slide-contained widgets on a separate subgrid from the root canvas while shrinking slide row height to fit the active region bounds instead of letting slide widgets overflow.
 - `WorkspaceRenderErrorBoundary.tsx`: workspace-level recovery surface used when malformed or unsupported workspace data breaks canvas or graph rendering. It keeps a readable error UI in front of the user and preserves a route back into workspace settings for JSON export/import recovery.
 - `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize, controls, and save flow.
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
@@ -26,7 +29,7 @@ These flows are all part of one app surface, with instance state selected throug
 - `SavedWidgetSaveDialog.tsx`: canvas action flow for saving the selected live workspace widget as a reusable saved widget or saved widget group.
 - `SavedWidgetLibraryDialog.tsx`: in-canvas library picker used to import saved widgets and groups back into the current workspace.
 - `WorkspaceChrome.tsx`: shared workspace toolbar-button and widget-rail chrome reused across canvas and graph views.
-- `WorkspaceComponentBrowser.tsx`: workspace component catalog drawer used for searching, favoriting, and adding widgets.
+- `WorkspaceComponentBrowser.tsx`: shared workspace component catalog drawer used for searching, favoriting, and adding widgets on the root canvas and inside structural slide regions.
 - `WorkspaceGraphNode.tsx`: custom React Flow node renderer that exposes named widget input and output ports.
 - `WorkspaceRequestDebugPanel.tsx`: workspace request trace sidebar. It groups requests by refresh cycle, exposes duplicate endpoint summaries, and lets each request card expand into execution metadata plus connection-query details such as the effective requested time range.
 - `useCustomWorkspaceStudio.ts`: route-aware hook that resolves the requested workspace instance and exposes shared actions.
@@ -40,6 +43,7 @@ These flows are all part of one app surface, with instance state selected throug
 - `workspace-favorites.ts`: helper functions for workspace-instance favorites and canonical workspace paths.
 - `widget-catalog-preferences.ts`: per-user local storage for workspace canvas component-browser favorites and recent widgets.
 - `workspace-studio-surface-config.tsx`: optional route/config layer for reusing the workspace studio from non-core surfaces while filtering widget catalogs, route targets, and surface-specific toolbar actions.
+- `slide-studio-workspaces.ts`: core curated-surface helpers for `Slide Studio`, including type filtering, route helpers, and slide-first workspace creation.
 - `snapshot/`: client-side live workspace snapshot archive pipeline used by `?snapshot=true`.
 
 ## Current Model
@@ -50,9 +54,13 @@ These flows are all part of one app surface, with instance state selected throug
   Other surfaces can now reuse the same canvas/runtime through `WorkspaceStudioCanvasHost` plus
   `workspace-studio-surface-config.tsx` instead of forking a second canvas implementation.
 - The workspace list lives at `/app/workspace-studio/workspaces`.
+- The slide-studio list lives at `/app/workspace-studio/slide-studio`.
 - The saved-widget library lives at `/app/workspace-studio/widgets`.
 - Surface-specific studio reusers may override those route targets and filter visible widget
   definitions while still using the same underlying workspace document model.
+- The base `Workspaces` surface now denies `workspace-slide` from its widget catalog/browser by
+  default, while the curated `Slide Studio` surface clears that denylist and filters its workspace
+  list to `type=slide-studio`.
 - Surface-specific studio reusers may also inject toolbar actions through
   `workspace-studio-surface-config.tsx` so extension-owned flows can add workspace-specific launch
   affordances without forking the shared canvas page.
@@ -164,6 +172,19 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget runtime state can persist in the workspace model when a widget reports it through the shared widget contract.
 - Widget instances can now also persist canonical `bindings` separately from props. Binding changes
   clear widget `runtimeState` by default because the upstream data shape has changed.
+- Normal workspace widgets may now also persist `slidePlacement` when they belong to a structural
+  `workspace-slide` region. This is a persisted workspace contract change and any backend or saved-
+  widget payloads that serialize workspace widgets must tolerate and preserve that metadata.
+- Workspace documents now also persist a first-class `type` field with the current supported
+  values `workspace`, `agent-monitor`, and `slide-studio`. The default Workspaces surface filters
+  its list and direct-open behavior to `type=workspace`, while curated surfaces such as Agent
+  Monitor use the same field to scope their own workspace lists. In backend mode, workspace list
+  requests should now be treated as authoritative and accept `type=<value>` or
+  `types=<comma-separated-values>` on the `?fe_list=true` endpoint. Backend list/detail serializers
+  should preserve this field instead of relying only on labels.
+- Slide-contained widgets intentionally do not behave like the root canvas for overflow. Each slide
+  region is a bounded subgrid that shrinks its effective row height as the region fills so widgets
+  stay inside the slide frame instead of extending past it.
 - In canvas edit mode, widget instances expose shared chrome actions through one compact overflow
   menu instead of separate header buttons. Duplicated widgets receive a fresh instance id, keep
   their props/presentation, and drop runtime state so they republish from their own mounted lifecycle.
@@ -178,6 +199,12 @@ These flows are all part of one app surface, with instance state selected throug
   geometry, but fresh widget instances now all start at the same baseline so empty widgets do not
   appear collapsed just because their reusable definition has a smaller preferred size elsewhere.
 - Widget instances can hide their header in normal viewing, but the workspace canvas forces headers back on during edit mode so drag and settings controls remain available.
+- The shared workspace widget host now treats `showHeader` literally in both edit and view mode.
+  Edit mode no longer forces a hidden header back on.
+- The shared widget overflow menu now lives in a static top-right overlay instead of the header
+  flow, so edit/view mode no longer change widget proportions just to expose actions.
+- Headerless widgets now get a non-layout drag handle overlay in edit mode instead of a forced
+  header band.
 - The workspace studio canvas now keeps one canonical `react-grid-layout` layout in both view and
   edit mode. Entering edit mode should not reshuffle cards; the only intended differences are edit
   chrome plus drag/resize interactivity.

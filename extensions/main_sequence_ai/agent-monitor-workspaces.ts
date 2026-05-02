@@ -1,7 +1,9 @@
 import { getAppPath } from "@/apps/utils";
+import type { DashboardDefinitionType } from "@/dashboards/types";
 import { createBlankDashboard } from "@/features/dashboards/custom-dashboard-storage";
 import type { WorkspaceListItemSummary } from "@/features/dashboards/workspace-list-summary";
 import type { WorkspaceStudioSurfaceConfig } from "@/features/dashboards/workspace-studio-surface-config";
+import { normalizeDashboardDefinitionType } from "@/features/dashboards/workspace-definition-type";
 import {
   AGENT_TERMINAL_WIDGET_ID,
   appendAgentTerminalWidget,
@@ -48,12 +50,10 @@ export function getAgentMonitorSessionLabel(sessionId: string) {
 }
 
 export function isAgentMonitorWorkspace(workspace: { labels?: string[] | undefined }) {
-  const labels = workspace.labels ?? [];
-
-  return (
-    labels.includes(MAIN_SEQUENCE_AI_WORKSPACE_LABEL) &&
-    labels.includes(AGENT_MONITOR_WORKSPACE_LABEL)
-  );
+  return normalizeDashboardDefinitionType(
+    (workspace as { type?: DashboardDefinitionType }).type,
+    workspace.labels,
+  ) === "agent-monitor";
 }
 
 export function findAgentMonitorWorkspaceForSession(
@@ -111,6 +111,7 @@ export function createAgentMonitorWorkspaceDefinition({
 
   dashboard = {
     ...dashboard,
+    type: "agent-monitor",
     description: normalizedSessionId
       ? "Agent monitor workspace backed by the Main Sequence AI Agent Terminal widget."
       : "Agent monitor workspace reserved for Main Sequence AI terminal sessions.",
@@ -142,6 +143,7 @@ export const agentMonitorWorkspaceStudioConfig: WorkspaceStudioSurfaceConfig = {
   catalogDescription:
     "Build monitor workspaces with Agent Terminal, WorkspaceReference, and Upstream Inspector only.",
   savedWidgetsPath: undefined,
+  workspaceTypes: ["agent-monitor"],
   workspaceFilter: isAgentMonitorWorkspace,
   workspaceListPath: AGENTS_MONITOR_SURFACE_PATH,
 };

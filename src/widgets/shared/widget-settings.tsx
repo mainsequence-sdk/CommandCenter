@@ -160,6 +160,7 @@ interface WidgetSettingsPanelProps<
   panelTitle?: string;
   persistenceNote?: string;
   secondaryActionLabel?: string;
+  showPlacementField?: boolean;
   widget: WidgetDefinition<TProps>;
 }
 
@@ -465,6 +466,7 @@ export function WidgetSettingsPanel<
   panelDescription = "Adjust the display title and widget props for this instance.",
   panelTitle,
   secondaryActionLabel,
+  showPlacementField = true,
   widget,
 }: WidgetSettingsPanelProps<TProps>) {
   const resolvedPanelTitle = panelTitle ?? `${instance.title ?? widget.title} Settings`;
@@ -878,23 +880,25 @@ export function WidgetSettingsPanel<
             ]}
           />
 
-          <WidgetSettingsSelectField
-            label="Placement"
-            description={
-              placementLocked
-                ? "This widget is defined as sidebar-only and stays mounted in the widget rail."
-                : "Choose whether this widget renders on the canvas or stays mounted only in the widget rail."
-            }
-            value={sidebarOnly ? "sidebar" : "canvas"}
-            onChange={(nextValue) => {
-              handlePlacementModeChange(nextValue === "sidebar" ? "sidebar" : "canvas");
-            }}
-            disabled={!editable || placementLocked}
-            options={[
-              { value: "canvas", label: "Placement: Canvas" },
-              { value: "sidebar", label: "Placement: Sidebar only" },
-            ]}
-          />
+          {showPlacementField ? (
+            <WidgetSettingsSelectField
+              label="Placement"
+              description={
+                placementLocked
+                  ? "This widget is defined as sidebar-only and stays mounted in the widget rail."
+                  : "Choose whether this widget renders on the canvas or stays mounted only in the widget rail."
+              }
+              value={sidebarOnly ? "sidebar" : "canvas"}
+              onChange={(nextValue) => {
+                handlePlacementModeChange(nextValue === "sidebar" ? "sidebar" : "canvas");
+              }}
+              disabled={!editable || placementLocked}
+              options={[
+                { value: "canvas", label: "Placement: Canvas" },
+                { value: "sidebar", label: "Placement: Sidebar only" },
+              ]}
+            />
+          ) : null}
 
           <WidgetSettingsSelectField
             label="Surface"

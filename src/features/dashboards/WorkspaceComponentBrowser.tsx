@@ -216,9 +216,12 @@ function CatalogWidgetRow({
 }
 
 export function WorkspaceComponentBrowser({
+  description,
   open,
   permissions,
+  title,
   userId,
+  widgetFilter,
   topOffsetClassName,
   enableDrag = false,
   onAddWidget,
@@ -227,8 +230,11 @@ export function WorkspaceComponentBrowser({
   onWidgetPointerStart,
 }: {
   open: boolean;
+  description?: string;
   permissions: string[];
+  title?: string;
   userId: string | number | null;
+  widgetFilter?: (widget: WidgetDefinition) => boolean;
   topOffsetClassName: string;
   enableDrag?: boolean;
   onAddWidget: (widget: WidgetDefinition) => void;
@@ -255,12 +261,19 @@ export function WorkspaceComponentBrowser({
       appRegistry.widgets.filter((widget) =>
         hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
         (!allowedWidgetIdSet || allowedWidgetIdSet.has(widget.id)) &&
+        (!widgetFilter || widgetFilter(widget)) &&
         (
           !registeredWidgetTypes.endpointConfigured ||
           registeredWidgetTypes.activeWidgetIdSet.has(widget.id)
         ),
       ),
-    [allowedWidgetIdSet, permissions, registeredWidgetTypes.activeWidgetIdSet, registeredWidgetTypes.endpointConfigured],
+    [
+      allowedWidgetIdSet,
+      permissions,
+      registeredWidgetTypes.activeWidgetIdSet,
+      registeredWidgetTypes.endpointConfigured,
+      widgetFilter,
+    ],
   );
   const widgetMap = useMemo(
     () => new Map(allowedWidgets.map((widget) => [widget.id, widget])),
@@ -536,12 +549,13 @@ export function WorkspaceComponentBrowser({
       <div className="flex h-full flex-col">
         <div className="border-b border-border/70 px-4 py-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">Components</div>
+              <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">{title ?? "Components"}</div>
               <div className="mt-1 text-sm text-muted-foreground">
-                {enableDrag
-                  ? "Search, filter, favorite, or drag directly onto the canvas."
-                  : "Search, filter, favorite, and add components directly from graph mode."}
+                {description ??
+                  (enableDrag
+                    ? "Search, filter, favorite, or drag directly onto the canvas."
+                    : "Search, filter, favorite, and add components directly from graph mode.")}
               </div>
             </div>
             <button

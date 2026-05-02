@@ -10,7 +10,9 @@ import type {
   ResolvedDashboardWidgetLayout,
 } from "@/dashboards/types";
 import {
+  isWorkspaceFullWidthWidgetId,
   isWorkspaceRowWidgetId,
+  isWorkspaceSlideWidgetId,
   WORKSPACE_ROW_HEIGHT_ROWS,
 } from "@/dashboards/structural-widgets";
 import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
@@ -64,6 +66,8 @@ function normalizeWidgetLayout(
 ): NormalizedWidgetLayout {
   const columns = grid.columns;
   const isWorkspaceRow = isWorkspaceRowWidgetId(instance.widgetId);
+  const isWorkspaceSlide = isWorkspaceSlideWidgetId(instance.widgetId);
+  const isWorkspaceFullWidth = isWorkspaceFullWidthWidgetId(instance.widgetId);
   const rawSpan: Partial<DashboardWidgetSpan> = isLegacyLayout(instance.layout)
     ? {
         cols: instance.layout.w,
@@ -87,13 +91,13 @@ function normalizeWidgetLayout(
       message: "Widget layout was missing or invalid and was reset to a safe default size.",
     });
   }
-  const w = isWorkspaceRow
+  const w = isWorkspaceFullWidth
     ? columns
     : clampInteger(rawSpan.cols, 1, 1);
   const h = isWorkspaceRow
     ? WORKSPACE_ROW_HEIGHT_ROWS
     : clampInteger(rawSpan.rows, 1, 1);
-  const boundedWidth = isWorkspaceRow ? columns : Math.min(w, columns);
+  const boundedWidth = isWorkspaceFullWidth ? columns : Math.min(w, columns);
 
   if (!isWorkspaceRow && w !== boundedWidth) {
     issues.push({
@@ -110,7 +114,7 @@ function normalizeWidgetLayout(
   }
 
   const position: DashboardWidgetPlacement = {
-    x: isWorkspaceRow
+    x: isWorkspaceFullWidth
       ? 0
       : (
         typeof rawPosition.x === "number"
@@ -120,13 +124,15 @@ function normalizeWidgetLayout(
     y: typeof rawPosition.y === "number" ? clampInteger(rawPosition.y, 0) : undefined,
   };
 
-  if (isWorkspaceRow && typeof rawPosition.x === "number" && rawPosition.x !== 0) {
+  if (isWorkspaceFullWidth && typeof rawPosition.x === "number" && rawPosition.x !== 0) {
     issues.push({
       widgetId: instance.id,
-      message: "Row widgets always span the full workspace width and stay anchored at x = 0.",
+      message: isWorkspaceSlide
+        ? "Slide widgets always span the full workspace width and stay anchored at x = 0."
+        : "Row widgets always span the full workspace width and stay anchored at x = 0.",
     });
   } else if (
-    !isWorkspaceRow &&
+    !isWorkspaceFullWidth &&
     typeof rawPosition.x === "number" &&
     rawPosition.x !== position.x
   ) {
@@ -262,10 +268,11 @@ export function resolveDashboardLayout(
   const issues: DashboardLayoutIssue[] = [];
   const resolvedLayouts = new Map<string, ResolvedDashboardWidgetLayout>();
   const canvasWidgets = dashboard.widgets.filter(
-    (instance) => !resolveWidgetSidebarOnly(instance.presentation),
+    (instance) => !resolveWidgetSidebarOnly(instance.presentation) && !instance.slidePlacement,
   );
+  const slidePlacedWidgets = dashboard.widgets.filter((instance) => instance.slidePlacement);
   const sidebarWidgets = dashboard.widgets.filter((instance) =>
-    resolveWidgetSidebarOnly(instance.presentation),
+    resolveWidgetSidebarOnly(instance.presentation) && !instance.slidePlacement,
   );
   let activeRowFloorY = 0;
 
@@ -335,6 +342,17 @@ export function resolveDashboardLayout(
 
     reserveCells(sidebarOccupied, resolvedLayout);
     resolvedLayouts.set(instance.id, resolvedLayout);
+  });
+
+  slidePlacedWidgets.forEach((instance) => {
+    const normalized = normalizeWidgetLayout(instance, grid, issues);
+
+    resolvedLayouts.set(instance.id, {
+      x: normalized.position.x ?? 0,
+      y: normalized.position.y ?? 0,
+      w: normalized.span.w,
+      h: normalized.span.h,
+    });
   });
 
   const widgets = dashboard.widgets.map((instance) => ({

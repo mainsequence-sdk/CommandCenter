@@ -1,12 +1,14 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
   Bold,
   Code2,
   FileText,
-  Highlighter,
-  Heading1,
-  Heading2,
   Italic,
   Link2,
   List,
@@ -30,16 +32,17 @@ import type { WidgetComponentProps } from "@/widgets/types";
 import {
   FontSize,
   isRichTextFontSizeValue,
-  richTextFontSizeOptions,
 } from "./fontSizeExtension";
 
 export type RichTextNoteWidth = "compact" | "prose" | "full";
 export type RichTextNoteVerticalAlign = "top" | "center" | "bottom";
+export type RichTextNoteHorizontalAlign = "left" | "center" | "right" | "justify";
 
 export interface RichTextNoteWidgetProps extends Record<string, unknown> {
   contentHtml?: string;
   contentWidth?: RichTextNoteWidth;
   contentVerticalAlign?: RichTextNoteVerticalAlign;
+  contentHorizontalAlign?: RichTextNoteHorizontalAlign;
   emptyState?: string;
   openLinksInNewTab?: boolean;
   showHeader?: boolean;
@@ -104,6 +107,16 @@ export function normalizeRichTextNoteVerticalAlign(
   return "top";
 }
 
+export function normalizeRichTextNoteHorizontalAlign(
+  value: RichTextNoteWidgetProps["contentHorizontalAlign"],
+): RichTextNoteHorizontalAlign {
+  if (value === "center" || value === "right" || value === "justify") {
+    return value;
+  }
+
+  return "left";
+}
+
 function resolveContentWidthClass(width: RichTextNoteWidth) {
   switch (width) {
     case "compact":
@@ -128,6 +141,20 @@ function resolveVerticalAlignClass(align: RichTextNoteVerticalAlign) {
   }
 }
 
+function resolveHorizontalAlignClass(align: RichTextNoteHorizontalAlign) {
+  switch (align) {
+    case "center":
+      return "text-center";
+    case "right":
+      return "text-right";
+    case "justify":
+      return "text-justify";
+    case "left":
+    default:
+      return "text-left";
+  }
+}
+
 function RichTextToolbarButton({
   active,
   disabled = false,
@@ -145,11 +172,96 @@ function RichTextToolbarButton({
       size="icon"
       variant={active ? "default" : "outline"}
       disabled={disabled}
-      className="h-8 w-8"
+      className="h-7 w-7"
+      onMouseDown={(event) => {
+        event.preventDefault();
+      }}
       onClick={onClick}
     >
       {children}
     </Button>
+  );
+}
+
+function RichTextLayoutButton({
+  active,
+  label,
+  onClick,
+}: {
+  active?: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={active ? "default" : "outline"}
+      className="h-7 px-2 text-[11px] font-medium"
+      onMouseDown={(event) => {
+        event.preventDefault();
+      }}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
+  );
+}
+
+type RichTextStyleValue =
+  | "paragraph"
+  | "heading-1"
+  | "heading-2"
+  | "text-sm"
+  | "text-lg"
+  | "text-xl"
+  | "text-2xl"
+  | "text-3xl"
+  | "text-4xl";
+
+function RichTextStyleSelect({
+  value,
+  onChange,
+}: {
+  value: RichTextStyleValue;
+  onChange: (value: RichTextStyleValue) => void;
+}) {
+  return (
+    <Select
+      value={value}
+      aria-label="Text style"
+      className="h-7 min-w-[148px] text-xs"
+      onMouseDown={(event) => {
+        event.preventDefault();
+      }}
+      onChange={(event) => {
+        const nextValue = event.target.value;
+
+        if (
+          nextValue === "paragraph" ||
+          nextValue === "heading-1" ||
+          nextValue === "heading-2" ||
+          nextValue === "text-sm" ||
+          nextValue === "text-lg" ||
+          nextValue === "text-xl" ||
+          nextValue === "text-2xl" ||
+          nextValue === "text-3xl" ||
+          nextValue === "text-4xl"
+        ) {
+          onChange(nextValue);
+        }
+      }}
+    >
+      <option value="paragraph">Paragraph</option>
+      <option value="heading-1">Heading 1</option>
+      <option value="heading-2">Heading 2</option>
+      <option value="text-sm">Small text</option>
+      <option value="text-lg">Large text</option>
+      <option value="text-xl">XL text</option>
+      <option value="text-2xl">2XL text</option>
+      <option value="text-3xl">3XL text</option>
+      <option value="text-4xl">4XL text</option>
+    </Select>
   );
 }
 
@@ -160,11 +272,25 @@ export function RichTextNoteWidget({
   editable = false,
   onPropsChange,
 }: Props) {
+  const [editorFocused, setEditorFocused] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [toolbarStyle, setToolbarStyle] = useState<CSSProperties | null>(null);
   const contentHtml = normalizeRichTextHtml(props.contentHtml);
   const emptyState = props.emptyState?.trim() || defaultEmptyState;
   const contentWidth = normalizeRichTextNoteWidth(props.contentWidth);
   const contentVerticalAlign = normalizeRichTextNoteVerticalAlign(props.contentVerticalAlign);
+  const contentHorizontalAlign = normalizeRichTextNoteHorizontalAlign(props.contentHorizontalAlign);
   const openLinksInNewTab = props.openLinksInNewTab !== false;
+  const updatePresentationProps = (patch: Partial<RichTextNoteWidgetProps>) => {
+    if (!onPropsChange) {
+      return;
+    }
+
+    onPropsChange({
+      ...props,
+      ...patch,
+    });
+  };
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -187,6 +313,12 @@ export function RichTextNoteWidget({
     ],
     content: contentHtml || "",
     editable,
+    onFocus: () => {
+      setEditorFocused(true);
+    },
+    onBlur: () => {
+      setEditorFocused(false);
+    },
     editorProps: {
       attributes: {
         class: cn(
@@ -234,102 +366,170 @@ export function RichTextNoteWidget({
     editor.commands.setContent(contentHtml || "", { emitUpdate: false });
   }, [contentHtml, editor]);
 
+  useLayoutEffect(() => {
+    if (!editable || !editorFocused) {
+      setToolbarStyle(null);
+      return undefined;
+    }
+
+    let frameId = 0;
+
+    function updateToolbarPosition() {
+      const rect = rootRef.current?.getBoundingClientRect();
+
+      if (!rect) {
+        return;
+      }
+
+      setToolbarStyle({
+        position: "fixed",
+        top: Math.max(12, rect.top + 12),
+        left: Math.max(12, rect.left + 40),
+        zIndex: 2147483000,
+      });
+    }
+
+    updateToolbarPosition();
+    frameId = window.requestAnimationFrame(updateToolbarPosition);
+
+    window.addEventListener("resize", updateToolbarPosition);
+    window.addEventListener("scroll", updateToolbarPosition, true);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", updateToolbarPosition);
+      window.removeEventListener("scroll", updateToolbarPosition, true);
+    };
+  }, [editable, editorFocused]);
+
   if (!editor) {
     return null;
   }
 
   const hasContent = Boolean(contentHtml);
-  const containerClassName = cn("mx-auto min-w-0 w-full", resolveContentWidthClass(contentWidth));
+  const containerClassName = cn(
+    "mx-auto min-w-0 w-full",
+    resolveContentWidthClass(contentWidth),
+    resolveHorizontalAlignClass(contentHorizontalAlign),
+  );
   const activeFontSize = isRichTextFontSizeValue(editor.getAttributes("textStyle").fontSize)
     ? editor.getAttributes("textStyle").fontSize
     : "default";
+  const activeTextStyle: RichTextStyleValue = editor.isActive("heading", { level: 1 })
+    ? "heading-1"
+    : editor.isActive("heading", { level: 2 })
+      ? "heading-2"
+      : activeFontSize === "sm"
+        ? "text-sm"
+        : activeFontSize === "lg"
+          ? "text-lg"
+          : activeFontSize === "xl"
+            ? "text-xl"
+            : activeFontSize === "2xl"
+              ? "text-2xl"
+              : activeFontSize === "3xl"
+                ? "text-3xl"
+                : activeFontSize === "4xl"
+                  ? "text-4xl"
+      : "paragraph";
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-auto">
-      {editable ? (
-        <div className="sticky top-0 z-10 border-b border-border/70 bg-card/94 px-3 py-2 backdrop-blur-xl">
-          <div className="flex flex-wrap items-center gap-1">
-            <div className="min-w-[128px]">
-              <Select
-                value={activeFontSize}
-                aria-label="Font size"
-                onChange={(event) => {
-                  const nextValue = event.target.value;
+    <div ref={rootRef} className="relative flex h-full min-h-0 flex-col overflow-visible">
+      {editable && editorFocused && toolbarStyle && typeof document !== "undefined"
+        ? createPortal(
+          <div
+            className="pointer-events-auto w-max min-w-[640px] rounded-[calc(var(--radius)+6px)] border border-border/70 bg-background/94 px-2 py-2 shadow-[var(--shadow-panel)] backdrop-blur-xl"
+            style={toolbarStyle}
+            data-no-widget-drag="true"
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+            <RichTextStyleSelect
+              value={activeTextStyle}
+              onChange={(nextValue) => {
+                if (nextValue === "heading-1") {
+                  editor.chain().focus().unsetFontSize().toggleHeading({ level: 1 }).run();
+                  return;
+                }
 
-                  if (isRichTextFontSizeValue(nextValue)) {
-                    editor.chain().focus().setFontSize(nextValue).run();
-                    return;
-                  }
+                if (nextValue === "heading-2") {
+                  editor.chain().focus().unsetFontSize().toggleHeading({ level: 2 }).run();
+                  return;
+                }
 
-                  editor.chain().focus().unsetFontSize().run();
-                }}
-              >
-                {richTextFontSizeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
+                if (nextValue === "text-sm") {
+                  editor.chain().focus().setParagraph().setFontSize("sm").run();
+                  return;
+                }
+
+                if (nextValue === "text-lg") {
+                  editor.chain().focus().setParagraph().setFontSize("lg").run();
+                  return;
+                }
+
+                if (nextValue === "text-xl") {
+                  editor.chain().focus().setParagraph().setFontSize("xl").run();
+                  return;
+                }
+
+                if (nextValue === "text-2xl") {
+                  editor.chain().focus().setParagraph().setFontSize("2xl").run();
+                  return;
+                }
+
+                if (nextValue === "text-3xl") {
+                  editor.chain().focus().setParagraph().setFontSize("3xl").run();
+                  return;
+                }
+
+                if (nextValue === "text-4xl") {
+                  editor.chain().focus().setParagraph().setFontSize("4xl").run();
+                  return;
+                }
+
+                editor.chain().focus().unsetFontSize().setParagraph().run();
+              }}
+            />
             <RichTextToolbarButton
               active={editor.isActive("bold")}
               onClick={() => editor.chain().focus().toggleBold().run()}
             >
-              <Bold className="h-4 w-4" />
+              <Bold className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
             <RichTextToolbarButton
               active={editor.isActive("italic")}
               onClick={() => editor.chain().focus().toggleItalic().run()}
             >
-              <Italic className="h-4 w-4" />
+              <Italic className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
             <RichTextToolbarButton
               active={editor.isActive("underline")}
               onClick={() => editor.chain().focus().toggleUnderline().run()}
             >
-              <UnderlineIcon className="h-4 w-4" />
-            </RichTextToolbarButton>
-            <RichTextToolbarButton
-              active={editor.isActive("heading", { level: 1 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            >
-              <Heading1 className="h-4 w-4" />
-            </RichTextToolbarButton>
-            <RichTextToolbarButton
-              active={editor.isActive("heading", { level: 2 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            >
-              <Heading2 className="h-4 w-4" />
+              <UnderlineIcon className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
             <RichTextToolbarButton
               active={editor.isActive("bulletList")}
               onClick={() => editor.chain().focus().toggleBulletList().run()}
             >
-              <List className="h-4 w-4" />
+              <List className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
             <RichTextToolbarButton
               active={editor.isActive("orderedList")}
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
             >
-              <ListOrdered className="h-4 w-4" />
+              <ListOrdered className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
             <RichTextToolbarButton
               active={editor.isActive("blockquote")}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
             >
-              <Quote className="h-4 w-4" />
+              <Quote className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
             <RichTextToolbarButton
               active={editor.isActive("code")}
               onClick={() => editor.chain().focus().toggleCode().run()}
             >
-              <Code2 className="h-4 w-4" />
-            </RichTextToolbarButton>
-            <RichTextToolbarButton
-              active={activeFontSize !== "default"}
-              onClick={() => editor.chain().focus().unsetFontSize().run()}
-            >
-              <Highlighter className="h-4 w-4" />
+              <Code2 className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
             <RichTextToolbarButton
               active={editor.isActive("link")}
@@ -349,25 +549,95 @@ export function RichTextNoteWidget({
                 editor.chain().focus().extendMarkRange("link").setLink({ href: nextHref.trim() }).run();
               }}
             >
-              <Link2 className="h-4 w-4" />
+              <Link2 className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
             <RichTextToolbarButton
               disabled={!editor.can().chain().focus().undo().run()}
               onClick={() => editor.chain().focus().undo().run()}
             >
-              <Undo2 className="h-4 w-4" />
+              <Undo2 className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
             <RichTextToolbarButton
               disabled={!editor.can().chain().focus().redo().run()}
               onClick={() => editor.chain().focus().redo().run()}
             >
-              <Redo2 className="h-4 w-4" />
+              <Redo2 className="h-3.5 w-3.5" />
             </RichTextToolbarButton>
-          </div>
-        </div>
-      ) : null}
+            <div className="mx-1 h-5 w-px bg-border/70" />
+            <RichTextToolbarButton
+              active={contentHorizontalAlign === "left"}
+              onClick={() => {
+                updatePresentationProps({
+                  contentHorizontalAlign: "left",
+                });
+              }}
+            >
+              <AlignLeft className="h-3.5 w-3.5" />
+            </RichTextToolbarButton>
+            <RichTextToolbarButton
+              active={contentHorizontalAlign === "center"}
+              onClick={() => {
+                updatePresentationProps({
+                  contentHorizontalAlign: "center",
+                });
+              }}
+            >
+              <AlignCenter className="h-3.5 w-3.5" />
+            </RichTextToolbarButton>
+            <RichTextToolbarButton
+              active={contentHorizontalAlign === "right"}
+              onClick={() => {
+                updatePresentationProps({
+                  contentHorizontalAlign: "right",
+                });
+              }}
+            >
+              <AlignRight className="h-3.5 w-3.5" />
+            </RichTextToolbarButton>
+            <RichTextToolbarButton
+              active={contentHorizontalAlign === "justify"}
+              onClick={() => {
+                updatePresentationProps({
+                  contentHorizontalAlign: "justify",
+                });
+              }}
+            >
+              <AlignJustify className="h-3.5 w-3.5" />
+            </RichTextToolbarButton>
+            <RichTextLayoutButton
+              active={contentVerticalAlign === "top"}
+              label="Top"
+              onClick={() => {
+                updatePresentationProps({
+                  contentVerticalAlign: "top",
+                });
+              }}
+            />
+            <RichTextLayoutButton
+              active={contentVerticalAlign === "center"}
+              label="Mid"
+              onClick={() => {
+                updatePresentationProps({
+                  contentVerticalAlign: "center",
+                });
+              }}
+            />
+            <RichTextLayoutButton
+              active={contentVerticalAlign === "bottom"}
+              label="Bot"
+              onClick={() => {
+                updatePresentationProps({
+                  contentVerticalAlign: "bottom",
+                });
+              }}
+            />
+            </div>
+          </div>,
+          document.body,
+        )
+        : null}
 
-      <div className="flex min-h-full flex-1 flex-col p-4 md:p-5">
+      <div className="flex min-h-full flex-1 flex-col overflow-auto px-4 pt-4 pb-4 md:px-5 md:pt-5 md:pb-5">
         <div
           className={cn(
             "flex min-h-full flex-1 flex-col",
@@ -392,7 +662,7 @@ export function RichTextNoteWidget({
                 <EditorContent editor={editor} />
                 {editable && !hasContent ? (
                   <div className="mt-3 text-sm text-muted-foreground">
-                    Start typing directly on the card, or use the toolbar to format the note.
+                    Start typing directly on the card. The formatting toolbar appears when the note is focused.
                   </div>
                 ) : null}
               </div>

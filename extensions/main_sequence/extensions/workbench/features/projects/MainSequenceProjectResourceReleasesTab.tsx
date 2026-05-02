@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowUpRight, Boxes, FileText, Loader2, Plus, Rocket, Trash2 } from "lucide-react";
@@ -22,7 +22,11 @@ import { listTeams } from "@/features/teams/api";
 
 import {
   bulkDeleteResourceReleases,
+  getOrCreateProjectExecutorAgentService,
   createResourceRelease,
+  type CreateProjectExecutorAgentServiceInput,
+  type CreateResourceReleaseInput,
+  fetchAvailableGpuTypes,
   fetchObjectCanEdit,
   fetchObjectCanView,
   fetchProjectImages,
@@ -37,6 +41,7 @@ import {
   type EntitySummaryHeader,
   type PermissionCandidateUserRecord,
   type ProjectImageOption,
+  type ProjectExecutorAgentServiceRecord,
   type ProjectResourceRecord,
   type ResourceReleaseRecord,
   type ResourceReleaseReadmeSummary,
@@ -47,7 +52,7 @@ import {
   type SummaryField,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
-import { PickerField } from "../../../../common/components/PickerField";
+import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
@@ -66,14 +71,28 @@ const emptyPermissionAssignments: RbacAssignmentValue = {
   edit: { userIds: [], teamIds: [] },
 };
 const resourceReleasePermissionsObjectUrl = "resource-release";
+const projectAgentCardResourceType = "project_agent_card";
 
 type ReleaseKind = keyof typeof releaseKindToProjectResourceType;
 type ResourceReleaseDetailTabId = "readme" | "permissions" | "test-api";
+type CreateReleaseIntent = "project-agent";
+type CreateReleaseMode = "default" | "project-agent";
 
 const baseResourceReleaseDetailTabs = [
   { id: "readme", label: "README" },
   { id: "permissions", label: "Permissions" },
 ] as const;
+const gpuCountOptions: PickerOption[] = [
+  { value: "", label: "No GPU" },
+  { value: "1", label: "1 GPU" },
+  { value: "2", label: "2 GPUs" },
+  { value: "3", label: "3 GPUs" },
+  { value: "4", label: "4 GPUs" },
+  { value: "5", label: "5 GPUs" },
+  { value: "6", label: "6 GPUs" },
+  { value: "7", label: "7 GPUs" },
+  { value: "8", label: "8 GPUs" },
+];
 const resourceReleaseAccessScopes: RbacAssignmentScope[] = [
   {
     id: "view",
@@ -93,8 +112,29 @@ function createDefaultReleaseComputeState() {
   return {
     cpuRequest: "100m",
     memoryRequest: "512Mi",
+    gpuRequest: "",
+    gpuType: "",
     spot: true,
   };
+}
+
+function openCreateReleaseDialog(input: {
+  reset: () => void;
+  setCreateReleaseKind: (kind: ReleaseKind) => void;
+  setComputeState: Dispatch<SetStateAction<ReturnType<typeof createDefaultReleaseComputeState>>>;
+  setCreateDialogOpen: (open: boolean) => void;
+  setCreateReleaseMode: (mode: CreateReleaseMode) => void;
+  setCreateReleaseResourceTypeOverride: (value: string | null) => void;
+  releaseKind: ReleaseKind;
+  mode?: CreateReleaseMode;
+  resourceTypeOverride?: string | null;
+}) {
+  input.reset();
+  input.setCreateReleaseKind(input.releaseKind);
+  input.setComputeState(createDefaultReleaseComputeState());
+  input.setCreateReleaseMode(input.mode ?? "default");
+  input.setCreateReleaseResourceTypeOverride(input.resourceTypeOverride ?? null);
+  input.setCreateDialogOpen(true);
 }
 
 function formatReleaseKind(releaseKind: string) {
@@ -308,6 +348,16 @@ function getResourceReleaseSummaryResourceType(
   return typeof resourceTypeField?.value === "string" ? resourceTypeField.value : null;
 }
 
+type CreateResourceReleaseMutationInput =
+  | CreateResourceReleaseInput
+  | (CreateProjectExecutorAgentServiceInput & { mode: "project-agent" });
+
+function isProjectAgentCreateInput(
+  input: CreateResourceReleaseMutationInput,
+): input is CreateProjectExecutorAgentServiceInput & { mode: "project-agent" } {
+  return "mode" in input && input.mode === "project-agent";
+}
+
 function mergeRbacIds(...lists: Array<Array<string | number>>) {
   const seen = new Set<string>();
 
@@ -485,18 +535,22 @@ function buildPermissionOperations(
 }
 
 export function MainSequenceProjectResourceReleasesTab({
+  onConsumeCreateReleaseIntent,
   onCloseResourceReleaseDetail,
   onOpenJobDetail,
   onOpenProjectDetail,
   onOpenResourceReleaseDetail,
   projectId,
+  requestedCreateReleaseIntent,
   selectedResourceReleaseId,
 }: {
+  onConsumeCreateReleaseIntent?: () => void;
   onCloseResourceReleaseDetail: () => void;
   onOpenJobDetail: (jobId: number) => void;
   onOpenProjectDetail: (projectId: number) => void;
   onOpenResourceReleaseDetail: (resourceReleaseId: number) => void;
   projectId: number;
+  requestedCreateReleaseIntent: CreateReleaseIntent | null;
   selectedResourceReleaseId: number | null;
 }) {
   const queryClient = useQueryClient();
@@ -506,6 +560,9 @@ export function MainSequenceProjectResourceReleasesTab({
   const [pageIndex, setPageIndex] = useState(0);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createReleaseKind, setCreateReleaseKind] = useState<ReleaseKind | null>(null);
+  const [createReleaseMode, setCreateReleaseMode] = useState<CreateReleaseMode>("default");
+  const [createReleaseResourceTypeOverride, setCreateReleaseResourceTypeOverride] =
+    useState<string | null>(null);
   const [selectedResourceId, setSelectedResourceId] = useState("");
   const [selectedImageId, setSelectedImageId] = useState("");
   const [selectedDetailTabId, setSelectedDetailTabId] = useState<ResourceReleaseDetailTabId>("readme");
@@ -514,6 +571,7 @@ export function MainSequenceProjectResourceReleasesTab({
   const [permissionsValue, setPermissionsValue] =
     useState<RbacAssignmentValue>(emptyPermissionAssignments);
   const deferredFilterValue = useDeferredValue(filterValue);
+  const handledCreateReleaseIntentRef = useRef<CreateReleaseIntent | null>(null);
 
   const projectJobsQuery = useQuery({
     queryKey: ["main_sequence", "projects", "resource-releases", "jobs", projectId],
@@ -607,6 +665,13 @@ export function MainSequenceProjectResourceReleasesTab({
     staleTime: 300_000,
   });
 
+  const availableGpuTypesQuery = useQuery({
+    queryKey: ["main_sequence", "billing", "available-gpu-types"],
+    queryFn: fetchAvailableGpuTypes,
+    enabled: createDialogOpen,
+    staleTime: 300_000,
+  });
+
   const readyProjectImages = useMemo(
     () =>
       (projectImagesQuery.data ?? []).filter(
@@ -631,9 +696,9 @@ export function MainSequenceProjectResourceReleasesTab({
       listProjectResources(projectId, {
         limit: 200,
         repoCommitSha: selectedProjectImage?.project_repo_hash ?? undefined,
-        resourceType: createReleaseKind
-          ? releaseKindToProjectResourceType[createReleaseKind]
-          : undefined,
+        resourceType:
+          createReleaseResourceTypeOverride ??
+          (createReleaseKind ? releaseKindToProjectResourceType[createReleaseKind] : undefined),
       }),
     enabled:
       createDialogOpen &&
@@ -695,6 +760,15 @@ export function MainSequenceProjectResourceReleasesTab({
   const projectImageOptions = useMemo(
     () => readyProjectImages.map(toProjectImageOption),
     [readyProjectImages],
+  );
+  const gpuTypeOptions = useMemo<PickerOption[]>(
+    () =>
+      (availableGpuTypesQuery.data ?? []).map((gpuType) => ({
+        value: gpuType.value,
+        label: gpuType.label,
+        keywords: [gpuType.value, gpuType.label],
+      })),
+    [availableGpuTypesQuery.data],
   );
   const resourceReleaseSummary =
     resourceReleaseSummaryQuery.data ??
@@ -831,9 +905,24 @@ export function MainSequenceProjectResourceReleasesTab({
         ]
       : [];
 
-  const createResourceReleaseMutation = useMutation({
-    mutationFn: createResourceRelease,
-    onSuccess: async (release) => {
+  const createResourceReleaseMutation = useMutation<
+    ResourceReleaseRecord | ProjectExecutorAgentServiceRecord,
+    Error,
+    CreateResourceReleaseMutationInput
+  >({
+    mutationFn: async (input) =>
+      isProjectAgentCreateInput(input)
+        ? getOrCreateProjectExecutorAgentService({
+            project_id: input.project_id,
+            project_related_image_id: input.project_related_image_id,
+            cpu_request: input.cpu_request,
+            memory_request: input.memory_request,
+            gpu_request: input.gpu_request,
+            gpu_type: input.gpu_type,
+            spot: input.spot,
+          })
+        : createResourceRelease(input),
+    onSuccess: async (result, input) => {
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "resource-releases"],
       });
@@ -844,10 +933,23 @@ export function MainSequenceProjectResourceReleasesTab({
         queryKey: ["main_sequence", "projects", "summary", projectId],
       });
 
+      const isProjectAgentMode = isProjectAgentCreateInput(input);
+      let successTitle: string;
+      let successDescription: string;
+
+      if (isProjectAgentMode) {
+        successTitle = "Project agent configured";
+        successDescription = "The project execution agent service is ready for the selected image.";
+      } else {
+        const release = result as ResourceReleaseRecord;
+        successTitle = `${formatReleaseKind(release.release_kind)} release created`;
+        successDescription = `${release.subdomain} is now available in this project.`;
+      }
+
       toast({
         variant: "success",
-        title: `${formatReleaseKind(release.release_kind)} release created`,
-        description: `${release.subdomain} is now available in this project.`,
+        title: successTitle,
+        description: successDescription,
       });
 
       setCreateDialogOpen(false);
@@ -982,11 +1084,47 @@ export function MainSequenceProjectResourceReleasesTab({
   useEffect(() => {
     if (!createDialogOpen) {
       setCreateReleaseKind(null);
+      setCreateReleaseMode("default");
+      setCreateReleaseResourceTypeOverride(null);
       setSelectedResourceId("");
       setSelectedImageId("");
       setComputeState(createDefaultReleaseComputeState());
     }
   }, [createDialogOpen]);
+
+  useEffect(() => {
+    if (!requestedCreateReleaseIntent) {
+      handledCreateReleaseIntentRef.current = null;
+      return;
+    }
+
+    if (handledCreateReleaseIntentRef.current === requestedCreateReleaseIntent) {
+      return;
+    }
+
+    handledCreateReleaseIntentRef.current = requestedCreateReleaseIntent;
+
+    if (!requestedCreateReleaseIntent) {
+      return;
+    }
+
+    openCreateReleaseDialog({
+      reset: () => createResourceReleaseMutation.reset(),
+      setCreateReleaseKind,
+      setComputeState,
+      setCreateDialogOpen,
+      setCreateReleaseMode,
+      setCreateReleaseResourceTypeOverride,
+      releaseKind: "agent",
+      mode: "project-agent",
+      resourceTypeOverride: projectAgentCardResourceType,
+    });
+    onConsumeCreateReleaseIntent?.();
+  }, [
+    createResourceReleaseMutation,
+    onConsumeCreateReleaseIntent,
+    requestedCreateReleaseIntent,
+  ]);
 
   useEffect(() => {
     if (!createDialogOpen) {
@@ -1044,9 +1182,19 @@ export function MainSequenceProjectResourceReleasesTab({
     }
   }
 
-  const createDialogTitle = createReleaseKind
-    ? `Create ${formatReleaseKind(createReleaseKind).toLowerCase()} release`
-    : "Create resource release";
+  const createDialogTitle = createReleaseMode === "project-agent"
+    ? "Create Project Agent"
+    : createReleaseKind
+      ? `Create ${formatReleaseKind(createReleaseKind).toLowerCase()} release`
+      : "Create resource release";
+  const parsedGpuRequest = computeState.gpuRequest ? Number(computeState.gpuRequest) : undefined;
+  const gpuSelectionIsValid =
+    (!computeState.gpuRequest && !computeState.gpuType.trim()) ||
+    (Boolean(computeState.gpuRequest) &&
+      parsedGpuRequest !== undefined &&
+      Number.isFinite(parsedGpuRequest) &&
+      parsedGpuRequest > 0 &&
+      computeState.gpuType.trim().length > 0);
   const releaseReadme = getResourceReleaseReadme(resourceReleaseSummaryQuery.data?.extensions);
   const readmeFilesize = formatReadmeFilesize(releaseReadme?.filesize);
 
@@ -1273,10 +1421,15 @@ export function MainSequenceProjectResourceReleasesTab({
                   <Button
                     size="sm"
                     onClick={() => {
-                      createResourceReleaseMutation.reset();
-                      setCreateReleaseKind("streamlit_dashboard");
-                      setComputeState(createDefaultReleaseComputeState());
-                      setCreateDialogOpen(true);
+                      openCreateReleaseDialog({
+                        reset: () => createResourceReleaseMutation.reset(),
+                        setCreateReleaseKind,
+                        setComputeState,
+                        setCreateDialogOpen,
+                        setCreateReleaseMode,
+                        setCreateReleaseResourceTypeOverride,
+                        releaseKind: "streamlit_dashboard",
+                      });
                     }}
                   >
                     <Plus className="h-4 w-4" />
@@ -1285,10 +1438,15 @@ export function MainSequenceProjectResourceReleasesTab({
                   <Button
                     size="sm"
                     onClick={() => {
-                      createResourceReleaseMutation.reset();
-                      setCreateReleaseKind("agent");
-                      setComputeState(createDefaultReleaseComputeState());
-                      setCreateDialogOpen(true);
+                      openCreateReleaseDialog({
+                        reset: () => createResourceReleaseMutation.reset(),
+                        setCreateReleaseKind,
+                        setComputeState,
+                        setCreateDialogOpen,
+                        setCreateReleaseMode,
+                        setCreateReleaseResourceTypeOverride,
+                        releaseKind: "agent",
+                      });
                     }}
                   >
                     <Plus className="h-4 w-4" />
@@ -1297,10 +1455,15 @@ export function MainSequenceProjectResourceReleasesTab({
                   <Button
                     size="sm"
                     onClick={() => {
-                      createResourceReleaseMutation.reset();
-                      setCreateReleaseKind("fastapi");
-                      setComputeState(createDefaultReleaseComputeState());
-                      setCreateDialogOpen(true);
+                      openCreateReleaseDialog({
+                        reset: () => createResourceReleaseMutation.reset(),
+                        setCreateReleaseKind,
+                        setComputeState,
+                        setCreateDialogOpen,
+                        setCreateReleaseMode,
+                        setCreateReleaseResourceTypeOverride,
+                        releaseKind: "fastapi",
+                      });
                     }}
                   >
                     <Plus className="h-4 w-4" />
@@ -1470,11 +1633,21 @@ export function MainSequenceProjectResourceReleasesTab({
         onClose={() => {
           if (!createResourceReleaseMutation.isPending) {
             setCreateDialogOpen(false);
+            onConsumeCreateReleaseIntent?.();
           }
         }}
         className="max-w-[min(760px,calc(100vw-24px))]"
       >
         <div className="space-y-5">
+          {createReleaseMode === "project-agent" ? (
+            <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-secondary/70 px-4 py-3 text-sm text-secondary-foreground">
+              Project Execution Agents are unique per project. This flow publishes a
+              `project_agent_card` resource for the selected commit image. Re-deploying replaces the
+              current execution agent for the project, so preserve compatibility with existing callers
+              and workflows before publishing a new project agent.
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               Image
@@ -1584,6 +1757,56 @@ export function MainSequenceProjectResourceReleasesTab({
             </div>
           </div>
 
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                GPUs
+              </div>
+              <PickerField
+                value={computeState.gpuRequest}
+                onChange={(value) => {
+                  createResourceReleaseMutation.reset();
+                  setComputeState((current) => ({
+                    ...current,
+                    gpuRequest: value,
+                    gpuType: value ? current.gpuType : "",
+                  }));
+                }}
+                options={gpuCountOptions}
+                placeholder="No GPU"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                GPU type
+              </div>
+              <PickerField
+                value={computeState.gpuType}
+                onChange={(value) => {
+                  createResourceReleaseMutation.reset();
+                  setComputeState((current) => ({
+                    ...current,
+                    gpuType: value,
+                  }));
+                }}
+                options={gpuTypeOptions}
+                placeholder="Select GPU type"
+                searchPlaceholder="Search GPU types"
+                emptyMessage="No GPU types available."
+                searchable={false}
+                loading={availableGpuTypesQuery.isLoading}
+                disabled={!computeState.gpuRequest}
+              />
+            </div>
+          </div>
+
+          {!gpuSelectionIsValid ? (
+            <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+              Select a GPU type when requesting GPUs.
+            </div>
+          ) : null}
+
           {releaseResourcesQuery.isError ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
               {formatMainSequenceError(releaseResourcesQuery.error)}
@@ -1596,6 +1819,12 @@ export function MainSequenceProjectResourceReleasesTab({
             </div>
           ) : null}
 
+          {computeState.gpuRequest && availableGpuTypesQuery.isError ? (
+            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+              {formatMainSequenceError(availableGpuTypesQuery.error)}
+            </div>
+          ) : null}
+
           {createResourceReleaseMutation.isError ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
               {formatMainSequenceError(createResourceReleaseMutation.error)}
@@ -1605,14 +1834,35 @@ export function MainSequenceProjectResourceReleasesTab({
           <div className="flex justify-end gap-2">
             <Button
               variant="outline"
-              onClick={() => setCreateDialogOpen(false)}
+              onClick={() => {
+                setCreateDialogOpen(false);
+                onConsumeCreateReleaseIntent?.();
+              }}
               disabled={createResourceReleaseMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               onClick={() => {
-                if (!selectedResourceId || !selectedImageId || !createReleaseKind) {
+                if (!selectedImageId || !createReleaseKind) {
+                  return;
+                }
+
+                if (createReleaseMode === "project-agent") {
+                  createResourceReleaseMutation.mutate({
+                    mode: "project-agent",
+                    project_id: projectId,
+                    project_related_image_id: Number(selectedImageId),
+                    cpu_request: computeState.cpuRequest.trim() || "100m",
+                    memory_request: computeState.memoryRequest.trim() || "512Mi",
+                    gpu_request: parsedGpuRequest ? String(parsedGpuRequest) : undefined,
+                    gpu_type: computeState.gpuType.trim() || undefined,
+                    spot: computeState.spot,
+                  });
+                  return;
+                }
+
+                if (!selectedResourceId) {
                   return;
                 }
 
@@ -1621,6 +1871,8 @@ export function MainSequenceProjectResourceReleasesTab({
                   related_image: Number(selectedImageId),
                   cpu_request: computeState.cpuRequest.trim() || "100m",
                   memory_request: computeState.memoryRequest.trim() || "512Mi",
+                  gpu_request: parsedGpuRequest ? String(parsedGpuRequest) : undefined,
+                  gpu_type: computeState.gpuType.trim() || undefined,
                   release_kind: createReleaseKind,
                   spot: computeState.spot,
                 });
@@ -1629,8 +1881,10 @@ export function MainSequenceProjectResourceReleasesTab({
                 createResourceReleaseMutation.isPending ||
                 releaseResourcesQuery.isLoading ||
                 projectImagesQuery.isLoading ||
+                (Boolean(computeState.gpuRequest) && availableGpuTypesQuery.isLoading) ||
                 !selectedResourceId ||
-                !selectedImageId
+                !selectedImageId ||
+                !gpuSelectionIsValid
               }
             >
               {createResourceReleaseMutation.isPending ? (
@@ -1640,7 +1894,11 @@ export function MainSequenceProjectResourceReleasesTab({
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-              {createReleaseKind ? `Create ${formatReleaseKind(createReleaseKind)}` : "Create release"}
+              {createReleaseMode === "project-agent"
+                ? "Create Project Agent"
+                : createReleaseKind
+                  ? `Create ${formatReleaseKind(createReleaseKind)}`
+                  : "Create release"}
             </Button>
           </div>
         </div>

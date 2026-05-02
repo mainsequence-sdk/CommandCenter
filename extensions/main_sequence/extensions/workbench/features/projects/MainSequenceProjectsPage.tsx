@@ -66,6 +66,7 @@ const mainSequenceJobRunIdParam = "msJobRunId";
 const mainSequenceResourceReleaseIdParam = "msResourceReleaseId";
 const mainSequenceLocalUpdateIdParam = "msLocalUpdateId";
 const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
+const mainSequenceCreateReleaseIntentParam = "msCreateReleaseIntent";
 
 type ProjectDeleteRequest = {
   projects: ProjectSummary[];
@@ -218,6 +219,51 @@ function buildFallbackProjectSummary(project: ProjectSummary): EntitySummaryHead
     ],
     highlight_fields: [],
     stats: [],
+  };
+}
+
+function projectHasAgentCapabilities(
+  summary: EntitySummaryHeader | null | undefined,
+  project: ProjectSummary | null | undefined,
+): boolean | null {
+  const summaryRecord = summary as Record<string, unknown> | null | undefined;
+
+  if (typeof summaryRecord?.agent_capabilities === "boolean") {
+    return summaryRecord.agent_capabilities;
+  }
+
+  if (typeof summary?.extensions?.agent_capabilities === "boolean") {
+    return summary.extensions.agent_capabilities;
+  }
+
+  if (typeof project?.agent_capabilities === "boolean") {
+    return project.agent_capabilities;
+  }
+
+  return null;
+}
+
+function addProjectAgentCapabilitiesBadge(
+  summary: EntitySummaryHeader,
+  hasAgentCapabilities: boolean | null,
+): EntitySummaryHeader {
+  if (
+    hasAgentCapabilities === null ||
+    summary.badges.some((badge) => badge.key === "agent_capabilities")
+  ) {
+    return summary;
+  }
+
+  return {
+    ...summary,
+    badges: [
+      ...summary.badges,
+      {
+        key: "agent_capabilities",
+        label: hasAgentCapabilities ? "Agent Capable" : "No Agent Capabilities",
+        tone: hasAgentCapabilities ? "info" : "secondary",
+      },
+    ],
   };
 }
 
@@ -434,9 +480,16 @@ export function MainSequenceProjectsPage() {
   const selectedProjectSummary = (projectsQuery.data?.results ?? []).find(
     (project) => project.id === selectedProjectId,
   );
-  const projectHeader = projectSummaryQuery.data ?? (selectedProjectSummary
+  const projectHeaderBase = projectSummaryQuery.data ?? (selectedProjectSummary
     ? buildFallbackProjectSummary(selectedProjectSummary)
     : null);
+  const hasProjectAgentCapabilities = projectHasAgentCapabilities(
+    projectSummaryQuery.data,
+    selectedProjectSummary,
+  );
+  const projectHeader = projectHeaderBase
+    ? addProjectAgentCapabilitiesBadge(projectHeaderBase, hasProjectAgentCapabilities)
+    : null;
   const projectTitle =
     projectHeader?.entity.title ??
     selectedProjectSummary?.project_name ??
@@ -505,6 +558,7 @@ export function MainSequenceProjectsPage() {
 
   function navigateWithProjectSearch(
     update: (searchParams: URLSearchParams) => void,
+    options?: { replace?: boolean },
   ) {
     const nextParams = new URLSearchParams(location.search);
     update(nextParams);
@@ -515,7 +569,7 @@ export function MainSequenceProjectsPage() {
         pathname: location.pathname,
         search: nextSearch ? `?${nextSearch}` : "",
       },
-      { replace: false },
+      { replace: options?.replace ?? false },
     );
   }
 
@@ -561,6 +615,7 @@ export function MainSequenceProjectsPage() {
 
       if (tabId !== "resource-releases") {
         nextParams.delete(mainSequenceResourceReleaseIdParam);
+        nextParams.delete(mainSequenceCreateReleaseIntentParam);
       }
 
       if (tabId !== "data-node-updates") {
@@ -620,6 +675,7 @@ export function MainSequenceProjectsPage() {
       nextParams.delete(mainSequenceJobIdParam);
       nextParams.delete(mainSequenceJobRunIdParam);
       nextParams.set(mainSequenceResourceReleaseIdParam, String(resourceReleaseId));
+      nextParams.delete(mainSequenceCreateReleaseIntentParam);
       nextParams.delete(mainSequenceLocalUpdateIdParam);
       nextParams.delete(mainSequenceLocalUpdateTabParam);
     });
@@ -629,6 +685,27 @@ export function MainSequenceProjectsPage() {
     navigateWithProjectSearch((nextParams) => {
       nextParams.delete(mainSequenceResourceReleaseIdParam);
     });
+  }
+
+  function openProjectAgentConfiguration() {
+    navigateWithProjectSearch((nextParams) => {
+      nextParams.delete(legacyProjectIdParam);
+      nextParams.delete(legacyTabParam);
+      nextParams.set(mainSequenceProjectIdParam, String(selectedProjectId));
+      nextParams.set(mainSequenceTabParam, "resource-releases");
+      nextParams.set(mainSequenceCreateReleaseIntentParam, "project-agent");
+      nextParams.delete(mainSequenceJobIdParam);
+      nextParams.delete(mainSequenceJobRunIdParam);
+      nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.delete(mainSequenceLocalUpdateIdParam);
+      nextParams.delete(mainSequenceLocalUpdateTabParam);
+    });
+  }
+
+  function clearPendingCreateReleaseKind() {
+    navigateWithProjectSearch((nextParams) => {
+      nextParams.delete(mainSequenceCreateReleaseIntentParam);
+    }, { replace: true });
   }
 
   function openProjectLocalUpdateDetail(localUpdateId: number) {
@@ -711,6 +788,17 @@ export function MainSequenceProjectsPage() {
           {projectHeader ? (
             <>
               <MainSequenceEntitySummaryCard
+                actions={
+                  hasProjectAgentCapabilities ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={openProjectAgentConfiguration}
+                    >
+                      Configure project agent
+                    </Button>
+                  ) : undefined
+                }
                 summary={projectHeader}
                 onFieldLinkClick={(field) => {
                   const linkedProjectId = getProjectIdFromSummaryHref(field.href);
@@ -772,11 +860,17 @@ export function MainSequenceProjectsPage() {
                     <MainSequenceProjectImagesTab projectId={selectedProjectId} />
                   ) : activeTab.id === "resource-releases" && selectedProjectId > 0 ? (
                     <MainSequenceProjectResourceReleasesTab
+                      onConsumeCreateReleaseIntent={clearPendingCreateReleaseKind}
                       onCloseResourceReleaseDetail={closeResourceReleaseDetail}
                       onOpenJobDetail={openJobDetail}
                       onOpenProjectDetail={openProjectDetail}
                       onOpenResourceReleaseDetail={openResourceReleaseDetail}
                       projectId={selectedProjectId}
+                      requestedCreateReleaseIntent={
+                        searchParams.get(mainSequenceCreateReleaseIntentParam) === "project-agent"
+                          ? "project-agent"
+                          : null
+                      }
                       selectedResourceReleaseId={
                         isResourceReleaseDetailOpen ? selectedResourceReleaseId : null
                       }

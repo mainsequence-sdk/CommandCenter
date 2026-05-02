@@ -584,6 +584,7 @@ export interface SummaryExtensions {
 export interface MainSequenceSummaryExtensions extends SummaryExtensions {
   resource_usage_chart_data?: ResourceUsageChartPoint[];
   generated_search_document?: string;
+  agent_capabilities?: boolean;
 }
 
 export interface TargetPortfolioSummaryExtensions extends MainSequenceSummaryExtensions {
@@ -988,6 +989,7 @@ export interface ProjectSummary {
   data_source: DynamicTableDataSourceOption | null;
   git_ssh_url: string | null;
   is_initialized: boolean;
+  agent_capabilities?: boolean;
   created_by: string;
 }
 
@@ -2436,6 +2438,22 @@ export interface CreateResourceReleaseInput {
   gpu_request?: string;
   gpu_type?: string;
   spot?: boolean;
+}
+
+export interface CreateProjectExecutorAgentServiceInput {
+  project_id: number;
+  project_related_image_id: number;
+  cpu_request?: string;
+  memory_request?: string;
+  gpu_request?: string;
+  gpu_type?: string;
+  spot?: boolean;
+}
+
+export interface ProjectExecutorAgentServiceRecord {
+  id?: number;
+  detail?: string;
+  [key: string]: unknown;
 }
 
 export interface AvailableGpuTypeOption {
@@ -5258,6 +5276,19 @@ export function createResourceRelease(input: CreateResourceReleaseInput) {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function getOrCreateProjectExecutorAgentService(
+  input: CreateProjectExecutorAgentServiceInput,
+) {
+  return requestJson<ProjectExecutorAgentServiceRecord>(
+    "/orm/api/agents/v1/project-executor-agent-services/get_or_create/",
+    "",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function deleteResourceRelease(resourceReleaseId: number) {

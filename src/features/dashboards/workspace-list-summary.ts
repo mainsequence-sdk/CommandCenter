@@ -1,9 +1,11 @@
-import type { DashboardDefinition } from "@/dashboards/types";
+import type { DashboardDefinition, DashboardDefinitionType } from "@/dashboards/types";
+import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 
 export interface WorkspaceListItemSummary {
   id: string;
   title: string;
   description: string;
+  type: DashboardDefinitionType;
   labels: string[];
   source: string;
   updatedAt: string | null;
@@ -66,7 +68,7 @@ function readUpdatedAt(source: Record<string, unknown>) {
 }
 
 export function summarizeDashboardForWorkspaceList(
-  dashboard: Pick<DashboardDefinition, "id" | "title" | "description" | "labels" | "source">,
+  dashboard: Pick<DashboardDefinition, "id" | "title" | "description" | "type" | "labels" | "source">,
   options?: {
     updatedAt?: string | null;
   },
@@ -75,6 +77,7 @@ export function summarizeDashboardForWorkspaceList(
     id: dashboard.id,
     title: dashboard.title,
     description: dashboard.description,
+    type: normalizeDashboardDefinitionType(dashboard.type, dashboard.labels),
     labels: dashboard.labels ?? [],
     source: dashboard.source,
     updatedAt: options?.updatedAt ?? null,
@@ -118,6 +121,7 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
         id,
         title: readStringAlias(value, ["title", "name", "display_name", "displayName"], "Workspace"),
         description: typeof value.description === "string" ? value.description : "",
+        type: normalizeDashboardDefinitionType(value.type, coerceLabelArray(value)),
         labels: coerceLabelArray(value),
         source: readStringAlias(value, ["source", "origin"], "user"),
       },
@@ -137,6 +141,7 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
     id,
     title: readStringAlias(value, ["title", "name", "display_name", "displayName"], "Workspace"),
     description: typeof value.description === "string" ? value.description : "",
+    type: normalizeDashboardDefinitionType(value.type, coerceLabelArray(value)),
     labels: coerceLabelArray(value),
     source: readStringAlias(value, ["source", "origin"], "user"),
     updatedAt: readUpdatedAt(value),

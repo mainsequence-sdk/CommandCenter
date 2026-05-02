@@ -40,6 +40,9 @@ broader Main Sequence AI widget catalog.
 
 - Keep this surface focused on agent-monitor workspaces only. General-purpose workspace behavior
   still belongs to the core `workspace-studio` app.
+- Agent-monitor workspace identity now uses the first-class workspace `type` field with a labels
+  fallback for legacy data. Keep backend summaries and detail payloads returning that `type`
+  instead of depending on label inference forever.
 - If the monitor needs new AI-only widgets later, add them through the shared studio filter config
   instead of forking the canvas implementation.
 - Prefer the direct launcher flow here over asking users to add a blank widget and then configure

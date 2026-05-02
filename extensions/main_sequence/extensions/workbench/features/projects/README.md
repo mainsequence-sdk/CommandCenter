@@ -31,6 +31,25 @@ This feature owns the Main Sequence project registry and project detail experien
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.
 - The infra graph tab is backed by the dedicated `widgets/project-infra-graph/` module. That module also powers the reusable workspace widget definition, so project-tab changes should keep the compact widget variant working too. It follows the backend link contract directly: click inspects via `summary_url`, and `Explore graph` drills down via `graph_url`. The graph presentation is intentionally project-centric, with the project node centered and the rest of the infrastructure arranged radially instead of in column lanes.
 - The resource releases tab supports project resource release creation flows for dashboard, agent, and fastapi release kinds.
+- The project detail summary header can expose project agent capability status. When a project is
+  agent-capable, the `Configure project agent` action routes into the resource releases dialog in a
+  dedicated project-agent mode instead of maintaining a second project-agent form.
+- Agent release creation now warns that Project Execution Agents are unique per project and that
+  re-deploying an agent release replaces the current execution agent, so compatibility must be
+  preserved for existing callers and workflows.
+- That project-agent mode is not the generic `Create Agent Release` flow: it opens with the title
+  `Create Project Agent`, uses the selected ready project image, and targets the
+  `project_agent_card` resource type. The modal still shows the filtered resource results returned
+  by the shared project-resources query, so the user sees the same resource surface as the generic
+  release flows even though submission goes through the dedicated project-agent endpoint.
+- The `Create Project Agent` submit path does not call the generic `resource-release/` create
+  endpoint. It posts
+  `{ project_id, project_related_image_id, cpu_request?, memory_request?, gpu_request?, gpu_type?, spot? }`
+  to `/orm/api/agents/v1/project-executor-agent-services/get_or_create/`.
+- Both the generic release modal and the dedicated `Create Project Agent` mode expose the shared GPU
+  count/type controls backed by the common available-GPU-types query. Project-agent creation forwards
+  that GPU selection through the `project-executor-agent-services/get_or_create/` request instead of
+  silently dropping it.
 - FastAPI resource release details now expose a `Test API` tab. It reuses the shared AppComponent schema explorer and request-form runner, but keeps the output intentionally raw and developer-oriented.
 - When the selected FastAPI response advertises AppComponent response-notification metadata, that
   `Test API` tab now also shows the same notification preview above the raw response body. The raw

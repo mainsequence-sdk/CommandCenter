@@ -15,6 +15,7 @@ import type { WorkspaceSnapshotCaptureProfile } from "./snapshot/types";
 import { useCustomWorkspaceStudioStore } from "./custom-workspace-studio-store";
 import { getWorkspacePersistenceMode } from "./workspace-persistence";
 import type { WorkspaceListItemSummary } from "./workspace-list-summary";
+import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 
 export function resolveWorkspaceDirtyState(input: {
   workspaceId: string | null | undefined;
@@ -53,6 +54,7 @@ export function useCustomWorkspaceStudio() {
         ? "connection"
         : "settings";
   const persistenceMode = getWorkspacePersistenceMode();
+  const { workspaceTypes } = useWorkspaceStudioSurfaceConfig();
   const selectedWorkspaceView =
     snapshotMode
       ? "dashboard"
@@ -111,8 +113,9 @@ export function useCustomWorkspaceStudio() {
         getWorkspacePersistenceMode() === "backend" &&
         Boolean(requestedWorkspaceId)
       ),
+      workspaceTypes,
     });
-  }, [initialize, requestedWorkspaceId, user?.id]);
+  }, [initialize, requestedWorkspaceId, user?.id, workspaceTypes]);
 
   const selectedDashboardSource = useMemo(
     () => {

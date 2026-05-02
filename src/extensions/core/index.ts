@@ -20,6 +20,7 @@ import { AdminLoginSessionsPage } from "@/extensions/core/apps/admin/AdminLoginS
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
 import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
 import { SavedWidgetsPage } from "@/features/dashboards/SavedWidgetsPage";
+import { SlideStudioPage } from "@/features/dashboards/SlideStudioPage";
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
 import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
 import { cyberpunkTheme } from "@/themes/presets/cyberpunk";
@@ -44,6 +45,7 @@ import { tabularTransformWidget } from "@/widgets/core/tabular-transform/definit
 import { statisticWidget } from "@/widgets/core/statistic/definition";
 import { tableWidget } from "@/widgets/core/table/definition";
 import { workspaceRowWidget } from "@/widgets/core/workspace-row/definition";
+import { workspaceSlideWidget } from "@/widgets/core/workspace-slide/definition";
 
 const workspaceStudioApp: AppDefinition = {
   id: "workspace-studio",
@@ -165,6 +167,26 @@ const workspaceStudioApp: AppDefinition = {
       fullBleed: true,
       requiredPermissions: ["workspaces:view"],
       component: WorkspacesPage,
+    },
+    {
+      id: "slide-studio",
+      title: "Slide Studio",
+      navLabel: "Slide Studio",
+      description: "List, open, and manage slide-studio workspaces for presentation decks.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the Slide Studio surface. This area manages presentation-oriented slide deck workspaces built on the shared workspace studio.",
+        availableActions: [
+          "Open a slide deck workspace",
+          "Create a new slide deck",
+          "Copy a slide deck workspace",
+          "Favorite a slide deck workspace",
+        ],
+      }),
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["workspaces:view"],
+      component: SlideStudioPage,
     },
     {
       id: "widget-catalog",
@@ -562,6 +584,7 @@ const coreExtension: AppExtension = {
     graphWidget,
     statisticWidget,
     workspaceRowWidget,
+    workspaceSlideWidget,
   ],
   apps: [workspaceStudioApp, adminApp, accessRbacApp],
   themes: [

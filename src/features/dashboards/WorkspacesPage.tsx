@@ -13,11 +13,13 @@ import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import type { WorkspaceListItemSummary } from "./workspace-list-summary";
 import {
   getWorkspaceFavoriteId,
-  getWorkspacePath,
   isWorkspaceFavorited,
 } from "./workspace-favorites";
 import { WorkspaceStudioCanvasHost } from "./WorkspaceStudioCanvasHost";
-import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
+import {
+  filterWorkspaceStudioEntries,
+  useWorkspaceStudioSurfaceConfig,
+} from "./workspace-studio-surface-config";
 
 function formatWorkspaceUpdatedAt(workspace: Pick<WorkspaceListItemSummary, "updatedAt">) {
   if (!workspace.updatedAt) {
@@ -39,9 +41,32 @@ function buildCopiedWorkspaceTitle(title: string) {
   return trimmed ? `Copy of ${trimmed}` : "Copy of Workspace";
 }
 
+function buildWorkspaceSurfacePath(
+  workspaceListPath: string,
+  workspaceId: string,
+  view?: "settings",
+) {
+  const params = new URLSearchParams({ workspace: workspaceId });
+
+  if (view === "settings") {
+    params.set("view", "settings");
+  }
+
+  return `${workspaceListPath}?${params.toString()}`;
+}
+
 export function WorkspacesPage() {
   const navigate = useNavigate();
-  const { savedWidgetsPath } = useWorkspaceStudioSurfaceConfig();
+  const {
+    createWorkspaceDefinition,
+    createWorkspaceLabel,
+    savedWidgetsPath,
+    workspaceCountLabel,
+    workspaceFilter,
+    workspaceListPath,
+    workspacePageDescription,
+    workspacePageTitle,
+  } = useWorkspaceStudioSurfaceConfig();
   const favoriteWorkspaceIds = useShellStore((state) => state.favoriteWorkspaceIds);
   const toggleWorkspaceFavorite = useShellStore((state) => state.toggleWorkspaceFavorite);
   const {
@@ -61,6 +86,13 @@ export function WorkspacesPage() {
     loadWorkspaceDetail,
   } = useCustomWorkspaceStudio();
   const backendMode = persistenceMode === "backend";
+  const visibleWorkspaceListItems = filterWorkspaceStudioEntries(
+    workspaceListItems,
+    workspaceFilter,
+  );
+  const selectedWorkspaceSupported = selectedDashboard
+    ? (workspaceFilter ? workspaceFilter(selectedDashboard) : true)
+    : false;
 
   if (!user) {
     return (
@@ -92,7 +124,10 @@ export function WorkspacesPage() {
     );
   }
 
-  if (requestedWorkspaceId && requestedWorkspaceMissing) {
+  if (
+    requestedWorkspaceId &&
+    (requestedWorkspaceMissing || (selectedDashboard && !selectedWorkspaceSupported))
+  ) {
     return (
       <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
         <div className="mx-auto flex min-h-[320px] max-w-4xl items-center justify-center">
@@ -112,7 +147,7 @@ export function WorkspacesPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  navigate("/app/workspace-studio/workspaces");
+                  navigate(workspaceListPath);
                 }}
               >
                 Back to workspaces
@@ -124,7 +159,7 @@ export function WorkspacesPage() {
     );
   }
 
-  if (requestedWorkspaceId && selectedDashboard) {
+  if (requestedWorkspaceId && selectedDashboard && selectedWorkspaceSupported) {
     return <WorkspaceStudioCanvasHost />;
   }
 
@@ -141,11 +176,10 @@ export function WorkspacesPage() {
           <div className="space-y-2">
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                Workspaces
+                {workspacePageTitle}
               </h1>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Choose a saved workspace or create a new one. Canvas and settings belong to each
-                workspace instance.
+                {workspacePageDescription}
               </p>
             </div>
           </div>
@@ -173,12 +207,21 @@ export function WorkspacesPage() {
             ) : null}
             <Button
               onClick={() => {
-                void createWorkspace();
+                const defaultTitle = workspaceCountLabel === "slide decks"
+                  ? `Slide Deck ${visibleWorkspaceListItems.length + 1}`
+                  : `Workspace ${visibleWorkspaceListItems.length + 1}`;
+
+                if (createWorkspaceDefinition) {
+                  void createWorkspaceFromDefinition(createWorkspaceDefinition(defaultTitle));
+                  return;
+                }
+
+                void createWorkspace(defaultTitle);
               }}
               disabled={isHydrating || isSaving}
             >
               <LayoutTemplate className="h-4 w-4" />
-              New workspace
+              {createWorkspaceLabel}
             </Button>
           </div>
         </div>
@@ -209,7 +252,7 @@ export function WorkspacesPage() {
                 </tr>
               </thead>
               <tbody>
-                {workspaceListItems.map((workspace) => (
+                {visibleWorkspaceListItems.map((workspace) => (
                   <tr
                     key={workspace.id}
                     className="border-b border-border/60 transition-colors hover:bg-background/35"
@@ -260,7 +303,7 @@ export function WorkspacesPage() {
                         <Button
                           size="sm"
                           onClick={() => {
-                            navigate(getWorkspacePath(workspace.id));
+                            navigate(buildWorkspaceSurfacePath(workspaceListPath, workspace.id));
                           }}
                         >
                           <ArrowRight className="h-4 w-4" />
@@ -296,7 +339,13 @@ export function WorkspacesPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            navigate(getWorkspacePath(workspace.id, "settings"));
+                            navigate(
+                              buildWorkspaceSurfacePath(
+                                workspaceListPath,
+                                workspace.id,
+                                "settings",
+                              ),
+                            );
                           }}
                         >
                           <Settings2 className="h-4 w-4" />
@@ -311,7 +360,7 @@ export function WorkspacesPage() {
           </div>
 
           <div className="border-t border-border/70 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
-            {workspaceListItems.length} workspaces.
+            {visibleWorkspaceListItems.length} {workspaceCountLabel}.
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import {
   saveUserDashboardCollection,
   type UserDashboardCollection,
 } from "./custom-dashboard-storage";
-import type { DashboardDefinition } from "@/dashboards/types";
+import type { DashboardDefinition, DashboardDefinitionType } from "@/dashboards/types";
 import { env } from "@/config/env";
 import {
   fetchWorkspaceDetailFromBackend,
@@ -18,6 +18,7 @@ import {
   saveWorkspaceUserStateInBackend,
 } from "./workspace-api";
 import { summarizeDashboardForWorkspaceList, type WorkspaceListItemSummary } from "./workspace-list-summary";
+import { normalizeDashboardDefinitionTypeList } from "./workspace-definition-type";
 import {
   createEmptyWorkspaceUserState,
   extractWorkspaceUserStateFromDashboard,
@@ -27,6 +28,7 @@ import {
 export type WorkspacePersistenceMode = "backend" | "local";
 export interface LoadPersistedWorkspaceListSummariesOptions {
   excludeIds?: readonly string[];
+  types?: readonly DashboardDefinitionType[];
 }
 
 function normalizeExcludedWorkspaceIds(excludeIds: readonly string[] | undefined) {
@@ -57,6 +59,20 @@ function filterExcludedWorkspaceSummaries(
   return items.filter((item) => !excludedIdSet.has(item.id));
 }
 
+function filterWorkspaceSummariesByType(
+  items: WorkspaceListItemSummary[],
+  options?: LoadPersistedWorkspaceListSummariesOptions,
+) {
+  const types = normalizeDashboardDefinitionTypeList(options?.types);
+
+  if (types.length === 0) {
+    return items;
+  }
+
+  const typeSet = new Set(types);
+  return items.filter((item) => typeSet.has(item.type));
+}
+
 export function getWorkspacePersistenceMode(): WorkspacePersistenceMode {
   if (env.useMockData) {
     return "local";
@@ -74,9 +90,12 @@ export async function loadPersistedWorkspaceListSummaries(
   options?: LoadPersistedWorkspaceListSummariesOptions,
 ): Promise<WorkspaceListItemSummary[]> {
   if (env.useMockData) {
-    return filterExcludedWorkspaceSummaries(
-      readBundledMockWorkspaceCollection().dashboards.map((dashboard) =>
-        summarizeDashboardForWorkspaceList(dashboard),
+    return filterWorkspaceSummariesByType(
+      filterExcludedWorkspaceSummaries(
+        readBundledMockWorkspaceCollection().dashboards.map((dashboard) =>
+          summarizeDashboardForWorkspaceList(dashboard),
+        ),
+        options,
       ),
       options,
     );
@@ -84,9 +103,12 @@ export async function loadPersistedWorkspaceListSummaries(
 
   if (!isWorkspaceBackendEnabled()) {
     const { loadUserDashboardCollection } = await import("./custom-dashboard-storage");
-    return filterExcludedWorkspaceSummaries(
-      loadUserDashboardCollection(userId).dashboards.map((dashboard) =>
-        summarizeDashboardForWorkspaceList(dashboard),
+    return filterWorkspaceSummariesByType(
+      filterExcludedWorkspaceSummaries(
+        loadUserDashboardCollection(userId).dashboards.map((dashboard) =>
+          summarizeDashboardForWorkspaceList(dashboard),
+        ),
+        options,
       ),
       options,
     );
@@ -94,6 +116,7 @@ export async function loadPersistedWorkspaceListSummaries(
 
   return fetchWorkspaceListSummariesFromBackend({
     excludeIds: options?.excludeIds,
+    types: options?.types,
   });
 }
 

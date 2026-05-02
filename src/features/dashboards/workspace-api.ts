@@ -1,7 +1,11 @@
 import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
-import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
+import type {
+  DashboardDefinition,
+  DashboardDefinitionType,
+  DashboardWidgetInstance,
+} from "@/dashboards/types";
 import {
   sanitizeDashboardDefinition,
   sanitizeUserDashboardCollection,
@@ -9,6 +13,7 @@ import {
   normalizeUserDashboardCollection,
   type UserDashboardCollection,
 } from "./custom-dashboard-storage";
+import { normalizeDashboardDefinitionTypeList } from "./workspace-definition-type";
 import {
   normalizeWorkspaceListSummariesPayload,
   summarizeDashboardForWorkspaceList,
@@ -225,6 +230,7 @@ function appendWorkspaceListFrontendFlag(
   path: string,
   options?: {
     excludeIds?: readonly string[];
+    types?: readonly DashboardDefinitionType[];
   },
 ) {
   const url = new URL(path, env.apiBaseUrl);
@@ -236,6 +242,19 @@ function appendWorkspaceListFrontendFlag(
     url.searchParams.set("exclude_ids", normalizedExcludeIds.join(","));
   } else {
     url.searchParams.delete("exclude_ids");
+  }
+
+  const normalizedTypes = normalizeDashboardDefinitionTypeList(options?.types);
+
+  if (normalizedTypes.length === 1) {
+    url.searchParams.set("type", normalizedTypes[0]);
+    url.searchParams.delete("types");
+  } else if (normalizedTypes.length > 1) {
+    url.searchParams.set("types", normalizedTypes.join(","));
+    url.searchParams.delete("type");
+  } else {
+    url.searchParams.delete("type");
+    url.searchParams.delete("types");
   }
 
   return `${url.pathname}${url.search}`;
@@ -360,15 +379,21 @@ function parseRequestJsonBody(body: RequestInit["body"]) {
   }
 }
 
-function buildMockWorkspacePayload() {
+function buildMockWorkspacePayload(options?: {
+  types?: readonly DashboardDefinitionType[];
+}) {
   const mockWorkspaceCollection = readMockWorkspaceCollection(getCurrentMockWorkspaceUserId());
+  const normalizedTypes = normalizeDashboardDefinitionTypeList(options?.types);
+  const typeSet = normalizedTypes.length > 0 ? new Set(normalizedTypes) : null;
 
   return {
-    results: mockWorkspaceCollection.dashboards.map((dashboard) =>
-      summarizeDashboardForWorkspaceList(dashboard, {
-        updatedAt: mockWorkspaceCollection.savedAt,
-      }),
-    ),
+    results: mockWorkspaceCollection.dashboards
+      .filter((dashboard) => (typeSet ? typeSet.has(dashboard.type ?? "workspace") : true))
+      .map((dashboard) =>
+        summarizeDashboardForWorkspaceList(dashboard, {
+          updatedAt: mockWorkspaceCollection.savedAt,
+        }),
+      ),
   };
 }
 
@@ -481,7 +506,18 @@ function handleMockWorkspaceRequest(path: string, init?: RequestInit) {
 
   if (pathname === listPathname) {
     if (method === "GET") {
-      return buildMockWorkspacePayload();
+      const url = new URL(path, window.location.origin);
+      const explicitType = url.searchParams.get("type");
+      const types = url.searchParams.get("types");
+      const requestedTypes = explicitType
+        ? [explicitType]
+        : types
+          ? types.split(",").map((value) => value.trim()).filter(Boolean)
+          : [];
+
+      return buildMockWorkspacePayload({
+        types: requestedTypes as DashboardDefinitionType[],
+      });
     }
 
     if (method === "POST") {
@@ -934,6 +970,7 @@ export function hasConfiguredWorkspaceUserStateBackend() {
 
 export async function fetchWorkspaceListSummariesFromBackend(options?: {
   excludeIds?: readonly string[];
+  types?: readonly DashboardDefinitionType[];
 }): Promise<WorkspaceListItemSummary[]> {
   const listPath = commandCenterConfig.workspaces.listUrl.trim();
 
@@ -950,6 +987,7 @@ export async function fetchWorkspaceListSummariesFromBackend(options?: {
   const payload = await requestWorkspaceBackend(
     appendWorkspaceListFrontendFlag(listPath, {
       excludeIds: options?.excludeIds,
+      types: options?.types,
     }),
   );
   return normalizeWorkspaceListSummariesPayload(payload);

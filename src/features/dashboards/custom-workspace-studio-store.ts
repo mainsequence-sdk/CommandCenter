@@ -14,7 +14,7 @@ import {
   savePersistedWorkspace,
   savePersistedWorkspaceUserState,
 } from "./workspace-persistence";
-import type { DashboardDefinition } from "@/dashboards/types";
+import type { DashboardDefinition, DashboardDefinitionType } from "@/dashboards/types";
 import {
   createWorkspaceInBackend,
   deleteWorkspaceInBackend,
@@ -37,6 +37,7 @@ interface CustomWorkspaceStudioState {
   draftWorkspaceById: Record<string, DashboardDefinition>;
   workspaceUserStateHydratedById: Record<string, boolean>;
   workspaceListItems: WorkspaceListItemSummary[];
+  workspaceListTypes: DashboardDefinitionType[];
   workspaceListHydrated: boolean;
   dirtyWorkspaceIds: Record<string, boolean>;
   workspaceDraftRevisionById: Record<string, number>;
@@ -52,6 +53,7 @@ interface CustomWorkspaceStudioState {
     userId: string | null,
     options?: {
       preloadList?: boolean;
+      workspaceTypes?: DashboardDefinitionType[];
     },
   ) => Promise<void>;
   updateWorkspaceDraft: (
@@ -265,6 +267,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
   draftWorkspaceById: createEmptyWorkspaceMap(),
   workspaceUserStateHydratedById: {},
   workspaceListItems: [],
+  workspaceListTypes: [],
   workspaceListHydrated: false,
   dirtyWorkspaceIds: {},
   workspaceDraftRevisionById: {},
@@ -286,6 +289,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         draftWorkspaceById: createEmptyWorkspaceMap(),
         workspaceUserStateHydratedById: {},
         workspaceListItems: [],
+        workspaceListTypes: [],
         workspaceListHydrated: false,
         dirtyWorkspaceIds: {},
         workspaceDraftRevisionById: {},
@@ -303,12 +307,19 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
 
     const current = get();
     const shouldPreloadList = options?.preloadList ?? true;
+    const requestedWorkspaceTypes = Array.from(new Set(options?.workspaceTypes ?? []));
+    const workspaceTypesChanged =
+      current.workspaceListTypes.join(",") !== requestedWorkspaceTypes.join(",");
 
     if (
         current.hydratingUserId === userId ||
       (
         current.initializedUserId === userId &&
-        (!shouldPreloadList || !isWorkspaceBackendEnabled() || current.workspaceListHydrated)
+        (
+          !shouldPreloadList ||
+          !isWorkspaceBackendEnabled() ||
+          (current.workspaceListHydrated && !workspaceTypesChanged)
+        )
       )
     ) {
       return;
@@ -326,7 +337,9 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         ? buildPersistedCollection(createEmptyWorkspaceMap(), [], null)
         : await loadPersistedWorkspaceCollection(userId);
       const workspaceListItems = shouldPreloadList
-        ? await loadPersistedWorkspaceListSummaries(userId)
+        ? await loadPersistedWorkspaceListSummaries(userId, {
+            types: requestedWorkspaceTypes,
+          })
         : current.workspaceListItems;
 
       if (get().hydratingUserId !== userId) {
@@ -343,6 +356,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
           ? {}
           : Object.fromEntries(loaded.dashboards.map((dashboard) => [dashboard.id, true])),
         workspaceListItems,
+        workspaceListTypes: requestedWorkspaceTypes,
         workspaceListHydrated: shouldPreloadList || !backendEnabled,
         dirtyWorkspaceIds: {},
         workspaceDraftRevisionById: {},
@@ -367,6 +381,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         draftWorkspaceById: createEmptyWorkspaceMap(),
         workspaceUserStateHydratedById: {},
         workspaceListItems: [],
+        workspaceListTypes: [],
         workspaceListHydrated: false,
         dirtyWorkspaceIds: {},
         workspaceDraftRevisionById: {},
@@ -587,6 +602,9 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
         await deleteWorkspaceInBackend(workspaceId);
         const reloadedWorkspaceListItems = await loadPersistedWorkspaceListSummaries(
           current.initializedUserId,
+          {
+            types: current.workspaceListTypes,
+          },
         );
 
         set({
@@ -597,6 +615,7 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
             Object.entries(current.workspaceUserStateHydratedById).filter(([id]) => id !== workspaceId),
           ),
           workspaceListItems: reloadedWorkspaceListItems,
+          workspaceListTypes: current.workspaceListTypes,
           workspaceListHydrated: true,
           dirtyWorkspaceIds: markWorkspaceIdsDirty(current.dirtyWorkspaceIds, [workspaceId], false),
           workspaceDraftRevisionById: clearWorkspaceDraftRevisions(

@@ -22,10 +22,17 @@ import {
   useChatUiStore,
 } from "../../../extensions/main_sequence_ai/assistant-ui/chat-ui-store";
 
+const WORKSPACE_CANVAS_SURFACE_IDS = new Set(["workspaces", "slide-studio"]);
+
 function isWorkspaceCanvasRoute(pathname: string, search: string) {
   const routeSegments = pathname.split("/").filter(Boolean);
+  const surfaceId = routeSegments[2];
 
-  if (routeSegments[1] !== "workspace-studio" || routeSegments[2] !== "workspaces") {
+  if (
+    routeSegments[1] !== "workspace-studio" ||
+    !surfaceId ||
+    !WORKSPACE_CANVAS_SURFACE_IDS.has(surfaceId)
+  ) {
     return false;
   }
 

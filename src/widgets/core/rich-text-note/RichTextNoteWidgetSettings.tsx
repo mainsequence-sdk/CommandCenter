@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
+  normalizeRichTextNoteHorizontalAlign,
   normalizeRichTextNoteVerticalAlign,
   normalizeRichTextNoteWidth,
   richTextNoteStarterHtml,
@@ -19,6 +20,9 @@ export function RichTextNoteWidgetSettings({
 }: WidgetSettingsComponentProps<RichTextNoteWidgetProps>) {
   const contentWidth = normalizeRichTextNoteWidth(draftProps.contentWidth);
   const contentVerticalAlign = normalizeRichTextNoteVerticalAlign(draftProps.contentVerticalAlign);
+  const contentHorizontalAlign = normalizeRichTextNoteHorizontalAlign(
+    draftProps.contentHorizontalAlign,
+  );
   const openLinksInNewTab = draftProps.openLinksInNewTab !== false;
 
   return (
@@ -97,7 +101,28 @@ export function RichTextNoteWidgetSettings({
         </label>
 
         <label className="space-y-2">
-          <span className="text-sm font-medium text-topbar-foreground">Vertical alignment</span>
+          <span className="text-sm font-medium text-topbar-foreground">Horizontal text alignment</span>
+          <Select
+            value={contentHorizontalAlign}
+            disabled={!editable}
+            onChange={(event) => {
+              onDraftPropsChange({
+                ...draftProps,
+                contentHorizontalAlign: normalizeRichTextNoteHorizontalAlign(
+                  event.target.value as RichTextNoteWidgetProps["contentHorizontalAlign"],
+                ),
+              });
+            }}
+          >
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+            <option value="justify">Spread</option>
+          </Select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-topbar-foreground">Vertical placement</span>
           <Select
             value={contentVerticalAlign}
             disabled={!editable}
@@ -111,7 +136,7 @@ export function RichTextNoteWidgetSettings({
             }}
           >
             <option value="top">Top</option>
-            <option value="center">Center</option>
+            <option value="center">Middle</option>
             <option value="bottom">Bottom</option>
           </Select>
         </label>

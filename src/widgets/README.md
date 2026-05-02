@@ -114,6 +114,9 @@ Use these local docs before reading the implementation in code:
   route needs a specific presentation. Do not push route-specific size requirements back into the
   reusable widget definition.
 - The shared settings modal supports title overrides, shared widget chrome options such as `showHeader`, and raw JSON prop editing for any widget instance.
+- `showHeader` is the single shared header-visibility contract for workspace widget cards. The
+  workspace host now preserves that choice in both edit and view mode instead of forcing headers
+  back on during editing.
 - Workspace widget settings now also expose a dedicated `Bindings` tab for widgets that declare
   inputs, including inputs resolved dynamically from saved widget instance configuration. Do not
   stuff inter-widget graph edges into raw props editors.
@@ -153,6 +156,8 @@ Use these local docs before reading the implementation in code:
   snapshots stable enough that they can be consumed both by archive capture and by bound agent
   widgets.
 - Widgets can also provide optional header actions through the shared shell when a control belongs in the widget chrome instead of inside the widget body.
+- Shared widget actions now live in a static top-right card overlay so edit mode and view mode keep
+  the same card proportions.
 - Widget shells expose shared markers through `shared/chrome.ts`, so theme-specific CSS can style widget chrome separately from generic cards when needed.
 - Shared widget shells no longer add default body padding. If a widget needs internal spacing, the widget component itself must add it explicitly.
 

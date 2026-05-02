@@ -16,10 +16,17 @@ Inline rich-text workspace note with direct canvas editing.
 
 - Add the widget to a workspace.
 - Enter workspace edit mode and write directly on the card.
-- Use the font-size control in the inline toolbar for body, emphasis, or display-title sizing.
-- Adjust width, vertical alignment, or link behavior in settings if needed.
+- Focus the note to reveal the compact floating inline toolbar for unified text style, emphasis,
+  lists, quotes, code, links, horizontal alignment, and vertical placement.
+- Adjust width, horizontal alignment, vertical placement, or link behavior in settings if needed.
+- The widget hides the shared card header by default so the content reads like a slide or document
+  block instead of a utility widget.
 
 ## commonPitfalls
 
 - This widget stores HTML, not markdown.
 - Inline editing depends on host support for canvas editing.
+- The formatting toolbar appears only while the note is focused in edit mode and floats inside the
+  note surface, so the editor still feels like direct inline authoring instead of a separate panel.
+- Alignment settings affect the rendered layout around the HTML content; they do not rewrite the
+  HTML itself.

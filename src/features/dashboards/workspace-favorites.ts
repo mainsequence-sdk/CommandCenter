@@ -1,4 +1,5 @@
 import { getAppPath } from "@/apps/utils";
+import type { DashboardDefinitionType } from "@/dashboards/types";
 
 const WORKSPACE_FAVORITE_PREFIX = "workspace-studio::workspace::";
 
@@ -10,6 +11,18 @@ export interface FavoriteWorkspaceEntry {
   appId: "workspace-studio";
   appTitle: string;
   kindLabel: "workspace";
+}
+
+function getWorkspaceSurfacePathByType(type?: DashboardDefinitionType) {
+  switch (type) {
+    case "slide-studio":
+      return getAppPath("workspace-studio", "slide-studio");
+    case "agent-monitor":
+      return getAppPath("main_sequence_ai", "monitor");
+    case "workspace":
+    default:
+      return getAppPath("workspace-studio", "workspaces");
+  }
 }
 
 export function getWorkspaceFavoriteId(workspaceId: string) {
@@ -24,20 +37,25 @@ export function isWorkspaceFavorited(favoriteWorkspaceIds: string[], workspaceId
   return favoriteWorkspaceIds.includes(getWorkspaceFavoriteId(workspaceId));
 }
 
-export function getWorkspacePath(workspaceId: string, view?: "settings") {
+export function getWorkspacePath(
+  workspaceId: string,
+  view?: "settings",
+  type?: DashboardDefinitionType,
+) {
   const params = new URLSearchParams({ workspace: workspaceId });
 
   if (view === "settings") {
     params.set("view", "settings");
   }
 
-  return `${getAppPath("workspace-studio", "workspaces")}?${params.toString()}`;
+  return `${getWorkspaceSurfacePathByType(type)}?${params.toString()}`;
 }
 
 export function getFavoriteWorkspaceEntries(
   workspaces: Array<{
     id: string;
     title: string;
+    type?: DashboardDefinitionType;
   }>,
   favoriteWorkspaceIds: string[],
 ): FavoriteWorkspaceEntry[] {
@@ -57,7 +75,7 @@ export function getFavoriteWorkspaceEntries(
         id: workspace.id,
         favoriteId,
         title: workspace.title,
-        path: getWorkspacePath(workspace.id),
+        path: getWorkspacePath(workspace.id, undefined, workspace.type),
         appId: "workspace-studio" as const,
         appTitle: "Workspaces",
         kindLabel: "workspace" as const,

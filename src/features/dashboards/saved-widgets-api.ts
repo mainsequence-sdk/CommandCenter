@@ -9,6 +9,7 @@ import type {
   DashboardCompanionLayoutItem,
   DashboardWidgetInstance,
   DashboardWidgetPlacement,
+  DashboardWidgetSlidePlacement,
 } from "@/dashboards/types";
 import type {
   WidgetInstanceBindings,
@@ -113,6 +114,35 @@ function readPlacement(value: unknown): DashboardWidgetPlacement | undefined {
   const y = typeof value.y === "number" ? value.y : undefined;
 
   return x === undefined && y === undefined ? undefined : { x, y };
+}
+
+function readSlidePlacement(value: unknown): DashboardWidgetSlidePlacement | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const slideWidgetId =
+    typeof value.slideWidgetId === "string"
+      ? value.slideWidgetId.trim()
+      : typeof value.slide_widget_id === "string"
+        ? value.slide_widget_id.trim()
+        : "";
+  const region =
+    typeof value.region === "string"
+      ? value.region.trim()
+      : "";
+
+  if (
+    !slideWidgetId ||
+    !["header", "left", "body", "right", "footer"].includes(region)
+  ) {
+    return undefined;
+  }
+
+  return {
+    slideWidgetId,
+    region: region as DashboardWidgetSlidePlacement["region"],
+  };
 }
 
 function readCompanions(value: unknown): DashboardCompanionLayoutItem[] {
@@ -222,12 +252,14 @@ export interface SavedWidgetInstanceSummary {
 
 export interface SavedWidgetInstanceRecord extends SavedWidgetInstanceSummary {
   schemaVersion: number;
+  sourceInstanceId?: string;
   props?: Record<string, unknown>;
   presentation?: WidgetInstancePresentation;
   bindings?: WidgetInstanceBindings;
   row?: DashboardWidgetInstance["row"];
   layout: DashboardWidgetInstance["layout"];
   position?: DashboardWidgetPlacement;
+  slidePlacement?: DashboardWidgetSlidePlacement;
   companions: DashboardCompanionLayoutItem[];
   requiredPermissions: string[];
 }
@@ -276,6 +308,7 @@ export interface SavedWidgetInstanceMutationPayload {
   category?: string;
   source?: string;
   schemaVersion?: number;
+  sourceInstanceId?: string;
   widgetTypeId: string;
   instanceTitle?: string;
   props?: Record<string, unknown>;
@@ -284,6 +317,7 @@ export interface SavedWidgetInstanceMutationPayload {
   row?: DashboardWidgetInstance["row"];
   layout: DashboardWidgetInstance["layout"];
   position?: DashboardWidgetPlacement;
+  slidePlacement?: DashboardWidgetSlidePlacement;
   companions?: DashboardCompanionLayoutItem[];
   requiredPermissions?: string[];
 }
@@ -295,6 +329,7 @@ export interface SavedWidgetGroupMemberWidgetSnapshotPayload {
   category?: string;
   source?: string;
   schemaVersion?: number;
+  sourceInstanceId?: string;
   widgetTypeId: string;
   instanceTitle?: string;
   props?: Record<string, unknown>;
@@ -302,6 +337,7 @@ export interface SavedWidgetGroupMemberWidgetSnapshotPayload {
   row?: DashboardWidgetInstance["row"];
   layout: DashboardWidgetInstance["layout"];
   position?: DashboardWidgetPlacement;
+  slidePlacement?: DashboardWidgetSlidePlacement;
   companions?: DashboardCompanionLayoutItem[];
   requiredPermissions?: string[];
 }
@@ -404,12 +440,17 @@ function normalizeSavedWidgetInstanceRecord(value: unknown): SavedWidgetInstance
             : typeof nested.schema_version === "number"
               ? nested.schema_version
               : 1,
+    sourceInstanceId: readString(
+      nested.sourceInstanceId ?? nested.source_instance_id,
+      "",
+    ).trim() || undefined,
     props: readOptionalRecord(nested.props),
     presentation: readOptionalRecord(nested.presentation) as WidgetInstancePresentation | undefined,
     bindings: readOptionalRecord(nested.bindings) as WidgetInstanceBindings | undefined,
     row: readOptionalRecord(nested.row) as DashboardWidgetInstance["row"] | undefined,
     layout: readLayout(nested.layout),
     position: readPlacement(nested.position),
+    slidePlacement: readSlidePlacement(nested.slidePlacement ?? nested.slide_placement),
     companions: readCompanions(nested.companions),
     requiredPermissions: readStringArray(
       nested.requiredPermissions ?? nested.required_permissions,
@@ -654,6 +695,7 @@ function serializeSavedWidgetInstanceMutationPayload(payload: SavedWidgetInstanc
     category: payload.category ?? "Custom",
     source: payload.source ?? "user",
     schema_version: payload.schemaVersion ?? 1,
+    source_instance_id: payload.sourceInstanceId ?? null,
     widget_id: payload.widgetTypeId,
     instance_title: payload.instanceTitle ?? "",
     props: payload.props ?? {},
@@ -662,6 +704,12 @@ function serializeSavedWidgetInstanceMutationPayload(payload: SavedWidgetInstanc
     row: payload.row ?? null,
     layout: payload.layout,
     position: payload.position ?? null,
+    slide_placement: payload.slidePlacement
+      ? {
+          slide_widget_id: payload.slidePlacement.slideWidgetId,
+          region: payload.slidePlacement.region,
+        }
+      : null,
     companions: payload.companions ?? [],
     required_permissions: payload.requiredPermissions ?? [],
   });
@@ -687,6 +735,7 @@ function serializeSavedWidgetGroupMutationPayload(payload: SavedWidgetGroupMutat
         category: member.widgetInstance.category ?? "Custom",
         source: member.widgetInstance.source ?? "user",
         schema_version: member.widgetInstance.schemaVersion ?? 1,
+        source_instance_id: member.widgetInstance.sourceInstanceId ?? null,
         widget_id: member.widgetInstance.widgetTypeId,
         instance_title: member.widgetInstance.instanceTitle ?? "",
         props: member.widgetInstance.props ?? {},
@@ -694,6 +743,12 @@ function serializeSavedWidgetGroupMutationPayload(payload: SavedWidgetGroupMutat
         row: member.widgetInstance.row ?? null,
         layout: member.widgetInstance.layout,
         position: member.widgetInstance.position ?? null,
+        slide_placement: member.widgetInstance.slidePlacement
+          ? {
+              slide_widget_id: member.widgetInstance.slidePlacement.slideWidgetId,
+              region: member.widgetInstance.slidePlacement.region,
+            }
+          : null,
         companions: member.widgetInstance.companions ?? [],
         required_permissions: member.widgetInstance.requiredPermissions ?? [],
       },

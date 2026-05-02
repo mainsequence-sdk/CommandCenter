@@ -40,6 +40,8 @@ import { NotificationsMenu } from "./NotificationsMenu";
 import { SettingsDialog } from "./SettingsDialog";
 import { ThemeMenu } from "./ThemeMenu";
 
+const WORKSPACE_CANVAS_SURFACE_IDS = new Set(["workspaces", "slide-studio"]);
+
 export function Topbar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -76,10 +78,11 @@ export function Topbar() {
     [location.search],
   );
   const requestedWorkspaceId = workspaceRouteParams.get("workspace");
+  const workspaceStudioSurfaceId = params.appId === "workspace-studio" ? params.surfaceId : undefined;
   const isDirectWorkspaceRoute =
     env.includeWorkspaces &&
     params.appId === "workspace-studio" &&
-    params.surfaceId === "workspaces" &&
+    Boolean(workspaceStudioSurfaceId && WORKSPACE_CANVAS_SURFACE_IDS.has(workspaceStudioSurfaceId)) &&
     Boolean(requestedWorkspaceId);
 
   const accessibleApps = getAccessibleApps(permissions);
@@ -133,7 +136,7 @@ export function Topbar() {
   const showWorkspaceCanvasMenuRestore =
     env.includeWorkspaces &&
     params.appId === "workspace-studio" &&
-    params.surfaceId === "workspaces" &&
+    Boolean(workspaceStudioSurfaceId && WORKSPACE_CANVAS_SURFACE_IDS.has(workspaceStudioSurfaceId)) &&
     Boolean(requestedWorkspaceId) &&
     workspaceRouteParams.get("view") !== "settings" &&
     workspaceCanvasMenuHidden;
@@ -304,8 +307,8 @@ export function Topbar() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                aria-label="Show dashboard menu"
-                title="Show dashboard menu"
+                aria-label="Show controls"
+                title="Show controls"
                 className="relative h-9 w-9 px-0 text-topbar-foreground"
                 onClick={() => {
                   setWorkspaceCanvasMenuHidden(false);

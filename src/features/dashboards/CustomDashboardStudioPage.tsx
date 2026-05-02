@@ -10,10 +10,8 @@ import {
   type ComponentType,
   type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
-  type RefObject,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import GridLayout, {
   verticalCompactor,
@@ -31,16 +29,14 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
-  Copy,
   GripVertical,
-  MoreVertical,
   Pencil,
   Plus,
+  Rows3,
   Save,
   Search,
   Settings2,
   Star,
-  Trash2,
   Loader2,
   Waypoints,
   X,
@@ -59,7 +55,6 @@ import {
 } from "@/dashboards/DashboardControls";
 import {
   DashboardWidgetDependenciesProvider,
-  useResolvedWidgetInputs,
 } from "@/dashboards/DashboardWidgetDependencies";
 import {
   DashboardWidgetExecutionProvider,
@@ -91,12 +86,14 @@ import {
   getWorkspaceRowChildCount,
   isWorkspaceRowCollapsed,
   isWorkspaceRowWidgetId,
+  WORKSPACE_SLIDE_WIDGET_ID,
   WORKSPACE_ROW_HEIGHT_ROWS,
   WORKSPACE_ROW_WIDGET_ID,
 } from "@/dashboards/structural-widgets";
 import type {
   DashboardDefinition,
   DashboardLayoutKind,
+  DashboardSlideRegionId,
   DashboardWidgetPlacement,
   ResolvedDashboardDefinition,
   ResolvedDashboardWidgetLayout,
@@ -104,14 +101,7 @@ import type {
 import { cn, titleCase } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
-import {
-  resolveWidgetHeaderVisibility,
-  resolveWidgetMinimalChrome,
-  resolveWidgetSidebarOnly,
-  resolveWidgetTransparentSurface,
-  widgetShellClassName,
-  widgetShellHeaderClassName,
-} from "@/widgets/shared/chrome";
+import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
 import {
   getVisibleWidgetSchemaFields,
   resolveWidgetFieldState,
@@ -120,16 +110,18 @@ import {
 } from "@/widgets/shared/widget-schema";
 import type {
   WidgetDefinition,
-  WidgetComponentProps,
   WidgetHeaderActionsProps,
 } from "@/widgets/types";
 import {
+  appendCatalogWidgetToSlideRegion,
   commitDashboardCompanionLayout,
   commitDashboardGridLayout,
+  commitDashboardSlideRegionLayout,
   appendCatalogWidget,
   collapseDashboardRow,
   duplicateDashboardWidget,
   expandDashboardRow,
+  moveDashboardWidgetToSlideRegion,
   placeCatalogWidget,
   reorderDashboardWidgets,
   removeDashboardWidget,
@@ -139,6 +131,7 @@ import {
 } from "./custom-dashboard-storage";
 import { SavedWidgetLibraryDialog } from "./SavedWidgetLibraryDialog";
 import { SavedWidgetSaveDialog } from "./SavedWidgetSaveDialog";
+import { WorkspaceComponentBrowser } from "./WorkspaceComponentBrowser";
 import {
   WorkspaceSavingStatus,
   WorkspaceLoadingStatus,
@@ -171,12 +164,18 @@ import {
   resolveWorkspaceCanvasMinHeight,
 } from "./workspace-canvas-height";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
-import { WidgetCanvasControls } from "@/widgets/shared/widget-canvas-controls";
 import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
 import { MissingWidgetFrame } from "@/widgets/shared/widget-frame";
-import { getWidgetExplorerPath } from "@/features/widgets/widget-explorer";
 import type { WidgetInstancePresentation } from "@/widgets/types";
-import { WorkspaceRowCard } from "@/widgets/core/workspace-row/WorkspaceRowCard";
+import { WorkspaceCanvasWidgetCard as BuilderWidgetCard } from "./WorkspaceCanvasWidgetHost";
+import {
+  WORKSPACE_SLIDE_GRID_COLUMNS,
+  WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
+  sanitizeWorkspaceSlideProps,
+  type WorkspaceSlideRegionId,
+} from "@/widgets/core/workspace-slide/slide-model";
+import { WorkspaceSlideSurface } from "@/widgets/core/workspace-slide/WorkspaceSlideWidget";
+import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
 
 interface CatalogDragPayload {
   widgetId: string;
@@ -207,6 +206,25 @@ type CloneableWorkspaceGridLayoutItem = Pick<
   ReactGridLayoutItem,
   "h" | "i" | "isBounded" | "isDraggable" | "isResizable" | "maxH" | "maxW" | "minH" | "minW" | "moved" | "static" | "w" | "x" | "y"
 >;
+
+const slideRegionDraggableHandleClassName = "slide-region-grid-handle";
+const slideRegionDraggableHandleSelector = `.${slideRegionDraggableHandleClassName}`;
+
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+
+  return (
+    target.isContentEditable ||
+    tagName === "input" ||
+    tagName === "textarea" ||
+    tagName === "select" ||
+    Boolean(target.closest("[contenteditable='true']"))
+  );
+}
 
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
   return {
@@ -362,6 +380,10 @@ function layoutToAbsoluteStyle(
   };
 }
 
+function clampInteger(value: number, minimum: number, maximum: number) {
+  return Math.max(minimum, Math.min(maximum, Math.round(value)));
+}
+
 function compareWorkspaceGridItems(
   left: Pick<WorkspaceGridLayoutItem, "i" | "x" | "y">,
   right: Pick<WorkspaceGridLayoutItem, "i" | "x" | "y">,
@@ -435,258 +457,6 @@ function resolveGridItemInsetStyle(gap: number): CSSProperties | undefined {
 }
 
 const showWorkspaceCanvasEditGrid = false;
-
-function useDismissibleMenu(
-  open: boolean,
-  refs: Array<RefObject<HTMLElement | null>>,
-  onClose: () => void,
-) {
-  useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
-
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node;
-
-      if (refs.some((ref) => ref.current?.contains(target))) {
-        return;
-      }
-
-      onClose();
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose, open, refs]);
-}
-
-function WidgetActionMenu({
-  editable,
-  floating = false,
-  hasBindingsAction = false,
-  onOpenBindings,
-  onDuplicate,
-  onOpenSettings,
-  onRemove,
-  onSaveWidget,
-  widgetId,
-  widgetTitle,
-}: {
-  editable: boolean;
-  floating?: boolean;
-  hasBindingsAction?: boolean;
-  onOpenBindings?: () => void;
-  onDuplicate: () => void;
-  onOpenSettings: () => void;
-  onRemove: () => void;
-  onSaveWidget?: () => void;
-  widgetId: string;
-  widgetTitle: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [portalStyle, setPortalStyle] = useState<CSSProperties>();
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useDismissibleMenu(open, [rootRef, menuRef], () => {
-    setOpen(false);
-  });
-
-  useLayoutEffect(() => {
-    if (!open) {
-      setPortalStyle(undefined);
-      return undefined;
-    }
-
-    let frameId = 0;
-
-    function updatePortalPosition() {
-      const triggerRect = triggerRef.current?.getBoundingClientRect();
-
-      if (!triggerRect) {
-        return;
-      }
-
-      const menuWidth = menuRef.current?.offsetWidth ?? 220;
-      const menuHeight = menuRef.current?.offsetHeight ?? 220;
-      const horizontalPadding = 12;
-      const verticalPadding = 12;
-      const maxLeft = Math.max(horizontalPadding, window.innerWidth - menuWidth - horizontalPadding);
-      const maxTop = Math.max(verticalPadding, window.innerHeight - menuHeight - verticalPadding);
-      const preferredLeft = triggerRect.right - menuWidth;
-      const preferredTop = triggerRect.bottom + 8;
-
-      setPortalStyle({
-        left: Math.max(horizontalPadding, Math.min(preferredLeft, maxLeft)),
-        top: Math.max(verticalPadding, Math.min(preferredTop, maxTop)),
-      });
-    }
-
-    updatePortalPosition();
-    frameId = window.requestAnimationFrame(updatePortalPosition);
-
-    window.addEventListener("resize", updatePortalPosition);
-    window.addEventListener("scroll", updatePortalPosition, true);
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", updatePortalPosition);
-      window.removeEventListener("scroll", updatePortalPosition, true);
-    };
-  }, [open]);
-
-  const triggerClassName = cn(
-    "inline-flex h-6 w-6 items-center justify-center rounded-[6px] border-none bg-transparent text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
-    floating ? "bg-transparent" : undefined,
-    open ? "bg-muted/40 text-foreground" : undefined,
-  );
-  const itemClassName =
-    "flex w-full items-center gap-2.5 rounded-[calc(var(--radius)-6px)] px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/45";
-
-  return (
-    <div ref={rootRef} className="relative" data-no-widget-drag="true">
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`Open actions for ${widgetTitle}`}
-        title={`Open actions for ${widgetTitle}`}
-        className={triggerClassName}
-        data-no-widget-drag="true"
-        onPointerDown={(event) => {
-          event.stopPropagation();
-        }}
-        onClick={(event) => {
-          event.stopPropagation();
-          setOpen((current) => !current);
-        }}
-      >
-        <MoreVertical className="h-3.25 w-3.25" />
-      </button>
-
-      {open && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              ref={menuRef}
-              style={portalStyle}
-              className="pointer-events-auto fixed z-[165] w-[220px] overflow-hidden rounded-[calc(var(--radius)+2px)] border border-border/80 bg-card/96 p-2 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur"
-              role="menu"
-              data-no-widget-drag="true"
-              onPointerDown={(event) => {
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
-            >
-              <div className="px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                Widget actions
-              </div>
-              <div className="mt-1 flex flex-col gap-1">
-                <a
-                  href={getWidgetExplorerPath(widgetId)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  role="menuitem"
-                  className={itemClassName}
-                  onClick={() => {
-                    setOpen(false);
-                  }}
-                >
-                  <BookOpenText className="h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1">Open guide</span>
-                </a>
-
-                {hasBindingsAction && onOpenBindings ? (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={itemClassName}
-                    onClick={() => {
-                      setOpen(false);
-                      onOpenBindings();
-                    }}
-                  >
-                    <Waypoints className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1">Bindings</span>
-                  </button>
-                ) : null}
-
-                {editable ? (
-                  <>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={itemClassName}
-                      onClick={() => {
-                        setOpen(false);
-                        onSaveWidget?.();
-                      }}
-                    >
-                      <Save className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1">Save widget</span>
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={itemClassName}
-                      onClick={() => {
-                        setOpen(false);
-                        onOpenSettings();
-                      }}
-                    >
-                      <Settings2 className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1">Settings</span>
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={itemClassName}
-                      onClick={() => {
-                        setOpen(false);
-                        onDuplicate();
-                      }}
-                    >
-                      <Copy className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1">Duplicate</span>
-                    </button>
-                    <div className="my-1 border-t border-border/70" />
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={cn(itemClassName, "text-danger hover:bg-danger/10")}
-                      onClick={() => {
-                        setOpen(false);
-                        onRemove();
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-danger" />
-                      <span className="flex-1">Remove</span>
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
-    </div>
-  );
-}
 
 interface GridMetrics {
   rect: DOMRect;
@@ -1037,388 +807,6 @@ function GridCompanionCard({
   );
 }
 
-function WorkspaceRowCanvasCard({
-  accentColor,
-  childCount,
-  collapsed,
-  editable,
-  onDuplicate,
-  onOpenBindings,
-  onOpenSettings,
-  onRemove,
-  onSaveWidget,
-  onToggleCollapse,
-  selected,
-  title,
-}: {
-  accentColor?: string;
-  childCount: number;
-  collapsed: boolean;
-  editable: boolean;
-  onDuplicate: () => void;
-  onOpenBindings?: () => void;
-  onOpenSettings: () => void;
-  onRemove: () => void;
-  onSaveWidget: () => void;
-  onToggleCollapse: () => void;
-  selected: boolean;
-  title: string;
-}) {
-  return (
-    <WorkspaceRowCard
-      title={title}
-      accentColor={accentColor}
-      childCount={childCount}
-      collapsed={collapsed}
-      editable={editable}
-      selected={selected}
-      showCollapseToggle
-      showDragHint={editable}
-      onToggleCollapse={onToggleCollapse}
-      className={cn(
-        editable ? workspaceGridDraggableHandleClassName : undefined,
-        editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
-      )}
-      trailingContent={
-        editable ? (
-          <WidgetActionMenu
-            editable
-            widgetId={WORKSPACE_ROW_WIDGET_ID}
-            widgetTitle={title}
-            hasBindingsAction={Boolean(onOpenBindings)}
-            onOpenBindings={onOpenBindings}
-            onOpenSettings={onOpenSettings}
-            onDuplicate={onDuplicate}
-            onSaveWidget={onSaveWidget}
-            onRemove={onRemove}
-          />
-        ) : null
-      }
-    />
-  );
-}
-
-function BuilderWidgetCard({
-  instanceId,
-  instanceTitle,
-  layout,
-  selected,
-  editable,
-  style,
-  headerActions,
-  widget,
-  widgetProps,
-  widgetPresentation,
-  widgetRuntimeState,
-  onRemove,
-  onDuplicate,
-  onSaveWidget,
-  onPropsChange,
-  onPresentationChange,
-  onRuntimeStateChange,
-  onSelect,
-  onOpenBindings,
-  onOpenSettings,
-  renderCanvasFields = true,
-  rowChildCount = 0,
-  rowCollapsed = false,
-  onToggleRowCollapse,
-}: {
-  instanceId: string;
-  instanceTitle?: string;
-  layout: ResolvedDashboardWidgetLayout;
-  selected: boolean;
-  editable: boolean;
-  style?: CSSProperties;
-  headerActions?: ReactNode;
-  widget: WidgetDefinition;
-  widgetProps: Record<string, unknown>;
-  widgetPresentation?: WidgetInstancePresentation;
-  widgetRuntimeState?: Record<string, unknown>;
-  onRemove: (instanceId: string) => void;
-  onDuplicate: (instanceId: string) => void;
-  onSaveWidget: (instanceId: string) => void;
-  onPropsChange: (instanceId: string, props: Record<string, unknown>) => void;
-  onPresentationChange: (
-    instanceId: string,
-    presentation: WidgetInstancePresentation,
-  ) => void;
-  onRuntimeStateChange: (
-    instanceId: string,
-    runtimeState: Record<string, unknown> | undefined,
-  ) => void;
-  onSelect: (instanceId: string) => void;
-  onOpenBindings: (instanceId: string) => void;
-  onOpenSettings: (instanceId: string) => void;
-  renderCanvasFields?: boolean;
-  rowChildCount?: number;
-  rowCollapsed?: boolean;
-  onToggleRowCollapse?: (instanceId: string) => void;
-}) {
-  const Component =
-    widget.component as ComponentType<WidgetComponentProps<Record<string, unknown>>>;
-  const resolvedInputs = useResolvedWidgetInputs(instanceId);
-
-  const title = instanceTitle ?? widget.title;
-  const headerVisible = editable || resolveWidgetHeaderVisibility(widgetProps);
-  const rowWidget = isWorkspaceRowWidgetId(widget.id);
-  const inlineCanvasEditable = editable && widget.canvasEditing?.mode === "inline";
-  const minimalChrome = !rowWidget && resolveWidgetMinimalChrome(widgetProps);
-  const transparentSurface = resolveWidgetTransparentSurface(widgetPresentation);
-  const floatingChromeWidget = rowWidget || minimalChrome;
-  const structuralVisible = widgetProps.visible === true;
-  const widgetRenderProps =
-    rowWidget && editable && !structuralVisible
-      ? {
-          ...widgetProps,
-          visible: true,
-        }
-      : widgetProps;
-  const resolvedWidgetIo = widget.resolveIo?.({
-    widgetId: widget.id,
-    instanceId,
-    props: widgetRenderProps,
-    runtimeState: widgetRuntimeState,
-  }) ?? widget.io;
-  const hasBindingsAction = Boolean(
-    resolvedWidgetIo?.inputs?.length ||
-    widget.io?.inputs?.length ||
-    widget.resolveIo,
-  );
-  const showPassiveBindingsAction = !editable && hasBindingsAction;
-  const editControlsVisibilityClass = editable
-    ? selected
-      ? "opacity-100"
-      : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
-    : showPassiveBindingsAction
-      ? "opacity-100"
-      : "pointer-events-none opacity-0";
-
-  if (rowWidget) {
-    return (
-      <div
-        style={style}
-        data-workspace-widget-instance-id={instanceId}
-        data-workspace-widget-id={widget.id}
-        data-workspace-widget-visibility="visible"
-        className="group relative isolate h-full overflow-visible"
-        onPointerDownCapture={() => {
-          if (editable) {
-            onSelect(instanceId);
-          }
-        }}
-      >
-        <WorkspaceRowCanvasCard
-          accentColor={typeof widgetProps.color === "string" ? widgetProps.color : undefined}
-          title={title}
-          selected={selected}
-          editable={editable}
-          collapsed={rowCollapsed}
-          childCount={rowChildCount}
-          onToggleCollapse={() => {
-            onToggleRowCollapse?.(instanceId);
-          }}
-          onOpenSettings={() => {
-            onOpenSettings(instanceId);
-          }}
-          onOpenBindings={
-            hasBindingsAction
-              ? () => {
-                  onOpenBindings(instanceId);
-                }
-              : undefined
-          }
-          onDuplicate={() => {
-            onDuplicate(instanceId);
-          }}
-          onSaveWidget={() => {
-            onSaveWidget(instanceId);
-          }}
-          onRemove={() => {
-            onRemove(instanceId);
-          }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={style}
-      data-workspace-widget-instance-id={instanceId}
-      data-workspace-widget-id={widget.id}
-      data-workspace-widget-visibility="visible"
-      className="group relative isolate h-full overflow-visible"
-      onPointerDownCapture={() => {
-        if (editable) {
-          onSelect(instanceId);
-        }
-      }}
-    >
-      {renderCanvasFields ? (
-        <WidgetCanvasControls
-          widget={widget}
-          instanceId={instanceId}
-          instanceTitle={instanceTitle}
-          props={widgetProps}
-          presentation={widgetPresentation}
-          runtimeState={widgetRuntimeState}
-          onPropsChange={(props) => {
-            onPropsChange(instanceId, props);
-          }}
-          onRuntimeStateChange={(state) => {
-            onRuntimeStateChange(instanceId, state);
-          }}
-          onPresentationChange={(nextPresentation) => {
-            onPresentationChange(instanceId, nextPresentation);
-          }}
-          editable={editable}
-        />
-      ) : null}
-
-      <section
-        data-widget-shell="default"
-        data-widget-surface={floatingChromeWidget || transparentSurface ? "bare" : "card"}
-        data-widget-grid-handle={floatingChromeWidget && editable ? "true" : undefined}
-        className={cn(
-          floatingChromeWidget && editable ? workspaceGridDraggableHandleClassName : undefined,
-          "relative z-10 flex h-full min-h-0 flex-col transition-colors",
-          floatingChromeWidget
-            ? "overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
-            : transparentSurface
-              ? "overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
-              : cn(
-                  widgetShellClassName,
-                  "overflow-hidden rounded-none border bg-card/92 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl",
-                  selected && editable
-                    ? "border-primary/70 ring-2 ring-primary/30"
-                    : "border-border/70 hover:border-border",
-                ),
-          floatingChromeWidget && editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
-        )}
-      >
-        {headerVisible && !floatingChromeWidget ? (
-        <header
-          data-widget-shell-header=""
-          data-widget-grid-handle={editable ? "true" : undefined}
-          className={cn(
-            editable ? workspaceGridDraggableHandleClassName : undefined,
-            widgetShellHeaderClassName,
-            "flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5",
-            editable ? "cursor-grab select-none active:cursor-grabbing" : undefined,
-          )}
-        >
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-medium leading-5 text-card-foreground">{title}</div>
-          </div>
-
-          <div className="flex shrink-0 items-center justify-end gap-1">
-            {headerActions ? (
-              <div className="flex items-center gap-1" data-no-widget-drag="true">
-                {headerActions}
-              </div>
-            ) : null}
-            <div
-              className={cn("transition-opacity", editControlsVisibilityClass)}
-              data-widget-grid-cancel="true"
-            >
-              <WidgetActionMenu
-                editable={editable}
-                widgetId={widget.id}
-                widgetTitle={title}
-                hasBindingsAction={hasBindingsAction}
-                onOpenBindings={() => {
-                  onOpenBindings(instanceId);
-                }}
-                onOpenSettings={() => {
-                  onOpenSettings(instanceId);
-                }}
-                onDuplicate={() => {
-                  onDuplicate(instanceId);
-                }}
-                onSaveWidget={() => {
-                  onSaveWidget(instanceId);
-                }}
-                onRemove={() => {
-                  onRemove(instanceId);
-                }}
-              />
-            </div>
-          </div>
-        </header>
-        ) : null}
-
-        {floatingChromeWidget ? (
-        <div
-          className={cn(
-            "absolute z-20 flex items-center gap-1 rounded-[10px] border border-border/50 bg-background/80 px-1 py-0.5 shadow-[var(--shadow-panel)] backdrop-blur-md transition-opacity",
-            "top-1/2 right-0 -translate-y-1/2",
-            workspaceGridDraggableCancelClassName,
-            editControlsVisibilityClass,
-          )}
-          data-no-widget-drag="true"
-          data-widget-grid-cancel="true"
-        >
-          <WidgetActionMenu
-            editable={editable}
-            floating
-            widgetId={widget.id}
-            widgetTitle={title}
-            hasBindingsAction={hasBindingsAction}
-            onOpenBindings={() => {
-              onOpenBindings(instanceId);
-            }}
-            onOpenSettings={() => {
-              onOpenSettings(instanceId);
-            }}
-            onDuplicate={() => {
-              onDuplicate(instanceId);
-            }}
-            onSaveWidget={() => {
-              onSaveWidget(instanceId);
-            }}
-            onRemove={() => {
-              onRemove(instanceId);
-            }}
-          />
-        </div>
-        ) : null}
-
-        <div
-          className={cn(
-            "min-h-0 flex-1",
-            editable && !inlineCanvasEditable ? "pointer-events-none select-none" : undefined,
-          )}
-        >
-          <WidgetErrorBoundary
-            widgetId={widget.id}
-            widgetTitle={title}
-            instanceId={instanceId}
-            surface="canvas"
-          >
-            <Component
-              widget={widget}
-              instanceId={instanceId}
-              instanceTitle={instanceTitle}
-              props={widgetRenderProps}
-              editable={inlineCanvasEditable}
-              presentation={widgetPresentation}
-              runtimeState={widgetRuntimeState}
-              resolvedInputs={resolvedInputs}
-              onPropsChange={(nextProps: Record<string, unknown>) => {
-                onPropsChange(instanceId, nextProps);
-              }}
-              onRuntimeStateChange={(state) => {
-                onRuntimeStateChange(instanceId, state);
-              }}
-            />
-          </WidgetErrorBoundary>
-        </div>
-
-      </section>
-    </div>
-  );
-}
 
 function WorkspaceSnapshotToolbarControl({
   dashboard,
@@ -1512,10 +900,15 @@ export function CustomDashboardStudioPage({
   const [activeCatalogDrag, setActiveCatalogDrag] = useState<ActiveCatalogDrag | null>(null);
   const [hoveredPlacement, setHoveredPlacement] = useState<DashboardWidgetPlacement | null>(null);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const [activeSlideWidgetId, setActiveSlideWidgetId] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [requestDebugOpen, setRequestDebugOpen] = useState(false);
   const [savedWidgetLibraryOpen, setSavedWidgetLibraryOpen] = useState(false);
   const [savedWidgetSaveTargetId, setSavedWidgetSaveTargetId] = useState<string | null>(null);
+  const [slideRegionComposer, setSlideRegionComposer] = useState<{
+    slideWidgetId: string;
+    region: DashboardSlideRegionId;
+  } | null>(null);
   const [canvasScrollSync, setCanvasScrollSync] = useState({
     progress: 0,
     canScroll: false,
@@ -1525,6 +918,11 @@ export function CustomDashboardStudioPage({
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
     {},
   );
+  const activeRootGridTransferDragRef = useRef<{
+    instanceId: string;
+    lastClientX: number | null;
+    lastClientY: number | null;
+  } | null>(null);
   const [customGridLayoutDraft, setCustomGridLayoutDraft] = useState<WorkspaceGridLayoutItem[]>([]);
   const [autoGridReorderState, setAutoGridReorderState] = useState<AutoGridReorderState | null>(
     null,
@@ -1533,6 +931,7 @@ export function CustomDashboardStudioPage({
     allowedWidgetIds,
     catalogDescription,
     catalogTitle,
+    deniedWidgetIds,
     savedWidgetsPath,
     toolbarActions,
   } = useWorkspaceStudioSurfaceConfig();
@@ -1540,6 +939,8 @@ export function CustomDashboardStudioPage({
   const widgetSettingsOpen =
     selectedWorkspaceView === "widget-settings" && Boolean(requestedWidgetId);
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
+  const kioskMode = useShellStore((state) => state.kioskMode);
+  const setKioskMode = useShellStore((state) => state.setKioskMode);
   const dashboardMenuHidden = useShellStore((state) => state.workspaceCanvasMenuHidden);
   const setDashboardMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
   const catalogPreferencesUserId = user?.id ?? null;
@@ -1547,18 +948,29 @@ export function CustomDashboardStudioPage({
     () => (allowedWidgetIds ? new Set(allowedWidgetIds) : null),
     [allowedWidgetIds],
   );
+  const deniedWidgetIdSet = useMemo(
+    () => (deniedWidgetIds ? new Set(deniedWidgetIds) : null),
+    [deniedWidgetIds],
+  );
 
   const allowedWidgets = useMemo(
     () =>
       appRegistry.widgets.filter((widget) =>
         hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
         (!allowedWidgetIdSet || allowedWidgetIdSet.has(widget.id)) &&
+        (!deniedWidgetIdSet || !deniedWidgetIdSet.has(widget.id)) &&
         (
           !registeredWidgetTypes.endpointConfigured ||
           registeredWidgetTypes.activeWidgetIdSet.has(widget.id)
         ),
       ),
-    [allowedWidgetIdSet, permissions, registeredWidgetTypes.activeWidgetIdSet, registeredWidgetTypes.endpointConfigured],
+    [
+      allowedWidgetIdSet,
+      deniedWidgetIdSet,
+      permissions,
+      registeredWidgetTypes.activeWidgetIdSet,
+      registeredWidgetTypes.endpointConfigured,
+    ],
   );
   const widgetMap = useMemo(
     () => new Map(allowedWidgets.map((widget) => [widget.id, widget])),
@@ -1778,6 +1190,47 @@ export function CustomDashboardStudioPage({
     updateSelectedWorkspaceRef.current = updateSelectedWorkspace;
   }, [updateSelectedWorkspace]);
 
+  const previousWorkspaceIdRef = useRef<string | null>(null);
+  const previousKioskModeRef = useRef(kioskMode);
+
+  useEffect(() => {
+    const currentWorkspaceId = selectedDashboard?.id ?? null;
+    const workspaceChanged = previousWorkspaceIdRef.current !== currentWorkspaceId;
+    const enteringKiosk = kioskMode && !previousKioskModeRef.current;
+
+    if (workspaceChanged || enteringKiosk) {
+      setDashboardMenuHidden(false);
+    }
+
+    previousWorkspaceIdRef.current = currentWorkspaceId;
+    previousKioskModeRef.current = kioskMode;
+  }, [kioskMode, selectedDashboard?.id, setDashboardMenuHidden]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.key.toLowerCase() !== "m" ||
+        isEditableKeyboardTarget(event.target)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      const shellState = useShellStore.getState();
+      shellState.setWorkspaceCanvasMenuHidden(!shellState.workspaceCanvasMenuHidden);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   useEffect(() => {
     if (!catalogPreferencesUserId) {
       setFavoriteWidgetIds([]);
@@ -1825,17 +1278,66 @@ export function CustomDashboardStudioPage({
     () => resolvedWidgetInstances.filter((widget) => !resolveWidgetSidebarOnly(widget.presentation)),
     [resolvedWidgetInstances],
   );
+  const rootCanvasWidgets = useMemo(
+    () => canvasWidgets.filter((widget) => !widget.slidePlacement),
+    [canvasWidgets],
+  );
+  const slidePlacedWidgetsBySlideRegion = useMemo(() => {
+    const map = new Map<string, Map<DashboardSlideRegionId, typeof canvasWidgets>>();
+
+    canvasWidgets.forEach((widget) => {
+      if (!widget.slidePlacement) {
+        return;
+      }
+
+      const byRegion = map.get(widget.slidePlacement.slideWidgetId) ?? new Map();
+      const current = (byRegion.get(widget.slidePlacement.region) ?? []) as typeof canvasWidgets;
+      byRegion.set(widget.slidePlacement.region, [...current, widget]);
+      map.set(widget.slidePlacement.slideWidgetId, byRegion);
+    });
+
+    return map;
+  }, [canvasWidgets]);
+  const handleRootGridTransferPointerMove = useCallback((event: PointerEvent) => {
+    if (!activeRootGridTransferDragRef.current) {
+      return;
+    }
+
+    activeRootGridTransferDragRef.current = {
+      ...activeRootGridTransferDragRef.current,
+      lastClientX: event.clientX,
+      lastClientY: event.clientY,
+    };
+  }, []);
+  const clearRootGridTransferDrag = useCallback(() => {
+    activeRootGridTransferDragRef.current = null;
+    window.removeEventListener("pointermove", handleRootGridTransferPointerMove, true);
+  }, [handleRootGridTransferPointerMove]);
+  const beginRootGridTransferDrag = useCallback((instanceId: string) => {
+    activeRootGridTransferDragRef.current = {
+      instanceId,
+      lastClientX: null,
+      lastClientY: null,
+    };
+    window.addEventListener("pointermove", handleRootGridTransferPointerMove, true);
+  }, [handleRootGridTransferPointerMove]);
+  useEffect(
+    () => () => {
+      clearRootGridTransferDrag();
+    },
+    [clearRootGridTransferDrag],
+  );
   const sidebarOnlyWidgets = useMemo(
     () => resolvedWidgetInstances.filter((widget) => resolveWidgetSidebarOnly(widget.presentation)),
     [resolvedWidgetInstances],
   );
   const gridManagedWidgets = useMemo(
-    () => canvasWidgets,
-    [canvasWidgets],
+    () => rootCanvasWidgets,
+    [rootCanvasWidgets],
   );
   const structuralCanvasWidgets = useMemo(
-    () => [] as typeof canvasWidgets,
-    [canvasWidgets],
+    () => [] as typeof rootCanvasWidgets,
+    [rootCanvasWidgets],
   );
   const committedGridLayout = useMemo(
     () => (resolvedDashboard ? resolvedDashboardToGridLayout(resolvedDashboard) : []),
@@ -1876,18 +1378,20 @@ export function CustomDashboardStudioPage({
       return [];
     }
 
-    const widgetEntries: ResolvedDashboardWidgetEntry[] = resolvedWidgetInstances.flatMap((instance) => {
-      const widget = getWidgetById(instance.widgetId);
+    const widgetEntries: ResolvedDashboardWidgetEntry[] = resolvedWidgetInstances
+      .filter((instance) => !instance.slidePlacement)
+      .flatMap((instance) => {
+        const widget = getWidgetById(instance.widgetId);
 
-      return widget
-        ? [
-            {
-              instance,
-              widget,
-            },
-          ]
-        : [];
-    });
+        return widget
+          ? [
+              {
+                instance,
+                widget,
+              },
+            ]
+          : [];
+      });
 
     return resolveDashboardCanvasCompanionCandidates(widgetEntries, {
       columns: resolvedDashboard.grid.columns,
@@ -2036,6 +1540,92 @@ export function CustomDashboardStudioPage({
       ),
     [resolvedWidgetInstances],
   );
+  const resolveSlideRegionDropTarget = useCallback(
+    (
+      instanceId: string,
+      layoutItem: Pick<WorkspaceGridLayoutItem, "h" | "w">,
+    ) => {
+      const activeDrag = activeRootGridTransferDragRef.current;
+
+      if (!activeDrag || activeDrag.instanceId !== instanceId) {
+        return null;
+      }
+
+      if (activeDrag.lastClientX == null || activeDrag.lastClientY == null) {
+        return null;
+      }
+
+      const regionElement = document
+        .elementsFromPoint(activeDrag.lastClientX, activeDrag.lastClientY)
+        .find(
+          (element) =>
+            element instanceof HTMLElement &&
+            Boolean(
+              element.dataset.workspaceSlideWidgetId &&
+              element.dataset.workspaceSlideRegionId,
+            ),
+        );
+
+      if (!(regionElement instanceof HTMLElement)) {
+        return null;
+      }
+
+      const slideWidgetId = regionElement.dataset.workspaceSlideWidgetId?.trim();
+      const region = regionElement.dataset.workspaceSlideRegionId as
+        | WorkspaceSlideRegionId
+        | undefined;
+
+      if (
+        !slideWidgetId ||
+        !region ||
+        !["header", "left", "body", "right", "footer"].includes(region)
+      ) {
+        return null;
+      }
+
+      const rect = regionElement.getBoundingClientRect();
+
+      if (rect.width <= 0 || rect.height <= 0) {
+        return {
+          slideWidgetId,
+          region,
+        };
+      }
+
+      const sourceColumns = Math.max(activeCanvasGridColumns, 1);
+      const previewTargetCols = Math.max(
+        3,
+        Math.min(
+          WORKSPACE_SLIDE_GRID_COLUMNS,
+          Math.round((layoutItem.w / sourceColumns) * WORKSPACE_SLIDE_GRID_COLUMNS),
+        ),
+      );
+      const targetX = clampInteger(
+        ((activeDrag.lastClientX - rect.left) / rect.width) * WORKSPACE_SLIDE_GRID_COLUMNS,
+        0,
+        Math.max(0, WORKSPACE_SLIDE_GRID_COLUMNS - previewTargetCols),
+      );
+      const targetY = clampInteger(
+        WORKSPACE_SLIDE_GRID_ROW_HEIGHT > 0
+          ? (activeDrag.lastClientY - rect.top) / WORKSPACE_SLIDE_GRID_ROW_HEIGHT
+          : 0,
+        0,
+        Number.MAX_SAFE_INTEGER,
+      );
+
+      return {
+        slideWidgetId,
+        region,
+        layout: {
+          x: targetX,
+          y: targetY,
+          w: layoutItem.w,
+          h: layoutItem.h,
+        },
+      };
+    },
+    [slidePlacedWidgetsBySlideRegion],
+  );
   const visibleCompanionsByInstanceId = useMemo(() => {
     const map = new Map<string, DashboardCanvasCompanionCandidate[]>();
 
@@ -2049,7 +1639,7 @@ export function CustomDashboardStudioPage({
   }, [visibleCompanionCandidates]);
   const autoGridRenderItems = useMemo(
     () =>
-      canvasWidgets.flatMap((instance) => {
+      rootCanvasWidgets.flatMap((instance) => {
         const companionItems = (visibleCompanionsByInstanceId.get(instance.id) ?? []).map((candidate) => ({
           kind: "companion" as const,
           candidate,
@@ -2063,7 +1653,7 @@ export function CustomDashboardStudioPage({
           ...companionItems,
         ];
       }),
-    [canvasWidgets, visibleCompanionsByInstanceId],
+    [rootCanvasWidgets, visibleCompanionsByInstanceId],
   );
 
   useEffect(() => {
@@ -2089,6 +1679,7 @@ export function CustomDashboardStudioPage({
     setLibraryOpen(false);
     setRequestDebugOpen(false);
     setSelectedInstanceId(null);
+    setActiveSlideWidgetId(null);
     setCatalogDragPayload(null);
     setActiveCatalogDrag(null);
     setHoveredPlacement(null);
@@ -2188,6 +1779,36 @@ export function CustomDashboardStudioPage({
     }
   }, [resolvedDashboard, selectedInstanceId]);
 
+  useEffect(() => {
+    if (
+      activeSlideWidgetId &&
+      !resolvedDashboard?.widgets.some((widget) => widget.id === activeSlideWidgetId)
+    ) {
+      setActiveSlideWidgetId(null);
+    }
+  }, [activeSlideWidgetId, resolvedDashboard]);
+
+  useEffect(() => {
+    if (!slideRegionComposer) {
+      return;
+    }
+
+    if (!editMode) {
+      setSlideRegionComposer(null);
+      return;
+    }
+
+    const slideStillExists = resolvedDashboard?.widgets.some(
+      (widget) => widget.id === slideRegionComposer.slideWidgetId,
+    );
+
+    if (slideStillExists) {
+      return;
+    }
+
+    setSlideRegionComposer(null);
+  }, [editMode, resolvedDashboard, slideRegionComposer]);
+
   const hoveredPlacementBounds = useMemo(() => {
     if (!hoveredPlacement || !measuredGridMetrics || !activeCatalogDrag) {
       return null;
@@ -2276,7 +1897,12 @@ export function CustomDashboardStudioPage({
         if (widget) {
           setRecentWidgetIds((current) => pushRecentWidgetId(current, widget.id));
           updateSelectedWorkspaceRef.current?.((dashboard) =>
-            placeCatalogWidget(dashboard, widget, placement),
+            activeSlideWidgetId &&
+            widget.id !== WORKSPACE_ROW_WIDGET_ID &&
+            widget.id !== WORKSPACE_SLIDE_WIDGET_ID &&
+            widget.fixedPlacementMode !== "sidebar"
+              ? appendCatalogWidgetToSlideRegion(dashboard, activeSlideWidgetId, "body", widget)
+              : placeCatalogWidget(dashboard, widget, placement),
           );
         }
       }
@@ -2303,6 +1929,7 @@ export function CustomDashboardStudioPage({
     runtimeRowHeight,
     resolvedDashboard?.grid.columns,
     resolvedDashboard?.grid.gap,
+    activeSlideWidgetId,
     widgetMap,
   ]);
 
@@ -2338,7 +1965,14 @@ export function CustomDashboardStudioPage({
   function handleCatalogAdd(widget: WidgetDefinition) {
     setSelectedWorkspaceEditing(true);
     setRecentWidgetIds((current) => pushRecentWidgetId(current, widget.id));
-    updateSelectedWorkspace((dashboard) => appendCatalogWidget(dashboard, widget));
+    updateSelectedWorkspace((dashboard) =>
+      activeSlideWidgetId &&
+      widget.id !== WORKSPACE_ROW_WIDGET_ID &&
+      widget.id !== WORKSPACE_SLIDE_WIDGET_ID &&
+      widget.fixedPlacementMode !== "sidebar"
+        ? appendCatalogWidgetToSlideRegion(dashboard, activeSlideWidgetId, "body", widget)
+        : appendCatalogWidget(dashboard, widget),
+    );
   }
 
   function handleCatalogFavoriteToggle(widgetId: string) {
@@ -2530,6 +2164,7 @@ export function CustomDashboardStudioPage({
     (
       instance: (typeof canvasWidgets)[number],
       options?: {
+        dragHandleClassName?: string;
         style?: CSSProperties;
       },
     ) => {
@@ -2556,14 +2191,139 @@ export function CustomDashboardStudioPage({
           | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
           | undefined;
 
+      if (widget.id === WORKSPACE_SLIDE_WIDGET_ID) {
+        const slideProps = sanitizeWorkspaceSlideProps(instance.props ?? {});
+        const slideRegions = slidePlacedWidgetsBySlideRegion.get(instance.id);
+        const regionContent = Object.fromEntries(
+          (["header", "left", "body", "right", "footer"] as const).map((regionId) => {
+            const regionWidgets = slideRegions?.get(regionId) ?? [];
+
+            if (regionWidgets.length === 0) {
+              return [regionId, undefined];
+            }
+
+            return [
+              regionId,
+              (
+                <WorkspaceSlideSubgridHost
+                  items={regionWidgets.map((regionWidget) => ({
+                    id: regionWidget.id,
+                    layout: {
+                      x: regionWidget.layout.x,
+                      y: regionWidget.layout.y,
+                      w: regionWidget.layout.w,
+                      h: regionWidget.layout.h,
+                    },
+                    content: renderCanvasWidget(regionWidget, {
+                      dragHandleClassName: slideRegionDraggableHandleClassName,
+                    }),
+                  }))}
+                  editable={editMode}
+                  dragHandleSelector={slideRegionDraggableHandleSelector}
+                  dragCancelSelector={workspaceGridDraggableCancelSelector}
+                  onLayoutCommit={(nextLayout) => {
+                    updateSelectedWorkspace((dashboard) =>
+                      commitDashboardSlideRegionLayout(dashboard, instance.id, regionId, nextLayout),
+                    );
+                  }}
+                />
+              ),
+            ];
+          }),
+        ) as Partial<Record<WorkspaceSlideRegionId, ReactNode>>;
+
+        return (
+          <BuilderWidgetCard
+            key={instance.id}
+            instanceId={instance.id}
+            instanceTitle={instance.title}
+            selected={selectedInstanceId === instance.id}
+            editable={editMode}
+            dragHandleClassName={options?.dragHandleClassName}
+            shellVariant="transparent"
+            style={options?.style}
+            bodyDraggable={false}
+            selectOnPointerDown={false}
+            renderCanvasFields={false}
+            widget={widget}
+            widgetProps={instance.props ?? {}}
+            widgetPresentation={instance.presentation}
+            widgetRuntimeState={instance.runtimeState}
+            customContent={
+              <div className="h-full" data-no-widget-drag="true">
+                <WorkspaceSlideSurface
+                  slideWidgetId={instance.id}
+                  slide={slideProps}
+                  active={activeSlideWidgetId === instance.id}
+                  editable={editMode}
+                  regionContent={regionContent}
+                  onSlideChange={(nextProps) => {
+                    updateSelectedWorkspace((dashboard) =>
+                      updateDashboardWidgetSettings(dashboard, instance.id, {
+                        props: nextProps,
+                      }),
+                    );
+                  }}
+                />
+              </div>
+            }
+            onRemove={(instanceId) => {
+              updateSelectedWorkspace((dashboard) =>
+                removeDashboardWidget(dashboard, instanceId),
+              );
+              setSelectedInstanceId((current) => (current === instanceId ? null : current));
+              setActiveSlideWidgetId((current) => (current === instanceId ? null : current));
+            }}
+            onDuplicate={(instanceId) => {
+              updateSelectedWorkspace((dashboard) =>
+                duplicateDashboardWidget(dashboard, instanceId),
+              );
+            }}
+            onSaveWidget={(instanceId) => {
+              setSelectedInstanceId(instanceId);
+              setSavedWidgetSaveTargetId(instanceId);
+            }}
+            onPropsChange={(instanceId, props) => {
+              updateSelectedWorkspace((dashboard) =>
+                updateDashboardWidgetSettings(dashboard, instanceId, {
+                  props,
+                }),
+              );
+            }}
+            onPresentationChange={(instanceId, presentation) => {
+              updateSelectedWorkspace((dashboard) =>
+                updateDashboardWidgetSettings(dashboard, instanceId, {
+                  presentation,
+                }),
+              );
+            }}
+            onRuntimeStateChange={handleWidgetRuntimeStateChange}
+            onSelect={(instanceId) => {
+              setSelectedInstanceId(instanceId);
+              setActiveSlideWidgetId(instanceId);
+            }}
+            onOpenSettings={(instanceId) => {
+              setSelectedInstanceId(instanceId);
+              setActiveSlideWidgetId(instanceId);
+              openWidgetSettings(instanceId);
+            }}
+            onOpenBindings={(instanceId) => {
+              setSelectedInstanceId(instanceId);
+              setActiveSlideWidgetId(instanceId);
+              openWidgetSettings(instanceId, "bindings");
+            }}
+          />
+        );
+      }
+
       return (
         <BuilderWidgetCard
           key={instance.id}
           instanceId={instance.id}
           instanceTitle={instance.title}
-          layout={instance.layout}
           selected={selectedInstanceId === instance.id}
           editable={editMode}
+          dragHandleClassName={options?.dragHandleClassName}
           style={options?.style}
           renderCanvasFields={false}
           headerActions={
@@ -2587,6 +2347,9 @@ export function CustomDashboardStudioPage({
               removeDashboardWidget(dashboard, instanceId),
             );
             setSelectedInstanceId((current) => (current === instanceId ? null : current));
+            setActiveSlideWidgetId((current) =>
+              current === instance.slidePlacement?.slideWidgetId ? null : current,
+            );
           }}
           onDuplicate={(instanceId) => {
             updateSelectedWorkspace((dashboard) =>
@@ -2614,13 +2377,16 @@ export function CustomDashboardStudioPage({
           onRuntimeStateChange={handleWidgetRuntimeStateChange}
           onSelect={(instanceId) => {
             setSelectedInstanceId(instanceId);
+            setActiveSlideWidgetId(instance.slidePlacement?.slideWidgetId ?? null);
           }}
           onOpenSettings={(instanceId) => {
             setSelectedInstanceId(instanceId);
+            setActiveSlideWidgetId(instance.slidePlacement?.slideWidgetId ?? null);
             openWidgetSettings(instanceId);
           }}
           onOpenBindings={(instanceId) => {
             setSelectedInstanceId(instanceId);
+            setActiveSlideWidgetId(instance.slidePlacement?.slideWidgetId ?? null);
             openWidgetSettings(instanceId, "bindings");
           }}
           rowCollapsed={isWorkspaceRowCollapsed(instance)}
@@ -2647,6 +2413,7 @@ export function CustomDashboardStudioPage({
       openWidgetSettings,
       rowChildCountById,
       selectedInstanceId,
+      slidePlacedWidgetsBySlideRegion,
       updateSelectedWorkspace,
     ],
   );
@@ -2899,6 +2666,38 @@ export function CustomDashboardStudioPage({
           )}
           style={{ scrollbarGutter: "stable" }}
         >
+          {dashboardMenuHidden ? (
+            <div className="sticky top-0 z-40 mb-3 flex items-center justify-between gap-3">
+              <div className="rounded-full border border-border/70 bg-background/86 p-1 shadow-[var(--shadow-panel)] backdrop-blur-xl">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 rounded-full px-0 text-foreground"
+                  title="Show controls (M)"
+                  onClick={() => {
+                    setDashboardMenuHidden(false);
+                  }}
+                >
+                  <Rows3 className="h-4 w-4" />
+                </Button>
+              </div>
+              {kioskMode ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full bg-background/80 backdrop-blur-xl"
+                  onClick={() => {
+                    setKioskMode(false);
+                  }}
+                >
+                  Exit kiosk
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+
           {!dashboardMenuHidden ? (
             <div
               className={cn(
@@ -2997,7 +2796,7 @@ export function CustomDashboardStudioPage({
                       </WorkspaceToolbarButton>
                     ) : null}
                     <WorkspaceToolbarButton
-                      title="Hide dashboard menu"
+                      title="Collapse controls"
                       onClick={() => {
                         setDashboardMenuHidden(true);
                       }}
@@ -3023,6 +2822,7 @@ export function CustomDashboardStudioPage({
             onPointerDown={(event) => {
               if (event.target === event.currentTarget) {
                 setSelectedInstanceId(null);
+                setActiveSlideWidgetId(null);
               }
             }}
           >
@@ -3060,6 +2860,22 @@ export function CustomDashboardStudioPage({
                     if (newItem) {
                       const companion = parseCompanionItemId(newItem.i);
                       setSelectedInstanceId(companion?.instanceId ?? newItem.i);
+
+                      if (!companion) {
+                        const draggedInstance = rootCanvasWidgets.find((widget) => widget.id === newItem.i);
+
+                        if (
+                          draggedInstance &&
+                          !draggedInstance.slidePlacement &&
+                          draggedInstance.widgetId !== WORKSPACE_SLIDE_WIDGET_ID
+                        ) {
+                          beginRootGridTransferDrag(draggedInstance.id);
+                        } else {
+                          clearRootGridTransferDrag();
+                        }
+                      } else {
+                        clearRootGridTransferDrag();
+                      }
                     }
                   }}
                   onLayoutChange={(layout) => {
@@ -3069,10 +2885,33 @@ export function CustomDashboardStudioPage({
 
                     setCustomGridLayoutDraft(cloneWorkspaceGridLayout(layout));
                   }}
-                  onDragStop={(layout) => {
+                  onDragStop={(layout, _oldItem, newItem) => {
                     if (!editMode) {
                       return;
                     }
+
+                    if (newItem) {
+                      const dropTarget = resolveSlideRegionDropTarget(newItem.i, newItem);
+
+                      if (dropTarget) {
+                        clearRootGridTransferDrag();
+                        setCustomGridLayoutDraft(
+                          cloneWorkspaceGridLayout(layout).filter((item) => item.i !== newItem.i),
+                        );
+                        updateSelectedWorkspace((dashboard) =>
+                          moveDashboardWidgetToSlideRegion(
+                            dashboard,
+                            newItem.i,
+                            dropTarget.slideWidgetId,
+                            dropTarget.region,
+                            dropTarget.layout,
+                          ),
+                        );
+                        return;
+                      }
+                    }
+
+                    clearRootGridTransferDrag();
                     handleGridLayoutCommit(layout);
                   }}
                   onResizeStart={(_layout, _oldItem, newItem) => {
@@ -3175,7 +3014,9 @@ export function CustomDashboardStudioPage({
                     <div
                       key={item.instance.id}
                       style={autoGridItemStyle(item.instance.layout, {
-                        fullWidth: isWorkspaceRowWidgetId(item.instance.widgetId),
+                        fullWidth:
+                          isWorkspaceRowWidgetId(item.instance.widgetId) ||
+                          item.instance.widgetId === WORKSPACE_SLIDE_WIDGET_ID,
                       })}
                       className={cn(
                         "relative isolate h-full min-w-0 overflow-visible",
@@ -3498,6 +3339,40 @@ export function CustomDashboardStudioPage({
             </div>
           </div>
         </aside>
+
+        <WorkspaceComponentBrowser
+          open={slideRegionComposer !== null}
+          title="Add widget to slide"
+          description="Place a normal workspace widget into the selected slide region."
+          permissions={permissions}
+          userId={catalogPreferencesUserId}
+          topOffsetClassName={dashboardMenuHidden ? "top-4" : "top-12"}
+          widgetFilter={(widget) =>
+            widget.id !== WORKSPACE_ROW_WIDGET_ID &&
+            widget.id !== WORKSPACE_SLIDE_WIDGET_ID &&
+            widget.fixedPlacementMode !== "sidebar"
+          }
+          onOpenChange={(open) => {
+            if (!open) {
+              setSlideRegionComposer(null);
+            }
+          }}
+          onAddWidget={(widget) => {
+            if (!slideRegionComposer) {
+              return;
+            }
+
+            updateSelectedWorkspace((dashboard) =>
+              appendCatalogWidgetToSlideRegion(
+                dashboard,
+                slideRegionComposer.slideWidgetId,
+                slideRegionComposer.region,
+                widget,
+              ),
+            );
+            setSlideRegionComposer(null);
+          }}
+        />
 
         <WorkspaceRequestDebugPanel
           open={requestDebugOpen}

@@ -633,12 +633,17 @@ export function CustomWidgetSettingsPage({
                         );
                       }}
                       panelTitle={`${instance.title ?? widget.title} Settings`}
-                      panelDescription="Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                      panelDescription={
+                        instance.slidePlacement
+                          ? "Adjust the display title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
+                          : "Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                      }
                       persistenceNote={
                         backendMode
                           ? "Edits update the current workspace draft immediately. They are not saved until you click Save workspace."
                           : "Edits update the current local workspace draft immediately. They are not saved until you click Save workspace."
                       }
+                      showPlacementField={!instance.slidePlacement}
                       secondaryActionLabel="Return to dashboard"
                       onClose={openDashboardView}
                       onRemove={() => {
@@ -663,12 +668,17 @@ export function CustomWidgetSettingsPage({
                     widget={widget}
                     instance={instance}
                     panelTitle={`${instance.title ?? widget.title} Settings`}
-                    panelDescription="Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                    panelDescription={
+                      instance.slidePlacement
+                        ? "Adjust the display title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
+                        : "Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                    }
                     persistenceNote={
                       backendMode
                         ? "Edits update the current workspace draft immediately. They are not saved until you click Save workspace."
                         : "Edits update the current local workspace draft immediately. They are not saved until you click Save workspace."
                     }
+                    showPlacementField={!instance.slidePlacement}
                     secondaryActionLabel="Return to dashboard"
                     onClose={openDashboardView}
                     onRemove={() => {

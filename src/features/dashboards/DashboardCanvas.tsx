@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { ComponentType } from "react";
 
 import { ArrowLeft } from "lucide-react";
@@ -27,7 +27,12 @@ import {
   resolveAutoGridTemplateColumns,
   resolveCustomRuntimeGridLayout,
 } from "@/dashboards/responsive-layout";
-import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
+import {
+  getWorkspaceRowChildCount,
+  isWorkspaceRowCollapsed,
+  isWorkspaceRowWidgetId,
+  WORKSPACE_SLIDE_WIDGET_ID,
+} from "@/dashboards/structural-widgets";
 import type {
   DashboardDefinition,
   DashboardLayoutKind,
@@ -38,12 +43,8 @@ import { getWidgetById } from "@/app/registry";
 import {
   LockedWidgetFrame,
   MissingWidgetFrame,
-  WidgetFrame,
 } from "@/widgets/shared/widget-frame";
-import {
-  resolveWidgetHeaderVisibility,
-  resolveWidgetSidebarOnly,
-} from "@/widgets/shared/chrome";
+import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
 import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
 import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
 import {
@@ -55,9 +56,17 @@ import {
 import type { WidgetInstancePresentation } from "@/widgets/types";
 import type { WidgetHeaderActionsProps } from "@/widgets/types";
 import {
+  sanitizeWorkspaceSlideProps,
+  WORKSPACE_SLIDE_REGION_IDS,
+  type WorkspaceSlideRegionId,
+} from "@/widgets/core/workspace-slide/slide-model";
+import { WorkspaceSlideSurface } from "@/widgets/core/workspace-slide/WorkspaceSlideWidget";
+import {
   DEFAULT_WORKSPACE_CANVAS_BOTTOM_BUFFER_ROWS,
   resolveWorkspaceCanvasMinHeight,
 } from "./workspace-canvas-height";
+import { WorkspaceCanvasWidgetCard } from "./WorkspaceCanvasWidgetHost";
+import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
 
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
   return {
@@ -241,7 +250,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
   const missingCanvasWidgets = useMemo(
     () =>
       resolvedRenderedWidgets.filter((instance) => {
-        if (resolveWidgetSidebarOnly(instance.presentation)) {
+        if (resolveWidgetSidebarOnly(instance.presentation) || instance.slidePlacement) {
           return false;
         }
 
@@ -250,11 +259,46 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
     [resolvedRenderedWidgets],
   );
   const canvasWidgetEntries = useMemo(
-    () => widgetEntries.filter(({ instance }) => !resolveWidgetSidebarOnly(instance.presentation)),
+    () =>
+      widgetEntries.filter(
+        ({ instance }) =>
+          !resolveWidgetSidebarOnly(instance.presentation) && !instance.slidePlacement,
+      ),
     [widgetEntries],
   );
+  const slidePlacedWidgetEntriesByRegion = useMemo(() => {
+    const grouped = new Map<string, Map<WorkspaceSlideRegionId, ResolvedDashboardWidgetEntry[]>>();
+
+    widgetEntries.forEach((entry) => {
+      if (resolveWidgetSidebarOnly(entry.instance.presentation) || !entry.instance.slidePlacement) {
+        return;
+      }
+
+      const byRegion = grouped.get(entry.instance.slidePlacement.slideWidgetId) ?? new Map();
+      const current = byRegion.get(entry.instance.slidePlacement.region) ?? [];
+      current.push(entry);
+      byRegion.set(entry.instance.slidePlacement.region, current);
+      grouped.set(entry.instance.slidePlacement.slideWidgetId, byRegion);
+    });
+
+    grouped.forEach((byRegion) => {
+      byRegion.forEach((entries) => {
+        entries.sort(
+          (left, right) =>
+            left.instance.layout.y - right.instance.layout.y ||
+            left.instance.layout.x - right.instance.layout.x,
+        );
+      });
+    });
+
+    return grouped;
+  }, [widgetEntries]);
   const sidebarOnlyWidgetEntries = useMemo(
-    () => widgetEntries.filter(({ instance }) => resolveWidgetSidebarOnly(instance.presentation)),
+    () =>
+      widgetEntries.filter(
+        ({ instance }) =>
+          resolveWidgetSidebarOnly(instance.presentation) && !instance.slidePlacement,
+      ),
     [widgetEntries],
   );
   const layoutKind: DashboardLayoutKind = resolvedDashboard.layoutKind ?? "custom";
@@ -274,11 +318,14 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
   );
   const companionCandidates = useMemo(
     () =>
-      resolveDashboardCanvasCompanionCandidates(widgetEntries, {
+      resolveDashboardCanvasCompanionCandidates(
+        widgetEntries.filter(({ instance }) => !instance.slidePlacement),
+        {
         columns: resolvedDashboard.grid.columns,
         storedCompanionLayoutById,
         storedCompanionById,
-      }),
+      },
+      ),
     [resolvedDashboard.grid.columns, storedCompanionById, storedCompanionLayoutById, widgetEntries],
   );
   const visibleCompanionCandidates = useMemo(
@@ -384,10 +431,25 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
     return map;
   }, [visibleCompanionCandidates]);
+  const rowChildCountById = useMemo(
+    () =>
+      new Map(
+        resolvedRenderedWidgets
+          .filter((instance) => isWorkspaceRowWidgetId(instance.widgetId))
+          .map((instance) => [
+            instance.id,
+            getWorkspaceRowChildCount(resolvedRenderedWidgets, instance.id),
+          ] as const),
+      ),
+    [resolvedRenderedWidgets],
+  );
   const autoGridRenderItems = useMemo(
     () =>
       resolvedRenderedWidgets
-        .filter((instance) => !resolveWidgetSidebarOnly(instance.presentation))
+        .filter(
+          (instance) =>
+            !resolveWidgetSidebarOnly(instance.presentation) && !instance.slidePlacement,
+        )
         .flatMap((instance) => {
           const baseItem =
             getWidgetById(instance.widgetId) == null
@@ -450,6 +512,201 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
       window.removeEventListener("resize", updateCanvasWidth);
     };
   }, []);
+
+  function renderCanvasWidgetCard(
+    instance: ResolvedDashboardWidgetInstance,
+    widget: NonNullable<ReturnType<typeof getWidgetById>>,
+  ): ReactNode {
+    const required = [
+      ...(widget.requiredPermissions ?? []),
+      ...(instance.requiredPermissions ?? []),
+    ];
+
+    if (!hasAllPermissions(permissions, required)) {
+      return (
+        <LockedWidgetFrame
+          title={instance.title ?? widget.title}
+          description={`Missing permissions: ${required.join(", ")}`}
+          style={{ height: "100%" }}
+        />
+      );
+    }
+
+    const HeaderActions =
+      widget.headerActions as
+        | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
+        | undefined;
+
+    if (widget.id === WORKSPACE_SLIDE_WIDGET_ID) {
+      const slide = sanitizeWorkspaceSlideProps(instance.props ?? {});
+      const slideRegions = slidePlacedWidgetEntriesByRegion.get(instance.id);
+      const regionContent: Partial<Record<WorkspaceSlideRegionId, ReactNode>> = {};
+
+      WORKSPACE_SLIDE_REGION_IDS.forEach((regionId) => {
+        const entries = slideRegions?.get(regionId) ?? [];
+
+        if (entries.length === 0) {
+          return;
+        }
+
+        regionContent[regionId] = (
+          <WorkspaceSlideSubgridHost
+            items={entries.map((entry) => ({
+              id: entry.instance.id,
+              layout: {
+                x: entry.instance.layout.x,
+                y: entry.instance.layout.y,
+                w: entry.instance.layout.w,
+                h: entry.instance.layout.h,
+              },
+              content: renderCanvasWidgetCard(entry.instance, entry.widget),
+            }))}
+            editable={false}
+          />
+        );
+      });
+
+      return (
+        <WorkspaceCanvasWidgetCard
+          instanceId={instance.id}
+          instanceTitle={instance.title}
+          selected={false}
+          editable={false}
+          shellVariant="transparent"
+          widget={widget}
+          widgetProps={instance.props ?? {}}
+          widgetPresentation={instance.presentation}
+          widgetRuntimeState={instance.runtimeState}
+          renderCanvasFields={false}
+          headerActions={
+            HeaderActions ? (
+              <HeaderActions
+                widget={widget}
+                props={instance.props ?? {}}
+                runtimeState={instance.runtimeState}
+                onRuntimeStateChange={(state) => {
+                  setWidgetOverrides((current) => ({
+                    ...current,
+                    [instance.id]: {
+                      ...current[instance.id],
+                      runtimeState: state ?? null,
+                    },
+                  }));
+                }}
+              />
+            ) : undefined
+          }
+          customContent={
+            <WorkspaceSlideSurface slide={slide} editable={false} regionContent={regionContent} />
+          }
+          onRemove={() => {}}
+          onDuplicate={() => {}}
+          onSaveWidget={() => {}}
+          onPropsChange={(instanceId, props) => {
+            setWidgetOverrides((current) => ({
+              ...current,
+              [instanceId]: {
+                ...current[instanceId],
+                props,
+              },
+            }));
+          }}
+          onPresentationChange={(instanceId, presentation) => {
+            setWidgetOverrides((current) => ({
+              ...current,
+              [instanceId]: {
+                ...current[instanceId],
+                presentation,
+              },
+            }));
+          }}
+          onRuntimeStateChange={(instanceId, runtimeState) => {
+            setWidgetOverrides((current) => ({
+              ...current,
+              [instanceId]: {
+                ...current[instanceId],
+                runtimeState: runtimeState ?? null,
+              },
+            }));
+          }}
+          onSelect={() => {}}
+          onOpenBindings={() => {}}
+          onOpenSettings={(instanceId) => {
+            setSettingsInstanceId(instanceId);
+          }}
+        />
+      );
+    }
+
+    return (
+      <WorkspaceCanvasWidgetCard
+        instanceId={instance.id}
+        instanceTitle={instance.title}
+        selected={false}
+        editable={false}
+        widget={widget}
+        widgetProps={instance.props ?? {}}
+        widgetPresentation={instance.presentation}
+        widgetRuntimeState={instance.runtimeState}
+        renderCanvasFields={false}
+        headerActions={
+          HeaderActions ? (
+            <HeaderActions
+              widget={widget}
+              props={instance.props ?? {}}
+              runtimeState={instance.runtimeState}
+              onRuntimeStateChange={(state) => {
+                setWidgetOverrides((current) => ({
+                  ...current,
+                  [instance.id]: {
+                    ...current[instance.id],
+                    runtimeState: state ?? null,
+                  },
+                }));
+              }}
+            />
+          ) : undefined
+        }
+        onRemove={() => {}}
+        onDuplicate={() => {}}
+        onSaveWidget={() => {}}
+        onPropsChange={(instanceId, props) => {
+          setWidgetOverrides((current) => ({
+            ...current,
+            [instanceId]: {
+              ...current[instanceId],
+              props,
+            },
+          }));
+        }}
+        onPresentationChange={(instanceId, presentation) => {
+          setWidgetOverrides((current) => ({
+            ...current,
+            [instanceId]: {
+              ...current[instanceId],
+              presentation,
+            },
+          }));
+        }}
+        onRuntimeStateChange={(instanceId, runtimeState) => {
+          setWidgetOverrides((current) => ({
+            ...current,
+            [instanceId]: {
+              ...current[instanceId],
+              runtimeState: runtimeState ?? null,
+            },
+          }));
+        }}
+        onSelect={() => {}}
+        onOpenBindings={() => {}}
+        onOpenSettings={(instanceId) => {
+          setSettingsInstanceId(instanceId);
+        }}
+        rowCollapsed={isWorkspaceRowCollapsed(instance)}
+        rowChildCount={rowChildCountById.get(instance.id) ?? 0}
+      />
+    );
+  }
 
   return (
     <DashboardControlsProvider key={dashboard.id} controls={dashboard.controls}>
@@ -558,8 +815,13 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                 widget={settingsWidget}
                 instance={settingsInstance}
                 panelTitle={`${settingsInstance.title ?? settingsWidget.title} Settings`}
-                panelDescription="Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                panelDescription={
+                  settingsInstance.slidePlacement
+                    ? "Adjust the display title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
+                    : "Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                }
                 persistenceNote="Edits update this page immediately and are lost when you refresh or leave the page."
+                showPlacementField={!settingsInstance.slidePlacement}
                 secondaryActionLabel="Return to dashboard"
                 onClose={() => {
                   setSettingsInstanceId(null);
@@ -640,7 +902,9 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                           key={item.instance.id}
                           widgetId={item.instance.widgetId}
                           style={autoGridItemStyle(item.instance.layout, {
-                            fullWidth: isWorkspaceRowWidgetId(item.instance.widgetId),
+                            fullWidth:
+                              isWorkspaceRowWidgetId(item.instance.widgetId) ||
+                              item.instance.widgetId === WORKSPACE_SLIDE_WIDGET_ID,
                           })}
                         />
                       );
@@ -648,37 +912,10 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
 
                     const { instance, widget } = item;
                     const style = autoGridItemStyle(instance.layout, {
-                      fullWidth: isWorkspaceRowWidgetId(widget.id),
+                      fullWidth:
+                        isWorkspaceRowWidgetId(widget.id) ||
+                        widget.id === WORKSPACE_SLIDE_WIDGET_ID,
                     });
-                    const required = [
-                      ...(widget.requiredPermissions ?? []),
-                      ...(instance.requiredPermissions ?? []),
-                    ];
-
-                    if (!hasAllPermissions(permissions, required)) {
-                      return (
-                        <LockedWidgetFrame
-                          key={instance.id}
-                          style={style}
-                          title={instance.title ?? widget.title}
-                          description={`Missing permissions: ${required.join(", ")}`}
-                        />
-                      );
-                    }
-
-                    const Component = widget.component as ComponentType<{
-                      widget: typeof widget;
-                      instanceId?: string;
-                      instanceTitle?: string;
-                      props: Record<string, unknown>;
-                      presentation?: WidgetInstancePresentation;
-                      runtimeState?: Record<string, unknown>;
-                      onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-                    }>;
-                    const HeaderActions =
-                      widget.headerActions as
-                        | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
-                        | undefined;
 
                     return (
                       <div
@@ -686,64 +923,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                         style={style}
                         className="relative isolate h-full min-w-0 overflow-visible"
                       >
-                        <WidgetFrame
-                          widget={widget}
-                          instanceId={instance.id}
-                          instance={instance}
-                          presentation={instance.presentation}
-                          runtimeState={instance.runtimeState}
-                          showHeader={
-                            isWorkspaceRowWidgetId(widget.id)
-                              ? false
-                              : resolveWidgetHeaderVisibility(instance.props)
-                          }
-                          headerActions={
-                            HeaderActions ? (
-                              <HeaderActions
-                                widget={widget}
-                                props={instance.props ?? {}}
-                                runtimeState={instance.runtimeState}
-                                onRuntimeStateChange={(state) => {
-                                  setWidgetOverrides((current) => ({
-                                    ...current,
-                                    [instance.id]: {
-                                      ...current[instance.id],
-                                      runtimeState: state ?? null,
-                                    },
-                                  }));
-                                }}
-                              />
-                            ) : undefined
-                          }
-                          onOpenSettings={() => {
-                            setSettingsInstanceId(instance.id);
-                          }}
-                        >
-                          <WidgetErrorBoundary
-                            widgetId={widget.id}
-                            widgetTitle={instance.title ?? widget.title}
-                            instanceId={instance.id}
-                            surface="canvas"
-                          >
-                            <Component
-                              widget={widget}
-                              instanceId={instance.id}
-                              instanceTitle={instance.title}
-                              props={instance.props ?? {}}
-                              presentation={instance.presentation}
-                              runtimeState={instance.runtimeState}
-                              onRuntimeStateChange={(state) => {
-                                setWidgetOverrides((current) => ({
-                                  ...current,
-                                  [instance.id]: {
-                                    ...current[instance.id],
-                                    runtimeState: state ?? null,
-                                  },
-                                }));
-                              }}
-                            />
-                          </WidgetErrorBoundary>
-                        </WidgetFrame>
+                        {renderCanvasWidgetCard(instance, widget)}
                       </div>
                     );
                   })}
@@ -762,45 +942,6 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                   const style = layoutToStyle(
                     customRuntimeLayoutById.get(instance.id) ?? instance.layout,
                   );
-                  const required = [
-                    ...(widget.requiredPermissions ?? []),
-                    ...(instance.requiredPermissions ?? []),
-                  ];
-
-                  if (!hasAllPermissions(permissions, required)) {
-                    return (
-                      <div
-                        key={instance.id}
-                        style={style}
-                        className="relative isolate box-border h-full overflow-visible"
-                      >
-                        <div
-                          className="box-border h-full overflow-visible"
-                          style={resolveGridItemInsetStyle(customGridVisualGap)}
-                        >
-                          <LockedWidgetFrame
-                            title={instance.title ?? widget.title}
-                            description={`Missing permissions: ${required.join(", ")}`}
-                            style={{ height: "100%" }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  const Component = widget.component as ComponentType<{
-                    widget: typeof widget;
-                    instanceId?: string;
-                    instanceTitle?: string;
-                    props: Record<string, unknown>;
-                    presentation?: WidgetInstancePresentation;
-                    runtimeState?: Record<string, unknown>;
-                    onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-                  }>;
-                  const HeaderActions =
-                    widget.headerActions as
-                      | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
-                      | undefined;
 
                   return (
                     <div
@@ -812,64 +953,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                         className="box-border h-full overflow-visible"
                         style={resolveGridItemInsetStyle(customGridVisualGap)}
                       >
-                        <WidgetFrame
-                          widget={widget}
-                          instanceId={instance.id}
-                          instance={instance}
-                          presentation={instance.presentation}
-                          runtimeState={instance.runtimeState}
-                          showHeader={
-                            isWorkspaceRowWidgetId(widget.id)
-                              ? false
-                              : resolveWidgetHeaderVisibility(instance.props)
-                          }
-                          headerActions={
-                            HeaderActions ? (
-                              <HeaderActions
-                                widget={widget}
-                                props={instance.props ?? {}}
-                                runtimeState={instance.runtimeState}
-                                onRuntimeStateChange={(state) => {
-                                  setWidgetOverrides((current) => ({
-                                    ...current,
-                                    [instance.id]: {
-                                      ...current[instance.id],
-                                      runtimeState: state ?? null,
-                                    },
-                                  }));
-                                }}
-                              />
-                            ) : undefined
-                          }
-                          onOpenSettings={() => {
-                            setSettingsInstanceId(instance.id);
-                          }}
-                        >
-                          <WidgetErrorBoundary
-                            widgetId={widget.id}
-                            widgetTitle={instance.title ?? widget.title}
-                            instanceId={instance.id}
-                            surface="canvas"
-                          >
-                            <Component
-                              widget={widget}
-                              instanceId={instance.id}
-                              instanceTitle={instance.title}
-                              props={instance.props ?? {}}
-                              presentation={instance.presentation}
-                              runtimeState={instance.runtimeState}
-                              onRuntimeStateChange={(state) => {
-                                setWidgetOverrides((current) => ({
-                                  ...current,
-                                  [instance.id]: {
-                                    ...current[instance.id],
-                                    runtimeState: state ?? null,
-                                  },
-                                }));
-                              }}
-                            />
-                          </WidgetErrorBoundary>
-                        </WidgetFrame>
+                        {renderCanvasWidgetCard(instance, widget)}
                       </div>
                     </div>
                   );

@@ -280,6 +280,7 @@ function buildAtomicSavedWidgetPayload(
     category: dashboard.category ?? "Custom",
     source: dashboard.source ?? "user",
     schemaVersion: 1,
+    sourceInstanceId: widget.id,
     widgetTypeId: widget.widgetId,
     instanceTitle: widget.title ?? "",
     props: cloneJson(widget.props ?? {}),
@@ -291,6 +292,7 @@ function buildAtomicSavedWidgetPayload(
     row: toShallowRowState(widget),
     layout: getWidgetLayout(widget.layout),
     position: cloneJson(widget.position),
+    slidePlacement: cloneJson(widget.slidePlacement),
     companions: getWidgetCompanions(dashboard, widget.id),
     requiredPermissions: cloneJson(widget.requiredPermissions ?? []),
   };
@@ -307,6 +309,7 @@ function buildGroupMemberPayload(
     category: dashboard.category ?? "Custom",
     source: dashboard.source ?? "user",
     schemaVersion: 1,
+    sourceInstanceId: widget.id,
     widgetTypeId: widget.widgetId,
     instanceTitle: widget.title ?? "",
     props: cloneJson(widget.props ?? {}),
@@ -314,6 +317,7 @@ function buildGroupMemberPayload(
     row: toShallowRowState(widget),
     layout: getWidgetLayout(widget.layout),
     position: cloneJson(widget.position),
+    slidePlacement: cloneJson(widget.slidePlacement),
     companions: getWidgetCompanions(dashboard, widget.id),
     requiredPermissions: cloneJson(widget.requiredPermissions ?? []),
   };
@@ -394,6 +398,7 @@ function buildImportedWidgetInstance(
   savedWidget: SavedWidgetInstanceRecord,
   instanceId: string,
   deltaY: number,
+  slideIdRemap?: ReadonlyMap<string, string>,
 ): DashboardWidgetInstance {
   const nextPosition: DashboardWidgetPlacement | undefined = savedWidget.position
     ? {
@@ -426,6 +431,14 @@ function buildImportedWidgetInstance(
       : undefined,
     layout: getWidgetLayout(savedWidget.layout),
     position: nextPosition,
+    slidePlacement: savedWidget.slidePlacement
+      ? {
+          slideWidgetId:
+            slideIdRemap?.get(savedWidget.slidePlacement.slideWidgetId) ??
+            savedWidget.slidePlacement.slideWidgetId,
+          region: savedWidget.slidePlacement.region,
+        }
+      : undefined,
     requiredPermissions: cloneJson(savedWidget.requiredPermissions ?? []),
   };
 }
@@ -710,18 +723,33 @@ export function appendSavedWidgetGroupToDashboard(
   const memberKeyToInstanceId = new Map<string, string>();
   const importedCompanions: DashboardCompanionLayoutItem[] = [];
 
-  const importedWidgets = savedGroup.members
+  const importedMemberEntries = savedGroup.members
     .slice()
-    .sort((left, right) => left.sortOrder - right.sortOrder)
-    .map((member) => {
-      const nextInstanceId = createId(buildInstanceIdPrefix(member.widgetInstance));
-      memberKeyToInstanceId.set(member.memberKey, nextInstanceId);
-      importedCompanions.push(
-        ...remapCompanionLayouts(member.widgetInstance.companions, nextInstanceId, deltaY),
-      );
+    .sort((left, right) => left.sortOrder - right.sortOrder);
+  const sourceInstanceIdToImportedId = new Map<string, string>();
 
-      return buildImportedWidgetInstance(member.widgetInstance, nextInstanceId, deltaY);
-    });
+  const importedWidgets = importedMemberEntries.map((member) => {
+    const nextInstanceId = createId(buildInstanceIdPrefix(member.widgetInstance));
+    memberKeyToInstanceId.set(member.memberKey, nextInstanceId);
+    if (member.widgetInstance.sourceInstanceId) {
+      sourceInstanceIdToImportedId.set(member.widgetInstance.sourceInstanceId, nextInstanceId);
+    }
+    importedCompanions.push(
+      ...remapCompanionLayouts(member.widgetInstance.companions, nextInstanceId, deltaY),
+    );
+
+    return {
+      member,
+      nextInstanceId,
+    };
+  }).map(({ member, nextInstanceId }) =>
+    buildImportedWidgetInstance(
+      member.widgetInstance,
+      nextInstanceId,
+      deltaY,
+      sourceInstanceIdToImportedId,
+    ),
+  );
 
   const canonicalBindings = savedGroup.bindings.length > 0
     ? buildCanonicalImportedBindings(savedGroup, memberKeyToInstanceId)

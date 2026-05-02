@@ -7,6 +7,7 @@ export interface DashboardGridConfig {
 }
 
 export type DashboardLayoutKind = "custom" | "auto-grid";
+export type DashboardDefinitionType = "workspace" | "agent-monitor" | "slide-studio";
 
 export interface DashboardAutoGridConfig {
   maxColumns?: number;
@@ -91,6 +92,13 @@ export interface DashboardWidgetRowState {
   children?: DashboardWidgetInstance[];
 }
 
+export type DashboardSlideRegionId = "header" | "left" | "body" | "right" | "footer";
+
+export interface DashboardWidgetSlidePlacement {
+  slideWidgetId: string;
+  region: DashboardSlideRegionId;
+}
+
 export type DashboardManagedWidgetRole = "embedded-connection-source";
 
 export interface DashboardManagedWidgetOwner {
@@ -107,6 +115,7 @@ export interface DashboardWidgetInstance {
   presentation?: WidgetInstancePresentation;
   bindings?: WidgetInstanceBindings;
   managedBy?: DashboardManagedWidgetOwner;
+  slidePlacement?: DashboardWidgetSlidePlacement;
   row?: DashboardWidgetRowState;
   layout: DashboardWidgetLayout;
   position?: DashboardWidgetPlacement;
@@ -117,6 +126,7 @@ export interface DashboardDefinition {
   id: string;
   title: string;
   description: string;
+  type?: DashboardDefinitionType;
   labels?: string[];
   category?: string;
   source: string;
