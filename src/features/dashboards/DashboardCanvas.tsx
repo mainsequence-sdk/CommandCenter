@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { ComponentType } from "react";
 
 import { ArrowLeft } from "lucide-react";
@@ -157,12 +157,13 @@ function DashboardCanvasCompanionCard({
       ) ?? null,
     [candidate.fieldId, candidate.props, candidate.widget, context],
   );
+  const renderCanvasVisible = Boolean(visibleField?.renderCanvas);
 
   useEffect(() => {
-    onVisibilityChange(candidate.itemId, Boolean(visibleField?.renderCanvas));
-  }, [candidate.itemId, onVisibilityChange, visibleField]);
+    onVisibilityChange(candidate.itemId, renderCanvasVisible);
+  }, [candidate.itemId, onVisibilityChange, renderCanvasVisible]);
 
-  if (!visibleField?.renderCanvas) {
+  if (!renderCanvasVisible || !visibleField?.renderCanvas) {
     return null;
   }
 
@@ -195,7 +196,13 @@ function DashboardCanvasCompanionCard({
   );
 }
 
-export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition }) {
+export function DashboardCanvas({
+  dashboard,
+  publicView = false,
+}: {
+  dashboard: DashboardDefinition;
+  publicView?: boolean;
+}) {
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
@@ -469,6 +476,18 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
     [resolvedRenderedWidgets, settingsInstanceId],
   );
   const settingsWidget = settingsInstance ? getWidgetById(settingsInstance.widgetId) : null;
+  const handleCompanionVisibilityChange = useCallback((itemId: string, visible: boolean) => {
+    setCompanionVisibilityById((current) => {
+      if (current[itemId] === visible) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [itemId]: visible,
+      };
+    });
+  }, []);
 
   useEffect(() => {
     setWidgetOverrides({});
@@ -840,7 +859,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
             </div>
           ) : (
             <div className="space-y-3">
-              <DashboardDataControls controls={dashboard.controls} />
+              {!publicView ? <DashboardDataControls controls={dashboard.controls} /> : null}
               {layoutKind === "auto-grid" ? (
                 <div
                   className="grid"
@@ -879,18 +898,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                                 },
                               }));
                             }}
-                            onVisibilityChange={(itemId, visible) => {
-                              setCompanionVisibilityById((current) => {
-                                if (current[itemId] === visible) {
-                                  return current;
-                                }
-
-                                return {
-                                  ...current,
-                                  [itemId]: visible,
-                                };
-                              });
-                            }}
+                            onVisibilityChange={handleCompanionVisibilityChange}
                           />
                         </div>
                       );
@@ -1018,18 +1026,7 @@ export function DashboardCanvas({ dashboard }: { dashboard: DashboardDefinition 
                               },
                             }));
                           }}
-                          onVisibilityChange={(itemId, visible) => {
-                            setCompanionVisibilityById((current) => {
-                              if (current[itemId] === visible) {
-                                return current;
-                              }
-
-                              return {
-                                ...current,
-                                [itemId]: visible,
-                              };
-                            });
-                          }}
+                          onVisibilityChange={handleCompanionVisibilityChange}
                         />
                       </div>
                     </div>

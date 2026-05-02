@@ -9,6 +9,7 @@ export interface WorkspaceListItemSummary {
   labels: string[];
   source: string;
   updatedAt: string | null;
+  publicUrl: string | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -67,8 +68,15 @@ function readUpdatedAt(source: Record<string, unknown>) {
   return readStringAlias(source, ["updatedAt", "updated_at", "modified_at", "modifiedAt"], "") || null;
 }
 
+function readPublicUrl(source: Record<string, unknown>) {
+  return readStringAlias(source, ["publicUrl", "public_url"], "") || null;
+}
+
 export function summarizeDashboardForWorkspaceList(
-  dashboard: Pick<DashboardDefinition, "id" | "title" | "description" | "type" | "labels" | "source">,
+  dashboard: Pick<
+    DashboardDefinition,
+    "id" | "title" | "description" | "type" | "labels" | "source" | "publicUrl"
+  >,
   options?: {
     updatedAt?: string | null;
   },
@@ -81,6 +89,7 @@ export function summarizeDashboardForWorkspaceList(
     labels: dashboard.labels ?? [],
     source: dashboard.source,
     updatedAt: options?.updatedAt ?? null,
+    publicUrl: dashboard.publicUrl ?? null,
   };
 }
 
@@ -95,6 +104,7 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
       ? {
           ...nestedSummary,
           updatedAt: readUpdatedAt(value) ?? nestedSummary.updatedAt,
+          publicUrl: readPublicUrl(value) ?? nestedSummary.publicUrl,
         }
       : null;
   }
@@ -105,6 +115,7 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
       ? {
           ...nestedSummary,
           updatedAt: readUpdatedAt(value) ?? nestedSummary.updatedAt,
+          publicUrl: readPublicUrl(value) ?? nestedSummary.publicUrl,
         }
       : null;
   }
@@ -124,6 +135,7 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
         type: normalizeDashboardDefinitionType(value.type, coerceLabelArray(value)),
         labels: coerceLabelArray(value),
         source: readStringAlias(value, ["source", "origin"], "user"),
+        publicUrl: readPublicUrl(value),
       },
       {
         updatedAt: readUpdatedAt(value),
@@ -145,6 +157,7 @@ export function coerceWorkspaceListItemSummary(value: unknown): WorkspaceListIte
     labels: coerceLabelArray(value),
     source: readStringAlias(value, ["source", "origin"], "user"),
     updatedAt: readUpdatedAt(value),
+    publicUrl: readPublicUrl(value),
   };
 }
 

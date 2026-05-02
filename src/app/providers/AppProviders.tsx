@@ -9,22 +9,18 @@ import { CommandCenterPreferencesProvider } from "@/preferences/CommandCenterPre
 import { ThemeProvider } from "@/themes/ThemeProvider";
 import { WidgetOrganizationConfigurationProvider } from "@/widgets/WidgetOrganizationConfigurationProvider";
 
-import { GoogleTagProvider } from "./GoogleTagProvider";
-
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <CommandCenterConfigProvider>
-        <GoogleTagProvider>
-          <ThemeProvider>
-            <WidgetOrganizationConfigurationProvider>
-              <CommandCenterPreferencesProvider>
-                {children}
-                <Toaster />
-              </CommandCenterPreferencesProvider>
-            </WidgetOrganizationConfigurationProvider>
-          </ThemeProvider>
-        </GoogleTagProvider>
+        <ThemeProvider>
+          <WidgetOrganizationConfigurationProvider>
+            <CommandCenterPreferencesProvider>
+              {children}
+              <Toaster />
+            </CommandCenterPreferencesProvider>
+          </WidgetOrganizationConfigurationProvider>
+        </ThemeProvider>
       </CommandCenterConfigProvider>
     </QueryClientProvider>
   );

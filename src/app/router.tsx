@@ -16,6 +16,7 @@ import { ExtensionsGalleryPage } from "@/features/extensions/ExtensionsGalleryPa
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
 import { WidgetExplorerPage } from "@/features/widgets/WidgetExplorerPage";
+import { PublicWorkspacePage } from "@/features/dashboards/PublicWorkspacePage";
 import { AccessRbacTeamDetailPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamDetailPage";
 import { LegacyDemoRedirect } from "../../extensions/demo/LegacyDemoRedirect";
 import { MainSequenceAssetCategoryDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-categories/MainSequenceAssetCategoryDetailPage";
@@ -56,6 +57,10 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <Navigate to="/app" replace />,
+  },
+  {
+    path: "/public/workspaces/:token",
+    element: <PublicWorkspacePage />,
   },
   {
     path: "/app",

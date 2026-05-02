@@ -271,8 +271,18 @@ export function WorkspacesPage() {
                     </td>
                     <td className="px-4 py-3 align-top">
                       <div className="min-w-0">
-                        <div className="truncate font-medium text-foreground">
-                          {workspace.title}
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className="min-w-0 flex-1 truncate font-medium text-foreground">
+                            {workspace.title}
+                          </div>
+                          {workspace.publicUrl ? (
+                            <Badge
+                              variant="warning"
+                              className="border border-warning/30 bg-warning/12 text-warning"
+                            >
+                              Public
+                            </Badge>
+                          ) : null}
                         </div>
                       </div>
                     </td>

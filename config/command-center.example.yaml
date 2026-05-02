@@ -21,11 +21,6 @@ branding:
   logo_alt: Main Sequence
   monogram: MS
 
-analytics:
-  google_tag:
-    enabled: false
-    measurement_id:
-
 preferences:
   url: /api/v1/command_center/preferences/
   favorites_create_url: /api/v1/command_center/favorites/

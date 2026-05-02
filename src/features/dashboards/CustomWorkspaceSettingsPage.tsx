@@ -12,6 +12,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toaster";
 import { commandCenterConfig } from "@/config/command-center";
 import { cn } from "@/lib/utils";
 import {
@@ -19,6 +20,12 @@ import {
   restoreWorkspaceFromSnapshot,
   stringifyWorkspaceSnapshot,
 } from "./custom-dashboard-storage";
+import {
+  createWorkspacePublicLinkInBackend,
+  disableWorkspacePublicLinkInBackend,
+  rotateWorkspacePublicLinkInBackend,
+} from "./workspace-api";
+import { buildPublicWorkspaceFrontendUrlFromBackendUrl } from "./public-workspace-url";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 import {
@@ -80,11 +87,12 @@ function parsePositiveInteger(
 
 export function CustomWorkspaceSettingsPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { workspaceFilter, workspaceListPath } = useWorkspaceStudioSurfaceConfig();
   const [activeTab, setActiveTab] = useState<WorkspaceSettingsTabId>("configuration");
   const [labelInput, setLabelInput] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [publicLinkDialogMode, setPublicLinkDialogMode] = useState<"enable" | "disable" | "rotate" | null>(null);
   const [jsonDialogMode, setJsonDialogMode] = useState<"export" | "import" | null>(null);
   const [jsonImportValue, setJsonImportValue] = useState("");
   const [jsonCopyFeedback, setJsonCopyFeedback] = useState<string | null>(null);
@@ -150,6 +158,9 @@ export function CustomWorkspaceSettingsPage() {
   const sharingAvailable = backendMode && Boolean(workspacePermissionsObjectUrl);
   const workspaceType = normalizeDashboardDefinitionType(workspace.type, workspace.labels);
   const supportsPublicProjection = workspaceType === "workspace" || workspaceType === "slide-studio";
+  const publicUrl = workspace.publicUrl ?? null;
+  const publicFrontendUrl = buildPublicWorkspaceFrontendUrlFromBackendUrl(publicUrl) ?? null;
+  const isWorkspacePublic = Boolean(publicUrl);
   const modelDetailsCard = (
     <Card>
       <CardHeader>
@@ -211,6 +222,16 @@ export function CustomWorkspaceSettingsPage() {
                 <p className="text-xs text-warning">
                   Secrets remain protected, but public workspaces still consume underlying resources.
                 </p>
+                {isWorkspacePublic ? (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Badge
+                      variant="warning"
+                      className="border border-warning/30 bg-warning/12 text-warning"
+                    >
+                      Public link enabled
+                    </Badge>
+                  </div>
+                ) : null}
               </>
             ) : (
               <p>
@@ -219,6 +240,68 @@ export function CustomWorkspaceSettingsPage() {
               </p>
             )}
           </div>
+          {supportsPublicProjection && isWorkspacePublic ? (
+            <div className="mt-3 space-y-2">
+              {publicFrontendUrl ? (
+                <Input
+                  readOnly
+                  value={publicFrontendUrl}
+                  className="bg-background/55 text-xs"
+                />
+              ) : (
+                <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  Public access is enabled, but the frontend could not derive a shareable Command Center URL from the backend response yet.
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!publicFrontendUrl}
+                  onClick={() => {
+                    void navigator.clipboard.writeText(publicFrontendUrl ?? "").then(
+                      () => {
+                        toast({
+                          title: "Public URL copied",
+                          description: "The public workspace URL is in your clipboard.",
+                          variant: "success",
+                        });
+                      },
+                      () => {
+                        toast({
+                          title: "Unable to copy public URL",
+                          description: "Copy the URL manually from the field.",
+                          variant: "danger",
+                        });
+                      },
+                    );
+                  }}
+                >
+                  Copy public URL
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-warning/35 bg-warning/8 text-warning hover:border-warning/50 hover:bg-warning/14 hover:text-warning"
+                  onClick={() => {
+                    setPublicLinkDialogMode("rotate");
+                  }}
+                >
+                  Rotate URL
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-danger/35 bg-danger/8 text-danger hover:border-danger/50 hover:bg-danger/14 hover:text-danger"
+                  onClick={() => {
+                    setPublicLinkDialogMode("disable");
+                  }}
+                >
+                  Disable public access
+                </Button>
+              </div>
+            </div>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -242,11 +325,11 @@ export function CustomWorkspaceSettingsPage() {
               disabled={!supportsPublicProjection}
               className="border-warning/40 bg-warning/8 text-warning hover:border-warning/50 hover:bg-warning/14 hover:text-warning"
               onClick={() => {
-                setPublishDialogOpen(true);
+                setPublicLinkDialogMode("enable");
               }}
             >
               <Globe className="h-4 w-4" />
-              Make workspace public
+              {isWorkspacePublic ? "Public access enabled" : "Make workspace public"}
             </Button>
           </div>
         </div>
@@ -371,6 +454,74 @@ export function CustomWorkspaceSettingsPage() {
     await createWorkspaceFromDefinition(importedWorkspace);
 
     closeJsonDialog();
+  }
+
+  async function handleEnablePublicLink() {
+    try {
+      const response = await createWorkspacePublicLinkInBackend(workspace.id);
+      updateSelectedWorkspace((dashboard) => ({
+        ...dashboard,
+        publicUrl: response.publicUrl ?? dashboard.publicUrl ?? null,
+      }));
+      toast({
+        title: response.urlRevealed ? "Workspace is now public" : "Workspace public access confirmed",
+        description: response.urlRevealed
+          ? "A public URL was generated for this workspace."
+          : "Public access is enabled. The current URL remains active.",
+        variant: "success",
+      });
+      setPublicLinkDialogMode(null);
+    } catch (error) {
+      toast({
+        title: "Unable to make workspace public",
+        description: error instanceof Error ? error.message : "The public-link request failed.",
+        variant: "danger",
+      });
+    }
+  }
+
+  async function handleDisablePublicLink() {
+    try {
+      await disableWorkspacePublicLinkInBackend(workspace.id);
+      updateSelectedWorkspace((dashboard) => ({
+        ...dashboard,
+        publicUrl: null,
+      }));
+      toast({
+        title: "Public access disabled",
+        description: "Anonymous access to this workspace has been turned off.",
+        variant: "success",
+      });
+      setPublicLinkDialogMode(null);
+    } catch (error) {
+      toast({
+        title: "Unable to disable public access",
+        description: error instanceof Error ? error.message : "The public-link disable request failed.",
+        variant: "danger",
+      });
+    }
+  }
+
+  async function handleRotatePublicLink() {
+    try {
+      const response = await rotateWorkspacePublicLinkInBackend(workspace.id);
+      updateSelectedWorkspace((dashboard) => ({
+        ...dashboard,
+        publicUrl: response.publicUrl ?? dashboard.publicUrl ?? null,
+      }));
+      toast({
+        title: "Public URL rotated",
+        description: "The previous public URL is now invalid and a new one has been issued.",
+        variant: "success",
+      });
+      setPublicLinkDialogMode(null);
+    } catch (error) {
+      toast({
+        title: "Unable to rotate public URL",
+        description: error instanceof Error ? error.message : "The public-link rotate request failed.",
+        variant: "danger",
+      });
+    }
   }
 
   return (
@@ -756,13 +907,25 @@ export function CustomWorkspaceSettingsPage() {
       </div>
 
       <ActionConfirmationDialog
-        open={publishDialogOpen}
+        open={publicLinkDialogMode !== null}
         onClose={() => {
-          setPublishDialogOpen(false);
+          setPublicLinkDialogMode(null);
         }}
-        title="Make workspace public"
+        title={
+          publicLinkDialogMode === "disable"
+            ? "Disable public access"
+            : publicLinkDialogMode === "rotate"
+              ? "Rotate public URL"
+              : "Make workspace public"
+        }
         tone="warning"
-        actionLabel="make public"
+        actionLabel={
+          publicLinkDialogMode === "disable"
+            ? "disable public access"
+            : publicLinkDialogMode === "rotate"
+              ? "rotate public URL"
+              : "make public"
+        }
         objectLabel="workspace"
         objectSummary={
           <div className="space-y-1">
@@ -770,23 +933,44 @@ export function CustomWorkspaceSettingsPage() {
             <div className="text-xs text-muted-foreground">{workspace.id}</div>
           </div>
         }
-        confirmWord="PUBLIC"
-        confirmButtonLabel="Make public"
-        description="This will generate a public URL and make the workspace available to everyone who has that link."
+        confirmWord={
+          publicLinkDialogMode === "disable"
+            ? "DISABLE"
+            : publicLinkDialogMode === "rotate"
+              ? "ROTATE"
+              : "PUBLIC"
+        }
+        confirmButtonLabel={
+          publicLinkDialogMode === "disable"
+            ? "Disable public access"
+            : publicLinkDialogMode === "rotate"
+              ? "Rotate public URL"
+              : "Make public"
+        }
+        description={
+          publicLinkDialogMode === "disable"
+            ? "This will block anonymous access to the public workspace URL."
+            : publicLinkDialogMode === "rotate"
+              ? "This will invalidate the previous public URL and generate a new one."
+              : "This will generate a public URL and make the workspace available to everyone who has that link."
+        }
         specialText={
           <div className="space-y-2">
             <p>Secrets are protected, but public traffic will still consume the workspace resources behind this view.</p>
-            <p>The backend publication contract is not wired yet in this environment, so this action is currently a frontend placeholder.</p>
           </div>
         }
-        successToast={{
-          title: "Public publication not connected",
-          description:
-            "The warning flow is ready, but backend URL generation is not wired yet.",
-          variant: "info",
-        }}
         onConfirm={() => {
-          setPublishDialogOpen(false);
+          if (publicLinkDialogMode === "disable") {
+            void handleDisablePublicLink();
+            return;
+          }
+
+          if (publicLinkDialogMode === "rotate") {
+            void handleRotatePublicLink();
+            return;
+          }
+
+          void handleEnablePublicLink();
         }}
       />
 

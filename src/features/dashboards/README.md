@@ -61,6 +61,14 @@ These flows are all part of one app surface, with instance state selected throug
   `?workspace=<id>&mode=slideshow`.
 - Authenticated public preview is available for supported workspace types through
   `?workspace=<id>&mode=public-preview`.
+- Workspace settings now also manage backend-owned public links through the
+  `/public-link/`, `/public-link/disable/`, and `/public-link/rotate/` endpoints. The frontend
+  treats `publicUrl` / `public_url` as backend-owned metadata and does not send it back in normal
+  workspace save payloads.
+- The shareable URL shown in workspace settings is a frontend route
+  `/public/workspaces/:token` built from the backend public token, not the raw backend API URL.
+  That frontend route resolves the workspace from the anonymous backend endpoint and renders it
+  shelllessly through the normal read-only dashboard canvas.
 - The saved-widget library lives at `/app/workspace-studio/widgets`.
 - Surface-specific studio reusers may override those route targets and filter visible widget
   definitions while still using the same underlying workspace document model.

@@ -127,6 +127,7 @@ export interface DashboardDefinition {
   title: string;
   description: string;
   type?: DashboardDefinitionType;
+  publicUrl?: string | null;
   labels?: string[];
   category?: string;
   source: string;
