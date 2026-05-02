@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-
-import { ThemeMenu } from "@/app/layout/ThemeMenu";
-import { BrandWordmark } from "@/components/brand/BrandWordmark";
+import { useParams } from "react-router-dom";
 import type { DashboardDefinition } from "@/dashboards/types";
 import { PublicDashboardCanvas } from "./DashboardCanvas";
 import { fetchPublicWorkspaceDetailFromBackend } from "./workspace-api";
@@ -92,21 +89,7 @@ export function PublicWorkspacePage() {
       />
 
       <div className="relative z-10 min-h-screen">
-        <div className="sticky top-0 z-40 border-b border-border/60 bg-background/72 px-0 py-0.5 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-3">
-            <Link
-              to="/login"
-              className="inline-flex items-center rounded-[calc(var(--radius)-4px)] px-1 py-0.5 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
-            >
-              <BrandWordmark imageClassName="h-7 w-auto object-contain sm:h-8" />
-            </Link>
-            <div className="ml-auto flex items-center justify-end gap-3">
-              <ThemeMenu />
-            </div>
-          </div>
-        </div>
-
-        <div className="min-h-[calc(100vh-2rem)]">{content}</div>
+        <div className="min-h-screen">{content}</div>
       </div>
     </div>
   );

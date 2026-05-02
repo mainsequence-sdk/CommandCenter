@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { ComponentType } from "react";
 
 import { ArrowLeft } from "lucide-react";
@@ -65,10 +65,14 @@ import {
   DEFAULT_WORKSPACE_CANVAS_BOTTOM_BUFFER_ROWS,
   resolveWorkspaceCanvasMinHeight,
 } from "./workspace-canvas-height";
+import { PublicWorkspaceStatusBar } from "./PublicWorkspaceStatusBar";
+import { WorkspaceWidgetRail } from "./WorkspaceChrome";
 import { WorkspaceCanvasWidgetCard } from "./WorkspaceCanvasWidgetHost";
 import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
+import { isManagedDashboardWidgetHiddenFromNormalRail } from "./workspace-widget-visibility";
 
 const EMPTY_PERMISSIONS: string[] = [];
+const PUBLIC_RENDER_PERMISSIONS: readonly string[] = ["workspaces:view"];
 
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
   return {
@@ -232,7 +236,7 @@ export function PublicDashboardCanvas({ dashboard }: { dashboard: DashboardDefin
     <DashboardCanvasSurface
       dashboard={dashboard}
       publicView
-      permissions={EMPTY_PERMISSIONS}
+      permissions={PUBLIC_RENDER_PERMISSIONS}
     />
   );
 }
@@ -247,6 +251,7 @@ function DashboardCanvasSurface({
   permissions: readonly string[];
 }) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const canvasScrollContainerRef = useRef<HTMLElement | null>(null);
   const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
     {},
   );
@@ -254,6 +259,10 @@ function DashboardCanvasSurface({
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
     {},
   );
+  const [canvasScrollSync, setCanvasScrollSync] = useState({
+    progress: 0,
+    canScroll: false,
+  });
   const [canvasWidth, setCanvasWidth] = useState<number | null>(null);
   const resolvedDashboard = useMemo(
     () => resolveDashboardLayout(dashboard),
@@ -518,6 +527,33 @@ function DashboardCanvasSurface({
     [resolvedRenderedWidgets, settingsInstanceId],
   );
   const settingsWidget = settingsInstance ? getWidgetById(settingsInstance.widgetId) : null;
+  const railWidgets = useMemo(
+    () =>
+      resolvedDashboard.widgets.flatMap((instance) => {
+        const widget = getWidgetById(instance.widgetId);
+        const required = [
+          ...(widget?.requiredPermissions ?? []),
+          ...(instance.requiredPermissions ?? []),
+        ];
+
+        return widget &&
+          !isManagedDashboardWidgetHiddenFromNormalRail(instance) &&
+          (publicView || hasAllPermissions(permissions, required))
+          ? [
+              {
+                id: instance.id,
+                title: instance.title,
+                layout: instance.layout,
+                props: instance.props,
+                presentation: instance.presentation,
+                runtimeState: instance.runtimeState,
+                widget,
+              },
+            ]
+          : [];
+      }),
+    [permissions, publicView, resolvedDashboard.widgets],
+  );
   const setWidgetRuntimeStateOverride = useCallback(
     (instanceId: string, runtimeState: Record<string, unknown> | undefined) => {
       setWidgetOverrides((current) => {
@@ -561,6 +597,88 @@ function DashboardCanvasSurface({
       };
     });
   }, []);
+  const handleCanvasScrollProgressChange = useCallback((nextProgress: number) => {
+    const scrollElement = canvasScrollContainerRef.current;
+
+    if (!scrollElement) {
+      return;
+    }
+
+    const maxScrollTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+    const clampedProgress = Math.min(1, Math.max(0, nextProgress));
+    scrollElement.scrollTop = maxScrollTop * clampedProgress;
+  }, []);
+
+  useLayoutEffect(() => {
+    const scrollElement = publicView
+      ? (document.scrollingElement as HTMLElement | null)
+      : null;
+
+    canvasScrollContainerRef.current = scrollElement;
+
+    if (!scrollElement || typeof window === "undefined") {
+      setCanvasScrollSync({
+        progress: 0,
+        canScroll: false,
+      });
+      return undefined;
+    }
+
+    const element = scrollElement;
+    let frameId = 0;
+
+    function updateScrollSync() {
+      const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight);
+      const nextCanScroll = maxScrollTop > 0;
+      const nextProgress = nextCanScroll ? element.scrollTop / maxScrollTop : 0;
+
+      setCanvasScrollSync((current) => {
+        if (
+          current.canScroll === nextCanScroll &&
+          Math.abs(current.progress - nextProgress) < 0.001
+        ) {
+          return current;
+        }
+
+        return {
+          progress: nextProgress,
+          canScroll: nextCanScroll,
+        };
+      });
+    }
+
+    function scheduleUpdate() {
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(updateScrollSync);
+    }
+
+    scheduleUpdate();
+
+    const resizeObserver = new ResizeObserver(() => {
+      scheduleUpdate();
+    });
+
+    resizeObserver.observe(element);
+    Array.from(element.children).forEach((child) => {
+      resizeObserver.observe(child);
+    });
+    element.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      element.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+    };
+  }, [
+    publicView,
+    canvasMinHeight,
+    layoutKind,
+    resolvedDashboard?.widgets.length,
+    visibleCompanionCandidates.length,
+    settingsInstanceId,
+  ]);
 
   useEffect(() => {
     setWidgetOverrides({});
@@ -788,7 +906,22 @@ function DashboardCanvasSurface({
         >
           <DashboardWidgetDependenciesProvider widgets={renderedWidgets}>
             <div ref={canvasRef} className="relative">
-              <DashboardRefreshProgressLine />
+              {publicView ? <PublicWorkspaceStatusBar /> : <DashboardRefreshProgressLine />}
+              {publicView ? (
+                <WorkspaceWidgetRail
+                  widgets={railWidgets}
+                  activeInstanceId={null}
+                  topOffsetClassName="top-12"
+                  interactive={false}
+                  viewportPinned
+                  scrollSync={canvasScrollSync.canScroll ? {
+                    progress: canvasScrollSync.progress,
+                    canScroll: canvasScrollSync.canScroll,
+                    onProgressChange: handleCanvasScrollProgressChange,
+                  } : undefined}
+                  onOpenWidget={() => {}}
+                />
+              ) : null}
               <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
             {sidebarOnlyWidgetEntries.map(({ instance, widget }) => {
               const required = [
@@ -895,7 +1028,7 @@ function DashboardCanvasSurface({
               />
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className={publicView ? "space-y-3 pl-12" : "space-y-3"}>
               {!publicView ? <DashboardDataControls controls={dashboard.controls} /> : null}
               {layoutKind === "auto-grid" ? (
                 <div
