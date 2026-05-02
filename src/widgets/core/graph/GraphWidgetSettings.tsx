@@ -16,6 +16,7 @@ import {
   buildGraphSeries,
   buildGraphTableColumns,
   resolveGraphEffectiveTimeAxisMode,
+  resolveGraphDatasetFrame,
   resolveGraphNormalizationTimeMs,
   type GraphViewMode,
   type GraphWidgetProps,
@@ -180,7 +181,7 @@ export function GraphWidgetSettings({
   const resolvedConfig = context?.resolvedConfig;
   const hasNoData = context?.hasNoData ?? false;
   const linkedDataset = useMemo(
-    () => context?.resolvedSourceDataset ?? null,
+    () => resolveGraphDatasetFrame(context?.resolvedSourceDataset ?? null),
     [context?.resolvedSourceDataset],
   );
   const hasBoundSource = Boolean(context?.sourceWidgetId || context?.resolvedSourceWidget);

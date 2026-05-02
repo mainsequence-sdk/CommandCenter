@@ -16,6 +16,7 @@ import {
   normalizeGraphProps,
   reduceIncrementalGraphSeries,
   resolveGraphDateRange,
+  resolveGraphDatasetFrame,
   resolveGraphEffectiveTimeAxisMode,
   resolveGraphNormalizationTimeMs,
   resolveGraphConfig,
@@ -134,7 +135,10 @@ export function GraphWidget({
       : sourceBinding.requiresUpstreamResolution,
   });
   const linkedDataset = useMemo(
-    () => (incrementalBinding.active ? incrementalBinding.dataset : sourceConsumerState.dataset),
+    () =>
+      resolveGraphDatasetFrame(
+        incrementalBinding.active ? incrementalBinding.dataset : sourceConsumerState.dataset,
+      ),
     [incrementalBinding.active, incrementalBinding.dataset, sourceConsumerState.dataset],
   );
   const runtimeFieldOptions = useMemo(
@@ -161,9 +165,20 @@ export function GraphWidget({
     [rangeEndMs, rangeStartMs, resolvedConfig],
   );
   const sourceRows = linkedDataset?.rows ?? [];
-  const sourceDeltaRows = incrementalBinding.active
-    ? incrementalBinding.deltaDataset?.rows ?? []
-    : sourceBinding.resolvedSourceDeltaFrame?.rows ?? [];
+  const resolvedDeltaDataset = useMemo(
+    () =>
+      resolveGraphDatasetFrame(
+        incrementalBinding.active
+          ? incrementalBinding.deltaDataset
+          : sourceBinding.resolvedSourceDeltaFrame,
+      ),
+    [
+      incrementalBinding.active,
+      incrementalBinding.deltaDataset,
+      sourceBinding.resolvedSourceDeltaFrame,
+    ],
+  );
+  const sourceDeltaRows = resolvedDeltaDataset?.rows ?? [];
   const sourceUpdate = incrementalBinding.active
     ? incrementalBinding.liveInput?.upstreamUpdate
     : !Array.isArray(sourceBinding.resolvedSourceInput)

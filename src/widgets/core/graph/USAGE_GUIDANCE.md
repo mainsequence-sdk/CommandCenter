@@ -29,6 +29,8 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
 - Choose X and Y fields that match the intended chart.
 - Optionally choose a grouping field, provider, chart type, `Max points per series`, `Max series`, normalization, and series-axis mode. Leave `Normalize at` blank to rebase each series from its first visible usable point.
 - Inspect the resolved source schema before finalizing field mappings. Field pickers and chart rendering resolve from the effective seed/live state, including when those bindings point at a hidden managed source widget.
+- Settings previews, field selectors, and the mounted widget all read the same graph-normalized
+  dataset frame, so chartability checks should stay consistent between authoring and runtime.
 
 ## blockingRequirements
 

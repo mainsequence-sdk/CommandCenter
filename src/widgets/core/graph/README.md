@@ -51,6 +51,10 @@ This folder owns the core `graph` widget. It renders canonical
   `upstreamDelta` frames. For explicit `seedData`/`liveUpdates` bindings, the graph now owns a
   bounded local queue per series and applies incremental publications into that queue instead of
   rebuilding from the source widget's retained stream history on every live tick.
+- Runtime rendering, settings previews, and agent snapshots now all normalize the resolved source
+  frame through the same graph-specific dataset adapter before they derive fields or chart series.
+  Keep those surfaces on one normalized row shape so preview diagnostics and mounted chart output do
+  not drift.
 - When a live update only appends the newest point or replaces the latest visible point, the graph
   keeps the update on the incremental path. When an update rewrites older history, changes series
   membership, or trims the queue, the graph falls back to a bounded snapshot refresh.

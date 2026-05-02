@@ -112,6 +112,7 @@ export function WorkspaceSlideSurface({
   active = false,
   editable,
   onSlideChange,
+  overlayContent,
   regionContent,
   slide,
   slideWidgetId,
@@ -119,6 +120,7 @@ export function WorkspaceSlideSurface({
   active?: boolean;
   editable: boolean;
   onSlideChange?: (next: WorkspaceSlideWidgetProps) => void;
+  overlayContent?: ReactNode;
   regionContent?: Partial<Record<WorkspaceSlideRegionId, ReactNode>>;
   slide: WorkspaceSlideWidgetProps;
   slideWidgetId?: string;
@@ -276,146 +278,176 @@ export function WorkspaceSlideSurface({
   const centerInsetLeft = slide.leftEnabled ? `${slide.leftWidthPct}%` : "0%";
   const centerInsetRight = slide.rightEnabled ? `${slide.rightWidthPct}%` : "0%";
   const slideFrameStyle = resolveSlideFrameStyle(surfaceBounds);
+  const frameShellStyle: CSSProperties = {
+    width: slideFrameStyle.width,
+    height: slideFrameStyle.height,
+  };
 
   return (
-    <div ref={hostRef} className="relative h-full min-h-0 overflow-hidden">
-      <div className="flex h-full w-full items-center justify-center py-4">
+    <div
+      ref={hostRef}
+      className={cn(
+        "relative h-full min-h-0",
+        overlayContent ? "overflow-visible" : "overflow-hidden",
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-full w-full items-center justify-center",
+          overlayContent ? "px-0 pb-4 pt-16" : "py-4",
+        )}
+      >
         <div
-          ref={rootRef}
-          className={cn(
-            "relative overflow-hidden rounded-[calc(var(--radius)-6px)] border bg-background/96 shadow-[var(--shadow-panel)]",
-            active
-              ? "border-primary/75 ring-2 ring-primary/30"
-              : "border-border/70",
-          )}
-          style={slideFrameStyle}
+          className="group/slideframe relative flex-none"
+          style={frameShellStyle}
         >
-          {editable && slide.leftEnabled ? (
-            <div
-              data-no-widget-drag="true"
-              className="absolute top-0 bottom-0 z-10 w-2 -translate-x-1/2 cursor-col-resize"
-              style={{ left: `${slide.leftWidthPct}%` }}
-              onPointerDown={(event) => {
-                beginDividerDrag("left", event);
-              }}
-            />
+          {overlayContent ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-full z-20 mb-3">
+              {overlayContent}
+            </div>
           ) : null}
 
-          {editable && slide.rightEnabled ? (
+          <div
+            ref={rootRef}
+            className={cn(
+              "relative h-full w-full overflow-hidden rounded-[calc(var(--radius)-6px)] border bg-background shadow-[0_34px_90px_-42px_hsl(var(--foreground)/0.42),0_10px_24px_-18px_hsl(var(--foreground)/0.18)]",
+              active
+                ? "border-primary/75 ring-2 ring-primary/24"
+                : "border-primary/42",
+            )}
+          >
             <div
-              data-no-widget-drag="true"
-              className="absolute top-0 bottom-0 z-10 w-2 -translate-x-1/2 cursor-col-resize"
-              style={{ left: `${100 - slide.rightWidthPct}%` }}
-              onPointerDown={(event) => {
-                beginDividerDrag("right", event);
-              }}
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 rounded-[inherit] border border-primary/18 shadow-[inset_0_1px_0_hsl(var(--background)/0.92),inset_0_0_0_1px_hsl(var(--primary)/0.12),inset_0_-18px_40px_-32px_hsl(var(--primary)/0.16)]"
             />
-          ) : null}
 
-          {editable && slide.headerEnabled ? (
-            <div
-              data-no-widget-drag="true"
-              className="absolute z-10 h-2 -translate-y-1/2 cursor-row-resize"
-              style={{
-                left: centerInsetLeft,
-                right: centerInsetRight,
-                top: `${slide.headerHeightPct}%`,
-              }}
-              onPointerDown={(event) => {
-                beginDividerDrag("header", event);
-              }}
-            />
-          ) : null}
-
-          {editable && slide.footerEnabled ? (
-            <div
-              data-no-widget-drag="true"
-              className="absolute z-10 h-2 -translate-y-1/2 cursor-row-resize"
-              style={{
-                left: centerInsetLeft,
-                right: centerInsetRight,
-                top: `${100 - slide.footerHeightPct}%`,
-              }}
-              onPointerDown={(event) => {
-                beginDividerDrag("footer", event);
-              }}
-            />
-          ) : null}
-
-          <div className="h-full w-full p-5">
-            <div className="grid h-full w-full" style={resolveSlideCanvasColumnsStyle(slide)}>
-              {slide.leftEnabled ? (
-                <div className={editable ? "min-h-0 border-r border-border/50 pr-3" : "min-h-0 pr-3"}>
-                  <SlideRegionSurface
-                    editable={editable}
-                    regionId="left"
-                    slideWidgetId={slideWidgetId}
-                  >
-                    {regionContent?.left}
-                  </SlideRegionSurface>
-                </div>
-              ) : null}
-
+            {editable && slide.leftEnabled ? (
               <div
-                className={cn(
-                  "grid min-h-0",
-                  slide.rightEnabled && editable ? "border-r border-border/50 pr-3" : slide.rightEnabled ? "pr-3" : undefined,
-                  slide.leftEnabled ? "pl-3" : undefined,
-                )}
-                style={resolveSlideCanvasCenterRowsStyle(slide)}
-              >
-                {slide.headerEnabled ? (
-                  <div className={editable ? "min-h-0 border-b border-border/50 pb-3" : "min-h-0 pb-3"}>
+                data-no-widget-drag="true"
+                className="absolute top-0 bottom-0 z-10 w-2 -translate-x-1/2 cursor-col-resize"
+                style={{ left: `${slide.leftWidthPct}%` }}
+                onPointerDown={(event) => {
+                  beginDividerDrag("left", event);
+                }}
+              />
+            ) : null}
+
+            {editable && slide.rightEnabled ? (
+              <div
+                data-no-widget-drag="true"
+                className="absolute top-0 bottom-0 z-10 w-2 -translate-x-1/2 cursor-col-resize"
+                style={{ left: `${100 - slide.rightWidthPct}%` }}
+                onPointerDown={(event) => {
+                  beginDividerDrag("right", event);
+                }}
+              />
+            ) : null}
+
+            {editable && slide.headerEnabled ? (
+              <div
+                data-no-widget-drag="true"
+                className="absolute z-10 h-2 -translate-y-1/2 cursor-row-resize"
+                style={{
+                  left: centerInsetLeft,
+                  right: centerInsetRight,
+                  top: `${slide.headerHeightPct}%`,
+                }}
+                onPointerDown={(event) => {
+                  beginDividerDrag("header", event);
+                }}
+              />
+            ) : null}
+
+            {editable && slide.footerEnabled ? (
+              <div
+                data-no-widget-drag="true"
+                className="absolute z-10 h-2 -translate-y-1/2 cursor-row-resize"
+                style={{
+                  left: centerInsetLeft,
+                  right: centerInsetRight,
+                  top: `${100 - slide.footerHeightPct}%`,
+                }}
+                onPointerDown={(event) => {
+                  beginDividerDrag("footer", event);
+                }}
+              />
+            ) : null}
+
+            <div className="h-full w-full p-5">
+              <div className="grid h-full w-full" style={resolveSlideCanvasColumnsStyle(slide)}>
+                {slide.leftEnabled ? (
+                  <div className={editable ? "min-h-0 border-r border-border/50 pr-3" : "min-h-0 pr-3"}>
                     <SlideRegionSurface
                       editable={editable}
-                      regionId="header"
+                      regionId="left"
                       slideWidgetId={slideWidgetId}
                     >
-                      {regionContent?.header}
+                      {regionContent?.left}
                     </SlideRegionSurface>
                   </div>
                 ) : null}
 
                 <div
                   className={cn(
-                    "min-h-0",
-                    slide.headerEnabled ? "pt-3" : undefined,
-                    slide.footerEnabled ? "pb-3" : undefined,
+                    "grid min-h-0",
+                    slide.rightEnabled && editable ? "border-r border-border/50 pr-3" : slide.rightEnabled ? "pr-3" : undefined,
+                    slide.leftEnabled ? "pl-3" : undefined,
                   )}
+                  style={resolveSlideCanvasCenterRowsStyle(slide)}
                 >
-                  <SlideRegionSurface
-                    editable={editable}
-                    regionId="body"
-                    slideWidgetId={slideWidgetId}
-                  >
-                    {regionContent?.body}
-                  </SlideRegionSurface>
-                </div>
+                  {slide.headerEnabled ? (
+                    <div className={editable ? "min-h-0 border-b border-border/50 pb-3" : "min-h-0 pb-3"}>
+                      <SlideRegionSurface
+                        editable={editable}
+                        regionId="header"
+                        slideWidgetId={slideWidgetId}
+                      >
+                        {regionContent?.header}
+                      </SlideRegionSurface>
+                    </div>
+                  ) : null}
 
-                {slide.footerEnabled ? (
-                  <div className={editable ? "min-h-0 border-t border-border/50 pt-3" : "min-h-0 pt-3"}>
+                  <div
+                    className={cn(
+                      "min-h-0",
+                      slide.headerEnabled ? "pt-3" : undefined,
+                      slide.footerEnabled ? "pb-3" : undefined,
+                    )}
+                  >
                     <SlideRegionSurface
                       editable={editable}
-                      regionId="footer"
+                      regionId="body"
                       slideWidgetId={slideWidgetId}
                     >
-                      {regionContent?.footer}
+                      {regionContent?.body}
+                    </SlideRegionSurface>
+                  </div>
+
+                  {slide.footerEnabled ? (
+                    <div className={editable ? "min-h-0 border-t border-border/50 pt-3" : "min-h-0 pt-3"}>
+                      <SlideRegionSurface
+                        editable={editable}
+                        regionId="footer"
+                        slideWidgetId={slideWidgetId}
+                      >
+                        {regionContent?.footer}
+                      </SlideRegionSurface>
+                    </div>
+                  ) : null}
+                </div>
+
+                {slide.rightEnabled ? (
+                  <div className={slide.leftEnabled ? "min-h-0 pl-3" : "min-h-0 pl-3"}>
+                    <SlideRegionSurface
+                      editable={editable}
+                      regionId="right"
+                      slideWidgetId={slideWidgetId}
+                    >
+                      {regionContent?.right}
                     </SlideRegionSurface>
                   </div>
                 ) : null}
               </div>
-
-              {slide.rightEnabled ? (
-                <div className={slide.leftEnabled ? "min-h-0 pl-3" : "min-h-0 pl-3"}>
-                  <SlideRegionSurface
-                    editable={editable}
-                    regionId="right"
-                    slideWidgetId={slideWidgetId}
-                  >
-                    {regionContent?.right}
-                  </SlideRegionSurface>
-                </div>
-              ) : null}
             </div>
           </div>
         </div>

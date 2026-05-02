@@ -105,6 +105,7 @@ interface RuntimeCombinedEntry {
 }
 
 const RuntimeDataStoreContext = createContext<RuntimeDataStore | null>(null);
+const runtimeDataStoreRegistry = new Map<string, RuntimeDataStore>();
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -649,7 +650,15 @@ class InMemoryRuntimeDataStore implements RuntimeDataStore {
 }
 
 export function createRuntimeDataStore(workspaceRuntimeId: string): RuntimeDataStore {
-  return new InMemoryRuntimeDataStore(workspaceRuntimeId);
+  const existing = runtimeDataStoreRegistry.get(workspaceRuntimeId);
+
+  if (existing) {
+    return existing;
+  }
+
+  const store = new InMemoryRuntimeDataStore(workspaceRuntimeId);
+  runtimeDataStoreRegistry.set(workspaceRuntimeId, store);
+  return store;
 }
 
 export function materializeRuntimeTabularFrame(

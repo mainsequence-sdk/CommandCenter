@@ -24,6 +24,7 @@ import {
   buildGraphChartSeries,
   buildGraphSeries,
   resolveGraphConfig,
+  resolveGraphDatasetFrame,
   type GraphWidgetProps,
 } from "./graphModel";
 import { graphSettingsSchema } from "./schema";
@@ -80,7 +81,7 @@ const graphTabularFieldEffects = [
 
 export const graphWidget = defineWidget<GraphWidgetProps>({
   id: "graph",
-  widgetVersion: "3.1.4",
+  widgetVersion: "3.1.5",
   title: "Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -136,13 +137,14 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
       runtimeState,
       runtimeDataStore,
     });
+    const resolvedGraphDataset = resolveGraphDatasetFrame(sourceDataset);
     const fieldOptions = resolveTabularFieldOptionsFromDataset({
-      columns: sourceDataset?.columns,
-      rows: sourceDataset?.rows,
-      fields: sourceDataset?.fields,
+      columns: resolvedGraphDataset?.columns,
+      rows: resolvedGraphDataset?.rows,
+      fields: resolvedGraphDataset?.fields,
     });
     const config = resolveGraphConfig(props, null, fieldOptions);
-    const rawSeries = buildGraphSeries(sourceDataset?.rows ?? [], config);
+    const rawSeries = buildGraphSeries(resolvedGraphDataset?.rows ?? [], config);
     const chartSeries = buildGraphChartSeries(
       rawSeries.series,
       config.timeAxisMode === "date" ? "date" : "datetime",
@@ -151,23 +153,23 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
 
     return {
       displayKind: "chart",
-      state: sourceDataset
-        ? sourceDataset.status === "error"
+      state: resolvedGraphDataset
+        ? resolvedGraphDataset.status === "error"
           ? "error"
-          : sourceDataset.status === "loading"
+          : resolvedGraphDataset.status === "loading"
             ? "loading"
             : chartSeries.series.length > 0
               ? "ready"
               : "empty"
         : "idle",
-      summary: sourceDataset
-        ? `${chartSeries.series.length.toLocaleString()} series rendered from ${sourceDataset.rows.length.toLocaleString()} rows.`
+      summary: resolvedGraphDataset
+        ? `${chartSeries.series.length.toLocaleString()} series rendered from ${resolvedGraphDataset.rows.length.toLocaleString()} rows.`
         : "Graph is waiting for a bound dataset.",
       data: {
         widgetRole: "presentation",
         contentType: "chart",
-        sourceStatus: sourceDataset?.status ?? "idle",
-        sourceContract: sourceDataset?.source?.context?.sourceContract ?? TABULAR_SOURCE_CONTRACT,
+        sourceStatus: resolvedGraphDataset?.status ?? "idle",
+        sourceContract: resolvedGraphDataset?.source?.context?.sourceContract ?? TABULAR_SOURCE_CONTRACT,
         chartConfig: {
           provider: config.provider,
           chartType: config.chartType,
@@ -177,7 +179,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
           seriesAxisMode: config.seriesAxisMode,
           timeAxisMode: config.timeAxisMode,
         },
-        rowCount: sourceDataset?.rows.length ?? 0,
+        rowCount: resolvedGraphDataset?.rows.length ?? 0,
         seriesCount: chartSeries.series.length,
         droppedGroups: rawSeries.droppedGroups,
         filteredGroups: rawSeries.filteredGroups,

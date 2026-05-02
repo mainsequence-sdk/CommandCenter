@@ -15,6 +15,7 @@ feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 052: Slide Studio Slideshow Projection Mode](./adr-052-slide-studio-slideshow-projection-mode.md)
 - [ADR 051: Consistent Widget Chrome Between Edit And View Modes](./adr-051-consistent-widget-chrome-between-edit-and-view-modes.md)
 - [ADR 049: Publication-Driven Seed/Live Runtime Reduction](./adr-049-publication-driven-seed-live-runtime-reduction.md)
 - [ADR 047: Workspace Runtime Data Reference Store](./adr-047-workspace-runtime-data-reference-store.md)
@@ -76,6 +77,7 @@ feature folder.
 
 ## Shell And Extension ADRs
 
+- [ADR 052: Slide Studio Slideshow Projection Mode](./adr-052-slide-studio-slideshow-projection-mode.md)
 - [ADR 050: Workspace Slide As Structural Container](./adr-050-workspace-slide-as-structural-container.md)
 - [ADR 049: Publication-Driven Seed/Live Runtime Reduction](./adr-049-publication-driven-seed-live-runtime-reduction.md)
 - [ADR 047: Workspace Runtime Data Reference Store](./adr-047-workspace-runtime-data-reference-store.md)

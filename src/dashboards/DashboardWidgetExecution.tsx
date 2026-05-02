@@ -181,6 +181,7 @@ function serializeDashboardExecutionState(value: WidgetExecutionDashboardState) 
 export function DashboardWidgetExecutionProvider({
   children,
   activeSurface = "dashboard",
+  enableAutomaticHydration = true,
   scopeId,
   widgets,
   writeRuntimeState,
@@ -188,6 +189,7 @@ export function DashboardWidgetExecutionProvider({
 }: {
   children: ReactNode;
   activeSurface?: DashboardExecutionSurface;
+  enableAutomaticHydration?: boolean;
   scopeId: string;
   widgets: DashboardWidgetInstance[];
   writeRuntimeState: (
@@ -243,14 +245,17 @@ export function DashboardWidgetExecutionProvider({
   const initialRefreshCycleId = `initial:${scopeId}`;
   const initialRefreshTargets = useMemo(
     () =>
-      listDashboardRefreshableExecutionTargets({
-        widgets,
-        resolveWidgetDefinition: effectiveResolveWidgetDefinition,
-        refreshCycleId: initialRefreshCycleId,
-        dashboardState,
-      }),
+      enableAutomaticHydration
+        ? listDashboardRefreshableExecutionTargets({
+            widgets,
+            resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+            refreshCycleId: initialRefreshCycleId,
+            dashboardState,
+          })
+        : [],
     [
       dashboardState,
+      enableAutomaticHydration,
       effectiveResolveWidgetDefinition,
       initialRefreshCycleId,
       widgets,
@@ -258,11 +263,13 @@ export function DashboardWidgetExecutionProvider({
   );
   const initialHydrationActive =
     initialRefreshTargets.length > 0 && !initialRefreshSettled;
-  const surfaceReturnHydrationPending = shouldStartDashboardSurfaceReturnHydration({
-    previousSurface: previousSurfaceRef.current,
-    nextSurface: activeSurface,
-    initialRefreshCompleted: initialRefreshCompletedRef.current,
-  });
+  const surfaceReturnHydrationPending = enableAutomaticHydration
+    ? shouldStartDashboardSurfaceReturnHydration({
+        previousSurface: previousSurfaceRef.current,
+        nextSurface: activeSurface,
+        initialRefreshCompleted: initialRefreshCompletedRef.current,
+      })
+    : false;
   const {
     active: dashboardSurfaceHydrationActive,
     reason: dashboardSurfaceHydrationReason,
@@ -292,7 +299,7 @@ export function DashboardWidgetExecutionProvider({
   useEffect(() => {
     previousSurfaceRef.current = activeSurface;
 
-    if (activeSurface !== "dashboard") {
+    if (!enableAutomaticHydration || activeSurface !== "dashboard") {
       setSurfaceReturnHydrationActive(false);
       setSurfaceReturnHydrationCycleId(null);
       return;
@@ -306,7 +313,7 @@ export function DashboardWidgetExecutionProvider({
     surfaceReturnHydrationRunIdRef.current = runId;
     setSurfaceReturnHydrationActive(true);
     setSurfaceReturnHydrationCycleId(`surface-return:${scopeId}:${runId.toString(36)}`);
-  }, [activeSurface, scopeId, surfaceReturnHydrationPending]);
+  }, [activeSurface, enableAutomaticHydration, scopeId, surfaceReturnHydrationPending]);
 
   function setExecutionState(instanceId: string, nextState: WidgetExecutionState) {
     setExecutionStates((current) => ({
@@ -596,6 +603,12 @@ export function DashboardWidgetExecutionProvider({
   }
 
   useEffect(() => {
+    if (!enableAutomaticHydration) {
+      initialRefreshCompletedRef.current = true;
+      setInitialRefreshSettled(true);
+      return;
+    }
+
     if (initialRefreshCompletedRef.current) {
       return;
     }
@@ -731,6 +744,7 @@ export function DashboardWidgetExecutionProvider({
     };
   }, [
     dashboardState,
+    enableAutomaticHydration,
     effectiveResolveWidgetDefinition,
     initialRefreshCycleId,
     scopeId,

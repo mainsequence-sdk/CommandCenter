@@ -11,6 +11,7 @@ import {
   buildGraphFieldOptionsFromRuntime,
   normalizeGraphProps,
   resolveGraphConfig,
+  resolveGraphDatasetFrame,
   type GraphWidgetProps,
 } from "./graphModel";
 import {
@@ -54,7 +55,7 @@ export function useGraphControllerContext({
     resolveConfig: resolveGraphConfig,
   });
   const linkedDataset = useMemo(
-    () => sourceContext.resolvedSourceDataset,
+    () => resolveGraphDatasetFrame(sourceContext.resolvedSourceDataset),
     [sourceContext.resolvedSourceDataset],
   );
   const runtimeFieldOptions = useMemo(
@@ -118,6 +119,7 @@ export function useGraphControllerContext({
 
   return {
     ...sourceContext,
+    resolvedSourceDataset: linkedDataset,
     fieldPickerOptions,
     resolvedConfig,
     xAxisOptions,

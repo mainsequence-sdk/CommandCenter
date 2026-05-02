@@ -16,7 +16,8 @@ These flows are all part of one app surface, with instance state selected throug
 ## Entry Points
 
 - `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance.
-- `SlideStudioPage.tsx`: curated `workspace-studio` surface that reuses the shared workspace list/canvas host but filters to `type=slide-studio` and re-enables the `Slide` widget in that surface only.
+- `SlideStudioPage.tsx`: curated `workspace-studio` surface that reuses the shared workspace list/canvas host, filters to `type=slide-studio`, re-enables the `Slide` widget in that surface only, and routes into the Slide Studio-only slideshow projection mode.
+- `SlideStudioSlideshowPage.tsx`: Slide Studio-only projection surface. It reuses the same workspace document and slide/widget rendering contracts but presents one top-level slide per screen with slideshow navigation.
 - `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio.
 - `WorkspaceCanvasWidgetHost.tsx`: shared widget renderer used by both the root canvas host and the slide subgrid host so widget chrome, headers, actions, inline edit gating, and body rendering stay identical across both layout hosts.
 - `WorkspaceSlideSubgridHost.tsx`: slide-only region layout host. It keeps slide-contained widgets on a separate subgrid from the root canvas while shrinking slide row height to fit the active region bounds instead of letting slide widgets overflow.
@@ -55,6 +56,8 @@ These flows are all part of one app surface, with instance state selected throug
   `workspace-studio-surface-config.tsx` instead of forking a second canvas implementation.
 - The workspace list lives at `/app/workspace-studio/workspaces`.
 - The slide-studio list lives at `/app/workspace-studio/slide-studio`.
+- Slide Studio also exposes a route-driven slideshow projection on the same surface through
+  `?workspace=<id>&mode=slideshow`.
 - The saved-widget library lives at `/app/workspace-studio/widgets`.
 - Surface-specific studio reusers may override those route targets and filter visible widget
   definitions while still using the same underlying workspace document model.
@@ -64,6 +67,11 @@ These flows are all part of one app surface, with instance state selected throug
 - Surface-specific studio reusers may also inject toolbar actions through
   `workspace-studio-surface-config.tsx` so extension-owned flows can add workspace-specific launch
   affordances without forking the shared canvas page.
+- `Slide Studio` now uses that toolbar-action hook for both `Add slide` and `Present`. The
+  slideshow projection is route-driven and read-only; it shows one top-level `workspace-slide`
+  widget per screen while keeping the same underlying workspace document. It intentionally reuses
+  the current workspace runtime state and disables automatic dashboard hydration so entering
+  presentation mode does not trigger a fresh recalculation cycle.
 - The app is only included when `VITE_INCLUDE_WORKSPACES=true`. When the flag is `false`, the runtime registry removes `workspace-studio` from navigation and route resolution.
 - Opening a workspace instance adds `?workspace=<id>`.
 - Opening the workspace graph adds `?workspace=<id>&view=graph`.
@@ -182,9 +190,10 @@ These flows are all part of one app surface, with instance state selected throug
   requests should now be treated as authoritative and accept `type=<value>` or
   `types=<comma-separated-values>` on the `?fe_list=true` endpoint. Backend list/detail serializers
   should preserve this field instead of relying only on labels.
-- Slide-contained widgets intentionally do not behave like the root canvas for overflow. Each slide
-  region is a bounded subgrid that shrinks its effective row height as the region fills so widgets
-  stay inside the slide frame instead of extending past it.
+- Slide-contained widgets intentionally use a separate bounded subgrid host from the root canvas,
+  but they reuse the same shared widget renderer. The subgrid now keeps a fixed row height like the
+  root canvas; widgets inserted into a slide are normalized on transfer instead of continuously
+  shrinking the whole region.
 - In canvas edit mode, widget instances expose shared chrome actions through one compact overflow
   menu instead of separate header buttons. Duplicated widgets receive a fresh instance id, keep
   their props/presentation, and drop runtime state so they republish from their own mounted lifecycle.
