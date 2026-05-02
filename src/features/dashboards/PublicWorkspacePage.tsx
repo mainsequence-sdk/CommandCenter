@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { ThemeMenu } from "@/app/layout/ThemeMenu";
 import { BrandWordmark } from "@/components/brand/BrandWordmark";
 import type { DashboardDefinition } from "@/dashboards/types";
-import { DashboardCanvas } from "./DashboardCanvas";
+import { PublicDashboardCanvas } from "./DashboardCanvas";
 import { fetchPublicWorkspaceDetailFromBackend } from "./workspace-api";
 
 export function PublicWorkspacePage() {
@@ -74,7 +74,7 @@ export function PublicWorkspacePage() {
       return null;
     }
 
-    return <DashboardCanvas dashboard={dashboard} publicView />;
+    return <PublicDashboardCanvas dashboard={dashboard} />;
   }, [dashboard, error, loading]);
 
   return (

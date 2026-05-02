@@ -271,7 +271,7 @@ export function CustomWorkspaceSettingsPage() {
                         toast({
                           title: "Unable to copy public URL",
                           description: "Copy the URL manually from the field.",
-                          variant: "danger",
+                          variant: "error",
                         });
                       },
                     );
@@ -475,7 +475,7 @@ export function CustomWorkspaceSettingsPage() {
       toast({
         title: "Unable to make workspace public",
         description: error instanceof Error ? error.message : "The public-link request failed.",
-        variant: "danger",
+        variant: "error",
       });
     }
   }
@@ -497,7 +497,7 @@ export function CustomWorkspaceSettingsPage() {
       toast({
         title: "Unable to disable public access",
         description: error instanceof Error ? error.message : "The public-link disable request failed.",
-        variant: "danger",
+        variant: "error",
       });
     }
   }
@@ -519,7 +519,7 @@ export function CustomWorkspaceSettingsPage() {
       toast({
         title: "Unable to rotate public URL",
         description: error instanceof Error ? error.message : "The public-link rotate request failed.",
-        variant: "danger",
+        variant: "error",
       });
     }
   }

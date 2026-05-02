@@ -1977,7 +1977,7 @@ export function commitDashboardSlideRegionLayout(
   dashboard: DashboardDefinition,
   slideWidgetId: string,
   region: DashboardSlideRegionId,
-  layout: Array<Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">>,
+  layout: ReadonlyArray<Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">>,
 ) {
   const layoutById = new Map(
     layout.map((entry) => [
@@ -2043,8 +2043,8 @@ export function moveDashboardWidgetToSlideRegion(
     return dashboard;
   }
 
-  const sourceColumns = Math.max(dashboard.grid.columns, 1);
-  const sourceRowHeight = Math.max(dashboard.grid.rowHeight, 1);
+  const sourceColumns = Math.max(dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS, 1);
+  const sourceRowHeight = Math.max(dashboard.grid?.rowHeight ?? DEFAULT_WORKSPACE_ROW_HEIGHT, 1);
   const requestedCols =
     typeof layout?.w === "number"
       ? layout.w
@@ -2995,7 +2995,7 @@ export function createManagedDashboardWidget(
     role: DashboardManagedWidgetRole;
     widget: Pick<
       WidgetDefinition,
-      "defaultPresentation" | "exampleProps" | "id" | "title"
+      "defaultPresentation" | "defaultSize" | "exampleProps" | "id" | "title"
     >;
     bindings?: DashboardWidgetInstance["bindings"];
     position?: DashboardWidgetPlacement;

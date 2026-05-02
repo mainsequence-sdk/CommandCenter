@@ -14,6 +14,7 @@ import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetEx
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { WORKSPACE_SLIDE_WIDGET_ID } from "@/dashboards/structural-widgets";
 import type { ResolvedDashboardWidgetInstance } from "@/dashboards/types";
+import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";

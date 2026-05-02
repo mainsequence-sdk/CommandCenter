@@ -144,19 +144,22 @@ export function WorkspaceSlideSurface({
   } | null>(null);
 
   useEffect(() => {
-    if (!dividerDrag || !onSlideChange) {
+    const currentDrag = dividerDrag;
+    const handleSlideChange = onSlideChange;
+
+    if (!currentDrag || !handleSlideChange) {
       return undefined;
     }
 
     function handlePointerMove(event: PointerEvent) {
-      const { rect, kind, base } = dividerDrag;
+      const { rect, kind, base } = currentDrag;
       const relativeX = rect.width > 0 ? ((event.clientX - rect.left) / rect.width) * 100 : 0;
       const relativeY = rect.height > 0 ? ((event.clientY - rect.top) / rect.height) * 100 : 0;
 
       if (kind === "left" && base.leftEnabled) {
         const maxLeft = 100 - (base.rightEnabled ? base.rightWidthPct : 0) - MIN_CENTER_WIDTH_PCT;
 
-        onSlideChange({
+        handleSlideChange({
           ...base,
           leftWidthPct: clampPercent(relativeX, MIN_SIDE_WIDTH_PCT, maxLeft),
         });
@@ -167,7 +170,7 @@ export function WorkspaceSlideSurface({
         const nextRight = 100 - relativeX;
         const maxRight = 100 - (base.leftEnabled ? base.leftWidthPct : 0) - MIN_CENTER_WIDTH_PCT;
 
-        onSlideChange({
+        handleSlideChange({
           ...base,
           rightWidthPct: clampPercent(nextRight, MIN_SIDE_WIDTH_PCT, maxRight),
         });
@@ -177,7 +180,7 @@ export function WorkspaceSlideSurface({
       if (kind === "header" && base.headerEnabled) {
         const maxHeader = 100 - (base.footerEnabled ? base.footerHeightPct : 0) - MIN_BODY_HEIGHT_PCT;
 
-        onSlideChange({
+        handleSlideChange({
           ...base,
           headerHeightPct: clampPercent(relativeY, MIN_BAND_HEIGHT_PCT, maxHeader),
         });
@@ -188,7 +191,7 @@ export function WorkspaceSlideSurface({
         const nextFooter = 100 - relativeY;
         const maxFooter = 100 - (base.headerEnabled ? base.headerHeightPct : 0) - MIN_BODY_HEIGHT_PCT;
 
-        onSlideChange({
+        handleSlideChange({
           ...base,
           footerHeightPct: clampPercent(nextFooter, MIN_BAND_HEIGHT_PCT, maxFooter),
         });
@@ -209,13 +212,13 @@ export function WorkspaceSlideSurface({
   }, [dividerDrag, onSlideChange]);
 
   useLayoutEffect(() => {
-    const element = hostRef.current;
-
-    if (!element) {
-      return undefined;
-    }
-
     function updateBounds() {
+      const element = hostRef.current;
+
+      if (!element) {
+        return;
+      }
+
       const rect = element.getBoundingClientRect();
 
       setSurfaceBounds({
@@ -225,6 +228,12 @@ export function WorkspaceSlideSurface({
     }
 
     updateBounds();
+
+    const element = hostRef.current;
+
+    if (!element) {
+      return undefined;
+    }
 
     if (typeof ResizeObserver === "undefined") {
       window.addEventListener("resize", updateBounds);

@@ -5,7 +5,7 @@ import type {
 
 export type WorkspaceSlideRegionId = DashboardSlideRegionId;
 
-export interface WorkspaceSlideWidgetProps {
+export interface WorkspaceSlideWidgetProps extends Record<string, unknown> {
   showHeader?: boolean;
   headerHeightPct: number;
   footerHeightPct: number;
@@ -126,7 +126,7 @@ function sanitizeEmbeddedWidget(widget: unknown): DashboardWidgetInstance | null
         ? cloneJson(widget.bindings as DashboardWidgetInstance["bindings"])
         : undefined,
     layout: isPlainRecord(widget.layout)
-      ? cloneJson(widget.layout as DashboardWidgetInstance["layout"])
+      ? cloneJson(widget.layout) as unknown as DashboardWidgetInstance["layout"]
       : {
           cols: DEFAULT_WIDGET_WIDTH,
           rows: DEFAULT_WIDGET_HEIGHT,
@@ -298,7 +298,7 @@ export function extractLegacyWorkspaceSlideChildren(props: unknown): {
       children.push({
         instance,
         region: regionId,
-        layout: sanitizeLegacyLayout(rawPlacement.layout),
+        layout: sanitizeLegacyLayout(rawPlacement?.layout),
       });
     });
   });

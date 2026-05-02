@@ -68,6 +68,8 @@ import {
 import { WorkspaceCanvasWidgetCard } from "./WorkspaceCanvasWidgetHost";
 import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
 
+const EMPTY_PERMISSIONS: string[] = [];
+
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
   return {
     gridColumn: `${layout.x + 1} / span ${layout.w}`,
@@ -95,6 +97,18 @@ function resolveGridItemInsetStyle(gap: number): CSSProperties | undefined {
     boxSizing: "border-box",
     padding: `${gap / 2}px`,
   };
+}
+
+function jsonValueEquals(a: unknown, b: unknown) {
+  if (Object.is(a, b)) {
+    return true;
+  }
+
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
 }
 
 interface WidgetInstanceOverride {
@@ -203,7 +217,35 @@ export function DashboardCanvas({
   dashboard: DashboardDefinition;
   publicView?: boolean;
 }) {
-  const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
+  const permissions = useAuthStore((state) => state.session?.user.permissions) ?? EMPTY_PERMISSIONS;
+  return (
+    <DashboardCanvasSurface
+      dashboard={dashboard}
+      publicView={publicView}
+      permissions={permissions}
+    />
+  );
+}
+
+export function PublicDashboardCanvas({ dashboard }: { dashboard: DashboardDefinition }) {
+  return (
+    <DashboardCanvasSurface
+      dashboard={dashboard}
+      publicView
+      permissions={EMPTY_PERMISSIONS}
+    />
+  );
+}
+
+function DashboardCanvasSurface({
+  dashboard,
+  publicView,
+  permissions,
+}: {
+  dashboard: DashboardDefinition;
+  publicView: boolean;
+  permissions: readonly string[];
+}) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
     {},
@@ -476,6 +518,37 @@ export function DashboardCanvas({
     [resolvedRenderedWidgets, settingsInstanceId],
   );
   const settingsWidget = settingsInstance ? getWidgetById(settingsInstance.widgetId) : null;
+  const setWidgetRuntimeStateOverride = useCallback(
+    (instanceId: string, runtimeState: Record<string, unknown> | undefined) => {
+      setWidgetOverrides((current) => {
+        const nextRuntimeState = runtimeState ?? null;
+        const currentEntry = current[instanceId];
+
+        if (jsonValueEquals(currentEntry?.runtimeState ?? null, nextRuntimeState)) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [instanceId]: {
+            ...currentEntry,
+            runtimeState: nextRuntimeState,
+          },
+        };
+      });
+    },
+    [],
+  );
+  const handleRuntimeStateChange = useCallback(
+    (instanceId: string, runtimeState: Record<string, unknown> | undefined) => {
+      if (publicView) {
+        return;
+      }
+
+      setWidgetRuntimeStateOverride(instanceId, runtimeState);
+    },
+    [publicView, setWidgetRuntimeStateOverride],
+  );
   const handleCompanionVisibilityChange = useCallback((itemId: string, visible: boolean) => {
     setCompanionVisibilityById((current) => {
       if (current[itemId] === visible) {
@@ -604,13 +677,7 @@ export function DashboardCanvas({
                 props={instance.props ?? {}}
                 runtimeState={instance.runtimeState}
                 onRuntimeStateChange={(state) => {
-                  setWidgetOverrides((current) => ({
-                    ...current,
-                    [instance.id]: {
-                      ...current[instance.id],
-                      runtimeState: state ?? null,
-                    },
-                  }));
+                  handleRuntimeStateChange(instance.id, state);
                 }}
               />
             ) : undefined
@@ -640,13 +707,7 @@ export function DashboardCanvas({
             }));
           }}
           onRuntimeStateChange={(instanceId, runtimeState) => {
-            setWidgetOverrides((current) => ({
-              ...current,
-              [instanceId]: {
-                ...current[instanceId],
-                runtimeState: runtimeState ?? null,
-              },
-            }));
+            handleRuntimeStateChange(instanceId, runtimeState);
           }}
           onSelect={() => {}}
           onOpenBindings={() => {}}
@@ -675,13 +736,7 @@ export function DashboardCanvas({
               props={instance.props ?? {}}
               runtimeState={instance.runtimeState}
               onRuntimeStateChange={(state) => {
-                setWidgetOverrides((current) => ({
-                  ...current,
-                  [instance.id]: {
-                    ...current[instance.id],
-                    runtimeState: state ?? null,
-                  },
-                }));
+                handleRuntimeStateChange(instance.id, state);
               }}
             />
           ) : undefined
@@ -708,13 +763,7 @@ export function DashboardCanvas({
           }));
         }}
         onRuntimeStateChange={(instanceId, runtimeState) => {
-          setWidgetOverrides((current) => ({
-            ...current,
-            [instanceId]: {
-              ...current[instanceId],
-              runtimeState: runtimeState ?? null,
-            },
-          }));
+          handleRuntimeStateChange(instanceId, runtimeState);
         }}
         onSelect={() => {}}
         onOpenBindings={() => {}}
@@ -734,13 +783,7 @@ export function DashboardCanvas({
           scopeId={dashboard.id}
           widgets={renderedWidgets}
           writeRuntimeState={(instanceId, runtimeState) => {
-            setWidgetOverrides((current) => ({
-              ...current,
-              [instanceId]: {
-                ...current[instanceId],
-                runtimeState: runtimeState ?? null,
-              },
-            }));
+            handleRuntimeStateChange(instanceId, runtimeState);
           }}
         >
           <DashboardWidgetDependenciesProvider widgets={renderedWidgets}>
@@ -783,13 +826,7 @@ export function DashboardCanvas({
                       presentation={instance.presentation}
                       runtimeState={instance.runtimeState}
                       onRuntimeStateChange={(state) => {
-                        setWidgetOverrides((current) => ({
-                          ...current,
-                          [instance.id]: {
-                            ...current[instance.id],
-                            runtimeState: state ?? null,
-                          },
-                        }));
+                        handleRuntimeStateChange(instance.id, state);
                       }}
                     />
                   </WidgetErrorBoundary>
@@ -890,13 +927,7 @@ export function DashboardCanvas({
                               }));
                             }}
                             onRuntimeStateChange={(state) => {
-                              setWidgetOverrides((current) => ({
-                                ...current,
-                                [item.candidate.instanceId]: {
-                                  ...current[item.candidate.instanceId],
-                                  runtimeState: state ?? null,
-                                },
-                              }));
+                              handleRuntimeStateChange(item.candidate.instanceId, state);
                             }}
                             onVisibilityChange={handleCompanionVisibilityChange}
                           />
@@ -1018,13 +1049,7 @@ export function DashboardCanvas({
                             }));
                           }}
                           onRuntimeStateChange={(state) => {
-                            setWidgetOverrides((current) => ({
-                              ...current,
-                              [candidate.instanceId]: {
-                                ...current[candidate.instanceId],
-                                runtimeState: state ?? null,
-                              },
-                            }));
+                            handleRuntimeStateChange(candidate.instanceId, state);
                           }}
                           onVisibilityChange={handleCompanionVisibilityChange}
                         />

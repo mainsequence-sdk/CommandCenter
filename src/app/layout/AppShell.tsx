@@ -23,6 +23,7 @@ import {
 } from "../../../extensions/main_sequence_ai/assistant-ui/chat-ui-store";
 
 const WORKSPACE_CANVAS_SURFACE_IDS = new Set(["workspaces", "slide-studio"]);
+const EMPTY_PERMISSIONS: string[] = [];
 
 function isWorkspaceCanvasRoute(pathname: string, search: string) {
   const routeSegments = pathname.split("/").filter(Boolean);
@@ -67,7 +68,7 @@ function isWorkspacePublicPreviewRoute(pathname: string, search: string) {
 
 export function AppShell() {
   const location = useLocation();
-  const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
+  const permissions = useAuthStore((state) => state.session?.user.permissions) ?? EMPTY_PERMISSIONS;
   const sidebarCollapsed = useShellStore((state) => state.sidebarCollapsed);
   const appPanelAppId = useShellStore((state) => state.appPanelAppId);
   const closeAppPanel = useShellStore((state) => state.closeAppPanel);

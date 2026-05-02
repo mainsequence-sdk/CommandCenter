@@ -2,8 +2,10 @@ import { useMemo, type ReactNode } from "react";
 import LegacyGridLayout, {
   WidthProvider as legacyWidthProvider,
   type Layout as LegacyGridLayoutLayout,
+  type LayoutItem as LegacyGridLayoutItem,
 } from "react-grid-layout/legacy";
 
+import type { WorkspaceGridLayoutItem } from "@/dashboards/react-grid-layout-adapter";
 import {
   WORKSPACE_SLIDE_GRID_COLUMNS,
   WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
@@ -14,7 +16,7 @@ const FITTED_REGION_ITEM_INSET_PX = 4;
 
 export interface WorkspaceSlideSubgridHostItem {
   id: string;
-  layout: Pick<LegacyGridLayoutLayout, "x" | "y" | "w" | "h">;
+  layout: Pick<LegacyGridLayoutItem, "x" | "y" | "w" | "h">;
   content: ReactNode;
 }
 
@@ -29,9 +31,11 @@ export function WorkspaceSlideSubgridHost({
   editable: boolean;
   dragHandleSelector?: string;
   dragCancelSelector?: string;
-  onLayoutCommit?: (nextLayout: LegacyGridLayoutLayout[]) => void;
+  onLayoutCommit?: (
+    nextLayout: Array<Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">>,
+  ) => void;
 }) {
-  const layout = useMemo<LegacyGridLayoutLayout[]>(
+  const layout = useMemo<LegacyGridLayoutLayout>(
     () =>
       items.map((item) => ({
         i: item.id,
@@ -65,14 +69,30 @@ export function WorkspaceSlideSubgridHost({
             return;
           }
 
-          onLayoutCommit?.(nextLayout);
+          onLayoutCommit?.(
+            nextLayout.map(({ h, i, w, x, y }) => ({
+              h,
+              i,
+              w,
+              x,
+              y,
+            })),
+          );
         }}
         onResizeStop={(nextLayout) => {
           if (!editable) {
             return;
           }
 
-          onLayoutCommit?.(nextLayout);
+          onLayoutCommit?.(
+            nextLayout.map(({ h, i, w, x, y }) => ({
+              h,
+              i,
+              w,
+              x,
+              y,
+            })),
+          );
         }}
       >
         {items.map((item) => (

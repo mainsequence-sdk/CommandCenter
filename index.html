@@ -11,32 +11,6 @@
       name="description"
       content="Code-first, themeable terminal scaffold with dashboards, widgets, RBAC and mock REST/WS adapters."
     />
-    <script>
-      (function () {
-        const measurementId = "%VITE_GOOGLE_TAG_ID%".trim();
-        if (
-          !measurementId ||
-          measurementId === "%VITE_GOOGLE_TAG_ID%" ||
-          measurementId === "undefined" ||
-          measurementId === "null"
-        ) {
-          return;
-        }
-
-        const script = document.createElement("script");
-        script.async = true;
-        script.src =
-          "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(measurementId);
-        document.head.appendChild(script);
-
-        window.dataLayer = window.dataLayer || [];
-        window.gtag = window.gtag || function () {
-          window.dataLayer.push(arguments);
-        };
-        window.gtag("js", new Date());
-        window.gtag("config", measurementId);
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>
