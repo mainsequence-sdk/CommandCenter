@@ -1,5 +1,5 @@
 import { ArrowRight, Boxes, Copy, LayoutTemplate, Settings2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { SurfaceFavoriteButton } from "@/app/layout/SurfaceFavoriteButton";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import {
   getWorkspaceFavoriteId,
   isWorkspaceFavorited,
 } from "./workspace-favorites";
+import { PublicWorkspacePreviewPage } from "./PublicWorkspacePreviewPage";
 import { WorkspaceStudioCanvasHost } from "./WorkspaceStudioCanvasHost";
 import {
   filterWorkspaceStudioEntries,
@@ -57,6 +58,7 @@ function buildWorkspaceSurfacePath(
 
 export function WorkspacesPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const {
     createWorkspaceDefinition,
     createWorkspaceLabel,
@@ -69,6 +71,7 @@ export function WorkspacesPage() {
   } = useWorkspaceStudioSurfaceConfig();
   const favoriteWorkspaceIds = useShellStore((state) => state.favoriteWorkspaceIds);
   const toggleWorkspaceFavorite = useShellStore((state) => state.toggleWorkspaceFavorite);
+  const publicPreviewMode = searchParams.get("mode") === "public-preview";
   const {
     user,
     workspaceListItems,
@@ -160,7 +163,7 @@ export function WorkspacesPage() {
   }
 
   if (requestedWorkspaceId && selectedDashboard && selectedWorkspaceSupported) {
-    return <WorkspaceStudioCanvasHost />;
+    return publicPreviewMode ? <PublicWorkspacePreviewPage /> : <WorkspaceStudioCanvasHost />;
   }
 
   return (

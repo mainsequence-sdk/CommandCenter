@@ -1,4 +1,16 @@
-import rawCommandCenterConfig from "../../config/command-center.yaml?raw";
+const rawCommandCenterConfigFiles = import.meta.glob(
+  ["../../config/command-center.yaml", "../../config/command-center.example.yaml"],
+  {
+    eager: true,
+    import: "default",
+    query: "?raw",
+  },
+) as Record<string, string>;
+
+const rawCommandCenterConfig =
+  rawCommandCenterConfigFiles["../../config/command-center.yaml"] ??
+  rawCommandCenterConfigFiles["../../config/command-center.example.yaml"] ??
+  "";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
 
@@ -81,6 +93,12 @@ export interface CommandCenterConfig {
     logoMarkSrc: string;
     logoAlt: string;
     monogram: string;
+  };
+  analytics: {
+    googleTag: {
+      enabled: boolean;
+      measurementId: string;
+    };
   };
   preferences: {
     url: string;
@@ -190,6 +208,12 @@ interface DefaultCommandCenterConfig {
     logo_mark: string;
     logo_alt: string;
     monogram: string;
+  };
+  analytics: {
+    google_tag: {
+      enabled: boolean;
+      measurement_id: string;
+    };
   };
   preferences: {
     url: string;
@@ -353,6 +377,12 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     logo_mark: "logo_mark.png",
     logo_alt: "Main Sequence",
     monogram: "MS",
+  },
+  analytics: {
+    google_tag: {
+      enabled: false,
+      measurement_id: "",
+    },
   },
   preferences: {
     url: "",
@@ -575,6 +605,10 @@ function readNumber(value: unknown, fallback: number) {
   return fallback;
 }
 
+function readBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 function readAssistantUiProtocol(
   value: unknown,
   fallback: AssistantUiProtocol,
@@ -601,6 +635,8 @@ const parsedApp = getNestedObject(parsedConfig, "app");
 const parsedAssistantUi = getNestedObject(parsedConfig, "assistant_ui");
 const parsedAppCache = getNestedObject(parsedApp, "cache");
 const parsedBranding = getNestedObject(parsedConfig, "branding");
+const parsedAnalytics = getNestedObject(parsedConfig, "analytics");
+const parsedGoogleTag = getNestedObject(parsedAnalytics, "google_tag");
 const parsedPreferences = getNestedObject(parsedConfig, "preferences");
 const parsedWorkspaces = getNestedObject(parsedConfig, "workspaces");
 const parsedSavedWidgets = getNestedObject(parsedConfig, "saved_widgets");
@@ -684,6 +720,18 @@ export const commandCenterConfig: CommandCenterConfig = {
     monogram: readString(parsedBranding.monogram, defaultRawConfig.branding.monogram)
       .slice(0, 3)
       .toUpperCase(),
+  },
+  analytics: {
+    googleTag: {
+      enabled: readBoolean(
+        parsedGoogleTag.enabled,
+        defaultRawConfig.analytics.google_tag.enabled,
+      ),
+      measurementId: readString(
+        parsedGoogleTag.measurement_id,
+        defaultRawConfig.analytics.google_tag.measurement_id,
+      ),
+    },
   },
   preferences: {
     url: readString(parsedPreferences.url, defaultRawConfig.preferences.url),

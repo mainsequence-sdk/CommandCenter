@@ -87,6 +87,8 @@ function SlideStudioSlideshowViewport() {
   const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
     {},
   );
+  const [isSlideshowStageHovered, setIsSlideshowStageHovered] = useState(false);
+  const [isSlideFrameHovered, setIsSlideFrameHovered] = useState(false);
   const previousKioskModeRef = useRef<boolean | null>(null);
   const kioskObservationReadyRef = useRef(false);
 
@@ -431,63 +433,12 @@ function SlideStudioSlideshowViewport() {
         editable={false}
         slide={slide}
         slideWidgetId={activeSlideEntry.instance.id}
-        overlayContent={
-          <div className="mx-auto flex w-full items-start justify-between gap-4 opacity-0 transition-opacity duration-150 group-hover/slideshow:opacity-100 group-focus-within/slideshow:opacity-100">
-            <div className="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-border/70 bg-background/88 px-4 py-2 shadow-[var(--shadow-panel)] backdrop-blur-md">
-              <Badge variant="neutral" className="border border-primary/30 bg-primary/10 text-primary">
-                {`Slide ${activeSlideIndex + 1} / ${slideEntries.length}`}
-              </Badge>
-              {activeSlideLabel ? (
-                <span className="text-sm font-medium text-foreground">{activeSlideLabel}</span>
-              ) : null}
-            </div>
-            <div className="pointer-events-auto flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={activeSlideIndex <= 0}
-                onClick={() => {
-                  setActiveSlideIndex(activeSlideIndex - 1);
-                }}
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Prev
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={activeSlideIndex < 0 || activeSlideIndex >= slideEntries.length - 1}
-                onClick={() => {
-                  setActiveSlideIndex(activeSlideIndex + 1);
-                }}
-              >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  exitSlideshow();
-                }}
-              >
-                <X className="h-4 w-4" />
-                Exit
-              </Button>
-            </div>
-          </div>
-        }
         regionContent={regionContent}
       />
     );
   }, [
     activeSlideEntry,
-    activeSlideIndex,
-    activeSlideLabel,
-    exitSlideshow,
     renderCanvasWidgetCard,
-    setActiveSlideIndex,
-    slideEntries.length,
     slidePlacedWidgetEntriesByRegion,
   ]);
 
@@ -565,7 +516,83 @@ function SlideStudioSlideshowViewport() {
 
             <div className="min-h-screen px-8 py-8">
               {activeSlideContent ? (
-                <div className="group/slideshow relative h-[calc(100vh-4rem)] w-full">{activeSlideContent}</div>
+                <div
+                  className="relative h-[calc(100vh-4rem)] w-full"
+                  onMouseEnter={() => {
+                    setIsSlideshowStageHovered(true);
+                  }}
+                  onMouseLeave={() => {
+                    setIsSlideshowStageHovered(false);
+                    setIsSlideFrameHovered(false);
+                  }}
+                >
+                  <div
+                    className={cn(
+                      "pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center px-6 pt-2 transition-opacity duration-150",
+                      isSlideshowStageHovered && !isSlideFrameHovered ? "opacity-100" : "opacity-0",
+                    )}
+                  >
+                    <div className="flex w-full max-w-[min(92vw,calc((100vh-8rem)*16/9))] items-start justify-between gap-4">
+                      <div className="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-border/70 bg-background/88 px-4 py-2 shadow-[var(--shadow-panel)] backdrop-blur-md">
+                        <Badge
+                          variant="neutral"
+                          className="border border-primary/30 bg-primary/10 text-primary"
+                        >
+                          {`Slide ${activeSlideIndex + 1} / ${slideEntries.length}`}
+                        </Badge>
+                        {activeSlideLabel ? (
+                          <span className="text-sm font-medium text-foreground">
+                            {activeSlideLabel}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="pointer-events-auto flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={activeSlideIndex <= 0}
+                          onClick={() => {
+                            setActiveSlideIndex(activeSlideIndex - 1);
+                          }}
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                          Prev
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={activeSlideIndex < 0 || activeSlideIndex >= slideEntries.length - 1}
+                          onClick={() => {
+                            setActiveSlideIndex(activeSlideIndex + 1);
+                          }}
+                        >
+                          Next
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            exitSlideshow();
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                          Exit
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    onMouseEnter={() => {
+                      setIsSlideFrameHovered(true);
+                    }}
+                    onMouseLeave={() => {
+                      setIsSlideFrameHovered(false);
+                    }}
+                  >
+                    {activeSlideContent}
+                  </div>
+                </div>
               ) : (
                 <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                   <div className="max-w-md rounded-[calc(var(--radius)+4px)] border border-border/70 bg-background/88 px-6 py-7 text-center shadow-[var(--shadow-panel)] backdrop-blur-md">

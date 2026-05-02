@@ -1,3 +1,6 @@
+# Copy this file to `config/command-center.yaml` for local or deployment-specific overrides.
+# The committed example should stay free of environment-specific identifiers such as Google tags.
+
 # Main Sequence Command Center configuration
 
 assistant_ui:
@@ -17,6 +20,11 @@ branding:
   logo_mark: logo_mark.png
   logo_alt: Main Sequence
   monogram: MS
+
+analytics:
+  google_tag:
+    enabled: false
+    measurement_id:
 
 preferences:
   url: /api/v1/command_center/preferences/

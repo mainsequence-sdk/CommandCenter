@@ -29,6 +29,8 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Eye,
+  RefreshCw,
   GripVertical,
   Pencil,
   Plus,
@@ -43,7 +45,9 @@ import {
 } from "lucide-react";
 
 import { appRegistry, getWidgetById } from "@/app/registry";
+import { ThemeMenu } from "@/app/layout/ThemeMenu";
 import { hasAllPermissions } from "@/auth/permissions";
+import { BrandWordmark } from "@/components/brand/BrandWordmark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +56,7 @@ import {
   DashboardControlsProvider,
   DashboardDataControls,
   DashboardRefreshProgressLine,
+  useDashboardControls,
 } from "@/dashboards/DashboardControls";
 import {
   DashboardWidgetDependenciesProvider,
@@ -152,6 +157,7 @@ import {
 import type { WorkspaceSnapshotCaptureProfile } from "./snapshot/types";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
+import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 import { isManagedDashboardWidgetHiddenFromNormalRail } from "./workspace-widget-visibility";
 import {
   loadWidgetCatalogPreferences,
@@ -856,9 +862,74 @@ function WorkspaceSnapshotToolbarControl({
   );
 }
 
+function formatPublicPreviewRemainingTime(valueMs: number | null) {
+  if (valueMs === null) {
+    return "Next update off";
+  }
+
+  if (valueMs < 60_000) {
+    return `Next ${Math.max(1, Math.ceil(valueMs / 1000))}s`;
+  }
+
+  if (valueMs < 3_600_000) {
+    return `Next ${Math.max(1, Math.ceil(valueMs / 60_000))}m`;
+  }
+
+  return `Next ${Math.max(1, Math.ceil(valueMs / 3_600_000))}h`;
+}
+
+function PublicPreviewStatusBar() {
+  const widgetExecution = useDashboardWidgetExecution();
+  const { isRefreshing, refreshIntervalMs, refreshProgress } = useDashboardControls();
+  const loading = widgetExecution?.dashboardSurfaceHydrationActive === true || isRefreshing;
+  const autoRefreshActive = refreshIntervalMs !== null;
+  const remainingRefreshMs =
+    autoRefreshActive && typeof refreshIntervalMs === "number"
+      ? Math.max(0, Math.round((1 - refreshProgress) * refreshIntervalMs))
+      : null;
+  const refreshProgressWidth = autoRefreshActive
+    ? `${Math.max(0, Math.min(100, refreshProgress * 100))}%`
+    : "0%";
+
+  return (
+    <div className="relative sticky top-0 z-40 mb-1 border-b border-border/60 bg-background/72 px-0 py-0.5 backdrop-blur-xl">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <a
+          href="/login"
+          className="inline-flex items-center rounded-[calc(var(--radius)-4px)] px-1 py-0.5 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+        >
+          <BrandWordmark imageClassName="h-7 w-auto object-contain sm:h-8" />
+        </a>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          {loading ? (
+            <span className="inline-flex items-center gap-1.5">
+              <RefreshCw className="h-3 w-3 animate-spin text-primary" />
+              <span>Refreshing data</span>
+            </span>
+          ) : null}
+          <span className="inline-flex items-center gap-2">
+            <Clock3 className="h-3 w-3" />
+            <span>{formatPublicPreviewRemainingTime(remainingRefreshMs)}</span>
+            <span className="relative h-1 w-20 overflow-hidden rounded-full bg-border/60">
+              <span
+                className="absolute inset-y-0 left-0 rounded-full bg-primary/80 transition-[width] duration-150"
+                style={{ width: refreshProgressWidth }}
+              />
+            </span>
+          </span>
+          <ThemeMenu />
+        </div>
+      </div>
+      <DashboardRefreshProgressLine className="top-full z-10" />
+    </div>
+  );
+}
+
 export function CustomDashboardStudioPage({
+  publicPreview = false,
   withRuntimeProviders = true,
 }: {
+  publicPreview?: boolean;
   withRuntimeProviders?: boolean;
 } = {}) {
   const navigate = useNavigate();
@@ -913,7 +984,14 @@ export function CustomDashboardStudioPage({
     progress: 0,
     canScroll: false,
   });
-  const editMode = selectedWorkspaceEditing;
+  const editMode = publicPreview ? false : selectedWorkspaceEditing;
+  const selectedDashboardType = selectedDashboard
+    ? normalizeDashboardDefinitionType(selectedDashboard.type, selectedDashboard.labels)
+    : null;
+  const publicPreviewSupported =
+    !publicPreview &&
+    selectedDashboardType !== null &&
+    selectedDashboardType !== "agent-monitor";
   const [measuredGridMetrics, setMeasuredGridMetrics] = useState<GridMetrics | null>(null);
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
     {},
@@ -934,6 +1012,7 @@ export function CustomDashboardStudioPage({
     deniedWidgetIds,
     savedWidgetsPath,
     toolbarActions,
+    workspaceListPath,
   } = useWorkspaceStudioSurfaceConfig();
   const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
   const widgetSettingsOpen =
@@ -2612,8 +2691,8 @@ export function CustomDashboardStudioPage({
       className="relative h-full min-h-full overflow-hidden"
       style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
     >
-      <DashboardRefreshProgressLine />
-      <DashboardSurfaceReturnOverlay />
+      {!publicPreview ? <DashboardRefreshProgressLine /> : null}
+      {!publicPreview ? <DashboardSurfaceReturnOverlay /> : null}
       <div
         className="pointer-events-none absolute inset-0"
         style={{ backgroundImage: "var(--workspace-canvas-background)" }}
@@ -2623,7 +2702,7 @@ export function CustomDashboardStudioPage({
         style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
       />
 
-        {editMode ? (
+        {editMode && !publicPreview ? (
           <WorkspaceWidgetRail
             widgets={railWidgets}
             activeInstanceId={selectedInstanceId}
@@ -2660,13 +2739,14 @@ export function CustomDashboardStudioPage({
           ref={canvasScrollContainerRef}
           data-workspace-canvas-scroll-container="true"
           className={cn(
-            "absolute inset-0 overflow-auto pr-4 pb-4 transition-[padding] duration-200",
-            editMode ? "pl-12" : "pl-4",
-            dashboardMenuHidden ? "pt-3" : "pt-0",
+            "absolute inset-0 overflow-auto pb-4 transition-[padding] duration-200",
+            publicPreview ? "px-0" : editMode ? "pl-12 pr-4" : "px-4",
+            !publicPreview && dashboardMenuHidden ? "pt-3" : "pt-0",
           )}
           style={{ scrollbarGutter: "stable" }}
         >
-          {dashboardMenuHidden ? (
+          {publicPreview ? <PublicPreviewStatusBar /> : null}
+          {!publicPreview && dashboardMenuHidden ? (
             <div className="sticky top-0 z-40 mb-3 flex items-center justify-between gap-3">
               <div className="rounded-full border border-border/70 bg-background/86 p-1 shadow-[var(--shadow-panel)] backdrop-blur-xl">
                 <Button
@@ -2698,7 +2778,7 @@ export function CustomDashboardStudioPage({
             </div>
           ) : null}
 
-          {!dashboardMenuHidden ? (
+          {!publicPreview && !dashboardMenuHidden ? (
             <div
               className={cn(
                 "sticky top-0 z-40 mb-3 border-b px-0 py-2 backdrop-blur-xl",
@@ -2743,6 +2823,25 @@ export function CustomDashboardStudioPage({
                       <Badge variant="neutral" className="px-2 py-0.5 text-[10px] tracking-[0.14em]">
                         Syncing
                       </Badge>
+                    ) : null}
+                    {publicPreviewSupported ? (
+                      <WorkspaceToolbarButton
+                        title="Public preview"
+                        onClick={() => {
+                          if (!selectedDashboard) {
+                            return;
+                          }
+
+                          const nextParams = new URLSearchParams({
+                            workspace: selectedDashboard.id,
+                            mode: "public-preview",
+                          });
+
+                          navigate(`${workspaceListPath}?${nextParams.toString()}`);
+                        }}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </WorkspaceToolbarButton>
                     ) : null}
                     {editMode ? (
                       <WorkspaceToolbarButton

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { ArrowLeft, LayoutTemplate, RotateCcw, Save, Shield, Trash2, X } from "lucide-react";
+import { ArrowLeft, Eye, Globe, LayoutTemplate, RotateCcw, Save, Shield, Trash2, X } from "lucide-react";
 
 import { MainSequencePermissionsTab } from "../../../extensions/main_sequence/common/components/MainSequencePermissionsTab";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
   stringifyWorkspaceSnapshot,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
+import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 import {
   filterWorkspaceStudioEntries,
   useWorkspaceStudioSurfaceConfig,
@@ -83,6 +84,7 @@ export function CustomWorkspaceSettingsPage() {
   const [activeTab, setActiveTab] = useState<WorkspaceSettingsTabId>("configuration");
   const [labelInput, setLabelInput] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [jsonDialogMode, setJsonDialogMode] = useState<"export" | "import" | null>(null);
   const [jsonImportValue, setJsonImportValue] = useState("");
   const [jsonCopyFeedback, setJsonCopyFeedback] = useState<string | null>(null);
@@ -146,6 +148,8 @@ export function CustomWorkspaceSettingsPage() {
 
   const workspace = selectedDashboard;
   const sharingAvailable = backendMode && Boolean(workspacePermissionsObjectUrl);
+  const workspaceType = normalizeDashboardDefinitionType(workspace.type, workspace.labels);
+  const supportsPublicProjection = workspaceType === "workspace" || workspaceType === "slide-studio";
   const modelDetailsCard = (
     <Card>
       <CardHeader>
@@ -189,6 +193,60 @@ export function CustomWorkspaceSettingsPage() {
               }}
             >
               Import JSON
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 p-4 text-sm">
+          <div className="text-xs uppercase tracking-[0.16em] text-warning">
+            Public access
+          </div>
+          <div className="mt-2 space-y-2 text-warning-foreground">
+            {supportsPublicProjection ? (
+              <>
+                <p>
+                  Preview this workspace without Command Center rails, then publish it later through
+                  a backend-generated public URL.
+                </p>
+                <p className="text-xs text-warning">
+                  Secrets remain protected, but public workspaces still consume underlying resources.
+                </p>
+              </>
+            ) : (
+              <p>
+                Public preview and publication are available only for `workspace` and `slide-studio`
+                workspaces.
+              </p>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!supportsPublicProjection}
+              onClick={() => {
+                const nextParams = new URLSearchParams({
+                  workspace: workspace.id,
+                  mode: "public-preview",
+                });
+
+                navigate(`${workspaceListPath}?${nextParams.toString()}`);
+              }}
+            >
+              <Eye className="h-4 w-4" />
+              View public preview
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!supportsPublicProjection}
+              className="border-warning/40 bg-warning/8 text-warning hover:border-warning/50 hover:bg-warning/14 hover:text-warning"
+              onClick={() => {
+                setPublishDialogOpen(true);
+              }}
+            >
+              <Globe className="h-4 w-4" />
+              Make workspace public
             </Button>
           </div>
         </div>
@@ -696,6 +754,41 @@ export function CustomWorkspaceSettingsPage() {
           </div>
         </div>
       </div>
+
+      <ActionConfirmationDialog
+        open={publishDialogOpen}
+        onClose={() => {
+          setPublishDialogOpen(false);
+        }}
+        title="Make workspace public"
+        tone="warning"
+        actionLabel="make public"
+        objectLabel="workspace"
+        objectSummary={
+          <div className="space-y-1">
+            <div className="font-medium text-foreground">{workspace.title}</div>
+            <div className="text-xs text-muted-foreground">{workspace.id}</div>
+          </div>
+        }
+        confirmWord="PUBLIC"
+        confirmButtonLabel="Make public"
+        description="This will generate a public URL and make the workspace available to everyone who has that link."
+        specialText={
+          <div className="space-y-2">
+            <p>Secrets are protected, but public traffic will still consume the workspace resources behind this view.</p>
+            <p>The backend publication contract is not wired yet in this environment, so this action is currently a frontend placeholder.</p>
+          </div>
+        }
+        successToast={{
+          title: "Public publication not connected",
+          description:
+            "The warning flow is ready, but backend URL generation is not wired yet.",
+          variant: "info",
+        }}
+        onConfirm={() => {
+          setPublishDialogOpen(false);
+        }}
+      />
 
       <ActionConfirmationDialog
         open={deleteDialogOpen}

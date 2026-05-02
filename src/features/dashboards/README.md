@@ -15,17 +15,18 @@ These flows are all part of one app surface, with instance state selected throug
 
 ## Entry Points
 
-- `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance.
+- `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance. It also routes `?mode=public-preview` into the shellless authenticated preview projection.
 - `SlideStudioPage.tsx`: curated `workspace-studio` surface that reuses the shared workspace list/canvas host, filters to `type=slide-studio`, re-enables the `Slide` widget in that surface only, and routes into the Slide Studio-only slideshow projection mode.
+- `PublicWorkspacePreviewPage.tsx`: shellless authenticated projection for `workspace` and `slide-studio` workspaces. It reuses the normal runtime canvas without authoring chrome so signed users can preview the eventual public rendering contract.
 - `SlideStudioSlideshowPage.tsx`: Slide Studio-only projection surface. It reuses the same workspace document and slide/widget rendering contracts but presents one top-level slide per screen with slideshow navigation.
-- `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio.
+- `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio. It also supports the shellless `publicPreview` projection over the same runtime document.
 - `WorkspaceCanvasWidgetHost.tsx`: shared widget renderer used by both the root canvas host and the slide subgrid host so widget chrome, headers, actions, inline edit gating, and body rendering stay identical across both layout hosts.
 - `WorkspaceSlideSubgridHost.tsx`: slide-only region layout host. It keeps slide-contained widgets on a separate subgrid from the root canvas while shrinking slide row height to fit the active region bounds instead of letting slide widgets overflow.
 - `WorkspaceRenderErrorBoundary.tsx`: workspace-level recovery surface used when malformed or unsupported workspace data breaks canvas or graph rendering. It keeps a readable error UI in front of the user and preserves a route back into workspace settings for JSON export/import recovery.
 - `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize, controls, and save flow.
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
-- `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, labels, and backend-only sharing permissions.
+- `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, labels, backend-only sharing permissions, and the authenticated public-preview / future public-publication controls.
 - `SavedWidgetsPage.tsx`: dedicated saved-widget and saved-widget-group library screen with metadata editing, deletion, JSON inspection, and permissions.
 - `SavedWidgetSaveDialog.tsx`: canvas action flow for saving the selected live workspace widget as a reusable saved widget or saved widget group.
 - `SavedWidgetLibraryDialog.tsx`: in-canvas library picker used to import saved widgets and groups back into the current workspace.
@@ -58,6 +59,8 @@ These flows are all part of one app surface, with instance state selected throug
 - The slide-studio list lives at `/app/workspace-studio/slide-studio`.
 - Slide Studio also exposes a route-driven slideshow projection on the same surface through
   `?workspace=<id>&mode=slideshow`.
+- Authenticated public preview is available for supported workspace types through
+  `?workspace=<id>&mode=public-preview`.
 - The saved-widget library lives at `/app/workspace-studio/widgets`.
 - Surface-specific studio reusers may override those route targets and filter visible widget
   definitions while still using the same underlying workspace document model.
@@ -210,6 +213,11 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget instances can hide their header in normal viewing, but the workspace canvas forces headers back on during edit mode so drag and settings controls remain available.
 - The shared workspace widget host now treats `showHeader` literally in both edit and view mode.
   Edit mode no longer forces a hidden header back on.
+- Public preview is a shellless signed-user projection for `workspace` and `slide-studio`. It
+  hides workspace toolbars, widget menus, edit rails, and Command Center shell chrome while
+  reusing the same runtime canvas and widget renderer as normal view mode. It keeps only a minimal
+  read-only refresh/status bar, the shared refresh-progress animation, a brand link, and the theme
+  menu.
 - The shared widget overflow menu now lives in a static top-right overlay instead of the header
   flow, so edit/view mode no longer change widget proportions just to expose actions.
 - Headerless widgets now get a non-layout drag handle overlay in edit mode instead of a forced

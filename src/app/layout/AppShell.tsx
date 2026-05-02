@@ -48,6 +48,23 @@ function isWorkspaceCanvasRoute(pathname: string, search: string) {
   );
 }
 
+function isWorkspacePublicPreviewRoute(pathname: string, search: string) {
+  const routeSegments = pathname.split("/").filter(Boolean);
+  const surfaceId = routeSegments[2];
+
+  if (
+    routeSegments[1] !== "workspace-studio" ||
+    !surfaceId ||
+    !WORKSPACE_CANVAS_SURFACE_IDS.has(surfaceId)
+  ) {
+    return false;
+  }
+
+  const searchParams = new URLSearchParams(search);
+
+  return Boolean(searchParams.get("workspace")) && searchParams.get("mode") === "public-preview";
+}
+
 export function AppShell() {
   const location = useLocation();
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
@@ -75,15 +92,18 @@ export function AppShell() {
     routeSegments[1] === "workspace-studio" &&
     routeSegments[2] === "widget-catalog";
   const workspaceCanvasRoute = isWorkspaceCanvasRoute(location.pathname, location.search);
+  const workspacePublicPreviewRoute = isWorkspacePublicPreviewRoute(location.pathname, location.search);
   const kioskEligibleRoute =
     routeSurface?.kind === "dashboard" ||
     workspaceCanvasRoute;
-  const fullBleedSurface = Boolean(routeSurface?.fullBleed) || workspaceCanvasRoute;
-  const showAppPanel = !kioskMode && Boolean(panelApp && panelAppSurfaceGroups.length > 0);
-  const sidebarWidth = kioskMode ? 0 : sidebarCollapsed ? 52 : 248;
+  const shelllessRoute = kioskMode || workspacePublicPreviewRoute;
+  const fullBleedSurface = Boolean(routeSurface?.fullBleed) || workspaceCanvasRoute || workspacePublicPreviewRoute;
+  const showAppPanel = !shelllessRoute && Boolean(panelApp && panelAppSurfaceGroups.length > 0);
+  const sidebarWidth = shelllessRoute ? 0 : sidebarCollapsed ? 52 : 248;
   const routePathKey = location.pathname;
   const showDockedChatRail =
     env.includeAui &&
+    !workspacePublicPreviewRoute &&
     location.pathname !== CHAT_PAGE_PATH &&
     chatRailOpen &&
     chatRailMode === "docked";
@@ -166,7 +186,7 @@ export function AppShell() {
       <div
         className="grid h-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out"
         style={{
-          gridTemplateColumns: kioskMode
+          gridTemplateColumns: shelllessRoute
             ? showDockedChatRail
               ? `minmax(0, 1fr) ${CHAT_RAIL_WIDTH}px`
               : "minmax(0, 1fr)"
@@ -175,14 +195,14 @@ export function AppShell() {
               : `${sidebarWidth}px minmax(0, 1fr)`,
         }}
       >
-        {!kioskMode ? <Sidebar /> : null}
+        {!shelllessRoute ? <Sidebar /> : null}
         <div
           className={cn(
             "grid min-h-0 min-w-0",
-            kioskMode ? "grid-rows-[1fr]" : "grid-rows-[56px_1fr]",
+            shelllessRoute ? "grid-rows-[1fr]" : "grid-rows-[56px_1fr]",
           )}
         >
-          {!kioskMode ? <Topbar /> : null}
+          {!shelllessRoute ? <Topbar /> : null}
           <main
             className={cn(
               "min-h-0",
@@ -190,7 +210,7 @@ export function AppShell() {
                 ? widgetCatalogRoute
                   ? "overflow-auto p-0"
                   : "overflow-hidden p-0"
-                : kioskMode
+                : shelllessRoute
                   ? "overflow-auto px-3 py-3 md:px-4 md:py-4"
                   : "overflow-auto px-2 py-3 md:px-3 md:py-4",
             )}
