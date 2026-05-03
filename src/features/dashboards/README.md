@@ -85,6 +85,9 @@ These flows are all part of one app surface, with instance state selected throug
 - On touch and small-screen slideshow viewports, the slide navigation strip stays persistently
   visible instead of relying on hover, with slide count moved into the public top bar and
   next/previous controls attached to the left and right slide edges so they do not cover content.
+- Slideshow mode now also forces a short initial navigation reveal so users see the slide count and,
+  on keyboard-friendly viewports, the available `←` / `→` / `Space` / `Shift` + `Space` / `Esc`
+  shortcuts before the controls fall back to their normal visibility behavior.
 - Workspace settings now manage backend-owned public links through the canonical publish lifecycle:
   `GET /public-link/`, `POST /public-link/publish/`, `POST /public-link/unpublish/`, and
   `POST /public-link/rotate/`. The frontend treats `publicUrl` / `public_url` as backend-owned

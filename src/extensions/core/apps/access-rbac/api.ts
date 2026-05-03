@@ -76,7 +76,7 @@ const builtinOrgAdminPolicyDetails = {
     "Organization-admin-only shell access for users who should only see organization administration surfaces.",
   permissions: ["org_admin:view", WORKSPACES_PUBLISH_PERMISSION],
   isSystem: true,
-  isEditable: false,
+  isEditable: true,
   isVisible: true,
 } as const;
 export const BUILTIN_ACCESS_POLICY_DETAILS = {
@@ -87,7 +87,7 @@ export const BUILTIN_ACCESS_POLICY_DETAILS = {
       "Base shell access for users who should only see Workspaces and Main Sequence Markets.",
     permissions: ["workspaces:view", "main_sequence_markets:view"],
     isSystem: true,
-    isEditable: false,
+    isEditable: true,
     isVisible: true,
   },
   "dev-user": {
@@ -102,7 +102,7 @@ export const BUILTIN_ACCESS_POLICY_DETAILS = {
       ...PROMETHEUS_CONNECTION_PERMISSIONS,
     ],
     isSystem: true,
-    isEditable: false,
+    isEditable: true,
     isVisible: true,
   },
   "org-admin-user": {
@@ -229,6 +229,12 @@ function normalizeStringList(value: unknown) {
 
 function normalizePermissions(value: unknown) {
   return Array.from(new Set(normalizeStringList(value))) as Permission[];
+}
+
+function normalizeAssignablePermissions(value: unknown) {
+  return normalizePermissions(value).filter(
+    (permission) => permission !== PLATFORM_ADMIN_PERMISSION,
+  ) as Permission[];
 }
 
 function normalizeGroupNames(value: unknown) {
@@ -680,15 +686,15 @@ function normalizeAccessPolicyInput(input: AccessPolicyWriteInput) {
     slugified_name: normalizePolicySlug(input.slugifiedName),
     label: readString(input.label, "Policy"),
     description: readString(input.description),
-    permissions: normalizePermissions(input.permissions),
+    permissions: normalizeAssignablePermissions(input.permissions),
   };
 }
 
 function normalizeShellAccessPatchInput(input: UserShellAccessPatchInput) {
   return {
     policy_ids: Array.from(new Set(input.policyIds.map((entry) => normalizePolicySlug(entry)).filter(Boolean))),
-    grant_permissions: normalizePermissions(input.grantPermissions),
-    deny_permissions: normalizePermissions(input.denyPermissions),
+    grant_permissions: normalizeAssignablePermissions(input.grantPermissions),
+    deny_permissions: normalizeAssignablePermissions(input.denyPermissions),
   };
 }
 

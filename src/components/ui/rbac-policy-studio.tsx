@@ -329,8 +329,9 @@ export function RbacPolicyStudio({
           <div className="space-y-1.5">
             <CardTitle>Shell policy studio</CardTitle>
             <CardDescription>
-              Define reusable Command Center permission bundles. The built-in `light-user`,
-              `dev-user`, and `org-admin-user` baselines are fixed and cannot be changed here.
+              Define reusable Command Center permission bundles. Visible built-in baselines remain
+              built-in, but org admins can edit them here. Hidden platform-admin access stays
+              backend-enforced.
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -372,7 +373,7 @@ export function RbacPolicyStudio({
           >
             {saveState.message ??
               (editingLocked
-                ? "This built-in policy is read-only."
+                ? "This policy is read-only."
                 : isDirty
                   ? "You have unsaved changes."
                   : "No unsaved changes.")}
@@ -468,7 +469,7 @@ export function RbacPolicyStudio({
                     Update the shell-facing policy definition and save when ready.
                   </CardDescription>
                 </div>
-                {!draft.isNew && draft.isEditable ? (
+                {!draft.isNew && draft.isEditable && !draft.isSystem ? (
                   <Button
                     type="button"
                     variant="outline"

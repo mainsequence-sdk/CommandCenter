@@ -21,6 +21,7 @@ import { useAuthStore } from "@/auth/auth-store";
 import { getPermissionDefinitions } from "@/auth/permission-catalog";
 import {
   ALL_PERMISSIONS,
+  PLATFORM_ADMIN_PERMISSION,
   ROLE_LABELS,
   ROLE_PERMISSIONS,
   getRoleLabel,
@@ -105,6 +106,8 @@ export function mergeRbacIds(...lists: Array<Array<string | number>>) {
   });
 }
 
+const nonAssignablePermissionIds = new Set([PLATFORM_ADMIN_PERMISSION]);
+
 function buildPermissionOptions(extraPermissionIds: string[]) {
   const options = new Map<string, {
     id: string;
@@ -114,6 +117,10 @@ function buildPermissionOptions(extraPermissionIds: string[]) {
   }>();
 
   getPermissionDefinitions().forEach((permission) => {
+    if (nonAssignablePermissionIds.has(permission.id)) {
+      return;
+    }
+
     options.set(permission.id, {
       id: permission.id,
       label: permission.label,
@@ -126,7 +133,7 @@ function buildPermissionOptions(extraPermissionIds: string[]) {
     .map((permission) => permission.trim())
     .filter(Boolean)
     .forEach((permissionId) => {
-      if (options.has(permissionId)) {
+      if (nonAssignablePermissionIds.has(permissionId) || options.has(permissionId)) {
         return;
       }
 

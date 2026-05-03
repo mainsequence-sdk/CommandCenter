@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getPermissionDefinitions } from "@/auth/permission-catalog";
+import { PLATFORM_ADMIN_PERMISSION } from "@/auth/permissions";
 import {
   RbacPolicyStudio,
   type RbacPolicyStudioPermissionOption,
@@ -17,10 +18,16 @@ import {
 } from "./api";
 import { AccessRbacSurfaceLayout } from "./shared";
 
+const nonAssignablePermissionIds = new Set([PLATFORM_ADMIN_PERMISSION]);
+
 function toPermissionOptions(policies: AccessPolicy[]): RbacPolicyStudioPermissionOption[] {
   const options = new Map<string, RbacPolicyStudioPermissionOption>();
 
   getPermissionDefinitions().forEach((permission) => {
+    if (nonAssignablePermissionIds.has(permission.id)) {
+      return;
+    }
+
     options.set(permission.id, {
       id: permission.id,
       label: permission.label,
@@ -34,7 +41,7 @@ function toPermissionOptions(policies: AccessPolicy[]): RbacPolicyStudioPermissi
     .map((permission) => permission.trim())
     .filter(Boolean)
     .forEach((permissionId) => {
-      if (options.has(permissionId)) {
+      if (nonAssignablePermissionIds.has(permissionId) || options.has(permissionId)) {
         return;
       }
 
@@ -93,7 +100,7 @@ export function AccessRbacPoliciesPage() {
   return (
     <AccessRbacSurfaceLayout
       title="Policy studio"
-      description="Manage reusable Command Center permission bundles. `light-user`, `dev-user`, and `org-admin-user` remain fixed built-ins, while hidden admin-class policies stay backend-enforced and do not appear here."
+      description="Manage reusable Command Center permission bundles. Visible built-in policies remain built-in but are editable by org admins here, while platform-admin access stays backend-enforced instead of appearing as an assignable policy permission."
     >
       <RbacPolicyStudio
         policies={policies}

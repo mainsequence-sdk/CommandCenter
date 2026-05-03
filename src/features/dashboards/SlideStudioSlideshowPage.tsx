@@ -108,8 +108,10 @@ function SlideStudioSlideshowViewport({
   );
   const [isSlideFrameHovered, setIsSlideFrameHovered] = useState(false);
   const [alwaysShowSlideshowControls, setAlwaysShowSlideshowControls] = useState(false);
+  const [showSlideshowIntroHint, setShowSlideshowIntroHint] = useState(false);
   const previousKioskModeRef = useRef<boolean | null>(null);
   const kioskObservationReadyRef = useRef(false);
+  const slideshowIntroHintShownRef = useRef(false);
   const publicView = executionSurface === "public-workspace";
 
   const canExitSlideshow = Boolean(onExit) || Boolean(searchParams.get("mode"));
@@ -162,6 +164,8 @@ function SlideStudioSlideshowViewport({
 
   useEffect(() => {
     setWidgetOverrides({});
+    slideshowIntroHintShownRef.current = false;
+    setShowSlideshowIntroHint(false);
   }, [dashboard.id]);
 
   useEffect(() => {
@@ -290,6 +294,23 @@ function SlideStudioSlideshowViewport({
   }, [requestedSlideId, slideEntries]);
   const activeSlideEntry =
     activeSlideIndex >= 0 ? (slideEntries[activeSlideIndex] ?? null) : null;
+
+  useEffect(() => {
+    if (!activeSlideEntry || slideshowIntroHintShownRef.current) {
+      return undefined;
+    }
+
+    slideshowIntroHintShownRef.current = true;
+    setShowSlideshowIntroHint(true);
+
+    const timeoutId = window.setTimeout(() => {
+      setShowSlideshowIntroHint(false);
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeSlideEntry]);
 
   useEffect(() => {
     if (!activeSlideEntry) {
@@ -458,7 +479,8 @@ function SlideStudioSlideshowViewport({
   const activeSlideLabel = activeSlideEntry
     ? (activeSlideEntry.instance.title?.trim() || `Slide ${activeSlideIndex + 1}`)
     : null;
-  const showSlideEdgeControls = alwaysShowSlideshowControls || isSlideFrameHovered;
+  const showSlideEdgeControls =
+    alwaysShowSlideshowControls || isSlideFrameHovered || showSlideshowIntroHint;
 
   const activeSlideContent = useMemo(() => {
     if (!activeSlideEntry) {
@@ -669,6 +691,26 @@ function SlideStudioSlideshowViewport({
                         >
                           <ArrowRight className="h-4 w-4" />
                         </Button>
+                      </div>
+                    </div>
+                    <div
+                      className={cn(
+                        "pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center transition-opacity duration-150 xl:top-4",
+                        showSlideEdgeControls ? "opacity-100" : "opacity-0",
+                      )}
+                    >
+                      <div className="pointer-events-auto inline-flex max-w-[calc(100%-5rem)] items-center gap-2 rounded-full border border-border/70 bg-background/88 px-3 py-1 shadow-[var(--shadow-panel)] backdrop-blur-md">
+                        <Badge
+                          variant="neutral"
+                          className="border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] text-primary"
+                        >
+                          {`${activeSlideIndex + 1} / ${slideEntries.length}`}
+                        </Badge>
+                        {showSlideshowIntroHint && !alwaysShowSlideshowControls ? (
+                          <span className="hidden text-[11px] font-medium text-muted-foreground md:inline">
+                            Use `←` / `→`, `Space`, `Shift` + `Space`, or `Esc`
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     {activeSlideContent}
