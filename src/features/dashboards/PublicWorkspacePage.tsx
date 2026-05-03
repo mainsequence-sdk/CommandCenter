@@ -15,6 +15,22 @@ import {
   WorkspaceBackendRequestError,
 } from "./workspace-api";
 
+function readMetaContent(selector: string) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return document.head.querySelector<HTMLMetaElement>(selector)?.getAttribute("content") ?? null;
+}
+
+function writeMetaContent(selector: string, value: string) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.head.querySelector<HTMLMetaElement>(selector)?.setAttribute("content", value);
+}
+
 function PublicWorkspaceStateCard({
   badge,
   title,
@@ -81,6 +97,59 @@ export function PublicWorkspacePage() {
 
   const dashboard = publicWorkspace?.dashboard ?? null;
   const publicWorkspaceSpecHash = publicWorkspace?.publicWorkspaceSpecHash ?? null;
+
+  useEffect(() => {
+    if (!dashboard) {
+      return;
+    }
+
+    const title = dashboard.title.trim() || "Public workspace";
+    const description =
+      dashboard.description.trim() || "Published workspace from Command Center.";
+    const previousTitle = document.title;
+    const previousDescription = readMetaContent('meta[name="description"]');
+    const previousOgTitle = readMetaContent('meta[property="og:title"]');
+    const previousOgDescription = readMetaContent('meta[property="og:description"]');
+    const previousOgUrl = readMetaContent('meta[property="og:url"]');
+    const previousTwitterTitle = readMetaContent('meta[name="twitter:title"]');
+    const previousTwitterDescription = readMetaContent('meta[name="twitter:description"]');
+
+    document.title = title;
+    writeMetaContent('meta[name="description"]', description);
+    writeMetaContent('meta[property="og:title"]', title);
+    writeMetaContent('meta[property="og:description"]', description);
+    writeMetaContent('meta[property="og:url"]', window.location.href);
+    writeMetaContent('meta[name="twitter:title"]', title);
+    writeMetaContent('meta[name="twitter:description"]', description);
+
+    return () => {
+      document.title = previousTitle;
+
+      if (previousDescription !== null) {
+        writeMetaContent('meta[name="description"]', previousDescription);
+      }
+
+      if (previousOgTitle !== null) {
+        writeMetaContent('meta[property="og:title"]', previousOgTitle);
+      }
+
+      if (previousOgDescription !== null) {
+        writeMetaContent('meta[property="og:description"]', previousOgDescription);
+      }
+
+      if (previousOgUrl !== null) {
+        writeMetaContent('meta[property="og:url"]', previousOgUrl);
+      }
+
+      if (previousTwitterTitle !== null) {
+        writeMetaContent('meta[name="twitter:title"]', previousTwitterTitle);
+      }
+
+      if (previousTwitterDescription !== null) {
+        writeMetaContent('meta[name="twitter:description"]', previousTwitterDescription);
+      }
+    };
+  }, [dashboard]);
 
   const resolvedPublicDashboard = useMemo(() => {
     if (!dashboard) {
