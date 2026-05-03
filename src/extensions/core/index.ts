@@ -63,6 +63,12 @@ const workspaceStudioApp: AppDefinition = {
       description: "Open the Workspaces application and workspace-backed shell surfaces.",
       category: "Workspaces",
     },
+    {
+      id: "workspaces:publish",
+      label: "Workspaces / publish",
+      description: "Publish, unpublish, and rotate public workspace URLs.",
+      category: "Workspaces",
+    },
   ],
   defaultSurfaceId: "workspaces",
   surfaces: [

@@ -1,5 +1,6 @@
 import {
   PROMETHEUS_CONNECTION_PERMISSIONS,
+  WORKSPACES_PUBLISH_PERMISSION,
   buildEffectivePermissions,
   getPermissionsForRole,
   normalizeBuiltinRole,
@@ -69,6 +70,15 @@ export interface UserShellAccessPatchInput {
 }
 
 const hiddenAccessPolicySlugs = new Set(["platform-admin"]);
+const builtinOrgAdminPolicyDetails = {
+  label: "Org Admin User",
+  description:
+    "Organization-admin-only shell access for users who should only see organization administration surfaces.",
+  permissions: ["org_admin:view", WORKSPACES_PUBLISH_PERMISSION],
+  isSystem: true,
+  isEditable: false,
+  isVisible: true,
+} as const;
 export const BUILTIN_ACCESS_POLICY_DETAILS = {
   "light-user": {
     slugifiedName: "light-user",
@@ -97,13 +107,11 @@ export const BUILTIN_ACCESS_POLICY_DETAILS = {
   },
   "org-admin-user": {
     slugifiedName: "org-admin-user",
-    label: "Org Admin User",
-    description:
-      "Organization-admin-only shell access for users who should only see organization administration surfaces.",
-    permissions: ["org_admin:view"],
-    isSystem: true,
-    isEditable: false,
-    isVisible: true,
+    ...builtinOrgAdminPolicyDetails,
+  },
+  "org-admin": {
+    slugifiedName: "org-admin",
+    ...builtinOrgAdminPolicyDetails,
   },
 } as const;
 const builtinLockedAccessPolicySlugs = new Set(
@@ -603,7 +611,7 @@ function normalizeAccessPolicyRecord(record: Record<string, unknown>): AccessPol
     label: builtinDetails?.label ?? readString(record.label, slugifiedName || "Policy"),
     description: builtinDetails?.description ?? readString(record.description),
     permissions: builtinDetails
-      ? [...builtinDetails.permissions]
+      ? Array.from(new Set([...builtinDetails.permissions, ...normalizePermissions(record.permissions)]))
       : normalizePermissions(record.permissions),
     isSystem:
       builtinDetails?.isSystem ??

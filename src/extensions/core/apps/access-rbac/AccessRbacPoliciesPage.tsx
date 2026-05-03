@@ -17,23 +17,48 @@ import {
 } from "./api";
 import { AccessRbacSurfaceLayout } from "./shared";
 
-function toPermissionOptions(): RbacPolicyStudioPermissionOption[] {
-  return getPermissionDefinitions().map((permission) => ({
-    id: permission.id,
-    label: permission.label,
-    description: permission.description,
-    category: permission.category,
-  }));
+function toPermissionOptions(policies: AccessPolicy[]): RbacPolicyStudioPermissionOption[] {
+  const options = new Map<string, RbacPolicyStudioPermissionOption>();
+
+  getPermissionDefinitions().forEach((permission) => {
+    options.set(permission.id, {
+      id: permission.id,
+      label: permission.label,
+      description: permission.description,
+      category: permission.category,
+    });
+  });
+
+  policies
+    .flatMap((policy) => policy.permissions)
+    .map((permission) => permission.trim())
+    .filter(Boolean)
+    .forEach((permissionId) => {
+      if (options.has(permissionId)) {
+        return;
+      }
+
+      options.set(permissionId, {
+        id: permissionId,
+        label: permissionId,
+        description:
+          "Permission discovered from an existing backend policy but not defined in the frontend permission catalog yet.",
+        category: "Discovered",
+      });
+    });
+
+  return Array.from(options.values());
 }
 
 export function AccessRbacPoliciesPage() {
   const queryClient = useQueryClient();
-  const permissionOptions = useMemo(() => toPermissionOptions(), []);
   const policiesQuery = useQuery({
     queryKey: ["access-rbac", "policies"],
     queryFn: () => listAccessPolicies(),
     staleTime: 60_000,
   });
+  const policies = policiesQuery.data ?? [];
+  const permissionOptions = useMemo(() => toPermissionOptions(policies), [policies]);
   const createPolicyMutation = useMutation({
     mutationFn: createAccessPolicy,
     onSuccess: async () => {
@@ -71,7 +96,7 @@ export function AccessRbacPoliciesPage() {
       description="Manage reusable Command Center permission bundles. `light-user`, `dev-user`, and `org-admin-user` remain fixed built-ins, while hidden admin-class policies stay backend-enforced and do not appear here."
     >
       <RbacPolicyStudio
-        policies={policiesQuery.data ?? []}
+        policies={policies}
         permissionOptions={permissionOptions}
         isLoading={policiesQuery.isLoading}
         error={policiesQuery.error instanceof Error ? policiesQuery.error.message : null}

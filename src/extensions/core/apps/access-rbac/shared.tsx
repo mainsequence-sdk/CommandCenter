@@ -105,6 +105,43 @@ export function mergeRbacIds(...lists: Array<Array<string | number>>) {
   });
 }
 
+function buildPermissionOptions(extraPermissionIds: string[]) {
+  const options = new Map<string, {
+    id: string;
+    label: string;
+    description: string;
+    category: string;
+  }>();
+
+  getPermissionDefinitions().forEach((permission) => {
+    options.set(permission.id, {
+      id: permission.id,
+      label: permission.label,
+      description: permission.description,
+      category: permission.category?.trim() || "General",
+    });
+  });
+
+  extraPermissionIds
+    .map((permission) => permission.trim())
+    .filter(Boolean)
+    .forEach((permissionId) => {
+      if (options.has(permissionId)) {
+        return;
+      }
+
+      options.set(permissionId, {
+        id: permissionId,
+        label: permissionId,
+        description:
+          "Permission discovered from backend policy or shell-access data but not defined in the frontend permission catalog yet.",
+        category: "Discovered",
+      });
+    });
+
+  return Array.from(options.values());
+}
+
 export function useAccessRbacData() {
   const session = useAuthStore((state) => state.session);
   const sessionUser = session?.user;
@@ -423,10 +460,29 @@ export function UserAccessInspectorPanel({
     () => (policiesQuery.data ?? []).filter((policy) => isAssignableAccessPolicy(policy)),
     [policiesQuery.data],
   );
+  const discoveredPermissionIds = useMemo(
+    () => [
+      ...(policiesQuery.data ?? []).flatMap((policy) => policy.permissions),
+      ...(draft?.grantPermissions ?? []),
+      ...(draft?.denyPermissions ?? []),
+      ...(previewAccess?.effectivePermissions ??
+        shellAccessQuery.data?.effectivePermissions ??
+        inspectedUser?.permissions ??
+        []),
+    ],
+    [
+      draft?.denyPermissions,
+      draft?.grantPermissions,
+      inspectedUser?.permissions,
+      policiesQuery.data,
+      previewAccess?.effectivePermissions,
+      shellAccessQuery.data?.effectivePermissions,
+    ],
+  );
   const permissionGroups = useMemo(() => {
     const groups = new Map<string, Array<{ id: string; label: string; description: string }>>();
 
-    getPermissionDefinitions().forEach((permission) => {
+    buildPermissionOptions(discoveredPermissionIds).forEach((permission) => {
       const category = permission.category?.trim() || "General";
       const items = groups.get(category) ?? [];
       items.push({
@@ -441,7 +497,7 @@ export function UserAccessInspectorPanel({
       label,
       items,
     }));
-  }, []);
+  }, [discoveredPermissionIds]);
   const resultUsers = usersQuery.data ?? [];
   const resolvedShellAccess = previewAccess ?? shellAccessQuery.data ?? null;
   const inspectedPermissions =
