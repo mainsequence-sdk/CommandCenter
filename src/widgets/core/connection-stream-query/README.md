@@ -32,9 +32,11 @@ for connection query models that advertise a WebSocket stream contract.
   `auth.websocketTicketUrl`, then resolves the configured `ws`/`wss` endpoint and sends the
   query-shaped subscribe payload.
 - Anonymous public execution now switches to widget-scoped `publicExecution.streamUrl` metadata
-  from the published public workspace payload. In that mode the widget sends the same subscribe
-  payload minus `connectionId`, skips SPA WebSocket ticket minting, and keys its public runtime
-  execution off the public stream URL instead of the private connection id.
+  from the published public workspace payload. In that mode the widget sends the backend public
+  subscribe contract exactly: `subscriptionId`, `widgetInstanceId`, `capability`, and a nested
+  `request` containing only the allowed `timeRange` and `variables` inputs. It skips SPA
+  WebSocket ticket minting and keys its public runtime execution off the public stream URL instead
+  of the private connection id.
 - Only query models with `stream.transport: "websocket"` and at least one valid stream mode are
   accepted. Settings applies the same validation by filtering the shared connection query workbench
   and by resolving draft defaults only against streamable paths.

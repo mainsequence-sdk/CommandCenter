@@ -8,6 +8,10 @@ import {
   WORKSPACE_SLIDE_WIDGET_ID,
 } from "@/dashboards/structural-widgets";
 import { defineWidget } from "@/widgets/types";
+import {
+  WORKSPACE_SLIDE_GRID_COLUMNS,
+  WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
+} from "@/widgets/core/workspace-slide/slide-model";
 
 import {
   createManagedDashboardWidget,
@@ -16,6 +20,8 @@ import {
   duplicateManagedDashboardWidgets,
   findManagedDashboardWidget,
   findManagedDashboardWidgets,
+  moveDashboardWidgetToRootCanvas,
+  moveDashboardWidgetToSlideRegion,
   removeDashboardWidget,
   removeManagedDashboardWidgets,
   sanitizeDashboardDefinition,
@@ -1230,6 +1236,86 @@ describe("custom dashboard storage managed widgets", () => {
         sourceWidgetId: duplicatedSource?.id,
         sourceOutputId: "dataset",
       },
+    });
+  });
+
+  it("moves a slide widget back to the root canvas and clears slide placement", () => {
+    const dashboard = dashboardWithWidgets([
+      slideWidget("slide-1", { x: 0, y: 0 }),
+      {
+        ...graphWidget("graph-1"),
+        slidePlacement: {
+          slideWidgetId: "slide-1",
+          region: "body",
+        },
+        position: {
+          x: 2,
+          y: 3,
+        },
+      },
+    ]);
+
+    const moved = moveDashboardWidgetToRootCanvas(
+      dashboard,
+      "graph-1",
+      {
+        x: 18,
+        y: 60,
+        w: 6,
+        h: 4,
+      },
+      {
+        sourceColumns: WORKSPACE_SLIDE_GRID_COLUMNS,
+        sourceRowHeight: WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
+      },
+    );
+
+    const graph = moved.widgets.find((widget) => widget.id === "graph-1");
+
+    expect(graph?.slidePlacement).toBeUndefined();
+    expect(graph?.position?.x).toBe(18);
+    expect(graph?.position?.y).toBeGreaterThanOrEqual(60);
+    expect(graph?.layout).toEqual({
+      cols: 24,
+      rows: 7,
+    });
+  });
+
+  it("reassigns a slide widget to a different slide region", () => {
+    const dashboard = dashboardWithWidgets([
+      slideWidget("slide-1", { x: 0, y: 0 }),
+      slideWidget("slide-2", { x: 0, y: 60 }),
+      {
+        ...graphWidget("graph-1"),
+        slidePlacement: {
+          slideWidgetId: "slide-1",
+          region: "body",
+        },
+        position: {
+          x: 0,
+          y: 0,
+        },
+      },
+    ]);
+
+    const moved = moveDashboardWidgetToSlideRegion(
+      dashboard,
+      "graph-1",
+      "slide-2",
+      "right",
+      {
+        x: 4,
+        y: 5,
+        w: 12,
+        h: 8,
+      },
+    );
+
+    const graph = moved.widgets.find((widget) => widget.id === "graph-1");
+
+    expect(graph?.slidePlacement).toEqual({
+      slideWidgetId: "slide-2",
+      region: "right",
     });
   });
 

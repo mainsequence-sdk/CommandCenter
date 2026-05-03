@@ -36,7 +36,9 @@ backend-owned connection instances.
   series-shaped responses are coerced into canonical tabular rows at the widget edge.
 - Anonymous public execution now uses widget-scoped `publicExecution.queryUrl` metadata from the
   published public workspace payload instead of the private `/connections/:id/query/` route. In
-  that mode the frontend sends the same query envelope minus `connectionId`, and incremental
+  that mode the frontend sends only the backend public request contract: top-level `capability`
+  plus the allowed `timeRange` and `variables` inputs. It does not send `connectionId`, nested
+  private query envelopes, or derive execution from `props.connectionRef`. Public client
   dedupe/identity keys switch to the public execution URL rather than the private connection id.
 - Runtime publication writes HTTP snapshots and incremental batches into the workspace runtime data
   store when one is available. The saved widget runtime state carries a ref-backed shell plus

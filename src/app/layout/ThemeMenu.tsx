@@ -13,7 +13,11 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/themes/ThemeProvider";
 
-export function ThemeMenu() {
+export function ThemeMenu({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const { t } = useTranslation();
   const { availableThemes, themeId, setThemeById } = useTheme();
   const [open, setOpen] = useState(false);
@@ -103,14 +107,16 @@ export function ThemeMenu() {
         aria-label={t("settingsDialog.themePreset")}
         title={t("settingsDialog.themePreset")}
         className={cn(
-          "inline-flex h-9 w-9 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 text-sm text-foreground shadow-sm transition-colors",
+          compact
+            ? "inline-flex h-6 w-6 items-center justify-center rounded-[calc(var(--radius)-8px)] border border-border/70 bg-card/70 text-sm text-foreground shadow-sm transition-colors xl:h-9 xl:w-9 xl:rounded-[calc(var(--radius)-6px)]"
+            : "inline-flex h-9 w-9 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 text-sm text-foreground shadow-sm transition-colors",
           "hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70",
         )}
         onClick={() => {
           setOpen((current) => !current);
         }}
       >
-        <Palette className="h-4 w-4 text-muted-foreground" />
+        <Palette className={cn("text-muted-foreground", compact ? "h-3 w-3 xl:h-4 xl:w-4" : "h-4 w-4")} />
       </button>
 
       {open && typeof document !== "undefined"

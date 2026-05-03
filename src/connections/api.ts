@@ -179,6 +179,9 @@ export interface ConnectionQueryWebSocketAuthenticationOptions
 export interface PublicConnectionQueryWebSocketOptions
   extends OpenConnectionQueryWebSocketOptions {
   streamUrl: string;
+  subscriptionId: string;
+  widgetInstanceId: string;
+  capability: string;
 }
 
 export async function requestConnectionQueryWebSocketTicket(
@@ -224,8 +227,8 @@ export async function createAuthenticatedConnectionQueryWebSocketSubscription<
   });
 }
 
-export function openPublicConnectionQueryWebSocket<TQuery = Record<string, unknown>>(
-  request: Omit<ConnectionStreamQueryRequest<TQuery>, "connectionId">,
+export function openPublicConnectionQueryWebSocket<TRequest extends Record<string, unknown> = Record<string, unknown>>(
+  request: TRequest,
   options: PublicConnectionQueryWebSocketOptions,
 ) {
   assertConnectionQueryModelStreamable(options.queryModel);
@@ -239,9 +242,9 @@ export function openPublicConnectionQueryWebSocket<TQuery = Record<string, unkno
 }
 
 export function createPublicConnectionQueryWebSocketSubscription<
-  TQuery = Record<string, unknown>,
+  TRequest extends Record<string, unknown> = Record<string, unknown>,
 >(
-  request: Omit<ConnectionStreamQueryRequest<TQuery>, "connectionId">,
+  request: TRequest,
   handlers: ConnectionQueryWebSocketHandlers,
   options: PublicConnectionQueryWebSocketOptions,
 ): ConnectionQueryWebSocketSubscription {
@@ -261,6 +264,9 @@ export function createPublicConnectionQueryWebSocketSubscription<
 
     socket.send(JSON.stringify({
       type: "subscribe",
+      subscriptionId: options.subscriptionId,
+      widgetInstanceId: options.widgetInstanceId,
+      capability: options.capability,
       request,
     }));
     options.onLifecycleEvent?.({
@@ -325,6 +331,19 @@ export function createPublicConnectionQueryWebSocketSubscription<
       socket.onmessage = null;
       socket.onerror = null;
       socket.onclose = null;
+
+      if (socket.readyState === 1) {
+        try {
+          socket.send(
+            JSON.stringify({
+              type: "unsubscribe",
+              subscriptionId: options.subscriptionId,
+            }),
+          );
+        } catch {
+          // Ignore best-effort public unsubscribe failures and continue closing the socket.
+        }
+      }
 
       if (socket.readyState !== 2 && socket.readyState !== 3) {
         socket.close(code, reason);
@@ -752,6 +771,86 @@ async function requestJson<T>(
   return payload as T;
 }
 
+async function requestPublicJson<T>(
+  path: string,
+  init?: RequestInit,
+  traceMeta?: DashboardRequestTraceMeta,
+): Promise<T> {
+  if (!path.trim()) {
+    throw new Error("Command Center public connection endpoint is not configured.");
+  }
+
+  const requestUrl = buildEndpointUrl(path);
+  const requestTrace = startDashboardRequestTrace(traceMeta, {
+    method: init?.method,
+    url: requestUrl,
+  });
+
+  let response: Response;
+
+  try {
+    const headers = new Headers(init?.headers);
+    headers.set("Accept", "application/json");
+
+    if (init?.body && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    response = await fetch(requestUrl, {
+      ...init,
+      headers,
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "The browser could not reach the public connection endpoint.";
+
+    requestTrace?.fail(errorMessage);
+    throw error;
+  }
+
+  let payload: unknown;
+
+  try {
+    payload = await readResponsePayload(response);
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Public connection response could not be read.";
+
+    requestTrace?.finish({
+      error: errorMessage,
+      ok: false,
+      status: response.status,
+    });
+    throw error;
+  }
+
+  if (!response.ok) {
+    const errorMessage =
+      readErrorMessage(payload) || `Public connection request failed with ${response.status}.`;
+
+    requestTrace?.finish({
+      error: errorMessage,
+      ok: false,
+      status: response.status,
+      responseBody: payload,
+    });
+
+    throw new Error(errorMessage);
+  }
+
+  requestTrace?.finish({
+    ok: true,
+    status: response.status,
+    responseBody: payload,
+  });
+
+  return payload as T;
+}
+
 function normalizeListPayload<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) {
     return payload as T[];
@@ -981,7 +1080,7 @@ export function queryPublicWidgetExecution<
     signal?: AbortSignal;
   },
 ) {
-  return requestJson<TResponse>(
+  return requestPublicJson<TResponse>(
     queryUrl,
     {
       method: "POST",

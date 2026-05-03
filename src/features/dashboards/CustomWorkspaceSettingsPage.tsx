@@ -21,9 +21,12 @@ import {
   stringifyWorkspaceSnapshot,
 } from "./custom-dashboard-storage";
 import {
-  createWorkspacePublicLinkInBackend,
-  disableWorkspacePublicLinkInBackend,
+  fetchWorkspacePublicLinkStateFromBackend,
+  isWorkspaceBackendNotFoundError,
+  publishWorkspacePublicLinkInBackend,
   rotateWorkspacePublicLinkInBackend,
+  type WorkspacePublicLinkState,
+  unpublishWorkspacePublicLinkInBackend,
 } from "./workspace-api";
 import { buildPublicWorkspaceFrontendUrlFromBackendUrl } from "./public-workspace-url";
 import { assessWorkspacePublicReadiness } from "./public-workspace-readiness";
@@ -34,7 +37,7 @@ import {
   useWorkspaceStudioSurfaceConfig,
 } from "./workspace-studio-surface-config";
 
-type WorkspaceSettingsTabId = "configuration" | "permissions";
+type WorkspaceSettingsTabId = "configuration" | "publishing" | "permissions";
 
 function getWorkspaceSettingsTabClassName(active: boolean) {
   return cn(
@@ -93,7 +96,10 @@ export function CustomWorkspaceSettingsPage() {
   const [activeTab, setActiveTab] = useState<WorkspaceSettingsTabId>("configuration");
   const [labelInput, setLabelInput] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [publicLinkDialogMode, setPublicLinkDialogMode] = useState<"enable" | "disable" | "rotate" | null>(null);
+  const [publicLinkDialogMode, setPublicLinkDialogMode] = useState<"publish" | "unpublish" | "rotate" | null>(null);
+  const [publicLinkState, setPublicLinkState] = useState<WorkspacePublicLinkState | null>(null);
+  const [publicLinkStateLoaded, setPublicLinkStateLoaded] = useState(false);
+  const [publicLinkStateError, setPublicLinkStateError] = useState<string | null>(null);
   const [jsonDialogMode, setJsonDialogMode] = useState<"export" | "import" | null>(null);
   const [jsonImportValue, setJsonImportValue] = useState("");
   const [jsonCopyFeedback, setJsonCopyFeedback] = useState<string | null>(null);
@@ -143,6 +149,71 @@ export function CustomWorkspaceSettingsPage() {
     () => filterWorkspaceStudioEntries(workspaceListItems, workspaceFilter),
     [workspaceFilter, workspaceListItems],
   );
+  const workspace = selectedDashboard ?? null;
+  const workspaceType = normalizeDashboardDefinitionType(workspace?.type, workspace?.labels ?? []);
+  const supportsPublicProjection = workspaceType === "workspace" || workspaceType === "slide-studio";
+  const publicReadiness = useMemo(
+    () =>
+      workspace
+        ? assessWorkspacePublicReadiness(workspace)
+        : {
+            workspaceType: "workspace" as const,
+            allowed: false,
+            checkedWidgetCount: 0,
+            issues: [],
+          },
+    [workspace],
+  );
+
+  useEffect(() => {
+    if (!workspace || !backendMode || !supportsPublicProjection) {
+      setPublicLinkState(null);
+      setPublicLinkStateLoaded(false);
+      setPublicLinkStateError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    setPublicLinkState(null);
+    setPublicLinkStateLoaded(false);
+    setPublicLinkStateError(null);
+
+    void fetchWorkspacePublicLinkStateFromBackend(workspace.id).then(
+      (nextState) => {
+        if (cancelled) {
+          return;
+        }
+
+        setPublicLinkState(nextState);
+        setPublicLinkStateLoaded(true);
+      },
+      (nextError) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (isWorkspaceBackendNotFoundError(nextError)) {
+          setPublicLinkState(null);
+          setPublicLinkStateLoaded(true);
+          setPublicLinkStateError(null);
+          return;
+        }
+
+        setPublicLinkState(null);
+        setPublicLinkStateLoaded(true);
+        setPublicLinkStateError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to load the current public-link state.",
+        );
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backendMode, supportsPublicProjection, workspace?.id]);
 
   if (!user) {
     return (
@@ -156,17 +227,36 @@ export function CustomWorkspaceSettingsPage() {
     return null;
   }
 
-  const workspace = selectedDashboard;
   const sharingAvailable = backendMode && Boolean(workspacePermissionsObjectUrl);
-  const workspaceType = normalizeDashboardDefinitionType(workspace.type, workspace.labels);
-  const supportsPublicProjection = workspaceType === "workspace" || workspaceType === "slide-studio";
-  const publicUrl = workspace.publicUrl ?? null;
+  const effectivePublicLinkState =
+    publicLinkState?.workspaceId === workspace.id ? publicLinkState : null;
+  const publicUrl = effectivePublicLinkState?.publicUrl ?? workspace.publicUrl ?? null;
   const publicFrontendUrl = buildPublicWorkspaceFrontendUrlFromBackendUrl(publicUrl) ?? null;
-  const isWorkspacePublic = Boolean(publicUrl);
-  const publicReadiness = useMemo(
-    () => assessWorkspacePublicReadiness(workspace),
-    [workspace],
-  );
+  const isWorkspacePublic = effectivePublicLinkState
+    ? effectivePublicLinkState.isEnabled
+    : Boolean(publicUrl);
+  const hasPublicLinkRecord = publicLinkStateLoaded && Boolean(effectivePublicLinkState);
+  const hasPublishedWorkspaceDrift =
+    isWorkspacePublic && effectivePublicLinkState?.hasUnpublishedChanges === true;
+  const hasUnsavedLocalChanges = isWorkspacePublic && selectedWorkspaceDirty;
+  const hasPublicDrift = hasUnsavedLocalChanges || hasPublishedWorkspaceDrift;
+
+  function applyWorkspacePublicLinkState(nextState: WorkspacePublicLinkState) {
+    const nextPublicUrl = nextState.isEnabled ? nextState.publicUrl ?? workspace.publicUrl ?? null : null;
+
+    setPublicLinkState(nextState);
+    setPublicLinkStateLoaded(true);
+    setPublicLinkStateError(null);
+    updateSelectedWorkspace((dashboard) => ({
+      ...dashboard,
+      publicUrl: nextState.isEnabled ? nextState.publicUrl ?? dashboard.publicUrl ?? null : null,
+    }));
+    updateSelectedWorkspaceListItemSummary((item) => ({
+      ...item,
+      publicUrl: nextPublicUrl ?? null,
+    }));
+  }
+
   const modelDetailsCard = (
     <Card>
       <CardHeader>
@@ -213,7 +303,19 @@ export function CustomWorkspaceSettingsPage() {
             </Button>
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
 
+  const publicPublishingCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Public publishing</CardTitle>
+        <CardDescription>
+          Preview, publish, republish, and manage the public URL for this workspace.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
         <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 p-4 text-sm">
           <div className="text-xs uppercase tracking-[0.16em] text-warning">
             Public access
@@ -234,7 +336,16 @@ export function CustomWorkspaceSettingsPage() {
                       variant="warning"
                       className="border border-warning/30 bg-warning/12 text-warning"
                     >
-                      Public link enabled
+                      Published
+                    </Badge>
+                  </div>
+                ) : hasPublicLinkRecord ? (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Badge
+                      variant="warning"
+                      className="border border-warning/30 bg-warning/12 text-warning"
+                    >
+                      Unpublished
                     </Badge>
                   </div>
                 ) : null}
@@ -246,10 +357,29 @@ export function CustomWorkspaceSettingsPage() {
               </p>
             )}
           </div>
+          {hasPublicDrift ? (
+            <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+              {hasUnsavedLocalChanges
+                ? "This editor has unsaved changes that are not part of the published public version yet."
+                : "The backend reports unpublished workspace changes since the last public compile. Republish to update the live public view."}
+            </div>
+          ) : isWorkspacePublic ? (
+            <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-success/25 bg-success/8 px-3 py-2 text-sm text-success">
+              No unpublished workspace changes were reported by the backend.
+            </div>
+          ) : null}
+          {effectivePublicLinkState?.compiledAt ? (
+            <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/45 px-3 py-2 text-xs text-muted-foreground">
+              Last compiled: {effectivePublicLinkState.compiledAt}
+              {effectivePublicLinkState.compiledFromWorkspaceUpdatedAt
+                ? ` • Compiled from workspace update: ${effectivePublicLinkState.compiledFromWorkspaceUpdatedAt}`
+                : ""}
+            </div>
+          ) : null}
           <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/45 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                Public readiness
+                Publishing
               </div>
               <Badge
                 variant={publicReadiness.allowed ? "success" : "danger"}
@@ -259,13 +389,14 @@ export function CustomWorkspaceSettingsPage() {
                     : "border border-danger/30 bg-danger/10 text-danger"
                 }
               >
-                {publicReadiness.allowed ? "Ready" : "Blocked"}
+                {publicReadiness.allowed ? "Ready for publishing" : "Publishing blocked"}
               </Badge>
             </div>
-            <div className="mt-2 text-xs text-muted-foreground">
-              Checked {publicReadiness.checkedWidgetCount} widget{publicReadiness.checkedWidgetCount === 1 ? "" : "s"} against the current frontend public-safety rules.
-            </div>
-            {publicReadiness.issues.length > 0 ? (
+            {publicReadiness.allowed ? (
+              <div className="mt-3 rounded-[calc(var(--radius)-8px)] border border-success/25 bg-success/8 px-3 py-2 text-sm text-success">
+                This workspace is ready for publishing.
+              </div>
+            ) : publicReadiness.issues.length > 0 ? (
               <div className="mt-3 space-y-2">
                 {publicReadiness.issues.map((issue) => (
                   <div
@@ -278,13 +409,46 @@ export function CustomWorkspaceSettingsPage() {
                 ))}
               </div>
             ) : (
-              <div className="mt-3 rounded-[calc(var(--radius)-8px)] border border-success/25 bg-success/8 px-3 py-2 text-sm text-success">
-                This workspace currently passes the frontend public-safety preflight.
+              <div className="mt-3 rounded-[calc(var(--radius)-8px)] border border-danger/25 bg-danger/8 px-3 py-2 text-sm text-danger">
+                This workspace cannot be published yet.
               </div>
             )}
-            <div className="mt-3 text-[11px] text-muted-foreground">
-              This is a frontend preflight only. Backend publication validation remains authoritative.
+          </div>
+          {publicLinkStateError ? (
+            <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+              {publicLinkStateError}
             </div>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(!isWorkspacePublic || hasPublicDrift) && (
+              <Button
+                size="sm"
+                disabled={!supportsPublicProjection || (!isWorkspacePublic && !publicReadiness.allowed)}
+                className="bg-warning text-warning-foreground hover:bg-warning/90"
+                onClick={() => {
+                  setPublicLinkDialogMode("publish");
+                }}
+              >
+                <Globe className="h-4 w-4" />
+                {isWorkspacePublic ? "Republish public version" : "Publish public version"}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!supportsPublicProjection}
+              onClick={() => {
+                const nextParams = new URLSearchParams({
+                  workspace: workspace.id,
+                  mode: "public-preview",
+                });
+
+                navigate(`${workspaceListPath}?${nextParams.toString()}`);
+              }}
+            >
+              <Eye className="h-4 w-4" />
+              View public preview
+            </Button>
           </div>
           {supportsPublicProjection && isWorkspacePublic ? (
             <div className="mt-3 space-y-2">
@@ -340,61 +504,20 @@ export function CustomWorkspaceSettingsPage() {
                   size="sm"
                   className="border-danger/35 bg-danger/8 text-danger hover:border-danger/50 hover:bg-danger/14 hover:text-danger"
                   onClick={() => {
-                    setPublicLinkDialogMode("disable");
+                    setPublicLinkDialogMode("unpublish");
                   }}
                 >
-                  Disable public access
+                  Unpublish public access
                 </Button>
               </div>
             </div>
           ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!supportsPublicProjection}
-              onClick={() => {
-                const nextParams = new URLSearchParams({
-                  workspace: workspace.id,
-                  mode: "public-preview",
-                });
-
-                navigate(`${workspaceListPath}?${nextParams.toString()}`);
-              }}
-            >
-              <Eye className="h-4 w-4" />
-              View public preview
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!supportsPublicProjection || (!isWorkspacePublic && !publicReadiness.allowed)}
-              className="border-warning/40 bg-warning/8 text-warning hover:border-warning/50 hover:bg-warning/14 hover:text-warning"
-              onClick={() => {
-                setPublicLinkDialogMode("enable");
-              }}
-            >
-              <Globe className="h-4 w-4" />
-              {isWorkspacePublic ? "Public access enabled" : "Make workspace public"}
-            </Button>
-          </div>
           {!isWorkspacePublic && !publicReadiness.allowed ? (
             <div className="mt-2 text-xs text-warning">
               Fix the public readiness issues above before enabling public access.
             </div>
           ) : null}
         </div>
-
-        <Button
-          variant="danger"
-          className="w-full"
-          onClick={() => {
-            setDeleteDialogOpen(true);
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete workspace
-        </Button>
       </CardContent>
     </Card>
   );
@@ -507,28 +630,21 @@ export function CustomWorkspaceSettingsPage() {
     closeJsonDialog();
   }
 
-  async function handleEnablePublicLink() {
+  async function handlePublishPublicLink() {
     if (!publicReadiness.allowed) {
       toast({
         title: "Workspace is not ready for public access",
-        description: "Resolve the public readiness issues before enabling a public link.",
+        description: "Resolve the public readiness issues before publishing this workspace.",
         variant: "error",
       });
       return;
     }
 
     try {
-      const response = await createWorkspacePublicLinkInBackend(workspace.id);
-      updateSelectedWorkspace((dashboard) => ({
-        ...dashboard,
-        publicUrl: response.publicUrl ?? dashboard.publicUrl ?? null,
-      }));
-      updateSelectedWorkspaceListItemSummary((item) => ({
-        ...item,
-        publicUrl: response.publicUrl ?? item.publicUrl ?? null,
-      }));
+      const response = await publishWorkspacePublicLinkInBackend(workspace.id);
+      applyWorkspacePublicLinkState(response);
       toast({
-        title: response.urlRevealed ? "Workspace is now public" : "Workspace public access confirmed",
+        title: response.urlRevealed ? "Workspace published" : "Workspace public access confirmed",
         description: response.urlRevealed
           ? "A public URL was generated for this workspace."
           : "Public access is enabled. The current URL remains active.",
@@ -537,34 +653,27 @@ export function CustomWorkspaceSettingsPage() {
       setPublicLinkDialogMode(null);
     } catch (error) {
       toast({
-        title: "Unable to make workspace public",
-        description: error instanceof Error ? error.message : "The public-link request failed.",
+        title: "Unable to publish workspace",
+        description: error instanceof Error ? error.message : "The public-link publish request failed.",
         variant: "error",
       });
     }
   }
 
-  async function handleDisablePublicLink() {
+  async function handleUnpublishPublicLink() {
     try {
-      await disableWorkspacePublicLinkInBackend(workspace.id);
-      updateSelectedWorkspace((dashboard) => ({
-        ...dashboard,
-        publicUrl: null,
-      }));
-      updateSelectedWorkspaceListItemSummary((item) => ({
-        ...item,
-        publicUrl: null,
-      }));
+      const response = await unpublishWorkspacePublicLinkInBackend(workspace.id);
+      applyWorkspacePublicLinkState(response);
       toast({
-        title: "Public access disabled",
+        title: "Public access unpublished",
         description: "Anonymous access to this workspace has been turned off.",
         variant: "success",
       });
       setPublicLinkDialogMode(null);
     } catch (error) {
       toast({
-        title: "Unable to disable public access",
-        description: error instanceof Error ? error.message : "The public-link disable request failed.",
+        title: "Unable to unpublish public access",
+        description: error instanceof Error ? error.message : "The public-link unpublish request failed.",
         variant: "error",
       });
     }
@@ -573,14 +682,7 @@ export function CustomWorkspaceSettingsPage() {
   async function handleRotatePublicLink() {
     try {
       const response = await rotateWorkspacePublicLinkInBackend(workspace.id);
-      updateSelectedWorkspace((dashboard) => ({
-        ...dashboard,
-        publicUrl: response.publicUrl ?? dashboard.publicUrl ?? null,
-      }));
-      updateSelectedWorkspaceListItemSummary((item) => ({
-        ...item,
-        publicUrl: response.publicUrl ?? item.publicUrl ?? null,
-      }));
+      applyWorkspacePublicLinkState(response);
       toast({
         title: "Public URL rotated",
         description: "The previous public URL is now invalid and a new one has been issued.",
@@ -687,6 +789,18 @@ export function CustomWorkspaceSettingsPage() {
               >
                 <LayoutTemplate className="h-4 w-4" />
                 Configuration
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "publishing"}
+                className={getWorkspaceSettingsTabClassName(activeTab === "publishing")}
+                onClick={() => {
+                  setActiveTab("publishing");
+                }}
+              >
+                <Globe className="h-4 w-4" />
+                Publishing
               </button>
               <button
                 type="button"
@@ -943,6 +1057,30 @@ export function CustomWorkspaceSettingsPage() {
               {modelDetailsCard}
               </div>
             </div>
+            ) : activeTab === "publishing" ? (
+            <div className="max-w-5xl space-y-6">
+              {publicPublishingCard}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Workspace actions</CardTitle>
+                  <CardDescription>
+                    Destructive actions for the selected workspace.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    variant="danger"
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                      setDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete workspace
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
             ) : (
             <div className="w-full">
               <Card>
@@ -984,19 +1122,21 @@ export function CustomWorkspaceSettingsPage() {
           setPublicLinkDialogMode(null);
         }}
         title={
-          publicLinkDialogMode === "disable"
-            ? "Disable public access"
+          publicLinkDialogMode === "unpublish"
+            ? "Unpublish public access"
             : publicLinkDialogMode === "rotate"
               ? "Rotate public URL"
-              : "Make workspace public"
+              : hasPublicLinkRecord
+                ? "Republish workspace"
+                : "Publish workspace"
         }
         tone="warning"
         actionLabel={
-          publicLinkDialogMode === "disable"
-            ? "disable public access"
+          publicLinkDialogMode === "unpublish"
+            ? "unpublish public access"
             : publicLinkDialogMode === "rotate"
               ? "rotate public URL"
-              : "make public"
+              : "publish workspace"
         }
         objectLabel="workspace"
         objectSummary={
@@ -1006,25 +1146,27 @@ export function CustomWorkspaceSettingsPage() {
           </div>
         }
         confirmWord={
-          publicLinkDialogMode === "disable"
-            ? "DISABLE"
+          publicLinkDialogMode === "unpublish"
+            ? "UNPUBLISH"
             : publicLinkDialogMode === "rotate"
               ? "ROTATE"
-              : "PUBLIC"
+              : "PUBLISH"
         }
         confirmButtonLabel={
-          publicLinkDialogMode === "disable"
-            ? "Disable public access"
+          publicLinkDialogMode === "unpublish"
+            ? "Unpublish public access"
             : publicLinkDialogMode === "rotate"
               ? "Rotate public URL"
-              : "Make public"
+              : hasPublicLinkRecord
+                ? "Republish workspace"
+                : "Publish workspace"
         }
         description={
-          publicLinkDialogMode === "disable"
+          publicLinkDialogMode === "unpublish"
             ? "This will block anonymous access to the public workspace URL."
             : publicLinkDialogMode === "rotate"
               ? "This will invalidate the previous public URL and generate a new one."
-              : "This will generate a public URL and make the workspace available to everyone who has that link."
+              : "This will publish this workspace to a public URL and make it available to everyone who has that link."
         }
         specialText={
           <div className="space-y-2">
@@ -1032,8 +1174,8 @@ export function CustomWorkspaceSettingsPage() {
           </div>
         }
         onConfirm={() => {
-          if (publicLinkDialogMode === "disable") {
-            void handleDisablePublicLink();
+          if (publicLinkDialogMode === "unpublish") {
+            void handleUnpublishPublicLink();
             return;
           }
 
@@ -1042,7 +1184,7 @@ export function CustomWorkspaceSettingsPage() {
             return;
           }
 
-          void handleEnablePublicLink();
+          void handlePublishPublicLink();
         }}
       />
 

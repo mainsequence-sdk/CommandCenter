@@ -730,16 +730,42 @@ export function buildConnectionStreamQueryRequest(
   props: ConnectionStreamQueryWidgetProps,
   dashboardState: WidgetExecutionDashboardState | undefined,
   queryModel: ConnectionQueryModel | undefined,
+  executionSurface?: WidgetExecutionSurface,
 ): ConnectionStreamQueryRequest<Record<string, unknown>> | null {
-  if (!isConnectionQueryModelStreamable(queryModel)) {
+  const normalizedProps = normalizeConnectionStreamQueryProps(props);
+  const effectiveQueryModel =
+    executionSurface === "public-workspace"
+      ? (queryModel ??
+          (normalizedProps.queryModelId
+            ? ({
+                id: normalizedProps.queryModelId,
+                timeRangeAware: true,
+                supportsVariables: true,
+              } as ConnectionQueryModel)
+            : undefined))
+      : queryModel;
+
+  if (
+    executionSurface !== "public-workspace" &&
+    !isConnectionQueryModelStreamable(effectiveQueryModel)
+  ) {
     return null;
   }
 
-  const normalizedProps = normalizeConnectionStreamQueryProps(props);
   const request = buildConnectionQueryRequest(
-    normalizedProps as ConnectionQueryWidgetProps,
+    (
+      executionSurface === "public-workspace" && !normalizedProps.connectionRef?.id
+        ? {
+            ...normalizedProps,
+            connectionRef: {
+              id: "public",
+              typeId: "public",
+            },
+          }
+        : normalizedProps
+    ) as ConnectionQueryWidgetProps,
     dashboardState,
-    queryModel,
+    effectiveQueryModel,
   );
 
   if (!request) {
@@ -758,9 +784,50 @@ export function buildConnectionStreamQueryRequest(
 
 export function buildPublicConnectionStreamQueryRequestPayload(
   request: ConnectionStreamQueryRequest<Record<string, unknown>>,
+  publicExecution?: WidgetPublicExecutionContract,
 ) {
-  const { connectionId: _connectionId, ...publicRequest } = request;
-  return publicRequest;
+  const capability =
+    typeof publicExecution?.capability === "string" && publicExecution.capability.trim()
+      ? publicExecution.capability.trim()
+      : null;
+
+  if (!capability) {
+    throw new Error("Public execution capability is missing for this connection stream widget.");
+  }
+
+  const allowedInputs =
+    isPlainRecord(publicExecution?.allowedInputs)
+      ? publicExecution.allowedInputs
+      : null;
+  const publicRequest: Record<string, unknown> = {};
+
+  if (allowedInputs?.timeRange === true && request.timeRange) {
+    publicRequest.timeRange = request.timeRange;
+  }
+
+  const allowedVariableNames =
+    allowedInputs?.variables === true
+      ? null
+      : Array.isArray(allowedInputs?.variables)
+        ? allowedInputs.variables.flatMap((value) =>
+            typeof value === "string" && value.trim() ? [value.trim()] : [],
+          )
+        : [];
+
+  if (request.variables && (allowedVariableNames === null || allowedVariableNames.length > 0)) {
+    const variableEntries = Object.entries(request.variables).filter(([key]) =>
+      allowedVariableNames === null ? true : allowedVariableNames.includes(key),
+    );
+
+    if (variableEntries.length > 0) {
+      publicRequest.variables = Object.fromEntries(variableEntries);
+    }
+  }
+
+  return {
+    capability,
+    request: publicRequest,
+  };
 }
 
 export function normalizeConnectionStreamQueryRuntimeState(
@@ -931,7 +998,8 @@ export function reduceConnectionStreamQueryMessage(input: {
       });
     case "snapshot": {
       const frame = normalizeConnectionQueryResponsePayload(input.message.response, {
-        connectionRef: normalizedProps.connectionRef!,
+        connectionRef: normalizedProps.connectionRef,
+        sourceId: input.sourceWidgetId ?? normalizedProps.queryModelId ?? "connection-stream-query",
         queryModelId: normalizedProps.queryModelId!,
         queryModel: input.queryModel,
       });
@@ -975,7 +1043,8 @@ export function reduceConnectionStreamQueryMessage(input: {
     }
     case "delta": {
       const frame = normalizeConnectionQueryResponsePayload(input.message.response, {
-        connectionRef: normalizedProps.connectionRef!,
+        connectionRef: normalizedProps.connectionRef,
+        sourceId: input.sourceWidgetId ?? normalizedProps.queryModelId ?? "connection-stream-query",
         queryModelId: normalizedProps.queryModelId!,
         queryModel: input.queryModel,
       });
@@ -1047,15 +1116,23 @@ export function reduceConnectionStreamQueryMessage(input: {
 export function buildConnectionStreamQueryValidationError(input: {
   props: ConnectionStreamQueryWidgetProps;
   queryModel?: ConnectionQueryModel;
+  executionSurface?: WidgetExecutionSurface;
 }) {
   const normalizedProps = normalizeConnectionStreamQueryProps(input.props);
 
-  if (!normalizedProps.connectionRef?.id) {
+  if (
+    input.executionSurface !== "public-workspace" &&
+    !normalizedProps.connectionRef?.id
+  ) {
     return "Select a connection before opening a stream.";
   }
 
   if (!normalizedProps.queryModelId) {
     return "Select a connection path before opening a stream.";
+  }
+
+  if (input.executionSurface === "public-workspace") {
+    return null;
   }
 
   if (!isConnectionQueryModelStreamable(input.queryModel)) {
@@ -1480,15 +1557,25 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
     const subscriptionPromise =
       input.executionSurface === "public-workspace"
         ? publicStreamUrl
-          ? createPublicConnectionQueryWebSocketSubscription(
-              buildPublicConnectionStreamQueryRequestPayload(request),
-              handlers,
-              {
-                ...input.options,
-                queryModel: input.queryModel,
-                streamUrl: publicStreamUrl,
-              },
-            )
+          ? (() => {
+              const publicRequest = buildPublicConnectionStreamQueryRequestPayload(
+                request,
+                input.publicExecution,
+              );
+
+              return createPublicConnectionQueryWebSocketSubscription(
+                publicRequest.request,
+                handlers,
+                {
+                  ...input.options,
+                  capability: publicRequest.capability,
+                  queryModel: input.queryModel,
+                  streamUrl: publicStreamUrl,
+                  subscriptionId: input.subscriptionKey,
+                  widgetInstanceId: input.sourceWidgetId ?? input.subscriptionKey,
+                },
+              );
+            })()
           : Promise.reject(
               new Error("Public stream execution URL is missing for this widget."),
             )

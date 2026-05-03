@@ -10,10 +10,6 @@ const PUBLIC_WORKSPACE_BASELINE_PERMISSION_SET = new Set<string>(
   PUBLIC_WORKSPACE_RENDER_PERMISSIONS,
 );
 
-function normalizeNonEmptyString(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
 export interface PublicWorkspaceReadinessIssue {
   id: string;
   severity: "error";
@@ -141,33 +137,6 @@ export function assessWorkspacePublicReadiness(
       });
     }
 
-    if (widget.id === "connection-query" || widget.id === "connection-stream-query") {
-      const missingContractField =
-        widget.id === "connection-query"
-          ? normalizeNonEmptyString(instance.publicExecution?.queryUrl)
-            ? null
-            : "queryUrl"
-          : normalizeNonEmptyString(instance.publicExecution?.streamUrl)
-            ? null
-            : "streamUrl";
-      const ownerTitle =
-        instance.managedBy?.ownerInstanceId
-          ? instanceTitleById.get(instance.managedBy.ownerInstanceId)
-          : null;
-
-      if (missingContractField) {
-        issues.push({
-          id: `missing-public-execution:${instance.id}`,
-          severity: "error",
-          title: "Missing public execution contract",
-          description: ownerTitle
-            ? `Widget "${widgetLabel}" is a managed source for "${ownerTitle}" but is missing publicExecution.${missingContractField}. Public publication requires backend-owned public widget execution endpoints.`
-            : `Widget "${widgetLabel}" is missing publicExecution.${missingContractField}. Public publication requires backend-owned public widget execution endpoints.`,
-          widgetId: widget.id,
-          instanceId: instance.id,
-        });
-      }
-    }
   });
 
   return {

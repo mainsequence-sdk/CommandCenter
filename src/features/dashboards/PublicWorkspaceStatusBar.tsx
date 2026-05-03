@@ -24,7 +24,11 @@ function formatPublicWorkspaceRemainingTime(valueMs: number | null) {
   return `Next ${Math.max(1, Math.ceil(valueMs / 3_600_000))}h`;
 }
 
-export function PublicWorkspaceStatusBar() {
+export function PublicWorkspaceStatusBar({
+  compactMobile = false,
+}: {
+  compactMobile?: boolean;
+}) {
   const widgetExecution = useDashboardWidgetExecution();
   const { isRefreshing, refreshIntervalMs, refreshProgress } = useDashboardControls();
   const loading = widgetExecution?.dashboardSurfaceHydrationActive === true || isRefreshing;
@@ -38,22 +42,38 @@ export function PublicWorkspaceStatusBar() {
     : "0%";
 
   return (
-    <div className="relative sticky top-0 z-40 mb-1 border-b border-border/60 bg-background/72 px-0 py-0.5 backdrop-blur-xl">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div
+      className={
+        compactMobile
+          ? "relative sticky top-0 z-40 border-b border-border/60 bg-background/82 px-2 py-0.5 backdrop-blur-xl xl:mb-1 xl:px-0 xl:py-0.5"
+          : "relative sticky top-0 z-40 mb-1 border-b border-border/60 bg-background/72 px-0 py-0.5 backdrop-blur-xl"
+      }
+    >
+      <div className={compactMobile ? "flex items-center justify-between gap-2" : "flex flex-wrap items-center justify-between gap-2"}>
         <a
           href="/login"
-          className="inline-flex items-center rounded-[calc(var(--radius)-4px)] px-1 py-0.5 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+          className={
+            compactMobile
+              ? "inline-flex items-center rounded-[calc(var(--radius)-5px)] px-0 py-0 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 xl:px-1 xl:py-0.5"
+              : "inline-flex items-center rounded-[calc(var(--radius)-4px)] px-1 py-0.5 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+          }
         >
-          <BrandWordmark imageClassName="h-7 w-auto object-contain sm:h-8" />
+          <BrandWordmark imageClassName={compactMobile ? "h-4 w-auto object-contain xl:h-8" : "h-7 w-auto object-contain sm:h-8"} />
         </a>
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        <div
+          className={
+            compactMobile
+              ? "ml-auto flex items-center justify-end gap-1 text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground xl:flex-wrap xl:gap-3 xl:text-[10px] xl:tracking-[0.16em]"
+              : "ml-auto flex flex-wrap items-center justify-end gap-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
+          }
+        >
           {loading ? (
-            <span className="inline-flex items-center gap-1.5">
+            <span className={compactMobile ? "hidden items-center gap-1.5 xl:inline-flex" : "inline-flex items-center gap-1.5"}>
               <RefreshCw className="h-3 w-3 animate-spin text-primary" />
               <span>Refreshing data</span>
             </span>
           ) : null}
-          <span className="inline-flex items-center gap-2">
+          <span className={compactMobile ? "hidden items-center gap-2 xl:inline-flex" : "inline-flex items-center gap-2"}>
             <Clock3 className="h-3 w-3" />
             <span>{formatPublicWorkspaceRemainingTime(remainingRefreshMs)}</span>
             <span className="relative h-1 w-20 overflow-hidden rounded-full bg-border/60">
@@ -63,7 +83,7 @@ export function PublicWorkspaceStatusBar() {
               />
             </span>
           </span>
-          <ThemeMenu />
+          <ThemeMenu compact={compactMobile} />
         </div>
       </div>
       <DashboardRefreshProgressLine className="top-full z-10" />

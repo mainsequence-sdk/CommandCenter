@@ -26,6 +26,8 @@ export function WorkspaceSlideSubgridHost({
   dragHandleSelector,
   dragCancelSelector,
   onLayoutCommit,
+  onDragStart,
+  onDragStop,
 }: {
   items: WorkspaceSlideSubgridHostItem[];
   editable: boolean;
@@ -33,6 +35,11 @@ export function WorkspaceSlideSubgridHost({
   dragCancelSelector?: string;
   onLayoutCommit?: (
     nextLayout: Array<Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">>,
+  ) => void;
+  onDragStart?: (itemId: string) => void;
+  onDragStop?: (
+    nextLayout: Array<Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">>,
+    draggedItem: Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">,
   ) => void;
 }) {
   const layout = useMemo<LegacyGridLayoutLayout>(
@@ -64,20 +71,38 @@ export function WorkspaceSlideSubgridHost({
         isResizable={editable}
         draggableHandle={dragHandleSelector}
         draggableCancel={dragCancelSelector}
-        onDragStop={(nextLayout) => {
+        onDragStart={(_nextLayout, _oldItem, newItem) => {
+          if (!editable || !newItem?.i) {
+            return;
+          }
+
+          onDragStart?.(newItem.i);
+        }}
+        onDragStop={(nextLayout, _oldItem, newItem) => {
           if (!editable) {
             return;
           }
 
-          onLayoutCommit?.(
-            nextLayout.map(({ h, i, w, x, y }) => ({
-              h,
-              i,
-              w,
-              x,
-              y,
-            })),
-          );
+          const normalizedLayout = nextLayout.map(({ h, i, w, x, y }) => ({
+            h,
+            i,
+            w,
+            x,
+            y,
+          }));
+
+          if (newItem && onDragStop) {
+            onDragStop?.(normalizedLayout, {
+              h: newItem.h,
+              i: newItem.i,
+              w: newItem.w,
+              x: newItem.x,
+              y: newItem.y,
+            });
+            return;
+          }
+
+          onLayoutCommit?.(normalizedLayout);
         }}
         onResizeStop={(nextLayout) => {
           if (!editable) {

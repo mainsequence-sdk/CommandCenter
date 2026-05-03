@@ -518,7 +518,8 @@ function inferTimeSeriesMetaFromFrame(
 function frameToTabularSource(
   frame: CommandCenterFrame,
   input: {
-    connectionRef: ConnectionRef;
+    connectionRef?: ConnectionRef;
+    sourceId: string;
     queryModelId: string;
     traceId?: string;
     warnings?: string[];
@@ -556,11 +557,11 @@ function frameToTabularSource(
     meta,
     source: {
       kind: "connection-query",
-      id: input.connectionRef.id,
+      id: input.connectionRef?.id ?? input.sourceId,
       label: frame.name || input.queryModelId,
       updatedAtMs: Date.now(),
       context: {
-        connectionRef: input.connectionRef,
+        ...(input.connectionRef ? { connectionRef: input.connectionRef } : {}),
         queryModelId: input.queryModelId,
         requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
         traceId: input.traceId,
@@ -580,7 +581,8 @@ function isTabularCompatibleFrameContract(contract: string) {
 function frameToPublishedSource(
   frame: CommandCenterFrame,
   input: {
-    connectionRef: ConnectionRef;
+    connectionRef?: ConnectionRef;
+    sourceId: string;
     queryModelId: string;
     requestedOutputContract?: ConnectionResponseContractId;
     allowedOutputContracts: WidgetContractId[];
@@ -608,11 +610,11 @@ function frameToPublishedSource(
       status: "ready",
       source: {
         kind: "connection-query",
-        id: input.connectionRef.id,
+        id: input.connectionRef?.id ?? input.sourceId,
         label: frame.name || input.queryModelId,
         updatedAtMs: Date.now(),
         context: {
-          connectionRef: input.connectionRef,
+          ...(input.connectionRef ? { connectionRef: input.connectionRef } : {}),
           queryModelId: input.queryModelId,
           requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
           traceId: input.traceId,
@@ -638,7 +640,8 @@ function frameToPublishedSource(
 function firstConnectionFramePayload(
   payload: unknown,
   input: {
-    connectionRef: ConnectionRef;
+    connectionRef?: ConnectionRef;
+    sourceId: string;
     queryModelId: string;
     requestedOutputContract?: ConnectionResponseContractId;
     allowedOutputContracts: WidgetContractId[];
@@ -688,11 +691,11 @@ function firstConnectionFramePayload(
       ...normalizedLegacyTimeSeriesSource,
       source: normalizedLegacyTimeSeriesSource.source ?? {
         kind: "connection-query",
-        id: input.connectionRef.id,
+        id: input.connectionRef?.id ?? input.sourceId,
         label: input.queryModelId,
         updatedAtMs: Date.now(),
         context: {
-          connectionRef: input.connectionRef,
+          ...(input.connectionRef ? { connectionRef: input.connectionRef } : {}),
           queryModelId: input.queryModelId,
         },
       },
@@ -711,11 +714,11 @@ function firstConnectionFramePayload(
       ...normalizedSource,
       source: normalizedSource.source ?? {
         kind: "connection-query",
-        id: input.connectionRef.id,
+        id: input.connectionRef?.id ?? input.sourceId,
         label: input.queryModelId,
         updatedAtMs: Date.now(),
         context: {
-          connectionRef: input.connectionRef,
+          ...(input.connectionRef ? { connectionRef: input.connectionRef } : {}),
           queryModelId: input.queryModelId,
         },
       },
@@ -732,13 +735,15 @@ function firstConnectionFramePayload(
 export function normalizeConnectionQueryResponsePayload(
   payload: unknown,
   input: {
-    connectionRef: ConnectionRef;
+    connectionRef?: ConnectionRef;
+    sourceId: string;
     queryModelId: string;
     queryModel?: ConnectionQueryModel;
   },
 ) {
   return firstConnectionFramePayload(payload, {
     connectionRef: input.connectionRef,
+    sourceId: input.sourceId,
     queryModelId: input.queryModelId,
     requestedOutputContract: resolveConnectionQueryRequestedOutputContract(input.queryModel),
     allowedOutputContracts: resolveConnectionQueryAllowedOutputContracts(input.queryModel),
@@ -977,17 +982,73 @@ export function buildConnectionQueryRequest(
 }
 
 function buildPublicConnectionQueryRequestPayload(
-  request: ConnectionQueryRequest<Record<string, unknown>>,
+  input: {
+    props: ConnectionQueryWidgetProps;
+    dashboardState?: WidgetExecutionDashboardState;
+    queryModel?: ConnectionQueryModel;
+    publicExecution?: WidgetPublicExecutionContract;
+  },
 ) {
-  const { connectionId: _connectionId, ...publicRequest } = request;
-  return publicRequest;
+  const capability = normalizeNonEmptyString(input.publicExecution?.capability);
+
+  if (!capability) {
+    throw new Error("Public execution capability is missing for this connection query widget.");
+  }
+
+  const effectiveProps = resolveEffectiveConnectionQueryProps(input.props, input.queryModel);
+  const allowedInputs =
+    isPlainRecord(input.publicExecution?.allowedInputs)
+      ? input.publicExecution.allowedInputs
+      : null;
+  const payload: Record<string, unknown> = {
+    capability,
+  };
+
+  if (allowedInputs?.timeRange === true) {
+    const timeRangeProps =
+      effectiveProps.timeRangeMode === "none"
+        ? { ...effectiveProps, timeRangeMode: "dashboard" as const }
+        : effectiveProps;
+    const range = buildEffectiveRange(timeRangeProps, input.dashboardState);
+
+    if (!range) {
+      return null;
+    }
+
+    payload.timeRange = {
+      from: new Date(range.fromMs).toISOString(),
+      to: new Date(range.toMs).toISOString(),
+    };
+  }
+
+  const allowedVariableNames =
+    allowedInputs?.variables === true
+      ? null
+      : Array.isArray(allowedInputs?.variables)
+        ? allowedInputs.variables.flatMap((value) =>
+            typeof value === "string" && value.trim() ? [value.trim()] : [],
+          )
+        : [];
+  const sourceVariables = effectiveProps.variables;
+
+  if (sourceVariables && (allowedVariableNames === null || allowedVariableNames.length > 0)) {
+    const variableEntries = Object.entries(sourceVariables).filter(([key]) =>
+      allowedVariableNames === null ? true : allowedVariableNames.includes(key),
+    );
+
+    if (variableEntries.length > 0) {
+      payload.variables = Object.fromEntries(variableEntries);
+    }
+  }
+
+  return payload;
 }
 
 function buildPublicConnectionQueryClientExecutionKey(input: {
   queryUrl: string;
-  request: ConnectionQueryRequest<Record<string, unknown>>;
+  request: Record<string, unknown>;
 }) {
-  return `${input.queryUrl}\u001e${stableJsonStringify(buildPublicConnectionQueryRequestPayload(input.request))}`;
+  return `${input.queryUrl}\u001e${stableJsonStringify(input.request)}`;
 }
 
 export function buildConnectionQueryErrorFrame(
@@ -1033,6 +1094,67 @@ export async function executeConnectionQueryWidgetRequest(
   const effectiveProps = resolveEffectiveConnectionQueryProps(props, queryModel);
   const isPublicExecutionSurface = options?.executionSurface === "public-workspace";
   const publicQueryUrl = normalizeNonEmptyString(options?.publicExecution?.queryUrl);
+
+  if (isPublicExecutionSurface) {
+    const queryModelId = effectiveProps.queryModelId;
+
+    if (!queryModelId) {
+      throw new Error("Select a connection path before running this query.");
+    }
+
+    if (!publicQueryUrl) {
+      throw new Error("Public execution URL is missing for this connection query widget.");
+    }
+
+    const publicRequest = buildPublicConnectionQueryRequestPayload({
+      props: effectiveProps,
+      dashboardState,
+      queryModel,
+      publicExecution: options?.publicExecution,
+    });
+
+    if (!publicRequest) {
+      throw new Error("Public connection query request is incomplete.");
+    }
+
+    const payload = await runConnectionQueryWithInFlightDedupe(
+      buildPublicConnectionQueryClientExecutionKey({
+        queryUrl: publicQueryUrl,
+        request: publicRequest,
+      }),
+      () =>
+        queryPublicWidgetExecution(publicQueryUrl, publicRequest, options?.traceMeta, {
+          signal: options?.signal,
+        }),
+    );
+    const frame = firstConnectionFramePayload(payload, {
+      connectionRef: effectiveProps.connectionRef,
+      sourceId: options?.ownerId ?? `public:${queryModelId}`,
+      queryModelId,
+      requestedOutputContract: resolveConnectionQueryRequestedOutputContract(queryModel),
+      allowedOutputContracts: resolveConnectionQueryAllowedOutputContracts(queryModel),
+    });
+
+    if (!frame) {
+      throw new Error(
+        resolveConnectionQueryRequestedOutputContract(queryModel) ===
+          CORE_TABULAR_FRAME_SOURCE_CONTRACT
+          ? "Connection query did not return a canonical tabular frame."
+          : resolveConnectionQueryRequestedOutputContract(queryModel)
+            ? `Connection query did not return a ${resolveConnectionQueryRequestedOutputContract(queryModel)} frame.`
+            : "Connection query did not return a publishable frame.",
+      );
+    }
+
+    return storeTabularFrameRuntimeState({
+      frame,
+      ownerId: options?.ownerId ?? options?.scopeId ?? "connection-query",
+      outputId: "dataset",
+      store: options?.runtimeDataStore,
+      refKey: `${options?.scopeId ?? options?.ownerId ?? "connection-query"}:dataset`,
+    }) as ConnectionQueryRuntimeState;
+  }
+
   const resolvedConnectionSelection = isPublicExecutionSurface
     ? { connectionRef: effectiveProps.connectionRef }
     : await resolveConnectionRefFromInstances(
@@ -1060,10 +1182,6 @@ export async function executeConnectionQueryWidgetRequest(
 
   if (!request) {
     throw new Error("Connection query request is incomplete.");
-  }
-
-  if (isPublicExecutionSurface && !publicQueryUrl) {
-    throw new Error("Public execution URL is missing for this connection query widget.");
   }
 
   if (import.meta.env.DEV) {
@@ -1123,19 +1241,9 @@ export async function executeConnectionQueryWidgetRequest(
   );
   const payload = await runConnectionQueryWithInFlightDedupe(
     incrementalDecision,
-    () =>
-      isPublicExecutionSurface && publicQueryUrl
-        ? queryPublicWidgetExecution(
-            publicQueryUrl,
-            buildPublicConnectionQueryRequestPayload(incrementalDecision.request),
-            traceMeta,
-            {
-              signal: options?.signal,
-            },
-          )
-        : queryConnection(incrementalDecision.request, traceMeta, {
-            signal: options?.signal,
-          }),
+    () => queryConnection(incrementalDecision.request, traceMeta, {
+      signal: options?.signal,
+    }),
   );
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute payload received", {
@@ -1145,6 +1253,7 @@ export async function executeConnectionQueryWidgetRequest(
   }
   const frame = firstConnectionFramePayload(payload, {
     connectionRef,
+    sourceId: options?.ownerId ?? String(connectionRef.id),
     queryModelId,
     requestedOutputContract,
     allowedOutputContracts,

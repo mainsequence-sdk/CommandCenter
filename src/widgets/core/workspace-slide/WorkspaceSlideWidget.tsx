@@ -21,6 +21,8 @@ const MIN_SIDE_WIDTH_PCT = 12;
 const MIN_BODY_HEIGHT_PCT = 22;
 const MIN_BAND_HEIGHT_PCT = 10;
 const SLIDE_ASPECT_RATIO = 16 / 9;
+const SLIDE_LOGICAL_WIDTH_PX = 1280;
+const SLIDE_LOGICAL_HEIGHT_PX = SLIDE_LOGICAL_WIDTH_PX / SLIDE_ASPECT_RATIO;
 
 function resolveSlideCanvasColumnsStyle(slide: WorkspaceSlideWidgetProps): CSSProperties {
   const columns: string[] = [];
@@ -62,11 +64,12 @@ function clampPercent(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-function resolveSlideFrameStyle(bounds: { width: number; height: number } | null): CSSProperties {
+function resolveSlideFrameFit(bounds: { width: number; height: number } | null) {
   if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
     return {
-      width: "100%",
-      height: "100%",
+      frameWidth: SLIDE_LOGICAL_WIDTH_PX,
+      frameHeight: SLIDE_LOGICAL_HEIGHT_PX,
+      scale: 1,
     };
   }
 
@@ -79,8 +82,9 @@ function resolveSlideFrameStyle(bounds: { width: number; height: number } | null
   }
 
   return {
-    width: `${frameWidth}px`,
-    height: `${frameHeight}px`,
+    frameWidth,
+    frameHeight,
+    scale: frameWidth / SLIDE_LOGICAL_WIDTH_PX,
   };
 }
 
@@ -111,6 +115,7 @@ function SlideRegionSurface({
 export function WorkspaceSlideSurface({
   active = false,
   editable,
+  maximizeFrame = false,
   onSlideChange,
   overlayContent,
   regionContent,
@@ -119,6 +124,7 @@ export function WorkspaceSlideSurface({
 }: {
   active?: boolean;
   editable: boolean;
+  maximizeFrame?: boolean;
   onSlideChange?: (next: WorkspaceSlideWidgetProps) => void;
   overlayContent?: ReactNode;
   regionContent?: Partial<Record<WorkspaceSlideRegionId, ReactNode>>;
@@ -286,10 +292,16 @@ export function WorkspaceSlideSurface({
 
   const centerInsetLeft = slide.leftEnabled ? `${slide.leftWidthPct}%` : "0%";
   const centerInsetRight = slide.rightEnabled ? `${slide.rightWidthPct}%` : "0%";
-  const slideFrameStyle = resolveSlideFrameStyle(surfaceBounds);
+  const slideFrameFit = resolveSlideFrameFit(surfaceBounds);
   const frameShellStyle: CSSProperties = {
-    width: slideFrameStyle.width,
-    height: slideFrameStyle.height,
+    width: `${slideFrameFit.frameWidth}px`,
+    height: `${slideFrameFit.frameHeight}px`,
+  };
+  const rootTransformStyle: CSSProperties = {
+    width: `${SLIDE_LOGICAL_WIDTH_PX}px`,
+    height: `${SLIDE_LOGICAL_HEIGHT_PX}px`,
+    transform: `scale(${slideFrameFit.scale})`,
+    transformOrigin: "top left",
   };
 
   return (
@@ -303,7 +315,13 @@ export function WorkspaceSlideSurface({
       <div
         className={cn(
           "flex h-full w-full items-center justify-center",
-          overlayContent ? "px-0 pb-4 pt-16" : "py-4",
+          maximizeFrame
+            ? overlayContent
+              ? "px-0 pb-0 pt-0 xl:pb-4 xl:pt-16"
+              : "px-0 py-0 xl:py-4"
+            : overlayContent
+              ? "px-0 pb-4 pt-16"
+              : "py-4",
         )}
       >
         <div
@@ -319,15 +337,24 @@ export function WorkspaceSlideSurface({
           <div
             ref={rootRef}
             className={cn(
-              "relative h-full w-full overflow-hidden rounded-[calc(var(--radius)-6px)] border bg-background shadow-[0_34px_90px_-42px_hsl(var(--foreground)/0.42),0_10px_24px_-18px_hsl(var(--foreground)/0.18)]",
+              "relative overflow-hidden bg-background",
+              maximizeFrame
+                ? "rounded-none border-0 shadow-none xl:rounded-[calc(var(--radius)-6px)] xl:border xl:shadow-[0_34px_90px_-42px_hsl(var(--foreground)/0.42),0_10px_24px_-18px_hsl(var(--foreground)/0.18)]"
+                : "rounded-[calc(var(--radius)-6px)] border shadow-[0_34px_90px_-42px_hsl(var(--foreground)/0.42),0_10px_24px_-18px_hsl(var(--foreground)/0.18)]",
               active
                 ? "border-primary/75 ring-2 ring-primary/24"
                 : "border-primary/42",
             )}
+            style={rootTransformStyle}
           >
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 rounded-[inherit] border border-primary/18 shadow-[inset_0_1px_0_hsl(var(--background)/0.92),inset_0_0_0_1px_hsl(var(--primary)/0.12),inset_0_-18px_40px_-32px_hsl(var(--primary)/0.16)]"
+              className={cn(
+                "pointer-events-none absolute inset-0 rounded-[inherit]",
+                maximizeFrame
+                  ? "border-0 shadow-none xl:border xl:border-primary/18 xl:shadow-[inset_0_1px_0_hsl(var(--background)/0.92),inset_0_0_0_1px_hsl(var(--primary)/0.12),inset_0_-18px_40px_-32px_hsl(var(--primary)/0.16)]"
+                  : "border border-primary/18 shadow-[inset_0_1px_0_hsl(var(--background)/0.92),inset_0_0_0_1px_hsl(var(--primary)/0.12),inset_0_-18px_40px_-32px_hsl(var(--primary)/0.16)]",
+              )}
             />
 
             {editable && slide.leftEnabled ? (

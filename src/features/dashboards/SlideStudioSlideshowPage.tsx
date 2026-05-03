@@ -44,6 +44,7 @@ import { WorkspaceRenderErrorBoundary, WorkspaceRenderErrorState } from "./Works
 import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
+import { PublicWorkspaceStatusBar } from "./PublicWorkspaceStatusBar";
 
 interface WidgetInstanceOverride {
   props?: Record<string, unknown>;
@@ -110,6 +111,7 @@ function SlideStudioSlideshowViewport({
   const [isSlideFrameHovered, setIsSlideFrameHovered] = useState(false);
   const previousKioskModeRef = useRef<boolean | null>(null);
   const kioskObservationReadyRef = useRef(false);
+  const publicView = executionSurface === "public-workspace";
 
   const canExitSlideshow = Boolean(onExit) || Boolean(searchParams.get("mode"));
   const exitSlideshow = useCallback(() => {
@@ -468,6 +470,7 @@ function SlideStudioSlideshowViewport({
       <WorkspaceSlideSurface
         active
         editable={false}
+        maximizeFrame
         slide={slide}
         slideWidgetId={activeSlideEntry.instance.id}
         regionContent={regionContent}
@@ -500,7 +503,7 @@ function SlideStudioSlideshowViewport({
       >
         <DashboardWidgetDependenciesProvider widgets={renderedWidgets}>
           <div
-            className="relative min-h-screen overflow-hidden text-foreground"
+            className="relative flex min-h-screen flex-col overflow-hidden text-foreground"
             style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
           >
             <div
@@ -511,6 +514,12 @@ function SlideStudioSlideshowViewport({
               className="pointer-events-none absolute inset-0"
               style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
             />
+            {publicView ? (
+              <div className="relative z-20 shrink-0">
+                <PublicWorkspaceStatusBar compactMobile />
+              </div>
+            ) : null}
+
             <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
               {sidebarOnlyWidgetEntries.map(({ instance, widget }) => {
                 const required = [...(widget.requiredPermissions ?? []), ...(instance.requiredPermissions ?? [])];
@@ -553,10 +562,15 @@ function SlideStudioSlideshowViewport({
               })}
             </div>
 
-            <div className="min-h-screen px-8 py-8">
+            <div className="relative z-10 min-h-0 flex-1 px-0 py-0 sm:px-8 sm:py-8">
               {activeSlideContent ? (
                 <div
-                  className="relative box-border h-[calc(100vh-4rem)] w-full pb-8"
+                  className={cn(
+                    "relative box-border w-full",
+                    publicView
+                      ? "h-[calc(100dvh-2.5rem)] sm:h-[calc(100vh-6rem)] sm:pb-8"
+                      : "h-[calc(100vh-0.5rem)] sm:h-[calc(100vh-4rem)] sm:pb-8",
+                  )}
                   onMouseEnter={() => {
                     setIsSlideshowStageHovered(true);
                   }}
@@ -567,11 +581,11 @@ function SlideStudioSlideshowViewport({
                 >
                   <div
                     className={cn(
-                      "pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center px-6 pt-2 transition-opacity duration-150",
+                      "pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center px-2 pt-1 transition-opacity duration-150 sm:px-6 sm:pt-2",
                       isSlideshowStageHovered && !isSlideFrameHovered ? "opacity-100" : "opacity-0",
                     )}
                   >
-                    <div className="flex w-full max-w-[min(92vw,calc((100vh-8rem)*16/9))] items-start justify-between gap-4">
+                    <div className="flex w-full max-w-[min(98vw,calc((100vh-1rem)*16/9))] items-start justify-between gap-2 sm:max-w-[min(92vw,calc((100vh-8rem)*16/9))] sm:gap-4">
                       <div className="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-border/70 bg-background/88 px-4 py-2 shadow-[var(--shadow-panel)] backdrop-blur-md">
                         <Badge
                           variant="neutral"

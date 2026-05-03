@@ -2105,6 +2105,31 @@ function clampSlideRegionWidgetRows(
   return Math.max(MIN_SLIDE_REGION_WIDGET_ROWS, scaledRows);
 }
 
+function clampRootCanvasWidgetCols(
+  rawCols: number,
+  sourceColumns: number,
+  targetColumns: number,
+) {
+  const scaledCols = Math.round((Math.max(rawCols, 1) / Math.max(sourceColumns, 1)) * Math.max(targetColumns, 1));
+
+  return Math.max(
+    MIN_WORKSPACE_WIDGET_COLS,
+    Math.min(Math.max(targetColumns, 1), scaledCols),
+  );
+}
+
+function clampRootCanvasWidgetRows(
+  rawRows: number,
+  sourceRowHeight: number,
+  targetRowHeight: number,
+) {
+  const scaledRows = Math.round(
+    (Math.max(rawRows, 1) * Math.max(sourceRowHeight, 1)) / Math.max(targetRowHeight, 1),
+  );
+
+  return Math.max(MIN_WORKSPACE_WIDGET_ROWS, scaledRows);
+}
+
 function clampSlideRegionWidgetX(
   x: number,
   cols: number,
@@ -2276,6 +2301,80 @@ export function moveDashboardWidgetToSlideRegion(
         position: {
           x: normalizedLayout.x,
           y: normalizedLayout.y,
+        },
+      }),
+    );
+
+    changed ||= widgetChanged;
+    return nextWidget;
+  });
+
+  return changed
+    ? materializeDashboardLayout({
+        ...dashboard,
+        widgets: nextWidgets,
+      })
+    : dashboard;
+}
+
+export function moveDashboardWidgetToRootCanvas(
+  dashboard: DashboardDefinition,
+  instanceId: string,
+  layout?: Partial<Pick<WorkspaceGridLayoutItem, "h" | "w" | "x" | "y">>,
+  options?: {
+    sourceColumns?: number;
+    sourceRowHeight?: number;
+  },
+) {
+  if (!instanceId) {
+    return dashboard;
+  }
+
+  const targetWidget = findDashboardWidgetInTree(dashboard.widgets, instanceId);
+
+  if (!targetWidget || targetWidget.widgetId === WORKSPACE_SLIDE_WIDGET_ID) {
+    return dashboard;
+  }
+
+  const targetColumns = Math.max(dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS, 1);
+  const targetRowHeight = Math.max(dashboard.grid?.rowHeight ?? DEFAULT_WORKSPACE_ROW_HEIGHT, 1);
+  const sourceColumns = Math.max(options?.sourceColumns ?? targetColumns, 1);
+  const sourceRowHeight = Math.max(options?.sourceRowHeight ?? targetRowHeight, 1);
+  const requestedCols =
+    typeof layout?.w === "number"
+      ? clampRootCanvasWidgetCols(layout.w, sourceColumns, targetColumns)
+      : getLayoutCols(targetWidget.layout, targetWidget.widgetId);
+  const requestedRows =
+    typeof layout?.h === "number"
+      ? clampRootCanvasWidgetRows(layout.h, sourceRowHeight, targetRowHeight)
+      : getLayoutRows(targetWidget.layout, targetWidget.widgetId);
+  const requestedX = Math.max(
+    0,
+    Math.min(
+      Math.round(typeof layout?.x === "number" ? layout.x : getWidgetPosition(targetWidget)?.x ?? 0),
+      Math.max(0, targetColumns - requestedCols),
+    ),
+  );
+  const requestedY = Math.max(
+    0,
+    Math.round(typeof layout?.y === "number" ? layout.y : getDashboardBottomY(dashboard)),
+  );
+
+  let changed = false;
+  const nextWidgets = dashboard.widgets.map((widget) => {
+    const [nextWidget, widgetChanged] = updateDashboardWidgetInTree(
+      widget,
+      instanceId,
+      (currentWidget) => ({
+        ...currentWidget,
+        slidePlacement: undefined,
+        layout: {
+          cols: requestedCols,
+          rows: requestedRows,
+        },
+        position: {
+          x: requestedX,
+          y: requestedY,
         },
       }),
     );

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { AlertTriangle, DatabaseZap, Loader2, Wifi, WifiOff } from "lucide-react";
 
 import { getConnectionTypeById } from "@/app/registry";
+import type { ConnectionQueryModel } from "@/connections/types";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
 import {
@@ -14,7 +15,6 @@ import type { WidgetComponentProps } from "@/widgets/types";
 import {
   buildConnectionStreamQueryRequest,
   buildConnectionStreamQuerySubscriptionKey,
-  buildPublicConnectionStreamQueryRequestPayload,
   buildConnectionStreamQueryValidationError,
   buildConnectionStreamQueryLifecycleFrame,
   createConnectionStreamQueryWidgetRuntimeSession,
@@ -74,10 +74,9 @@ export function buildConnectionStreamQueryExecutionKey(input: {
       : null,
     request:
       input.publicExecutionKey && input.request && typeof input.request === "object"
-        ? buildPublicConnectionStreamQueryRequestPayload(
+        ? (({ connectionId: _connectionId, ...publicRequest }) => publicRequest)(
             input.request as {
-              connectionId: string | number;
-              query: Record<string, unknown>;
+              connectionId?: string | number;
             } & Record<string, unknown>,
           )
         : input.request,
@@ -109,6 +108,23 @@ export function ConnectionStreamQueryWidget({
   const queryModel = normalizedProps.queryModelId
     ? connectionType?.queryModels?.find((model) => model.id === normalizedProps.queryModelId)
     : undefined;
+  const runtimeQueryModel = useMemo<ConnectionQueryModel | undefined>(
+    () =>
+      widgetExecution?.executionSurface === "public-workspace"
+        ? (queryModel ??
+            (normalizedProps.queryModelId
+              ? ({
+                  id: normalizedProps.queryModelId,
+                  stream: {
+                    transport: "websocket",
+                  },
+                  timeRangeAware: true,
+                  supportsVariables: true,
+                } as ConnectionQueryModel)
+              : undefined))
+        : queryModel,
+    [normalizedProps.queryModelId, queryModel, widgetExecution?.executionSurface],
+  );
   const dashboardState = useMemo(
     () => ({
       timeRangeKey: dashboardControls.timeRangeKey,
@@ -124,12 +140,23 @@ export function ConnectionStreamQueryWidget({
     ],
   );
   const request = useMemo(
-    () => buildConnectionStreamQueryRequest(normalizedProps, dashboardState, queryModel),
-    [dashboardState, normalizedProps, queryModel],
+    () =>
+      buildConnectionStreamQueryRequest(
+        normalizedProps,
+        dashboardState,
+        runtimeQueryModel,
+        widgetExecution?.executionSurface,
+      ),
+    [dashboardState, normalizedProps, runtimeQueryModel, widgetExecution?.executionSurface],
   );
   const validationError = useMemo(
-    () => buildConnectionStreamQueryValidationError({ props: normalizedProps, queryModel }),
-    [normalizedProps, queryModel],
+    () =>
+      buildConnectionStreamQueryValidationError({
+        props: normalizedProps,
+        queryModel: runtimeQueryModel,
+        executionSurface: widgetExecution?.executionSurface,
+      }),
+    [normalizedProps, runtimeQueryModel, widgetExecution?.executionSurface],
   );
   const publicExecution = instanceId
     ? widgetExecution?.getWidgetInstance(instanceId)?.publicExecution
@@ -143,12 +170,12 @@ export function ConnectionStreamQueryWidget({
       buildConnectionStreamQueryExecutionKey({
         instanceId,
         props: normalizedProps,
-        queryModel,
+        queryModel: runtimeQueryModel,
         request,
         publicExecutionKey,
         validationError,
       }),
-    [instanceId, normalizedProps, publicExecutionKey, queryModel, request, validationError],
+    [instanceId, normalizedProps, publicExecutionKey, request, runtimeQueryModel, validationError],
   );
   const normalizedRuntimeState = useMemo(
     () => normalizeConnectionStreamQueryRuntimeState(runtimeState),
@@ -167,6 +194,10 @@ export function ConnectionStreamQueryWidget({
 
   useEffect(() => {
     const publishRuntimeState = onRuntimeStateChangeRef.current;
+    const hasExecutableConfig =
+      widgetExecution?.executionSurface === "public-workspace"
+        ? Boolean(normalizedProps.queryModelId)
+        : Boolean(normalizedProps.connectionRef?.id && normalizedProps.queryModelId);
 
     if (!publishRuntimeState) {
       return undefined;
@@ -176,18 +207,14 @@ export function ConnectionStreamQueryWidget({
       publishRuntimeState(
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
-          status: normalizedProps.connectionRef?.id && normalizedProps.queryModelId
-            ? "error"
-            : "idle",
-          error: normalizedProps.connectionRef?.id && normalizedProps.queryModelId
-            ? validationError
-            : undefined,
+          status: hasExecutableConfig ? "error" : "idle",
+          error: hasExecutableConfig ? validationError : undefined,
         }) as unknown as Record<string, unknown>,
       );
       return undefined;
     }
 
-    if (!request || !queryModel) {
+    if (!request || !runtimeQueryModel) {
       publishRuntimeState(
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
@@ -208,7 +235,7 @@ export function ConnectionStreamQueryWidget({
         }),
         request,
         props: normalizedProps,
-        queryModel,
+        queryModel: runtimeQueryModel,
         executionSurface: widgetExecution?.executionSurface,
         publicExecution,
         initialRuntimeState: runtimeRef.current,
@@ -248,9 +275,13 @@ export function ConnectionStreamQueryWidget({
   const runtimeDataRef = getRuntimeDataRef(runtimeState);
   const rowCount = runtimeDataRef?.rowCount ?? normalizedRuntimeState?.rows.length ?? 0;
   const columnCount = normalizedRuntimeState?.columns.length ?? 0;
+  const hasExecutableConfig =
+    widgetExecution?.executionSurface === "public-workspace"
+      ? Boolean(normalizedProps.queryModelId)
+      : Boolean(normalizedProps.connectionRef?.id && normalizedProps.queryModelId);
   const errorMessage =
     normalizedRuntimeState?.error ??
-    (validationError && normalizedProps.connectionRef?.id && normalizedProps.queryModelId
+    (validationError && hasExecutableConfig
       ? validationError
       : undefined);
   const reconnectAttemptCount = normalizedRuntimeState?.reconnectAttemptCount ?? 0;

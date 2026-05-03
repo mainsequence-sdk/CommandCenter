@@ -122,6 +122,7 @@ import {
   collapseDashboardRow,
   duplicateDashboardWidget,
   expandDashboardRow,
+  moveDashboardWidgetToRootCanvas,
   moveDashboardWidgetToSlideRegion,
   placeCatalogWidget,
   reorderDashboardWidgets,
@@ -469,6 +470,15 @@ interface GridMetrics {
   cellWidth: number;
   stepX: number;
   stepY: number;
+}
+
+interface ActiveCrossHostTransferDrag {
+  instanceId: string;
+  sourceHost: "root" | "slide";
+  sourceSlideWidgetId?: string;
+  sourceRegion?: WorkspaceSlideRegionId;
+  lastClientX: number | null;
+  lastClientY: number | null;
 }
 
 function getGridMetrics(
@@ -933,11 +943,7 @@ export function CustomDashboardStudioPage({
   const [companionVisibilityById, setCompanionVisibilityById] = useState<Record<string, boolean>>(
     {},
   );
-  const activeRootGridTransferDragRef = useRef<{
-    instanceId: string;
-    lastClientX: number | null;
-    lastClientY: number | null;
-  } | null>(null);
+  const activeCrossHostTransferDragRef = useRef<ActiveCrossHostTransferDrag | null>(null);
   const [customGridLayoutDraft, setCustomGridLayoutDraft] = useState<WorkspaceGridLayoutItem[]>([]);
   const [autoGridReorderState, setAutoGridReorderState] = useState<AutoGridReorderState | null>(
     null,
@@ -1314,34 +1320,44 @@ export function CustomDashboardStudioPage({
 
     return map;
   }, [canvasWidgets]);
-  const handleRootGridTransferPointerMove = useCallback((event: PointerEvent) => {
-    if (!activeRootGridTransferDragRef.current) {
+  const handleCrossHostTransferPointerMove = useCallback((event: PointerEvent) => {
+    if (!activeCrossHostTransferDragRef.current) {
       return;
     }
 
-    activeRootGridTransferDragRef.current = {
-      ...activeRootGridTransferDragRef.current,
+    activeCrossHostTransferDragRef.current = {
+      ...activeCrossHostTransferDragRef.current,
       lastClientX: event.clientX,
       lastClientY: event.clientY,
     };
   }, []);
-  const clearRootGridTransferDrag = useCallback(() => {
-    activeRootGridTransferDragRef.current = null;
-    window.removeEventListener("pointermove", handleRootGridTransferPointerMove, true);
-  }, [handleRootGridTransferPointerMove]);
-  const beginRootGridTransferDrag = useCallback((instanceId: string) => {
-    activeRootGridTransferDragRef.current = {
+  const clearCrossHostTransferDrag = useCallback(() => {
+    activeCrossHostTransferDragRef.current = null;
+    window.removeEventListener("pointermove", handleCrossHostTransferPointerMove, true);
+  }, [handleCrossHostTransferPointerMove]);
+  const beginCrossHostTransferDrag = useCallback((
+    instanceId: string,
+    source: {
+      host: "root" | "slide";
+      slideWidgetId?: string;
+      region?: WorkspaceSlideRegionId;
+    },
+  ) => {
+    activeCrossHostTransferDragRef.current = {
       instanceId,
+      sourceHost: source.host,
+      sourceSlideWidgetId: source.slideWidgetId,
+      sourceRegion: source.region,
       lastClientX: null,
       lastClientY: null,
     };
-    window.addEventListener("pointermove", handleRootGridTransferPointerMove, true);
-  }, [handleRootGridTransferPointerMove]);
+    window.addEventListener("pointermove", handleCrossHostTransferPointerMove, true);
+  }, [handleCrossHostTransferPointerMove]);
   useEffect(
     () => () => {
-      clearRootGridTransferDrag();
+      clearCrossHostTransferDrag();
     },
-    [clearRootGridTransferDrag],
+    [clearCrossHostTransferDrag],
   );
   const sidebarOnlyWidgets = useMemo(
     () => resolvedWidgetInstances.filter((widget) => resolveWidgetSidebarOnly(widget.presentation)),
@@ -1561,7 +1577,7 @@ export function CustomDashboardStudioPage({
       instanceId: string,
       layoutItem: Pick<WorkspaceGridLayoutItem, "h" | "w">,
     ) => {
-      const activeDrag = activeRootGridTransferDragRef.current;
+      const activeDrag = activeCrossHostTransferDragRef.current;
 
       if (!activeDrag || activeDrag.instanceId !== instanceId) {
         return null;
@@ -1640,7 +1656,73 @@ export function CustomDashboardStudioPage({
         },
       };
     },
-    [slidePlacedWidgetsBySlideRegion],
+    [activeCanvasGridColumns],
+  );
+  const resolveRootCanvasDropTarget = useCallback(
+    (
+      instanceId: string,
+      layoutItem: Pick<WorkspaceGridLayoutItem, "h" | "w">,
+    ) => {
+      const activeDrag = activeCrossHostTransferDragRef.current;
+
+      if (!activeDrag || activeDrag.instanceId !== instanceId || !measuredGridMetrics) {
+        return null;
+      }
+
+      if (activeDrag.lastClientX == null || activeDrag.lastClientY == null) {
+        return null;
+      }
+
+      const overSlideRegion = document
+        .elementsFromPoint(activeDrag.lastClientX, activeDrag.lastClientY)
+        .some(
+          (element) =>
+            element instanceof HTMLElement &&
+            Boolean(
+              element.dataset.workspaceSlideWidgetId &&
+              element.dataset.workspaceSlideRegionId,
+            ),
+        );
+
+      if (overSlideRegion) {
+        return null;
+      }
+
+      const placement = resolveGridCellFromPoint(
+        measuredGridMetrics,
+        activeDrag.lastClientX,
+        activeDrag.lastClientY,
+      );
+
+      if (!placement) {
+        return null;
+      }
+
+      const sourceColumns =
+        activeDrag.sourceHost === "slide" ? WORKSPACE_SLIDE_GRID_COLUMNS : activeCanvasGridColumns;
+      const sourceRowHeight =
+        activeDrag.sourceHost === "slide"
+          ? WORKSPACE_SLIDE_GRID_ROW_HEIGHT
+          : runtimeRowHeight;
+      const targetCols = Math.max(
+        1,
+        Math.round((Math.max(layoutItem.w, 1) / Math.max(sourceColumns, 1)) * activeCanvasGridColumns),
+      );
+      const targetRows = Math.max(
+        1,
+        Math.round((Math.max(layoutItem.h, 1) * Math.max(sourceRowHeight, 1)) / Math.max(runtimeRowHeight, 1)),
+      );
+
+      return {
+        layout: {
+          x: Math.max(0, Math.min(placement.x ?? 0, Math.max(0, activeCanvasGridColumns - targetCols))),
+          y: placement.y ?? 0,
+          w: targetCols,
+          h: targetRows,
+        },
+      };
+    },
+    [activeCanvasGridColumns, measuredGridMetrics, runtimeRowHeight],
   );
   const visibleCompanionsByInstanceId = useMemo(() => {
     const map = new Map<string, DashboardCanvasCompanionCandidate[]>();
@@ -2237,6 +2319,61 @@ export function CustomDashboardStudioPage({
                   editable={editMode}
                   dragHandleSelector={slideRegionDraggableHandleSelector}
                   dragCancelSelector={workspaceGridDraggableCancelSelector}
+                  onDragStart={(itemId) => {
+                    beginCrossHostTransferDrag(itemId, {
+                      host: "slide",
+                      slideWidgetId: instance.id,
+                      region: regionId,
+                    });
+                  }}
+                  onDragStop={(nextLayout, draggedItem) => {
+                    const activeDrag = activeCrossHostTransferDragRef.current;
+                    const slideDropTarget = resolveSlideRegionDropTarget(draggedItem.i, draggedItem);
+
+                    if (
+                      slideDropTarget &&
+                      (
+                        activeDrag?.sourceHost !== "slide" ||
+                        activeDrag.sourceSlideWidgetId !== slideDropTarget.slideWidgetId ||
+                        activeDrag.sourceRegion !== slideDropTarget.region
+                      )
+                    ) {
+                      clearCrossHostTransferDrag();
+                      updateSelectedWorkspace((dashboard) =>
+                        moveDashboardWidgetToSlideRegion(
+                          dashboard,
+                          draggedItem.i,
+                          slideDropTarget.slideWidgetId,
+                          slideDropTarget.region,
+                          slideDropTarget.layout,
+                        ),
+                      );
+                      return;
+                    }
+
+                    const rootDropTarget = resolveRootCanvasDropTarget(draggedItem.i, draggedItem);
+
+                    if (rootDropTarget) {
+                      clearCrossHostTransferDrag();
+                      updateSelectedWorkspace((dashboard) =>
+                        moveDashboardWidgetToRootCanvas(
+                          dashboard,
+                          draggedItem.i,
+                          rootDropTarget.layout,
+                          {
+                            sourceColumns: WORKSPACE_SLIDE_GRID_COLUMNS,
+                            sourceRowHeight: WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
+                          },
+                        ),
+                      );
+                      return;
+                    }
+
+                    clearCrossHostTransferDrag();
+                    updateSelectedWorkspace((dashboard) =>
+                      commitDashboardSlideRegionLayout(dashboard, instance.id, regionId, nextLayout),
+                    );
+                  }}
                   onLayoutCommit={(nextLayout) => {
                     updateSelectedWorkspace((dashboard) =>
                       commitDashboardSlideRegionLayout(dashboard, instance.id, regionId, nextLayout),
@@ -2918,12 +3055,14 @@ export function CustomDashboardStudioPage({
                           !draggedInstance.slidePlacement &&
                           draggedInstance.widgetId !== WORKSPACE_SLIDE_WIDGET_ID
                         ) {
-                          beginRootGridTransferDrag(draggedInstance.id);
+                          beginCrossHostTransferDrag(draggedInstance.id, {
+                            host: "root",
+                          });
                         } else {
-                          clearRootGridTransferDrag();
+                          clearCrossHostTransferDrag();
                         }
                       } else {
-                        clearRootGridTransferDrag();
+                        clearCrossHostTransferDrag();
                       }
                     }
                   }}
@@ -2943,7 +3082,7 @@ export function CustomDashboardStudioPage({
                       const dropTarget = resolveSlideRegionDropTarget(newItem.i, newItem);
 
                       if (dropTarget) {
-                        clearRootGridTransferDrag();
+                        clearCrossHostTransferDrag();
                         setCustomGridLayoutDraft(
                           cloneWorkspaceGridLayout(layout).filter((item) => item.i !== newItem.i),
                         );
@@ -2960,7 +3099,7 @@ export function CustomDashboardStudioPage({
                       }
                     }
 
-                    clearRootGridTransferDrag();
+                    clearCrossHostTransferDrag();
                     handleGridLayoutCommit(layout);
                   }}
                   onResizeStart={(_layout, _oldItem, newItem) => {

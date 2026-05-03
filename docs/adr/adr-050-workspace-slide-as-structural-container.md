@@ -169,8 +169,10 @@ Rejected because the intended UX is still the normal `Workspaces` canvas with st
       - slide-contained widgets resize inside the slide subgrid host
 - [x] Keep optional regions settings-driven, not canvas-toggle-driven.
 - [x] Support root canvas -> slide region cross-host reparenting for normal workspace widgets.
-- [ ] Consider slide region -> root canvas cross-host reparenting when slide authoring needs reverse extraction.
-- [ ] Consider slide region -> different slide region cross-host reparenting if intra-slide movement across region boundaries becomes a primary workflow.
+- [x] Support slide region -> root canvas cross-host reparenting so slide-contained widgets can be
+      extracted back onto the main canvas.
+- [x] Support slide region -> different slide region cross-host reparenting so slide-contained
+      widgets can move across slides and regions without duplication.
 - [x] Remove old ADR wording or implementation assumptions that imply `Slide` should have no subgrid host at all.
 
 ## Backend Contract Impact

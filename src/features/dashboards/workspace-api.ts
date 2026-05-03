@@ -69,6 +69,16 @@ export interface WorkspacePublicLinkState {
   updatedAt: string | null;
   publicUrl: string | null;
   urlRevealed: boolean;
+  publicWorkspaceSpecHash: string | null;
+  compiledAt: string | null;
+  compiledFromWorkspaceUpdatedAt: string | null;
+  hasUnpublishedChanges: boolean;
+}
+
+export interface PublicWorkspaceDetailResult {
+  dashboard: DashboardDefinition;
+  publicWorkspaceSpecHash: string;
+  rawPayload: unknown;
 }
 
 export function isWorkspaceBackendNotFoundError(error: unknown) {
@@ -403,9 +413,9 @@ function resolveWorkspaceLabelMutationPath(
   return `${normalizedDetailPath}${action}-label/`;
 }
 
-function resolveWorkspacePublicLinkMutationPath(
+function resolveWorkspacePublicLinkPath(
   workspaceId: string,
-  action?: "disable" | "rotate",
+  action?: "publish" | "unpublish" | "rotate",
 ) {
   const detailPath = resolveWorkspaceDetailPath(workspaceId);
   const normalizedDetailPath = detailPath.endsWith("/") ? detailPath : `${detailPath}/`;
@@ -417,6 +427,16 @@ function resolveWorkspacePublicLinkMutationPath(
 
 function resolvePublicWorkspaceDetailPath(token: string) {
   return `/api/v1/command_center/public/workspaces/${encodeURIComponent(token)}/`;
+}
+
+function readPublicWorkspaceSpecHash(value: unknown) {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return typeof value.publicWorkspaceSpecHash === "string" && value.publicWorkspaceSpecHash.trim()
+    ? value.publicWorkspaceSpecHash.trim()
+    : null;
 }
 
 function normalizeWorkspaceLabels(labels: string[] | undefined) {
@@ -487,6 +507,10 @@ function buildWorkspacePublicLinkPayload(
     updatedAt?: string | null;
     lastUsedAt?: string | null;
     expiresAt?: string | null;
+    publicWorkspaceSpecHash?: string | null;
+    compiledAt?: string | null;
+    compiledFromWorkspaceUpdatedAt?: string | null;
+    hasUnpublishedChanges?: boolean;
   },
 ): WorkspacePublicLinkState {
   return {
@@ -498,6 +522,10 @@ function buildWorkspacePublicLinkPayload(
     updatedAt: options.updatedAt ?? null,
     publicUrl: options.publicUrl ?? null,
     urlRevealed: options.urlRevealed ?? Boolean(options.publicUrl),
+    publicWorkspaceSpecHash: options.publicWorkspaceSpecHash ?? null,
+    compiledAt: options.compiledAt ?? null,
+    compiledFromWorkspaceUpdatedAt: options.compiledFromWorkspaceUpdatedAt ?? null,
+    hasUnpublishedChanges: options.hasUnpublishedChanges === true,
   };
 }
 
@@ -545,6 +573,20 @@ function coerceWorkspacePublicLinkState(value: unknown): WorkspacePublicLinkStat
           ? value.public_url
           : null,
     urlRevealed: value.urlRevealed === true || value.url_revealed === true,
+    publicWorkspaceSpecHash:
+      typeof value.publicWorkspaceSpecHash === "string" && value.publicWorkspaceSpecHash.trim()
+        ? value.publicWorkspaceSpecHash.trim()
+        : null,
+    compiledAt:
+      typeof value.compiledAt === "string" && value.compiledAt.trim()
+        ? value.compiledAt.trim()
+        : null,
+    compiledFromWorkspaceUpdatedAt:
+      typeof value.compiledFromWorkspaceUpdatedAt === "string" &&
+      value.compiledFromWorkspaceUpdatedAt.trim()
+        ? value.compiledFromWorkspaceUpdatedAt.trim()
+        : null,
+    hasUnpublishedChanges: value.hasUnpublishedChanges === true,
   };
 }
 
@@ -747,7 +789,34 @@ function handleMockWorkspaceRequest(path: string, init?: RequestInit) {
     return cloneJson(updatedWorkspace);
   }
 
-  if (method === "POST" && pathname === normalizeMockWorkspacePath(resolveWorkspacePublicLinkMutationPath(workspaceId))) {
+  if (method === "GET" && pathname === normalizeMockWorkspacePath(resolveWorkspacePublicLinkPath(workspaceId))) {
+    if (!currentWorkspace) {
+      throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
+    }
+
+    if (!currentWorkspace.publicUrl) {
+      throw new WorkspaceBackendRequestError(
+        404,
+        { detail: "Public link not found." },
+        "Public link not found.",
+      );
+    }
+
+    return buildWorkspacePublicLinkPayload(workspaceId, {
+      isEnabled: true,
+      publicUrl: currentWorkspace.publicUrl,
+      urlRevealed: false,
+      createdAt: null,
+      updatedAt: null,
+      lastUsedAt: null,
+      publicWorkspaceSpecHash: `mock-public-spec-${workspaceId}`,
+      compiledAt: null,
+      compiledFromWorkspaceUpdatedAt: mockWorkspaceCollection.savedAt ?? null,
+      hasUnpublishedChanges: false,
+    });
+  }
+
+  if (method === "POST" && pathname === normalizeMockWorkspacePath(resolveWorkspacePublicLinkPath(workspaceId, "publish"))) {
     if (!currentWorkspace) {
       throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
     }
@@ -771,10 +840,14 @@ function handleMockWorkspaceRequest(path: string, init?: RequestInit) {
       createdAt: now,
       updatedAt: now,
       lastUsedAt: null,
+      publicWorkspaceSpecHash: `mock-public-spec-${workspaceId}-${Date.now()}`,
+      compiledAt: now,
+      compiledFromWorkspaceUpdatedAt: mockWorkspaceCollection.savedAt ?? now,
+      hasUnpublishedChanges: false,
     });
   }
 
-  if (method === "POST" && pathname === normalizeMockWorkspacePath(resolveWorkspacePublicLinkMutationPath(workspaceId, "disable"))) {
+  if (method === "POST" && pathname === normalizeMockWorkspacePath(resolveWorkspacePublicLinkPath(workspaceId, "unpublish"))) {
     if (!currentWorkspace) {
       throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
     }
@@ -795,10 +868,14 @@ function handleMockWorkspaceRequest(path: string, init?: RequestInit) {
       createdAt: now,
       updatedAt: now,
       lastUsedAt: null,
+      publicWorkspaceSpecHash: null,
+      compiledAt: null,
+      compiledFromWorkspaceUpdatedAt: mockWorkspaceCollection.savedAt ?? now,
+      hasUnpublishedChanges: false,
     });
   }
 
-  if (method === "POST" && pathname === normalizeMockWorkspacePath(resolveWorkspacePublicLinkMutationPath(workspaceId, "rotate"))) {
+  if (method === "POST" && pathname === normalizeMockWorkspacePath(resolveWorkspacePublicLinkPath(workspaceId, "rotate"))) {
     if (!currentWorkspace) {
       throw new WorkspaceBackendRequestError(404, { detail: "Workspace not found." }, "Workspace not found.");
     }
@@ -820,6 +897,10 @@ function handleMockWorkspaceRequest(path: string, init?: RequestInit) {
       createdAt: now,
       updatedAt: now,
       lastUsedAt: null,
+      publicWorkspaceSpecHash: `mock-public-spec-${workspaceId}-${Date.now()}`,
+      compiledAt: now,
+      compiledFromWorkspaceUpdatedAt: mockWorkspaceCollection.savedAt ?? now,
+      hasUnpublishedChanges: false,
     });
   }
 
@@ -1006,6 +1087,43 @@ async function requestWorkspaceBackend(path: string, init?: RequestInit) {
     }
   }
 
+  const payload = await readResponsePayload(response);
+
+  if (!response.ok) {
+    throw new WorkspaceBackendRequestError(
+      response.status,
+      payload,
+      readErrorMessage(payload) || `Workspace request failed with ${response.status}.`,
+    );
+  }
+
+  return payload;
+}
+
+async function requestPublicWorkspaceBackend(path: string, init?: RequestInit) {
+  if (env.useMockData) {
+    const mockResponse = handleMockWorkspaceRequest(path, init);
+
+    if (mockResponse !== undefined) {
+      return mockResponse;
+    }
+  }
+
+  const requestUrl = buildEndpointUrl(path);
+  const headers = new Headers(init?.headers);
+
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+
+  if (init?.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(requestUrl, {
+    ...init,
+    headers,
+  });
   const payload = await readResponsePayload(response);
 
   if (!response.ok) {
@@ -1269,7 +1387,9 @@ export async function fetchWorkspaceDetailFromBackend(workspaceId: string) {
   return dashboard;
 }
 
-export async function fetchPublicWorkspaceDetailFromBackend(token: string) {
+export async function fetchPublicWorkspaceDetailFromBackend(
+  token: string,
+): Promise<PublicWorkspaceDetailResult> {
   if (!token.trim()) {
     throw new Error("Public workspace token is required.");
   }
@@ -1278,12 +1398,17 @@ export async function fetchPublicWorkspaceDetailFromBackend(token: string) {
     throw new Error("Public workspace routes are not available in mock workspace mode.");
   }
 
-  const payload = await requestWorkspaceBackend(resolvePublicWorkspaceDetailPath(token));
+  const payload = await requestPublicWorkspaceBackend(resolvePublicWorkspaceDetailPath(token));
   const dashboard = coerceDashboardDefinition(payload);
   const rawType = readRawDashboardDefinitionType(payload);
+  const publicWorkspaceSpecHash = readPublicWorkspaceSpecHash(payload);
 
   if (!dashboard) {
     throw new Error("Public workspace detail response was invalid.");
+  }
+
+  if (!publicWorkspaceSpecHash) {
+    throw new Error("Public workspace detail response is missing publicWorkspaceSpecHash.");
   }
 
   if (!rawType) {
@@ -1294,7 +1419,11 @@ export async function fetchPublicWorkspaceDetailFromBackend(token: string) {
     throw new PublicWorkspaceUnsupportedTypeError(rawType);
   }
 
-  return dashboard;
+  return {
+    dashboard,
+    publicWorkspaceSpecHash,
+    rawPayload: payload,
+  };
 }
 
 export async function fetchWorkspaceUserStateFromBackend(
@@ -1398,10 +1527,8 @@ export async function saveWorkspaceInBackend(dashboard: DashboardDefinition) {
   return resolveMutationDashboardPayload(payload, dashboard);
 }
 
-export async function createWorkspacePublicLinkInBackend(workspaceId: string) {
-  const payload = await requestWorkspaceBackend(resolveWorkspacePublicLinkMutationPath(workspaceId), {
-    method: "POST",
-  });
+export async function fetchWorkspacePublicLinkStateFromBackend(workspaceId: string) {
+  const payload = await requestWorkspaceBackend(resolveWorkspacePublicLinkPath(workspaceId));
   const publicLink = coerceWorkspacePublicLinkState(payload);
 
   if (!publicLink) {
@@ -1411,9 +1538,9 @@ export async function createWorkspacePublicLinkInBackend(workspaceId: string) {
   return publicLink;
 }
 
-export async function disableWorkspacePublicLinkInBackend(workspaceId: string) {
+export async function publishWorkspacePublicLinkInBackend(workspaceId: string) {
   const payload = await requestWorkspaceBackend(
-    resolveWorkspacePublicLinkMutationPath(workspaceId, "disable"),
+    resolveWorkspacePublicLinkPath(workspaceId, "publish"),
     {
       method: "POST",
     },
@@ -1421,7 +1548,23 @@ export async function disableWorkspacePublicLinkInBackend(workspaceId: string) {
   const publicLink = coerceWorkspacePublicLinkState(payload);
 
   if (!publicLink) {
-    throw new Error(`Workspace ${workspaceId} public-link disable response was invalid.`);
+    throw new Error(`Workspace ${workspaceId} public-link publish response was invalid.`);
+  }
+
+  return publicLink;
+}
+
+export async function unpublishWorkspacePublicLinkInBackend(workspaceId: string) {
+  const payload = await requestWorkspaceBackend(
+    resolveWorkspacePublicLinkPath(workspaceId, "unpublish"),
+    {
+      method: "POST",
+    },
+  );
+  const publicLink = coerceWorkspacePublicLinkState(payload);
+
+  if (!publicLink) {
+    throw new Error(`Workspace ${workspaceId} public-link unpublish response was invalid.`);
   }
 
   return publicLink;
@@ -1429,7 +1572,7 @@ export async function disableWorkspacePublicLinkInBackend(workspaceId: string) {
 
 export async function rotateWorkspacePublicLinkInBackend(workspaceId: string) {
   const payload = await requestWorkspaceBackend(
-    resolveWorkspacePublicLinkMutationPath(workspaceId, "rotate"),
+    resolveWorkspacePublicLinkPath(workspaceId, "rotate"),
     {
       method: "POST",
     },

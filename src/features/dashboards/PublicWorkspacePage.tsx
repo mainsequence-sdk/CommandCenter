@@ -10,6 +10,7 @@ import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 import {
   fetchPublicWorkspaceDetailFromBackend,
   isWorkspaceBackendNotFoundError,
+  type PublicWorkspaceDetailResult,
   PublicWorkspaceUnsupportedTypeError,
   WorkspaceBackendRequestError,
 } from "./workspace-api";
@@ -38,7 +39,7 @@ function PublicWorkspaceStateCard({
 
 export function PublicWorkspacePage() {
   const { token = "" } = useParams();
-  const [dashboard, setDashboard] = useState<DashboardDefinition | null>(null);
+  const [publicWorkspace, setPublicWorkspace] = useState<PublicWorkspaceDetailResult | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,14 +51,14 @@ export function PublicWorkspacePage() {
       setError(null);
 
       try {
-        const nextDashboard = await fetchPublicWorkspaceDetailFromBackend(token);
+        const nextPublicWorkspace = await fetchPublicWorkspaceDetailFromBackend(token);
 
         if (!cancelled) {
-          setDashboard(nextDashboard);
+          setPublicWorkspace(nextPublicWorkspace);
         }
       } catch (nextError) {
         if (!cancelled) {
-          setDashboard(null);
+          setPublicWorkspace(null);
           setError(
             nextError instanceof Error
               ? nextError
@@ -77,6 +78,9 @@ export function PublicWorkspacePage() {
       cancelled = true;
     };
   }, [token]);
+
+  const dashboard = publicWorkspace?.dashboard ?? null;
+  const publicWorkspaceSpecHash = publicWorkspace?.publicWorkspaceSpecHash ?? null;
 
   const resolvedPublicDashboard = useMemo(() => {
     if (!dashboard) {
@@ -233,6 +237,7 @@ export function PublicWorkspacePage() {
   return (
     <div
       className="relative min-h-screen overflow-hidden"
+      data-public-workspace-spec-hash={publicWorkspaceSpecHash ?? undefined}
       style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
     >
       <div

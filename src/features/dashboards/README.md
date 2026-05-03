@@ -23,6 +23,8 @@ These flows are all part of one app surface, with instance state selected throug
   `public-workspace` execution surface and widget-instance lookup so public routes can switch
   source widgets onto backend-owned public execution URLs without forking the widget graph.
 - `SlideStudioSlideshowPage.tsx`: Slide Studio-only projection surface. It reuses the same workspace document and slide/widget rendering contracts but presents one top-level slide per screen with slideshow navigation.
+- The slideshow projection now uses tighter stage padding on small viewports and asks the shared
+  slide surface to maximize the fitted frame on mobile before adding desktop-style breathing room.
 - `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio. It also supports the shellless `publicPreview` projection over the same runtime document.
 - `WorkspaceCanvasWidgetHost.tsx`: shared widget renderer used by both the root canvas host and the slide subgrid host so widget chrome, headers, actions, inline edit gating, and body rendering stay identical across both layout hosts.
 - `WorkspaceSlideSubgridHost.tsx`: slide-only region layout host. It keeps slide-contained widgets on a separate subgrid from the root canvas while shrinking slide row height to fit the active region bounds instead of letting slide widgets overflow.
@@ -30,8 +32,10 @@ These flows are all part of one app surface, with instance state selected throug
 - `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize, controls, and save flow.
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
-- `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, labels, backend-only sharing permissions, and the authenticated public-preview / future public-publication controls.
-- `public-workspace-readiness.ts`: frontend preflight for public publication readiness. It checks workspace type, widget permissions, unknown widget ids, and whether connection-backed source widgets expose the required widget-scoped `publicExecution` contract before the settings page allows public-link enablement.
+- `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title,
+  description, labels, backend-only sharing permissions, and a dedicated publishing tab for
+  authenticated public preview plus public-link lifecycle controls.
+- `public-workspace-readiness.ts`: frontend preflight for public publication readiness. It checks workspace type, widget permissions, and unknown widget ids before the settings page allows public-link enablement. Widget-scoped public execution contracts are compiled public-spec metadata, so final execution-contract validation remains backend-authoritative.
 - `SavedWidgetsPage.tsx`: dedicated saved-widget and saved-widget-group library screen with metadata editing, deletion, JSON inspection, and permissions.
 - `SavedWidgetSaveDialog.tsx`: canvas action flow for saving the selected live workspace widget as a reusable saved widget or saved widget group.
 - `SavedWidgetLibraryDialog.tsx`: in-canvas library picker used to import saved widgets and groups back into the current workspace.
@@ -71,10 +75,18 @@ These flows are all part of one app surface, with instance state selected throug
   signed-in user's broader permission set.
 - For `slide-studio`, both authenticated public preview and anonymous public routes default to the
   slideshow projection instead of the generic dashboard canvas.
-- Workspace settings now also manage backend-owned public links through the
-  `/public-link/`, `/public-link/disable/`, and `/public-link/rotate/` endpoints. The frontend
-  treats `publicUrl` / `public_url` as backend-owned metadata and does not send it back in normal
-  workspace save payloads.
+- Public `slide-studio` slideshow also reuses the shared public workspace status bar so the
+  presentation surface keeps the Main Sequence branded top navigation shell.
+- On small public slideshow viewports, that branded bar switches to a compact mobile treatment and
+  the slide stage removes outer padding so the fixed-aspect slide can expand to the maximum
+  remaining screen area.
+- Workspace settings now manage backend-owned public links through the canonical publish lifecycle:
+  `GET /public-link/`, `POST /public-link/publish/`, `POST /public-link/unpublish/`, and
+  `POST /public-link/rotate/`. The frontend treats `publicUrl` / `public_url` as backend-owned
+  metadata and does not send it back in normal workspace save payloads.
+- `GET /public-link/` now also drives editor-side public status through backend-authored fields:
+  `publicWorkspaceSpecHash`, `compiledAt`, `compiledFromWorkspaceUpdatedAt`, and
+  `hasUnpublishedChanges`. Workspace settings no longer infer publish drift from list timestamps.
 - Anonymous public workspace payloads may now also carry widget-scoped `publicExecution`
   metadata. Public runtime surfaces preserve that metadata on widget instances, do not persist it
   back through normal workspace save/update payloads, and use it as the authoritative execution
@@ -84,6 +96,14 @@ These flows are all part of one app surface, with instance state selected throug
   connections registry/query endpoints. Slide-studio public slideshow uses the same public
   execution surface and re-enables automatic hydration so source widgets can load in anonymous
   presentation mode.
+- Public HTTP widget execution now follows the backend public contract exactly: it posts to
+  `widget.publicExecution.queryUrl` with top-level `capability`, plus only the allowed
+  `timeRange` and `variables` inputs. It does not send `connectionId`, nested private request
+  objects, or derive execution from `props.connectionRef`.
+- Public WebSocket widget execution now follows the backend public contract exactly: it connects to
+  `widget.publicExecution.streamUrl` and sends `subscribe` messages that include
+  `subscriptionId`, `widgetInstanceId`, `capability`, and a nested `request` containing only the
+  allowed `timeRange` and `variables` inputs.
 - Before enabling a public link, workspace settings now show a local public-readiness control plane.
   It is intentionally a frontend preflight, not the final authority; backend publication validation
   must still make the authoritative allow/block decision.
@@ -95,6 +115,9 @@ These flows are all part of one app surface, with instance state selected throug
   reject any type outside `workspace` and `slide-studio`, including `agent-monitor`.
 - The anonymous public route also distinguishes explicit loading, not-found, forbidden, unsupported
   type, and render-error states instead of collapsing all failures into one generic error card.
+- Anonymous public workspace boot now stores the backend-provided `publicWorkspaceSpecHash`
+  alongside the compiled public workspace payload so later drift-handling work can compare and
+  replace the active public spec deterministically.
 - Public preview and anonymous public view both keep a non-interactive left widget rail so the
   workspace still reads like Workspaces without exposing clickable shell controls.
 - The saved-widget library lives at `/app/workspace-studio/widgets`.
@@ -232,9 +255,10 @@ These flows are all part of one app surface, with instance state selected throug
   `types=<comma-separated-values>` on the `?fe_list=true` endpoint. Backend list/detail serializers
   should preserve this field instead of relying only on labels.
 - Slide-contained widgets intentionally use a separate bounded subgrid host from the root canvas,
-  but they reuse the same shared widget renderer. The subgrid now keeps a fixed row height like the
-  root canvas; widgets inserted into a slide are normalized on transfer instead of continuously
-  shrinking the whole region.
+  but they reuse the same shared widget renderer. The subgrid keeps a fixed logical row height and
+  the slide surface now scales one logical 16:9 canvas across editor and slideshow surfaces, so
+  slide composition remains visually stable while widgets transferred into or out of a slide are
+  normalized on host transfer.
 - In canvas edit mode, widget instances expose shared chrome actions through one compact overflow
   menu instead of separate header buttons. Duplicated widgets receive a fresh instance id, keep
   their props/presentation, and drop runtime state so they republish from their own mounted lifecycle.

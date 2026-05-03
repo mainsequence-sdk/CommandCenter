@@ -38,9 +38,10 @@ canvas.
 - Duplicating a slide from the workspace canvas must also duplicate every slide-contained widget
   that references that slide id, including nested row children and any internal bindings among the
   duplicated slide descendants.
-- Existing root-canvas widgets can also be dragged directly into visible slide regions during
-  workspace edit mode. That transfer rewrites `slidePlacement` and moves the widget from the root
-  host into the slide subgrid host without duplicating the widget.
+- Existing root-canvas widgets can be dragged directly into visible slide regions during workspace
+  edit mode, and slide-contained widgets can also be dragged back out to the root canvas or into a
+  different slide region. Those transfers rewrite `slidePlacement` and move the widget between
+  layout hosts without duplicating the widget.
 - The slide surface itself does not expose inline `Add widget` buttons anymore. Widget insertion is
   expected to happen naturally by dragging normal workspace widgets into the slide.
 - At the root workspace canvas, the slide behaves like a structural full-width widget. It stays
@@ -49,9 +50,14 @@ canvas.
   private nested widget renderer. The current shared renderer lives in
   `src/features/dashboards/WorkspaceCanvasWidgetHost.tsx`, while the slide subgrid host only owns
   region-local layout.
-- Slide regions are bounded subgrids. Unlike the root canvas, they shrink their effective row
-  height as the occupied region height grows so contained widgets fit inside the slide instead of
-  overflowing below the region.
+- Slide regions are bounded subgrids with a fixed logical row height. They rely on the scaled
+  logical slide canvas instead of per-surface row-height drift, so slide composition stays stable
+  between edit mode and slideshow mode.
+- The slide surface now renders from one fixed logical 16:9 canvas that is uniformly scaled to fit
+  the editor and slideshow surfaces. Keep authoring/runtime visual tweaks compatible with that
+  scale-first model so slide composition does not drift between edit mode and presentation mode.
+- Presentation-oriented callers can now opt into a tighter frame fit so mobile slideshow viewports
+  maximize the slide before introducing extra stage padding.
 - Optional region presence is tracked through `headerEnabled`, `footerEnabled`, `leftEnabled`, and
   `rightEnabled`. The separate `showHeader` prop is reserved for the outer widget-frame header
   visibility.

@@ -213,6 +213,10 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   execution: {
     canExecute: (context) => {
       const props = normalizeConnectionQueryProps(context.targetOverrides?.props ?? context.props);
+      if (context.executionSurface === "public-workspace") {
+        return Boolean(context.publicExecution?.queryUrl && props.queryModelId);
+      }
+
       return Boolean(props.connectionRef?.id && props.queryModelId);
     },
     execute: async (context) => {
@@ -262,6 +266,12 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
     },
     getRefreshPolicy: (context) => {
       const props = normalizeConnectionQueryProps(context.targetOverrides?.props ?? context.props);
+      if (context.executionSurface === "public-workspace") {
+        return context.publicExecution?.queryUrl && props.queryModelId
+          ? "allow-refresh"
+          : "manual-only";
+      }
+
       return props.connectionRef?.id && props.queryModelId ? "allow-refresh" : "manual-only";
     },
     getExecutionKey: (context) => `connection-query:${context.instanceId}`,
