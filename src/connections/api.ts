@@ -176,6 +176,11 @@ export interface ConnectionQueryWebSocketAuthenticationOptions
   ticketProvider?: ConnectionWebSocketTicketProvider;
 }
 
+export interface PublicConnectionQueryWebSocketOptions
+  extends OpenConnectionQueryWebSocketOptions {
+  streamUrl: string;
+}
+
 export async function requestConnectionQueryWebSocketTicket(
   options?: Pick<ConnectionQueryWebSocketAuthenticationOptions, "ticketAudience" | "ticketProvider">,
 ) {
@@ -217,6 +222,110 @@ export async function createAuthenticatedConnectionQueryWebSocketSubscription<
     ...options,
     webSocketTicket: ticket.ticket,
   });
+}
+
+export function openPublicConnectionQueryWebSocket<TQuery = Record<string, unknown>>(
+  request: Omit<ConnectionStreamQueryRequest<TQuery>, "connectionId">,
+  options: PublicConnectionQueryWebSocketOptions,
+) {
+  assertConnectionQueryModelStreamable(options.queryModel);
+
+  const url = buildWebSocketEndpointUrl(options.streamUrl, {
+    apiBaseUrl: options.apiBaseUrl,
+  });
+  const factory = options.webSocketFactory ?? openDefaultWebSocket;
+
+  return factory(url, options.protocols);
+}
+
+export function createPublicConnectionQueryWebSocketSubscription<
+  TQuery = Record<string, unknown>,
+>(
+  request: Omit<ConnectionStreamQueryRequest<TQuery>, "connectionId">,
+  handlers: ConnectionQueryWebSocketHandlers,
+  options: PublicConnectionQueryWebSocketOptions,
+): ConnectionQueryWebSocketSubscription {
+  const socket = openPublicConnectionQueryWebSocket(request, options);
+  const socketUrl = socket.url;
+  let closed = false;
+
+  options.onLifecycleEvent?.({
+    type: "socket-connect-start",
+    url: socketUrl,
+  });
+
+  socket.onopen = (event) => {
+    if (closed) {
+      return;
+    }
+
+    socket.send(JSON.stringify({
+      type: "subscribe",
+      request,
+    }));
+    options.onLifecycleEvent?.({
+      type: "socket-open",
+      url: socketUrl,
+    });
+    options.onLifecycleEvent?.({
+      type: "subscribe-sent",
+      url: socketUrl,
+    });
+    handlers.onOpen?.(event);
+  };
+
+  socket.onmessage = (event) => {
+    if (closed) {
+      return;
+    }
+
+    try {
+      handlers.onMessage(parseConnectionStreamServerMessage(event.data), event);
+    } catch (error) {
+      handlers.onParseError?.(toError(error), event);
+    }
+  };
+
+  socket.onerror = (event) => {
+    if (!closed) {
+      options.onLifecycleEvent?.({
+        type: "socket-error",
+        url: socketUrl,
+      });
+      handlers.onError?.(event);
+    }
+  };
+
+  socket.onclose = (event) => {
+    if (!closed) {
+      options.onLifecycleEvent?.({
+        type: "socket-close",
+        url: socketUrl,
+        code: event.code,
+        reason: event.reason,
+      });
+      handlers.onClose?.(event);
+    }
+  };
+
+  return {
+    socket,
+    close(code = 1000, reason = "closed") {
+      if (closed) {
+        return;
+      }
+
+      closed = true;
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.onclose = null;
+
+      if (socket.readyState !== 2 && socket.readyState !== 3) {
+        socket.close(code, reason);
+      }
+    },
+  };
 }
 
 export function buildConnectionStreamSubscribeMessage<TQuery = Record<string, unknown>>(
@@ -836,6 +945,28 @@ export function queryConnection<
   const template = commandCenterConfig.connections.instances.queryUrl.trim();
   return requestJson<TResponse>(
     applyTemplate(template, { id: request.connectionId }),
+    {
+      method: "POST",
+      body: JSON.stringify(request),
+      signal: options?.signal,
+    },
+    traceMeta,
+  );
+}
+
+export function queryPublicWidgetExecution<
+  TRequest extends Record<string, unknown>,
+  TResponse = ConnectionQueryResponse,
+>(
+  queryUrl: string,
+  request: TRequest,
+  traceMeta?: DashboardRequestTraceMeta,
+  options?: {
+    signal?: AbortSignal;
+  },
+) {
+  return requestJson<TResponse>(
+    queryUrl,
     {
       method: "POST",
       body: JSON.stringify(request),

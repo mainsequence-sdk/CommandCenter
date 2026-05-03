@@ -29,6 +29,7 @@ layout directly inside a normal workspace canvas.
 - You can drag an existing root-canvas widget directly into a visible slide region to move it into
   the slide.
 - Drag child widgets from their header and resize them inside their assigned region.
+- Duplicating the slide duplicates the widgets already placed inside that slide as well.
 - As a slide region fills up, the slide subgrid shrinks row height inside that region so widgets
   stay inside the slide bounds instead of overflowing below the slide.
 

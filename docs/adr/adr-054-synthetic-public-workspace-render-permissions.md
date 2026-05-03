@@ -67,6 +67,37 @@ The public renderer therefore becomes:
 - baseline workspace-readable
 - not operator-capable
 
+## Public Execution Contract
+
+Permissions are only one half of the public-rendering contract.
+
+Public routes also need a different execution contract than authenticated workspace authoring.
+
+What must not happen in public mode:
+
+- `GET /api/v1/command_center/connections/`
+- `POST /api/v1/command_center/connections/<id>/query/`
+- `WS /api/v1/command_center/connections/<id>/stream-query/`
+- any client-owned execution routing keyed by `connectionId`
+
+Instead, public rendering must execute widgets through backend-owned public workspace endpoints.
+
+Minimum target contract:
+
+- `GET /api/v1/command_center/public/workspaces/<token>/`
+- `POST /api/v1/command_center/public/workspaces/<token>/widgets/<widget_id>/query/`
+- `WS /api/v1/command_center/public/workspaces/<token>/stream-query/`
+
+To support that, the public workspace payload must provide a widget-scoped public execution
+contract, for example:
+
+- `widget.publicExecution.queryUrl`
+- `widget.publicExecution.streamUrl`
+- `widget.publicExecution.capability`
+- `widget.publicExecution.allowedInputs`
+
+The frontend must treat that contract as authoritative in public mode.
+
 ## Core Rules
 
 1. Public routes must not use raw empty permissions when rendering workspace widgets.
@@ -76,6 +107,8 @@ The public renderer therefore becomes:
    viewer is authenticated.
 5. Unsupported or unsafe widgets must be blocked by publication validation, not by runtime locked
    cards in the public renderer.
+6. Public Preview and anonymous Public View must use the same public execution engine.
+7. Public widget execution must use only backend-owned public execution endpoints.
 
 ## Synthetic Public Permission Profile
 
@@ -176,11 +209,19 @@ public-safe.
 
 ## Implementation Tasks
 
-- [ ] Add a shared synthetic public workspace render permission constant.
-- [ ] Use that synthetic permission profile in authenticated Public Preview widget rendering.
-- [ ] Use that synthetic permission profile in anonymous Public View widget rendering.
-- [ ] Stop using raw empty permission arrays for public workspace widget gating.
-- [ ] Keep shell/app access control separate from public widget rendering permissions.
+- [x] Add a shared synthetic public workspace render permission constant.
+- [x] Use that synthetic permission profile in authenticated Public Preview widget rendering.
+- [x] Use that synthetic permission profile in anonymous Public View widget rendering.
+- [x] Stop using raw empty permission arrays for public workspace widget gating.
+- [x] Keep shell/app access control separate from public widget rendering permissions.
+- [ ] Extend the public workspace detail payload with widget-scoped `publicExecution` metadata.
+- [ ] Add an explicit public execution surface/context in the widget runtime layer.
+- [ ] Route `connection-query` execution through `widget.publicExecution.queryUrl` in public mode.
+- [ ] Route `connection-stream-query` execution through `widget.publicExecution.streamUrl` in
+      public mode.
+- [ ] Stop using `connectionId` as the client execution key in public mode.
+- [ ] Ensure authenticated Public Preview uses the same public execution engine as anonymous
+      Public View.
 - [ ] Add publication validation that rejects widgets or instances requiring permissions outside the
       synthetic public baseline.
 - [ ] Add publication validation for runtime or connection dependencies that are not public-safe.

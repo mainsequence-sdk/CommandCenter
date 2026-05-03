@@ -35,6 +35,9 @@ canvas.
 - Saved-widget import/export now preserves `slidePlacement` metadata for slide-contained widgets.
   Group imports remap slide child ownership to the newly created slide ids when the saved payload
   includes both the slide widget and its contained widgets.
+- Duplicating a slide from the workspace canvas must also duplicate every slide-contained widget
+  that references that slide id, including nested row children and any internal bindings among the
+  duplicated slide descendants.
 - Existing root-canvas widgets can also be dragged directly into visible slide regions during
   workspace edit mode. That transfer rewrites `slidePlacement` and moves the widget from the root
   host into the slide subgrid host without duplicating the widget.

@@ -277,8 +277,8 @@ export function WorkspacesPage() {
                           </div>
                           {workspace.publicUrl ? (
                             <Badge
-                              variant="warning"
-                              className="border border-warning/30 bg-warning/12 text-warning"
+                              variant="danger"
+                              className="border border-danger/30 bg-danger/12 text-danger"
                             >
                               Public
                             </Badge>

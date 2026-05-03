@@ -1,4 +1,8 @@
-import type { WidgetInstanceBindings, WidgetInstancePresentation } from "@/widgets/types";
+import type {
+  WidgetInstanceBindings,
+  WidgetInstancePresentation,
+  WidgetPublicExecutionContract,
+} from "@/widgets/types";
 
 export interface DashboardGridConfig {
   columns?: number;
@@ -112,6 +116,7 @@ export interface DashboardWidgetInstance {
   title?: string;
   props?: Record<string, unknown>;
   runtimeState?: Record<string, unknown>;
+  publicExecution?: WidgetPublicExecutionContract;
   presentation?: WidgetInstancePresentation;
   bindings?: WidgetInstanceBindings;
   managedBy?: DashboardManagedWidgetOwner;

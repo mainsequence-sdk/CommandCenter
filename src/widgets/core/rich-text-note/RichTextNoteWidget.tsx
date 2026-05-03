@@ -273,7 +273,9 @@ export function RichTextNoteWidget({
   onPropsChange,
 }: Props) {
   const [editorFocused, setEditorFocused] = useState(false);
+  const [toolbarOpen, setToolbarOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [toolbarStyle, setToolbarStyle] = useState<CSSProperties | null>(null);
   const contentHtml = normalizeRichTextHtml(props.contentHtml);
   const emptyState = props.emptyState?.trim() || defaultEmptyState;
@@ -367,7 +369,7 @@ export function RichTextNoteWidget({
   }, [contentHtml, editor]);
 
   useLayoutEffect(() => {
-    if (!editable || !editorFocused) {
+    if (!editable || !toolbarOpen) {
       setToolbarStyle(null);
       return undefined;
     }
@@ -376,15 +378,26 @@ export function RichTextNoteWidget({
 
     function updateToolbarPosition() {
       const rect = rootRef.current?.getBoundingClientRect();
+      const toolbarRect = toolbarRef.current?.getBoundingClientRect();
 
-      if (!rect) {
+      if (!rect || !toolbarRect) {
         return;
       }
 
+      const viewportMargin = 12;
+      const verticalGap = 10;
+      const preferredTop = rect.top - toolbarRect.height - verticalGap;
+      const fallbackTop = rect.bottom + verticalGap;
+      const maxTop = Math.max(viewportMargin, window.innerHeight - toolbarRect.height - viewportMargin);
+      const maxLeft = Math.max(viewportMargin, window.innerWidth - toolbarRect.width - viewportMargin);
+
       setToolbarStyle({
         position: "fixed",
-        top: Math.max(12, rect.top + 12),
-        left: Math.max(12, rect.left + 40),
+        top:
+          preferredTop >= viewportMargin
+            ? preferredTop
+            : Math.min(maxTop, fallbackTop),
+        left: Math.min(maxLeft, Math.max(viewportMargin, rect.left)),
         zIndex: 2147483000,
       });
     }
@@ -400,7 +413,53 @@ export function RichTextNoteWidget({
       window.removeEventListener("resize", updateToolbarPosition);
       window.removeEventListener("scroll", updateToolbarPosition, true);
     };
-  }, [editable, editorFocused]);
+  }, [editable, toolbarOpen]);
+
+  useEffect(() => {
+    if (!editable || !toolbarOpen) {
+      return undefined;
+    }
+
+    function closeToolbarOnOutsideInteraction(event: MouseEvent | PointerEvent | KeyboardEvent) {
+      if (event instanceof KeyboardEvent) {
+        if (event.key === "Escape") {
+          setToolbarOpen(false);
+        }
+
+        return;
+      }
+
+      const target = event.target;
+
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (rootRef.current?.contains(target) || toolbarRef.current?.contains(target)) {
+        return;
+      }
+
+      setToolbarOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeToolbarOnOutsideInteraction, true);
+    document.addEventListener("contextmenu", closeToolbarOnOutsideInteraction, true);
+    document.addEventListener("keydown", closeToolbarOnOutsideInteraction, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeToolbarOnOutsideInteraction, true);
+      document.removeEventListener("contextmenu", closeToolbarOnOutsideInteraction, true);
+      document.removeEventListener("keydown", closeToolbarOnOutsideInteraction, true);
+    };
+  }, [editable, toolbarOpen]);
+
+  useEffect(() => {
+    if (editable) {
+      return;
+    }
+
+    setToolbarOpen(false);
+  }, [editable]);
 
   if (!editor) {
     return null;
@@ -434,12 +493,26 @@ export function RichTextNoteWidget({
       : "paragraph";
 
   return (
-    <div ref={rootRef} className="relative flex h-full min-h-0 flex-col overflow-visible">
-      {editable && editorFocused && toolbarStyle && typeof document !== "undefined"
+    <div
+      ref={rootRef}
+      className="relative flex h-full min-h-0 flex-col overflow-visible"
+      onContextMenu={(event) => {
+        if (!editable) {
+          return;
+        }
+
+        event.preventDefault();
+        editor.chain().focus().run();
+        setEditorFocused(true);
+        setToolbarOpen(true);
+      }}
+    >
+      {editable && toolbarOpen && typeof document !== "undefined"
         ? createPortal(
           <div
+            ref={toolbarRef}
             className="pointer-events-auto w-max min-w-[640px] rounded-[calc(var(--radius)+6px)] border border-border/70 bg-background/94 px-2 py-2 shadow-[var(--shadow-panel)] backdrop-blur-xl"
-            style={toolbarStyle}
+            style={toolbarStyle ?? undefined}
             data-no-widget-drag="true"
           >
             <div className="flex flex-wrap items-center gap-1.5">
@@ -662,7 +735,7 @@ export function RichTextNoteWidget({
                 <EditorContent editor={editor} />
                 {editable && !hasContent ? (
                   <div className="mt-3 text-sm text-muted-foreground">
-                    Start typing directly on the card. The formatting toolbar appears when the note is focused.
+                    Start typing directly on the card. Right-click to open formatting tools.
                   </div>
                 ) : null}
               </div>

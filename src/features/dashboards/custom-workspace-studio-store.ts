@@ -70,6 +70,10 @@ interface CustomWorkspaceStudioState {
       bumpRevision?: boolean;
     },
   ) => void;
+  updateWorkspaceListItemSummary: (
+    workspaceId: string,
+    updater: (item: WorkspaceListItemSummary) => WorkspaceListItemSummary,
+  ) => void;
   setSelectedWorkspaceId: (workspaceId: string | null) => void;
   createWorkspace: (
     workspace: DashboardDefinition,
@@ -490,6 +494,25 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
           options?.bumpRevision === false
             ? current.workspaceUserStateRevisionById
             : bumpWorkspaceDraftRevisions(current.workspaceUserStateRevisionById, [workspaceId]),
+      };
+    });
+  },
+  updateWorkspaceListItemSummary(workspaceId, updater) {
+    set((current) => {
+      const existing = current.workspaceListItems.find((item) => item.id === workspaceId);
+
+      if (!existing) {
+        return current;
+      }
+
+      const nextItem = updater(existing);
+
+      if (nextItem === existing) {
+        return current;
+      }
+
+      return {
+        workspaceListItems: replaceWorkspaceListItem(current.workspaceListItems, nextItem),
       };
     });
   },

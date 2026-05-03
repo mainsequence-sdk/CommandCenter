@@ -246,27 +246,28 @@ anonymous exposure.
 - [x] Keep Public Preview available only for `workspace` and `slide-studio`.
 - [x] Explicitly reject `agent-monitor` on the preview surface.
 - [x] Add a surfaced `Public preview` action in authenticated workspace authoring flows.
-- [ ] Add a backend-owned public workspace access contract for supported workspace types.
-- [ ] Define how the backend represents public availability and the public identifier or URL for a
+- [x] Add a backend-owned public workspace access contract for supported workspace types.
+- [x] Define how the backend represents public availability and the public identifier or URL for a
       workspace.
-- [ ] Add an unauthenticated public workspace detail endpoint or equivalent backend public route.
-- [ ] Ensure the backend returns the canonical workspace `type` in public responses.
-- [ ] Restrict Public View eligibility to `workspace` and `slide-studio`.
-- [ ] Explicitly reject `agent-monitor` on the public surface.
-- [ ] Add a shellless public frontend route space that does not mount the normal Command Center
+- [x] Add an unauthenticated public workspace detail endpoint or equivalent backend public route.
+- [x] Ensure the backend returns the canonical workspace `type` in public responses.
+- [x] Restrict Public View eligibility to `workspace` and `slide-studio`.
+- [x] Explicitly reject `agent-monitor` on the public surface.
+- [x] Add a shellless public frontend route space that does not mount the normal Command Center
       rails.
-- [ ] Build a shared public-view loader that resolves the backend public payload and dispatches to
+- [x] Build a shared public-view loader that resolves the backend public payload and dispatches to
       the correct runtime projection by workspace type.
-- [ ] For `workspace`, render the existing read-only workspace runtime canvas with no operator
+- [x] For `workspace`, render the existing read-only workspace runtime canvas with no operator
       chrome.
-- [ ] For `slide-studio`, render the existing read-only Slide Studio runtime surface with no
+- [x] For `slide-studio`, render the existing read-only Slide Studio runtime surface with no
       operator chrome.
-- [ ] Ensure widget overflow menus, settings actions, edit affordances, graph routes, and other
+- [x] Ensure widget overflow menus, settings actions, edit affordances, graph routes, and other
       authoring controls do not render in Public View.
-- [ ] Add public-specific loading, not-found, forbidden, and unsupported-type states.
+- [x] Add public-specific loading, not-found, and render-error states.
+- [x] Add explicit forbidden and unsupported-type public states.
 - [ ] Define the public-safety validation gate for widgets, bindings, connections, and runtime
       dependencies before public publication can be enabled.
-- [ ] Add a surfaced `Open public view` or `Copy public URL` action only when the backend marks the
+- [x] Add a surfaced `Open public view` or `Copy public URL` action only when the backend marks the
       workspace as public.
 
 ## Backend Contract Impact

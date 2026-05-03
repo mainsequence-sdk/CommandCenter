@@ -41,6 +41,7 @@ import type {
   WidgetDefinition,
   WidgetExecutionDashboardState,
   WidgetExecutionReason,
+  WidgetExecutionSurface,
   WidgetExecutionTargetOverrides,
 } from "@/widgets/types";
 import {
@@ -86,10 +87,13 @@ export interface DashboardWidgetFlowExecutionResult {
 interface DashboardWidgetExecutionContextValue {
   scopeId: string;
   activeSurface: DashboardExecutionSurface;
+  executionSurface: WidgetExecutionSurface;
+  publicWorkspaceToken?: string;
   activeRefreshCycleId?: string;
   initialHydrationActive: boolean;
   dashboardSurfaceHydrationActive: boolean;
   dashboardSurfaceHydrationReason?: DashboardSurfaceHydrationReason;
+  getWidgetInstance: (instanceId?: string) => DashboardWidgetInstance | undefined;
   executeWidgetGraph: (
     targetInstanceId: string,
     options: ExecuteWidgetGraphOptions,
@@ -181,7 +185,9 @@ function serializeDashboardExecutionState(value: WidgetExecutionDashboardState) 
 export function DashboardWidgetExecutionProvider({
   children,
   activeSurface = "dashboard",
+  executionSurface = "private-dashboard",
   enableAutomaticHydration = true,
+  publicWorkspaceToken,
   scopeId,
   widgets,
   writeRuntimeState,
@@ -189,7 +195,9 @@ export function DashboardWidgetExecutionProvider({
 }: {
   children: ReactNode;
   activeSurface?: DashboardExecutionSurface;
+  executionSurface?: WidgetExecutionSurface;
   enableAutomaticHydration?: boolean;
+  publicWorkspaceToken?: string;
   scopeId: string;
   widgets: DashboardWidgetInstance[];
   writeRuntimeState: (
@@ -251,13 +259,17 @@ export function DashboardWidgetExecutionProvider({
             resolveWidgetDefinition: effectiveResolveWidgetDefinition,
             refreshCycleId: initialRefreshCycleId,
             dashboardState,
+            executionSurface,
+            publicWorkspaceToken,
           })
         : [],
     [
       dashboardState,
       enableAutomaticHydration,
+      executionSurface,
       effectiveResolveWidgetDefinition,
       initialRefreshCycleId,
+      publicWorkspaceToken,
       widgets,
     ],
   );
@@ -388,6 +400,8 @@ export function DashboardWidgetExecutionProvider({
 
     const executionPromise = executeDashboardWidgetGraph({
       scopeId,
+      executionSurface,
+      publicWorkspaceToken,
       widgets: widgetsRef.current,
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
       targetInstanceId,
@@ -621,6 +635,8 @@ export function DashboardWidgetExecutionProvider({
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
       refreshCycleId: initialRefreshCycleId,
       dashboardState,
+      executionSurface,
+      publicWorkspaceToken,
     });
 
     if (refreshTargets.length === 0) {
@@ -745,8 +761,10 @@ export function DashboardWidgetExecutionProvider({
   }, [
     dashboardState,
     enableAutomaticHydration,
+    executionSurface,
     effectiveResolveWidgetDefinition,
     initialRefreshCycleId,
+    publicWorkspaceToken,
     scopeId,
   ]);
 
@@ -768,6 +786,8 @@ export function DashboardWidgetExecutionProvider({
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
       refreshCycleId,
       dashboardState,
+      executionSurface,
+      publicWorkspaceToken,
     });
 
     if (refreshTargets.length === 0) {
@@ -835,7 +855,14 @@ export function DashboardWidgetExecutionProvider({
       cancelled = true;
       abortController.abort();
     };
-  }, [dashboardState, effectiveResolveWidgetDefinition, lastRefreshedAt, scopeId]);
+  }, [
+    dashboardState,
+    executionSurface,
+    effectiveResolveWidgetDefinition,
+    lastRefreshedAt,
+    publicWorkspaceToken,
+    scopeId,
+  ]);
 
   useEffect(() => {
     if (!surfaceReturnHydrationCycleId) {
@@ -849,6 +876,8 @@ export function DashboardWidgetExecutionProvider({
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
       refreshCycleId: cycleId,
       dashboardState,
+      executionSurface,
+      publicWorkspaceToken,
     });
 
     if (refreshTargets.length === 0) {
@@ -929,16 +958,38 @@ export function DashboardWidgetExecutionProvider({
       cancelled = true;
       abortController.abort();
     };
-  }, [dashboardState, effectiveResolveWidgetDefinition, scopeId, surfaceReturnHydrationCycleId]);
+  }, [
+    dashboardState,
+    executionSurface,
+    effectiveResolveWidgetDefinition,
+    publicWorkspaceToken,
+    scopeId,
+    surfaceReturnHydrationCycleId,
+  ]);
 
   const value = useMemo<DashboardWidgetExecutionContextValue>(
     () => ({
       scopeId,
       activeSurface,
+      executionSurface,
+      publicWorkspaceToken,
       activeRefreshCycleId,
       initialHydrationActive,
       dashboardSurfaceHydrationActive,
       dashboardSurfaceHydrationReason,
+      getWidgetInstance: (instanceId) => {
+        if (!instanceId) {
+          return undefined;
+        }
+
+        const snapshot = buildDashboardExecutionSnapshot({
+          widgets: widgetsRef.current,
+          resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+          runtimeDataStore,
+        });
+
+        return snapshot.getInstance(instanceId);
+      },
       executeWidgetGraph: (targetInstanceId, options) =>
         runGraph(targetInstanceId, options),
       executeWidgetFlow: (sourceInstanceId, options) =>
@@ -983,9 +1034,11 @@ export function DashboardWidgetExecutionProvider({
       dashboardSurfaceHydrationActive,
       dashboardSurfaceHydrationReason,
       dashboardState,
+      executionSurface,
       effectiveResolveWidgetDefinition,
       executionStates,
       initialHydrationActive,
+      publicWorkspaceToken,
       runtimeDataStore,
       scopeId,
     ],

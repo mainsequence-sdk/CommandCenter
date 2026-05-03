@@ -66,14 +66,13 @@ import {
   resolveWorkspaceCanvasMinHeight,
 } from "./workspace-canvas-height";
 import { PublicWorkspaceStatusBar } from "./PublicWorkspaceStatusBar";
+import { clonePublicWorkspaceRenderPermissions } from "./public-workspace-permissions";
 import { WorkspaceWidgetRail } from "./WorkspaceChrome";
 import { WorkspaceCanvasWidgetCard } from "./WorkspaceCanvasWidgetHost";
 import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
 import { isManagedDashboardWidgetHiddenFromNormalRail } from "./workspace-widget-visibility";
 
 const EMPTY_PERMISSIONS: string[] = [];
-const PUBLIC_RENDER_PERMISSIONS: readonly string[] = ["workspaces:view"];
-
 function layoutToStyle(layout: ResolvedDashboardWidgetLayout): CSSProperties {
   return {
     gridColumn: `${layout.x + 1} / span ${layout.w}`,
@@ -231,12 +230,19 @@ export function DashboardCanvas({
   );
 }
 
-export function PublicDashboardCanvas({ dashboard }: { dashboard: DashboardDefinition }) {
+export function PublicDashboardCanvas({
+  dashboard,
+  publicWorkspaceToken,
+}: {
+  dashboard: DashboardDefinition;
+  publicWorkspaceToken?: string;
+}) {
   return (
     <DashboardCanvasSurface
       dashboard={dashboard}
       publicView
-      permissions={PUBLIC_RENDER_PERMISSIONS}
+      publicWorkspaceToken={publicWorkspaceToken}
+      permissions={clonePublicWorkspaceRenderPermissions()}
     />
   );
 }
@@ -244,10 +250,12 @@ export function PublicDashboardCanvas({ dashboard }: { dashboard: DashboardDefin
 function DashboardCanvasSurface({
   dashboard,
   publicView,
+  publicWorkspaceToken,
   permissions,
 }: {
   dashboard: DashboardDefinition;
   publicView: boolean;
+  publicWorkspaceToken?: string;
   permissions: readonly string[];
 }) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -898,6 +906,8 @@ function DashboardCanvasSurface({
     <DashboardControlsProvider key={dashboard.id} controls={dashboard.controls}>
       <DashboardWidgetRegistryProvider widgets={renderedWidgets}>
         <DashboardWidgetExecutionProvider
+          executionSurface={publicView ? "public-workspace" : "private-dashboard"}
+          publicWorkspaceToken={publicView ? publicWorkspaceToken : undefined}
           scopeId={dashboard.id}
           widgets={renderedWidgets}
           writeRuntimeState={(instanceId, runtimeState) => {

@@ -26,6 +26,7 @@ import {
   rotateWorkspacePublicLinkInBackend,
 } from "./workspace-api";
 import { buildPublicWorkspaceFrontendUrlFromBackendUrl } from "./public-workspace-url";
+import { assessWorkspacePublicReadiness } from "./public-workspace-readiness";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 import {
@@ -108,6 +109,7 @@ export function CustomWorkspaceSettingsPage() {
     persistenceMode,
     setSelectedWorkspaceId,
     updateSelectedWorkspace,
+    updateSelectedWorkspaceListItemSummary,
     createWorkspace,
     createWorkspaceFromDefinition,
     deleteSelectedWorkspace,
@@ -161,6 +163,10 @@ export function CustomWorkspaceSettingsPage() {
   const publicUrl = workspace.publicUrl ?? null;
   const publicFrontendUrl = buildPublicWorkspaceFrontendUrlFromBackendUrl(publicUrl) ?? null;
   const isWorkspacePublic = Boolean(publicUrl);
+  const publicReadiness = useMemo(
+    () => assessWorkspacePublicReadiness(workspace),
+    [workspace],
+  );
   const modelDetailsCard = (
     <Card>
       <CardHeader>
@@ -239,6 +245,46 @@ export function CustomWorkspaceSettingsPage() {
                 workspaces.
               </p>
             )}
+          </div>
+          <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/45 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Public readiness
+              </div>
+              <Badge
+                variant={publicReadiness.allowed ? "success" : "danger"}
+                className={
+                  publicReadiness.allowed
+                    ? "border border-success/30 bg-success/10 text-success"
+                    : "border border-danger/30 bg-danger/10 text-danger"
+                }
+              >
+                {publicReadiness.allowed ? "Ready" : "Blocked"}
+              </Badge>
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Checked {publicReadiness.checkedWidgetCount} widget{publicReadiness.checkedWidgetCount === 1 ? "" : "s"} against the current frontend public-safety rules.
+            </div>
+            {publicReadiness.issues.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {publicReadiness.issues.map((issue) => (
+                  <div
+                    key={issue.id}
+                    className="rounded-[calc(var(--radius)-8px)] border border-danger/25 bg-danger/8 px-3 py-2"
+                  >
+                    <div className="text-sm font-medium text-danger">{issue.title}</div>
+                    <div className="mt-1 text-xs text-danger/90">{issue.description}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-[calc(var(--radius)-8px)] border border-success/25 bg-success/8 px-3 py-2 text-sm text-success">
+                This workspace currently passes the frontend public-safety preflight.
+              </div>
+            )}
+            <div className="mt-3 text-[11px] text-muted-foreground">
+              This is a frontend preflight only. Backend publication validation remains authoritative.
+            </div>
           </div>
           {supportsPublicProjection && isWorkspacePublic ? (
             <div className="mt-3 space-y-2">
@@ -322,7 +368,7 @@ export function CustomWorkspaceSettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled={!supportsPublicProjection}
+              disabled={!supportsPublicProjection || (!isWorkspacePublic && !publicReadiness.allowed)}
               className="border-warning/40 bg-warning/8 text-warning hover:border-warning/50 hover:bg-warning/14 hover:text-warning"
               onClick={() => {
                 setPublicLinkDialogMode("enable");
@@ -332,6 +378,11 @@ export function CustomWorkspaceSettingsPage() {
               {isWorkspacePublic ? "Public access enabled" : "Make workspace public"}
             </Button>
           </div>
+          {!isWorkspacePublic && !publicReadiness.allowed ? (
+            <div className="mt-2 text-xs text-warning">
+              Fix the public readiness issues above before enabling public access.
+            </div>
+          ) : null}
         </div>
 
         <Button
@@ -457,11 +508,24 @@ export function CustomWorkspaceSettingsPage() {
   }
 
   async function handleEnablePublicLink() {
+    if (!publicReadiness.allowed) {
+      toast({
+        title: "Workspace is not ready for public access",
+        description: "Resolve the public readiness issues before enabling a public link.",
+        variant: "error",
+      });
+      return;
+    }
+
     try {
       const response = await createWorkspacePublicLinkInBackend(workspace.id);
       updateSelectedWorkspace((dashboard) => ({
         ...dashboard,
         publicUrl: response.publicUrl ?? dashboard.publicUrl ?? null,
+      }));
+      updateSelectedWorkspaceListItemSummary((item) => ({
+        ...item,
+        publicUrl: response.publicUrl ?? item.publicUrl ?? null,
       }));
       toast({
         title: response.urlRevealed ? "Workspace is now public" : "Workspace public access confirmed",
@@ -487,6 +551,10 @@ export function CustomWorkspaceSettingsPage() {
         ...dashboard,
         publicUrl: null,
       }));
+      updateSelectedWorkspaceListItemSummary((item) => ({
+        ...item,
+        publicUrl: null,
+      }));
       toast({
         title: "Public access disabled",
         description: "Anonymous access to this workspace has been turned off.",
@@ -508,6 +576,10 @@ export function CustomWorkspaceSettingsPage() {
       updateSelectedWorkspace((dashboard) => ({
         ...dashboard,
         publicUrl: response.publicUrl ?? dashboard.publicUrl ?? null,
+      }));
+      updateSelectedWorkspaceListItemSummary((item) => ({
+        ...item,
+        publicUrl: response.publicUrl ?? item.publicUrl ?? null,
       }));
       toast({
         title: "Public URL rotated",

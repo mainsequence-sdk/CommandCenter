@@ -862,9 +862,11 @@ function WorkspaceSnapshotToolbarControl({
 export function CustomDashboardStudioPage({
   publicPreview = false,
   withRuntimeProviders = true,
+  renderPermissions,
 }: {
   publicPreview?: boolean;
   withRuntimeProviders?: boolean;
+  renderPermissions?: readonly string[];
 } = {}) {
   const navigate = useNavigate();
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -892,6 +894,7 @@ export function CustomDashboardStudioPage({
     commitSelectedWorkspaceControlsState,
     saveWorkspaceDraft,
   } = useCustomWorkspaceStudio();
+  const effectivePermissions = renderPermissions ?? permissions;
   const backendMode = persistenceMode === "backend";
   const updateSelectedWorkspaceRef = useRef<typeof updateSelectedWorkspace | null>(null);
   const [catalogQuery, setCatalogQuery] = useState("");
@@ -969,7 +972,7 @@ export function CustomDashboardStudioPage({
   const allowedWidgets = useMemo(
     () =>
       appRegistry.widgets.filter((widget) =>
-        hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
+        hasAllPermissions(effectivePermissions, widget.requiredPermissions ?? []) &&
         (!allowedWidgetIdSet || allowedWidgetIdSet.has(widget.id)) &&
         (!deniedWidgetIdSet || !deniedWidgetIdSet.has(widget.id)) &&
         (
@@ -980,7 +983,7 @@ export function CustomDashboardStudioPage({
     [
       allowedWidgetIdSet,
       deniedWidgetIdSet,
-      permissions,
+      effectivePermissions,
       registeredWidgetTypes.activeWidgetIdSet,
       registeredWidgetTypes.endpointConfigured,
     ],
@@ -2504,7 +2507,7 @@ export function CustomDashboardStudioPage({
     ];
 
     return widget &&
-      hasAllPermissions(permissions, required) &&
+      hasAllPermissions(effectivePermissions, required) &&
       !isManagedDashboardWidgetHiddenFromNormalRail(instance)
       ? [
           {
@@ -2677,7 +2680,7 @@ export function CustomDashboardStudioPage({
         <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
           <SidebarOnlyRuntimeMounts
             sidebarOnlyWidgets={sidebarOnlyWidgets}
-            permissions={permissions}
+            permissions={effectivePermissions}
             onRuntimeStateChange={handleWidgetRuntimeStateChange}
           />
         </div>
@@ -2805,7 +2808,7 @@ export function CustomDashboardStudioPage({
                       <WorkspaceSnapshotToolbarControl
                         dashboard={selectedDashboard}
                         resolvedDashboard={resolvedDashboard}
-                        permissions={permissions}
+                        permissions={effectivePermissions}
                         profile={snapshotProfile}
                       />
                     ) : null}
@@ -3390,7 +3393,7 @@ export function CustomDashboardStudioPage({
           open={slideRegionComposer !== null}
           title="Add widget to slide"
           description="Place a normal workspace widget into the selected slide region."
-          permissions={permissions}
+          permissions={effectivePermissions}
           userId={catalogPreferencesUserId}
           topOffsetClassName={dashboardMenuHidden ? "top-4" : "top-12"}
           widgetFilter={(widget) =>

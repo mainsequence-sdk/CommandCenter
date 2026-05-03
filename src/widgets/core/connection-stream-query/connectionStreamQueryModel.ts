@@ -1,5 +1,6 @@
 import {
   createAuthenticatedConnectionQueryWebSocketSubscription,
+  createPublicConnectionQueryWebSocketSubscription,
   type ConnectionQueryWebSocketHandlers,
   type ConnectionQueryWebSocketSubscription,
   type ConnectionQueryWebSocketAuthenticationOptions,
@@ -36,7 +37,11 @@ import {
   storeTabularFrameRuntimeState,
   type RuntimeDataStore,
 } from "@/widgets/shared/runtime-data-store";
-import type { WidgetExecutionDashboardState } from "@/widgets/types";
+import type {
+  WidgetExecutionDashboardState,
+  WidgetExecutionSurface,
+  WidgetPublicExecutionContract,
+} from "@/widgets/types";
 
 export type ConnectionStreamLifecycleStatus =
   | "idle"
@@ -751,6 +756,13 @@ export function buildConnectionStreamQueryRequest(
   };
 }
 
+export function buildPublicConnectionStreamQueryRequestPayload(
+  request: ConnectionStreamQueryRequest<Record<string, unknown>>,
+) {
+  const { connectionId: _connectionId, ...publicRequest } = request;
+  return publicRequest;
+}
+
 export function normalizeConnectionStreamQueryRuntimeState(
   value: unknown,
 ): ConnectionStreamQueryRuntimeState | null {
@@ -1062,6 +1074,8 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
   request: ConnectionStreamQueryRequest<Record<string, unknown>>;
   props: ConnectionStreamQueryWidgetProps;
   queryModel: ConnectionQueryModel;
+  executionSurface?: WidgetExecutionSurface;
+  publicExecution?: WidgetPublicExecutionContract;
   initialRuntimeState?: unknown;
   sourceWidgetId?: string;
   onRuntimeStateChange: (state: ConnectionStreamQueryRuntimeState) => void;
@@ -1105,6 +1119,12 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
   let nextRetryAtMs: number | undefined;
   let lastDisconnectAtMs: number | undefined;
   let lastDisconnectReason: string | undefined;
+  const publicStreamUrl =
+    input.executionSurface === "public-workspace" &&
+    typeof input.publicExecution?.streamUrl === "string" &&
+    input.publicExecution.streamUrl.trim()
+      ? input.publicExecution.streamUrl.trim()
+      : undefined;
 
   function publish(state: ConnectionStreamQueryRuntimeState) {
     if (!active) {
@@ -1457,14 +1477,31 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
       },
     };
 
-    void createAuthenticatedConnectionQueryWebSocketSubscription(
-      request,
-      handlers,
-      {
-        ...input.options,
-        queryModel: input.queryModel,
-      },
-    )
+    const subscriptionPromise =
+      input.executionSurface === "public-workspace"
+        ? publicStreamUrl
+          ? createPublicConnectionQueryWebSocketSubscription(
+              buildPublicConnectionStreamQueryRequestPayload(request),
+              handlers,
+              {
+                ...input.options,
+                queryModel: input.queryModel,
+                streamUrl: publicStreamUrl,
+              },
+            )
+          : Promise.reject(
+              new Error("Public stream execution URL is missing for this widget."),
+            )
+        : createAuthenticatedConnectionQueryWebSocketSubscription(
+            request,
+            handlers,
+            {
+              ...input.options,
+              queryModel: input.queryModel,
+            },
+          );
+
+    void subscriptionPromise
       .then((nextSubscription) => {
         if (!active) {
           nextSubscription.close(1000, "connection stream query widget unmounted");
@@ -1506,8 +1543,11 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
 export function buildConnectionStreamQuerySubscriptionKey(input: {
   instanceId?: string;
   request: ConnectionStreamQueryRequest<Record<string, unknown>>;
+  publicExecutionKey?: string;
 }) {
   return input.instanceId?.trim()
     ? `connection-stream-query:${input.instanceId.trim()}`
-    : `connection-stream-query:${stableJsonStringify(input.request)}`;
+    : input.publicExecutionKey?.trim()
+      ? `connection-stream-query:${input.publicExecutionKey.trim()}`
+      : `connection-stream-query:${stableJsonStringify(input.request)}`;
 }

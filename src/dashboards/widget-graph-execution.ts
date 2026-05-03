@@ -17,6 +17,7 @@ import type {
   WidgetExecutionContext,
   WidgetExecutionReason,
   WidgetExecutionResult,
+  WidgetExecutionSurface,
   WidgetExecutionTargetOverrides,
 } from "@/widgets/types";
 import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
@@ -65,10 +66,12 @@ function summarizeExecutionValueForDebug(value: unknown) {
 function summarizeExecutionContextForDebug(context: WidgetExecutionContext) {
   return {
     scopeId: context.scopeId,
+    executionSurface: context.executionSurface,
     widgetId: context.widgetId,
     instanceId: context.instanceId,
     reason: context.reason,
     refreshCycleId: context.refreshCycleId,
+    hasPublicExecution: Boolean(context.publicExecution),
     dashboardState: context.dashboardState,
     hasTargetOverrides: Boolean(context.targetOverrides),
     propsKeys: isPlainRecord(context.props) ? Object.keys(context.props).sort() : [],
@@ -612,6 +615,8 @@ export interface DashboardWidgetGraphExecutionResult {
 
 export interface ExecuteDashboardWidgetGraphArgs {
   scopeId: string;
+  executionSurface: WidgetExecutionSurface;
+  publicWorkspaceToken?: string;
   widgets: DashboardWidgetInstance[];
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
   targetInstanceId: string;
@@ -747,11 +752,14 @@ export async function executeDashboardWidgetGraph(
     );
     const executionContext = {
       scopeId: args.scopeId,
+      executionSurface: args.executionSurface,
+      publicWorkspaceToken: args.publicWorkspaceToken,
       widgetId: instance.widgetId,
       instanceId,
       reason: nodeReason,
       props: (instance.props ?? {}) as Record<string, unknown>,
       runtimeState: instance.runtimeState,
+      publicExecution: instance.publicExecution,
       resolvedInputs: snapshot.dependencies.resolveInputs(instanceId),
       dashboardState: args.dashboardState,
       runtimeDataStore: args.runtimeDataStore,
@@ -921,6 +929,8 @@ export function listDashboardRefreshableExecutionTargets(args: {
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
   dashboardState?: WidgetExecutionDashboardState;
   refreshCycleId: string;
+  executionSurface?: WidgetExecutionSurface;
+  publicWorkspaceToken?: string;
 }) {
   const snapshot = buildDashboardExecutionSnapshot({
     widgets: args.widgets,
@@ -932,11 +942,14 @@ export function listDashboardRefreshableExecutionTargets(args: {
 
     if (definition?.execution) {
       const context = {
+        executionSurface: args.executionSurface ?? "private-dashboard",
+        publicWorkspaceToken: args.publicWorkspaceToken,
         widgetId: instance.widgetId,
         instanceId: instance.id,
         reason: "dashboard-refresh" as const,
         props: (instance.props ?? {}) as Record<string, unknown>,
         runtimeState: instance.runtimeState,
+        publicExecution: instance.publicExecution,
         resolvedInputs: snapshot.dependencies.resolveInputs(instance.id),
         dashboardState: args.dashboardState,
         refreshCycleId: args.refreshCycleId,

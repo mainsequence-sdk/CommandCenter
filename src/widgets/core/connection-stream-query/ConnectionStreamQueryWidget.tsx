@@ -4,6 +4,7 @@ import { AlertTriangle, DatabaseZap, Loader2, Wifi, WifiOff } from "lucide-react
 
 import { getConnectionTypeById } from "@/app/registry";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
+import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
 import {
   getRuntimeDataRef,
   useRuntimeDataStore,
@@ -13,6 +14,7 @@ import type { WidgetComponentProps } from "@/widgets/types";
 import {
   buildConnectionStreamQueryRequest,
   buildConnectionStreamQuerySubscriptionKey,
+  buildPublicConnectionStreamQueryRequestPayload,
   buildConnectionStreamQueryValidationError,
   buildConnectionStreamQueryLifecycleFrame,
   createConnectionStreamQueryWidgetRuntimeSession,
@@ -47,10 +49,12 @@ export function buildConnectionStreamQueryExecutionKey(input: {
     stream?: unknown;
   };
   request: unknown;
+  publicExecutionKey?: string;
   validationError?: string | null;
 }) {
   return stableJsonStringify({
     instanceId: input.instanceId?.trim() || undefined,
+    publicExecutionKey: input.publicExecutionKey?.trim() || undefined,
     props: input.props,
     queryModel: input.queryModel
       ? {
@@ -58,7 +62,15 @@ export function buildConnectionStreamQueryExecutionKey(input: {
           stream: input.queryModel.stream,
         }
       : null,
-    request: input.request,
+    request:
+      input.publicExecutionKey && input.request && typeof input.request === "object"
+        ? buildPublicConnectionStreamQueryRequestPayload(
+            input.request as {
+              connectionId: string | number;
+              query: Record<string, unknown>;
+            } & Record<string, unknown>,
+          )
+        : input.request,
     validationError: input.validationError ?? null,
   });
 }
@@ -78,6 +90,7 @@ export function ConnectionStreamQueryWidget({
   onRuntimeStateChange,
 }: Props) {
   const dashboardControls = useDashboardControls();
+  const widgetExecution = useDashboardWidgetExecution();
   const runtimeDataStore = useRuntimeDataStore();
   const normalizedProps = useMemo(() => normalizeConnectionStreamQueryProps(props), [props]);
   const connectionType = normalizedProps.connectionRef?.typeId
@@ -108,6 +121,13 @@ export function ConnectionStreamQueryWidget({
     () => buildConnectionStreamQueryValidationError({ props: normalizedProps, queryModel }),
     [normalizedProps, queryModel],
   );
+  const publicExecution = instanceId
+    ? widgetExecution?.getWidgetInstance(instanceId)?.publicExecution
+    : undefined;
+  const publicExecutionKey =
+    widgetExecution?.executionSurface === "public-workspace"
+      ? publicExecution?.streamUrl?.trim() || undefined
+      : undefined;
   const executionKey = useMemo(
     () =>
       buildConnectionStreamQueryExecutionKey({
@@ -115,9 +135,10 @@ export function ConnectionStreamQueryWidget({
         props: normalizedProps,
         queryModel,
         request,
+        publicExecutionKey,
         validationError,
       }),
-    [instanceId, normalizedProps, queryModel, request, validationError],
+    [instanceId, normalizedProps, publicExecutionKey, queryModel, request, validationError],
   );
   const normalizedRuntimeState = useMemo(
     () => normalizeConnectionStreamQueryRuntimeState(runtimeState),
@@ -173,10 +194,13 @@ export function ConnectionStreamQueryWidget({
         subscriptionKey: buildConnectionStreamQuerySubscriptionKey({
           instanceId,
           request,
+          publicExecutionKey,
         }),
         request,
         props: normalizedProps,
         queryModel,
+        executionSurface: widgetExecution?.executionSurface,
+        publicExecution,
         initialRuntimeState: runtimeRef.current,
         sourceWidgetId: instanceId,
         onRuntimeStateChange: (nextRuntimeState) => {
@@ -203,7 +227,10 @@ export function ConnectionStreamQueryWidget({
     };
   }, [
     executionKey,
+    publicExecution,
+    publicExecutionKey,
     runtimeDataStore,
+    widgetExecution?.executionSurface,
   ]);
 
   const streamStatus = normalizedRuntimeState?.streamStatus ?? "idle";

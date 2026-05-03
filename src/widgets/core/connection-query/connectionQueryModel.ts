@@ -1,6 +1,7 @@
 import {
   buildConnectionQueryUrl,
   fetchConnectionResource,
+  queryPublicWidgetExecution,
   queryConnection,
   resolveConnectionRefFromInstances,
 } from "@/connections/api";
@@ -18,7 +19,11 @@ import type {
   ConnectionQueryResponse,
   ConnectionRef,
 } from "@/connections/types";
-import type { WidgetExecutionDashboardState } from "@/widgets/types";
+import type {
+  WidgetExecutionDashboardState,
+  WidgetExecutionSurface,
+  WidgetPublicExecutionContract,
+} from "@/widgets/types";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,
@@ -77,6 +82,25 @@ export type ConnectionQueryRuntimeState =
   | ConnectionQueryRawFrameRuntimeState;
 
 const DEFAULT_PROMQL_RANGE_STEP_MS = 5 * 60 * 1000;
+
+function stableJsonStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJsonStringify(entry)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJsonStringify((value as Record<string, unknown>)[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function normalizeNonEmptyString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
 
 export function resolveConnectionQueryRequestedOutputContract(
   queryModel: ConnectionQueryModel | undefined,
@@ -952,6 +976,20 @@ export function buildConnectionQueryRequest(
   };
 }
 
+function buildPublicConnectionQueryRequestPayload(
+  request: ConnectionQueryRequest<Record<string, unknown>>,
+) {
+  const { connectionId: _connectionId, ...publicRequest } = request;
+  return publicRequest;
+}
+
+function buildPublicConnectionQueryClientExecutionKey(input: {
+  queryUrl: string;
+  request: ConnectionQueryRequest<Record<string, unknown>>;
+}) {
+  return `${input.queryUrl}\u001e${stableJsonStringify(buildPublicConnectionQueryRequestPayload(input.request))}`;
+}
+
 export function buildConnectionQueryErrorFrame(
   error: string,
   props: ConnectionQueryWidgetProps,
@@ -984,16 +1022,23 @@ export async function executeConnectionQueryWidgetRequest(
     ownerId?: string;
     runtimeDataStore?: RuntimeDataStore | null;
     scopeId?: string;
+    executionSurface?: WidgetExecutionSurface;
+    publicExecution?: WidgetPublicExecutionContract;
+    publicWorkspaceToken?: string;
     forceFullRefresh?: boolean;
     traceMeta?: DashboardRequestTraceMeta;
     signal?: AbortSignal;
   },
 ): Promise<ConnectionQueryRuntimeState> {
   const effectiveProps = resolveEffectiveConnectionQueryProps(props, queryModel);
-  const resolvedConnectionSelection = await resolveConnectionRefFromInstances(
-    effectiveProps.connectionRef,
-    { allowFetch: true },
-  );
+  const isPublicExecutionSurface = options?.executionSurface === "public-workspace";
+  const publicQueryUrl = normalizeNonEmptyString(options?.publicExecution?.queryUrl);
+  const resolvedConnectionSelection = isPublicExecutionSurface
+    ? { connectionRef: effectiveProps.connectionRef }
+    : await resolveConnectionRefFromInstances(
+        effectiveProps.connectionRef,
+        { allowFetch: true },
+      );
   const resolvedProps: ConnectionQueryWidgetProps = {
     ...effectiveProps,
     connectionRef: resolvedConnectionSelection.connectionRef ?? effectiveProps.connectionRef,
@@ -1017,6 +1062,10 @@ export async function executeConnectionQueryWidgetRequest(
     throw new Error("Connection query request is incomplete.");
   }
 
+  if (isPublicExecutionSurface && !publicQueryUrl) {
+    throw new Error("Public execution URL is missing for this connection query widget.");
+  }
+
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute start", {
       connectionRef,
@@ -1032,6 +1081,14 @@ export async function executeConnectionQueryWidgetRequest(
   const incrementalDecision = resolveConnectionQueryIncrementalDecision({
     fullRequest: enrichedRequest,
     settings: incrementalSettings,
+    executionIdentity: isPublicExecutionSurface ? publicQueryUrl : undefined,
+    clientExecutionKey:
+      isPublicExecutionSurface && publicQueryUrl
+        ? buildPublicConnectionQueryClientExecutionKey({
+            queryUrl: publicQueryUrl,
+            request: enrichedRequest,
+          })
+        : undefined,
     connectionTypeId: connectionRef.typeId,
     queryModelId,
     scopeId: options?.scopeId,
@@ -1043,7 +1100,10 @@ export async function executeConnectionQueryWidgetRequest(
   });
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute request ready", {
-      url: buildConnectionQueryUrl(incrementalDecision.request.connectionId),
+      url:
+        isPublicExecutionSurface && publicQueryUrl
+          ? publicQueryUrl
+          : buildConnectionQueryUrl(incrementalDecision.request.connectionId),
       originalRequest: summarizeConnectionQueryRequestForDebug(request),
       enrichedRequest: summarizeConnectionQueryRequestForDebug(enrichedRequest),
       incrementalRequest: summarizeConnectionQueryRequestForDebug(incrementalDecision.request),
@@ -1061,9 +1121,19 @@ export async function executeConnectionQueryWidgetRequest(
   );
   const payload = await runConnectionQueryWithInFlightDedupe(
     incrementalDecision,
-    () => queryConnection(incrementalDecision.request, traceMeta, {
-      signal: options?.signal,
-    }),
+    () =>
+      isPublicExecutionSurface && publicQueryUrl
+        ? queryPublicWidgetExecution(
+            publicQueryUrl,
+            buildPublicConnectionQueryRequestPayload(incrementalDecision.request),
+            traceMeta,
+            {
+              signal: options?.signal,
+            },
+          )
+        : queryConnection(incrementalDecision.request, traceMeta, {
+            signal: options?.signal,
+          }),
   );
   if (import.meta.env.DEV) {
     console.debug("[connection-query] execute payload received", {

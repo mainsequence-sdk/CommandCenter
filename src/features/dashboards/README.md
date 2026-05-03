@@ -18,6 +18,7 @@ These flows are all part of one app surface, with instance state selected throug
 - `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance. It also routes `?mode=public-preview` into the shellless authenticated preview projection.
 - `SlideStudioPage.tsx`: curated `workspace-studio` surface that reuses the shared workspace list/canvas host, filters to `type=slide-studio`, re-enables the `Slide` widget in that surface only, and routes into the Slide Studio-only slideshow projection mode.
 - `PublicWorkspacePreviewPage.tsx`: shellless authenticated projection for `workspace` and `slide-studio` workspaces. It reuses the normal runtime canvas without authoring chrome so signed users can preview the eventual public rendering contract.
+- `public-workspace-permissions.ts`: shared synthetic public render permission profile used by both authenticated public preview and anonymous public view. It intentionally grants only the baseline public workspace visibility contract.
 - `SlideStudioSlideshowPage.tsx`: Slide Studio-only projection surface. It reuses the same workspace document and slide/widget rendering contracts but presents one top-level slide per screen with slideshow navigation.
 - `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio. It also supports the shellless `publicPreview` projection over the same runtime document.
 - `WorkspaceCanvasWidgetHost.tsx`: shared widget renderer used by both the root canvas host and the slide subgrid host so widget chrome, headers, actions, inline edit gating, and body rendering stay identical across both layout hosts.
@@ -27,6 +28,7 @@ These flows are all part of one app surface, with instance state selected throug
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
 - `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, labels, backend-only sharing permissions, and the authenticated public-preview / future public-publication controls.
+- `public-workspace-readiness.ts`: frontend preflight for public publication readiness. It checks workspace type, widget permissions, unknown widget ids, and private connection execution sources before the settings page allows public-link enablement.
 - `SavedWidgetsPage.tsx`: dedicated saved-widget and saved-widget-group library screen with metadata editing, deletion, JSON inspection, and permissions.
 - `SavedWidgetSaveDialog.tsx`: canvas action flow for saving the selected live workspace widget as a reusable saved widget or saved widget group.
 - `SavedWidgetLibraryDialog.tsx`: in-canvas library picker used to import saved widgets and groups back into the current workspace.
@@ -61,16 +63,26 @@ These flows are all part of one app surface, with instance state selected throug
   `?workspace=<id>&mode=slideshow`.
 - Authenticated public preview is available for supported workspace types through
   `?workspace=<id>&mode=public-preview`.
+- Authenticated public preview uses the same synthetic public render permissions as anonymous
+  public view. Route access stays authenticated, but widget rendering no longer inherits the
+  signed-in user's broader permission set.
 - For `slide-studio`, both authenticated public preview and anonymous public routes default to the
   slideshow projection instead of the generic dashboard canvas.
 - Workspace settings now also manage backend-owned public links through the
   `/public-link/`, `/public-link/disable/`, and `/public-link/rotate/` endpoints. The frontend
   treats `publicUrl` / `public_url` as backend-owned metadata and does not send it back in normal
   workspace save payloads.
+- Before enabling a public link, workspace settings now show a local public-readiness control plane.
+  It is intentionally a frontend preflight, not the final authority; backend publication validation
+  must still make the authoritative allow/block decision.
 - The shareable URL shown in workspace settings is a frontend route
   `/public/workspaces/:token` built from the backend public token, not the raw backend API URL.
   That frontend route resolves the workspace from the anonymous backend endpoint and renders it
   shelllessly through the normal read-only dashboard canvas.
+- Anonymous public workspace responses must include the canonical workspace `type`. Public routes
+  reject any type outside `workspace` and `slide-studio`, including `agent-monitor`.
+- The anonymous public route also distinguishes explicit loading, not-found, forbidden, unsupported
+  type, and render-error states instead of collapsing all failures into one generic error card.
 - Public preview and anonymous public view both keep a non-interactive left widget rail so the
   workspace still reads like Workspaces without exposing clickable shell controls.
 - The saved-widget library lives at `/app/workspace-studio/widgets`.

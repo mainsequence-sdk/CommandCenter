@@ -207,6 +207,42 @@ function normalizeWidgetRuntimeState(
   return cloneJson(runtimeState);
 }
 
+function normalizeDashboardWidgetPublicExecution(
+  publicExecution: DashboardWidgetInstance["publicExecution"] | undefined,
+): DashboardWidgetInstance["publicExecution"] {
+  if (!isPlainRecord(publicExecution)) {
+    return undefined;
+  }
+
+  const queryUrl =
+    typeof publicExecution.queryUrl === "string" && publicExecution.queryUrl.trim()
+      ? publicExecution.queryUrl.trim()
+      : undefined;
+  const streamUrl =
+    typeof publicExecution.streamUrl === "string" && publicExecution.streamUrl.trim()
+      ? publicExecution.streamUrl.trim()
+      : undefined;
+  const capability =
+    typeof publicExecution.capability === "string" && publicExecution.capability.trim()
+      ? publicExecution.capability.trim()
+      : undefined;
+  const allowedInputs =
+    publicExecution.allowedInputs === undefined
+      ? undefined
+      : cloneJson(publicExecution.allowedInputs);
+
+  if (!queryUrl && !streamUrl && !capability && allowedInputs === undefined) {
+    return undefined;
+  }
+
+  return {
+    queryUrl,
+    streamUrl,
+    capability,
+    allowedInputs,
+  };
+}
+
 function stripVolatileRuntimeStateFields(
   value: unknown,
   path: string[] = [],
@@ -713,6 +749,7 @@ function normalizeDashboardWidgetInstance(
     slidePlacement: normalizeDashboardWidgetSlidePlacement(instance.slidePlacement),
     presentation: normalizeDashboardWidgetPresentation(instance.presentation),
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
+    publicExecution: normalizeDashboardWidgetPublicExecution(instance.publicExecution),
     layout: {
       cols: scaleGridW(getLayoutCols(instance.layout, instance.widgetId), migration),
       rows: scaleGridH(getLayoutRows(instance.layout, instance.widgetId), migration),
@@ -842,6 +879,7 @@ function sanitizeCanonicalDashboardWidgetInstance(
     slidePlacement: normalizeDashboardWidgetSlidePlacement(instance.slidePlacement),
     presentation: normalizeDashboardWidgetPresentation(instance.presentation),
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
+    publicExecution: normalizeDashboardWidgetPublicExecution(instance.publicExecution),
     layout: {
       cols: getLayoutCols(instance.layout, instance.widgetId),
       rows: getLayoutRows(instance.layout, instance.widgetId),
@@ -1513,6 +1551,157 @@ function remapDashboardWidgetTreeBindingSourceIds(
       ),
     },
   };
+}
+
+function duplicateDashboardCompanionsForIdMap(
+  dashboard: Pick<DashboardDefinition, "companions">,
+  idMap: ReadonlyMap<string, string>,
+): DashboardCompanionLayoutItem[] {
+  return (dashboard.companions ?? []).flatMap((item) => {
+    const nextInstanceId = idMap.get(item.instanceId);
+
+    if (!nextInstanceId) {
+      return [];
+    }
+
+    return [{
+      id: buildCompanionItemId(nextInstanceId, item.fieldId),
+      instanceId: nextInstanceId,
+      fieldId: item.fieldId,
+      layout: {
+        x: item.layout.x,
+        y: item.layout.y,
+        w: item.layout.w,
+        h: item.layout.h,
+      },
+    } satisfies DashboardCompanionLayoutItem];
+  });
+}
+
+function duplicateSlidePlacedDashboardWidgets(
+  dashboard: DashboardDefinition,
+  options: {
+    sourceSlideWidgetId: string;
+    nextSlideWidgetId: string;
+  },
+): {
+  dashboard: DashboardDefinition;
+  idMap: Map<string, string>;
+  widgets: DashboardWidgetInstance[];
+} {
+  const sourceSlideWidgetId = options.sourceSlideWidgetId.trim();
+  const nextSlideWidgetId = options.nextSlideWidgetId.trim();
+
+  if (!sourceSlideWidgetId || !nextSlideWidgetId || sourceSlideWidgetId === nextSlideWidgetId) {
+    return {
+      dashboard,
+      idMap: new Map(),
+      widgets: [],
+    };
+  }
+
+  const slidePlacedWidgets = dashboard.widgets.filter(
+    (widget) => widget.slidePlacement?.slideWidgetId === sourceSlideWidgetId,
+  );
+
+  if (slidePlacedWidgets.length === 0) {
+    return {
+      dashboard,
+      idMap: new Map(),
+      widgets: [],
+    };
+  }
+
+  const idMap = new Map<string, string>();
+  const maxColumns = dashboard.grid?.columns ?? DEFAULT_WORKSPACE_COLUMNS;
+  const duplicatedWidgets = slidePlacedWidgets.map((widget) =>
+    sanitizeCanonicalDashboardWidgetInstance(
+      {
+        ...remapDashboardWidgetTreeBindingSourceIds(
+          cloneDashboardWidgetTree(widget, {
+            refreshIds: true,
+            idMap,
+          }),
+          idMap,
+        ),
+        runtimeState: undefined,
+        slidePlacement: widget.slidePlacement
+          ? {
+              ...widget.slidePlacement,
+              slideWidgetId: nextSlideWidgetId,
+            }
+          : undefined,
+      },
+      maxColumns,
+    ),
+  );
+  const duplicatedCompanions = duplicateDashboardCompanionsForIdMap(dashboard, idMap);
+  const nextDashboard = materializeDashboardLayout({
+    ...dashboard,
+    companions: [...(dashboard.companions ?? []), ...duplicatedCompanions],
+    widgets: [...dashboard.widgets, ...duplicatedWidgets],
+  });
+
+  return {
+    dashboard: nextDashboard,
+    idMap,
+    widgets: duplicatedWidgets
+      .map((widget) => findDashboardWidgetInTree(nextDashboard.widgets, widget.id))
+      .filter((widget): widget is DashboardWidgetInstance => widget !== null),
+  };
+}
+
+function duplicateManagedWidgetsForOwnerRemap(
+  dashboard: DashboardDefinition,
+  ownerIdMap: ReadonlyMap<string, string>,
+): DashboardDefinition {
+  let nextDashboard = dashboard;
+
+  ownerIdMap.forEach((nextOwnerInstanceId, ownerInstanceId) => {
+    if (
+      !ownerInstanceId.trim() ||
+      !nextOwnerInstanceId.trim() ||
+      ownerInstanceId === nextOwnerInstanceId
+    ) {
+      return;
+    }
+
+    const managedWidgets = findManagedDashboardWidgets(nextDashboard, {
+      ownerInstanceId,
+      role: "embedded-connection-source",
+    });
+
+    if (managedWidgets.length === 0) {
+      return;
+    }
+
+    nextDashboard = duplicateManagedDashboardWidgets(nextDashboard, {
+      ownerInstanceId,
+      nextOwnerInstanceId,
+      role: "embedded-connection-source",
+    }).dashboard;
+
+    const originalOwnerWidget = findDashboardWidgetInTree(nextDashboard.widgets, ownerInstanceId);
+    const duplicatedOwnerWidget = findDashboardWidgetInTree(nextDashboard.widgets, nextOwnerInstanceId);
+    const managedConnectionConsumerAdapter = originalOwnerWidget
+      ? getManagedConnectionConsumerAdapter(originalOwnerWidget.widgetId)
+      : undefined;
+
+    if (
+      managedConnectionConsumerAdapter &&
+      duplicatedOwnerWidget &&
+      isManagedConnectionConsumerMode(
+        managedConnectionConsumerAdapter,
+        managedConnectionConsumerAdapter.getSourceMode(
+          (duplicatedOwnerWidget.props ?? {}) as Record<string, unknown>,
+        ),
+      )
+    ) {
+      nextDashboard = syncManagedConnectionConsumerSource(nextDashboard, nextOwnerInstanceId);
+    }
+  });
+
+  return nextDashboard;
 }
 
 function resolveManagedWidgetPresentation(
@@ -2906,25 +3095,7 @@ export function duplicateDashboardWidget(
           y: currentY + 2,
         },
   };
-  const duplicatedCompanions = (dashboard.companions ?? []).flatMap((item) => {
-    const nextInstanceId = idMap.get(item.instanceId);
-
-    if (!nextInstanceId) {
-      return [];
-    }
-
-    return [{
-      id: buildCompanionItemId(nextInstanceId, item.fieldId),
-      instanceId: nextInstanceId,
-      fieldId: item.fieldId,
-      layout: {
-        x: item.layout.x,
-        y: item.layout.y,
-        w: item.layout.w,
-        h: item.layout.h,
-      },
-    } satisfies DashboardCompanionLayoutItem];
-  });
+  const duplicatedCompanions = duplicateDashboardCompanionsForIdMap(dashboard, idMap);
 
   let nextDashboard = materializeDashboardLayout({
     ...dashboard,
@@ -2932,26 +3103,21 @@ export function duplicateDashboardWidget(
     widgets: [...dashboard.widgets, duplicatedWidget],
   });
 
-  const managedConnectionConsumerAdapter = getManagedConnectionConsumerAdapter(current.widgetId);
+  const ownerIdMap = new Map<string, string>([[current.id, duplicatedWidget.id]]);
 
-  if (
-    managedConnectionConsumerAdapter &&
-    isManagedConnectionConsumerMode(
-      managedConnectionConsumerAdapter,
-      managedConnectionConsumerAdapter.getSourceMode(
-        (current.props ?? {}) as Record<string, unknown>,
-      ),
-    )
-  ) {
-    const duplicatedManaged = duplicateManagedDashboardWidgets(nextDashboard, {
-      ownerInstanceId: current.id,
-      nextOwnerInstanceId: duplicatedWidget.id,
-      role: "embedded-connection-source",
+  if (isWorkspaceSlideWidgetId(current.widgetId)) {
+    const duplicatedSlideChildren = duplicateSlidePlacedDashboardWidgets(nextDashboard, {
+      sourceSlideWidgetId: current.id,
+      nextSlideWidgetId: duplicatedWidget.id,
     });
 
-    nextDashboard = duplicatedManaged.dashboard;
-    nextDashboard = syncManagedConnectionConsumerSource(nextDashboard, duplicatedWidget.id);
+    nextDashboard = duplicatedSlideChildren.dashboard;
+    duplicatedSlideChildren.idMap.forEach((value, key) => {
+      ownerIdMap.set(key, value);
+    });
   }
+
+  nextDashboard = duplicateManagedWidgetsForOwnerRemap(nextDashboard, ownerIdMap);
 
   return nextDashboard;
 }

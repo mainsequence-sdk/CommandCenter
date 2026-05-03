@@ -40,6 +40,7 @@ import { WorkspaceRenderErrorBoundary, WorkspaceRenderErrorState } from "./Works
 import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
+import type { WidgetExecutionSurface } from "@/widgets/types";
 
 interface WidgetInstanceOverride {
   props?: Record<string, unknown>;
@@ -83,12 +84,16 @@ function SlideStudioSlideshowViewport({
   dashboard,
   resolvedDashboard,
   permissions,
+  executionSurface,
+  publicWorkspaceToken,
   manageKioskMode,
   onExit,
 }: {
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
   permissions: readonly string[];
+  executionSurface: WidgetExecutionSurface;
+  publicWorkspaceToken?: string;
   manageKioskMode: boolean;
   onExit?: () => void;
 }) {
@@ -475,7 +480,9 @@ function SlideStudioSlideshowViewport({
     <DashboardWidgetRegistryProvider widgets={renderedWidgets}>
       <DashboardWidgetExecutionProvider
         activeSurface="dashboard"
-        enableAutomaticHydration={false}
+        enableAutomaticHydration={executionSurface === "public-workspace"}
+        executionSurface={executionSurface}
+        publicWorkspaceToken={publicWorkspaceToken}
         scopeId={dashboard.id}
         widgets={renderedWidgets}
         writeRuntimeState={(instanceId, runtimeState) => {
@@ -664,6 +671,8 @@ export function SlideStudioSlideshowRuntime({
   dashboard,
   resolvedDashboard,
   permissions,
+  executionSurface = "private-dashboard",
+  publicWorkspaceToken,
   manageKioskMode = true,
   onControlsStateChange,
   onControlsStateCommit,
@@ -672,6 +681,8 @@ export function SlideStudioSlideshowRuntime({
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
   permissions: readonly string[];
+  executionSurface?: WidgetExecutionSurface;
+  publicWorkspaceToken?: string;
   manageKioskMode?: boolean;
   onControlsStateChange?: (state: DashboardControlsState) => void;
   onControlsStateCommit?: (state: DashboardControlsState) => void;
@@ -689,6 +700,8 @@ export function SlideStudioSlideshowRuntime({
         dashboard={dashboard}
         resolvedDashboard={resolvedDashboard}
         permissions={permissions}
+        executionSurface={executionSurface}
+        publicWorkspaceToken={publicWorkspaceToken}
         manageKioskMode={manageKioskMode}
         onExit={onExit}
       />

@@ -48,6 +48,7 @@ export interface RetainedConnectionQueryState {
 export interface ConnectionQueryIncrementalDecision {
   active: boolean;
   identityKey?: string;
+  clientExecutionKey?: string;
   sourceWidgetId?: string;
   request: ConnectionQueryRequest<Record<string, unknown>>;
   fullRequest: ConnectionQueryRequest<Record<string, unknown>>;
@@ -296,6 +297,7 @@ function assertMergeableFrame(frame: TabularFrameSourceV1, settings: ConnectionQ
 
 export function buildConnectionQueryIncrementalIdentity(input: {
   scopeId?: string;
+  executionIdentity?: string;
   connectionTypeId?: string;
   queryModelId?: string;
   request: ConnectionQueryRequest<Record<string, unknown>>;
@@ -304,7 +306,7 @@ export function buildConnectionQueryIncrementalIdentity(input: {
 }) {
   return stableJsonStringify({
     scopeId: input.scopeId,
-    connectionId: input.request.connectionId,
+    executionIdentity: input.executionIdentity ?? String(input.request.connectionId),
     connectionTypeId: input.connectionTypeId,
     queryModelId: input.queryModelId,
     requestedOutputContract: input.request.requestedOutputContract,
@@ -322,6 +324,8 @@ export function buildConnectionQueryIncrementalIdentity(input: {
 export function resolveConnectionQueryIncrementalDecision(input: {
   fullRequest: ConnectionQueryRequest<Record<string, unknown>>;
   settings: ConnectionQueryIncrementalRefreshSettings;
+  executionIdentity?: string;
+  clientExecutionKey?: string;
   connectionTypeId?: string;
   queryModelId?: string;
   scopeId?: string;
@@ -355,6 +359,7 @@ export function resolveConnectionQueryIncrementalDecision(input: {
   const retentionMs = input.settings.retentionMs ?? fullRange.toMs - fullRange.fromMs;
   const identityKey = buildConnectionQueryIncrementalIdentity({
     scopeId: input.scopeId,
+    executionIdentity: input.executionIdentity,
     connectionTypeId: input.connectionTypeId,
     queryModelId: input.queryModelId,
     request: input.fullRequest,
@@ -369,6 +374,7 @@ export function resolveConnectionQueryIncrementalDecision(input: {
     return {
       active: true,
       identityKey,
+      clientExecutionKey: input.clientExecutionKey,
       sourceWidgetId: input.scopeId,
       request: input.fullRequest,
       fullRequest: input.fullRequest,
@@ -382,6 +388,7 @@ export function resolveConnectionQueryIncrementalDecision(input: {
     return {
       active: true,
       identityKey,
+      clientExecutionKey: input.clientExecutionKey,
       sourceWidgetId: input.scopeId,
       request: input.fullRequest,
       fullRequest: input.fullRequest,
@@ -398,6 +405,7 @@ export function resolveConnectionQueryIncrementalDecision(input: {
   return {
     active: true,
     identityKey,
+    clientExecutionKey: input.clientExecutionKey,
     sourceWidgetId: input.scopeId,
     retainedState,
     fullRequest: input.fullRequest,
@@ -420,7 +428,7 @@ export async function runConnectionQueryWithInFlightDedupe<TPayload>(
     return run();
   }
 
-  const requestKey = `${decision.identityKey}\u001e${stableJsonStringify(decision.request)}`;
+  const requestKey = `${decision.identityKey}\u001e${decision.clientExecutionKey ?? stableJsonStringify(decision.request)}`;
   const existingRequest = inFlightConnectionQueryRequests.get(requestKey);
 
   if (existingRequest) {

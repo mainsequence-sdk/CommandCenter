@@ -12,6 +12,7 @@ import { CustomDashboardStudioPage } from "./CustomDashboardStudioPage";
 import { CustomWorkspaceGraphPage } from "./CustomWorkspaceGraphPage";
 import { CustomWorkspaceSettingsPage } from "./CustomWorkspaceSettingsPage";
 import { SlideStudioSlideshowRuntime } from "./SlideStudioSlideshowPage";
+import { clonePublicWorkspaceRenderPermissions } from "./public-workspace-permissions";
 import { WorkspaceSnapshotCapture } from "./snapshot/WorkspaceSnapshotCapture";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
@@ -38,6 +39,9 @@ export function WorkspaceStudioCanvasHost({
     commitSelectedWorkspaceControlsState,
   } = useCustomWorkspaceStudio();
   const effectiveWorkspaceView = publicPreview ? "dashboard" : selectedWorkspaceView;
+  const renderPermissions = publicPreview
+    ? clonePublicWorkspaceRenderPermissions()
+    : permissions;
 
   if (!selectedDashboard) {
     return null;
@@ -72,6 +76,19 @@ export function WorkspaceStudioCanvasHost({
     selectedDashboard.labels,
   );
 
+  if (publicPreview && selectedDashboardType !== "workspace" && selectedDashboardType !== "slide-studio") {
+    return (
+      <WorkspaceRenderErrorState
+        error={new Error(`Public preview is not supported for workspace type "${selectedDashboardType}".`)}
+        onBackToWorkspaces={() => {
+          navigate(workspaceListPath);
+        }}
+        workspaceId={selectedDashboard.id}
+        workspaceTitle={selectedDashboard.title}
+      />
+    );
+  }
+
   if (publicPreview && selectedDashboardType === "slide-studio") {
     return (
       <WorkspaceRenderErrorBoundary
@@ -88,7 +105,7 @@ export function WorkspaceStudioCanvasHost({
         <SlideStudioSlideshowRuntime
           dashboard={selectedDashboard}
           resolvedDashboard={resolvedDashboard}
-          permissions={permissions}
+          permissions={renderPermissions}
           manageKioskMode={false}
           onControlsStateChange={(state) => {
             updateSelectedWorkspaceUserState((dashboard) =>
@@ -141,7 +158,7 @@ export function WorkspaceStudioCanvasHost({
                 <WorkspaceSnapshotCapture
                   dashboard={selectedDashboard}
                   resolvedDashboard={resolvedDashboard}
-                  permissions={permissions}
+                  permissions={renderPermissions}
                   profile={snapshotProfile}
                 />
               ) : null}
@@ -151,6 +168,7 @@ export function WorkspaceStudioCanvasHost({
                 <CustomDashboardStudioPage
                   withRuntimeProviders={false}
                   publicPreview={publicPreview}
+                  renderPermissions={renderPermissions}
                 />
               )}
             </DashboardWidgetDependenciesProvider>

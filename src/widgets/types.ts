@@ -308,15 +308,27 @@ export interface WidgetExecutionTargetOverrides<
   draftValues?: Record<string, string>;
 }
 
+export type WidgetExecutionSurface = "private-dashboard" | "public-workspace";
+
+export interface WidgetPublicExecutionContract {
+  queryUrl?: string;
+  streamUrl?: string;
+  capability?: string;
+  allowedInputs?: unknown;
+}
+
 export interface WidgetExecutionContext<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
   scopeId?: string;
+  executionSurface: WidgetExecutionSurface;
+  publicWorkspaceToken?: string;
   widgetId: string;
   instanceId: string;
   reason: WidgetExecutionReason;
   props: TProps;
   runtimeState?: Record<string, unknown>;
+  publicExecution?: WidgetPublicExecutionContract;
   resolvedInputs?: ResolvedWidgetInputs;
   dashboardState?: WidgetExecutionDashboardState;
   runtimeDataStore?: RuntimeDataStore | null;

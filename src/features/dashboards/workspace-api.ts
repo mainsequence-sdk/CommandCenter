@@ -13,7 +13,10 @@ import {
   normalizeUserDashboardCollection,
   type UserDashboardCollection,
 } from "./custom-dashboard-storage";
-import { normalizeDashboardDefinitionTypeList } from "./workspace-definition-type";
+import {
+  isDashboardDefinitionType,
+  normalizeDashboardDefinitionTypeList,
+} from "./workspace-definition-type";
 import {
   normalizeWorkspaceListSummariesPayload,
   summarizeDashboardForWorkspaceList,
@@ -44,6 +47,16 @@ export class WorkspaceBackendRequestError extends Error {
     this.name = "WorkspaceBackendRequestError";
     this.status = status;
     this.payload = payload;
+  }
+}
+
+export class PublicWorkspaceUnsupportedTypeError extends Error {
+  workspaceType: string;
+
+  constructor(workspaceType: string) {
+    super(`Public view is not supported for workspace type "${workspaceType}".`);
+    this.name = "PublicWorkspaceUnsupportedTypeError";
+    this.workspaceType = workspaceType;
   }
 }
 
@@ -318,6 +331,26 @@ function coerceDashboardDefinition(value: unknown): DashboardDefinition | null {
 
   if ("dashboard" in value) {
     return coerceDashboardDefinition(value.dashboard);
+  }
+
+  return null;
+}
+
+function readRawDashboardDefinitionType(value: unknown): DashboardDefinitionType | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (isDashboardDefinitionType(value.type)) {
+    return value.type;
+  }
+
+  if ("workspace" in value) {
+    return readRawDashboardDefinitionType(value.workspace);
+  }
+
+  if ("dashboard" in value) {
+    return readRawDashboardDefinitionType(value.dashboard);
   }
 
   return null;
@@ -1006,18 +1039,23 @@ function serializeWorkspaceMutationPayload(
   const normalizedDashboard = stripWorkspaceUserStateFromDashboard(
     sanitizeDashboardDefinition(dashboard),
   );
+  const widgetsWithoutPublicExecution = stripPublicExecutionFromWidgets(normalizedDashboard.widgets);
   const {
     labels: _labels,
     publicUrl: _publicUrl,
     public_url: _publicUrlLegacy,
     ...labelStrippedDashboard
   } = normalizedDashboard as DashboardDefinition & { public_url?: string | null };
+  const sanitizedPayloadDashboard = {
+    ...labelStrippedDashboard,
+    widgets: widgetsWithoutPublicExecution,
+  };
 
   if (options?.includeId ?? false) {
-    return JSON.stringify(labelStrippedDashboard);
+    return JSON.stringify(sanitizedPayloadDashboard);
   }
 
-  const { id: _id, ...payload } = labelStrippedDashboard;
+  const { id: _id, ...payload } = sanitizedPayloadDashboard;
   return JSON.stringify(payload);
 }
 
@@ -1071,6 +1109,29 @@ function collectWidgetGeometryById(
   });
 
   return geometryById;
+}
+
+function stripPublicExecutionFromWidgets(
+  widgets: DashboardDefinition["widgets"],
+): DashboardDefinition["widgets"] {
+  return widgets.map((widget) => {
+    const { publicExecution: _publicExecution, ...widgetWithoutPublicExecution } = widget;
+    const nextChildren = widget.row?.children?.length
+      ? stripPublicExecutionFromWidgets(widget.row.children)
+      : widget.row?.children;
+
+    if (nextChildren === widget.row?.children) {
+      return widgetWithoutPublicExecution;
+    }
+
+    return {
+      ...widgetWithoutPublicExecution,
+      row: {
+        ...widget.row,
+        children: nextChildren,
+      },
+    };
+  });
 }
 
 function applyFallbackWidgetGeometry(
@@ -1219,9 +1280,18 @@ export async function fetchPublicWorkspaceDetailFromBackend(token: string) {
 
   const payload = await requestWorkspaceBackend(resolvePublicWorkspaceDetailPath(token));
   const dashboard = coerceDashboardDefinition(payload);
+  const rawType = readRawDashboardDefinitionType(payload);
 
   if (!dashboard) {
     throw new Error("Public workspace detail response was invalid.");
+  }
+
+  if (!rawType) {
+    throw new Error("Public workspace detail response is missing a canonical workspace type.");
+  }
+
+  if (rawType !== "workspace" && rawType !== "slide-studio") {
+    throw new PublicWorkspaceUnsupportedTypeError(rawType);
   }
 
   return dashboard;

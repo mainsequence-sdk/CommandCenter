@@ -13,7 +13,7 @@ import { RichTextNoteWidgetSettings } from "./RichTextNoteWidgetSettings";
 
 export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
   id: "rich-text-note",
-  widgetVersion: "1.9.0",
+  widgetVersion: "1.10.0",
   title: "Rich Text",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -86,12 +86,13 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
       ],
       requiredSetupSteps: [
         "Add the widget to a workspace.",
-        "Use workspace edit mode to author content directly on the card with the compact inline toolbar, or adjust the advanced HTML source in settings.",
+        "Use workspace edit mode to author content directly on the card, right-click to open the compact inline toolbar, or adjust the advanced HTML source in settings.",
       ],
       configurationNotes: [
         "This widget is rich-text-native and stores HTML as its canonical content format.",
         "Inline editing is available only on workspace canvas surfaces that support widget canvas editing.",
-        "The inline editor shows a compact floating formatting toolbar inside the note only while the note is focused in edit mode, with one unified text-style dropdown plus inline alignment and vertical-placement controls.",
+        "The inline editor opens a compact floating formatting toolbar on right-click in edit mode, with one unified text-style dropdown plus inline alignment and vertical-placement controls.",
+        "The toolbar is positioned above the note when viewport space allows so it does not collide with widget title chrome.",
         "Presentation settings now also control horizontal text alignment and vertical placement inside the card.",
         "New Rich Text widgets hide the shared widget header by default so the note reads like document content instead of a utility panel.",
       ],

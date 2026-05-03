@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { buildDashboardExecutionSnapshot, listDashboardWidgetExecutionOrder } from "@/dashboards/widget-graph-execution";
 import { createDashboardWidgetDependencyModel } from "@/dashboards/widget-dependencies";
 import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
+import {
+  WORKSPACE_ROW_WIDGET_ID,
+  WORKSPACE_SLIDE_WIDGET_ID,
+} from "@/dashboards/structural-widgets";
 import { defineWidget } from "@/widgets/types";
 
 import {
@@ -132,6 +136,44 @@ function statisticWidget(
       rows: 8,
     },
     position,
+  };
+}
+
+function slideWidget(
+  id: string,
+  position?: { x: number; y: number },
+): DashboardWidgetInstance {
+  return {
+    id,
+    widgetId: WORKSPACE_SLIDE_WIDGET_ID,
+    title: id,
+    layout: {
+      cols: 48,
+      rows: 48,
+    },
+    position,
+    props: {},
+  };
+}
+
+function rowWidget(
+  id: string,
+  children: DashboardWidgetInstance[],
+  position?: { x: number; y: number },
+): DashboardWidgetInstance {
+  return {
+    id,
+    widgetId: WORKSPACE_ROW_WIDGET_ID,
+    title: id,
+    layout: {
+      cols: 12,
+      rows: 2,
+    },
+    position,
+    row: {
+      collapsed: false,
+      children,
+    },
   };
 }
 
@@ -1109,6 +1151,86 @@ describe("custom dashboard storage managed widgets", () => {
         role: "embedded-connection-source",
       }),
     ).toHaveLength(0);
+  });
+
+  it("duplicates slide-contained widgets recursively and remaps internal slide bindings", () => {
+    const dashboard = dashboardWithWidgets([
+      slideWidget("slide-1", { x: 0, y: 0 }),
+      {
+        ...connectionQueryWidget("connection-1", "Slide Source"),
+        slidePlacement: {
+          slideWidgetId: "slide-1",
+          region: "body",
+        },
+        position: {
+          x: 0,
+          y: 0,
+        },
+      },
+      {
+        ...rowWidget(
+          "row-1",
+          [
+            {
+              ...graphWidget("graph-child"),
+              bindings: {
+                sourceData: {
+                  sourceWidgetId: "connection-1",
+                  sourceOutputId: "dataset",
+                },
+              },
+            },
+          ],
+          { x: 0, y: 8 },
+        ),
+        slidePlacement: {
+          slideWidgetId: "slide-1",
+          region: "body",
+        },
+      },
+    ]);
+
+    const duplicated = duplicateDashboardWidget(dashboard, "slide-1");
+
+    const duplicatedSlide = duplicated.widgets.find(
+      (widget) => widget.widgetId === WORKSPACE_SLIDE_WIDGET_ID && widget.id !== "slide-1",
+    );
+    const duplicatedSource = duplicated.widgets.find(
+      (widget) =>
+        widget.id !== "connection-1" &&
+        widget.title === "Slide Source" &&
+        widget.slidePlacement?.slideWidgetId === duplicatedSlide?.id,
+    );
+    const duplicatedRow = duplicated.widgets.find(
+      (widget) =>
+        widget.id !== "row-1" &&
+        widget.widgetId === WORKSPACE_ROW_WIDGET_ID &&
+        widget.slidePlacement?.slideWidgetId === duplicatedSlide?.id,
+    );
+    const duplicatedGraph = duplicatedRow?.row?.children?.find(
+      (child) => child.id !== "graph-child" && child.widgetId === "graph",
+    );
+
+    expect(duplicatedSlide).toBeDefined();
+    expect(duplicatedSource?.slidePlacement).toEqual({
+      slideWidgetId: duplicatedSlide?.id,
+      region: "body",
+    });
+    expect(duplicatedRow?.slidePlacement).toEqual({
+      slideWidgetId: duplicatedSlide?.id,
+      region: "body",
+    });
+    expect(duplicatedRow?.position?.x).toBe(0);
+    expect(typeof duplicatedRow?.position?.y).toBe("number");
+    expect((duplicatedRow?.position?.y ?? 0)).toBeGreaterThanOrEqual(
+      duplicatedSource?.position?.y ?? 0,
+    );
+    expect(duplicatedGraph?.bindings).toMatchObject({
+      seedData: {
+        sourceWidgetId: duplicatedSource?.id,
+        sourceOutputId: "dataset",
+      },
+    });
   });
 
   it("keeps explicit source bindings unchanged for backward-compatible bound tables", () => {

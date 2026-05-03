@@ -94,6 +94,9 @@ export function useCustomWorkspaceStudio() {
   const updateWorkspaceUserState = useCustomWorkspaceStudioStore(
     (state) => state.updateWorkspaceUserState,
   );
+  const updateWorkspaceListItemSummary = useCustomWorkspaceStudioStore(
+    (state) => state.updateWorkspaceListItemSummary,
+  );
   const setStoredSelectedWorkspaceId = useCustomWorkspaceStudioStore(
     (state) => state.setSelectedWorkspaceId,
   );
@@ -388,6 +391,16 @@ export function useCustomWorkspaceStudio() {
     updateWorkspaceUserState(selectedDashboard.id, updater, options);
   }
 
+  function updateSelectedWorkspaceListItemSummary(
+    updater: (item: WorkspaceListItemSummary) => WorkspaceListItemSummary,
+  ) {
+    if (!selectedDashboard?.id) {
+      return;
+    }
+
+    updateWorkspaceListItemSummary(selectedDashboard.id, updater);
+  }
+
   function commitSelectedWorkspaceControlsState(state: DashboardControlsState) {
     if (!selectedDashboard?.id) {
       return;
@@ -509,6 +522,7 @@ export function useCustomWorkspaceStudio() {
     setSelectedWorkspaceEditing,
     updateSelectedWorkspace,
     updateSelectedWorkspaceUserState,
+    updateSelectedWorkspaceListItemSummary,
     commitSelectedWorkspaceControlsState,
     createWorkspace,
     createWorkspaceFromDefinition,

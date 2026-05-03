@@ -230,6 +230,9 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
             ownerId: context.instanceId,
             runtimeDataStore: context.runtimeDataStore,
             scopeId: context.instanceId,
+            executionSurface: context.executionSurface,
+            publicExecution: context.publicExecution,
+            publicWorkspaceToken: context.publicWorkspaceToken,
             forceFullRefresh:
               context.reason === "manual-submit" ||
               context.reason === "manual-recalculate" ||
