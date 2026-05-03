@@ -16,7 +16,7 @@ import { EChartsSpecWidgetSettings } from "./EChartsSpecWidgetSettings";
 
 export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
   id: "echarts-spec",
-  widgetVersion: "1.2.1",
+  widgetVersion: "1.2.2",
   title: "ECharts Spec",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Visualization",

@@ -23,6 +23,9 @@ This directory contains the ECharts-backed widget modules used by the live widge
 - The widget is the first frontend widget to opt into `organizationConfiguration`. It publishes a
   widget-type schema, a default organization configuration, and runtime enforcement of the resolved
   organization override row.
+- The default organization capability for this widget is now `unsafe-custom-js`. If an
+  organization override row is missing, unpublished, or unavailable on the current surface, the
+  widget resolves to that default capability.
 - JSON mode never revives functions from strings. Trusted snippets are injected locally through a
   small allowlisted registry, and unsafe JavaScript mode is only available when the effective
   organization capability mode is `unsafe-custom-js`.

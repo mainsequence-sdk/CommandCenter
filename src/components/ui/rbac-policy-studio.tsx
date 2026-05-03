@@ -330,8 +330,7 @@ export function RbacPolicyStudio({
             <CardTitle>Shell policy studio</CardTitle>
             <CardDescription>
               Define reusable Command Center permission bundles. Visible built-in baselines remain
-              built-in, but org admins can edit them here. Hidden platform-admin access stays
-              backend-enforced.
+              built-in, and org admins can edit them here.
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -379,8 +378,7 @@ export function RbacPolicyStudio({
                   : "No unsaved changes.")}
           </div>
           <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/35 px-3 py-3 text-sm text-muted-foreground">
-            The hidden `platform-admin` policy is not shown here. That access class stays
-            backend-enforced.
+            Elevated system-only access is not configurable from this screen.
           </div>
         </CardContent>
       </Card>

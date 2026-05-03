@@ -56,7 +56,7 @@ export type ResolvedEChartsOrganizationConfiguration = Record<string, unknown> &
 };
 
 export const DEFAULT_ECHARTS_ORGANIZATION_CONFIGURATION: ResolvedEChartsOrganizationConfiguration = {
-  capabilityMode: "safe-json",
+  capabilityMode: "unsafe-custom-js",
   allowedSnippetIds: [],
   resourceBudget: {
     maxOptionDepth: 20,
@@ -68,7 +68,7 @@ export const DEFAULT_ECHARTS_ORGANIZATION_CONFIGURATION: ResolvedEChartsOrganiza
 };
 
 export const ECHARTS_WIDGET_ORGANIZATION_CONFIGURATION: WidgetOrganizationConfigurationContract = {
-  version: 1,
+  version: 2,
   schema: {
     type: "object",
     additionalProperties: false,

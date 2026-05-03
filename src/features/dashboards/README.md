@@ -87,7 +87,8 @@ These flows are all part of one app surface, with instance state selected throug
   next/previous controls attached to the left and right slide edges so they do not cover content.
 - Slideshow mode now also forces a short initial navigation reveal so users see the slide count and,
   on keyboard-friendly viewports, the available `←` / `→` / `Space` / `Shift` + `Space` / `Esc`
-  shortcuts before the controls fall back to their normal visibility behavior.
+  shortcuts before the controls fall back to their normal visibility behavior. That hint now lives
+  in slideshow chrome above the stage instead of overlaying the slide canvas itself.
 - Workspace settings now manage backend-owned public links through the canonical publish lifecycle:
   `GET /public-link/`, `POST /public-link/publish/`, `POST /public-link/unpublish/`, and
   `POST /public-link/rotate/`. The frontend treats `publicUrl` / `public_url` as backend-owned

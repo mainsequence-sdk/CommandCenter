@@ -481,6 +481,7 @@ function SlideStudioSlideshowViewport({
     : null;
   const showSlideEdgeControls =
     alwaysShowSlideshowControls || isSlideFrameHovered || showSlideshowIntroHint;
+  const showSlideshowTopHint = showSlideshowIntroHint && Boolean(activeSlideEntry);
 
   const activeSlideContent = useMemo(() => {
     if (!activeSlideEntry) {
@@ -622,6 +623,26 @@ function SlideStudioSlideshowViewport({
               })}
             </div>
 
+            {showSlideshowTopHint ? (
+              <div className="relative z-20 shrink-0 px-4 pt-2 xl:px-8 xl:pt-3">
+                <div className="flex justify-center">
+                  <div className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-full border border-border/70 bg-background/88 px-3 py-1 shadow-[var(--shadow-panel)] backdrop-blur-md">
+                    {!publicView ? (
+                      <Badge
+                        variant="neutral"
+                        className="border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] text-primary"
+                      >
+                        {`${activeSlideIndex + 1} / ${slideEntries.length}`}
+                      </Badge>
+                    ) : null}
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      Use `←` / `→`, `Space`, `Shift` + `Space`, or `Esc`
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="relative z-10 min-h-0 flex-1 px-0 py-0 xl:px-8 xl:py-8">
               {activeSlideContent ? (
                 <div
@@ -691,26 +712,6 @@ function SlideStudioSlideshowViewport({
                         >
                           <ArrowRight className="h-4 w-4" />
                         </Button>
-                      </div>
-                    </div>
-                    <div
-                      className={cn(
-                        "pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center transition-opacity duration-150 xl:top-4",
-                        showSlideEdgeControls ? "opacity-100" : "opacity-0",
-                      )}
-                    >
-                      <div className="pointer-events-auto inline-flex max-w-[calc(100%-5rem)] items-center gap-2 rounded-full border border-border/70 bg-background/88 px-3 py-1 shadow-[var(--shadow-panel)] backdrop-blur-md">
-                        <Badge
-                          variant="neutral"
-                          className="border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] text-primary"
-                        >
-                          {`${activeSlideIndex + 1} / ${slideEntries.length}`}
-                        </Badge>
-                        {showSlideshowIntroHint && !alwaysShowSlideshowControls ? (
-                          <span className="hidden text-[11px] font-medium text-muted-foreground md:inline">
-                            Use `←` / `→`, `Space`, `Shift` + `Space`, or `Esc`
-                          </span>
-                        ) : null}
                       </div>
                     </div>
                     {activeSlideContent}

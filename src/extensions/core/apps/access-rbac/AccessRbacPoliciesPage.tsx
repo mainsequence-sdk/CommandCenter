@@ -100,7 +100,7 @@ export function AccessRbacPoliciesPage() {
   return (
     <AccessRbacSurfaceLayout
       title="Policy studio"
-      description="Manage reusable Command Center permission bundles. Visible built-in policies remain built-in but are editable by org admins here, while platform-admin access stays backend-enforced instead of appearing as an assignable policy permission."
+      description="Manage reusable Command Center permission bundles. Visible built-in policies remain built-in and are editable by org admins here."
     >
       <RbacPolicyStudio
         policies={policies}

@@ -13,7 +13,8 @@ Theme-aware ECharts renderer for authored option payloads.
 ## whenNotToUse
 
 - Do not use when an existing typed chart widget already owns the desired dataset and interaction model.
-- Do not use unsafe JavaScript mode unless the organization explicitly permits it.
+- Unsafe JavaScript mode is the widget default unless an organization override constrains the
+  effective capability mode.
 - Do not hard-code chart colors unless the chart must preserve an external brand or regulatory color standard. Prefer theme tokens and palettes so the chart adapts to dark, light, and custom organization themes.
 
 ## authoringSteps
@@ -22,6 +23,8 @@ Theme-aware ECharts renderer for authored option payloads.
 - Author the ECharts option payload or bind a JSON props payload from another widget.
 - Leave the payload empty if the widget should render nothing yet. This widget no longer restores a starter chart automatically after the local spec is cleared.
 - Verify that the payload fits the current organization capability mode.
+- If there is no organization override on the current surface, the widget resolves to its default
+  `unsafe-custom-js` capability mode.
 - Prefer theme token references for semantic UI colors. Use string syntax like `"$theme.primary"`, `"$theme.foreground"`, `"$theme.muted-foreground"`, `"$theme.chart-grid"`, `"$theme.success"`, `"$theme.warning"`, `"$theme.danger"`, `"$theme.positive"`, or `"$theme.negative"` anywhere the ECharts option expects a color string.
 - Use object theme-token syntax when opacity is needed: `{ "$themeToken": "warning", "alpha": 0.18 }`. This is useful for translucent area fills, mark areas, split areas, threshold bands, and subtle grid or tooltip backgrounds.
 - Use categorical palette references for distinct series colors: `"$palette.categorical.0"`, `"$palette.categorical.1"`, or `{ "$palette": "categorical", "index": 2 }`. Indices wrap through the active theme palette, so multi-series charts should use palette indices instead of manually choosing unrelated colors.
