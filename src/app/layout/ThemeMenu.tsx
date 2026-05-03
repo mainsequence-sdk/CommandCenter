@@ -108,7 +108,7 @@ export function ThemeMenu({
         title={t("settingsDialog.themePreset")}
         className={cn(
           compact
-            ? "inline-flex h-6 w-6 items-center justify-center rounded-[calc(var(--radius)-8px)] border border-border/70 bg-card/70 text-sm text-foreground shadow-sm transition-colors xl:h-9 xl:w-9 xl:rounded-[calc(var(--radius)-6px)]"
+            ? "inline-flex h-5 w-5 items-center justify-center rounded-[calc(var(--radius)-9px)] border border-border/70 bg-card/70 text-sm text-foreground shadow-sm transition-colors xl:h-9 xl:w-9 xl:rounded-[calc(var(--radius)-6px)]"
             : "inline-flex h-9 w-9 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 text-sm text-foreground shadow-sm transition-colors",
           "hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70",
         )}
@@ -116,7 +116,7 @@ export function ThemeMenu({
           setOpen((current) => !current);
         }}
       >
-        <Palette className={cn("text-muted-foreground", compact ? "h-3 w-3 xl:h-4 xl:w-4" : "h-4 w-4")} />
+        <Palette className={cn("text-muted-foreground", compact ? "h-2.5 w-2.5 xl:h-4 xl:w-4" : "h-4 w-4")} />
       </button>
 
       {open && typeof document !== "undefined"

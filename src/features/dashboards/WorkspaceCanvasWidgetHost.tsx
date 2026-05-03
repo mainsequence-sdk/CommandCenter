@@ -593,17 +593,17 @@ export function WorkspaceCanvasWidgetCard({
       >
         {editable && !floatingChromeWidget ? (
           <div
-            className="absolute top-2 left-2 z-20"
+            className="absolute left-0 top-0 z-20"
           >
             <div
               className={cn(
                 dragHandleClassName,
-                "flex h-7 w-7 items-center justify-center rounded-full border border-border/70 bg-background/88 text-muted-foreground shadow-[var(--shadow-panel)] backdrop-blur-md cursor-grab select-none active:cursor-grabbing",
+                "flex h-5 w-5 items-center justify-center rounded-none rounded-br-[10px] border-b border-r border-border/70 bg-background/92 text-muted-foreground shadow-[var(--shadow-panel)] backdrop-blur-md cursor-grab select-none active:cursor-grabbing",
               )}
               data-widget-grid-handle="true"
               title={`Drag ${title}`}
             >
-              <GripVertical className="h-4 w-4" />
+              <GripVertical className="h-3 w-3" />
             </div>
           </div>
         ) : null}

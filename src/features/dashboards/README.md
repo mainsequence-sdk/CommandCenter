@@ -77,9 +77,12 @@ These flows are all part of one app surface, with instance state selected throug
   slideshow projection instead of the generic dashboard canvas.
 - Public `slide-studio` slideshow also reuses the shared public workspace status bar so the
   presentation surface keeps the Main Sequence branded top navigation shell.
-- On small public slideshow viewports, that branded bar switches to a compact mobile treatment and
+- On public slideshow viewports below `xl`, the branded bar switches to a compact treatment and
   the slide stage removes outer padding so the fixed-aspect slide can expand to the maximum
-  remaining screen area.
+  remaining screen area before desktop spacing returns.
+- On touch and small-screen slideshow viewports, the slide navigation strip stays persistently
+  visible instead of relying on hover, with slide count moved into the public top bar and
+  next/previous controls attached to the left and right slide edges so they do not cover content.
 - Workspace settings now manage backend-owned public links through the canonical publish lifecycle:
   `GET /public-link/`, `POST /public-link/publish/`, `POST /public-link/unpublish/`, and
   `POST /public-link/rotate/`. The frontend treats `publicUrl` / `public_url` as backend-owned
@@ -282,8 +285,8 @@ These flows are all part of one app surface, with instance state selected throug
   menu.
 - The shared widget overflow menu now lives in a static top-right overlay instead of the header
   flow, so edit/view mode no longer change widget proportions just to expose actions.
-- Headerless widgets now get a non-layout drag handle overlay in edit mode instead of a forced
-  header band.
+- Widgets now keep a minimal non-layout drag handle pinned flush to the top-left canvas corner in
+  edit mode so the affordance does not consume meaningful internal content area.
 - The workspace studio canvas now keeps one canonical `react-grid-layout` layout in both view and
   edit mode. Entering edit mode should not reshuffle cards; the only intended differences are edit
   chrome plus drag/resize interactivity.

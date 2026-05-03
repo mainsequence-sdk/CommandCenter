@@ -56,8 +56,8 @@ canvas.
 - The slide surface now renders from one fixed logical 16:9 canvas that is uniformly scaled to fit
   the editor and slideshow surfaces. Keep authoring/runtime visual tweaks compatible with that
   scale-first model so slide composition does not drift between edit mode and presentation mode.
-- Presentation-oriented callers can now opt into a tighter frame fit so mobile slideshow viewports
-  maximize the slide before introducing extra stage padding.
+- Presentation-oriented callers can now opt into a tighter frame fit so slideshow viewports below
+  the desktop breakpoint maximize the slide before introducing extra stage padding.
 - Optional region presence is tracked through `headerEnabled`, `footerEnabled`, `leftEnabled`, and
   `rightEnabled`. The separate `showHeader` prop is reserved for the outer widget-frame header
   visibility.

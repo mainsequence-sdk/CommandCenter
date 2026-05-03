@@ -107,8 +107,8 @@ function SlideStudioSlideshowViewport({
   const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
     {},
   );
-  const [isSlideshowStageHovered, setIsSlideshowStageHovered] = useState(false);
   const [isSlideFrameHovered, setIsSlideFrameHovered] = useState(false);
+  const [alwaysShowSlideshowControls, setAlwaysShowSlideshowControls] = useState(false);
   const previousKioskModeRef = useRef<boolean | null>(null);
   const kioskObservationReadyRef = useRef(false);
   const publicView = executionSurface === "public-workspace";
@@ -164,6 +164,33 @@ function SlideStudioSlideshowViewport({
   useEffect(() => {
     setWidgetOverrides({});
   }, [dashboard.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 1279px), (hover: none), (pointer: coarse)");
+    const updateControlsVisibility = () => {
+      setAlwaysShowSlideshowControls(mediaQuery.matches);
+    };
+
+    updateControlsVisibility();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateControlsVisibility);
+
+      return () => {
+        mediaQuery.removeEventListener("change", updateControlsVisibility);
+      };
+    }
+
+    mediaQuery.addListener(updateControlsVisibility);
+
+    return () => {
+      mediaQuery.removeListener(updateControlsVisibility);
+    };
+  }, []);
 
   const renderedWidgets = useMemo(
     () =>
@@ -432,6 +459,7 @@ function SlideStudioSlideshowViewport({
   const activeSlideLabel = activeSlideEntry
     ? (activeSlideEntry.instance.title?.trim() || `Slide ${activeSlideIndex + 1}`)
     : null;
+  const showSlideEdgeControls = alwaysShowSlideshowControls || isSlideFrameHovered;
 
   const activeSlideContent = useMemo(() => {
     if (!activeSlideEntry) {
@@ -516,7 +544,26 @@ function SlideStudioSlideshowViewport({
             />
             {publicView ? (
               <div className="relative z-20 shrink-0">
-                <PublicWorkspaceStatusBar compactMobile />
+                <PublicWorkspaceStatusBar
+                  compactMobile
+                  centerContent={
+                    activeSlideEntry ? (
+                      <div className="inline-flex min-w-0 items-center justify-center gap-1.5 xl:gap-2">
+                        <Badge
+                          variant="neutral"
+                          className="border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] text-primary xl:text-xs"
+                        >
+                          {`${activeSlideIndex + 1} / ${slideEntries.length}`}
+                        </Badge>
+                        {activeSlideLabel ? (
+                          <span className="hidden min-w-0 truncate text-[10px] font-medium text-foreground xl:inline">
+                            {activeSlideLabel}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null
+                  }
+                />
               </div>
             ) : null}
 
@@ -562,81 +609,33 @@ function SlideStudioSlideshowViewport({
               })}
             </div>
 
-            <div className="relative z-10 min-h-0 flex-1 px-0 py-0 sm:px-8 sm:py-8">
+            <div className="relative z-10 min-h-0 flex-1 px-0 py-0 xl:px-8 xl:py-8">
               {activeSlideContent ? (
                 <div
                   className={cn(
                     "relative box-border w-full",
                     publicView
-                      ? "h-[calc(100dvh-2.5rem)] sm:h-[calc(100vh-6rem)] sm:pb-8"
-                      : "h-[calc(100vh-0.5rem)] sm:h-[calc(100vh-4rem)] sm:pb-8",
+                      ? "h-[calc(100dvh-2.1rem)] xl:h-[calc(100vh-6rem)] xl:pb-8"
+                      : "h-[calc(100vh-0.5rem)] xl:h-[calc(100vh-4rem)] xl:pb-8",
                   )}
-                  onMouseEnter={() => {
-                    setIsSlideshowStageHovered(true);
-                  }}
                   onMouseLeave={() => {
-                    setIsSlideshowStageHovered(false);
                     setIsSlideFrameHovered(false);
                   }}
                 >
-                  <div
-                    className={cn(
-                      "pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center px-2 pt-1 transition-opacity duration-150 sm:px-6 sm:pt-2",
-                      isSlideshowStageHovered && !isSlideFrameHovered ? "opacity-100" : "opacity-0",
-                    )}
-                  >
-                    <div className="flex w-full max-w-[min(98vw,calc((100vh-1rem)*16/9))] items-start justify-between gap-2 sm:max-w-[min(92vw,calc((100vh-8rem)*16/9))] sm:gap-4">
-                      <div className="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-border/70 bg-background/88 px-4 py-2 shadow-[var(--shadow-panel)] backdrop-blur-md">
-                        <Badge
-                          variant="neutral"
-                          className="border border-primary/30 bg-primary/10 text-primary"
-                        >
-                          {`Slide ${activeSlideIndex + 1} / ${slideEntries.length}`}
-                        </Badge>
-                        {activeSlideLabel ? (
-                          <span className="text-sm font-medium text-foreground">
-                            {activeSlideLabel}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="pointer-events-auto flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={activeSlideIndex <= 0}
-                          onClick={() => {
-                            setActiveSlideIndex(activeSlideIndex - 1);
-                          }}
-                        >
-                          <ArrowLeft className="h-4 w-4" />
-                          Prev
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={activeSlideIndex < 0 || activeSlideIndex >= slideEntries.length - 1}
-                          onClick={() => {
-                            setActiveSlideIndex(activeSlideIndex + 1);
-                          }}
-                        >
-                          Next
-                          <ArrowRight className="h-4 w-4" />
-                        </Button>
-                        {canExitSlideshow ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              exitSlideshow();
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                            Exit
-                          </Button>
-                        ) : null}
-                      </div>
+                  {canExitSlideshow ? (
+                    <div className="pointer-events-none absolute right-2 top-2 z-30 xl:right-4 xl:top-4">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="pointer-events-auto h-8 w-8 rounded-full bg-background/88 shadow-[var(--shadow-panel)] backdrop-blur-md xl:h-9 xl:w-9"
+                        onClick={() => {
+                          exitSlideshow();
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-                  </div>
+                  ) : null}
                   <div
                     onMouseEnter={() => {
                       setIsSlideFrameHovered(true);
@@ -644,8 +643,43 @@ function SlideStudioSlideshowViewport({
                     onMouseLeave={() => {
                       setIsSlideFrameHovered(false);
                     }}
-                    className="h-full"
+                    className="relative mx-auto h-full w-full max-w-[min(100vw,calc((100dvh-2.1rem)*16/9))] xl:max-w-[min(92vw,calc((100vh-8rem)*16/9))]"
                   >
+                    <div
+                      className={cn(
+                        "pointer-events-none absolute inset-y-0 left-0 right-0 z-20 flex items-center justify-between transition-opacity duration-150",
+                        showSlideEdgeControls ? "opacity-100" : "opacity-0",
+                      )}
+                    >
+                      <div className="pointer-events-none -ml-1 flex h-full items-center xl:-ml-4">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="pointer-events-auto h-9 w-9 rounded-full bg-background/88 shadow-[var(--shadow-panel)] backdrop-blur-md xl:h-10 xl:w-10"
+                          disabled={activeSlideIndex <= 0}
+                          aria-label="Previous slide"
+                          onClick={() => {
+                            setActiveSlideIndex(activeSlideIndex - 1);
+                          }}
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="pointer-events-none -mr-1 flex h-full items-center xl:-mr-4">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="pointer-events-auto h-9 w-9 rounded-full bg-background/88 shadow-[var(--shadow-panel)] backdrop-blur-md xl:h-10 xl:w-10"
+                          disabled={activeSlideIndex < 0 || activeSlideIndex >= slideEntries.length - 1}
+                          aria-label="Next slide"
+                          onClick={() => {
+                            setActiveSlideIndex(activeSlideIndex + 1);
+                          }}
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                     {activeSlideContent}
                   </div>
                 </div>

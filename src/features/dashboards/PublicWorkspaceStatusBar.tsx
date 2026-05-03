@@ -1,4 +1,5 @@
 import { Clock3, RefreshCw } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { ThemeMenu } from "@/app/layout/ThemeMenu";
 import { BrandWordmark } from "@/components/brand/BrandWordmark";
@@ -26,8 +27,10 @@ function formatPublicWorkspaceRemainingTime(valueMs: number | null) {
 
 export function PublicWorkspaceStatusBar({
   compactMobile = false,
+  centerContent,
 }: {
   compactMobile?: boolean;
+  centerContent?: ReactNode;
 }) {
   const widgetExecution = useDashboardWidgetExecution();
   const { isRefreshing, refreshIntervalMs, refreshProgress } = useDashboardControls();
@@ -45,11 +48,11 @@ export function PublicWorkspaceStatusBar({
     <div
       className={
         compactMobile
-          ? "relative sticky top-0 z-40 border-b border-border/60 bg-background/82 px-2 py-0.5 backdrop-blur-xl xl:mb-1 xl:px-0 xl:py-0.5"
+          ? "relative sticky top-0 z-40 border-b border-border/60 bg-background/82 px-2 py-0 backdrop-blur-xl xl:mb-1 xl:px-0 xl:py-0.5"
           : "relative sticky top-0 z-40 mb-1 border-b border-border/60 bg-background/72 px-0 py-0.5 backdrop-blur-xl"
       }
     >
-      <div className={compactMobile ? "flex items-center justify-between gap-2" : "flex flex-wrap items-center justify-between gap-2"}>
+      <div className={compactMobile ? "grid grid-cols-[auto_1fr_auto] items-center gap-2" : "grid grid-cols-[auto_1fr_auto] items-center gap-2"}>
         <a
           href="/login"
           className={
@@ -58,13 +61,20 @@ export function PublicWorkspaceStatusBar({
               : "inline-flex items-center rounded-[calc(var(--radius)-4px)] px-1 py-0.5 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
           }
         >
-          <BrandWordmark imageClassName={compactMobile ? "h-4 w-auto object-contain xl:h-8" : "h-7 w-auto object-contain sm:h-8"} />
+          <BrandWordmark imageClassName={compactMobile ? "h-3.5 w-auto object-contain xl:h-8" : "h-7 w-auto object-contain sm:h-8"} />
         </a>
+        <div className={compactMobile ? "min-w-0 px-1" : "min-w-0 px-2"}>
+          {centerContent ? (
+            <div className="flex min-w-0 items-center justify-center">
+              {centerContent}
+            </div>
+          ) : null}
+        </div>
         <div
           className={
             compactMobile
-              ? "ml-auto flex items-center justify-end gap-1 text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground xl:flex-wrap xl:gap-3 xl:text-[10px] xl:tracking-[0.16em]"
-              : "ml-auto flex flex-wrap items-center justify-end gap-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
+              ? "flex items-center justify-end gap-1 text-[8px] font-medium uppercase tracking-[0.12em] text-muted-foreground xl:flex-wrap xl:gap-3 xl:text-[10px] xl:tracking-[0.16em]"
+              : "flex flex-wrap items-center justify-end gap-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
           }
         >
           {loading ? (
