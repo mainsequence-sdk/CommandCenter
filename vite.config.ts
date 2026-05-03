@@ -11,6 +11,11 @@ const appComponentProxyPrefix = "/__app_component_proxy__";
 const assistantProxyPrefix = "/__assistant__";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const cloudflareMode = "cloudflare";
+const defaultAppTitle = "Main Sequence";
+const defaultAppDescription =
+  "Main Sequence brings the power of data, automation, and artificial intelligence into a unified workbench. From controlled and standardized development workflows to no-code dashboards and application builders for non-technical users, Main Sequence reshapes how the enterprise works and operates.";
+const defaultAppOgImagePath = "/mainsequence-logo.png";
+const defaultTwitterCard = "summary";
 
 async function loadOptionalCloudflarePlugin(): Promise<PluginOption | null> {
   try {
@@ -26,6 +31,82 @@ async function loadOptionalCloudflarePlugin(): Promise<PluginOption | null> {
 
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
+}
+
+function normalizePublicAssetPath(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function toAbsoluteAssetUrl(appUrl: string, assetPath: string) {
+  if (!assetPath) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(assetPath)) {
+    return assetPath;
+  }
+
+  if (!appUrl) {
+    return assetPath;
+  }
+
+  try {
+    return new URL(assetPath, `${trimTrailingSlash(appUrl)}/`).toString();
+  } catch {
+    return assetPath;
+  }
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function createIndexMetadataPlugin(env: Record<string, string>) {
+  const appTitle = env.VITE_APP_TITLE?.trim() || defaultAppTitle;
+  const appDescription = env.VITE_APP_DESCRIPTION?.trim() || defaultAppDescription;
+  const appUrl = env.VITE_APP_URL?.trim() || "";
+  const ogImagePath = normalizePublicAssetPath(
+    env.VITE_APP_OG_IMAGE_PATH?.trim() || defaultAppOgImagePath,
+  );
+  const ogImageUrl = toAbsoluteAssetUrl(appUrl, ogImagePath);
+  const replacements = new Map<string, string>([
+    ["__COMMAND_CENTER_APP_TITLE__", escapeHtml(appTitle)],
+    ["__COMMAND_CENTER_APP_DESCRIPTION__", escapeHtml(appDescription)],
+    ["__COMMAND_CENTER_APP_URL__", escapeHtml(appUrl)],
+    ["__COMMAND_CENTER_APP_OG_IMAGE_URL__", escapeHtml(ogImageUrl)],
+    ["__COMMAND_CENTER_APP_TWITTER_CARD__", defaultTwitterCard],
+  ]);
+
+  return {
+    name: "command-center-index-metadata",
+    transformIndexHtml(html: string) {
+      let transformedHtml = html;
+
+      replacements.forEach((replacement, token) => {
+        transformedHtml = transformedHtml.replaceAll(token, replacement);
+      });
+
+      return transformedHtml;
+    },
+  } satisfies PluginOption;
 }
 
 function createAppComponentProxyPlugin(): PluginOption {
@@ -136,6 +217,7 @@ export default defineConfig(async ({ mode }) => {
   return {
     plugins: [
       createAppComponentProxyPlugin(),
+      createIndexMetadataPlugin(env),
       react(),
       tailwindcss(),
       ...(cloudflarePlugin ? [cloudflarePlugin] : []),
