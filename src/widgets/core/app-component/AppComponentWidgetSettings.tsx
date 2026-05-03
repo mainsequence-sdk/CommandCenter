@@ -583,6 +583,7 @@ export function AppComponentWidgetSettings({
     }
 
     const result = await executeAppComponent({
+      executionSurface: "private-dashboard",
       widgetId: "app-component",
       instanceId,
       reason: "settings-test",

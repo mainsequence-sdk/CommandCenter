@@ -253,7 +253,7 @@ function SidebarOnlyRuntimeMounts({
   onRuntimeStateChange,
 }: {
   sidebarOnlyWidgets: DashboardDefinition["widgets"];
-  permissions: string[];
+  permissions: readonly string[];
   onRuntimeStateChange: (
     instanceId: string,
     state: Record<string, unknown> | undefined,
@@ -819,7 +819,7 @@ function WorkspaceSnapshotToolbarControl({
 }: {
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
-  permissions: string[];
+  permissions: readonly string[];
   profile: WorkspaceSnapshotCaptureProfile;
 }) {
   const { snapshotState, startCapture } = useWorkspaceSnapshotCaptureController({

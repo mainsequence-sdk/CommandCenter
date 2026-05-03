@@ -280,7 +280,12 @@ export function createPublicConnectionQueryWebSocketSubscription<
     }
 
     try {
-      handlers.onMessage(parseConnectionStreamServerMessage(event.data), event);
+      handlers.onMessage(
+        parseConnectionStreamServerMessage(event.data, {
+          allowMissingConnectionId: true,
+        }),
+        event,
+      );
     } catch (error) {
       handlers.onParseError?.(toError(error), event);
     }
@@ -339,6 +344,9 @@ export function buildConnectionStreamSubscribeMessage<TQuery = Record<string, un
 
 export function parseConnectionStreamServerMessage(
   data: unknown,
+  options?: {
+    allowMissingConnectionId?: boolean;
+  },
 ): ConnectionStreamServerMessage {
   const payload = typeof data === "string" ? JSON.parse(data) : data;
 
@@ -348,7 +356,11 @@ export function parseConnectionStreamServerMessage(
 
   switch (payload.type) {
     case "ack": {
-      const connectionId = payload.connectionId;
+      const connectionId = isConnectionId(payload.connectionId)
+        ? payload.connectionId
+        : options?.allowMissingConnectionId
+          ? "public"
+          : payload.connectionId;
       assertConnectionId(connectionId);
       assertString(payload.queryKind, "queryKind");
       assertSequence(payload.sequence);
@@ -357,7 +369,11 @@ export function parseConnectionStreamServerMessage(
     }
     case "snapshot":
     case "delta": {
-      const connectionId = payload.connectionId;
+      const connectionId = isConnectionId(payload.connectionId)
+        ? payload.connectionId
+        : options?.allowMissingConnectionId
+          ? "public"
+          : payload.connectionId;
       assertConnectionId(connectionId);
       assertString(payload.queryKind, "queryKind");
       assertSequence(payload.sequence);

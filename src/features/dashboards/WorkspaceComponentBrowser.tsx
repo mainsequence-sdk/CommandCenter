@@ -231,7 +231,7 @@ export function WorkspaceComponentBrowser({
 }: {
   open: boolean;
   description?: string;
-  permissions: string[];
+  permissions: readonly string[];
   title?: string;
   userId: string | number | null;
   widgetFilter?: (widget: WidgetDefinition) => boolean;

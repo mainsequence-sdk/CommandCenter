@@ -1076,7 +1076,9 @@ export async function executeConnectionQueryWidgetRequest(
     });
   }
 
-  const enrichedRequest = await enrichConnectionQueryRequest(request, resolvedProps);
+  const enrichedRequest = isPublicExecutionSurface
+    ? request
+    : await enrichConnectionQueryRequest(request, resolvedProps);
   const incrementalSettings = resolveConnectionQueryIncrementalSettings(resolvedProps);
   const incrementalDecision = resolveConnectionQueryIncrementalDecision({
     fullRequest: enrichedRequest,

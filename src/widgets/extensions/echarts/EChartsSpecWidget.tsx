@@ -736,7 +736,7 @@ function cloneJsonObject<T>(value: T): T {
 
 function normalizeJsonOptionSource(props: EChartsSpecWidgetProps) {
   if (typeof props.optionJson === "string") {
-    return props.optionJson.trim() || starterOptionJson;
+    return props.optionJson.trim();
   }
 
   if (props.optionJson !== undefined) {
@@ -747,7 +747,18 @@ function normalizeJsonOptionSource(props: EChartsSpecWidgetProps) {
     return JSON.stringify(props.option);
   }
 
-  return starterOptionJson;
+  return "";
+}
+
+function hasRenderableSource(
+  props: EChartsSpecWidgetProps,
+  sourceMode: EChartsSpecSourceMode,
+) {
+  if (sourceMode === "javascript") {
+    return typeof props.optionBuilderSource === "string" && props.optionBuilderSource.trim().length > 0;
+  }
+
+  return normalizeJsonOptionSource(props).length > 0;
 }
 
 function resolveThemeTokenReference(
@@ -1049,6 +1060,16 @@ function useCompiledOption(
 ) {
   return useMemo(() => {
     const sourceMode = resolveEffectiveSourceMode(props, configuration);
+    const sourceAvailable = hasRenderableSource(props, sourceMode);
+
+    if (!sourceAvailable) {
+      return {
+        option: null,
+        sourceMode,
+        error: null,
+        isEmpty: true,
+      };
+    }
 
     try {
       const option = sourceMode === "javascript"
@@ -1070,12 +1091,14 @@ function useCompiledOption(
         option,
         sourceMode,
         error: null,
+        isEmpty: false,
       };
     } catch (error) {
       return {
         option: null,
         sourceMode,
         error: error instanceof Error ? error.message : "Unable to compile the ECharts option.",
+        isEmpty: false,
       };
     }
   }, [configuration, props.optionBuilderSource, props.optionJson, props.sourceMode, resolvedDataViz, resolvedTokens]);
@@ -1169,6 +1192,13 @@ export function EChartsSpecWidget({ widget, props, resolvedInputs }: Props) {
           <div className="flex max-w-lg flex-col items-center gap-3">
             <AlertTriangle className="h-5 w-5" />
             <div>{compiled.error}</div>
+          </div>
+        </div>
+      ) : compiled.isEmpty ? (
+        <div className="flex flex-1 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-card/20 px-4 py-6 text-center text-sm text-muted-foreground">
+          <div className="flex max-w-lg flex-col items-center gap-3">
+            <ShieldAlert className="h-5 w-5" />
+            <div>No ECharts option is configured.</div>
           </div>
         </div>
       ) : chartError ? (

@@ -1501,8 +1501,8 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
             },
           );
 
-    void subscriptionPromise
-      .then((nextSubscription) => {
+    void Promise.resolve(subscriptionPromise)
+      .then((nextSubscription: ConnectionQueryWebSocketSubscription) => {
         if (!active) {
           nextSubscription.close(1000, "connection stream query widget unmounted");
           return;
@@ -1510,7 +1510,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
 
         subscription = nextSubscription;
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         if (!active) {
           return;
         }

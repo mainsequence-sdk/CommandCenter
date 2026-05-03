@@ -30,7 +30,11 @@ import {
   type WorkspaceSlideRegionId,
 } from "@/widgets/core/workspace-slide/slide-model";
 import { WorkspaceSlideSurface } from "@/widgets/core/workspace-slide/WorkspaceSlideWidget";
-import type { WidgetHeaderActionsProps, WidgetInstancePresentation } from "@/widgets/types";
+import type {
+  WidgetExecutionSurface,
+  WidgetHeaderActionsProps,
+  WidgetInstancePresentation,
+} from "@/widgets/types";
 
 import {
   updateDashboardControlsState,
@@ -40,7 +44,6 @@ import { WorkspaceRenderErrorBoundary, WorkspaceRenderErrorState } from "./Works
 import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
-import type { WidgetExecutionSurface } from "@/widgets/types";
 
 interface WidgetInstanceOverride {
   props?: Record<string, unknown>;

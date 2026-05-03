@@ -31,6 +31,10 @@ for connection query models that advertise a WebSocket stream contract.
   For SPA JWT auth it first mints a short-lived handshake ticket through
   `auth.websocketTicketUrl`, then resolves the configured `ws`/`wss` endpoint and sends the
   query-shaped subscribe payload.
+- Anonymous public execution now switches to widget-scoped `publicExecution.streamUrl` metadata
+  from the published public workspace payload. In that mode the widget sends the same subscribe
+  payload minus `connectionId`, skips SPA WebSocket ticket minting, and keys its public runtime
+  execution off the public stream URL instead of the private connection id.
 - Only query models with `stream.transport: "websocket"` and at least one valid stream mode are
   accepted. Settings applies the same validation by filtering the shared connection query workbench
   and by resolving draft defaults only against streamable paths.
@@ -78,6 +82,9 @@ for connection query models that advertise a WebSocket stream contract.
 
 - Keep backend access routed through `src/connections/api.ts`; do not open provider-native sockets
   directly from this widget.
+- Keep public runtime execution routed through widget-scoped `publicExecution.streamUrl`; do not
+  fall back to authenticated `/connections/:id/stream-query/` routes once the execution surface is
+  `public-workspace`.
 - Keep saved props credential-free and route-free. Backend connection instances own credentials,
   provider endpoints, route fragments, auth refresh, permissions, and adapter validation.
 - Keep response normalization aligned with `connection-query` by using

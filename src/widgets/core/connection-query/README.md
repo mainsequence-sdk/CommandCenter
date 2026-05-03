@@ -34,6 +34,10 @@ backend-owned connection instances.
 - Runtime execution calls `queryConnection(...)` and publishes one dataset from the first matching
   response frame. The widget always publishes `core.tabular_frame@v1`. Legacy backend
   series-shaped responses are coerced into canonical tabular rows at the widget edge.
+- Anonymous public execution now uses widget-scoped `publicExecution.queryUrl` metadata from the
+  published public workspace payload instead of the private `/connections/:id/query/` route. In
+  that mode the frontend sends the same query envelope minus `connectionId`, and incremental
+  dedupe/identity keys switch to the public execution URL rather than the private connection id.
 - Runtime publication writes HTTP snapshots and incremental batches into the workspace runtime data
   store when one is available. The saved widget runtime state carries a ref-backed shell plus
   small update metadata, while legacy consumers can still materialize the retained tabular frame
@@ -97,6 +101,9 @@ backend-owned connection instances.
 ## Maintenance Constraints
 
 - Keep backend access routed through `src/connections/api.ts`.
+- Keep public runtime execution routed through widget-scoped `publicExecution.queryUrl` metadata;
+  do not fall back to private `/connections/:id/query/` calls once the execution surface is
+  `public-workspace`.
 - Do not store endpoint URLs, route fragments, tokens, or secrets in props.
 - Keep the standard request envelope generic. Connection-specific details belong in the selected
   connection definition's typed query editor and backend adapter validation.

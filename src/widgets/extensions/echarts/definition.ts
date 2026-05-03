@@ -16,7 +16,7 @@ import { EChartsSpecWidgetSettings } from "./EChartsSpecWidgetSettings";
 
 export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
   id: "echarts-spec",
-  widgetVersion: "1.2.0",
+  widgetVersion: "1.2.1",
   title: "ECharts Spec",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Visualization",
@@ -26,7 +26,6 @@ export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
   tags: ["echarts", "chart", "json", "spec", "organization-config"],
   exampleProps: {
     sourceMode: "json",
-    optionJson: starterOptionJson,
   },
   mockProps: {
     sourceMode: "json",

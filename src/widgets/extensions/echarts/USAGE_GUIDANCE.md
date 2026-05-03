@@ -20,6 +20,7 @@ Theme-aware ECharts renderer for authored option payloads.
 
 - Choose JSON or JavaScript source mode.
 - Author the ECharts option payload or bind a JSON props payload from another widget.
+- Leave the payload empty if the widget should render nothing yet. This widget no longer restores a starter chart automatically after the local spec is cleared.
 - Verify that the payload fits the current organization capability mode.
 - Prefer theme token references for semantic UI colors. Use string syntax like `"$theme.primary"`, `"$theme.foreground"`, `"$theme.muted-foreground"`, `"$theme.chart-grid"`, `"$theme.success"`, `"$theme.warning"`, `"$theme.danger"`, `"$theme.positive"`, or `"$theme.negative"` anywhere the ECharts option expects a color string.
 - Use object theme-token syntax when opacity is needed: `{ "$themeToken": "warning", "alpha": 0.18 }`. This is useful for translucent area fills, mark areas, split areas, threshold bands, and subtle grid or tooltip backgrounds.
@@ -33,6 +34,7 @@ Theme-aware ECharts renderer for authored option payloads.
 ## blockingRequirements
 
 - JSON mode requires a valid JSON object that ECharts can consume as an option payload. It does not revive functions from strings.
+- When no local option and no bound props payload are present, the widget stays empty instead of rendering a fallback starter chart.
 - JavaScript builder mode requires the effective organization capability mode to be `unsafe-custom-js`; otherwise the widget falls back to JSON mode.
 - Bound `props-json` input must resolve to a JSON object compatible with the widget props contract. Non-object values cannot drive the chart spec.
 - Incremental upstream sources expose retained props through `upstreamBase`; this widget recompiles
@@ -44,6 +46,7 @@ Theme-aware ECharts renderer for authored option payloads.
 
 - JSON mode does not parse functions from payload strings.
 - Bound props JSON overrides matching local widget props when both are present.
+- The starter example is manual-only. Use the settings action or documentation snippets when you want a seeded chart, but clearing the saved spec leaves the widget blank.
 - Unsafe JavaScript mode may be blocked by organization configuration and will then fall back to JSON mode.
 - Theme and palette tokens in JavaScript mode are only resolved inside plain returned option objects; already-instantiated ECharts helper objects must still use final colors.
 - Theme token references only resolve when the token name is valid. Invalid strings such as `"$theme.brandBlue"` or misspelled palette scales remain ordinary string values and can render incorrectly.

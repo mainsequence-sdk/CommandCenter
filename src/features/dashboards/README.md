@@ -19,6 +19,9 @@ These flows are all part of one app surface, with instance state selected throug
 - `SlideStudioPage.tsx`: curated `workspace-studio` surface that reuses the shared workspace list/canvas host, filters to `type=slide-studio`, re-enables the `Slide` widget in that surface only, and routes into the Slide Studio-only slideshow projection mode.
 - `PublicWorkspacePreviewPage.tsx`: shellless authenticated projection for `workspace` and `slide-studio` workspaces. It reuses the normal runtime canvas without authoring chrome so signed users can preview the eventual public rendering contract.
 - `public-workspace-permissions.ts`: shared synthetic public render permission profile used by both authenticated public preview and anonymous public view. It intentionally grants only the baseline public workspace visibility contract.
+- `DashboardWidgetExecution.tsx`: shared widget execution provider. It now also exposes an explicit
+  `public-workspace` execution surface and widget-instance lookup so public routes can switch
+  source widgets onto backend-owned public execution URLs without forking the widget graph.
 - `SlideStudioSlideshowPage.tsx`: Slide Studio-only projection surface. It reuses the same workspace document and slide/widget rendering contracts but presents one top-level slide per screen with slideshow navigation.
 - `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio. It also supports the shellless `publicPreview` projection over the same runtime document.
 - `WorkspaceCanvasWidgetHost.tsx`: shared widget renderer used by both the root canvas host and the slide subgrid host so widget chrome, headers, actions, inline edit gating, and body rendering stay identical across both layout hosts.
@@ -28,7 +31,7 @@ These flows are all part of one app surface, with instance state selected throug
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
 - `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title, description, labels, backend-only sharing permissions, and the authenticated public-preview / future public-publication controls.
-- `public-workspace-readiness.ts`: frontend preflight for public publication readiness. It checks workspace type, widget permissions, unknown widget ids, and private connection execution sources before the settings page allows public-link enablement.
+- `public-workspace-readiness.ts`: frontend preflight for public publication readiness. It checks workspace type, widget permissions, unknown widget ids, and whether connection-backed source widgets expose the required widget-scoped `publicExecution` contract before the settings page allows public-link enablement.
 - `SavedWidgetsPage.tsx`: dedicated saved-widget and saved-widget-group library screen with metadata editing, deletion, JSON inspection, and permissions.
 - `SavedWidgetSaveDialog.tsx`: canvas action flow for saving the selected live workspace widget as a reusable saved widget or saved widget group.
 - `SavedWidgetLibraryDialog.tsx`: in-canvas library picker used to import saved widgets and groups back into the current workspace.
@@ -72,6 +75,15 @@ These flows are all part of one app surface, with instance state selected throug
   `/public-link/`, `/public-link/disable/`, and `/public-link/rotate/` endpoints. The frontend
   treats `publicUrl` / `public_url` as backend-owned metadata and does not send it back in normal
   workspace save payloads.
+- Anonymous public workspace payloads may now also carry widget-scoped `publicExecution`
+  metadata. Public runtime surfaces preserve that metadata on widget instances, do not persist it
+  back through normal workspace save/update payloads, and use it as the authoritative execution
+  contract for connection-backed source widgets in public mode.
+- Anonymous public `workspace` rendering now executes `connection-query` and
+  `connection-stream-query` widgets through widget-owned public URLs rather than the private
+  connections registry/query endpoints. Slide-studio public slideshow uses the same public
+  execution surface and re-enables automatic hydration so source widgets can load in anonymous
+  presentation mode.
 - Before enabling a public link, workspace settings now show a local public-readiness control plane.
   It is intentionally a frontend preflight, not the final authority; backend publication validation
   must still make the authoritative allow/block decision.
@@ -96,9 +108,11 @@ These flows are all part of one app surface, with instance state selected throug
   affordances without forking the shared canvas page.
 - `Slide Studio` now uses that toolbar-action hook for both `Add slide` and `Present`. The
   slideshow projection is route-driven and read-only; it shows one top-level `workspace-slide`
-  widget per screen while keeping the same underlying workspace document. It intentionally reuses
-  the current workspace runtime state and disables automatic dashboard hydration so entering
-  presentation mode does not trigger a fresh recalculation cycle.
+  widget per screen while keeping the same underlying workspace document. The authenticated
+  authoring slideshow intentionally reuses the current workspace runtime state and disables
+  automatic dashboard hydration so entering presentation mode does not trigger a fresh
+  recalculation cycle. Anonymous public slideshow uses the same structural runtime but re-enables
+  automatic hydration so public source widgets can execute through the public execution contract.
 - The app is only included when `VITE_INCLUDE_WORKSPACES=true`. When the flag is `false`, the runtime registry removes `workspace-studio` from navigation and route resolution.
 - Opening a workspace instance adds `?workspace=<id>`.
 - Opening the workspace graph adds `?workspace=<id>&view=graph`.

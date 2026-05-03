@@ -41,8 +41,9 @@ This directory contains the ECharts-backed widget modules used by the live widge
   untouched. If JavaScript mode constructs those objects directly, pass final colors into them
   instead of theme-token placeholders.
 - The default starter chart is a JSON-safe animated bar chart inspired by the Apache ECharts
-  `bar-animation-delay` example, but adapted to avoid function callbacks and to showcase the
-  theme-driven categorical, sequential, and diverging palette helpers.
+  `bar-animation-delay` example, but it is opt-in only. New widgets and cleared settings stay
+  empty until authors paste a spec, bind props JSON, or explicitly click `Use starter example`.
+  The starter remains available for demo preview payloads and manual authoring.
 
 ## Maintenance notes
 

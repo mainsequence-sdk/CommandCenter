@@ -52,10 +52,20 @@ export function buildConnectionStreamQueryExecutionKey(input: {
   publicExecutionKey?: string;
   validationError?: string | null;
 }) {
+  const executionProps =
+    input.publicExecutionKey && input.props.connectionRef
+      ? {
+          ...input.props,
+          connectionRef: {
+            typeId: input.props.connectionRef.typeId,
+          },
+        }
+      : input.props;
+
   return stableJsonStringify({
     instanceId: input.instanceId?.trim() || undefined,
     publicExecutionKey: input.publicExecutionKey?.trim() || undefined,
-    props: input.props,
+    props: executionProps,
     queryModel: input.queryModel
       ? {
           id: input.queryModel.id,

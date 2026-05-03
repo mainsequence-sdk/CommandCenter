@@ -136,7 +136,7 @@ export function useWorkspaceSnapshotCaptureController({
 }: {
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
-  permissions: string[];
+  permissions: readonly string[];
   profile: WorkspaceSnapshotCaptureProfile;
 }) {
   const controls = useDashboardControls();
@@ -312,7 +312,7 @@ export function WorkspaceSnapshotCapture({
 }: {
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
-  permissions: string[];
+  permissions: readonly string[];
   profile: WorkspaceSnapshotCaptureProfile;
 }) {
   const { startCapture } = useWorkspaceSnapshotCaptureController({

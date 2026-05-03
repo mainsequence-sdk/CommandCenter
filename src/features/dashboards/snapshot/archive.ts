@@ -198,7 +198,7 @@ function buildWidgetArtifactEntries(
 export async function buildWorkspaceAgentSnapshotArchive(input: {
   dashboard: DashboardDefinition;
   resolvedDashboard: ResolvedDashboardDefinition;
-  permissions: string[];
+  permissions: readonly string[];
   controlsState: DashboardControlsState & {
     refreshProgress: number;
     isRefreshing: boolean;

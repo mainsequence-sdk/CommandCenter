@@ -9,7 +9,10 @@ import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 const PUBLIC_WORKSPACE_BASELINE_PERMISSION_SET = new Set<string>(
   PUBLIC_WORKSPACE_RENDER_PERMISSIONS,
 );
-const PRIVATE_PUBLIC_EXECUTION_WIDGET_IDS = new Set(["connection-query", "connection-stream-query"]);
+
+function normalizeNonEmptyString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
 
 export interface PublicWorkspaceReadinessIssue {
   id: string;
@@ -138,21 +141,32 @@ export function assessWorkspacePublicReadiness(
       });
     }
 
-    if (PRIVATE_PUBLIC_EXECUTION_WIDGET_IDS.has(widget.id)) {
+    if (widget.id === "connection-query" || widget.id === "connection-stream-query") {
+      const missingContractField =
+        widget.id === "connection-query"
+          ? normalizeNonEmptyString(instance.publicExecution?.queryUrl)
+            ? null
+            : "queryUrl"
+          : normalizeNonEmptyString(instance.publicExecution?.streamUrl)
+            ? null
+            : "streamUrl";
       const ownerTitle =
         instance.managedBy?.ownerInstanceId
           ? instanceTitleById.get(instance.managedBy.ownerInstanceId)
           : null;
-      issues.push({
-        id: `private-execution:${instance.id}`,
-        severity: "error",
-        title: "Private connection execution source",
-        description: ownerTitle
-          ? `Widget "${widgetLabel}" is a managed private execution source for "${ownerTitle}". Public mode requires backend-owned public widget execution endpoints instead of private connection execution.`
-          : `Widget "${widgetLabel}" still depends on the private connection execution layer. Public mode requires backend-owned public widget execution endpoints instead of private connection execution.`,
-        widgetId: widget.id,
-        instanceId: instance.id,
-      });
+
+      if (missingContractField) {
+        issues.push({
+          id: `missing-public-execution:${instance.id}`,
+          severity: "error",
+          title: "Missing public execution contract",
+          description: ownerTitle
+            ? `Widget "${widgetLabel}" is a managed source for "${ownerTitle}" but is missing publicExecution.${missingContractField}. Public publication requires backend-owned public widget execution endpoints.`
+            : `Widget "${widgetLabel}" is missing publicExecution.${missingContractField}. Public publication requires backend-owned public widget execution endpoints.`,
+          widgetId: widget.id,
+          instanceId: instance.id,
+        });
+      }
     }
   });
 

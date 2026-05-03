@@ -16,17 +16,17 @@ import {
 
 function normalizeOptionJsonDraftValue(value: unknown) {
   if (typeof value === "string") {
-    return value.trim() || starterOptionJson;
+    return value;
   }
 
   if (value === undefined) {
-    return starterOptionJson;
+    return "";
   }
 
   try {
     return JSON.stringify(value, null, 2);
   } catch {
-    return starterOptionJson;
+    return "";
   }
 }
 
@@ -50,9 +50,9 @@ export function EChartsSpecWidgetSettings({
         : "json",
     optionJson: normalizeOptionJsonDraftValue(draftProps.optionJson),
     optionBuilderSource:
-      typeof draftProps.optionBuilderSource === "string" && draftProps.optionBuilderSource.trim()
-        ? draftProps.optionBuilderSource.trim()
-        : starterOptionBuilderSource,
+      typeof draftProps.optionBuilderSource === "string"
+        ? draftProps.optionBuilderSource
+        : "",
   };
 
   return (
@@ -187,8 +187,8 @@ export function EChartsSpecWidgetSettings({
 
         {previewProps.sourceMode === "json" ? (
           <div className="text-xs text-muted-foreground">
-            The default starter is a palette-driven animated bar chart inspired by the ECharts
-            `bar-animation-delay` example, but kept JSON-safe so it works in `safe-json` mode.
+            The starter example is opt-in only. Clearing the spec leaves the widget empty until you
+            author a new option or click <strong>Use starter example</strong>.
           </div>
         ) : null}
 

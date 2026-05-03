@@ -296,6 +296,7 @@ export function AppComponentWidget({
     }
 
     const result = await executeAppComponent({
+      executionSurface: "private-dashboard",
       widgetId: "app-component",
       instanceId: instanceId ?? "app-component-preview",
       reason: "manual-submit",

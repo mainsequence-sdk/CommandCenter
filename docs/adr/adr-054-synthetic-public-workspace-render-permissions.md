@@ -214,12 +214,12 @@ public-safe.
 - [x] Use that synthetic permission profile in anonymous Public View widget rendering.
 - [x] Stop using raw empty permission arrays for public workspace widget gating.
 - [x] Keep shell/app access control separate from public widget rendering permissions.
-- [ ] Extend the public workspace detail payload with widget-scoped `publicExecution` metadata.
-- [ ] Add an explicit public execution surface/context in the widget runtime layer.
-- [ ] Route `connection-query` execution through `widget.publicExecution.queryUrl` in public mode.
-- [ ] Route `connection-stream-query` execution through `widget.publicExecution.streamUrl` in
+- [x] Extend the public workspace detail payload with widget-scoped `publicExecution` metadata.
+- [x] Add an explicit public execution surface/context in the widget runtime layer.
+- [x] Route `connection-query` execution through `widget.publicExecution.queryUrl` in public mode.
+- [x] Route `connection-stream-query` execution through `widget.publicExecution.streamUrl` in
       public mode.
-- [ ] Stop using `connectionId` as the client execution key in public mode.
+- [x] Stop using `connectionId` as the client execution key in public mode.
 - [ ] Ensure authenticated Public Preview uses the same public execution engine as anonymous
       Public View.
 - [ ] Add publication validation that rejects widgets or instances requiring permissions outside the
