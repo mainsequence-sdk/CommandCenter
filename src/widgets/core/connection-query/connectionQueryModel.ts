@@ -1046,7 +1046,7 @@ function buildPublicConnectionQueryRequestPayload(
 
 function buildPublicConnectionQueryClientExecutionKey(input: {
   queryUrl: string;
-  request: Record<string, unknown>;
+  request: unknown;
 }) {
   return `${input.queryUrl}\u001e${stableJsonStringify(input.request)}`;
 }

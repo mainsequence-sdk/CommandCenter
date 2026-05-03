@@ -420,15 +420,30 @@ export function resolveConnectionQueryIncrementalDecision(input: {
   };
 }
 
+function resolveInFlightConnectionQueryRequestKey(
+  decision: ConnectionQueryIncrementalDecision | string,
+) {
+  if (typeof decision === "string") {
+    return decision || null;
+  }
+
+  if (!decision.active || !decision.identityKey) {
+    return null;
+  }
+
+  return `${decision.identityKey}\u001e${decision.clientExecutionKey ?? stableJsonStringify(decision.request)}`;
+}
+
 export async function runConnectionQueryWithInFlightDedupe<TPayload>(
-  decision: ConnectionQueryIncrementalDecision,
+  decision: ConnectionQueryIncrementalDecision | string,
   run: () => Promise<TPayload>,
 ): Promise<TPayload> {
-  if (!decision.active || !decision.identityKey) {
+  const requestKey = resolveInFlightConnectionQueryRequestKey(decision);
+
+  if (!requestKey) {
     return run();
   }
 
-  const requestKey = `${decision.identityKey}\u001e${decision.clientExecutionKey ?? stableJsonStringify(decision.request)}`;
   const existingRequest = inFlightConnectionQueryRequests.get(requestKey);
 
   if (existingRequest) {

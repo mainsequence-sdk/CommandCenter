@@ -149,24 +149,27 @@ export function CustomWorkspaceSettingsPage() {
     () => filterWorkspaceStudioEntries(workspaceListItems, workspaceFilter),
     [workspaceFilter, workspaceListItems],
   );
-  const workspace = selectedDashboard ?? null;
-  const workspaceType = normalizeDashboardDefinitionType(workspace?.type, workspace?.labels ?? []);
+  const workspaceCandidate = selectedDashboard;
+  const workspaceType = normalizeDashboardDefinitionType(
+    workspaceCandidate?.type,
+    workspaceCandidate?.labels ?? [],
+  );
   const supportsPublicProjection = workspaceType === "workspace" || workspaceType === "slide-studio";
   const publicReadiness = useMemo(
     () =>
-      workspace
-        ? assessWorkspacePublicReadiness(workspace)
+      workspaceCandidate
+        ? assessWorkspacePublicReadiness(workspaceCandidate)
         : {
             workspaceType: "workspace" as const,
             allowed: false,
             checkedWidgetCount: 0,
             issues: [],
           },
-    [workspace],
+    [workspaceCandidate],
   );
 
   useEffect(() => {
-    if (!workspace || !backendMode || !supportsPublicProjection) {
+    if (!workspaceCandidate || !backendMode || !supportsPublicProjection) {
       setPublicLinkState(null);
       setPublicLinkStateLoaded(false);
       setPublicLinkStateError(null);
@@ -179,7 +182,7 @@ export function CustomWorkspaceSettingsPage() {
     setPublicLinkStateLoaded(false);
     setPublicLinkStateError(null);
 
-    void fetchWorkspacePublicLinkStateFromBackend(workspace.id).then(
+    void fetchWorkspacePublicLinkStateFromBackend(workspaceCandidate.id).then(
       (nextState) => {
         if (cancelled) {
           return;
@@ -213,7 +216,7 @@ export function CustomWorkspaceSettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [backendMode, supportsPublicProjection, workspace?.id]);
+  }, [backendMode, supportsPublicProjection, workspaceCandidate?.id]);
 
   if (!user) {
     return (
@@ -227,6 +230,7 @@ export function CustomWorkspaceSettingsPage() {
     return null;
   }
 
+  const workspace = selectedDashboard;
   const sharingAvailable = backendMode && Boolean(workspacePermissionsObjectUrl);
   const effectivePublicLinkState =
     publicLinkState?.workspaceId === workspace.id ? publicLinkState : null;

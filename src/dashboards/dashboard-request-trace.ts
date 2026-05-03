@@ -42,6 +42,7 @@ export interface DashboardRequestTraceEntry {
   status?: number;
   ok?: boolean;
   error?: string;
+  responseBody?: unknown;
   instanceId?: string;
   widgetId?: string;
   source: DashboardRequestTraceSource;
@@ -382,11 +383,13 @@ export function startDashboardRequestTrace(
       error,
       ok,
       resolution,
+      responseBody,
       status,
     }: {
       error?: string;
       ok?: boolean;
       resolution?: DashboardRequestTraceResolution;
+      responseBody?: unknown;
       status?: number;
     }) {
       const completedAtMs = Date.now();
@@ -396,6 +399,7 @@ export function startDashboardRequestTrace(
         error,
         ok,
         resolution: resolution ?? "network",
+        responseBody,
         status,
       });
     },
