@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toaster";
+import { WORKSPACES_PUBLISH_PERMISSION, hasAllPermissions } from "@/auth/permissions";
 import { commandCenterConfig } from "@/config/command-center";
 import { cn } from "@/lib/utils";
 import {
@@ -231,6 +232,9 @@ export function CustomWorkspaceSettingsPage() {
   }
 
   const workspace = selectedDashboard;
+  const canManageWorkspacePublishing = hasAllPermissions(user.permissions ?? [], [
+    WORKSPACES_PUBLISH_PERMISSION,
+  ]);
   const sharingAvailable = backendMode && Boolean(workspacePermissionsObjectUrl);
   const effectivePublicLinkState =
     publicLinkState?.workspaceId === workspace.id ? publicLinkState : null;
@@ -385,17 +389,32 @@ export function CustomWorkspaceSettingsPage() {
               <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                 Publishing
               </div>
-              <Badge
-                variant={publicReadiness.allowed ? "success" : "danger"}
-                className={
-                  publicReadiness.allowed
-                    ? "border border-success/30 bg-success/10 text-success"
-                    : "border border-danger/30 bg-danger/10 text-danger"
-                }
-              >
-                {publicReadiness.allowed ? "Ready for publishing" : "Publishing blocked"}
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                {!canManageWorkspacePublishing ? (
+                  <Badge
+                    variant="danger"
+                    className="border border-danger/30 bg-danger/10 text-danger"
+                  >
+                    Missing publish permission
+                  </Badge>
+                ) : null}
+                <Badge
+                  variant={publicReadiness.allowed ? "success" : "danger"}
+                  className={
+                    publicReadiness.allowed
+                      ? "border border-success/30 bg-success/10 text-success"
+                      : "border border-danger/30 bg-danger/10 text-danger"
+                  }
+                >
+                  {publicReadiness.allowed ? "Ready for publishing" : "Publishing blocked"}
+                </Badge>
+              </div>
             </div>
+            {!canManageWorkspacePublishing ? (
+              <div className="mt-3 rounded-[calc(var(--radius)-8px)] border border-danger/25 bg-danger/8 px-3 py-2 text-sm text-danger">
+                Public publishing actions require the <code>{WORKSPACES_PUBLISH_PERMISSION}</code> permission.
+              </div>
+            ) : null}
             {publicReadiness.allowed ? (
               <div className="mt-3 rounded-[calc(var(--radius)-8px)] border border-success/25 bg-success/8 px-3 py-2 text-sm text-success">
                 This workspace is ready for publishing.
@@ -427,7 +446,11 @@ export function CustomWorkspaceSettingsPage() {
             {(!isWorkspacePublic || hasPublicDrift) && (
               <Button
                 size="sm"
-                disabled={!supportsPublicProjection || (!isWorkspacePublic && !publicReadiness.allowed)}
+                disabled={
+                  !canManageWorkspacePublishing ||
+                  !supportsPublicProjection ||
+                  (!isWorkspacePublic && !publicReadiness.allowed)
+                }
                 className="bg-warning text-warning-foreground hover:bg-warning/90"
                 onClick={() => {
                   setPublicLinkDialogMode("publish");
@@ -496,6 +519,7 @@ export function CustomWorkspaceSettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={!canManageWorkspacePublishing}
                   className="border-warning/35 bg-warning/8 text-warning hover:border-warning/50 hover:bg-warning/14 hover:text-warning"
                   onClick={() => {
                     setPublicLinkDialogMode("rotate");
@@ -506,6 +530,7 @@ export function CustomWorkspaceSettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={!canManageWorkspacePublishing}
                   className="border-danger/35 bg-danger/8 text-danger hover:border-danger/50 hover:bg-danger/14 hover:text-danger"
                   onClick={() => {
                     setPublicLinkDialogMode("unpublish");
@@ -635,6 +660,15 @@ export function CustomWorkspaceSettingsPage() {
   }
 
   async function handlePublishPublicLink() {
+    if (!canManageWorkspacePublishing) {
+      toast({
+        title: "Missing publish permission",
+        description: `This action requires ${WORKSPACES_PUBLISH_PERMISSION}.`,
+        variant: "error",
+      });
+      return;
+    }
+
     if (!publicReadiness.allowed) {
       toast({
         title: "Workspace is not ready for public access",
@@ -665,6 +699,15 @@ export function CustomWorkspaceSettingsPage() {
   }
 
   async function handleUnpublishPublicLink() {
+    if (!canManageWorkspacePublishing) {
+      toast({
+        title: "Missing publish permission",
+        description: `This action requires ${WORKSPACES_PUBLISH_PERMISSION}.`,
+        variant: "error",
+      });
+      return;
+    }
+
     try {
       const response = await unpublishWorkspacePublicLinkInBackend(workspace.id);
       applyWorkspacePublicLinkState(response);
@@ -684,6 +727,15 @@ export function CustomWorkspaceSettingsPage() {
   }
 
   async function handleRotatePublicLink() {
+    if (!canManageWorkspacePublishing) {
+      toast({
+        title: "Missing publish permission",
+        description: `This action requires ${WORKSPACES_PUBLISH_PERMISSION}.`,
+        variant: "error",
+      });
+      return;
+    }
+
     try {
       const response = await rotateWorkspacePublicLinkInBackend(workspace.id);
       applyWorkspacePublicLinkState(response);

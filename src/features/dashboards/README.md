@@ -34,7 +34,9 @@ These flows are all part of one app surface, with instance state selected throug
 - `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
 - `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title,
   description, labels, backend-only sharing permissions, and a dedicated publishing tab for
-  authenticated public preview plus public-link lifecycle controls.
+  authenticated public preview plus public-link lifecycle controls. Public-link lifecycle actions
+  are gated by the explicit `workspaces:publish` shell permission rather than workspace record
+  `requiredPermissions`.
 - `public-workspace-readiness.ts`: frontend preflight for public publication readiness. It checks workspace type, widget permissions, and unknown widget ids before the settings page allows public-link enablement. Widget-scoped public execution contracts are compiled public-spec metadata, so final execution-contract validation remains backend-authoritative.
 - `SavedWidgetsPage.tsx`: dedicated saved-widget and saved-widget-group library screen with metadata editing, deletion, JSON inspection, and permissions.
 - `SavedWidgetSaveDialog.tsx`: canvas action flow for saving the selected live workspace widget as a reusable saved widget or saved widget group.

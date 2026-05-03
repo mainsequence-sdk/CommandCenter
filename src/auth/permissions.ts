@@ -12,6 +12,7 @@ export const ORGANIZATION_ADMIN_ROLE = "ORG_ADMIN";
 export const ORGANIZATION_ADMIN_PERMISSION = "org_admin:view";
 export const PLATFORM_ADMIN_PERMISSION = "platform_admin:access";
 export const LEGACY_ADMIN_PERMISSION = "rbac:view";
+export const WORKSPACES_PUBLISH_PERMISSION = "workspaces:publish";
 export const PROMETHEUS_CONNECTION_PERMISSIONS = [
   "prometheus:query",
 ] as const satisfies Permission[];
@@ -38,6 +39,7 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
   ],
   org_admin: [
     "workspaces:view",
+    WORKSPACES_PUBLISH_PERMISSION,
     "widget.catalog:view",
     ORGANIZATION_ADMIN_PERMISSION,
     "main_sequence_markets:view",
@@ -49,6 +51,7 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
   ],
   platform_admin: [
     "workspaces:view",
+    WORKSPACES_PUBLISH_PERMISSION,
     "widget.catalog:view",
     "theme:manage",
     ORGANIZATION_ADMIN_PERMISSION,
@@ -68,6 +71,12 @@ export const CORE_PERMISSION_DEFINITIONS = [
     id: "workspaces:view",
     label: "Workspaces / view",
     description: "Open the Workspaces application and workspace-backed shell surfaces.",
+    category: "Shell",
+  },
+  {
+    id: WORKSPACES_PUBLISH_PERMISSION,
+    label: "Workspaces / publish",
+    description: "Publish, unpublish, and rotate backend-managed public workspace URLs.",
     category: "Shell",
   },
   {
