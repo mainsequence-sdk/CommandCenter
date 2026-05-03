@@ -15,6 +15,8 @@ feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 056: Slide Structural Containment in Workspace Graph](./adr-056-slide-structural-containment-in-workspace-graph.md)
+- [ADR 055: Simplify Slide To Body-Only Widget Hosting](./adr-055-simplify-slide-to-body-only-widget-hosting.md)
 - [ADR 054: Synthetic Public Workspace Render Permissions](./adr-054-synthetic-public-workspace-render-permissions.md)
 - [ADR 053: Public View For Workspace And Slide Studio](./adr-053-public-view-for-workspace-and-slide-studio.md)
 - [ADR 052: Slide Studio Slideshow Projection Mode](./adr-052-slide-studio-slideshow-projection-mode.md)
@@ -44,6 +46,7 @@ feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 056: Slide Structural Containment in Workspace Graph](./adr-056-slide-structural-containment-in-workspace-graph.md)
 - [ADR 051: Consistent Widget Chrome Between Edit And View Modes](./adr-051-consistent-widget-chrome-between-edit-and-view-modes.md)
 - [ADR 049: Publication-Driven Seed/Live Runtime Reduction](./adr-049-publication-driven-seed-live-runtime-reduction.md)
 - [ADR 047: Workspace Runtime Data Reference Store](./adr-047-workspace-runtime-data-reference-store.md)
@@ -79,6 +82,8 @@ feature folder.
 
 ## Shell And Extension ADRs
 
+- [ADR 056: Slide Structural Containment in Workspace Graph](./adr-056-slide-structural-containment-in-workspace-graph.md)
+- [ADR 055: Simplify Slide To Body-Only Widget Hosting](./adr-055-simplify-slide-to-body-only-widget-hosting.md)
 - [ADR 054: Synthetic Public Workspace Render Permissions](./adr-054-synthetic-public-workspace-render-permissions.md)
 - [ADR 053: Public View For Workspace And Slide Studio](./adr-053-public-view-for-workspace-and-slide-studio.md)
 - [ADR 052: Slide Studio Slideshow Projection Mode](./adr-052-slide-studio-slideshow-projection-mode.md)

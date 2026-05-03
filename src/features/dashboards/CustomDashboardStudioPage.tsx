@@ -1609,8 +1609,7 @@ export function CustomDashboardStudioPage({
 
       if (
         !slideWidgetId ||
-        !region ||
-        !["header", "left", "body", "right", "footer"].includes(region)
+        region !== "body"
       ) {
         return null;
       }
@@ -2292,98 +2291,87 @@ export function CustomDashboardStudioPage({
       if (widget.id === WORKSPACE_SLIDE_WIDGET_ID) {
         const slideProps = sanitizeWorkspaceSlideProps(instance.props ?? {});
         const slideRegions = slidePlacedWidgetsBySlideRegion.get(instance.id);
-        const regionContent = Object.fromEntries(
-          (["header", "left", "body", "right", "footer"] as const).map((regionId) => {
-            const regionWidgets = slideRegions?.get(regionId) ?? [];
+        const bodyWidgets = slideRegions?.get("body") ?? [];
+        const bodyContent =
+          bodyWidgets.length > 0 ? (
+            <WorkspaceSlideSubgridHost
+              items={bodyWidgets.map((regionWidget) => ({
+                id: regionWidget.id,
+                layout: {
+                  x: regionWidget.layout.x,
+                  y: regionWidget.layout.y,
+                  w: regionWidget.layout.w,
+                  h: regionWidget.layout.h,
+                },
+                content: renderCanvasWidget(regionWidget, {
+                  dragHandleClassName: slideRegionDraggableHandleClassName,
+                }),
+              }))}
+              editable={editMode}
+              dragHandleSelector={slideRegionDraggableHandleSelector}
+              dragCancelSelector={workspaceGridDraggableCancelSelector}
+              onDragStart={(itemId) => {
+                beginCrossHostTransferDrag(itemId, {
+                  host: "slide",
+                  slideWidgetId: instance.id,
+                  region: "body",
+                });
+              }}
+              onDragStop={(nextLayout, draggedItem) => {
+                const activeDrag = activeCrossHostTransferDragRef.current;
+                const slideDropTarget = resolveSlideRegionDropTarget(draggedItem.i, draggedItem);
 
-            if (regionWidgets.length === 0) {
-              return [regionId, undefined];
-            }
+                if (
+                  slideDropTarget &&
+                  (
+                    activeDrag?.sourceHost !== "slide" ||
+                    activeDrag.sourceSlideWidgetId !== slideDropTarget.slideWidgetId ||
+                    activeDrag.sourceRegion !== slideDropTarget.region
+                  )
+                ) {
+                  clearCrossHostTransferDrag();
+                  updateSelectedWorkspace((dashboard) =>
+                    moveDashboardWidgetToSlideRegion(
+                      dashboard,
+                      draggedItem.i,
+                      slideDropTarget.slideWidgetId,
+                      slideDropTarget.region,
+                      slideDropTarget.layout,
+                    ),
+                  );
+                  return;
+                }
 
-            return [
-              regionId,
-              (
-                <WorkspaceSlideSubgridHost
-                  items={regionWidgets.map((regionWidget) => ({
-                    id: regionWidget.id,
-                    layout: {
-                      x: regionWidget.layout.x,
-                      y: regionWidget.layout.y,
-                      w: regionWidget.layout.w,
-                      h: regionWidget.layout.h,
-                    },
-                    content: renderCanvasWidget(regionWidget, {
-                      dragHandleClassName: slideRegionDraggableHandleClassName,
-                    }),
-                  }))}
-                  editable={editMode}
-                  dragHandleSelector={slideRegionDraggableHandleSelector}
-                  dragCancelSelector={workspaceGridDraggableCancelSelector}
-                  onDragStart={(itemId) => {
-                    beginCrossHostTransferDrag(itemId, {
-                      host: "slide",
-                      slideWidgetId: instance.id,
-                      region: regionId,
-                    });
-                  }}
-                  onDragStop={(nextLayout, draggedItem) => {
-                    const activeDrag = activeCrossHostTransferDragRef.current;
-                    const slideDropTarget = resolveSlideRegionDropTarget(draggedItem.i, draggedItem);
+                const rootDropTarget = resolveRootCanvasDropTarget(draggedItem.i, draggedItem);
 
-                    if (
-                      slideDropTarget &&
-                      (
-                        activeDrag?.sourceHost !== "slide" ||
-                        activeDrag.sourceSlideWidgetId !== slideDropTarget.slideWidgetId ||
-                        activeDrag.sourceRegion !== slideDropTarget.region
-                      )
-                    ) {
-                      clearCrossHostTransferDrag();
-                      updateSelectedWorkspace((dashboard) =>
-                        moveDashboardWidgetToSlideRegion(
-                          dashboard,
-                          draggedItem.i,
-                          slideDropTarget.slideWidgetId,
-                          slideDropTarget.region,
-                          slideDropTarget.layout,
-                        ),
-                      );
-                      return;
-                    }
+                if (rootDropTarget) {
+                  clearCrossHostTransferDrag();
+                  updateSelectedWorkspace((dashboard) =>
+                    moveDashboardWidgetToRootCanvas(
+                      dashboard,
+                      draggedItem.i,
+                      rootDropTarget.layout,
+                      {
+                        sourceColumns: WORKSPACE_SLIDE_GRID_COLUMNS,
+                        sourceRowHeight: WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
+                      },
+                    ),
+                  );
+                  return;
+                }
 
-                    const rootDropTarget = resolveRootCanvasDropTarget(draggedItem.i, draggedItem);
-
-                    if (rootDropTarget) {
-                      clearCrossHostTransferDrag();
-                      updateSelectedWorkspace((dashboard) =>
-                        moveDashboardWidgetToRootCanvas(
-                          dashboard,
-                          draggedItem.i,
-                          rootDropTarget.layout,
-                          {
-                            sourceColumns: WORKSPACE_SLIDE_GRID_COLUMNS,
-                            sourceRowHeight: WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
-                          },
-                        ),
-                      );
-                      return;
-                    }
-
-                    clearCrossHostTransferDrag();
-                    updateSelectedWorkspace((dashboard) =>
-                      commitDashboardSlideRegionLayout(dashboard, instance.id, regionId, nextLayout),
-                    );
-                  }}
-                  onLayoutCommit={(nextLayout) => {
-                    updateSelectedWorkspace((dashboard) =>
-                      commitDashboardSlideRegionLayout(dashboard, instance.id, regionId, nextLayout),
-                    );
-                  }}
-                />
-              ),
-            ];
-          }),
-        ) as Partial<Record<WorkspaceSlideRegionId, ReactNode>>;
+                clearCrossHostTransferDrag();
+                updateSelectedWorkspace((dashboard) =>
+                  commitDashboardSlideRegionLayout(dashboard, instance.id, "body", nextLayout),
+                );
+              }}
+              onLayoutCommit={(nextLayout) => {
+                updateSelectedWorkspace((dashboard) =>
+                  commitDashboardSlideRegionLayout(dashboard, instance.id, "body", nextLayout),
+                );
+              }}
+            />
+          ) : undefined;
 
         return (
           <BuilderWidgetCard
@@ -2409,7 +2397,7 @@ export function CustomDashboardStudioPage({
                   slide={slideProps}
                   active={activeSlideWidgetId === instance.id}
                   editable={editMode}
-                  regionContent={regionContent}
+                  regionContent={bodyContent ? { body: bodyContent } : undefined}
                   onSlideChange={(nextProps) => {
                     updateSelectedWorkspace((dashboard) =>
                       updateDashboardWidgetSettings(dashboard, instance.id, {

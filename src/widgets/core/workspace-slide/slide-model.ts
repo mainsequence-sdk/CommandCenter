@@ -5,16 +5,27 @@ import type {
 
 export type WorkspaceSlideRegionId = DashboardSlideRegionId;
 
+export type WorkspaceSlideBandId = "header" | "footer";
+export type WorkspaceSlideBandSlotId = "left" | "middle" | "right";
+export type WorkspaceSlideSlotContentType = "empty" | "text" | "image";
+
+export interface WorkspaceSlideSlotContent extends Record<string, unknown> {
+  type: WorkspaceSlideSlotContentType;
+  text?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+}
+
+export type WorkspaceSlideBandSlots = Record<WorkspaceSlideBandSlotId, WorkspaceSlideSlotContent>;
+
 export interface WorkspaceSlideWidgetProps extends Record<string, unknown> {
   showHeader?: boolean;
   headerHeightPct: number;
   footerHeightPct: number;
-  leftWidthPct: number;
-  rightWidthPct: number;
   headerEnabled: boolean;
   footerEnabled: boolean;
-  leftEnabled: boolean;
-  rightEnabled: boolean;
+  headerSlots: WorkspaceSlideBandSlots;
+  footerSlots: WorkspaceSlideBandSlots;
 }
 
 export interface LegacyWorkspaceSlideChild {
@@ -29,19 +40,25 @@ export interface LegacyWorkspaceSlideChild {
 }
 
 export const WORKSPACE_SLIDE_REGION_IDS: WorkspaceSlideRegionId[] = [
+  "body",
+];
+export const WORKSPACE_SLIDE_GRID_COLUMNS = 12;
+export const WORKSPACE_SLIDE_GRID_ROW_HEIGHT = 28;
+export const WORKSPACE_SLIDE_BAND_SLOT_IDS: WorkspaceSlideBandSlotId[] = [
+  "left",
+  "middle",
+  "right",
+];
+export const LEGACY_WORKSPACE_SLIDE_REGION_IDS: DashboardSlideRegionId[] = [
   "header",
   "left",
   "body",
   "right",
   "footer",
 ];
-export const WORKSPACE_SLIDE_GRID_COLUMNS = 12;
-export const WORKSPACE_SLIDE_GRID_ROW_HEIGHT = 28;
 
 const DEFAULT_HEADER_HEIGHT_PCT = 16;
 const DEFAULT_FOOTER_HEIGHT_PCT = 12;
-const DEFAULT_LEFT_WIDTH_PCT = 22;
-const DEFAULT_RIGHT_WIDTH_PCT = 22;
 const DEFAULT_WIDGET_WIDTH = 6;
 const DEFAULT_WIDGET_HEIGHT = 4;
 
@@ -94,6 +111,65 @@ function clampPercentPair(
   return {
     first: Math.max(0, Math.round(resolvedFirst * scale)),
     second: Math.max(0, Math.round(resolvedSecond * scale)),
+  };
+}
+
+function sanitizeSlideSlotContent(value: unknown): WorkspaceSlideSlotContent {
+  if (!isPlainRecord(value)) {
+    return {
+      type: "empty",
+    };
+  }
+
+  const type =
+    value.type === "text" || value.type === "image" || value.type === "empty"
+      ? value.type
+      : "empty";
+  const text = typeof value.text === "string" ? value.text : "";
+  const imageUrl = typeof value.imageUrl === "string" ? value.imageUrl.trim() : "";
+  const imageAlt = typeof value.imageAlt === "string" ? value.imageAlt : "";
+
+  if (type === "text") {
+    return {
+      type,
+      text,
+    };
+  }
+
+  if (type === "image") {
+    return {
+      type,
+      imageUrl,
+      imageAlt,
+    };
+  }
+
+  return {
+    type: "empty",
+  };
+}
+
+export function createEmptyWorkspaceSlideSlotContent(): WorkspaceSlideSlotContent {
+  return {
+    type: "empty",
+  };
+}
+
+export function createEmptyWorkspaceSlideBandSlots(): WorkspaceSlideBandSlots {
+  return {
+    left: createEmptyWorkspaceSlideSlotContent(),
+    middle: createEmptyWorkspaceSlideSlotContent(),
+    right: createEmptyWorkspaceSlideSlotContent(),
+  };
+}
+
+function sanitizeWorkspaceSlideBandSlots(value: unknown): WorkspaceSlideBandSlots {
+  const record = isPlainRecord(value) ? value : {};
+
+  return {
+    left: sanitizeSlideSlotContent(record.left),
+    middle: sanitizeSlideSlotContent(record.middle),
+    right: sanitizeSlideSlotContent(record.right),
   };
 }
 
@@ -161,12 +237,10 @@ export function createEmptyWorkspaceSlideProps(): WorkspaceSlideWidgetProps {
     showHeader: false,
     headerHeightPct: DEFAULT_HEADER_HEIGHT_PCT,
     footerHeightPct: DEFAULT_FOOTER_HEIGHT_PCT,
-    leftWidthPct: DEFAULT_LEFT_WIDTH_PCT,
-    rightWidthPct: DEFAULT_RIGHT_WIDTH_PCT,
     headerEnabled: false,
     footerEnabled: false,
-    leftEnabled: false,
-    rightEnabled: false,
+    headerSlots: createEmptyWorkspaceSlideBandSlots(),
+    footerSlots: createEmptyWorkspaceSlideBandSlots(),
   };
 }
 
@@ -182,14 +256,6 @@ export function sanitizeWorkspaceSlideProps(props: unknown): WorkspaceSlideWidge
     DEFAULT_FOOTER_HEIGHT_PCT,
     80,
   );
-  const horizontalPercents = clampPercentPair(
-    props.leftWidthPct,
-    props.rightWidthPct,
-    DEFAULT_LEFT_WIDTH_PCT,
-    DEFAULT_RIGHT_WIDTH_PCT,
-    76,
-  );
-
   const headerEnabled =
     typeof props.headerEnabled === "boolean"
       ? props.headerEnabled
@@ -198,34 +264,24 @@ export function sanitizeWorkspaceSlideProps(props: unknown): WorkspaceSlideWidge
     typeof props.footerEnabled === "boolean"
       ? props.footerEnabled
       : props.showFooter === true;
-  const leftEnabled =
-    typeof props.leftEnabled === "boolean"
-      ? props.leftEnabled
-      : props.showLeft === true;
-  const rightEnabled =
-    typeof props.rightEnabled === "boolean"
-      ? props.rightEnabled
-      : props.showRight === true;
 
   return {
     showHeader: props.showHeader === true ? true : false,
     headerHeightPct: verticalPercents.first,
     footerHeightPct: verticalPercents.second,
-    leftWidthPct: horizontalPercents.first,
-    rightWidthPct: horizontalPercents.second,
     headerEnabled,
     footerEnabled,
-    leftEnabled,
-    rightEnabled,
+    headerSlots: sanitizeWorkspaceSlideBandSlots(props.headerSlots),
+    footerSlots: sanitizeWorkspaceSlideBandSlots(props.footerSlots),
   };
 }
 
-export function setWorkspaceSlideRegionVisible(
+export function setWorkspaceSlideBandVisible(
   props: WorkspaceSlideWidgetProps,
-  regionId: Exclude<WorkspaceSlideRegionId, "body">,
+  bandId: WorkspaceSlideBandId,
   visible: boolean,
 ): WorkspaceSlideWidgetProps {
-  switch (regionId) {
+  switch (bandId) {
     case "header":
       return {
         ...props,
@@ -236,19 +292,34 @@ export function setWorkspaceSlideRegionVisible(
         ...props,
         footerEnabled: visible,
       };
-    case "left":
-      return {
-        ...props,
-        leftEnabled: visible,
-      };
-    case "right":
-      return {
-        ...props,
-        rightEnabled: visible,
-      };
     default:
       return props;
   }
+}
+
+export function updateWorkspaceSlideBandSlot(
+  props: WorkspaceSlideWidgetProps,
+  bandId: WorkspaceSlideBandId,
+  slotId: WorkspaceSlideBandSlotId,
+  slot: WorkspaceSlideSlotContent,
+): WorkspaceSlideWidgetProps {
+  if (bandId === "header") {
+    return {
+      ...props,
+      headerSlots: {
+        ...props.headerSlots,
+        [slotId]: sanitizeSlideSlotContent(slot),
+      },
+    };
+  }
+
+  return {
+    ...props,
+    footerSlots: {
+      ...props.footerSlots,
+      [slotId]: sanitizeSlideSlotContent(slot),
+    },
+  };
 }
 
 export function extractLegacyWorkspaceSlideChildren(props: unknown): {
@@ -274,7 +345,7 @@ export function extractLegacyWorkspaceSlideChildren(props: unknown): {
   const children: LegacyWorkspaceSlideChild[] = [];
   const rawRegions = isPlainRecord(props.regions) ? props.regions : {};
 
-  WORKSPACE_SLIDE_REGION_IDS.forEach((regionId) => {
+  LEGACY_WORKSPACE_SLIDE_REGION_IDS.forEach((regionId) => {
     const region = isPlainRecord(rawRegions[regionId]) ? rawRegions[regionId] : null;
     const placements = Array.isArray(region?.widgets) ? region.widgets : [];
 

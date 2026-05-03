@@ -27,7 +27,7 @@ These flows are all part of one app surface, with instance state selected throug
   slide surface to maximize the fitted frame on mobile before adding desktop-style breathing room.
 - `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio. It also supports the shellless `publicPreview` projection over the same runtime document.
 - `WorkspaceCanvasWidgetHost.tsx`: shared widget renderer used by both the root canvas host and the slide subgrid host so widget chrome, headers, actions, inline edit gating, and body rendering stay identical across both layout hosts.
-- `WorkspaceSlideSubgridHost.tsx`: slide-only region layout host. It keeps slide-contained widgets on a separate subgrid from the root canvas while shrinking slide row height to fit the active region bounds instead of letting slide widgets overflow.
+- `WorkspaceSlideSubgridHost.tsx`: slide-only body-stage layout host. It keeps slide-contained widgets on a separate subgrid from the root canvas while shrinking slide row height to fit the active body bounds instead of letting slide widgets overflow.
 - `WorkspaceRenderErrorBoundary.tsx`: workspace-level recovery surface used when malformed or unsupported workspace data breaks canvas or graph rendering. It keeps a readable error UI in front of the user and preserves a route back into workspace settings for JSON export/import recovery.
 - `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize, controls, and save flow.
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
@@ -258,10 +258,12 @@ These flows are all part of one app surface, with instance state selected throug
   `types=<comma-separated-values>` on the `?fe_list=true` endpoint. Backend list/detail serializers
   should preserve this field instead of relying only on labels.
 - Slide-contained widgets intentionally use a separate bounded subgrid host from the root canvas,
-  but they reuse the same shared widget renderer. The subgrid keeps a fixed logical row height and
-  the slide surface now scales one logical 16:9 canvas across editor and slideshow surfaces, so
-  slide composition remains visually stable while widgets transferred into or out of a slide are
-  normalized on host transfer.
+  but they reuse the same shared widget renderer. The subgrid now belongs only to the slide `body`
+  stage; `header` and `footer` are slide-owned bands and `left`/`right` are no longer generic
+  widget regions. The body subgrid keeps a fixed logical row height and the slide surface now
+  scales one logical 16:9 canvas across editor and slideshow surfaces, so slide composition
+  remains visually stable while widgets transferred into or out of a slide are normalized on host
+  transfer.
 - In canvas edit mode, widget instances expose shared chrome actions through one compact overflow
   menu instead of separate header buttons. Duplicated widgets receive a fresh instance id, keep
   their props/presentation, and drop runtime state so they republish from their own mounted lifecycle.

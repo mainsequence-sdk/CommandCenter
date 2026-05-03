@@ -55,16 +55,16 @@ export function WorkspaceSlideSubgridHost({
   );
 
   return (
-    <div className="h-full min-h-0 w-full overflow-hidden">
+    <div className={editable ? "h-full min-h-0 w-full overflow-auto" : "h-full min-h-0 w-full overflow-hidden"}>
       <SlideSubgridLayout
-        className="layout h-full min-h-0"
+        className="layout min-h-full"
         cols={WORKSPACE_SLIDE_GRID_COLUMNS}
         rowHeight={WORKSPACE_SLIDE_GRID_ROW_HEIGHT}
         margin={[0, 0]}
         containerPadding={[0, 0]}
         layout={layout}
         compactType="vertical"
-        autoSize={false}
+        autoSize={editable}
         isBounded
         preventCollision={false}
         isDraggable={editable}

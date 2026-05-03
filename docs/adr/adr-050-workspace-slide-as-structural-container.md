@@ -4,6 +4,9 @@
 - Date: 2026-05-01
 - Owners: Workspaces frontend
 
+> Note: ADR 055 narrows the generic hosting surface further. `Slide` remains structural with a
+> separate subgrid host, but the long-term widget-hosting scope is now the `body` stage only.
+
 ## Context
 
 The original `workspace-slide` work drifted because it mixed up three different responsibilities:

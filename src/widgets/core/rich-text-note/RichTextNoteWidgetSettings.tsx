@@ -147,22 +147,27 @@ export function RichTextNoteWidgetSettings({
 
         <label className="space-y-2">
           <span className="text-sm font-medium text-topbar-foreground">Paragraph spacing</span>
-          <Select
+          <Input
+            type="number"
+            min="0"
+            max="6"
+            step="0.1"
             value={contentParagraphSpacing}
-            disabled={!editable}
+            readOnly={!editable}
+            placeholder="1"
             onChange={(event) => {
+              const nextValue = event.target.value;
+
               onDraftPropsChange({
                 ...draftProps,
-                contentParagraphSpacing: normalizeRichTextNoteParagraphSpacing(
-                  event.target.value as RichTextNoteWidgetProps["contentParagraphSpacing"],
-                ),
+                contentParagraphSpacing: nextValue.trim()
+                  ? normalizeRichTextNoteParagraphSpacing(
+                      Number(nextValue) as RichTextNoteWidgetProps["contentParagraphSpacing"],
+                    )
+                  : undefined,
               });
             }}
-          >
-            <option value="tight">Tight</option>
-            <option value="normal">Normal</option>
-            <option value="relaxed">Relaxed</option>
-          </Select>
+          />
         </label>
 
         <label className="space-y-2">

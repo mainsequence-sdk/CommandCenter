@@ -13,7 +13,7 @@ import { RichTextNoteWidgetSettings } from "./RichTextNoteWidgetSettings";
 
 export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
   id: "rich-text-note",
-  widgetVersion: "1.11.0",
+  widgetVersion: "1.12.0",
   title: "Rich Text",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -26,7 +26,7 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
     contentWidth: "prose",
     contentVerticalAlign: "top",
     contentHorizontalAlign: "left",
-    contentParagraphSpacing: "normal",
+    contentParagraphSpacing: 1,
     openLinksInNewTab: true,
     showHeader: false,
   },
@@ -35,7 +35,7 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
     contentWidth: "prose",
     contentVerticalAlign: "top",
     contentHorizontalAlign: "left",
-    contentParagraphSpacing: "normal",
+    contentParagraphSpacing: 1,
     openLinksInNewTab: true,
     showHeader: false,
   },
@@ -76,7 +76,7 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
         {
           id: "contentParagraphSpacing",
           label: "Paragraph spacing",
-          type: "enum",
+          type: "number",
           source: "custom-settings",
         },
         {
@@ -101,7 +101,7 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
         "Inline editing is available only on workspace canvas surfaces that support widget canvas editing.",
         "The inline editor opens a compact floating formatting toolbar on right-click in edit mode, with one unified text-style dropdown plus inline alignment and vertical-placement controls.",
         "The toolbar is positioned above the note when viewport space allows so it does not collide with widget title chrome.",
-        "Presentation settings now also control horizontal text alignment, paragraph spacing, and vertical placement inside the card.",
+        "Presentation settings now also control horizontal text alignment, paragraph spacing in rem units, and vertical placement inside the card.",
         "New Rich Text widgets hide the shared widget header by default so the note reads like document content instead of a utility panel.",
       ],
     },
@@ -114,7 +114,8 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
       contentFormat: "html",
       editor: "tiptap",
       inlineFontSizeOptions: ["sm", "base", "lg", "xl", "2xl", "3xl", "4xl"],
-      paragraphSpacingOptions: ["tight", "normal", "relaxed"],
+      paragraphSpacingUnit: "rem",
+      paragraphSpacingDefault: 1,
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
     examples: [
@@ -124,7 +125,7 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
         props: {
           contentWidth: "prose",
           contentVerticalAlign: "top",
-          contentParagraphSpacing: "normal",
+          contentParagraphSpacing: 1,
           openLinksInNewTab: true,
         },
       },
@@ -141,7 +142,7 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
       contentHtml: props.contentHtml ?? "",
       contentWidth: props.contentWidth ?? "prose",
       contentVerticalAlign: props.contentVerticalAlign ?? "top",
-      contentParagraphSpacing: props.contentParagraphSpacing ?? "normal",
+      contentParagraphSpacing: props.contentParagraphSpacing ?? 1,
       openLinksInNewTab: props.openLinksInNewTab !== false,
       renderedText: domTextContent?.trim() || "",
     },

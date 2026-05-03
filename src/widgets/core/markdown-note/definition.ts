@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { BookOpenText } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
@@ -96,7 +96,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
       },
     ],
   },
-  workspaceIcon: FileText,
+  workspaceIcon: BookOpenText,
   buildAgentSnapshot: ({ domTextContent, props }) => ({
     displayKind: "note",
     state: props.content?.trim() ? "ready" : "empty",

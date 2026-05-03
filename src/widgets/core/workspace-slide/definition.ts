@@ -11,6 +11,7 @@ import { defineWidget } from "@/widgets/types";
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
   createEmptyWorkspaceSlideProps,
+  sanitizeWorkspaceSlideProps,
   type WorkspaceSlideWidgetProps,
 } from "./slide-model";
 import { WorkspaceSlideWidget } from "./WorkspaceSlideWidget";
@@ -18,7 +19,7 @@ import { WorkspaceSlideWidgetSettings } from "./WorkspaceSlideWidgetSettings";
 
 export const workspaceSlideWidget = defineWidget<WorkspaceSlideWidgetProps>({
   id: WORKSPACE_SLIDE_WIDGET_ID,
-  widgetVersion: "2.1.2",
+  widgetVersion: "3.0.0",
   title: "Slide",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -39,17 +40,19 @@ export const workspaceSlideWidget = defineWidget<WorkspaceSlideWidgetProps>({
   buildAgentSnapshot: ({ props }) => ({
     displayKind: "custom",
     state: "ready",
-    summary: "Full-width slide boundary that constrains normal workspace widgets into presentation regions.",
+    summary: "Full-width slide boundary with one body widget stage plus optional slide-owned header and footer slots.",
     data: {
       widgetRole: "structure",
-      regionIds: ["header", "left", "body", "right", "footer"],
+      regionIds: ["body"],
+      headerEnabled: sanitizeWorkspaceSlideProps(props).headerEnabled,
+      footerEnabled: sanitizeWorkspaceSlideProps(props).footerEnabled,
     },
   }),
   settingsComponent: WorkspaceSlideWidgetSettings,
   registryContract: {
     configuration: {
       mode: "custom-settings",
-      summary: "Defines a slide-style structural container with internal presentation regions.",
+      summary: "Defines a slide-style structural container with one body widget stage and optional slide-owned header/footer slots.",
       fields: [
         {
           id: "headerEnabled",
@@ -63,24 +66,13 @@ export const workspaceSlideWidget = defineWidget<WorkspaceSlideWidgetProps>({
           type: "boolean",
           source: "custom-settings",
         },
-        {
-          id: "leftEnabled",
-          label: "Left enabled",
-          type: "boolean",
-          source: "custom-settings",
-        },
-        {
-          id: "rightEnabled",
-          label: "Right enabled",
-          type: "boolean",
-          source: "custom-settings",
-        },
       ],
       requiredSetupSteps: [
         "Place the slide on the normal workspace canvas; it opens as a full-width presentation surface.",
-        "Enable optional edge regions from slide settings when the slide composition needs them.",
-        "Add or move normal workspace widgets into slide regions.",
-        "Resize optional regions by dragging the visible delimiters on canvas.",
+        "Use the body as the only generic widget stage and add or move normal workspace widgets there.",
+        "Enable header and footer only when the slide needs slide-owned text or image slots.",
+        "Configure header/footer slot content from slide settings.",
+        "Resize header and footer by dragging the visible horizontal delimiters on canvas.",
       ],
     },
     io: {

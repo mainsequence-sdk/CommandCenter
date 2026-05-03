@@ -29,8 +29,8 @@ This widget renders and edits rich text notes directly on the workspace canvas.
 - The toolbar should expose one coherent text-style model. Do not reintroduce separate competing
   dropdowns for heading style and inline text size.
 - Presentation settings control both horizontal text alignment (`left`, `center`, `right`,
-  `justify`), paragraph spacing (`tight`, `normal`, `relaxed`), and vertical placement (`top`,
-  `middle`, `bottom`) without changing the stored HTML.
+  `justify`), paragraph spacing as a numeric `rem` value, and vertical placement (`top`, `middle`,
+  `bottom`) without changing the stored HTML.
 - Those same high-frequency layout controls are also exposed in the inline edit toolbar. Keep
   inline controls limited to fast composition adjustments.
 - Paragraph spacing intentionally stays in settings instead of the floating toolbar so the inline

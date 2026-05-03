@@ -26,7 +26,6 @@ import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schem
 import { LockedWidgetFrame } from "@/widgets/shared/widget-frame";
 import {
   sanitizeWorkspaceSlideProps,
-  WORKSPACE_SLIDE_REGION_IDS,
   type WorkspaceSlideRegionId,
 } from "@/widgets/core/workspace-slide/slide-model";
 import { WorkspaceSlideSurface } from "@/widgets/core/workspace-slide/WorkspaceSlideWidget";
@@ -468,18 +467,11 @@ function SlideStudioSlideshowViewport({
 
     const slide = sanitizeWorkspaceSlideProps(activeSlideEntry.instance.props ?? {});
     const slideRegions = slidePlacedWidgetEntriesByRegion.get(activeSlideEntry.instance.id);
-    const regionContent: Partial<Record<WorkspaceSlideRegionId, ReactNode>> = {};
-
-    WORKSPACE_SLIDE_REGION_IDS.forEach((regionId) => {
-      const entries = slideRegions?.get(regionId) ?? [];
-
-      if (entries.length === 0) {
-        return;
-      }
-
-      regionContent[regionId] = (
+    const bodyEntries = slideRegions?.get("body") ?? [];
+    const bodyContent =
+      bodyEntries.length > 0 ? (
         <WorkspaceSlideSubgridHost
-          items={entries.map((entry) => ({
+          items={bodyEntries.map((entry) => ({
             id: entry.instance.id,
             layout: {
               x: entry.instance.layout.x,
@@ -491,8 +483,7 @@ function SlideStudioSlideshowViewport({
           }))}
           editable={false}
         />
-      );
-    });
+      ) : undefined;
 
     return (
       <WorkspaceSlideSurface
@@ -501,7 +492,7 @@ function SlideStudioSlideshowViewport({
         maximizeFrame
         slide={slide}
         slideWidgetId={activeSlideEntry.instance.id}
-        regionContent={regionContent}
+        regionContent={bodyContent ? { body: bodyContent } : undefined}
       />
     );
   }, [

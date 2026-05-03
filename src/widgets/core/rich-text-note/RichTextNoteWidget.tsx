@@ -37,14 +37,13 @@ import {
 export type RichTextNoteWidth = "compact" | "prose" | "full";
 export type RichTextNoteVerticalAlign = "top" | "center" | "bottom";
 export type RichTextNoteHorizontalAlign = "left" | "center" | "right" | "justify";
-export type RichTextNoteParagraphSpacing = "tight" | "normal" | "relaxed";
 
 export interface RichTextNoteWidgetProps extends Record<string, unknown> {
   contentHtml?: string;
   contentWidth?: RichTextNoteWidth;
   contentVerticalAlign?: RichTextNoteVerticalAlign;
   contentHorizontalAlign?: RichTextNoteHorizontalAlign;
-  contentParagraphSpacing?: RichTextNoteParagraphSpacing;
+  contentParagraphSpacing?: number;
   emptyState?: string;
   openLinksInNewTab?: boolean;
   showHeader?: boolean;
@@ -121,12 +120,14 @@ export function normalizeRichTextNoteHorizontalAlign(
 
 export function normalizeRichTextNoteParagraphSpacing(
   value: RichTextNoteWidgetProps["contentParagraphSpacing"],
-): RichTextNoteParagraphSpacing {
-  if (value === "tight" || value === "relaxed") {
-    return value;
+): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return 1;
   }
 
-  return "normal";
+  return Math.max(0, Math.min(parsed, 6));
 }
 
 function resolveContentWidthClass(width: RichTextNoteWidth) {
@@ -167,16 +168,8 @@ function resolveHorizontalAlignClass(align: RichTextNoteHorizontalAlign) {
   }
 }
 
-function resolveParagraphSpacingCssValue(spacing: RichTextNoteParagraphSpacing) {
-  switch (spacing) {
-    case "tight":
-      return "0.75rem";
-    case "relaxed":
-      return "1.5rem";
-    case "normal":
-    default:
-      return "1rem";
-  }
+function resolveParagraphSpacingCssValue(spacing: number) {
+  return `${spacing}rem`;
 }
 
 function RichTextToolbarButton({

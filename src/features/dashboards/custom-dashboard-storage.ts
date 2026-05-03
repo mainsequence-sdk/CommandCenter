@@ -54,6 +54,7 @@ import {
 import { isConnectionQueryModelStreamable } from "@/connections/types";
 import {
   extractLegacyWorkspaceSlideChildren,
+  sanitizeWorkspaceSlideProps,
   WORKSPACE_SLIDE_GRID_COLUMNS,
   WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
 } from "@/widgets/core/workspace-slide/slide-model";
@@ -345,6 +346,17 @@ function normalizeDashboardWidgetSlidePlacement(
     slideWidgetId,
     region,
   };
+}
+
+function sanitizeDashboardSlideWidgetProps(
+  widgetId: string,
+  props: Record<string, unknown> | undefined,
+) {
+  if (!isWorkspaceSlideWidgetId(widgetId)) {
+    return props;
+  }
+
+  return sanitizeWorkspaceSlideProps(props);
 }
 
 function normalizeDashboardWidgetPresentation(
@@ -741,6 +753,10 @@ function normalizeDashboardWidgetInstance(
   const rawPosition = getWidgetPosition(instance);
   const scaled: DashboardWidgetInstance = {
     ...instanceWithoutLegacyAutoGrid,
+    props: sanitizeDashboardSlideWidgetProps(
+      instance.widgetId,
+      isPlainRecord(instance.props) ? cloneJson(instance.props) : instance.props,
+    ),
     bindings: migrateLegacyIncrementalTabularBindings(
       instance.widgetId,
       normalizeWidgetInstanceBindings(instance.bindings),
@@ -871,6 +887,10 @@ function sanitizeCanonicalDashboardWidgetInstance(
   const rawPosition = getWidgetPosition(instance);
   const nextWidget: DashboardWidgetInstance = {
     ...instance,
+    props: sanitizeDashboardSlideWidgetProps(
+      instance.widgetId,
+      isPlainRecord(instance.props) ? cloneJson(instance.props) : instance.props,
+    ),
     bindings: migrateLegacyIncrementalTabularBindings(
       instance.widgetId,
       normalizeWidgetInstanceBindings(instance.bindings),
@@ -953,6 +973,82 @@ function migrateEmbeddedSlideWidgets(
   return nextWidgets;
 }
 
+function collectSlideBodyBottomBySlideId(
+  widgets: DashboardWidgetInstance[],
+  collected = new Map<string, number>(),
+) {
+  widgets.forEach((widget) => {
+    if (widget.slidePlacement?.region === "body") {
+      const position = getWidgetPosition(widget);
+      const rows = getLayoutRows(widget.layout, widget.widgetId);
+      const currentBottom = collected.get(widget.slidePlacement.slideWidgetId) ?? 0;
+      collected.set(
+        widget.slidePlacement.slideWidgetId,
+        Math.max(currentBottom, (position?.y ?? 0) + rows),
+      );
+    }
+
+    if (widget.row?.children?.length) {
+      collectSlideBodyBottomBySlideId(widget.row.children, collected);
+    }
+  });
+
+  return collected;
+}
+
+function migrateWidgetTreeToBodyOnlySlidePlacement(
+  widgets: DashboardWidgetInstance[],
+  nextBodyYBySlideId: Map<string, number>,
+): DashboardWidgetInstance[] {
+  return widgets.map((widget) => {
+    const nextChildren = widget.row?.children?.length
+      ? migrateWidgetTreeToBodyOnlySlidePlacement(widget.row.children, nextBodyYBySlideId)
+      : widget.row?.children;
+
+    let nextWidget: DashboardWidgetInstance =
+      nextChildren && widget.row
+        ? {
+            ...widget,
+            row: {
+              ...widget.row,
+              children: nextChildren,
+            },
+          }
+        : widget;
+
+    if (nextWidget.slidePlacement && nextWidget.slidePlacement.region !== "body") {
+      const slideWidgetId = nextWidget.slidePlacement.slideWidgetId;
+      const cols = getLayoutCols(nextWidget.layout, nextWidget.widgetId);
+      const rows = getLayoutRows(nextWidget.layout, nextWidget.widgetId);
+      const currentX = getWidgetPosition(nextWidget)?.x ?? 0;
+      const nextY = nextBodyYBySlideId.get(slideWidgetId) ?? 0;
+
+      nextBodyYBySlideId.set(slideWidgetId, nextY + rows);
+
+      nextWidget = {
+        ...nextWidget,
+        slidePlacement: {
+          slideWidgetId,
+          region: "body",
+        },
+        position: {
+          x: clampSlideRegionWidgetX(currentX, cols),
+          y: nextY,
+        },
+      };
+    }
+
+    return nextWidget;
+  });
+}
+
+function migrateBodyOnlySlideWidgetHosting(
+  widgets: DashboardWidgetInstance[],
+): DashboardWidgetInstance[] {
+  const nextBodyYBySlideId = collectSlideBodyBottomBySlideId(widgets);
+  return migrateWidgetTreeToBodyOnlySlidePlacement(widgets, nextBodyYBySlideId);
+}
+
 export function ensureUserDashboardCollectionSelection(
   collection: UserDashboardCollection,
   options?: {
@@ -999,11 +1095,15 @@ export function migrateDashboardDefinition(dashboard: DashboardDefinition): Dash
       ? dashboard.grid.gap
       : LEGACY_WORKSPACE_GAP;
   const migration = buildWorkspaceGridMigration(rawColumns, rawRowHeight, rawGap);
-  const widgets = migrateEmbeddedSlideWidgets(Array.isArray(dashboard.widgets)
-    ? dashboard.widgets.map((instance) =>
-        normalizeDashboardWidgetInstance(instance, migration),
-      )
-    : []);
+  const widgets = migrateBodyOnlySlideWidgetHosting(
+    migrateEmbeddedSlideWidgets(
+      Array.isArray(dashboard.widgets)
+        ? dashboard.widgets.map((instance) =>
+            normalizeDashboardWidgetInstance(instance, migration),
+          )
+        : [],
+    ),
+  );
   const companions = sanitizeDashboardCompanionLayoutItems(
     dashboard.companions,
     widgets,
@@ -1068,11 +1168,15 @@ export function sanitizeDashboardDefinition(dashboard: DashboardDefinition): Das
   }
 
   const maxColumns = DEFAULT_WORKSPACE_COLUMNS;
-  const widgets = migrateEmbeddedSlideWidgets(Array.isArray(dashboard.widgets)
-    ? dashboard.widgets.map((instance) =>
-        sanitizeCanonicalDashboardWidgetInstance(instance, maxColumns),
-      )
-    : []);
+  const widgets = migrateBodyOnlySlideWidgetHosting(
+    migrateEmbeddedSlideWidgets(
+      Array.isArray(dashboard.widgets)
+        ? dashboard.widgets.map((instance) =>
+            sanitizeCanonicalDashboardWidgetInstance(instance, maxColumns),
+          )
+        : [],
+    ),
+  );
   const identityMigration = buildWorkspaceGridMigration(
     DEFAULT_WORKSPACE_COLUMNS,
     DEFAULT_WORKSPACE_ROW_HEIGHT,
@@ -1394,6 +1498,10 @@ function getDashboardSlideRegionBottomY(
     const rows = getLayoutRows(instance.layout, instance.widgetId);
     return Math.max(bottomY, (position?.y ?? 0) + rows);
   }, 0);
+}
+
+function resolveBodyOnlySlideRegion(_region: DashboardSlideRegionId): DashboardSlideRegionId {
+  return "body";
 }
 
 function cloneDashboardWidgetTree(
@@ -2193,6 +2301,7 @@ export function commitDashboardSlideRegionLayout(
   region: DashboardSlideRegionId,
   layout: ReadonlyArray<Pick<WorkspaceGridLayoutItem, "h" | "i" | "w" | "x" | "y">>,
 ) {
+  const resolvedRegion = resolveBodyOnlySlideRegion(region);
   const layoutById = new Map(
     layout.map((entry) => [
       entry.i,
@@ -2210,7 +2319,7 @@ export function commitDashboardSlideRegionLayout(
     widgets: dashboard.widgets.map((widget) => {
       if (
         widget.slidePlacement?.slideWidgetId !== slideWidgetId ||
-        widget.slidePlacement.region !== region
+        widget.slidePlacement.region !== resolvedRegion
       ) {
         return widget;
       }
@@ -2247,6 +2356,7 @@ export function moveDashboardWidgetToSlideRegion(
     return dashboard;
   }
 
+  const resolvedRegion = resolveBodyOnlySlideRegion(region);
   const targetWidget = findDashboardWidgetInTree(dashboard.widgets, instanceId);
 
   if (
@@ -2271,13 +2381,13 @@ export function moveDashboardWidgetToSlideRegion(
     dashboard,
     instanceId,
     slideWidgetId,
-    region,
+    resolvedRegion,
     {
       x: typeof layout?.x === "number" ? layout.x : 0,
       y:
         typeof layout?.y === "number"
           ? layout.y
-          : getDashboardSlideRegionBottomY(dashboard, slideWidgetId, region),
+          : getDashboardSlideRegionBottomY(dashboard, slideWidgetId, resolvedRegion),
       w: clampSlideRegionWidgetCols(requestedCols, sourceColumns),
       h: clampSlideRegionWidgetRows(requestedRows, sourceRowHeight),
     },
@@ -2292,7 +2402,7 @@ export function moveDashboardWidgetToSlideRegion(
         ...currentWidget,
         slidePlacement: {
           slideWidgetId,
-          region,
+          region: resolvedRegion,
         },
         layout: {
           cols: normalizedLayout.w,

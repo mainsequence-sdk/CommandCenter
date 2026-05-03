@@ -57,7 +57,6 @@ import type { WidgetInstancePresentation } from "@/widgets/types";
 import type { WidgetHeaderActionsProps } from "@/widgets/types";
 import {
   sanitizeWorkspaceSlideProps,
-  WORKSPACE_SLIDE_REGION_IDS,
   type WorkspaceSlideRegionId,
 } from "@/widgets/core/workspace-slide/slide-model";
 import { WorkspaceSlideSurface } from "@/widgets/core/workspace-slide/WorkspaceSlideWidget";
@@ -758,18 +757,11 @@ function DashboardCanvasSurface({
     if (widget.id === WORKSPACE_SLIDE_WIDGET_ID) {
       const slide = sanitizeWorkspaceSlideProps(instance.props ?? {});
       const slideRegions = slidePlacedWidgetEntriesByRegion.get(instance.id);
-      const regionContent: Partial<Record<WorkspaceSlideRegionId, ReactNode>> = {};
-
-      WORKSPACE_SLIDE_REGION_IDS.forEach((regionId) => {
-        const entries = slideRegions?.get(regionId) ?? [];
-
-        if (entries.length === 0) {
-          return;
-        }
-
-        regionContent[regionId] = (
+      const bodyEntries = slideRegions?.get("body") ?? [];
+      const bodyContent =
+        bodyEntries.length > 0 ? (
           <WorkspaceSlideSubgridHost
-            items={entries.map((entry) => ({
+            items={bodyEntries.map((entry) => ({
               id: entry.instance.id,
               layout: {
                 x: entry.instance.layout.x,
@@ -781,8 +773,7 @@ function DashboardCanvasSurface({
             }))}
             editable={false}
           />
-        );
-      });
+        ) : undefined;
 
       return (
         <WorkspaceCanvasWidgetCard
@@ -809,7 +800,11 @@ function DashboardCanvasSurface({
             ) : undefined
           }
           customContent={
-            <WorkspaceSlideSurface slide={slide} editable={false} regionContent={regionContent} />
+            <WorkspaceSlideSurface
+              slide={slide}
+              editable={false}
+              regionContent={bodyContent ? { body: bodyContent } : undefined}
+            />
           }
           onRemove={() => {}}
           onDuplicate={() => {}}

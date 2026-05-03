@@ -7,40 +7,26 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
   sanitizeWorkspaceSlideProps,
+  WORKSPACE_SLIDE_BAND_SLOT_IDS,
+  type WorkspaceSlideBandId,
+  type WorkspaceSlideBandSlotId,
+  type WorkspaceSlideBandSlots,
   type WorkspaceSlideRegionId,
+  type WorkspaceSlideSlotContent,
   type WorkspaceSlideWidgetProps,
 } from "./slide-model";
 
-const MIN_CENTER_WIDTH_PCT = 24;
-const MIN_SIDE_WIDTH_PCT = 12;
 const MIN_BODY_HEIGHT_PCT = 22;
-const MIN_BAND_HEIGHT_PCT = 10;
+const MIN_BAND_HEIGHT_PCT = 5;
 const SLIDE_ASPECT_RATIO = 16 / 9;
 const SLIDE_LOGICAL_WIDTH_PX = 1280;
 const SLIDE_LOGICAL_HEIGHT_PX = SLIDE_LOGICAL_WIDTH_PX / SLIDE_ASPECT_RATIO;
-
-function resolveSlideCanvasColumnsStyle(slide: WorkspaceSlideWidgetProps): CSSProperties {
-  const columns: string[] = [];
-
-  if (slide.leftEnabled) {
-    columns.push(`${slide.leftWidthPct}%`);
-  }
-
-  columns.push("minmax(0, 1fr)");
-
-  if (slide.rightEnabled) {
-    columns.push(`${slide.rightWidthPct}%`);
-  }
-
-  return {
-    gridTemplateColumns: columns.join(" "),
-  };
-}
 
 function resolveSlideCanvasCenterRowsStyle(slide: WorkspaceSlideWidgetProps): CSSProperties {
   const rows: string[] = [];
@@ -62,6 +48,102 @@ function resolveSlideCanvasCenterRowsStyle(slide: WorkspaceSlideWidgetProps): CS
 
 function clampPercent(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+function resolveBandSlotAlignment(slotId: WorkspaceSlideBandSlotId) {
+  switch (slotId) {
+    case "left":
+      return "items-start text-left";
+    case "right":
+      return "items-end text-right";
+    case "middle":
+    default:
+      return "items-center text-center";
+  }
+}
+
+function renderBandSlotPlaceholder(label: string) {
+  return (
+    <div className="inline-flex max-w-full items-center gap-2 rounded-md border border-dashed border-border/60 bg-background/28 px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/85">
+      <Plus className="h-3 w-3 shrink-0" />
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
+
+function renderBandSlotContent(
+  slot: WorkspaceSlideSlotContent,
+  options: {
+    editable: boolean;
+    bandId: WorkspaceSlideBandId;
+    slotId: WorkspaceSlideBandSlotId;
+  },
+) {
+  if (slot.type === "text") {
+    if (!slot.text?.trim()) {
+      return options.editable ? renderBandSlotPlaceholder("Add text") : null;
+    }
+
+    return (
+      <div className="max-w-full whitespace-pre-wrap break-words text-[14px] font-medium leading-5 text-foreground/92">
+        {slot.text}
+      </div>
+    );
+  }
+
+  if (slot.type === "image") {
+    if (!slot.imageUrl?.trim()) {
+      return options.editable ? renderBandSlotPlaceholder("Add image") : null;
+    }
+
+    return (
+      <img
+        src={slot.imageUrl}
+        alt={slot.imageAlt ?? ""}
+        className="max-h-full max-w-full object-contain"
+      />
+    );
+  }
+
+  return options.editable ? renderBandSlotPlaceholder("Add element") : null;
+}
+
+function SlideBandSlots({
+  editable,
+  bandId,
+  slots,
+}: {
+  editable: boolean;
+  bandId: WorkspaceSlideBandId;
+  slots: WorkspaceSlideBandSlots;
+}) {
+  return (
+    <div className="grid h-full min-h-0 grid-cols-3 gap-3">
+      {WORKSPACE_SLIDE_BAND_SLOT_IDS.map((slotId) => (
+        <div
+          key={`${bandId}-${slotId}`}
+          className={cn(
+            "flex min-h-0 min-w-0",
+            resolveBandSlotAlignment(slotId),
+          )}
+        >
+          <div
+            className={cn(
+              "flex h-full min-h-0 w-full min-w-0",
+              resolveBandSlotAlignment(slotId),
+              slotId === "middle" ? "justify-center" : slotId === "right" ? "justify-end" : "justify-start",
+            )}
+          >
+            {renderBandSlotContent(slots[slotId], {
+              editable,
+              bandId,
+              slotId,
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function resolveSlideFrameFit(bounds: { width: number; height: number } | null) {
@@ -105,7 +187,12 @@ function SlideRegionSurface({
       data-workspace-slide-region-id={regionId}
       data-workspace-slide-widget-id={slideWidgetId}
     >
-      <div className="h-full min-h-0 overflow-hidden">
+      <div
+        className={cn(
+          "h-full min-h-0",
+          editable && regionId === "body" ? "overflow-auto" : "overflow-hidden",
+        )}
+      >
         {children}
       </div>
     </div>
@@ -137,7 +224,7 @@ export function WorkspaceSlideSurface({
     null,
   );
   const [dividerDrag, setDividerDrag] = useState<{
-    kind: "left" | "right" | "header" | "footer";
+    kind: "header" | "footer";
     rect: {
       left: number;
       top: number;
@@ -159,29 +246,7 @@ export function WorkspaceSlideSurface({
 
     function handlePointerMove(event: PointerEvent) {
       const { rect, kind, base } = currentDrag;
-      const relativeX = rect.width > 0 ? ((event.clientX - rect.left) / rect.width) * 100 : 0;
       const relativeY = rect.height > 0 ? ((event.clientY - rect.top) / rect.height) * 100 : 0;
-
-      if (kind === "left" && base.leftEnabled) {
-        const maxLeft = 100 - (base.rightEnabled ? base.rightWidthPct : 0) - MIN_CENTER_WIDTH_PCT;
-
-        handleSlideChange({
-          ...base,
-          leftWidthPct: clampPercent(relativeX, MIN_SIDE_WIDTH_PCT, maxLeft),
-        });
-        return;
-      }
-
-      if (kind === "right" && base.rightEnabled) {
-        const nextRight = 100 - relativeX;
-        const maxRight = 100 - (base.leftEnabled ? base.leftWidthPct : 0) - MIN_CENTER_WIDTH_PCT;
-
-        handleSlideChange({
-          ...base,
-          rightWidthPct: clampPercent(nextRight, MIN_SIDE_WIDTH_PCT, maxRight),
-        });
-        return;
-      }
 
       if (kind === "header" && base.headerEnabled) {
         const maxHeader = 100 - (base.footerEnabled ? base.footerHeightPct : 0) - MIN_BODY_HEIGHT_PCT;
@@ -261,7 +326,7 @@ export function WorkspaceSlideSurface({
   }, []);
 
   function beginDividerDrag(
-    kind: "left" | "right" | "header" | "footer",
+    kind: "header" | "footer",
     event: ReactPointerEvent<HTMLDivElement>,
   ) {
     if (!editable || !onSlideChange) {
@@ -290,8 +355,6 @@ export function WorkspaceSlideSurface({
     });
   }
 
-  const centerInsetLeft = slide.leftEnabled ? `${slide.leftWidthPct}%` : "0%";
-  const centerInsetRight = slide.rightEnabled ? `${slide.rightWidthPct}%` : "0%";
   const slideFrameFit = resolveSlideFrameFit(surfaceBounds);
   const frameShellStyle: CSSProperties = {
     width: `${slideFrameFit.frameWidth}px`,
@@ -357,35 +420,13 @@ export function WorkspaceSlideSurface({
               )}
             />
 
-            {editable && slide.leftEnabled ? (
-              <div
-                data-no-widget-drag="true"
-                className="absolute top-0 bottom-0 z-10 w-2 -translate-x-1/2 cursor-col-resize"
-                style={{ left: `${slide.leftWidthPct}%` }}
-                onPointerDown={(event) => {
-                  beginDividerDrag("left", event);
-                }}
-              />
-            ) : null}
-
-            {editable && slide.rightEnabled ? (
-              <div
-                data-no-widget-drag="true"
-                className="absolute top-0 bottom-0 z-10 w-2 -translate-x-1/2 cursor-col-resize"
-                style={{ left: `${100 - slide.rightWidthPct}%` }}
-                onPointerDown={(event) => {
-                  beginDividerDrag("right", event);
-                }}
-              />
-            ) : null}
-
             {editable && slide.headerEnabled ? (
               <div
                 data-no-widget-drag="true"
                 className="absolute z-10 h-2 -translate-y-1/2 cursor-row-resize"
                 style={{
-                  left: centerInsetLeft,
-                  right: centerInsetRight,
+                  left: "0%",
+                  right: "0%",
                   top: `${slide.headerHeightPct}%`,
                 }}
                 onPointerDown={(event) => {
@@ -399,8 +440,8 @@ export function WorkspaceSlideSurface({
                 data-no-widget-drag="true"
                 className="absolute z-10 h-2 -translate-y-1/2 cursor-row-resize"
                 style={{
-                  left: centerInsetLeft,
-                  right: centerInsetRight,
+                  left: "0%",
+                  right: "0%",
                   top: `${100 - slide.footerHeightPct}%`,
                 }}
                 onPointerDown={(event) => {
@@ -410,77 +451,35 @@ export function WorkspaceSlideSurface({
             ) : null}
 
             <div className="h-full w-full p-5">
-              <div className="grid h-full w-full" style={resolveSlideCanvasColumnsStyle(slide)}>
-                {slide.leftEnabled ? (
-                  <div className={editable ? "min-h-0 border-r border-border/50 pr-3" : "min-h-0 pr-3"}>
-                    <SlideRegionSurface
-                      editable={editable}
-                      regionId="left"
-                      slideWidgetId={slideWidgetId}
-                    >
-                      {regionContent?.left}
-                    </SlideRegionSurface>
+              <div
+                className="grid h-full w-full min-h-0"
+                style={resolveSlideCanvasCenterRowsStyle(slide)}
+              >
+                {slide.headerEnabled ? (
+                  <div className={editable ? "min-h-0 border-b border-border/50 pb-3" : "min-h-0 pb-3"}>
+                    <SlideBandSlots editable={editable} bandId="header" slots={slide.headerSlots} />
                   </div>
                 ) : null}
 
                 <div
                   className={cn(
-                    "grid min-h-0",
-                    slide.rightEnabled && editable ? "border-r border-border/50 pr-3" : slide.rightEnabled ? "pr-3" : undefined,
-                    slide.leftEnabled ? "pl-3" : undefined,
+                    "min-h-0",
+                    slide.headerEnabled ? "pt-3" : undefined,
+                    slide.footerEnabled ? "pb-3" : undefined,
                   )}
-                  style={resolveSlideCanvasCenterRowsStyle(slide)}
                 >
-                  {slide.headerEnabled ? (
-                    <div className={editable ? "min-h-0 border-b border-border/50 pb-3" : "min-h-0 pb-3"}>
-                      <SlideRegionSurface
-                        editable={editable}
-                        regionId="header"
-                        slideWidgetId={slideWidgetId}
-                      >
-                        {regionContent?.header}
-                      </SlideRegionSurface>
-                    </div>
-                  ) : null}
-
-                  <div
-                    className={cn(
-                      "min-h-0",
-                      slide.headerEnabled ? "pt-3" : undefined,
-                      slide.footerEnabled ? "pb-3" : undefined,
-                    )}
+                  <SlideRegionSurface
+                    editable={editable}
+                    regionId="body"
+                    slideWidgetId={slideWidgetId}
                   >
-                    <SlideRegionSurface
-                      editable={editable}
-                      regionId="body"
-                      slideWidgetId={slideWidgetId}
-                    >
-                      {regionContent?.body}
-                    </SlideRegionSurface>
-                  </div>
-
-                  {slide.footerEnabled ? (
-                    <div className={editable ? "min-h-0 border-t border-border/50 pt-3" : "min-h-0 pt-3"}>
-                      <SlideRegionSurface
-                        editable={editable}
-                        regionId="footer"
-                        slideWidgetId={slideWidgetId}
-                      >
-                        {regionContent?.footer}
-                      </SlideRegionSurface>
-                    </div>
-                  ) : null}
+                    {regionContent?.body}
+                  </SlideRegionSurface>
                 </div>
 
-                {slide.rightEnabled ? (
-                  <div className={slide.leftEnabled ? "min-h-0 pl-3" : "min-h-0 pl-3"}>
-                    <SlideRegionSurface
-                      editable={editable}
-                      regionId="right"
-                      slideWidgetId={slideWidgetId}
-                    >
-                      {regionContent?.right}
-                    </SlideRegionSurface>
+                {slide.footerEnabled ? (
+                  <div className={editable ? "min-h-0 border-t border-border/50 pt-3" : "min-h-0 pt-3"}>
+                    <SlideBandSlots editable={editable} bandId="footer" slots={slide.footerSlots} />
                   </div>
                 ) : null}
               </div>

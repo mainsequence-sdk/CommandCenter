@@ -19,7 +19,8 @@ Inline rich-text workspace note with direct canvas editing.
 - Right-click the note to open the compact floating inline toolbar for unified text style,
   emphasis, lists, quotes, code, links, horizontal alignment, and vertical placement.
 - Adjust width, paragraph spacing, horizontal alignment, vertical placement, or link behavior in
-  settings if needed.
+  settings if needed. Paragraph spacing uses direct numeric values such as `1`, `1.5`, or `2`
+  and applies them as `rem` spacing between paragraphs and list blocks.
 - The widget hides the shared card header by default so the content reads like a slide or document
   block instead of a utility widget.
 
@@ -30,4 +31,5 @@ Inline rich-text workspace note with direct canvas editing.
 - The formatting toolbar opens on right-click in edit mode. It is intentionally positioned above
   the note surface instead of inside the card header area.
 - Alignment and paragraph-spacing settings affect the rendered layout around the HTML content; they
-  do not rewrite the stored HTML itself.
+  do not rewrite the stored HTML itself. Paragraph spacing is a numeric `rem` value, not a named
+  preset.

@@ -9,6 +9,8 @@ import {
 } from "@/dashboards/structural-widgets";
 import { defineWidget } from "@/widgets/types";
 import {
+  createEmptyWorkspaceSlideBandSlots,
+  createEmptyWorkspaceSlideProps,
   WORKSPACE_SLIDE_GRID_COLUMNS,
   WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
 } from "@/widgets/core/workspace-slide/slide-model";
@@ -1281,7 +1283,7 @@ describe("custom dashboard storage managed widgets", () => {
     });
   });
 
-  it("reassigns a slide widget to a different slide region", () => {
+  it("reassigns a slide widget to a different slide and coerces placement to the body stage", () => {
     const dashboard = dashboardWithWidgets([
       slideWidget("slide-1", { x: 0, y: 0 }),
       slideWidget("slide-2", { x: 0, y: 60 }),
@@ -1315,8 +1317,71 @@ describe("custom dashboard storage managed widgets", () => {
 
     expect(graph?.slidePlacement).toEqual({
       slideWidgetId: "slide-2",
-      region: "right",
+      region: "body",
     });
+  });
+
+  it("migrates legacy non-body slide placements into the body stage and sanitizes slide props", () => {
+    const dashboard = sanitizeDashboardDefinition({
+      id: "workspace-legacy-slide",
+      title: "Workspace",
+      description: "Legacy slide migration",
+      source: "test",
+      widgets: [
+        {
+          ...slideWidget("slide-1", { x: 0, y: 0 }),
+          props: {
+            headerEnabled: true,
+            leftEnabled: true,
+            leftWidthPct: 30,
+            headerHeightPct: 18,
+          },
+        },
+        {
+          ...graphWidget("graph-body", { x: 1, y: 2 }),
+          slidePlacement: {
+            slideWidgetId: "slide-1",
+            region: "body",
+          },
+        },
+        {
+          ...graphWidget("graph-header", { x: 0, y: 0 }),
+          slidePlacement: {
+            slideWidgetId: "slide-1",
+            region: "header",
+          },
+        },
+        {
+          ...graphWidget("graph-right", { x: 5, y: 0 }),
+          slidePlacement: {
+            slideWidgetId: "slide-1",
+            region: "right",
+          },
+        },
+      ],
+    });
+
+    const slide = dashboard.widgets.find((widget) => widget.id === "slide-1");
+    const headerGraph = dashboard.widgets.find((widget) => widget.id === "graph-header");
+    const rightGraph = dashboard.widgets.find((widget) => widget.id === "graph-right");
+
+    expect(slide?.props).toEqual({
+      ...createEmptyWorkspaceSlideProps(),
+      headerEnabled: true,
+      headerHeightPct: 18,
+      headerSlots: createEmptyWorkspaceSlideBandSlots(),
+      footerSlots: createEmptyWorkspaceSlideBandSlots(),
+    });
+    expect(headerGraph?.slidePlacement).toEqual({
+      slideWidgetId: "slide-1",
+      region: "body",
+    });
+    expect(rightGraph?.slidePlacement).toEqual({
+      slideWidgetId: "slide-1",
+      region: "body",
+    });
+    expect((headerGraph?.position?.y ?? -1)).toBeGreaterThanOrEqual(10);
+    expect((rightGraph?.position?.y ?? -1)).toBeGreaterThan(headerGraph?.position?.y ?? -1);
   });
 
   it("keeps explicit source bindings unchanged for backward-compatible bound tables", () => {
