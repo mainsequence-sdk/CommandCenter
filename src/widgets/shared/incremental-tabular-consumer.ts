@@ -476,7 +476,10 @@ function shouldAwaitInitialDualRoleBaseline(input: {
   seedFrame: TabularFrameSourceV1 | null;
   liveFrame: TabularFrameSourceV1 | null;
 }) {
-  if (!input.seedInput || !input.liveInput) {
+  const hasBoundSeedRole = input.seedInput?.status === "valid";
+  const hasBoundLiveRole = input.liveInput?.status === "valid";
+
+  if (!hasBoundSeedRole || !hasBoundLiveRole) {
     return false;
   }
 

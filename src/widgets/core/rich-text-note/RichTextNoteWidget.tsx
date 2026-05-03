@@ -37,12 +37,14 @@ import {
 export type RichTextNoteWidth = "compact" | "prose" | "full";
 export type RichTextNoteVerticalAlign = "top" | "center" | "bottom";
 export type RichTextNoteHorizontalAlign = "left" | "center" | "right" | "justify";
+export type RichTextNoteParagraphSpacing = "tight" | "normal" | "relaxed";
 
 export interface RichTextNoteWidgetProps extends Record<string, unknown> {
   contentHtml?: string;
   contentWidth?: RichTextNoteWidth;
   contentVerticalAlign?: RichTextNoteVerticalAlign;
   contentHorizontalAlign?: RichTextNoteHorizontalAlign;
+  contentParagraphSpacing?: RichTextNoteParagraphSpacing;
   emptyState?: string;
   openLinksInNewTab?: boolean;
   showHeader?: boolean;
@@ -56,9 +58,9 @@ const richTextContentClassName = cn(
   "[&_h1]:mt-8 [&_h1]:mb-4 [&_h1]:font-semibold [&_h1]:tracking-tight [&_h1:first-child]:mt-0",
   "[&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:border-b [&_h2]:border-border/70 [&_h2]:pb-2 [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2:first-child]:mt-0",
   "[&_h3]:mt-6 [&_h3]:mb-3 [&_h3]:font-semibold [&_h3]:tracking-tight [&_h3:first-child]:mt-0",
-  "[&_p]:my-4 [&_p]:text-foreground/90 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-  "[&_ul]:my-4 [&_ul]:ml-6 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:marker:text-muted-foreground",
-  "[&_ol]:my-4 [&_ol]:ml-6 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:marker:text-muted-foreground",
+  "[&_p]:my-[var(--rich-text-paragraph-spacing)] [&_p]:text-foreground/90 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+  "[&_ul]:my-[var(--rich-text-paragraph-spacing)] [&_ul]:ml-6 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:marker:text-muted-foreground",
+  "[&_ol]:my-[var(--rich-text-paragraph-spacing)] [&_ol]:ml-6 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:marker:text-muted-foreground",
   "[&_li]:pl-1 [&_li]:text-foreground/90",
   "[&_blockquote]:my-5 [&_blockquote]:border-l-3 [&_blockquote]:border-primary/45 [&_blockquote]:bg-muted/35 [&_blockquote]:py-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground",
   "[&_hr]:my-6 [&_hr]:border-border/70",
@@ -117,6 +119,16 @@ export function normalizeRichTextNoteHorizontalAlign(
   return "left";
 }
 
+export function normalizeRichTextNoteParagraphSpacing(
+  value: RichTextNoteWidgetProps["contentParagraphSpacing"],
+): RichTextNoteParagraphSpacing {
+  if (value === "tight" || value === "relaxed") {
+    return value;
+  }
+
+  return "normal";
+}
+
 function resolveContentWidthClass(width: RichTextNoteWidth) {
   switch (width) {
     case "compact":
@@ -152,6 +164,18 @@ function resolveHorizontalAlignClass(align: RichTextNoteHorizontalAlign) {
     case "left":
     default:
       return "text-left";
+  }
+}
+
+function resolveParagraphSpacingCssValue(spacing: RichTextNoteParagraphSpacing) {
+  switch (spacing) {
+    case "tight":
+      return "0.75rem";
+    case "relaxed":
+      return "1.5rem";
+    case "normal":
+    default:
+      return "1rem";
   }
 }
 
@@ -282,7 +306,11 @@ export function RichTextNoteWidget({
   const contentWidth = normalizeRichTextNoteWidth(props.contentWidth);
   const contentVerticalAlign = normalizeRichTextNoteVerticalAlign(props.contentVerticalAlign);
   const contentHorizontalAlign = normalizeRichTextNoteHorizontalAlign(props.contentHorizontalAlign);
+  const contentParagraphSpacing = normalizeRichTextNoteParagraphSpacing(
+    props.contentParagraphSpacing,
+  );
   const openLinksInNewTab = props.openLinksInNewTab !== false;
+  const contentStyleAttribute = `font-size: var(--font-size-body-sm); line-height: var(--line-height-body); --rich-text-paragraph-spacing: ${resolveParagraphSpacingCssValue(contentParagraphSpacing)};`;
   const updatePresentationProps = (patch: Partial<RichTextNoteWidgetProps>) => {
     if (!onPropsChange) {
       return;
@@ -328,8 +356,7 @@ export function RichTextNoteWidget({
           "focus:outline-none",
           editable ? "min-h-[180px] cursor-text" : undefined,
         ),
-        style:
-          "font-size: var(--font-size-body-sm); line-height: var(--line-height-body);",
+        style: contentStyleAttribute,
       },
     },
     onUpdate: ({ editor: nextEditor }) => {

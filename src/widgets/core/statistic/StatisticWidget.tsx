@@ -14,7 +14,7 @@ import {
   resolveStatisticConfig,
   type StatisticWidgetProps,
 } from "./statisticModel";
-import { resolveStatisticSourceDataset } from "./statisticPreview";
+import { resolveStatisticSettingsDataset } from "./statisticPreview";
 import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-widget-source";
 
 type Props = WidgetComponentProps<StatisticWidgetProps>;
@@ -27,7 +27,7 @@ export function StatisticWidget({
   onRuntimeStateChange,
 }: Props) {
   const previewDataset = useMemo(
-    () => resolveStatisticSourceDataset(resolvedInputs),
+    () => resolveStatisticSettingsDataset(resolvedInputs),
     [resolvedInputs],
   );
   const sourceBinding = useResolvedTabularWidgetSourceBinding({
@@ -52,7 +52,9 @@ export function StatisticWidget({
   });
   const linkedDataset =
     previewDataset ??
-    (incrementalBinding.active ? incrementalBinding.dataset : sourceConsumerState.dataset);
+    incrementalBinding.dataset ??
+    sourceBinding.resolvedSourceDataset ??
+    sourceConsumerState.dataset;
   const availableFields = useMemo(
     () =>
       buildStatisticFieldOptions({
@@ -87,7 +89,7 @@ export function StatisticWidget({
     sourceBinding.resolvedSourceWidget?.title?.trim() ||
     undefined;
 
-  if (previewDataset == null && sourceConsumerState.kind === "unbound") {
+  if (linkedDataset == null && sourceConsumerState.kind === "unbound") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -103,7 +105,7 @@ export function StatisticWidget({
     );
   }
 
-  if (previewDataset == null && sourceConsumerState.kind === "missing-source") {
+  if (linkedDataset == null && sourceConsumerState.kind === "missing-source") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -119,7 +121,7 @@ export function StatisticWidget({
     );
   }
 
-  if (previewDataset == null && sourceConsumerState.kind === "missing-output") {
+  if (linkedDataset == null && sourceConsumerState.kind === "missing-output") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -135,7 +137,7 @@ export function StatisticWidget({
     );
   }
 
-  if (previewDataset == null && sourceConsumerState.kind === "contract-mismatch") {
+  if (linkedDataset == null && sourceConsumerState.kind === "contract-mismatch") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -152,7 +154,7 @@ export function StatisticWidget({
   }
 
   if (
-    previewDataset == null &&
+    linkedDataset == null &&
     (sourceConsumerState.kind === "self-reference-blocked" ||
       sourceConsumerState.kind === "transform-invalid")
   ) {
@@ -171,7 +173,7 @@ export function StatisticWidget({
     );
   }
 
-  if (previewDataset == null && sourceConsumerState.kind === "awaiting-upstream") {
+  if (linkedDataset == null && sourceConsumerState.kind === "awaiting-upstream") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -187,7 +189,7 @@ export function StatisticWidget({
     );
   }
 
-  if (previewDataset == null && sourceConsumerState.kind === "error") {
+  if (linkedDataset == null && sourceConsumerState.kind === "error") {
     return (
       <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
         {sourceConsumerState.error ?? "The bound source failed to load rows."}
@@ -197,7 +199,6 @@ export function StatisticWidget({
 
   if (
     linkedDataset?.status === "loading" ||
-    (previewDataset == null && sourceConsumerState.kind === "loading") ||
     linkedDataset == null
   ) {
     return <Skeleton className="h-full rounded-[calc(var(--radius)-6px)]" />;

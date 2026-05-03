@@ -1209,7 +1209,7 @@ export function EChartsSpecWidget({ widget, props, resolvedInputs }: Props) {
           </div>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/40">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-[calc(var(--radius)-6px)] bg-card/40">
           <div ref={containerRef} className="h-full min-h-[220px] w-full" />
         </div>
       )}

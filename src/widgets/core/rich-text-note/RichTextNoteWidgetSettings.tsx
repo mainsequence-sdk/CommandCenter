@@ -7,6 +7,7 @@ import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
   normalizeRichTextNoteHorizontalAlign,
+  normalizeRichTextNoteParagraphSpacing,
   normalizeRichTextNoteVerticalAlign,
   normalizeRichTextNoteWidth,
   richTextNoteStarterHtml,
@@ -22,6 +23,9 @@ export function RichTextNoteWidgetSettings({
   const contentVerticalAlign = normalizeRichTextNoteVerticalAlign(draftProps.contentVerticalAlign);
   const contentHorizontalAlign = normalizeRichTextNoteHorizontalAlign(
     draftProps.contentHorizontalAlign,
+  );
+  const contentParagraphSpacing = normalizeRichTextNoteParagraphSpacing(
+    draftProps.contentParagraphSpacing,
   );
   const openLinksInNewTab = draftProps.openLinksInNewTab !== false;
 
@@ -138,6 +142,26 @@ export function RichTextNoteWidgetSettings({
             <option value="top">Top</option>
             <option value="center">Middle</option>
             <option value="bottom">Bottom</option>
+          </Select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-topbar-foreground">Paragraph spacing</span>
+          <Select
+            value={contentParagraphSpacing}
+            disabled={!editable}
+            onChange={(event) => {
+              onDraftPropsChange({
+                ...draftProps,
+                contentParagraphSpacing: normalizeRichTextNoteParagraphSpacing(
+                  event.target.value as RichTextNoteWidgetProps["contentParagraphSpacing"],
+                ),
+              });
+            }}
+          >
+            <option value="tight">Tight</option>
+            <option value="normal">Normal</option>
+            <option value="relaxed">Relaxed</option>
           </Select>
         </label>
 
