@@ -11,8 +11,10 @@ import {
 import { CustomDashboardStudioPage } from "./CustomDashboardStudioPage";
 import { CustomWorkspaceGraphPage } from "./CustomWorkspaceGraphPage";
 import { CustomWorkspaceSettingsPage } from "./CustomWorkspaceSettingsPage";
+import { SlideStudioSlideshowRuntime } from "./SlideStudioSlideshowPage";
 import { WorkspaceSnapshotCapture } from "./snapshot/WorkspaceSnapshotCapture";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
+import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 import { WorkspaceRenderErrorBoundary, WorkspaceRenderErrorState } from "./WorkspaceRenderErrorBoundary";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 
@@ -26,7 +28,6 @@ export function WorkspaceStudioCanvasHost({
   const {
     permissions,
     selectedDashboard,
-    selectedDashboardSource,
     resolvedDashboard,
     resolvedDashboardError,
     snapshotMode,
@@ -64,6 +65,40 @@ export function WorkspaceStudioCanvasHost({
 
   if (!resolvedDashboard) {
     return null;
+  }
+
+  const selectedDashboardType = normalizeDashboardDefinitionType(
+    selectedDashboard.type,
+    selectedDashboard.labels,
+  );
+
+  if (publicPreview && selectedDashboardType === "slide-studio") {
+    return (
+      <WorkspaceRenderErrorBoundary
+        resetKey={`${selectedDashboard.id}:public-preview:slideshow`}
+        onBackToWorkspaces={() => {
+          navigate(workspaceListPath);
+        }}
+        onOpenSettings={() => {
+          openWorkspaceSettings();
+        }}
+        workspaceId={selectedDashboard.id}
+        workspaceTitle={selectedDashboard.title}
+      >
+        <SlideStudioSlideshowRuntime
+          dashboard={selectedDashboard}
+          resolvedDashboard={resolvedDashboard}
+          permissions={permissions}
+          manageKioskMode={false}
+          onControlsStateChange={(state) => {
+            updateSelectedWorkspaceUserState((dashboard) =>
+              updateDashboardControlsState(dashboard, state),
+            );
+          }}
+          onControlsStateCommit={commitSelectedWorkspaceControlsState}
+        />
+      </WorkspaceRenderErrorBoundary>
+    );
   }
 
   return (

@@ -11,34 +11,8 @@ import "react-resizable/css/styles.css";
 import "@/styles/globals.css";
 import { initializeDocumentTheme } from "@/themes/ThemeProvider";
 
-declare global {
-  interface Window {
-    dataLayer?: unknown[][];
-    gtag?: (...args: unknown[]) => void;
-  }
-}
-
 initializeDocumentTheme();
 document.title = commandCenterConfig.app.name;
-
-const googleTagId = (import.meta.env.VITE_GOOGLE_TAG_ID ?? "").trim();
-
-if (googleTagId) {
-  const script = document.createElement("script");
-  script.async = true;
-  script.src =
-    "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(googleTagId);
-  document.head.appendChild(script);
-
-  window.dataLayer = window.dataLayer || [];
-  window.gtag =
-    window.gtag ||
-    function (...args: unknown[]) {
-      window.dataLayer.push(args);
-    };
-  window.gtag("js", new Date());
-  window.gtag("config", googleTagId);
-}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

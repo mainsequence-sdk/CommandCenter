@@ -327,15 +327,15 @@ export function getAccessProfileLabel(
 }
 
 export function hasAllPermissions(
-  current: string[],
-  required: string[] = [],
+  current: readonly string[],
+  required: readonly string[] = [],
 ) {
   return required.every((permission) => current.includes(permission));
 }
 
 export function hasAnyPermission(
-  current: string[],
-  required: string[] = [],
+  current: readonly string[],
+  required: readonly string[] = [],
 ) {
   return required.length === 0 || required.some((permission) => current.includes(permission));
 }

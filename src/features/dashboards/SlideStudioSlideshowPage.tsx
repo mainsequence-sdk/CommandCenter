@@ -13,7 +13,12 @@ import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidge
 import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { WORKSPACE_SLIDE_WIDGET_ID } from "@/dashboards/structural-widgets";
-import type { ResolvedDashboardWidgetInstance } from "@/dashboards/types";
+import type {
+  DashboardControlsState,
+  DashboardDefinition,
+  ResolvedDashboardDefinition,
+  ResolvedDashboardWidgetInstance,
+} from "@/dashboards/types";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
@@ -74,17 +79,22 @@ function resolveInteractiveTarget(target: EventTarget | null) {
   );
 }
 
-function SlideStudioSlideshowViewport() {
+function SlideStudioSlideshowViewport({
+  dashboard,
+  resolvedDashboard,
+  permissions,
+  manageKioskMode,
+  onExit,
+}: {
+  dashboard: DashboardDefinition;
+  resolvedDashboard: ResolvedDashboardDefinition;
+  permissions: readonly string[];
+  manageKioskMode: boolean;
+  onExit?: () => void;
+}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const kioskMode = useShellStore((state) => state.kioskMode);
   const setKioskMode = useShellStore((state) => state.setKioskMode);
-  const {
-    permissions,
-    selectedDashboard,
-    resolvedDashboard,
-    updateSelectedWorkspaceUserState,
-    commitSelectedWorkspaceControlsState,
-  } = useCustomWorkspaceStudio();
   const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
     {},
   );
@@ -93,14 +103,28 @@ function SlideStudioSlideshowViewport() {
   const previousKioskModeRef = useRef<boolean | null>(null);
   const kioskObservationReadyRef = useRef(false);
 
+  const canExitSlideshow = Boolean(onExit) || Boolean(searchParams.get("mode"));
   const exitSlideshow = useCallback(() => {
+    if (onExit) {
+      onExit();
+      return;
+    }
+
+    if (!searchParams.get("mode")) {
+      return;
+    }
+
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("mode");
     nextParams.delete("slide");
     setSearchParams(nextParams);
-  }, [searchParams, setSearchParams]);
+  }, [onExit, searchParams, setSearchParams]);
 
   useEffect(() => {
+    if (!manageKioskMode) {
+      return undefined;
+    }
+
     if (previousKioskModeRef.current == null) {
       previousKioskModeRef.current = kioskMode;
     }
@@ -110,9 +134,13 @@ function SlideStudioSlideshowViewport() {
     return () => {
       setKioskMode(previousKioskModeRef.current ?? false);
     };
-  }, [setKioskMode]);
+  }, [kioskMode, manageKioskMode, setKioskMode]);
 
   useEffect(() => {
+    if (!manageKioskMode) {
+      return;
+    }
+
     if (!kioskObservationReadyRef.current) {
       kioskObservationReadyRef.current = true;
       return;
@@ -121,11 +149,11 @@ function SlideStudioSlideshowViewport() {
     if (!kioskMode) {
       exitSlideshow();
     }
-  }, [exitSlideshow, kioskMode]);
+  }, [exitSlideshow, kioskMode, manageKioskMode]);
 
   useEffect(() => {
     setWidgetOverrides({});
-  }, [selectedDashboard?.id]);
+  }, [dashboard.id]);
 
   const renderedWidgets = useMemo(
     () =>
@@ -283,7 +311,7 @@ function SlideStudioSlideshowViewport() {
         return;
       }
 
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && canExitSlideshow) {
         event.preventDefault();
         exitSlideshow();
       }
@@ -294,7 +322,7 @@ function SlideStudioSlideshowViewport() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeSlideEntry, activeSlideIndex, exitSlideshow, setActiveSlideIndex]);
+  }, [activeSlideEntry, activeSlideIndex, canExitSlideshow, exitSlideshow, setActiveSlideIndex]);
 
   const renderCanvasWidgetCard = useCallback(
     (instance: ResolvedDashboardWidgetInstance, widgetId: string): ReactNode => {
@@ -448,7 +476,7 @@ function SlideStudioSlideshowViewport() {
       <DashboardWidgetExecutionProvider
         activeSurface="dashboard"
         enableAutomaticHydration={false}
-        scopeId={selectedDashboard?.id ?? "slide-studio"}
+        scopeId={dashboard.id}
         widgets={renderedWidgets}
         writeRuntimeState={(instanceId, runtimeState) => {
           setWidgetOverrides((current) => ({
@@ -518,7 +546,7 @@ function SlideStudioSlideshowViewport() {
             <div className="min-h-screen px-8 py-8">
               {activeSlideContent ? (
                 <div
-                  className="relative h-[calc(100vh-4rem)] w-full"
+                  className="relative box-border h-[calc(100vh-4rem)] w-full pb-8"
                   onMouseEnter={() => {
                     setIsSlideshowStageHovered(true);
                   }}
@@ -570,16 +598,18 @@ function SlideStudioSlideshowViewport() {
                           Next
                           <ArrowRight className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            exitSlideshow();
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                          Exit
-                        </Button>
+                        {canExitSlideshow ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              exitSlideshow();
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                            Exit
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -590,6 +620,7 @@ function SlideStudioSlideshowViewport() {
                     onMouseLeave={() => {
                       setIsSlideFrameHovered(false);
                     }}
+                    className="h-full"
                   >
                     {activeSlideContent}
                   </div>
@@ -629,10 +660,47 @@ function SlideStudioSlideshowViewport() {
   );
 }
 
+export function SlideStudioSlideshowRuntime({
+  dashboard,
+  resolvedDashboard,
+  permissions,
+  manageKioskMode = true,
+  onControlsStateChange,
+  onControlsStateCommit,
+  onExit,
+}: {
+  dashboard: DashboardDefinition;
+  resolvedDashboard: ResolvedDashboardDefinition;
+  permissions: readonly string[];
+  manageKioskMode?: boolean;
+  onControlsStateChange?: (state: DashboardControlsState) => void;
+  onControlsStateCommit?: (state: DashboardControlsState) => void;
+  onExit?: () => void;
+}) {
+  return (
+    <DashboardControlsProvider
+      key={`${dashboard.id}:slideshow`}
+      controls={dashboard.controls}
+      refreshProgressUpdateIntervalMs={120}
+      onStateChange={onControlsStateChange}
+      onStateCommit={onControlsStateCommit}
+    >
+      <SlideStudioSlideshowViewport
+        dashboard={dashboard}
+        resolvedDashboard={resolvedDashboard}
+        permissions={permissions}
+        manageKioskMode={manageKioskMode}
+        onExit={onExit}
+      />
+    </DashboardControlsProvider>
+  );
+}
+
 export function SlideStudioSlideshowPage() {
   const navigate = useNavigate();
   const { workspaceFilter, workspaceListPath } = useWorkspaceStudioSurfaceConfig();
   const {
+    permissions,
     selectedDashboard,
     resolvedDashboard,
     resolvedDashboardError,
@@ -740,20 +808,18 @@ export function SlideStudioSlideshowPage() {
       }}
       workspaceId={selectedDashboard.id}
       workspaceTitle={selectedDashboard.title}
-      >
-        <DashboardControlsProvider
-          key={`${selectedDashboard.id}:slideshow`}
-          controls={selectedDashboard.controls}
-          refreshProgressUpdateIntervalMs={120}
-        onStateChange={(state) => {
+    >
+      <SlideStudioSlideshowRuntime
+        dashboard={selectedDashboard}
+        resolvedDashboard={resolvedDashboard}
+        permissions={permissions}
+        onControlsStateChange={(state) => {
           updateSelectedWorkspaceUserState((dashboard) =>
             updateDashboardControlsState(dashboard, state),
           );
         }}
-          onStateCommit={commitSelectedWorkspaceControlsState}
-        >
-          <SlideStudioSlideshowViewport />
-        </DashboardControlsProvider>
-      </WorkspaceRenderErrorBoundary>
+        onControlsStateCommit={commitSelectedWorkspaceControlsState}
+      />
+    </WorkspaceRenderErrorBoundary>
   );
 }

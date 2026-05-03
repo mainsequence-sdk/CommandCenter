@@ -61,6 +61,8 @@ These flows are all part of one app surface, with instance state selected throug
   `?workspace=<id>&mode=slideshow`.
 - Authenticated public preview is available for supported workspace types through
   `?workspace=<id>&mode=public-preview`.
+- For `slide-studio`, both authenticated public preview and anonymous public routes default to the
+  slideshow projection instead of the generic dashboard canvas.
 - Workspace settings now also manage backend-owned public links through the
   `/public-link/`, `/public-link/disable/`, and `/public-link/rotate/` endpoints. The frontend
   treats `publicUrl` / `public_url` as backend-owned metadata and does not send it back in normal

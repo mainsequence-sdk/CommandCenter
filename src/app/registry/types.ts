@@ -9,7 +9,7 @@ export interface AppExtension {
   title: string;
   description?: string;
   mockOnly?: boolean;
-  widgets?: WidgetDefinition[];
+  widgets?: WidgetDefinition<any>[];
   apps?: AppDefinition[];
   themes?: ThemePreset[];
   connections?: AnyConnectionTypeDefinition[];
@@ -17,7 +17,7 @@ export interface AppExtension {
 
 export interface AppRegistry {
   extensions: AppExtension[];
-  widgets: WidgetDefinition[];
+  widgets: WidgetDefinition<any>[];
   apps: AppDefinition[];
   surfaces: AppSurfaceEntry[];
   shellMenuEntries: AppShellMenuEntry[];

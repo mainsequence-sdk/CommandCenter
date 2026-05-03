@@ -144,12 +144,12 @@ export function WorkspaceSlideSurface({
   } | null>(null);
 
   useEffect(() => {
-    const currentDrag = dividerDrag;
-    const handleSlideChange = onSlideChange;
-
-    if (!currentDrag || !handleSlideChange) {
+    if (!dividerDrag || !onSlideChange) {
       return undefined;
     }
+
+    const currentDrag: NonNullable<typeof dividerDrag> = dividerDrag;
+    const handleSlideChange: NonNullable<typeof onSlideChange> = onSlideChange;
 
     function handlePointerMove(event: PointerEvent) {
       const { rect, kind, base } = currentDrag;

@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { DashboardDefinition } from "@/dashboards/types";
+import { resolveDashboardLayout } from "@/dashboards/layout";
 import { PublicDashboardCanvas } from "./DashboardCanvas";
+import { SlideStudioSlideshowRuntime } from "./SlideStudioSlideshowPage";
+import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 import { fetchPublicWorkspaceDetailFromBackend } from "./workspace-api";
+
+const PUBLIC_RENDER_PERMISSIONS: readonly string[] = ["workspaces:view"];
 
 export function PublicWorkspacePage() {
   const { token = "" } = useParams();
@@ -46,6 +51,33 @@ export function PublicWorkspacePage() {
     };
   }, [token]);
 
+  const resolvedPublicDashboard = useMemo(() => {
+    if (!dashboard) {
+      return {
+        error: null,
+        resolvedDashboard: null,
+        type: null,
+      };
+    }
+
+    try {
+      return {
+        error: null,
+        resolvedDashboard: resolveDashboardLayout(dashboard),
+        type: normalizeDashboardDefinitionType(dashboard.type, dashboard.labels),
+      };
+    } catch (nextError) {
+      return {
+        error:
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to render the public workspace.",
+        resolvedDashboard: null,
+        type: normalizeDashboardDefinitionType(dashboard.type, dashboard.labels),
+      };
+    }
+  }, [dashboard]);
+
   const content = useMemo(() => {
     if (loading) {
       return (
@@ -71,8 +103,32 @@ export function PublicWorkspacePage() {
       return null;
     }
 
+    if (resolvedPublicDashboard.error) {
+      return (
+        <div className="flex min-h-[40vh] items-center justify-center px-6 py-12">
+          <div className="max-w-lg rounded-[calc(var(--radius)+2px)] border border-danger/25 bg-danger/8 px-5 py-4 text-sm text-danger shadow-[var(--shadow-panel)]">
+            {resolvedPublicDashboard.error}
+          </div>
+        </div>
+      );
+    }
+
+    if (
+      resolvedPublicDashboard.type === "slide-studio" &&
+      resolvedPublicDashboard.resolvedDashboard
+    ) {
+      return (
+        <SlideStudioSlideshowRuntime
+          dashboard={dashboard}
+          resolvedDashboard={resolvedPublicDashboard.resolvedDashboard}
+          permissions={PUBLIC_RENDER_PERMISSIONS}
+          manageKioskMode={false}
+        />
+      );
+    }
+
     return <PublicDashboardCanvas dashboard={dashboard} />;
-  }, [dashboard, error, loading]);
+  }, [dashboard, error, loading, resolvedPublicDashboard]);
 
   return (
     <div
