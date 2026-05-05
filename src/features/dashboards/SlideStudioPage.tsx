@@ -3,6 +3,8 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { SlideStudioPresentLauncher } from "./SlideStudioPresentLauncher";
+import { SlideStudioPrintLauncher } from "./SlideStudioPrintLauncher";
+import { SlideStudioPrintPage } from "./SlideStudioPrintPage";
 import { SlideStudioSlideLauncher } from "./SlideStudioSlideLauncher";
 import { SlideStudioSlideshowPage } from "./SlideStudioSlideshowPage";
 import { WorkspacesPage } from "./WorkspacesPage";
@@ -12,6 +14,7 @@ import { WorkspaceStudioSurfaceConfigProvider } from "./workspace-studio-surface
 export function SlideStudioPage() {
   const [searchParams] = useSearchParams();
   const slideshowMode = searchParams.get("mode") === "slideshow";
+  const printMode = searchParams.get("mode") === "print";
   const surfaceConfig = useMemo(
     () => ({
       ...slideStudioWorkspaceStudioConfig,
@@ -19,6 +22,7 @@ export function SlideStudioPage() {
         <>
           <SlideStudioSlideLauncher />
           <SlideStudioPresentLauncher />
+          <SlideStudioPrintLauncher />
         </>
       ),
     }),
@@ -27,7 +31,13 @@ export function SlideStudioPage() {
 
   return (
     <WorkspaceStudioSurfaceConfigProvider value={surfaceConfig}>
-      {slideshowMode ? <SlideStudioSlideshowPage /> : <WorkspacesPage />}
+      {slideshowMode ? (
+        <SlideStudioSlideshowPage />
+      ) : printMode ? (
+        <SlideStudioPrintPage />
+      ) : (
+        <WorkspacesPage />
+      )}
     </WorkspaceStudioSurfaceConfigProvider>
   );
 }

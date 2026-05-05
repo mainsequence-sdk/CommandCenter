@@ -15,6 +15,7 @@ feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 057: Slide Studio Printable PDF Projection](./adr-057-slide-studio-printable-pdf-projection.md)
 - [ADR 056: Slide Structural Containment in Workspace Graph](./adr-056-slide-structural-containment-in-workspace-graph.md)
 - [ADR 055: Simplify Slide To Body-Only Widget Hosting](./adr-055-simplify-slide-to-body-only-widget-hosting.md)
 - [ADR 054: Synthetic Public Workspace Render Permissions](./adr-054-synthetic-public-workspace-render-permissions.md)
@@ -82,6 +83,7 @@ feature folder.
 
 ## Shell And Extension ADRs
 
+- [ADR 057: Slide Studio Printable PDF Projection](./adr-057-slide-studio-printable-pdf-projection.md)
 - [ADR 056: Slide Structural Containment in Workspace Graph](./adr-056-slide-structural-containment-in-workspace-graph.md)
 - [ADR 055: Simplify Slide To Body-Only Widget Hosting](./adr-055-simplify-slide-to-body-only-widget-hosting.md)
 - [ADR 054: Synthetic Public Workspace Render Permissions](./adr-054-synthetic-public-workspace-render-permissions.md)

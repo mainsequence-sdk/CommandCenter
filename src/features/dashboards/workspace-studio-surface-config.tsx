@@ -48,6 +48,11 @@ export interface ResolvedWorkspaceStudioSurfaceConfig {
   workspaceListPath: string;
 }
 
+export type WorkspaceStudioRouteMode =
+  | "public-preview"
+  | "slideshow"
+  | "print";
+
 const defaultWorkspaceStudioSurfaceConfig: ResolvedWorkspaceStudioSurfaceConfig = {
   catalogDescription: "Search, filter, favorite, or drag directly onto the canvas.",
   catalogTitle: "Components",
@@ -147,6 +152,19 @@ export function buildWorkspaceStudioViewPath(
   const params = new URLSearchParams({
     workspace: workspaceId,
     view,
+  });
+
+  return `${workspaceListPath}?${params.toString()}`;
+}
+
+export function buildWorkspaceStudioModePath(
+  workspaceListPath: string,
+  workspaceId: string,
+  mode: WorkspaceStudioRouteMode,
+) {
+  const params = new URLSearchParams({
+    workspace: workspaceId,
+    mode,
   });
 
   return `${workspaceListPath}?${params.toString()}`;

@@ -1,75 +1,36 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 
-import { getWidgetById } from "@/app/registry";
-import { hasAllPermissions } from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { ResolvedDashboardWidgetEntry } from "@/dashboards/canvas-items";
 import { DashboardControlsProvider } from "@/dashboards/DashboardControls";
 import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
 import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
-import { WORKSPACE_SLIDE_WIDGET_ID } from "@/dashboards/structural-widgets";
 import type {
   DashboardControlsState,
   DashboardDefinition,
   ResolvedDashboardDefinition,
-  ResolvedDashboardWidgetInstance,
 } from "@/dashboards/types";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
-import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
-import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
-import { LockedWidgetFrame } from "@/widgets/shared/widget-frame";
 import {
   sanitizeWorkspaceSlideProps,
-  type WorkspaceSlideRegionId,
 } from "@/widgets/core/workspace-slide/slide-model";
 import { WorkspaceSlideSurface } from "@/widgets/core/workspace-slide/WorkspaceSlideWidget";
-import type {
-  WidgetExecutionSurface,
-  WidgetHeaderActionsProps,
-  WidgetInstancePresentation,
-} from "@/widgets/types";
+import type { WidgetExecutionSurface } from "@/widgets/types";
 
 import {
   updateDashboardControlsState,
 } from "./custom-dashboard-storage";
-import { WorkspaceCanvasWidgetCard } from "./WorkspaceCanvasWidgetHost";
 import { WorkspaceRenderErrorBoundary, WorkspaceRenderErrorState } from "./WorkspaceRenderErrorBoundary";
 import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
+import { useSlideStudioProjectionData } from "./slide-studio-runtime";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 import { PublicWorkspaceStatusBar } from "./PublicWorkspaceStatusBar";
-
-interface WidgetInstanceOverride {
-  props?: Record<string, unknown>;
-  presentation?: WidgetInstancePresentation | null;
-  runtimeState?: Record<string, unknown> | null;
-  title?: string | null;
-}
-
-function applyWidgetOverride(
-  instance: ResolvedDashboardWidgetInstance,
-  override?: WidgetInstanceOverride,
-) {
-  if (!override) {
-    return instance;
-  }
-
-  return {
-    ...instance,
-    title: "title" in override ? (override.title ?? undefined) : instance.title,
-    props: "props" in override ? override.props : instance.props,
-    presentation:
-      "presentation" in override ? (override.presentation ?? undefined) : instance.presentation,
-    runtimeState:
-      "runtimeState" in override ? (override.runtimeState ?? undefined) : instance.runtimeState,
-  };
-}
 
 function resolveInteractiveTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
@@ -103,9 +64,6 @@ function SlideStudioSlideshowViewport({
   const [searchParams, setSearchParams] = useSearchParams();
   const kioskMode = useShellStore((state) => state.kioskMode);
   const setKioskMode = useShellStore((state) => state.setKioskMode);
-  const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
-    {},
-  );
   const [isSlideFrameHovered, setIsSlideFrameHovered] = useState(false);
   const [alwaysShowSlideshowControls, setAlwaysShowSlideshowControls] = useState(false);
   const [showSlideshowIntroHint, setShowSlideshowIntroHint] = useState(false);
@@ -163,7 +121,6 @@ function SlideStudioSlideshowViewport({
   }, [exitSlideshow, kioskMode, manageKioskMode]);
 
   useEffect(() => {
-    setWidgetOverrides({});
     slideshowIntroHintShownRef.current = false;
     setShowSlideshowIntroHint(false);
   }, [dashboard.id]);
@@ -195,90 +152,18 @@ function SlideStudioSlideshowViewport({
     };
   }, []);
 
-  const renderedWidgets = useMemo(
-    () =>
-      (resolvedDashboard?.widgets ?? []).map((instance) =>
-        applyWidgetOverride(instance, widgetOverrides[instance.id]),
-      ),
-    [resolvedDashboard?.widgets, widgetOverrides],
-  );
-
-  const resolvedRenderedWidgets = useMemo(
-    () =>
-      renderedWidgets.map((instance) => {
-        const widget = getWidgetById(instance.widgetId);
-
-        return widget
-          ? {
-              ...instance,
-              presentation: resolveWidgetInstancePresentation(widget, instance.presentation),
-            }
-          : instance;
-      }),
-    [renderedWidgets],
-  );
-
-  const widgetEntries = useMemo<ResolvedDashboardWidgetEntry[]>(
-    () =>
-      resolvedRenderedWidgets.flatMap((instance) => {
-        const widget = getWidgetById(instance.widgetId);
-
-        return widget ? [{ instance, widget }] : [];
-      }),
-    [resolvedRenderedWidgets],
-  );
-
-  const slidePlacedWidgetEntriesByRegion = useMemo(() => {
-    const grouped = new Map<string, Map<WorkspaceSlideRegionId, ResolvedDashboardWidgetEntry[]>>();
-
-    widgetEntries.forEach((entry) => {
-      if (resolveWidgetSidebarOnly(entry.instance.presentation) || !entry.instance.slidePlacement) {
-        return;
-      }
-
-      const byRegion = grouped.get(entry.instance.slidePlacement.slideWidgetId) ?? new Map();
-      const current = byRegion.get(entry.instance.slidePlacement.region) ?? [];
-      current.push(entry);
-      byRegion.set(entry.instance.slidePlacement.region, current);
-      grouped.set(entry.instance.slidePlacement.slideWidgetId, byRegion);
-    });
-
-    grouped.forEach((byRegion) => {
-      byRegion.forEach((entries) => {
-        entries.sort(
-          (left, right) =>
-            left.instance.layout.y - right.instance.layout.y ||
-            left.instance.layout.x - right.instance.layout.x,
-        );
-      });
-    });
-
-    return grouped;
-  }, [widgetEntries]);
-
-  const sidebarOnlyWidgetEntries = useMemo(
-    () =>
-      widgetEntries.filter(
-        ({ instance }) =>
-          resolveWidgetSidebarOnly(instance.presentation) && !instance.slidePlacement,
-      ),
-    [widgetEntries],
-  );
-
-  const slideEntries = useMemo(
-    () =>
-      widgetEntries
-        .filter(
-          ({ instance, widget }) =>
-            widget.id === WORKSPACE_SLIDE_WIDGET_ID && !instance.slidePlacement,
-        )
-        .sort(
-          (left, right) =>
-            left.instance.layout.y - right.instance.layout.y ||
-            left.instance.layout.x - right.instance.layout.x,
-        ),
-    [widgetEntries],
-  );
+  const {
+    hiddenDependencyMounts,
+    renderCanvasWidgetCard,
+    renderedWidgets,
+    slideEntries,
+    slidePlacedWidgetEntriesByRegion,
+    updateWidgetRuntimeState,
+  } = useSlideStudioProjectionData({
+    dashboardId: dashboard.id,
+    permissions,
+    resolvedDashboard,
+  });
 
   const requestedSlideId = searchParams.get("slide");
   const activeSlideIndex = useMemo(() => {
@@ -381,101 +266,6 @@ function SlideStudioSlideshowViewport({
     };
   }, [activeSlideEntry, activeSlideIndex, canExitSlideshow, exitSlideshow, setActiveSlideIndex]);
 
-  const renderCanvasWidgetCard = useCallback(
-    (instance: ResolvedDashboardWidgetInstance, widgetId: string): ReactNode => {
-      const widget = getWidgetById(widgetId);
-
-      if (!widget) {
-        return null;
-      }
-
-      const required = [...(widget.requiredPermissions ?? []), ...(instance.requiredPermissions ?? [])];
-
-      if (!hasAllPermissions(permissions, required)) {
-        return (
-          <LockedWidgetFrame
-            title={instance.title ?? widget.title}
-            description={`Missing permissions: ${required.join(", ")}`}
-            style={{ height: "100%" }}
-          />
-        );
-      }
-
-      const HeaderActions =
-        widget.headerActions as
-          | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
-          | undefined;
-
-      return (
-        <WorkspaceCanvasWidgetCard
-          instanceId={instance.id}
-          instanceTitle={instance.title}
-          selected={false}
-          editable={false}
-          widget={widget}
-          widgetProps={instance.props ?? {}}
-          widgetPresentation={instance.presentation}
-          widgetRuntimeState={instance.runtimeState}
-          renderCanvasFields={false}
-          headerActions={
-            HeaderActions ? (
-              <HeaderActions
-                widget={widget}
-                props={instance.props ?? {}}
-                runtimeState={instance.runtimeState}
-                onRuntimeStateChange={(state) => {
-                  setWidgetOverrides((current) => ({
-                    ...current,
-                    [instance.id]: {
-                      ...current[instance.id],
-                      runtimeState: state ?? null,
-                    },
-                  }));
-                }}
-              />
-            ) : undefined
-          }
-          onRemove={() => {}}
-          onDuplicate={() => {}}
-          onSaveWidget={() => {}}
-          onPropsChange={(instanceId, props) => {
-            setWidgetOverrides((current) => ({
-              ...current,
-              [instanceId]: {
-                ...current[instanceId],
-                props,
-              },
-            }));
-          }}
-          onPresentationChange={(instanceId, presentation) => {
-            setWidgetOverrides((current) => ({
-              ...current,
-              [instanceId]: {
-                ...current[instanceId],
-                presentation,
-              },
-            }));
-          }}
-          onRuntimeStateChange={(instanceId, runtimeState) => {
-            setWidgetOverrides((current) => ({
-              ...current,
-              [instanceId]: {
-                ...current[instanceId],
-                runtimeState: runtimeState ?? null,
-              },
-            }));
-          }}
-          onSelect={() => {}}
-          onOpenBindings={() => {}}
-          onOpenSettings={() => {}}
-          rowCollapsed={false}
-          rowChildCount={0}
-        />
-      );
-    },
-    [permissions],
-  );
-
   const activeSlideLabel = activeSlideEntry
     ? (activeSlideEntry.instance.title?.trim() || `Slide ${activeSlideIndex + 1}`)
     : null;
@@ -534,13 +324,7 @@ function SlideStudioSlideshowViewport({
         scopeId={dashboard.id}
         widgets={renderedWidgets}
         writeRuntimeState={(instanceId, runtimeState) => {
-          setWidgetOverrides((current) => ({
-            ...current,
-            [instanceId]: {
-              ...current[instanceId],
-              runtimeState: runtimeState ?? null,
-            },
-          }));
+          updateWidgetRuntimeState(instanceId, runtimeState);
         }}
       >
         <DashboardWidgetDependenciesProvider widgets={renderedWidgets}>
@@ -581,47 +365,7 @@ function SlideStudioSlideshowViewport({
               </div>
             ) : null}
 
-            <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
-              {sidebarOnlyWidgetEntries.map(({ instance, widget }) => {
-                const required = [...(widget.requiredPermissions ?? []), ...(instance.requiredPermissions ?? [])];
-
-                if (!hasAllPermissions(permissions, required)) {
-                  return null;
-                }
-
-                const Component = widget.component as ComponentType<{
-                  widget: typeof widget;
-                  instanceId?: string;
-                  instanceTitle?: string;
-                  props: Record<string, unknown>;
-                  presentation?: WidgetInstancePresentation;
-                  runtimeState?: Record<string, unknown>;
-                  onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-                }>;
-
-                return (
-                  <div key={instance.id} className="h-px w-px overflow-hidden">
-                    <Component
-                      widget={widget}
-                      instanceId={instance.id}
-                      instanceTitle={instance.title}
-                      props={instance.props ?? {}}
-                      presentation={instance.presentation}
-                      runtimeState={instance.runtimeState}
-                      onRuntimeStateChange={(state) => {
-                        setWidgetOverrides((current) => ({
-                          ...current,
-                          [instance.id]: {
-                            ...current[instance.id],
-                            runtimeState: state ?? null,
-                          },
-                        }));
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+            {hiddenDependencyMounts}
 
             {showSlideshowTopHint ? (
               <div className="relative z-20 shrink-0 px-4 pt-2 xl:px-8 xl:pt-3">

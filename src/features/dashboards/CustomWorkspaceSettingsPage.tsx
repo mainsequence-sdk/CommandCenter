@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { ArrowLeft, Eye, Globe, LayoutTemplate, RotateCcw, Save, Shield, Trash2, X } from "lucide-react";
+import { ArrowLeft, Eye, Globe, LayoutTemplate, Printer, RotateCcw, Save, Shield, Trash2, X } from "lucide-react";
 
 import { MainSequencePermissionsTab } from "../../../extensions/main_sequence/common/components/MainSequencePermissionsTab";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,7 @@ import { assessWorkspacePublicReadiness } from "./public-workspace-readiness";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
 import {
+  buildWorkspaceStudioModePath,
   filterWorkspaceStudioEntries,
   useWorkspaceStudioSurfaceConfig,
 } from "./workspace-studio-surface-config";
@@ -155,6 +156,7 @@ export function CustomWorkspaceSettingsPage() {
     workspaceCandidate?.type,
     workspaceCandidate?.labels ?? [],
   );
+  const slideStudioWorkspace = workspaceType === "slide-studio";
   const supportsPublicProjection = workspaceType === "workspace" || workspaceType === "slide-studio";
   const publicReadiness = useMemo(
     () =>
@@ -309,6 +311,31 @@ export function CustomWorkspaceSettingsPage() {
             >
               Import JSON
             </Button>
+            {slideStudioWorkspace ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (typeof window === "undefined") {
+                    return;
+                  }
+
+                  const path = buildWorkspaceStudioModePath(
+                    workspaceListPath,
+                    workspace.id,
+                    "print",
+                  );
+                  const openedWindow = window.open(path, "_blank", "noopener,noreferrer");
+
+                  if (!openedWindow) {
+                    navigate(path);
+                  }
+                }}
+              >
+                <Printer className="h-4 w-4" />
+                Export PDF
+              </Button>
+            ) : null}
           </div>
         </div>
       </CardContent>

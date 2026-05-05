@@ -330,23 +330,70 @@ export function MainSequenceProjectsPage() {
     staleTime: 300_000,
   });
 
+  const dataSourceOptions: PickerOption[] = (formOptionsQuery.data?.dataSources ?? []).map(
+    (option) => {
+      const label =
+        option.related_resource?.display_name?.trim() ||
+        option.related_resource?.name?.trim() ||
+        `Data source ${option.id}`;
+      const description = [
+        option.related_resource_class_type?.trim(),
+        option.related_resource?.status?.trim(),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      return {
+        value: String(option.id),
+        label,
+        description,
+        keywords: [
+          label,
+          option.related_resource?.display_name ?? "",
+          option.related_resource?.name ?? "",
+          option.related_resource_class_type,
+          option.related_resource?.status ?? "",
+        ],
+      };
+    },
+  ) satisfies PickerOption[];
+
+  const projectBaseImageOptions: PickerOption[] = (
+    formOptionsQuery.data?.projectBaseImages ?? []
+  ).map((option) => ({
+    value: String(option.id),
+    label: option.title,
+    description: option.description || option.latest_digest,
+    keywords: [option.title, option.description, option.latest_digest],
+  })) satisfies PickerOption[];
+
   useEffect(() => {
     if (!createDialogOpen) {
       return;
     }
 
-    const firstDataSourceId = formOptionsQuery.data?.dataSources?.[0]?.id;
-    const firstBaseImageId = formOptionsQuery.data?.projectBaseImages?.[0]?.id;
+    if (!formOptionsQuery.isSuccess) {
+      return;
+    }
+
+    const firstDataSourceId = dataSourceOptions[0]?.value;
+    const firstBaseImageId = projectBaseImageOptions[0]?.value;
 
     if (!firstDataSourceId && !firstBaseImageId) {
       return;
     }
 
     setFormState((current) => {
-      const nextDataSourceId =
-        current.dataSourceId || (firstDataSourceId ? String(firstDataSourceId) : "");
-      const nextDefaultBaseImageId =
-        current.defaultBaseImageId || (firstBaseImageId ? String(firstBaseImageId) : "");
+      const hasSelectedDataSource = dataSourceOptions.some(
+        (option) => option.value === current.dataSourceId,
+      );
+      const hasSelectedBaseImage = projectBaseImageOptions.some(
+        (option) => option.value === current.defaultBaseImageId,
+      );
+      const nextDataSourceId = hasSelectedDataSource ? current.dataSourceId : firstDataSourceId;
+      const nextDefaultBaseImageId = hasSelectedBaseImage
+        ? current.defaultBaseImageId
+        : (firstBaseImageId ?? "");
 
       if (
         nextDataSourceId === current.dataSourceId &&
@@ -363,8 +410,9 @@ export function MainSequenceProjectsPage() {
     });
   }, [
     createDialogOpen,
-    formOptionsQuery.data?.dataSources,
-    formOptionsQuery.data?.projectBaseImages,
+    dataSourceOptions,
+    projectBaseImageOptions,
+    formOptionsQuery.isSuccess,
   ]);
 
   const createProjectMutation = useMutation({
@@ -495,40 +543,6 @@ export function MainSequenceProjectsPage() {
     selectedProjectSummary?.project_name ??
     (selectedProjectId > 0 ? `Project ${selectedProjectId}` : "Project");
 
-  const dataSourceOptions: PickerOption[] = [
-    {
-      value: "",
-      label: "Choose a data source",
-      description: "Select a data source.",
-    },
-    ...((formOptionsQuery.data?.dataSources ?? []).map((option) => ({
-      value: String(option.id),
-      label: option.related_resource?.display_name ?? `Data source ${option.id}`,
-      description: option.related_resource
-        ? `${option.related_resource_class_type} · ${option.related_resource.status}`
-        : option.related_resource_class_type,
-      keywords: [
-        option.related_resource?.display_name ?? "",
-        option.related_resource_class_type,
-        option.related_resource?.status ?? "",
-      ],
-    })) satisfies PickerOption[]),
-  ];
-
-  const projectBaseImageOptions: PickerOption[] = [
-    {
-      value: "",
-      label: "Optional",
-      description: "Use the standard image.",
-    },
-    ...((formOptionsQuery.data?.projectBaseImages ?? []).map((option) => ({
-      value: String(option.id),
-      label: option.title,
-      description: option.description || option.latest_digest,
-      keywords: [option.title, option.description, option.latest_digest],
-    })) satisfies PickerOption[]),
-  ];
-
   const githubOrganizationOptions: PickerOption[] = [
     {
       value: "",
@@ -546,6 +560,24 @@ export function MainSequenceProjectsPage() {
   const handleCreateProject = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     createProjectMutation.reset();
+
+    if (!formState.dataSourceId.trim()) {
+      toast({
+        variant: "error",
+        title: "Data source required",
+        description: "Select a data source before creating the project.",
+      });
+      return;
+    }
+
+    if (!formState.defaultBaseImageId.trim()) {
+      toast({
+        variant: "error",
+        title: "Base image required",
+        description: "Select a base image before creating the project.",
+      });
+      return;
+    }
 
     await createProjectMutation.mutateAsync({
       project_name: formState.projectName.trim(),
@@ -1161,9 +1193,16 @@ export function MainSequenceProjectsPage() {
                       }));
                     }}
                     options={dataSourceOptions}
-                    placeholder="Choose a data source"
+                    placeholder={
+                      formOptionsQuery.isLoading
+                        ? "Loading data sources..."
+                        : dataSourceOptions.length === 0
+                          ? "No data sources available"
+                          : "Choose a data source"
+                    }
                     searchPlaceholder="Search data sources"
                     emptyMessage="No matching data sources."
+                    disabled={formOptionsQuery.isLoading || dataSourceOptions.length === 0}
                     loading={formOptionsQuery.isLoading}
                   />
                 </div>
@@ -1181,9 +1220,16 @@ export function MainSequenceProjectsPage() {
                       }));
                     }}
                     options={projectBaseImageOptions}
-                    placeholder="Optional"
+                    placeholder={
+                      formOptionsQuery.isLoading
+                        ? "Loading base images..."
+                        : projectBaseImageOptions.length === 0
+                          ? "No base images available"
+                          : "Choose a base image"
+                    }
                     searchPlaceholder="Search base images"
                     emptyMessage="No matching base images."
+                    disabled={formOptionsQuery.isLoading || projectBaseImageOptions.length === 0}
                     loading={formOptionsQuery.isLoading}
                   />
                 </div>
@@ -1239,7 +1285,13 @@ export function MainSequenceProjectsPage() {
                 Cancel
               </Button>
               <Button
-                disabled={createProjectMutation.isPending || !formState.projectName.trim()}
+                disabled={
+                  createProjectMutation.isPending ||
+                  formOptionsQuery.isLoading ||
+                  !formState.projectName.trim() ||
+                  !formState.dataSourceId.trim() ||
+                  !formState.defaultBaseImageId.trim()
+                }
                 type="submit"
               >
                 {createProjectMutation.isPending ? (

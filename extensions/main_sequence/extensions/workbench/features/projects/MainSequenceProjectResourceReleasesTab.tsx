@@ -703,6 +703,7 @@ export function MainSequenceProjectResourceReleasesTab({
     enabled:
       createDialogOpen &&
       projectId > 0 &&
+      createReleaseMode !== "project-agent" &&
       Boolean(createReleaseKind) &&
       Boolean(selectedProjectImage?.project_repo_hash),
     staleTime: 300_000,
@@ -927,6 +928,12 @@ export function MainSequenceProjectResourceReleasesTab({
         queryKey: ["main_sequence", "projects", "resource-releases"],
       });
       await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "projects", "resource-releases", "resources", projectId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "projects", "job-images", projectId],
+      });
+      await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "jobs", projectId],
       });
       await queryClient.invalidateQueries({
@@ -936,10 +943,24 @@ export function MainSequenceProjectResourceReleasesTab({
       const isProjectAgentMode = isProjectAgentCreateInput(input);
       let successTitle: string;
       let successDescription: string;
+      let successVariant: "success" | "info" = "success";
 
       if (isProjectAgentMode) {
-        successTitle = "Project agent configured";
-        successDescription = "The project execution agent service is ready for the selected image.";
+        const projectAgentResult = result as ProjectExecutorAgentServiceRecord;
+        const backendDetail = projectAgentResult.detail?.trim();
+        const agentStillPending =
+          projectAgentResult.image_building === true ||
+          projectAgentResult.image_status === "building" ||
+          projectAgentResult.build_status === "WORKING" ||
+          projectAgentResult.created_service === false ||
+          projectAgentResult.created_backing_job === false;
+
+        successTitle = agentStillPending ? "Project agent pending" : "Project agent configured";
+        successDescription =
+          backendDetail && backendDetail.length > 0
+            ? backendDetail
+            : "The project execution agent service is ready for the selected image.";
+        successVariant = agentStillPending ? "info" : "success";
       } else {
         const release = result as ResourceReleaseRecord;
         successTitle = `${formatReleaseKind(release.release_kind)} release created`;
@@ -947,7 +968,7 @@ export function MainSequenceProjectResourceReleasesTab({
       }
 
       toast({
-        variant: "success",
+        variant: successVariant,
         title: successTitle,
         description: successDescription,
       });
@@ -1093,6 +1114,21 @@ export function MainSequenceProjectResourceReleasesTab({
   }, [createDialogOpen]);
 
   useEffect(() => {
+    if (!createDialogOpen || createReleaseKind) {
+      return;
+    }
+
+    setCreateDialogOpen(false);
+    setCreateReleaseMode("default");
+    setCreateReleaseResourceTypeOverride(null);
+    onConsumeCreateReleaseIntent?.();
+  }, [
+    createDialogOpen,
+    createReleaseKind,
+    onConsumeCreateReleaseIntent,
+  ]);
+
+  useEffect(() => {
     if (!requestedCreateReleaseIntent) {
       handledCreateReleaseIntentRef.current = null;
       return;
@@ -1187,6 +1223,7 @@ export function MainSequenceProjectResourceReleasesTab({
     : createReleaseKind
       ? `Create ${formatReleaseKind(createReleaseKind).toLowerCase()} release`
       : "Create resource release";
+  const createDialogVisible = createDialogOpen && Boolean(createReleaseKind);
   const parsedGpuRequest = computeState.gpuRequest ? Number(computeState.gpuRequest) : undefined;
   const gpuSelectionIsValid =
     (!computeState.gpuRequest && !computeState.gpuType.trim()) ||
@@ -1629,7 +1666,7 @@ export function MainSequenceProjectResourceReleasesTab({
 
       <Dialog
         title={createDialogTitle}
-        open={createDialogOpen}
+        open={createDialogVisible}
         onClose={() => {
           if (!createResourceReleaseMutation.isPending) {
             setCreateDialogOpen(false);
@@ -1641,10 +1678,8 @@ export function MainSequenceProjectResourceReleasesTab({
         <div className="space-y-5">
           {createReleaseMode === "project-agent" ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-secondary/70 px-4 py-3 text-sm text-secondary-foreground">
-              Project Execution Agents are unique per project. This flow publishes a
-              `project_agent_card` resource for the selected commit image. Re-deploying replaces the
-              current execution agent for the project, so preserve compatibility with existing callers
-              and workflows before publishing a new project agent.
+              Project execution agents are unique per project. Republishing the agent with a
+              different image will override this project agent functionality.
             </div>
           ) : null}
 
@@ -1663,25 +1698,27 @@ export function MainSequenceProjectResourceReleasesTab({
             />
           </div>
 
-          <div className="space-y-2">
-            <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Resource
+          {createReleaseMode !== "project-agent" ? (
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                Resource
+              </div>
+              <PickerField
+                value={selectedResourceId}
+                onChange={setSelectedResourceId}
+                options={projectResourceOptions}
+                placeholder="Select a resource"
+                searchPlaceholder="Search resources"
+                emptyMessage={
+                  selectedProjectImage
+                    ? "No matching resources for this image commit."
+                    : "Select an image first."
+                }
+                disabled={!selectedProjectImage}
+                loading={releaseResourcesQuery.isLoading}
+              />
             </div>
-            <PickerField
-              value={selectedResourceId}
-              onChange={setSelectedResourceId}
-              options={projectResourceOptions}
-              placeholder="Select a resource"
-              searchPlaceholder="Search resources"
-              emptyMessage={
-                selectedProjectImage
-                  ? "No matching resources for this image commit."
-                  : "Select an image first."
-              }
-              disabled={!selectedProjectImage}
-              loading={releaseResourcesQuery.isLoading}
-            />
-          </div>
+          ) : null}
 
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
             <div className="space-y-2">
@@ -1807,7 +1844,7 @@ export function MainSequenceProjectResourceReleasesTab({
             </div>
           ) : null}
 
-          {releaseResourcesQuery.isError ? (
+          {createReleaseMode !== "project-agent" && releaseResourcesQuery.isError ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
               {formatMainSequenceError(releaseResourcesQuery.error)}
             </div>
@@ -1879,12 +1916,12 @@ export function MainSequenceProjectResourceReleasesTab({
               }}
               disabled={
                 createResourceReleaseMutation.isPending ||
-                releaseResourcesQuery.isLoading ||
+                (createReleaseMode !== "project-agent" && releaseResourcesQuery.isLoading) ||
                 projectImagesQuery.isLoading ||
                 (Boolean(computeState.gpuRequest) && availableGpuTypesQuery.isLoading) ||
-                !selectedResourceId ||
                 !selectedImageId ||
-                !gpuSelectionIsValid
+                !gpuSelectionIsValid ||
+                (createReleaseMode !== "project-agent" && !selectedResourceId)
               }
             >
               {createResourceReleaseMutation.isPending ? (

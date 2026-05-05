@@ -66,6 +66,23 @@ function isWorkspacePublicPreviewRoute(pathname: string, search: string) {
   return Boolean(searchParams.get("workspace")) && searchParams.get("mode") === "public-preview";
 }
 
+function isWorkspacePrintRoute(pathname: string, search: string) {
+  const routeSegments = pathname.split("/").filter(Boolean);
+  const surfaceId = routeSegments[2];
+
+  if (
+    routeSegments[1] !== "workspace-studio" ||
+    !surfaceId ||
+    !WORKSPACE_CANVAS_SURFACE_IDS.has(surfaceId)
+  ) {
+    return false;
+  }
+
+  const searchParams = new URLSearchParams(search);
+
+  return Boolean(searchParams.get("workspace")) && searchParams.get("mode") === "print";
+}
+
 export function AppShell() {
   const location = useLocation();
   const permissions = useAuthStore((state) => state.session?.user.permissions) ?? EMPTY_PERMISSIONS;
@@ -94,17 +111,23 @@ export function AppShell() {
     routeSegments[2] === "widget-catalog";
   const workspaceCanvasRoute = isWorkspaceCanvasRoute(location.pathname, location.search);
   const workspacePublicPreviewRoute = isWorkspacePublicPreviewRoute(location.pathname, location.search);
+  const workspacePrintRoute = isWorkspacePrintRoute(location.pathname, location.search);
   const kioskEligibleRoute =
     routeSurface?.kind === "dashboard" ||
     workspaceCanvasRoute;
-  const shelllessRoute = kioskMode || workspacePublicPreviewRoute;
-  const fullBleedSurface = Boolean(routeSurface?.fullBleed) || workspaceCanvasRoute || workspacePublicPreviewRoute;
+  const shelllessRoute = kioskMode || workspacePublicPreviewRoute || workspacePrintRoute;
+  const fullBleedSurface =
+    Boolean(routeSurface?.fullBleed) ||
+    workspaceCanvasRoute ||
+    workspacePublicPreviewRoute ||
+    workspacePrintRoute;
   const showAppPanel = !shelllessRoute && Boolean(panelApp && panelAppSurfaceGroups.length > 0);
   const sidebarWidth = shelllessRoute ? 0 : sidebarCollapsed ? 52 : 248;
   const routePathKey = location.pathname;
   const showDockedChatRail =
     env.includeAui &&
     !workspacePublicPreviewRoute &&
+    !workspacePrintRoute &&
     location.pathname !== CHAT_PAGE_PATH &&
     chatRailOpen &&
     chatRailMode === "docked";
@@ -183,9 +206,17 @@ export function AppShell() {
   }, [kioskMode, setKioskMode]);
 
   const shell = (
-    <div className="relative h-screen overflow-hidden bg-background text-foreground">
+    <div
+      className={cn(
+        "relative bg-background text-foreground",
+        workspacePrintRoute ? "min-h-screen overflow-visible" : "h-screen overflow-hidden",
+      )}
+    >
       <div
-        className="grid h-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out"
+        className={cn(
+          "grid transition-[grid-template-columns] duration-200 ease-out",
+          workspacePrintRoute ? "min-h-screen overflow-visible" : "h-full overflow-hidden",
+        )}
         style={{
           gridTemplateColumns: shelllessRoute
             ? showDockedChatRail
@@ -199,27 +230,32 @@ export function AppShell() {
         {!shelllessRoute ? <Sidebar /> : null}
         <div
           className={cn(
-            "grid min-h-0 min-w-0",
+            "grid min-w-0",
+            workspacePrintRoute ? "min-h-screen" : "min-h-0",
             shelllessRoute ? "grid-rows-[1fr]" : "grid-rows-[56px_1fr]",
           )}
         >
           {!shelllessRoute ? <Topbar /> : null}
           <main
             className={cn(
-              "min-h-0",
-              fullBleedSurface
-                ? widgetCatalogRoute
-                  ? "overflow-auto p-0"
-                  : "overflow-hidden p-0"
-                : shelllessRoute
-                  ? "overflow-auto px-3 py-3 md:px-4 md:py-4"
-                  : "overflow-auto px-2 py-3 md:px-3 md:py-4",
+              workspacePrintRoute ? "min-h-screen overflow-visible p-0" : "min-h-0",
+              !workspacePrintRoute
+                ? fullBleedSurface
+                  ? widgetCatalogRoute
+                    ? "overflow-auto p-0"
+                    : "overflow-hidden p-0"
+                  : shelllessRoute
+                    ? "overflow-auto px-3 py-3 md:px-4 md:py-4"
+                    : "overflow-auto px-2 py-3 md:px-3 md:py-4"
+                : undefined,
             )}
           >
             <div
               className={cn(
                 "w-full",
-                fullBleedSurface
+                workspacePrintRoute
+                  ? "min-h-screen"
+                  : fullBleedSurface
                   ? widgetCatalogRoute
                     ? "min-h-full"
                     : "h-full"

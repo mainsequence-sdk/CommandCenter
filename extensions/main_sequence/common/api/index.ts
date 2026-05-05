@@ -2305,10 +2305,12 @@ function tryParseLooseProjectResourceCodeResponse(
 
 export interface ProjectImageOption {
   id: number;
+  title?: string | null;
   project_repo_hash: string | null;
   related_project: number;
   base_image: ProjectBaseImageOption | null;
   is_ready: boolean;
+  build_error?: boolean | null;
   creation_date?: string | null;
   creation_date_display?: string | null;
 }
@@ -2452,7 +2454,16 @@ export interface CreateProjectExecutorAgentServiceInput {
 
 export interface ProjectExecutorAgentServiceRecord {
   id?: number;
+  project_id?: number;
+  created_service?: boolean;
+  created_backing_job?: boolean;
+  runtime_access?: unknown | null;
+  image_building?: boolean;
   detail?: string;
+  image_id?: number;
+  image_status?: string | null;
+  build_status?: string | null;
+  log_url?: string | null;
   [key: string]: unknown;
 }
 
@@ -5058,10 +5069,23 @@ export async function fetchProjectFormOptions(): Promise<ProjectFormOptions> {
   ]);
 
   const dataSources = normalizeListResponse(dataSourcePayload)
+    .filter((option) => Number.isFinite(option.id) && option.id > 0)
     .filter((option) => option.related_resource_class_type !== "duck_db")
+    .filter(
+      (option) =>
+        option.related_resource !== null &&
+        Number.isFinite(option.related_resource.id) &&
+        (option.related_resource.id ?? 0) > 0,
+    )
     .sort((left, right) => {
-      const leftName = left.related_resource?.display_name ?? "";
-      const rightName = right.related_resource?.display_name ?? "";
+      const leftName =
+        left.related_resource?.display_name?.trim() ||
+        left.related_resource?.name?.trim() ||
+        `Data source ${left.id}`;
+      const rightName =
+        right.related_resource?.display_name?.trim() ||
+        right.related_resource?.name?.trim() ||
+        `Data source ${right.id}`;
       return leftName.localeCompare(rightName);
     });
   const projectBaseImages = normalizeListResponse(projectBaseImagePayload).sort((left, right) =>

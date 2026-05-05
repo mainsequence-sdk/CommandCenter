@@ -40,12 +40,24 @@ function formatProjectImageLabel(image: ProjectImageOption) {
   return image.project_repo_hash?.trim() ? truncateMiddle(image.project_repo_hash) : "Latest";
 }
 
+function formatProjectImageTitle(image: ProjectImageOption) {
+  return image.title?.trim() || `Image ${image.id}`;
+}
+
+function projectImageHasBuildError(image: ProjectImageOption) {
+  return image.build_error === true;
+}
+
 function formatProjectImageStatus(image: ProjectImageOption) {
+  if (projectImageHasBuildError(image)) {
+    return "Error";
+  }
+
   return image.is_ready ? "Ready" : "Building";
 }
 
 function hasBuildingImages(images: ProjectImageOption[] | undefined) {
-  return (images ?? []).some((image) => !image.is_ready);
+  return (images ?? []).some((image) => !image.is_ready && !projectImageHasBuildError(image));
 }
 
 function toCommitHashPickerOption(commit: ProjectImageCommitHashOption) {
@@ -119,9 +131,11 @@ export function MainSequenceProjectImagesTab({
 
       return [
         String(image.id),
+        image.title ?? "",
         image.project_repo_hash ?? "",
         image.base_image?.title ?? "",
         image.base_image?.description ?? "",
+        image.base_image?.latest_digest ?? "",
         formatProjectImageStatus(image),
       ]
         .join(" ")
@@ -283,7 +297,7 @@ export function MainSequenceProjectImagesTab({
           renderSelectionSummary={(selectionCount) => `${selectionCount} images selected`}
           value={filterValue}
           onChange={(event) => setFilterValue(event.target.value)}
-          placeholder="Filter by id, repo hash, base image, or status"
+          placeholder="Filter by id, repo hash, base image, digest, or status"
           searchClassName="max-w-lg"
           selectionCount={imageSelection.selectedCount}
         />
@@ -329,7 +343,7 @@ export function MainSequenceProjectImagesTab({
                     onChange={imageSelection.toggleAll}
                   />
                 </th>
-                <th className="px-4 pb-2">Image</th>
+                <th className="px-4 pb-2">Title</th>
                 <th className="px-4 pb-2">Repo hash</th>
                 <th className="px-4 pb-2">Base image</th>
                 <th className="px-4 pb-2">Status</th>
@@ -352,9 +366,11 @@ export function MainSequenceProjectImagesTab({
                       <div className="flex items-start gap-2">
                         <Package className="mt-0.5 h-4 w-4 text-muted-foreground" />
                         <div>
-                          <div className="font-medium text-foreground">{`Image ${image.id}`}</div>
+                          <div className="font-medium text-foreground">
+                            {formatProjectImageTitle(image)}
+                          </div>
                           <div className="mt-1 text-xs text-muted-foreground">
-                            Project ID {image.related_project}
+                            Image ID {image.id} · Project ID {image.related_project}
                           </div>
                         </div>
                       </div>
@@ -380,9 +396,17 @@ export function MainSequenceProjectImagesTab({
                       <div className="mt-1 text-xs text-muted-foreground">
                         {image.base_image?.description ?? "Project default base image"}
                       </div>
+                      <div
+                        className="mt-1 font-mono text-[11px] text-muted-foreground"
+                        title={image.base_image?.latest_digest ?? "Digest unavailable"}
+                      >
+                        {image.base_image?.latest_digest ?? "Digest unavailable"}
+                      </div>
                     </td>
                     <td className={getRegistryTableCellClassName(selected, "right")}>
-                      {image.is_ready ? (
+                      {projectImageHasBuildError(image) ? (
+                        <Badge variant="danger">{formatProjectImageStatus(image)}</Badge>
+                      ) : image.is_ready ? (
                         <Badge variant="success">{formatProjectImageStatus(image)}</Badge>
                       ) : (
                         <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/35 px-3 py-1 text-xs font-medium text-muted-foreground">

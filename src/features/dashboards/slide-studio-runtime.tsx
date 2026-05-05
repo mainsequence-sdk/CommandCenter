@@ -1,0 +1,314 @@
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+
+import { getWidgetById } from "@/app/registry";
+import { hasAllPermissions } from "@/auth/permissions";
+import type { ResolvedDashboardWidgetEntry } from "@/dashboards/canvas-items";
+import { WORKSPACE_SLIDE_WIDGET_ID } from "@/dashboards/structural-widgets";
+import type {
+  ResolvedDashboardDefinition,
+  ResolvedDashboardWidgetInstance,
+} from "@/dashboards/types";
+import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
+import { LockedWidgetFrame } from "@/widgets/shared/widget-frame";
+import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
+import type {
+  WidgetHeaderActionsProps,
+  WidgetInstancePresentation,
+} from "@/widgets/types";
+
+import { WorkspaceCanvasWidgetCard } from "./WorkspaceCanvasWidgetHost";
+import type { WorkspaceSlideRegionId } from "@/widgets/core/workspace-slide/slide-model";
+
+interface WidgetInstanceOverride {
+  props?: Record<string, unknown>;
+  presentation?: WidgetInstancePresentation | null;
+  runtimeState?: Record<string, unknown> | null;
+  title?: string | null;
+}
+
+function applyWidgetOverride(
+  instance: ResolvedDashboardWidgetInstance,
+  override?: WidgetInstanceOverride,
+) {
+  if (!override) {
+    return instance;
+  }
+
+  return {
+    ...instance,
+    title: "title" in override ? (override.title ?? undefined) : instance.title,
+    props: "props" in override ? override.props : instance.props,
+    presentation:
+      "presentation" in override ? (override.presentation ?? undefined) : instance.presentation,
+    runtimeState:
+      "runtimeState" in override ? (override.runtimeState ?? undefined) : instance.runtimeState,
+  };
+}
+
+export function useSlideStudioProjectionData({
+  dashboardId,
+  permissions,
+  resolvedDashboard,
+}: {
+  dashboardId: string;
+  permissions: readonly string[];
+  resolvedDashboard: ResolvedDashboardDefinition;
+}) {
+  const [widgetOverrides, setWidgetOverrides] = useState<Record<string, WidgetInstanceOverride>>(
+    {},
+  );
+
+  useEffect(() => {
+    setWidgetOverrides({});
+  }, [dashboardId]);
+
+  const renderedWidgets = useMemo(
+    () =>
+      (resolvedDashboard?.widgets ?? []).map((instance) =>
+        applyWidgetOverride(instance, widgetOverrides[instance.id]),
+      ),
+    [resolvedDashboard?.widgets, widgetOverrides],
+  );
+
+  const resolvedRenderedWidgets = useMemo(
+    () =>
+      renderedWidgets.map((instance) => {
+        const widget = getWidgetById(instance.widgetId);
+
+        return widget
+          ? {
+              ...instance,
+              presentation: resolveWidgetInstancePresentation(widget, instance.presentation),
+            }
+          : instance;
+      }),
+    [renderedWidgets],
+  );
+
+  const widgetEntries = useMemo<ResolvedDashboardWidgetEntry[]>(
+    () =>
+      resolvedRenderedWidgets.flatMap((instance) => {
+        const widget = getWidgetById(instance.widgetId);
+
+        return widget ? [{ instance, widget }] : [];
+      }),
+    [resolvedRenderedWidgets],
+  );
+
+  const slidePlacedWidgetEntriesByRegion = useMemo(() => {
+    const grouped = new Map<string, Map<WorkspaceSlideRegionId, ResolvedDashboardWidgetEntry[]>>();
+
+    widgetEntries.forEach((entry) => {
+      if (resolveWidgetSidebarOnly(entry.instance.presentation) || !entry.instance.slidePlacement) {
+        return;
+      }
+
+      const byRegion = grouped.get(entry.instance.slidePlacement.slideWidgetId) ?? new Map();
+      const current = byRegion.get(entry.instance.slidePlacement.region) ?? [];
+      current.push(entry);
+      byRegion.set(entry.instance.slidePlacement.region, current);
+      grouped.set(entry.instance.slidePlacement.slideWidgetId, byRegion);
+    });
+
+    grouped.forEach((byRegion) => {
+      byRegion.forEach((entries) => {
+        entries.sort(
+          (left, right) =>
+            left.instance.layout.y - right.instance.layout.y ||
+            left.instance.layout.x - right.instance.layout.x,
+        );
+      });
+    });
+
+    return grouped;
+  }, [widgetEntries]);
+
+  const sidebarOnlyWidgetEntries = useMemo(
+    () =>
+      widgetEntries.filter(
+        ({ instance }) =>
+          resolveWidgetSidebarOnly(instance.presentation) && !instance.slidePlacement,
+      ),
+    [widgetEntries],
+  );
+
+  const slideEntries = useMemo(
+    () =>
+      widgetEntries
+        .filter(
+          ({ instance, widget }) =>
+            widget.id === WORKSPACE_SLIDE_WIDGET_ID && !instance.slidePlacement,
+        )
+        .sort(
+          (left, right) =>
+            left.instance.layout.y - right.instance.layout.y ||
+            left.instance.layout.x - right.instance.layout.x,
+        ),
+    [widgetEntries],
+  );
+
+  const renderCanvasWidgetCard = useCallback(
+    (instance: ResolvedDashboardWidgetInstance, widgetId: string): ReactNode => {
+      const widget = getWidgetById(widgetId);
+
+      if (!widget) {
+        return null;
+      }
+
+      const required = [...(widget.requiredPermissions ?? []), ...(instance.requiredPermissions ?? [])];
+
+      if (!hasAllPermissions(permissions, required)) {
+        return (
+          <LockedWidgetFrame
+            title={instance.title ?? widget.title}
+            description={`Missing permissions: ${required.join(", ")}`}
+            style={{ height: "100%" }}
+          />
+        );
+      }
+
+      const HeaderActions =
+        widget.headerActions as
+          | ComponentType<WidgetHeaderActionsProps<Record<string, unknown>>>
+          | undefined;
+
+      return (
+        <WorkspaceCanvasWidgetCard
+          instanceId={instance.id}
+          instanceTitle={instance.title}
+          selected={false}
+          editable={false}
+          widget={widget}
+          widgetProps={instance.props ?? {}}
+          widgetPresentation={instance.presentation}
+          widgetRuntimeState={instance.runtimeState}
+          renderCanvasFields={false}
+          headerActions={
+            HeaderActions ? (
+              <HeaderActions
+                widget={widget}
+                props={instance.props ?? {}}
+                runtimeState={instance.runtimeState}
+                onRuntimeStateChange={(state) => {
+                  setWidgetOverrides((current) => ({
+                    ...current,
+                    [instance.id]: {
+                      ...current[instance.id],
+                      runtimeState: state ?? null,
+                    },
+                  }));
+                }}
+              />
+            ) : undefined
+          }
+          onRemove={() => {}}
+          onDuplicate={() => {}}
+          onSaveWidget={() => {}}
+          onPropsChange={(instanceId, props) => {
+            setWidgetOverrides((current) => ({
+              ...current,
+              [instanceId]: {
+                ...current[instanceId],
+                props,
+              },
+            }));
+          }}
+          onPresentationChange={(instanceId, presentation) => {
+            setWidgetOverrides((current) => ({
+              ...current,
+              [instanceId]: {
+                ...current[instanceId],
+                presentation,
+              },
+            }));
+          }}
+          onRuntimeStateChange={(instanceId, runtimeState) => {
+            setWidgetOverrides((current) => ({
+              ...current,
+              [instanceId]: {
+                ...current[instanceId],
+                runtimeState: runtimeState ?? null,
+              },
+            }));
+          }}
+          onSelect={() => {}}
+          onOpenBindings={() => {}}
+          onOpenSettings={() => {}}
+          rowCollapsed={false}
+          rowChildCount={0}
+        />
+      );
+    },
+    [permissions],
+  );
+
+  const updateWidgetRuntimeState = useCallback(
+    (instanceId: string, runtimeState: Record<string, unknown> | undefined) => {
+      setWidgetOverrides((current) => ({
+        ...current,
+        [instanceId]: {
+          ...current[instanceId],
+          runtimeState: runtimeState ?? null,
+        },
+      }));
+    },
+    [],
+  );
+
+  const hiddenDependencyMounts = useMemo(
+    () => (
+      <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
+        {sidebarOnlyWidgetEntries.map(({ instance, widget }) => {
+          const required = [...(widget.requiredPermissions ?? []), ...(instance.requiredPermissions ?? [])];
+
+          if (!hasAllPermissions(permissions, required)) {
+            return null;
+          }
+
+          const Component = widget.component as ComponentType<{
+            widget: typeof widget;
+            instanceId?: string;
+            instanceTitle?: string;
+            props: Record<string, unknown>;
+            presentation?: WidgetInstancePresentation;
+            runtimeState?: Record<string, unknown>;
+            onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
+          }>;
+
+          return (
+            <div key={instance.id} className="h-px w-px overflow-hidden">
+              <Component
+                widget={widget}
+                instanceId={instance.id}
+                instanceTitle={instance.title}
+                props={instance.props ?? {}}
+                presentation={instance.presentation}
+                runtimeState={instance.runtimeState}
+                onRuntimeStateChange={(state) => {
+                  setWidgetOverrides((current) => ({
+                    ...current,
+                    [instance.id]: {
+                      ...current[instance.id],
+                      runtimeState: state ?? null,
+                    },
+                  }));
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    ),
+    [permissions, sidebarOnlyWidgetEntries],
+  );
+
+  return {
+    hiddenDependencyMounts,
+    renderCanvasWidgetCard,
+    renderedWidgets,
+    sidebarOnlyWidgetEntries,
+    slideEntries,
+    slidePlacedWidgetEntriesByRegion,
+    updateWidgetRuntimeState,
+  };
+}

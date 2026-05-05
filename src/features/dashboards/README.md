@@ -16,7 +16,7 @@ These flows are all part of one app surface, with instance state selected throug
 ## Entry Points
 
 - `WorkspacesPage.tsx`: landing page for the `Workspaces` app. Lists all locally stored workspaces and routes into a selected workspace instance. It also routes `?mode=public-preview` into the shellless authenticated preview projection.
-- `SlideStudioPage.tsx`: curated `workspace-studio` surface that reuses the shared workspace list/canvas host, filters to `type=slide-studio`, re-enables the `Slide` widget in that surface only, and routes into the Slide Studio-only slideshow projection mode.
+- `SlideStudioPage.tsx`: curated `workspace-studio` surface that reuses the shared workspace list/canvas host, filters to `type=slide-studio`, re-enables the `Slide` widget in that surface only, and routes into the Slide Studio-only slideshow and print projection modes.
 - `PublicWorkspacePreviewPage.tsx`: shellless authenticated projection for `workspace` and `slide-studio` workspaces. It reuses the normal runtime canvas without authoring chrome so signed users can preview the eventual public rendering contract.
 - `public-workspace-permissions.ts`: shared synthetic public render permission profile used by both authenticated public preview and anonymous public view. It intentionally grants only the baseline public workspace visibility contract.
 - `DashboardWidgetExecution.tsx`: shared widget execution provider. It now also exposes an explicit
@@ -25,6 +25,12 @@ These flows are all part of one app surface, with instance state selected throug
 - `SlideStudioSlideshowPage.tsx`: Slide Studio-only projection surface. It reuses the same workspace document and slide/widget rendering contracts but presents one top-level slide per screen with slideshow navigation.
 - The slideshow projection now uses tighter stage padding on small viewports and asks the shared
   slide surface to maximize the fitted frame on mobile before adding desktop-style breathing room.
+- `SlideStudioPrintPage.tsx`: Slide Studio-only print projection. It renders the whole deck in one
+  pass, keeps hidden dependency widgets hydrated offscreen, maps one top-level slide to one print
+  page, and triggers the normal browser print flow so users can save the deck as PDF.
+- `slide-studio-runtime.tsx`: shared deck/runtime adapter for slideshow and print projections. It
+  centralizes top-level slide collection, slide-contained widget mapping, offscreen dependency
+  hydration, and projection-safe widget card rendering.
 - `WorkspaceStudioCanvasHost.tsx`: reusable selected-workspace host that mounts the shared workspace canvas/settings/graph provider stack for any surface that wants to reuse the studio. It also supports the shellless `publicPreview` projection over the same runtime document.
 - `WorkspaceCanvasWidgetHost.tsx`: shared widget renderer used by both the root canvas host and the slide subgrid host so widget chrome, headers, actions, inline edit gating, and body rendering stay identical across both layout hosts.
 - `WorkspaceSlideSubgridHost.tsx`: slide-only body-stage layout host. It keeps slide-contained widgets on a separate subgrid from the root canvas while shrinking slide row height to fit the active body bounds instead of letting slide widgets overflow.
@@ -70,6 +76,9 @@ These flows are all part of one app surface, with instance state selected throug
 - The slide-studio list lives at `/app/workspace-studio/slide-studio`.
 - Slide Studio also exposes a route-driven slideshow projection on the same surface through
   `?workspace=<id>&mode=slideshow`.
+- Slide Studio also exposes a route-driven print projection through
+  `?workspace=<id>&mode=print`. Print mode is deck-level, read-only, and intended for the normal
+  browser print/save-as-PDF flow rather than a separate PDF generator.
 - Authenticated public preview is available for supported workspace types through
   `?workspace=<id>&mode=public-preview`.
 - Authenticated public preview uses the same synthetic public render permissions as anonymous
@@ -138,13 +147,16 @@ These flows are all part of one app surface, with instance state selected throug
 - Surface-specific studio reusers may also inject toolbar actions through
   `workspace-studio-surface-config.tsx` so extension-owned flows can add workspace-specific launch
   affordances without forking the shared canvas page.
-- `Slide Studio` now uses that toolbar-action hook for both `Add slide` and `Present`. The
-  slideshow projection is route-driven and read-only; it shows one top-level `workspace-slide`
+- `Slide Studio` now uses that toolbar-action hook for `Add slide`, `Present`, and `Export PDF`.
+  The slideshow projection is route-driven and read-only; it shows one top-level `workspace-slide`
   widget per screen while keeping the same underlying workspace document. The authenticated
   authoring slideshow intentionally reuses the current workspace runtime state and disables
   automatic dashboard hydration so entering presentation mode does not trigger a fresh
   recalculation cycle. Anonymous public slideshow uses the same structural runtime but re-enables
   automatic hydration so public source widgets can execute through the public execution contract.
+  Print mode reuses that same projection runtime, but renders the full deck at once, strips
+  presentation/editor chrome, keeps hidden dependencies mounted, and waits for a stable pass before
+  invoking `window.print()`.
 - The app is only included when `VITE_INCLUDE_WORKSPACES=true`. When the flag is `false`, the runtime registry removes `workspace-studio` from navigation and route resolution.
 - Opening a workspace instance adds `?workspace=<id>`.
 - Opening the workspace graph adds `?workspace=<id>&view=graph`.
@@ -216,6 +228,8 @@ These flows are all part of one app surface, with instance state selected throug
 - Favorites can target both app surfaces and individual workspace instances.
 - Workspace labels are edited in settings as enter-to-add pills instead of a comma-separated text field.
 - Workspace settings also expose versioned JSON export/import for full workspace snapshots.
+- For `slide-studio` workspaces, settings and toolbar actions also expose `Export PDF`, which opens
+  the print projection in a new tab and uses the browser print dialog for PDF export.
 - That JSON workspace snapshot/export flow is document-oriented and intentionally separate from the
   live agent snapshot archive described in
   `docs/adr/adr-live-workspace-agent-snapshot-archive.md`. Do not merge the import/export serializer

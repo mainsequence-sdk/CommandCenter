@@ -34,18 +34,20 @@ This feature owns the Main Sequence project registry and project detail experien
 - The project detail summary header can expose project agent capability status. When a project is
   agent-capable, the `Configure project agent` action routes into the resource releases dialog in a
   dedicated project-agent mode instead of maintaining a second project-agent form.
-- Agent release creation now warns that Project Execution Agents are unique per project and that
-  re-deploying an agent release replaces the current execution agent, so compatibility must be
-  preserved for existing callers and workflows.
+- Agent release creation now warns that project execution agents are unique per project and that
+  republishing the agent with a different image overrides that project-agent functionality.
 - That project-agent mode is not the generic `Create Agent Release` flow: it opens with the title
   `Create Project Agent`, uses the selected ready project image, and targets the
-  `project_agent_card` resource type. The modal still shows the filtered resource results returned
-  by the shared project-resources query, so the user sees the same resource surface as the generic
-  release flows even though submission goes through the dedicated project-agent endpoint.
+  `project_agent_card` resource type. In that mode the modal does not call the shared
+  project-resources query, because the dedicated project-agent endpoint does not accept a selected
+  resource id.
 - The `Create Project Agent` submit path does not call the generic `resource-release/` create
   endpoint. It posts
   `{ project_id, project_related_image_id, cpu_request?, memory_request?, gpu_request?, gpu_type?, spot? }`
   to `/orm/api/agents/v1/project-executor-agent-services/get_or_create/`.
+- The project-agent toast path now uses the backend response `detail` when that endpoint returns a
+  202-style “not ready yet” payload, and downgrades that case to an informational toast instead of
+  always showing the same deterministic success copy.
 - Both the generic release modal and the dedicated `Create Project Agent` mode expose the shared GPU
   count/type controls backed by the common available-GPU-types query. Project-agent creation forwards
   that GPU selection through the `project-executor-agent-services/get_or_create/` request instead of

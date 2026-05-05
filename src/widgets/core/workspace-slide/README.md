@@ -65,6 +65,9 @@ canvas.
 - The slide surface now renders from one fixed logical 16:9 canvas that is uniformly scaled to fit
   the editor and slideshow surfaces. Keep authoring/runtime visual tweaks compatible with that
   scale-first model so slide composition does not drift between edit mode and presentation mode.
+- The same `WorkspaceSlideSurface` contract is also reused by Slide Studio print export. Print mode
+  switches the surface into `frameMode="print"` so the deck can drop editor/presentation frame
+  chrome without introducing a second slide layout path.
 - Presentation-oriented callers can opt into a tighter frame fit so slideshow viewports below the
   desktop breakpoint maximize the slide before introducing extra stage padding.
 - Region separators are visible while editing and transparent in view mode so the slide reads as a

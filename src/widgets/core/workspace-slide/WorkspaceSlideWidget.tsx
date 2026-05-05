@@ -202,6 +202,7 @@ function SlideRegionSurface({
 export function WorkspaceSlideSurface({
   active = false,
   editable,
+  frameMode = "default",
   maximizeFrame = false,
   onSlideChange,
   overlayContent,
@@ -211,6 +212,7 @@ export function WorkspaceSlideSurface({
 }: {
   active?: boolean;
   editable: boolean;
+  frameMode?: "default" | "print";
   maximizeFrame?: boolean;
   onSlideChange?: (next: WorkspaceSlideWidgetProps) => void;
   overlayContent?: ReactNode;
@@ -367,6 +369,8 @@ export function WorkspaceSlideSurface({
     transformOrigin: "top left",
   };
 
+  const printFrame = frameMode === "print";
+
   return (
     <div
       ref={hostRef}
@@ -378,7 +382,9 @@ export function WorkspaceSlideSurface({
       <div
         className={cn(
           "flex h-full w-full items-center justify-center",
-          maximizeFrame
+          printFrame
+            ? "px-0 py-0"
+            : maximizeFrame
             ? overlayContent
               ? "px-0 pb-0 pt-0 xl:pb-4 xl:pt-16"
               : "px-0 py-0 xl:py-4"
@@ -401,7 +407,9 @@ export function WorkspaceSlideSurface({
             ref={rootRef}
             className={cn(
               "relative overflow-hidden bg-background",
-              maximizeFrame
+              printFrame
+                ? "rounded-none border-0 shadow-none"
+                : maximizeFrame
                 ? "rounded-none border-0 shadow-none xl:rounded-[calc(var(--radius)-6px)] xl:border xl:shadow-[0_34px_90px_-42px_hsl(var(--foreground)/0.42),0_10px_24px_-18px_hsl(var(--foreground)/0.18)]"
                 : "rounded-[calc(var(--radius)-6px)] border shadow-[0_34px_90px_-42px_hsl(var(--foreground)/0.42),0_10px_24px_-18px_hsl(var(--foreground)/0.18)]",
               active
@@ -414,7 +422,9 @@ export function WorkspaceSlideSurface({
               aria-hidden="true"
               className={cn(
                 "pointer-events-none absolute inset-0 rounded-[inherit]",
-                maximizeFrame
+                printFrame
+                  ? "border-0 shadow-none"
+                  : maximizeFrame
                   ? "border-0 shadow-none xl:border xl:border-primary/18 xl:shadow-[inset_0_1px_0_hsl(var(--background)/0.92),inset_0_0_0_1px_hsl(var(--primary)/0.12),inset_0_-18px_40px_-32px_hsl(var(--primary)/0.16)]"
                   : "border border-primary/18 shadow-[inset_0_1px_0_hsl(var(--background)/0.92),inset_0_0_0_1px_hsl(var(--primary)/0.12),inset_0_-18px_40px_-32px_hsl(var(--primary)/0.16)]",
               )}
