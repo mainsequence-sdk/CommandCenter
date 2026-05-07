@@ -57,8 +57,6 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   the session-insights contract.
 - `session-cancel-api.ts`
   Shared assistant-runtime cancellation helper for `POST /api/chat/session/cancel`.
-- `session-tools-api.ts`
-  Shared session tools fetch helper for an existing AgentSession id.
 
 ## Maintenance Notes
 

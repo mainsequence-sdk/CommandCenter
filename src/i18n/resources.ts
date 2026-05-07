@@ -98,7 +98,7 @@ export const resources = {
         aboutDescription: "Product context and runtime details for this command center.",
         appearanceTitle: "Appearance",
         appearanceDescription: "Choose the active shell theme and language for this session.",
-        themePreset: "Theme Preset",
+        themePreset: "Themes",
         language: "Language",
         languageQuestion: "Couldn't find your language?",
         notifications: "Notifications",
@@ -148,7 +148,7 @@ export const resources = {
         team: "Teams",
         role: "Role",
         groups: "Groups",
-        themeHelp: "Use Theme Preset to switch the active shell look.",
+        themeHelp: "Use Themes to switch the active shell look.",
         languageHelp: "Switch the interface language for the shell and settings surfaces.",
       },
       mainSequenceDependencyGraph: {

@@ -2,19 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { env } from "@/config/env";
 import type { SessionInsightsSnapshot } from "../assistant-ui/session-insights";
-import type { SessionToolsSnapshot } from "../assistant-ui/session-tools";
 import {
   fetchAgentSessionDetail,
   isAgentSessionNotFoundError,
 } from "../runtime/agent-sessions-api";
-import { resolveMainSequenceAiAssistantEndpointForAgentRequestName } from "../runtime/assistant-endpoint";
 import { fetchSessionInsights } from "../runtime/session-insights-api";
-import { fetchSessionTools } from "../runtime/session-tools-api";
 import {
   buildAgentSessionDetailSnapshot,
   normalizeAgentSessionCoreDetail,
-  resolveAgentSessionLookupId,
-  resolveAgentSessionRequestName,
   type AgentSessionContextInput,
   type AgentSessionCoreDetail,
   type AgentSessionDetailSnapshot,
@@ -51,7 +46,6 @@ function removeKey<T>(current: Record<string, T>, key: string) {
 export interface UseAgentSessionDetailOptions {
   session: AgentSessionContextInput | null;
   enabled: boolean;
-  loadTools?: boolean;
   token?: string | null;
   tokenType?: string;
 }
@@ -64,17 +58,12 @@ export interface AgentSessionDetailControllerState {
   insightsBySessionId: Record<string, SessionInsightsSnapshot>;
   insightsErrorBySessionId: Record<string, string | null>;
   isLoadingInsightsBySessionId: Record<string, boolean>;
-  toolsByLookupId: Record<string, SessionToolsSnapshot>;
-  toolsErrorByLookupId: Record<string, string | null>;
-  isLoadingToolsByLookupId: Record<string, boolean>;
   refreshSessionDetail: () => void;
   refreshSessionInsights: () => void;
-  refreshSessionTools: () => void;
 }
 
 export function useAgentSessionDetail({
   enabled,
-  loadTools = true,
   session,
   token,
   tokenType = "Bearer",
@@ -98,21 +87,11 @@ export function useAgentSessionDetail({
   const [isLoadingInsightsBySessionId, setIsLoadingInsightsBySessionId] = useState<
     Record<string, boolean>
   >({});
-  const [toolsByLookupId, setToolsByLookupId] = useState<Record<string, SessionToolsSnapshot>>({});
-  const [toolsErrorByLookupId, setToolsErrorByLookupId] = useState<
-    Record<string, string | null>
-  >({});
-  const [isLoadingToolsByLookupId, setIsLoadingToolsByLookupId] = useState<Record<string, boolean>>(
-    {},
-  );
   const [detailRefreshNonce, setDetailRefreshNonce] = useState(0);
   const [insightsRefreshNonce, setInsightsRefreshNonce] = useState(0);
-  const [toolsRefreshNonce, setToolsRefreshNonce] = useState(0);
   const detailRequestRef = useRef<AbortController | null>(null);
   const insightsRequestRef = useRef<AbortController | null>(null);
-  const toolsRequestRef = useRef<AbortController | null>(null);
   const sessionId = session?.id ?? null;
-  const lookupSessionId = useMemo(() => resolveAgentSessionLookupId(session), [session]);
   const activeDetailStatus =
     sessionId && detailStatusBySessionId[sessionId]
       ? detailStatusBySessionId[sessionId]
@@ -124,10 +103,6 @@ export function useAgentSessionDetail({
 
   const refreshSessionInsights = useCallback(() => {
     setInsightsRefreshNonce((current) => current + 1);
-  }, []);
-
-  const refreshSessionTools = useCallback(() => {
-    setToolsRefreshNonce((current) => current + 1);
   }, []);
 
   useEffect(() => {
@@ -190,19 +165,13 @@ export function useAgentSessionDetail({
         setInsightsBySessionId((current) => removeKey(current, sessionId));
         setInsightsErrorBySessionId((current) => removeKey(current, sessionId));
         setIsLoadingInsightsBySessionId((current) => removeKey(current, sessionId));
-
-        if (lookupSessionId) {
-          setToolsByLookupId((current) => removeKey(current, lookupSessionId));
-          setToolsErrorByLookupId((current) => removeKey(current, lookupSessionId));
-          setIsLoadingToolsByLookupId((current) => removeKey(current, lookupSessionId));
-        }
       }
     })();
 
     return () => {
       controller.abort();
     };
-  }, [detailRefreshNonce, enabled, lookupSessionId, sessionId, token, tokenType]);
+  }, [detailRefreshNonce, enabled, sessionId, token, tokenType]);
 
   useEffect(() => {
     insightsRequestRef.current?.abort();
@@ -265,82 +234,6 @@ export function useAgentSessionDetail({
     tokenType,
   ]);
 
-  useEffect(() => {
-    toolsRequestRef.current?.abort();
-
-    if (
-      env.useMockData ||
-      !enabled ||
-      !loadTools ||
-      !lookupSessionId ||
-      !sessionId ||
-      activeDetailStatus !== "ready"
-    ) {
-      return;
-    }
-
-    const controller = new AbortController();
-    toolsRequestRef.current = controller;
-    setIsLoadingToolsByLookupId((current) => setKeyedBoolean(current, lookupSessionId, true));
-    setToolsErrorByLookupId((current) => setKeyedNullableString(current, lookupSessionId, null));
-
-    void (async () => {
-      try {
-        const snapshot = await fetchSessionTools({
-          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-            resolveAgentSessionRequestName(session),
-          ),
-          sessionId: lookupSessionId,
-          signal: controller.signal,
-          token,
-          tokenType,
-        });
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setToolsByLookupId((current) => ({
-          ...current,
-          [lookupSessionId]: snapshot,
-        }));
-        setToolsErrorByLookupId((current) =>
-          setKeyedNullableString(current, lookupSessionId, null),
-        );
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setToolsErrorByLookupId((current) =>
-          setKeyedNullableString(
-            current,
-            lookupSessionId,
-            error instanceof Error ? error.message : "Session tools request failed.",
-          ),
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoadingToolsByLookupId((current) => setKeyedBoolean(current, lookupSessionId, false));
-        }
-      }
-    })();
-
-    return () => {
-      controller.abort();
-    };
-  }, [
-    activeDetailStatus,
-    enabled,
-    loadTools,
-    lookupSessionId,
-    session,
-    sessionId,
-    token,
-    tokenType,
-    toolsRefreshNonce,
-  ]);
-
   const activeDetail = useMemo(() => {
     if (!session || !sessionId) {
       return null;
@@ -363,16 +256,6 @@ export function useAgentSessionDetail({
         detailStatusBySessionId[sessionId] === "not_found"
           ? null
           : insightsErrorBySessionId[sessionId] ?? null,
-      toolsSnapshot:
-        lookupSessionId && detailStatusBySessionId[sessionId] !== "not_found"
-          ? toolsByLookupId[lookupSessionId] ?? null
-          : null,
-      isLoadingTools:
-        lookupSessionId ? isLoadingToolsByLookupId[lookupSessionId] === true : false,
-      toolsError:
-        lookupSessionId && detailStatusBySessionId[sessionId] !== "not_found"
-          ? toolsErrorByLookupId[lookupSessionId] ?? null
-          : null,
     });
   }, [
     coreBySessionId,
@@ -382,13 +265,9 @@ export function useAgentSessionDetail({
     insightsBySessionId,
     insightsErrorBySessionId,
     isLoadingInsightsBySessionId,
-    isLoadingToolsByLookupId,
-    lookupSessionId,
     serializedRecordBySessionId,
     session,
     sessionId,
-    toolsByLookupId,
-    toolsErrorByLookupId,
   ]);
 
   return {
@@ -399,11 +278,7 @@ export function useAgentSessionDetail({
     insightsBySessionId,
     insightsErrorBySessionId,
     isLoadingInsightsBySessionId,
-    toolsByLookupId,
-    toolsErrorByLookupId,
-    isLoadingToolsByLookupId,
     refreshSessionDetail,
     refreshSessionInsights,
-    refreshSessionTools,
   };
 }

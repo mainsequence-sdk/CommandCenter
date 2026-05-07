@@ -107,12 +107,15 @@ remaining height. The two shells still differ intentionally:
     Command Center `Cmd+J` and the project-agent launcher can both stay open at the same time
     because they no longer share one rail-open flag or one selected session/runtime
 - thinking blocks on the full page start collapsed by default, with a trimmed one-line preview of
-  the latest reasoning/tool activity in the collapsed header
+  the latest reasoning/tool activity in the collapsed header; their header label is `Thinking`
+  only while the local message stream is still running and switches to `Reasoning` immediately
+  after the response completes
 - the page and overlay composer footers now show a compact context-window usage bar when session
   insights provide `context.percentOfContextWindow`
 - chat interaction is gated by AgentSession readiness: the selected backend session must complete
   detail, insights, and history loading before the composer, provider/model controls, and send path
-  become interactive
+  become interactive; once insights have loaded successfully, later insights refreshes stay
+  in-place and must not push the shell back into a full session-loading state
 - the plain `/app/main_sequence_ai/chat` route does not auto-select a restored or latest backend
   session on first landing; selection there is driven by `?session=`, direct-launch flows, or an
   explicit user action
@@ -127,9 +130,9 @@ remaining height. The two shells still differ intentionally:
 
 The app surface itself lives separately under `extensions/main_sequence_ai/surfaces/chat/`.
 The shared page explorer UI now lives separately under `extensions/main_sequence_ai/features/chat/`.
-Shared session history/tools transport now lives under `extensions/main_sequence_ai/runtime/` so
-widgets can reuse the same backend contract without taking a dependency on assistant-ui runtime
-state. The backend AgentSession catalog transport now also lives there for the same reason.
+Shared session history transport now lives under `extensions/main_sequence_ai/runtime/` so widgets
+can reuse the same backend contract without taking a dependency on assistant-ui runtime state. The
+backend AgentSession catalog transport now also lives there for the same reason.
 
 ## Integration Boundary
 
@@ -244,7 +247,6 @@ This boundary owns a feature-local session layer that:
   sessions are hydrated from the filtered latest-session query
 - replaces the visible latest-session list on every backend refresh instead of appending stale
   sessions from previous queries, while still preserving the active unsynced local draft session
-- refreshes backend session tools every time the effective backend session changes
 - refreshes backend session insights from
   `/orm/api/agents/v1/sessions/{agent_session_id}/insights/` every time the effective backend
   session changes
@@ -304,39 +306,13 @@ Normal app surfaces should define this metadata on the surface itself through
 `AppSurfaceDefinition.assistantContext`. Only explicit detail routes outside the generic app-surface
 router should need chat-local route resolvers.
 
-### Session Tools
-
-The backend exposes per-session tool availability through:
-
-- `/api/chat/session-tools?sessionId=<AgentSession.id>`
-
-`ChatProvider.tsx` owns that lifecycle. It is global chat state, not renderer-local state.
-
-Rules:
-
-- tools refresh every time the effective backend session changes
-- session changes include:
-  - manual selection in the left explorer
-  - streamed `new_session`
-  - initial load of a selected session that already has a backend `runtimeSessionId`
-- placeholder or local-only sessions without a backend `AgentSession.id` do not fetch tools
-- in-flight tool requests are aborted when the selected session changes
-- the backend `available_tools` payload is the source of truth for per-session tool capability
-
-The current tool case table starts with:
-
-- `repo_diff`
-
-Unknown tool keys are still normalized and kept as `kind: "unknown"` so backend capability flags do
-not disappear just because the UI does not render them yet.
-
 ### Session Insights
 
 The backend exposes per-session runtime/model/usage metadata through:
 
 - `/api/chat/session-insights?sessionId=<runtime_session_id>`
 
-`ChatProvider.tsx` owns this lifecycle alongside session tools.
+`ChatProvider.tsx` owns this lifecycle.
 
 Rules:
 
@@ -355,12 +331,6 @@ Rules:
 
 The page session-detail rail is responsible for rendering that snapshot. The transcript pane does
 not own static runtime/model usage metadata.
-
-The first concrete tool renderer now lives in the page feature layer:
-
-- `repo_diff` fetches the backend-provided tool `url`
-- `diff.files` drives the changed-file selector in the session detail rail
-- `diff.patch` renders as a unified git diff via `react-diff-view`
 
 ## How It Is Mounted
 
@@ -457,11 +427,6 @@ If you do those steps, the main project should return to its pre-chat shape beca
 - `new_session` is only honored for the current chat's own backend session assignment path. The
   frontend no longer stages or opens cross-agent handoffs, and it ignores runtime stream switching
   semantics for other agents.
-- whenever the selected session has a backend `runtimeSessionId`, the provider fetches
-  `/api/chat/session-tools?sessionId=<runtime_session_id>` from the assistant backend origin
-- the normalized tool payload is stored in a provider-owned map keyed by backend session id
-- the first explicit tool case is `repo_diff`, which uses the backend-provided `url` directly
-  instead of rebuilding tool URLs in the UI
 - The feature-local runtime now raises a request-start callback before `fetch()` and inspects
   streamed `ui-message-stream` chunk types so the UI can distinguish:
   - request sent but no response yet

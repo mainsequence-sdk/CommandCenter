@@ -865,7 +865,6 @@ export function ChatProvider({
     refreshSessionDetail,
     refreshSessionInsights,
   } = useAgentSessionDetail({
-    loadTools: !isProjectAgentRail,
     session: activeSession,
     enabled: shouldHydrateChatRuntime,
     token: sessionToken,
@@ -949,15 +948,15 @@ export function ChatProvider({
       activeSessionDetail === null ||
       activeSessionDetail.status === "idle" ||
       activeSessionDetail.status === "loading";
+    const hasInsightsSnapshot = Boolean(activeSessionDetail?.insights);
     const insightsReady =
       detailReady &&
-      Boolean(activeSessionDetail?.insights) &&
-      !activeSessionDetail?.isLoadingInsights &&
+      hasInsightsSnapshot &&
       !activeSessionDetail?.insightsError;
     const insightsLoading =
       detailReady &&
-      (activeSessionDetail?.isLoadingInsights ||
-        (!activeSessionDetail?.insights && !activeSessionDetail?.insightsError));
+      !hasInsightsSnapshot &&
+      (activeSessionDetail?.isLoadingInsights || !activeSessionDetail?.insightsError);
     const historyReady = sessionHistoryReadyBySessionId[sessionId] === true;
     const historyLoading = isLoadingSessionHistoryBySessionId[sessionId] === true;
     const historyError = sessionHistoryErrorBySessionId[sessionId] ?? null;

@@ -1,5 +1,4 @@
 import type { SessionInsightsSnapshot } from "../assistant-ui/session-insights";
-import type { SessionToolDefinition, SessionToolsSnapshot } from "../assistant-ui/session-tools";
 import type {
   AgentSessionApiRecord,
   AgentSessionSerializedRecord,
@@ -102,10 +101,6 @@ export interface AgentSessionDetailSnapshot {
   insights: SessionInsightsSnapshot | null;
   isLoadingInsights: boolean;
   insightsError: string | null;
-  toolsSnapshot: SessionToolsSnapshot | null;
-  availableTools: SessionToolDefinition[];
-  isLoadingTools: boolean;
-  toolsError: string | null;
 }
 
 export interface ActiveSessionSummary {
@@ -135,9 +130,6 @@ export interface ActiveSessionSummary {
   sessionInsights: SessionInsightsSnapshot | null;
   isLoadingInsights: boolean;
   insightsError: string | null;
-  availableTools: SessionToolDefinition[];
-  isLoadingTools: boolean;
-  toolsError: string | null;
 }
 
 function normalizeOptionalString(value: unknown) {
@@ -302,9 +294,6 @@ export function buildAgentSessionDetailSnapshot({
   insights,
   insightsError,
   isLoadingInsights,
-  isLoadingTools,
-  toolsError,
-  toolsSnapshot,
 }: {
   session: AgentSessionContextInput;
   detailStatus: AgentSessionDetailStatus;
@@ -314,9 +303,6 @@ export function buildAgentSessionDetailSnapshot({
   insights: SessionInsightsSnapshot | null;
   isLoadingInsights: boolean;
   insightsError: string | null;
-  toolsSnapshot: SessionToolsSnapshot | null;
-  isLoadingTools: boolean;
-  toolsError: string | null;
   fallbackAgentId?: string | null;
 }): AgentSessionDetailSnapshot {
   return {
@@ -329,10 +315,6 @@ export function buildAgentSessionDetailSnapshot({
     insights,
     isLoadingInsights,
     insightsError,
-    toolsSnapshot,
-    availableTools: toolsSnapshot?.availableTools ?? [],
-    isLoadingTools,
-    toolsError,
   };
 }
 
@@ -382,8 +364,5 @@ export function buildActiveSessionSummary({
     sessionInsights: detail?.insights ?? null,
     isLoadingInsights: detail?.isLoadingInsights ?? false,
     insightsError: detail?.insightsError ?? null,
-    availableTools: detail?.availableTools ?? [],
-    isLoadingTools: detail?.isLoadingTools ?? false,
-    toolsError: detail?.toolsError ?? null,
   };
 }

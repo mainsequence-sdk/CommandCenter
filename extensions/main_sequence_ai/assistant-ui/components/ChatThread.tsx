@@ -276,7 +276,6 @@ function ToolFallbackPart({ argsText, isError, result, toolName }: ToolCallMessa
 }
 
 function ChainOfThoughtBlock() {
-  const { activeSessionSummary } = useChatFeature();
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
   const parts = useAuiState((s) => s.chainOfThought.parts);
   const threadIsRunning = useAuiState((s) => s.thread.isRunning);
@@ -285,9 +284,8 @@ function ChainOfThoughtBlock() {
   );
   const rootRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const isActiveThinking =
-    isLastAssistantMessage &&
-    (threadIsRunning || Boolean(activeSessionSummary?.working));
+  const isActiveThinking = isLastAssistantMessage && threadIsRunning;
+  const thinkingLabel = isActiveThinking ? "Thinking" : "Reasoning";
   const thinkingPreview = getThinkingPreview(parts);
 
   useEffect(() => {
@@ -318,7 +316,7 @@ function ChainOfThoughtBlock() {
       >
         <div className="min-w-0">
           <div className={cn("text-sm", isActiveThinking && "animate-pulse text-foreground")}>
-            Thinking ...
+            {thinkingLabel}
           </div>
           {collapsed ? (
             <div className="truncate text-xs font-normal text-muted-foreground">

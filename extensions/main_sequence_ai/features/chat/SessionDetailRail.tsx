@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
 
-import { ArrowUpRight, Loader2, Wrench } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 import { getAgentSessionDetailPath } from "../../agent-session-detail/routes";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
-import { RepoDiffTool } from "./components/RepoDiffTool";
 
 function normalizeSessionSecondaryLabel({
   agentUniqueId,
@@ -82,7 +81,7 @@ export function SessionDetailRail() {
           <div className="text-xs text-muted-foreground">
             {isProjectAgentRail
               ? "Open the dedicated AgentSession detail screen and inspect the project agent session."
-              : "Open the dedicated AgentSession detail screen and inspect runtime tools."}
+              : "Open the dedicated AgentSession detail screen and inspect session details."}
           </div>
         </div>
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-6 text-sm text-muted-foreground">
@@ -141,7 +140,7 @@ export function SessionDetailRail() {
         <div className="text-xs text-muted-foreground">
           {isProjectAgentRail
             ? "Open the dedicated AgentSession detail screen and inspect the project agent session."
-            : "Open the dedicated AgentSession detail screen and inspect runtime tools."}
+            : "Open the dedicated AgentSession detail screen and inspect session details."}
         </div>
       </div>
 
@@ -159,59 +158,6 @@ export function SessionDetailRail() {
               {summaryCard}
             </div>
           )}
-
-          <div className="space-y-2">
-            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Available Tools
-            </div>
-
-            {activeSessionSummary.isLoadingTools ? (
-              <div className="flex items-center gap-2 rounded-[16px] border border-border/60 bg-background/45 px-3 py-3 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading session tools
-              </div>
-            ) : null}
-
-            {!activeSessionSummary.isLoadingTools && activeSessionSummary.toolsError ? (
-              <div className="rounded-[16px] border border-danger/30 bg-danger/8 px-3 py-3 text-sm text-danger">
-                <div className="font-medium">Failed to load available tools.</div>
-                <div className="mt-1 whitespace-pre-wrap break-words text-xs leading-5">
-                  {activeSessionSummary.toolsError}
-                </div>
-              </div>
-            ) : null}
-
-            {!activeSessionSummary.isLoadingTools &&
-            !activeSessionSummary.toolsError &&
-            activeSessionSummary.availableTools.length === 0 ? (
-              <div className="rounded-[16px] border border-dashed border-border/60 px-3 py-3 text-sm text-muted-foreground">
-                No tools available for this session.
-              </div>
-            ) : null}
-
-            {!activeSessionSummary.isLoadingTools &&
-            !activeSessionSummary.toolsError &&
-            activeSessionSummary.availableTools.length > 0
-              ? activeSessionSummary.availableTools.map((tool) => (
-                  tool.kind === "repo_diff" ? (
-                    <RepoDiffTool key={`${tool.toolKey}:${tool.url}`} tool={tool} />
-                  ) : (
-                    <div
-                      key={`${tool.toolKey}:${tool.url}`}
-                      className="rounded-[16px] border border-border/60 bg-background/45 px-3 py-3"
-                    >
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <Wrench className="h-4 w-4 text-primary" />
-                        <span className="font-mono">{tool.toolKey}</span>
-                      </div>
-                      <div className="mt-2 break-all font-mono text-[11px] leading-5 text-muted-foreground">
-                        {tool.url}
-                      </div>
-                    </div>
-                  )
-                ))
-              : null}
-          </div>
         </div>
       </div>
     </section>
