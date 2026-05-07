@@ -148,13 +148,11 @@ export function AgentSessionExplorer({
       return;
     }
 
-    const openedWindow = window.open(nextPath, "_blank", "noopener,noreferrer");
-
-    if (openedWindow) {
-      return;
-    }
-
-    navigate(nextPath);
+    const link = document.createElement("a");
+    link.href = nextPath;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.click();
   }
 
   return (
