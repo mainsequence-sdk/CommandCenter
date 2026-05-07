@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowUpRight,
+  Bot,
   Database,
   FolderKanban,
   GitBranch,
@@ -26,6 +27,7 @@ import {
   bulkDeleteProjects,
   createProject,
   type EntitySummaryHeader,
+  fetchProjectExecutorAgentServiceByProject,
   fetchProjectSummary,
   fetchProjectFormOptions,
   formatMainSequenceError,
@@ -48,6 +50,7 @@ import { PickerField, type PickerOption } from "../../../../common/components/Pi
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
+import { useProjectAgentRailStore } from "../../../../../main_sequence_ai/assistant-ui/project-agent-rail-store";
 
 const defaultFormState = {
   projectName: "",
@@ -243,27 +246,16 @@ function projectHasAgentCapabilities(
   return null;
 }
 
-function addProjectAgentCapabilitiesBadge(
-  summary: EntitySummaryHeader,
-  hasAgentCapabilities: boolean | null,
-): EntitySummaryHeader {
-  if (
-    hasAgentCapabilities === null ||
-    summary.badges.some((badge) => badge.key === "agent_capabilities")
-  ) {
-    return summary;
+function removeProjectAgentCapabilitiesBadge(
+  summary: EntitySummaryHeader | null,
+): EntitySummaryHeader | null {
+  if (!summary) {
+    return null;
   }
 
   return {
     ...summary,
-    badges: [
-      ...summary.badges,
-      {
-        key: "agent_capabilities",
-        label: hasAgentCapabilities ? "Agent Capable" : "No Agent Capabilities",
-        tone: hasAgentCapabilities ? "info" : "secondary",
-      },
-    ],
+    badges: summary.badges.filter((badge) => badge.key !== "agent_capabilities"),
   };
 }
 
@@ -272,6 +264,7 @@ export function MainSequenceProjectsPage() {
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const openProjectAgentRail = useProjectAgentRailStore((state) => state.openRail);
   const [formState, setFormState] = useState(defaultFormState);
   const [filterValue, setFilterValue] = useState("");
   const [projectsPageIndex, setProjectsPageIndex] = useState(0);
@@ -535,13 +528,26 @@ export function MainSequenceProjectsPage() {
     projectSummaryQuery.data,
     selectedProjectSummary,
   );
-  const projectHeader = projectHeaderBase
-    ? addProjectAgentCapabilitiesBadge(projectHeaderBase, hasProjectAgentCapabilities)
-    : null;
+  const projectAgentServiceQuery = useQuery({
+    queryKey: ["main_sequence", "projects", "project-agent", "service", selectedProjectId],
+    queryFn: () => fetchProjectExecutorAgentServiceByProject(selectedProjectId),
+    enabled: isProjectDetailOpen,
+    staleTime: 60_000,
+  });
+  const projectHeader = removeProjectAgentCapabilitiesBadge(projectHeaderBase);
   const projectTitle =
     projectHeader?.entity.title ??
     selectedProjectSummary?.project_name ??
     (selectedProjectId > 0 ? `Project ${selectedProjectId}` : "Project");
+  const rawProjectAgentId = projectAgentServiceQuery.data?.agent_id;
+  const showProjectAgentLauncher = Boolean(projectAgentServiceQuery.data?.id);
+  const readyProjectAgentId =
+    rawProjectAgentId !== null &&
+    rawProjectAgentId !== undefined &&
+    `${rawProjectAgentId}`.trim()
+      ? rawProjectAgentId
+      : null;
+  const showConfigureProjectAgentButton = hasProjectAgentCapabilities === true;
 
   const githubOrganizationOptions: PickerOption[] = [
     {
@@ -719,21 +725,6 @@ export function MainSequenceProjectsPage() {
     });
   }
 
-  function openProjectAgentConfiguration() {
-    navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(legacyProjectIdParam);
-      nextParams.delete(legacyTabParam);
-      nextParams.set(mainSequenceProjectIdParam, String(selectedProjectId));
-      nextParams.set(mainSequenceTabParam, "resource-releases");
-      nextParams.set(mainSequenceCreateReleaseIntentParam, "project-agent");
-      nextParams.delete(mainSequenceJobIdParam);
-      nextParams.delete(mainSequenceJobRunIdParam);
-      nextParams.delete(mainSequenceResourceReleaseIdParam);
-      nextParams.delete(mainSequenceLocalUpdateIdParam);
-      nextParams.delete(mainSequenceLocalUpdateTabParam);
-    });
-  }
-
   function clearPendingCreateReleaseKind() {
     navigateWithProjectSearch((nextParams) => {
       nextParams.delete(mainSequenceCreateReleaseIntentParam);
@@ -790,10 +781,38 @@ export function MainSequenceProjectsPage() {
               <span>/</span>
               <span className="text-foreground">{projectTitle}</span>
             </div>
-            <Button variant="outline" size="sm" onClick={closeProjectDetail}>
+            <div className="flex items-center gap-2">
+              {showProjectAgentLauncher ? (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 border-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                  title="Talk to project agent"
+                  aria-label="Talk to project agent"
+                  onClick={() => {
+                    if (!readyProjectAgentId) {
+                      toast({
+                        variant: "error",
+                        title: "Project agent unavailable",
+                        description: "This project agent service does not expose a ready agent session.",
+                      });
+                      return;
+                    }
+
+                    openProjectAgentRail({
+                      agentId: readyProjectAgentId,
+                      label: projectAgentServiceQuery.data?.subdomain?.trim() || "Project Agent",
+                    });
+                  }}
+                >
+                  <Bot className="h-4 w-4" />
+                </Button>
+              ) : null}
+              <Button variant="outline" size="sm" onClick={closeProjectDetail}>
                 <ArrowLeft className="h-4 w-4" />
                 Back to projects
-            </Button>
+              </Button>
+            </div>
           </div>
 
           {projectSummaryQuery.isLoading && !projectHeader ? (
@@ -820,18 +839,19 @@ export function MainSequenceProjectsPage() {
           {projectHeader ? (
             <>
               <MainSequenceEntitySummaryCard
+                summary={projectHeader}
                 actions={
-                  hasProjectAgentCapabilities ? (
+                  showConfigureProjectAgentButton ? (
                     <Button
-                      variant="outline"
                       size="sm"
-                      onClick={openProjectAgentConfiguration}
+                      onClick={() => {
+                        navigate(`/app/main_sequence_ai/project-agents?msProjectId=${selectedProjectId}`);
+                      }}
                     >
                       Configure project agent
                     </Button>
-                  ) : undefined
+                  ) : null
                 }
-                summary={projectHeader}
                 onFieldLinkClick={(field) => {
                   const linkedProjectId = getProjectIdFromSummaryHref(field.href);
 

@@ -11,6 +11,11 @@ import {
 import { asAsyncIterableStream } from "assistant-stream/utils";
 
 import { env } from "@/config/env";
+import {
+  MainSequenceAiError,
+  toMainSequenceAiError,
+  withMainSequenceAiErrorSource,
+} from "../runtime/error-source";
 
 type HeadersValue = Record<string, string> | Headers;
 
@@ -92,10 +97,20 @@ function extractUiMessageStreamError(value: unknown) {
       : null;
   const errorCode = normalizeErrorField(chunk.error_code);
   const detail = normalizeErrorField(chunk.error_detail);
-  const error = new Error(message) as Error & {
+  const errorSource =
+    normalizeErrorField(chunk.error_source) ??
+    normalizeErrorField(chunk.source) ??
+    "assistant_runtime_stream";
+  const error = new MainSequenceAiError(message, {
+    code: errorCode,
+    detail,
+    source: errorSource,
+    status,
+  }) as MainSequenceAiError & {
     agentId?: unknown;
     errorCode?: string | null;
     errorDetail?: string | null;
+    errorSource?: string | null;
     status?: number | null;
   };
 
@@ -103,6 +118,7 @@ function extractUiMessageStreamError(value: unknown) {
   error.status = status;
   error.errorCode = errorCode;
   error.errorDetail = detail;
+  error.errorSource = errorSource;
   error.agentId = chunk.agent_id ?? chunk.agentId;
 
   return error;
@@ -334,9 +350,17 @@ async function formatResponseError(response: Response) {
           normalizeErrorField(candidate.message) ??
           normalizeErrorField(candidate.detail) ??
           normalizeErrorField(candidate.error_detail);
+        const errorSource =
+          normalizeErrorField(candidate.error_source) ??
+          normalizeErrorField(candidate.source);
 
         if (message) {
-          return message;
+          return errorSource
+            ? withMainSequenceAiErrorSource({
+                message,
+                source: errorSource,
+              })
+            : message;
         }
       }
     } catch {
@@ -426,11 +450,17 @@ class LatestMessageDataStreamRuntimeAdapter implements ChatModelAdapter {
 
     try {
       if (!result.ok) {
-        throw new Error(await formatResponseError(result));
+        throw new MainSequenceAiError(await formatResponseError(result), {
+          source: "assistant_backend_http",
+          status: result.status,
+        });
       }
 
       if (!result.body) {
-        throw new Error("Response body is null");
+        throw new MainSequenceAiError("Response body is null", {
+          source: "assistant_backend_http",
+          status: result.status,
+        });
       }
 
       await this.options.onResponse?.(result);
@@ -464,8 +494,12 @@ class LatestMessageDataStreamRuntimeAdapter implements ChatModelAdapter {
 
       this.options.onFinish?.(unstable_getMessage());
     } catch (error: unknown) {
-      this.options.onError?.(error as Error);
-      throw error;
+      const normalizedError = toMainSequenceAiError(error, {
+        fallbackMessage: "Assistant request failed unexpectedly.",
+        source: "assistant_backend_http",
+      });
+      this.options.onError?.(normalizedError);
+      throw normalizedError;
     }
   }
 }

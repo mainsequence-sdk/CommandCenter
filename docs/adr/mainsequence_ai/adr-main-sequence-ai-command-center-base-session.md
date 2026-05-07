@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-04-18
 - Related:
-  - [ADR: Extension-Contributed Shell Settings Menus](./adr-extension-contributed-shell-settings-menus.md)
+  - [ADR: Extension-Contributed Shell Settings Menus](../command_center/adr-extension-contributed-shell-settings-menus.md)
 
 ## Context
 

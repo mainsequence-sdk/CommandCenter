@@ -4,6 +4,7 @@ import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
 } from "@/widgets/types";
+import type { AgentSessionSerializedRecord } from "../../runtime/agent-sessions-api";
 
 import {
   isWorkspaceReferenceValue,
@@ -47,6 +48,7 @@ export interface AgentTerminalSessionState {
   llmModel?: string | null;
   llmProvider?: string | null;
   requestAgentName: string | null;
+  serializedSession: AgentSessionSerializedRecord | null;
   sessionId: string;
   threadId: string | null;
 }

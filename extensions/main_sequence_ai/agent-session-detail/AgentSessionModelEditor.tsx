@@ -8,8 +8,12 @@ import type {
   AvailableChatModelOption,
   AvailableChatProviderOption,
 } from "../runtime/available-models-api";
-import { fetchAvailableRunConfigOptions } from "../runtime/available-models-api";
+import {
+  buildAvailableRunConfigCacheKey,
+  fetchAvailableRunConfigOptions,
+} from "../runtime/available-models-api";
 import { patchAgentSessionModelConfig } from "../runtime/agent-sessions-api";
+import { resolveMainSequenceAiAssistantEndpointForAgentRequestName } from "../runtime/assistant-endpoint";
 import type { AgentSessionDetailSnapshot } from "./model";
 import { SessionField, SessionSection } from "./sessionDetailUi";
 
@@ -58,6 +62,18 @@ function findModelIdBySessionModel(
   return match?.id ?? null;
 }
 
+function isAbortLikeError(error: unknown) {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return true;
+  }
+
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message.trim().toLowerCase().includes("abort");
+}
+
 export function AgentSessionModelEditor({
   detail,
   refreshSessionDetail,
@@ -69,6 +85,7 @@ export function AgentSessionModelEditor({
 }) {
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
+  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
   const [availableModels, setAvailableModels] = useState<AvailableChatModelOption[]>([]);
   const [availableModelsError, setAvailableModelsError] = useState<string | null>(null);
   const [availableProviders, setAvailableProviders] = useState<AvailableChatProviderOption[]>([]);
@@ -120,6 +137,14 @@ export function AgentSessionModelEditor({
     void (async () => {
       try {
         const options = await fetchAvailableRunConfigOptions({
+          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+            detail?.context.requestName ?? null,
+          ),
+          cacheKey: buildAvailableRunConfigCacheKey({
+            agentRequestName: detail?.context.requestName ?? null,
+            userId: sessionUserId,
+          }),
+          sessionId: detail?.sessionId ?? null,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
@@ -132,7 +157,7 @@ export function AgentSessionModelEditor({
         setAvailableModels(options.models);
         setAvailableProviders(options.providers);
       } catch (error) {
-        if (controller.signal.aborted) {
+        if (controller.signal.aborted || isAbortLikeError(error)) {
           return;
         }
 
@@ -151,7 +176,7 @@ export function AgentSessionModelEditor({
     return () => {
       controller.abort();
     };
-  }, [sessionToken, sessionTokenType]);
+  }, [detail?.context.requestName, detail?.sessionId, sessionToken, sessionTokenType, sessionUserId]);
 
   useEffect(() => {
     if (!core || availableProviders.length === 0 || availableModels.length === 0) {

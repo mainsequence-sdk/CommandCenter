@@ -39,6 +39,12 @@ The page itself is intentionally thin. It renders the full-page assistant surfac
   now belongs in the dedicated AgentSession page surface.
 - The visible AgentSession list is backend-bootstrapped from the current latest-sessions endpoint,
   while local cached transcripts still live under the assistant-ui boundary.
+- Landing directly on `/app/main_sequence_ai/chat` without `?session=` must not implicitly select
+  the newest restored/latest backend session. Selection on that page is user-driven unless the URL
+  or a direct-launch flow already pinned a session.
+- That plain route must also remain visually idle while unselected. It should not render
+  AgentSession loading/error chrome or session-bound model-loading states before the user picks a
+  session.
 - The right-side rail is intentionally not the full detail shell anymore. It should summarize and
   deep-link rather than duplicate the standalone session page.
 - If more AI surfaces are added later, add them as siblings under `surfaces/` instead of mixing them into the assistant-ui integration layer.

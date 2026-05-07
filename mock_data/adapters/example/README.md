@@ -2,7 +2,7 @@
 
 This directory contains a runnable FastAPI/Pydantic API that implements the Command Center
 `AdapterFromApi` provider-side contract described in
-`docs/adr/adr-adapter-from-api-connection.md`.
+`docs/adr/command_center/adr-adapter-from-api-connection.md`.
 
 It is a mock upstream API. The browser should not call it directly in the real connection flow.
 Command Center should configure an `AdapterFromApi` connection with the API root URL, then the

@@ -7,12 +7,18 @@ export interface AgentSessionModelRequestBody {
   source: string;
 }
 
+export interface AgentSessionRunConfigRequestBody {
+  reasoning_effort?: string | null;
+}
+
 interface AgentSessionRequestBodyFragmentOptions {
   agentName: string;
   context?: unknown;
   model?: AgentSessionModelRequestBody | null;
   newChat?: boolean;
+  runConfig?: AgentSessionRunConfigRequestBody | null;
   sessionId?: string | number | null;
+  session?: Record<string, unknown> | null;
   threadId?: string | null;
   userId?: string | number | null;
   workflowKey?: string | null;
@@ -31,12 +37,22 @@ function normalizeNonEmptyString(value: string | number | null | undefined) {
   return normalized ? normalized : null;
 }
 
+function normalizeSessionPayload(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
 export function buildAgentSessionRequestBodyFragment({
   agentName,
   context,
   model,
   newChat = false,
+  runConfig,
   sessionId,
+  session,
   threadId,
   userId,
   workflowKey,
@@ -61,6 +77,8 @@ export function buildAgentSessionRequestBodyFragment({
     model === null
       ? null
       : normalizeNonEmptyString(model?.runConfig?.reasoning_effort);
+  const normalizedRunConfigReasoningEffort = normalizeNonEmptyString(runConfig?.reasoning_effort);
+  const normalizedSession = normalizeSessionPayload(session);
 
   return {
     ...(newChat ? { newChat: true } : {}),
@@ -83,6 +101,13 @@ export function buildAgentSessionRequestBodyFragment({
             },
           }
         : {}),
+    ...(normalizedRunConfigReasoningEffort
+      ? {
+          runConfig: {
+            reasoning_effort: normalizedRunConfigReasoningEffort,
+          },
+        }
+      : {}),
     ...(normalizedUserId ? { userId: normalizedUserId } : {}),
     ...(normalizedThreadId ? { threadId: normalizedThreadId } : {}),
     ...(normalizedSessionId
@@ -91,6 +116,7 @@ export function buildAgentSessionRequestBodyFragment({
           runtime_session_id: normalizedSessionId,
         }
       : {}),
+    ...(normalizedSession ? { session: normalizedSession } : {}),
     sessionMetadata: {
       source: "frontend",
       workflow_key: normalizedWorkflowKey,

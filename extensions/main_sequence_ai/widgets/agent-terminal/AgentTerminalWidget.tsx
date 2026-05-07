@@ -17,12 +17,13 @@ import {
   type AgentSessionStreamChunk,
 } from "../../runtime/agent-session-stream";
 import {
+  resolveMainSequenceAiAssistantEndpointForAgentRequestName,
   resolveMainSequenceAiAssistantProtocol,
 } from "../../runtime/assistant-endpoint";
 import {
   fetchAgentSessionDetail,
   isAgentSessionNotFoundError,
-  type AgentSessionApiRecord,
+  type AgentSessionSerializedRecord,
 } from "../../runtime/agent-sessions-api";
 import { fetchSessionInsights } from "../../runtime/session-insights-api";
 import { fetchSessionHistory } from "../../runtime/session-history-api";
@@ -109,30 +110,6 @@ function extractChunkTextDelta(chunk: AgentSessionStreamChunk) {
   return "";
 }
 
-function extractChunkThreadId(chunk: AgentSessionStreamChunk) {
-  if (typeof chunk.thread_id === "string" && chunk.thread_id.trim()) {
-    return chunk.thread_id.trim();
-  }
-
-  if (typeof chunk.threadId === "string" && chunk.threadId.trim()) {
-    return chunk.threadId.trim();
-  }
-
-  return null;
-}
-
-function extractSessionSwitchAgentName(chunk: AgentSessionStreamChunk) {
-  if (typeof chunk.to_agent_name === "string" && chunk.to_agent_name.trim()) {
-    return chunk.to_agent_name.trim();
-  }
-
-  if (typeof chunk.toAgentName === "string" && chunk.toAgentName.trim()) {
-    return chunk.toAgentName.trim();
-  }
-
-  return null;
-}
-
 function buildWidgetContext({
   instanceId,
   sessionId,
@@ -198,7 +175,7 @@ function buildValidatedSessionState({
   sessionId,
 }: {
   fallbackAgentName: string | null | undefined;
-  record: AgentSessionApiRecord;
+  record: AgentSessionSerializedRecord;
   sessionId: string;
 }): AgentTerminalSessionState {
   const displayAgentName =
@@ -217,6 +194,7 @@ function buildValidatedSessionState({
     llmModel: record.llm_model?.trim() || null,
     llmProvider: record.llm_provider?.trim() || null,
     requestAgentName,
+    serializedSession: record,
     sessionId,
     threadId: null,
   };
@@ -525,7 +503,14 @@ export function AgentTerminalWidget({
       }
 
       try {
+        const proxyAgentRequestName =
+          sessionStateRef.current?.requestAgentName ||
+          configuredAgentName ||
+          null;
         const history = await fetchSessionHistory({
+          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+            proxyAgentRequestName,
+          ),
           sessionId: targetSessionId,
           signal: controller.signal,
           token: sessionToken,
@@ -552,6 +537,7 @@ export function AgentTerminalWidget({
           llmModel: currentSessionState?.llmModel ?? null,
           llmProvider: currentSessionState?.llmProvider ?? null,
           requestAgentName,
+          serializedSession: currentSessionState?.serializedSession ?? null,
           sessionId: targetSessionId,
           threadId: history.session.threadId ?? currentSessionState?.threadId ?? null,
         };
@@ -674,7 +660,15 @@ export function AgentTerminalWidget({
           token: sessionToken,
           tokenType: sessionTokenType,
         });
+        const validatedSessionState = buildValidatedSessionState({
+          fallbackAgentName: configuredAgentName,
+          record: sessionDetail,
+          sessionId,
+        });
         const history = await fetchSessionHistory({
+          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+            validatedSessionState.requestAgentName,
+          ),
           sessionId,
           signal: controller.signal,
           token: sessionToken,
@@ -685,11 +679,6 @@ export function AgentTerminalWidget({
           return;
         }
 
-        const validatedSessionState = buildValidatedSessionState({
-          fallbackAgentName: configuredAgentName,
-          record: sessionDetail,
-          sessionId,
-        });
         const historyAgentName = history.session.agentName.trim();
         const requestAgentName =
           historyAgentName ||
@@ -704,6 +693,7 @@ export function AgentTerminalWidget({
             requestAgentName ||
             "Agent session",
           requestAgentName,
+          serializedSession: sessionDetail,
           threadId: history.session.threadId ?? validatedSessionState.threadId ?? null,
         };
 
@@ -873,6 +863,9 @@ export function AgentTerminalWidget({
 
       try {
         await streamAgentSessionResponse({
+          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+            activeSession.requestAgentName,
+          ),
           body: buildAgentSessionLiveRequestBody({
             agentName: activeSession.requestAgentName,
             context: buildWidgetContext({
@@ -882,6 +875,7 @@ export function AgentTerminalWidget({
               userId: sessionUserId,
             }),
             input,
+            session: activeSession.serializedSession,
             sessionId,
             threadId: activeSession.threadId ?? sessionId,
             userId: sessionUserId,
@@ -918,40 +912,6 @@ export function AgentTerminalWidget({
                   tone: "muted",
                 }),
               );
-              return;
-            }
-
-            if (chunk.type === "session_switch") {
-              const nextAgentName = extractSessionSwitchAgentName(chunk);
-              const nextThreadId = extractChunkThreadId(chunk);
-
-              if (!nextAgentName && !nextThreadId) {
-                return;
-              }
-
-              setSessionState((current) => {
-                if (!current) {
-                  return current;
-                }
-
-                const nextState = {
-                  ...current,
-                  agentName: nextAgentName ?? current.agentName,
-                  requestAgentName: nextAgentName ?? current.requestAgentName,
-                  threadId: nextThreadId ?? current.threadId,
-                };
-                sessionStateRef.current = nextState;
-                return nextState;
-              });
-
-              if (nextAgentName) {
-                appendLine(
-                  createAgentTerminalOutputLine({
-                    text: `[session] switched to ${nextAgentName}`,
-                    tone: "muted",
-                  }),
-                );
-              }
               return;
             }
 

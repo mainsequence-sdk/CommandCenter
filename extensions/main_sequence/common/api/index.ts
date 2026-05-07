@@ -347,6 +347,27 @@ export interface TimeScaleDBServiceDataSourceListResponse {
   pagination: PhysicalDataSourceListPagination;
 }
 
+export interface ScalableServiceRecord extends Record<string, unknown> {
+  id: number;
+  name?: string | null;
+  display_name?: string | null;
+  release_name?: string | null;
+  service_name?: string | null;
+  namespace?: string | null;
+  kubernetes_namespace?: string | null;
+  status?: string | null;
+  status_label?: string | null;
+  service_type?: string | null;
+  scalable_service_type?: string | null;
+  class_type?: string | null;
+  public_url?: string | null;
+  service_url?: string | null;
+  url?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  creation_date?: string | null;
+}
+
 export interface AssetListRow {
   id: number;
   unique_identifier: string | null;
@@ -933,6 +954,27 @@ export interface ClusterPodRow {
   owner_kind?: string | null;
   owner_name?: string | null;
   age?: string | null;
+}
+
+export interface ScalableServicePodRow {
+  id: number;
+  service_runtime: number | null;
+  revision_runtime: number | null;
+  pod_uid: string;
+  gke_pod_name: string;
+  status: string | null;
+  pod_events?: {
+    labels?: Record<string, string>;
+  } | null;
+  creation_date: string | null;
+  deleted_at: string | null;
+  last_seen_at: string | null;
+}
+
+export interface KnativePodRuntimeLogsResponse {
+  pod_runtime_id: number;
+  status: string;
+  rows: JobRunLogEntry[];
 }
 
 export interface ClusterDeploymentRow {
@@ -2455,9 +2497,12 @@ export interface CreateProjectExecutorAgentServiceInput {
 export interface ProjectExecutorAgentServiceRecord {
   id?: number;
   project_id?: number;
+  project_related_image_id?: number;
+  runtime_image_id?: number;
+  image_ready?: boolean;
   created_service?: boolean;
   created_backing_job?: boolean;
-  runtime_access?: unknown | null;
+  runtime_access?: ProjectExecutorRuntimeAccess | null;
   image_building?: boolean;
   detail?: string;
   image_id?: number;
@@ -2465,6 +2510,24 @@ export interface ProjectExecutorAgentServiceRecord {
   build_status?: string | null;
   log_url?: string | null;
   [key: string]: unknown;
+}
+
+export interface ProjectExecutorRuntimeAccess {
+  coding_agent_service_id?: string | null;
+  coding_agent_id?: string | null;
+  mode?: string | null;
+  rpc_url?: string | null;
+  token?: string | null;
+}
+
+export interface ProjectExecutorAgentServiceSummary {
+  id: number;
+  agent_id: number | string | null;
+  is_ready: boolean;
+  executor_bundle_image_has_drift?: boolean;
+  project: number;
+  related_job: number | null;
+  subdomain: string | null;
 }
 
 export interface AvailableGpuTypeOption {
@@ -4126,6 +4189,106 @@ export async function listTimeScaleDBServices({
   return normalizeOffsetPaginatedResponse(payload, pageSize, (page - 1) * pageSize);
 }
 
+export async function listScalableServices({
+  page = 1,
+  pageSize = mainSequenceRegistryPageSize,
+  search,
+}: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+} = {}) {
+  const payload = await requestJson<
+    PaginatedResponse<ScalableServiceRecord> | ScalableServiceRecord[]
+  >(
+    commandCenterConfig.mainSequence.endpoint,
+    "scalable-service/",
+    undefined,
+    {
+      search: search?.trim() || undefined,
+      page,
+      page_size: pageSize,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, pageSize, (page - 1) * pageSize);
+}
+
+export function fetchScalableServiceDetail(scalableServiceId: number) {
+  return requestJson<ScalableServiceRecord>(
+    commandCenterConfig.mainSequence.endpoint,
+    `scalable-service/${scalableServiceId}/`,
+  );
+}
+
+export function fetchScalableServiceSummary(scalableServiceId: number) {
+  return requestJson<SummaryResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `scalable-service/${scalableServiceId}/summary/`,
+  );
+}
+
+export async function listScalableServicePods(scalableServiceId: number) {
+  const payload = await requestJson<
+    PaginatedResponse<ScalableServicePodRow> | ScalableServicePodRow[]
+  >(
+    commandCenterConfig.mainSequence.endpoint,
+    `scalable-service/${scalableServiceId}/pods/`,
+  );
+
+  return normalizeListResponse(payload);
+}
+
+export function fetchKnativePodRuntimeLogs(knativePodRuntimeId: number) {
+  return requestJson<
+    KnativePodRuntimeLogsResponse | JobRunLogEntry[] | { rows?: JobRunLogEntry[]; status?: string }
+  >(
+    commandCenterConfig.mainSequence.endpoint,
+    `knative-pod-runtimes/${knativePodRuntimeId}/logs/`,
+  ).then((payload) => {
+    if (Array.isArray(payload)) {
+      return {
+        pod_runtime_id: knativePodRuntimeId,
+        status: "",
+        rows: payload,
+      } satisfies KnativePodRuntimeLogsResponse;
+    }
+
+    return {
+      pod_runtime_id: knativePodRuntimeId,
+      status: typeof payload?.status === "string" ? payload.status : "",
+      rows: Array.isArray(payload?.rows) ? payload.rows : [],
+    } satisfies KnativePodRuntimeLogsResponse;
+  });
+}
+
+export async function fetchKnativePodRuntimeResourceUsage(knativePodRuntimeId: number) {
+  const payload = await requestJson<unknown>(
+    commandCenterConfig.mainSequence.endpoint,
+    `knative-pod-runtimes/${knativePodRuntimeId}/resource-usage/`,
+  );
+
+  if (Array.isArray(payload)) {
+    return payload as ResourceUsageChartPoint[];
+  }
+
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const candidate = payload as Record<string, unknown>;
+    const arrayPayload =
+      (Array.isArray(candidate.resource_usage_chart_data)
+        ? candidate.resource_usage_chart_data
+        : Array.isArray(candidate.results)
+          ? candidate.results
+          : Array.isArray(candidate.rows)
+            ? candidate.rows
+            : null) ?? [];
+
+    return arrayPayload as ResourceUsageChartPoint[];
+  }
+
+  return [];
+}
+
 export function fetchTimeScaleDBServiceDetail(timeScaleDBServiceId: number) {
   return requestJson<TimeScaleDBServiceRecord>(
     commandCenterConfig.mainSequence.endpoint,
@@ -5162,7 +5325,16 @@ export function updateProjectSettings({
   );
 }
 
-export async function fetchProjectImages(projectId: number) {
+export async function fetchProjectImages(
+  projectId: number,
+  {
+    catalogImagePrefix,
+    catalogImagePrefixStartswith,
+  }: {
+    catalogImagePrefix?: string;
+    catalogImagePrefixStartswith?: string;
+  } = {},
+) {
   const payload = await requestJson<PaginatedResponse<ProjectImageOption> | ProjectImageOption[]>(
     commandCenterConfig.mainSequence.endpoint,
     "project-image/",
@@ -5170,6 +5342,10 @@ export async function fetchProjectImages(projectId: number) {
     {
       limit: 200,
       "related_project__id__in": projectId,
+      ...(catalogImagePrefix ? { catalog_image_prefix: catalogImagePrefix } : {}),
+      ...(catalogImagePrefixStartswith
+        ? { "catalog_image_prefix__startswith": catalogImagePrefixStartswith }
+        : {}),
     },
   );
 
@@ -5311,6 +5487,81 @@ export function getOrCreateProjectExecutorAgentService(
     {
       method: "POST",
       body: JSON.stringify(input),
+    },
+  );
+}
+
+export function buildProjectExecutorAgentServiceImage(input: {
+  project_id: number;
+  project_related_image_id: number;
+}) {
+  return requestJson<ProjectExecutorAgentServiceRecord>(
+    "/orm/api/agents/v1/project-executor-agent-services/build-image/",
+    "",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function deployProjectExecutorAgentService(input: {
+  project_id: number;
+  runtime_image_id: number;
+  llm_provider: string;
+  llm_model: string;
+  cpu_request?: string;
+  cpu_limit?: string;
+  memory_request?: string;
+  memory_limit?: string;
+  gpu_request?: string;
+  gpu_type?: string;
+  spot?: boolean;
+}) {
+  return requestJson<ProjectExecutorAgentServiceRecord>(
+    "/orm/api/agents/v1/project-executor-agent-services/deploy/",
+    "",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function fetchProjectExecutorAgentServiceByProject(projectId: number) {
+  try {
+    return await requestJson<ProjectExecutorAgentServiceSummary>(
+      `/orm/api/agents/v1/project-executor-agent-services/by-project/${projectId}/`,
+      "",
+    );
+  } catch (error) {
+    if (error instanceof MainSequenceApiError && error.status === 404) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+export async function fetchAvailableProjectExecutorAgentImages(projectId: number) {
+  const payload = await requestJson<PaginatedResponse<ProjectImageOption> | ProjectImageOption[]>(
+    "/orm/api/agents/v1/project-executor-agent-services/available-images/",
+    "",
+    undefined,
+    {
+      project_id: projectId,
+    },
+  );
+
+  return normalizeListResponse(payload).sort((left, right) => right.id - left.id);
+}
+
+export function deleteProjectExecutorAgentServiceByProject(projectId: number) {
+  return requestJson<null>(
+    `/orm/api/agents/v1/project-executor-agent-services/by-project/${projectId}/`,
+    "",
+    {
+      method: "DELETE",
     },
   );
 }

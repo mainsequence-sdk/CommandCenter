@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Bot, Loader2, Search, Sparkles, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/auth/auth-store";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import {
   fetchAgentQuickSearch,
   type AgentSearchResult,
 } from "../../agent-search";
-import { CHAT_PAGE_PATH } from "../../assistant-ui/chat-ui-store";
+import { CHAT_PAGE_PATH, getChatPagePath } from "../../assistant-ui/chat-ui-store";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
 
 function formatSessionTimestamp(value: string) {
@@ -48,6 +48,7 @@ export function AgentSessionExplorer({
   navigateToChatOnSessionChange?: boolean;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     activeAgentName,
     agentSessions,
@@ -58,7 +59,6 @@ export function AgentSessionExplorer({
     isCreatingAgentSession,
     isLoadingLatestSessions,
     latestSessionsError,
-    selectAgentSession,
     startAgentSession,
   } = useChatFeature();
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
@@ -68,11 +68,19 @@ export function AgentSessionExplorer({
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const routeRequestedSessionId =
+    location.pathname === CHAT_PAGE_PATH
+      ? new URLSearchParams(location.search).get("session")?.trim() || null
+      : null;
   const trimmedQuery = searchValue.trim();
   const sessionMutationBusy =
     hasActiveChatStream || isActiveSessionLoading || isCreatingAgentSession;
+  const sessionDeletionBusy =
+    hasActiveChatStream || isActiveSessionLoading || isCreatingAgentSession;
   const showAgentSearchResults =
     isSearching || Boolean(searchError) || trimmedQuery.length >= 3;
+  const shouldReuseCurrentChatTab =
+    location.pathname === CHAT_PAGE_PATH && !routeRequestedSessionId && !currentSessionId;
 
   useEffect(() => {
     searchInputRef.current?.focus();
@@ -130,6 +138,23 @@ export function AgentSessionExplorer({
     }
 
     navigate(CHAT_PAGE_PATH);
+  }
+
+  function openSessionInChatTab(sessionId: string) {
+    const nextPath = getChatPagePath(sessionId);
+
+    if (shouldReuseCurrentChatTab) {
+      navigate(nextPath);
+      return;
+    }
+
+    const openedWindow = window.open(nextPath, "_blank", "noopener,noreferrer");
+
+    if (openedWindow) {
+      return;
+    }
+
+    navigate(nextPath);
   }
 
   return (
@@ -281,14 +306,19 @@ export function AgentSessionExplorer({
                       <div className="flex items-start gap-2">
                         <button
                           type="button"
-                          disabled={sessionMutationBusy}
-                          className={cn(
-                            "min-w-0 flex-1 text-left",
-                            sessionMutationBusy && !active && "cursor-not-allowed opacity-60",
-                          )}
+                          className="min-w-0 flex-1 text-left"
+                          title={
+                            shouldReuseCurrentChatTab
+                              ? `Open session ${session.id} in this tab`
+                              : `Open session ${session.id} in a new tab`
+                          }
+                          aria-label={
+                            shouldReuseCurrentChatTab
+                              ? `Open session ${session.id} in this tab`
+                              : `Open session ${session.id} in a new tab`
+                          }
                           onClick={() => {
-                            selectAgentSession(session.id);
-                            openChatSurface();
+                            openSessionInChatTab(session.id);
                           }}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -324,7 +354,7 @@ export function AgentSessionExplorer({
                         <button
                           type="button"
                           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background/70 hover:text-danger"
-                          disabled={sessionMutationBusy}
+                          disabled={sessionDeletionBusy}
                           title="Delete session"
                           aria-label={`Delete session ${session.id}`}
                           onClick={async (event) => {

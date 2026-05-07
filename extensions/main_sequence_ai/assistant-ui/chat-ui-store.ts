@@ -4,6 +4,24 @@ export const CHAT_PAGE_PATH = "/app/main_sequence_ai/chat";
 export const CHAT_RAIL_WIDTH = 540;
 export const CHAT_DOCKED_MIN_WIDTH = 1400;
 
+export function getChatPagePath(sessionId?: string | number | null) {
+  if (sessionId === null || sessionId === undefined) {
+    return CHAT_PAGE_PATH;
+  }
+
+  const normalizedSessionId = String(sessionId).trim();
+
+  if (!normalizedSessionId) {
+    return CHAT_PAGE_PATH;
+  }
+
+  const params = new URLSearchParams({
+    session: normalizedSessionId,
+  });
+
+  return `${CHAT_PAGE_PATH}?${params.toString()}`;
+}
+
 export type ChatRailMode = "overlay" | "docked";
 
 export function resolvePreferredChatRailMode(viewportWidth = window.innerWidth): ChatRailMode {

@@ -16,11 +16,11 @@ contract across the platform.
 
 Related ADRs:
 
-- [First-Class Connection Model](../adr/adr-first-class-connection-model.md)
-- [Connection-First Workspace Dataflow](../adr/adr-connection-first-workspace-dataflow.md)
-- [Standardized Connection Result Contracts](../adr/adr-standardized-connection-result-contracts.md)
-- [PostgreSQL Custom Connection](../adr/adr-postgresql-connection.md)
-- [Main Sequence Simple Table Connection](../adr/adr-main-sequence-simple-table-connection.md)
+- [First-Class Connection Model](../adr/command_center/adr-first-class-connection-model.md)
+- [Connection-First Workspace Dataflow](../adr/command_center/adr-connection-first-workspace-dataflow.md)
+- [Standardized Connection Result Contracts](../adr/command_center/adr-standardized-connection-result-contracts.md)
+- [PostgreSQL Custom Connection](../adr/command_center/adr-postgresql-connection.md)
+- [Main Sequence Simple Table Connection](../adr/command_center/adr-main-sequence-simple-table-connection.md)
 
 ## What A Connection Is
 

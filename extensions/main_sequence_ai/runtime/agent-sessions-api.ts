@@ -1,4 +1,5 @@
 import { env } from "@/config/env";
+import { MainSequenceAiError, withMainSequenceAiErrorSource } from "./error-source";
 
 export interface AgentSessionApiRecord {
   id: number;
@@ -17,6 +18,7 @@ export interface AgentSessionApiRecord {
   ended_at: string | null;
   llm_provider: string;
   llm_model: string;
+  llm_thinking?: string | null;
   engine_name: string;
   runtime_state?: string | null;
   working?: boolean;
@@ -35,6 +37,8 @@ export interface AgentSessionApiRecord {
     is_locked: boolean;
   }>;
 }
+
+export type AgentSessionSerializedRecord = AgentSessionApiRecord & Record<string, unknown>;
 
 export interface StartedAgentSessionResult {
   sessionId: string;
@@ -334,7 +338,7 @@ export async function fetchAgentSessionDetail({
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
-}) {
+}): Promise<AgentSessionSerializedRecord> {
   const headers = new Headers({
     Accept: "application/json",
   });
@@ -360,13 +364,22 @@ export async function fetchAgentSessionDetail({
       `Session detail failed with status ${response.status}.`;
 
     if (response.status === 404) {
-      throw new AgentSessionNotFoundError(sessionId, message);
+      throw new AgentSessionNotFoundError(
+        sessionId,
+        withMainSequenceAiErrorSource({
+          message,
+          source: "agent_session_detail",
+        }),
+      );
     }
 
-    throw new Error(message);
+    throw new MainSequenceAiError(message, {
+      source: "agent_session_detail",
+      status: response.status,
+    });
   }
 
-  return (await response.json()) as AgentSessionApiRecord;
+  return (await response.json()) as AgentSessionSerializedRecord;
 }
 
 export async function startNewAgentSessionRequest({
@@ -441,6 +454,7 @@ export async function startNewAgentSessionRequest({
 export async function patchAgentSessionModelConfig({
   llmModel,
   llmProvider,
+  llmThinking,
   sessionId,
   signal,
   token,
@@ -448,6 +462,7 @@ export async function patchAgentSessionModelConfig({
 }: {
   llmModel: string;
   llmProvider: string;
+  llmThinking?: string | null;
   sessionId: string | number;
   signal?: AbortSignal;
   token?: string | null;
@@ -468,6 +483,7 @@ export async function patchAgentSessionModelConfig({
     body: JSON.stringify({
       llm_provider: llmProvider,
       llm_model: llmModel,
+      llm_thinking: typeof llmThinking === "string" ? llmThinking : "",
     }),
     signal,
   });

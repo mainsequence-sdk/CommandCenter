@@ -48,9 +48,9 @@ app:
     app_component_safe_response_ttl_ms: 30000
 ```
 
-These values are read through [`src/config/command-center.ts`](../src/config/command-center.ts)
+These values are read through [`src/config/command-center.ts`](../../src/config/command-center.ts)
 and consumed by the AppComponent transport layer in
-[`src/widgets/core/app-component/appComponentApi.ts`](../src/widgets/core/app-component/appComponentApi.ts).
+[`src/widgets/core/app-component/appComponentApi.ts`](../../src/widgets/core/app-component/appComponentApi.ts).
 
 This keeps deployment-level tuning in config rather than hardcoded inside widget code.
 

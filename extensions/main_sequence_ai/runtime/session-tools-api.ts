@@ -1,6 +1,7 @@
 import type { SessionToolsSnapshot } from "../assistant-ui/session-tools";
 import { normalizeSessionToolsSnapshot } from "../assistant-ui/session-tools";
 import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
+import { MainSequenceAiError } from "./error-source";
 
 export async function fetchSessionTools({
   assistantEndpoint,
@@ -37,8 +38,11 @@ export async function fetchSessionTools({
     }));
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unknown fetch error.";
-    throw new Error(
+    throw new MainSequenceAiError(
       `Failed to load available tools for session ${sessionId} from ${requestUrl}. ${detail}`,
+      {
+        source: "agent_session_tools",
+      },
     );
   }
 
@@ -46,17 +50,24 @@ export async function fetchSessionTools({
     const payload = (await response.json().catch(() => null)) as
       | { error?: string; message?: string; detail?: string }
       | null;
-    throw new Error(
+    throw new MainSequenceAiError(
       `Failed to load available tools for session ${sessionId} from ${requestUrl} (${response.status}). ${
         payload?.message || payload?.detail || payload?.error || response.statusText || "Unknown backend error."
       }`,
+      {
+        source: "agent_session_tools",
+        status: response.status,
+      },
     );
   }
 
   const payload = (await response.json()) as unknown;
   if (!resolvedAssistantEndpoint) {
-    throw new Error(
+    throw new MainSequenceAiError(
       `Failed to load available tools for session ${sessionId}. Assistant runtime endpoint was not resolved.`,
+      {
+        source: "agent_session_tools",
+      },
     );
   }
 

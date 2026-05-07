@@ -68,7 +68,7 @@ Use these local docs before reading the implementation in code:
   output with contract `core.widget-agent-context@v1`. That output is derived from the compact
   `evidence` snapshot profile so agent-facing consumers such as `Agent Terminal` can reason over
   what widgets currently show without maintaining a second serializer. See
-  [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../docs/adr/adr-widget-agent-context-bindings.md).
+  [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../docs/adr/command_center/adr-widget-agent-context-bindings.md).
 - Large tabular runtime payloads should use the workspace runtime data store and carry
   `RuntimeTabularFrameRef` metadata through outputs, resolved inputs, and runtime-update envelopes.
   Widgets that render rows remain responsible for materializing only the view they need.

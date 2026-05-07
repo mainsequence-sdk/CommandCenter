@@ -108,6 +108,14 @@ export interface SessionInsightsLastTurn {
 }
 
 export interface SessionInsightsSnapshot {
+  hasInsights: boolean;
+  agentSessionId: string | null;
+  checkpointVersion: number | null;
+  bundleHash: string | null;
+  computedAt: string | null;
+  flushedAt: string | null;
+  reason: string | null;
+  updatedAt: string | null;
   config: {
     compaction: {
       enabled: boolean | null;
@@ -213,7 +221,13 @@ function normalizeTokenTotals(value: unknown): SessionInsightsTokenTotals {
   };
 }
 
-function normalizeSession(value: unknown): SessionInsightsSession {
+function normalizeSession(
+  value: unknown,
+  fallback: {
+    agentSessionId?: unknown;
+    updatedAt?: unknown;
+  } = {},
+): SessionInsightsSession {
   const candidate = asRecord(value);
   const rawStatus = candidate.status;
 
@@ -222,7 +236,7 @@ function normalizeSession(value: unknown): SessionInsightsSession {
     agentName: normalizeString(readCandidateValue(candidate, "agentName", "agent_name")),
     agentSessionId: normalizeString(
       readCandidateValue(candidate, "agentSessionId", "agent_session_id"),
-    ),
+    ) ?? normalizeString(fallback.agentSessionId),
     lastError: normalizeString(readCandidateValue(candidate, "lastError", "last_error")),
     sessionId: normalizeString(readCandidateValue(candidate, "sessionId", "session_id")),
     startedAt: normalizeString(readCandidateValue(candidate, "startedAt", "started_at")),
@@ -231,7 +245,9 @@ function normalizeSession(value: unknown): SessionInsightsSession {
         ? rawStatus
         : "completed",
     threadId: normalizeString(readCandidateValue(candidate, "threadId", "thread_id")),
-    updatedAt: normalizeString(readCandidateValue(candidate, "updatedAt", "updated_at")),
+    updatedAt:
+      normalizeString(readCandidateValue(candidate, "updatedAt", "updated_at")) ??
+      normalizeString(fallback.updatedAt),
   };
 }
 
@@ -522,11 +538,54 @@ export function normalizeSessionInsightsSnapshot(payload: unknown) {
   const editable = normalizeEditable(readCandidateValue(candidate, "editable"));
   const model = normalizeModel(readCandidateValue(candidate, "model"));
   const context = normalizeContext(readCandidateValue(candidate, "context"));
+  const info = normalizeInfoTree(readCandidateValue(candidate, "info"));
+  const lastTurn = normalizeLastTurn(readCandidateValue(candidate, "lastTurn", "last_turn"));
+  const usage = normalizeUsage(readCandidateValue(candidate, "usage"));
+  const explicitHasInsights = normalizeBoolean(
+    readCandidateValue(rootCandidate, "hasInsights", "has_insights"),
+  );
+  const hasNormalizedInsightContent =
+    Boolean(config) ||
+    Boolean(editable) ||
+    Boolean(model) ||
+    Boolean(context) ||
+    Boolean(lastTurn) ||
+    Boolean(usage) ||
+    Object.keys(info).length > 0;
+  const hasInsights = explicitHasInsights ?? hasNormalizedInsightContent;
+  const agentSessionId =
+    normalizeString(
+      readCandidateValue(rootCandidate, "agentSessionId", "agent_session_id"),
+    ) ?? null;
+  const checkpointVersion = normalizeNumber(
+    readCandidateValue(rootCandidate, "checkpointVersion", "checkpoint_version"),
+  );
+  const bundleHash = normalizeString(
+    readCandidateValue(rootCandidate, "bundleHash", "bundle_hash"),
+  );
+  const computedAt = normalizeString(
+    readCandidateValue(rootCandidate, "computedAt", "computed_at"),
+  );
+  const flushedAt = normalizeString(
+    readCandidateValue(rootCandidate, "flushedAt", "flushed_at"),
+  );
+  const reason = normalizeString(readCandidateValue(rootCandidate, "reason"));
+  const updatedAt = normalizeString(
+    readCandidateValue(rootCandidate, "updatedAt", "updated_at"),
+  );
 
   return {
+    hasInsights,
+    agentSessionId,
+    checkpointVersion,
+    bundleHash,
+    computedAt,
+    flushedAt,
+    reason,
+    updatedAt,
     config,
     editable,
-    info: normalizeInfoTree(readCandidateValue(candidate, "info")),
+    info,
     context:
       context || config?.compaction || config?.model
         ? {
@@ -547,7 +606,7 @@ export function normalizeSessionInsightsSnapshot(payload: unknown) {
             tokensRemainingBeforeContextLimit: context?.tokensRemainingBeforeContextLimit ?? null,
           }
         : null,
-    lastTurn: normalizeLastTurn(readCandidateValue(candidate, "lastTurn", "last_turn")),
+    lastTurn,
     model:
       model || config?.model
         ? {
@@ -558,14 +617,47 @@ export function normalizeSessionInsightsSnapshot(payload: unknown) {
             reasoningEffort: model?.reasoningEffort ?? config?.model?.reasoningEffort ?? null,
           }
         : null,
-    session: normalizeSession(readCandidateValue(candidate, "session")),
-    usage: normalizeUsage(readCandidateValue(candidate, "usage")),
+    session: normalizeSession(readCandidateValue(candidate, "session"), {
+      agentSessionId,
+      updatedAt,
+    }),
+    usage,
     version:
       typeof readCandidateValue(candidate, "version") === "number" &&
       Number.isFinite(readCandidateValue(candidate, "version"))
         ? (readCandidateValue(candidate, "version") as number)
         : 1,
   } satisfies SessionInsightsSnapshot;
+}
+
+export function createEmptySessionInsightsSnapshot({
+  sessionId,
+  checkpointVersion = null,
+  bundleHash = null,
+  computedAt = null,
+  flushedAt = null,
+  reason = null,
+  updatedAt = null,
+}: {
+  sessionId: string | number;
+  checkpointVersion?: number | null;
+  bundleHash?: string | null;
+  computedAt?: string | null;
+  flushedAt?: string | null;
+  reason?: string | null;
+  updatedAt?: string | null;
+}) {
+  return normalizeSessionInsightsSnapshot({
+    has_insights: false,
+    agent_session_id: String(sessionId),
+    checkpoint_version: checkpointVersion,
+    bundle_hash: bundleHash,
+    computed_at: computedAt,
+    flushed_at: flushedAt,
+    reason,
+    insights: {},
+    updated_at: updatedAt,
+  });
 }
 
 export function getSessionInsightsInfoNode(

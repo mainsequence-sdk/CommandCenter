@@ -3,7 +3,7 @@
 - Status: Proposed
 - Date: 2026-04-23
 - Related:
-  - [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](./adr-widget-agent-context-bindings.md)
+  - [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../command_center/adr-widget-agent-context-bindings.md)
   - [ADR: Main Sequence AI Command Center Base Session](./adr-main-sequence-ai-command-center-base-session.md)
 
 ## Context

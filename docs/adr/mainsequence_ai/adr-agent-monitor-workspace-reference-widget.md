@@ -3,11 +3,11 @@
 - Status: Accepted
 - Date: 2026-04-23
 - Related:
-  - [Workspaces](../workspaces/overview.md)
-  - [Main Sequence AI Workspace Reference Widget Plan](../workspaces/agent-monitor-workspace-widget-plan.md)
-  - [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](./adr-widget-agent-context-bindings.md)
+  - [Workspaces](../../workspaces/overview.md)
+  - [Main Sequence AI Workspace Reference Widget Plan](../../workspaces/agent-monitor-workspace-widget-plan.md)
+  - [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../command_center/adr-widget-agent-context-bindings.md)
   - [ADR: Agent Terminal Managed Session Creation and Agent Allowlist](./adr-agent-terminal-managed-session-creation.md)
-  - [ADR: Agent-Ready Widget Type Registry Contract](./adr-agent-ready-widget-type-registry-contract.md)
+  - [ADR: Agent-Ready Widget Type Registry Contract](../command_center/adr-agent-ready-widget-type-registry-contract.md)
 
 ## Context
 

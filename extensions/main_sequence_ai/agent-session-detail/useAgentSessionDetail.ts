@@ -7,17 +7,20 @@ import {
   fetchAgentSessionDetail,
   isAgentSessionNotFoundError,
 } from "../runtime/agent-sessions-api";
+import { resolveMainSequenceAiAssistantEndpointForAgentRequestName } from "../runtime/assistant-endpoint";
 import { fetchSessionInsights } from "../runtime/session-insights-api";
 import { fetchSessionTools } from "../runtime/session-tools-api";
 import {
   buildAgentSessionDetailSnapshot,
   normalizeAgentSessionCoreDetail,
   resolveAgentSessionLookupId,
+  resolveAgentSessionRequestName,
   type AgentSessionContextInput,
   type AgentSessionCoreDetail,
   type AgentSessionDetailSnapshot,
   type AgentSessionDetailStatus,
 } from "./model";
+import type { AgentSessionSerializedRecord } from "../runtime/agent-sessions-api";
 
 function setKeyedBoolean(
   current: Record<string, boolean>,
@@ -48,6 +51,7 @@ function removeKey<T>(current: Record<string, T>, key: string) {
 export interface UseAgentSessionDetailOptions {
   session: AgentSessionContextInput | null;
   enabled: boolean;
+  loadTools?: boolean;
   token?: string | null;
   tokenType?: string;
 }
@@ -70,11 +74,15 @@ export interface AgentSessionDetailControllerState {
 
 export function useAgentSessionDetail({
   enabled,
+  loadTools = true,
   session,
   token,
   tokenType = "Bearer",
 }: UseAgentSessionDetailOptions): AgentSessionDetailControllerState {
   const [coreBySessionId, setCoreBySessionId] = useState<Record<string, AgentSessionCoreDetail>>({});
+  const [serializedRecordBySessionId, setSerializedRecordBySessionId] = useState<
+    Record<string, AgentSessionSerializedRecord>
+  >({});
   const [detailStatusBySessionId, setDetailStatusBySessionId] = useState<
     Record<string, AgentSessionDetailStatus>
   >({});
@@ -154,6 +162,10 @@ export function useAgentSessionDetail({
           ...current,
           [sessionId]: normalizeAgentSessionCoreDetail(record),
         }));
+        setSerializedRecordBySessionId((current) => ({
+          ...current,
+          [sessionId]: record,
+        }));
         setDetailStatusBySessionId((current) => ({
           ...current,
           [sessionId]: "ready",
@@ -174,6 +186,7 @@ export function useAgentSessionDetail({
         }));
         setDetailErrorBySessionId((current) => setKeyedNullableString(current, sessionId, message));
         setCoreBySessionId((current) => removeKey(current, sessionId));
+        setSerializedRecordBySessionId((current) => removeKey(current, sessionId));
         setInsightsBySessionId((current) => removeKey(current, sessionId));
         setInsightsErrorBySessionId((current) => removeKey(current, sessionId));
         setIsLoadingInsightsBySessionId((current) => removeKey(current, sessionId));
@@ -258,6 +271,7 @@ export function useAgentSessionDetail({
     if (
       env.useMockData ||
       !enabled ||
+      !loadTools ||
       !lookupSessionId ||
       !sessionId ||
       activeDetailStatus !== "ready"
@@ -273,6 +287,9 @@ export function useAgentSessionDetail({
     void (async () => {
       try {
         const snapshot = await fetchSessionTools({
+          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+            resolveAgentSessionRequestName(session),
+          ),
           sessionId: lookupSessionId,
           signal: controller.signal,
           token,
@@ -315,7 +332,9 @@ export function useAgentSessionDetail({
   }, [
     activeDetailStatus,
     enabled,
+    loadTools,
     lookupSessionId,
+    session,
     sessionId,
     token,
     tokenType,
@@ -334,6 +353,7 @@ export function useAgentSessionDetail({
         (env.useMockData || !enabled ? "idle" : "loading"),
       detailError: detailErrorBySessionId[sessionId] ?? null,
       core: coreBySessionId[sessionId] ?? null,
+      serializedRecord: serializedRecordBySessionId[sessionId] ?? null,
       insights:
         detailStatusBySessionId[sessionId] === "not_found"
           ? null
@@ -364,6 +384,7 @@ export function useAgentSessionDetail({
     isLoadingInsightsBySessionId,
     isLoadingToolsByLookupId,
     lookupSessionId,
+    serializedRecordBySessionId,
     session,
     sessionId,
     toolsByLookupId,

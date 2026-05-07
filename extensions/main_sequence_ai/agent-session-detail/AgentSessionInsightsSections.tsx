@@ -23,6 +23,7 @@ export function AgentSessionInsightsSections({
 }) {
   const usageTokens = insights?.usage?.tokens ?? null;
   const lastTurnTokens = insights?.lastTurn?.tokens ?? null;
+  const hasPersistedInsights = insights?.hasInsights !== false;
   const hasRenderableInsights =
     Boolean(insights?.model) ||
     Boolean(insights?.usage) ||
@@ -54,7 +55,13 @@ export function AgentSessionInsightsSections({
         </div>
       ) : null}
 
-      {!isLoading && !error && insights ? (
+      {!isLoading && !error && insights && !hasPersistedInsights ? (
+        <div className="rounded-[16px] border border-dashed border-border/60 px-3 py-3 text-sm text-muted-foreground">
+          No persisted session insights are available for this session yet.
+        </div>
+      ) : null}
+
+      {!isLoading && !error && insights && hasPersistedInsights ? (
         <>
           {insights.model ? (
             <SessionSection title="Model Insights">

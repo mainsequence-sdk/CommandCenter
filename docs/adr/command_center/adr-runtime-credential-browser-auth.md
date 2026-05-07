@@ -4,7 +4,7 @@
 - Date: 2026-04-23
 - Related:
   - [ADR: Live Workspace Agent Snapshot Archive](./adr-live-workspace-agent-snapshot-archive.md)
-  - [Auth Backend Contract](../auth/backend-and-auth.md)
+  - [Auth Backend Contract](../../auth/backend-and-auth.md)
 
 ## Context
 

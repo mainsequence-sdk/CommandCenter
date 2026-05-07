@@ -76,7 +76,7 @@ for connection query models that advertise a WebSocket stream contract.
   - max reconnect attempts: `8`
   - heartbeat timeout: `max(heartbeatMs * 3, 5000 ms)`
 - The longer-term survivability contract, including backend resume coordination, is tracked in
-  [ADR 046](../../../docs/adr/adr-046-websocket-stream-survivability-and-reconnect-supervision.md).
+  [ADR 046](../../../docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision.md).
 - The widget is fixed to sidebar placement. It can be used as a normal hidden source widget because
   its output contract and bindings are identical to other tabular source widgets.
 

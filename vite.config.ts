@@ -9,6 +9,7 @@ import { defineConfig, loadEnv, type PluginOption } from "vite";
 const devAuthProxyPrefix = "/__command_center_auth__";
 const appComponentProxyPrefix = "/__app_component_proxy__";
 const assistantProxyPrefix = "/__assistant__";
+const assistantExecutorProxyPrefix = "/__assistant_executor__";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const cloudflareMode = "cloudflare";
 const defaultAppTitle = "Main Sequence";
@@ -213,6 +214,9 @@ export default defineConfig(async ({ mode }) => {
     env.VITE_ASSISTANT_UI_PROXY_TARGET ||
     env.VITE_ASSISTANT_UI_ENDPOINT ||
     "http://192.168.1.253:8787";
+  const assistantExecutorProxyTarget =
+    env.VITE_ASSISTANT_UI_EXECUTOR_TARGET ||
+    assistantProxyTarget;
 
   return {
     plugins: [
@@ -243,6 +247,13 @@ export default defineConfig(async ({ mode }) => {
           secure: false,
           rewrite: (requestPath: string) =>
             requestPath.replace(new RegExp(`^${assistantProxyPrefix}`), ""),
+        },
+        [assistantExecutorProxyPrefix]: {
+          target: assistantExecutorProxyTarget,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (requestPath: string) =>
+            requestPath.replace(new RegExp(`^${assistantExecutorProxyPrefix}`), ""),
         },
       },
     },

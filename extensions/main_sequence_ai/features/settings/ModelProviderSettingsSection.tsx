@@ -649,6 +649,10 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
     () => new Map((providerAuthQuery.data ?? []).map((entry) => [entry.provider, entry])),
     [providerAuthQuery.data],
   );
+  const catalogOnlyProviders = useMemo(
+    () => providerOrder.filter((provider) => !providerMap.has(provider)),
+    [providerMap, providerOrder],
+  );
   const pendingProvider =
     (signInMutation.isPending && signInMutation.variables) ||
     (signOffMutation.isPending && signOffMutation.variables) ||
@@ -668,7 +672,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
         <div className="flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           {assistantRuntime.isLoading
-            ? "Resolving assistant runtime session"
+            ? "Resolving Command Center runtime access"
             : "Loading provider auth and model catalog"}
         </div>
       ) : null}
@@ -677,7 +681,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
         <div className="rounded-[calc(var(--radius)-4px)] border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
           {assistantRuntime.error instanceof Error
             ? assistantRuntime.error.message
-            : "Unable to resolve the assistant runtime session."}
+            : "Unable to resolve Command Center runtime access."}
         </div>
       ) : null}
 
@@ -711,6 +715,19 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       providerOrder.length === 0 ? (
         <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4 text-sm text-muted-foreground">
           No model providers or models are available.
+        </div>
+      ) : null}
+
+      {!providerAuthQuery.isLoading &&
+      !modelsQuery.isLoading &&
+      hasAssistantRuntimeEndpoint &&
+      !providerAuthQuery.isError &&
+      !modelsQuery.isError &&
+      catalogOnlyProviders.length > 0 ? (
+        <div className="rounded-[calc(var(--radius)-4px)] border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
+          The model catalog returned providers, but{" "}
+          <span className="font-mono">/api/model-providers</span> did not return auth-state entries
+          for: {catalogOnlyProviders.join(", ")}.
         </div>
       ) : null}
 

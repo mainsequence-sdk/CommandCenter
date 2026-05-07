@@ -10,32 +10,32 @@
 The workspace binding architecture already exists and is now the right foundation for cross-widget
 composition:
 
-- [`src/widgets/types.ts`](../src/widgets/types.ts) defines widget input/output metadata, binding
+- [`src/widgets/types.ts`](../../src/widgets/types.ts) defines widget input/output metadata, binding
   edges, resolved inputs, and output resolvers.
-- [`src/dashboards/types.ts`](../src/dashboards/types.ts) stores canonical graph edges on
+- [`src/dashboards/types.ts`](../../src/dashboards/types.ts) stores canonical graph edges on
   `DashboardWidgetInstance.bindings`.
-- [`src/dashboards/widget-dependencies.ts`](../src/dashboards/widget-dependencies.ts) resolves
+- [`src/dashboards/widget-dependencies.ts`](../../src/dashboards/widget-dependencies.ts) resolves
   inputs and builds the dependency graph from widget instances plus widget definitions.
-- [`src/widgets/shared/WidgetBindingPanel.tsx`](../src/widgets/shared/WidgetBindingPanel.tsx)
+- [`src/widgets/shared/WidgetBindingPanel.tsx`](../../src/widgets/shared/WidgetBindingPanel.tsx)
   exposes a bindings editor driven by the same metadata.
 
 That architecture works well for widget families with static ports, for example the Main Sequence
 Data Node family:
 
-- [`extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts`](../extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts)
+- [`extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts`](../../extensions/main_sequence/extensions/workbench/widgets/data-node-filter/definition.ts)
   declares one static input and one static output through `io`.
-- [`extensions/main_sequence/extensions/workbench/widget-contracts/mainSequenceDataSourceBundle.ts`](../extensions/main_sequence/extensions/workbench/widget-contracts/mainSequenceDataSourceBundle.ts)
+- [`extensions/main_sequence/extensions/workbench/widget-contracts/mainSequenceDataSourceBundle.ts`](../../extensions/main_sequence/extensions/workbench/widget-contracts/mainSequenceDataSourceBundle.ts)
   defines a stable producer-owned payload contract.
 
 `AppComponent` does not fit the current static-port assumption:
 
-- [`src/widgets/core/app-component/definition.ts`](../src/widgets/core/app-component/definition.ts)
+- [`src/widgets/core/app-component/definition.ts`](../../src/widgets/core/app-component/definition.ts)
   currently declares no `io`.
-- [`src/widgets/core/app-component/appComponentModel.ts`](../src/widgets/core/app-component/appComponentModel.ts)
+- [`src/widgets/core/app-component/appComponentModel.ts`](../../src/widgets/core/app-component/appComponentModel.ts)
   derives request fields and response-model previews dynamically from the selected OpenAPI
   operation.
-- [`src/widgets/core/app-component/AppComponentWidget.tsx`](../src/widgets/core/app-component/AppComponentWidget.tsx)
-  and [`src/widgets/core/app-component/AppComponentWidgetSettings.tsx`](../src/widgets/core/app-component/AppComponentWidgetSettings.tsx)
+- [`src/widgets/core/app-component/AppComponentWidget.tsx`](../../src/widgets/core/app-component/AppComponentWidget.tsx)
+  and [`src/widgets/core/app-component/AppComponentWidgetSettings.tsx`](../../src/widgets/core/app-component/AppComponentWidgetSettings.tsx)
   fetch the OpenAPI document asynchronously and build the form dynamically.
 
 The product goal is to turn `AppComponent` into a composition primitive:
@@ -292,22 +292,22 @@ These decisions should be locked before coding starts:
 ### Platform
 
 1. Add `WidgetIoResolverArgs` and `WidgetDefinition.resolveIo` in
-   [`src/widgets/types.ts`](../src/widgets/types.ts).
+   [`src/widgets/types.ts`](../../src/widgets/types.ts).
 2. If needed, extend `WidgetInputEffect.target` with `generated-field`.
 3. Update the dependency model in
-   [`src/dashboards/widget-dependencies.ts`](../src/dashboards/widget-dependencies.ts) to resolve
+   [`src/dashboards/widget-dependencies.ts`](../../src/dashboards/widget-dependencies.ts) to resolve
    per-instance IO with caching.
 4. Add a hook such as `useResolvedWidgetIo` in
-   [`src/dashboards/DashboardWidgetDependencies.tsx`](../src/dashboards/DashboardWidgetDependencies.tsx).
+   [`src/dashboards/DashboardWidgetDependencies.tsx`](../../src/dashboards/DashboardWidgetDependencies.tsx).
 5. Update the bindings editor in
-   [`src/widgets/shared/WidgetBindingPanel.tsx`](../src/widgets/shared/WidgetBindingPanel.tsx) to
+   [`src/widgets/shared/WidgetBindingPanel.tsx`](../../src/widgets/shared/WidgetBindingPanel.tsx) to
    use resolved instance IO for both source outputs and target inputs.
 
 ### AppComponent Contracts And Model
 
 6. Add shared core value contracts in
    `src/widgets/core/app-component/` or a shared core widget-contracts area.
-7. Extend [`src/widgets/core/app-component/appComponentModel.ts`](../src/widgets/core/app-component/appComponentModel.ts)
+7. Extend [`src/widgets/core/app-component/appComponentModel.ts`](../../src/widgets/core/app-component/appComponentModel.ts)
    with:
    - `AppComponentBindingSpec`
    - binding-spec normalization
@@ -316,17 +316,17 @@ These decisions should be locked before coding starts:
    - response-port compilation
    - response value extraction by path
    - bound-input overlay helpers
-8. Extend [`src/widgets/core/app-component/definition.ts`](../src/widgets/core/app-component/definition.ts)
+8. Extend [`src/widgets/core/app-component/definition.ts`](../../src/widgets/core/app-component/definition.ts)
    so `AppComponent` exposes `resolveIo`.
 
 ### AppComponent Settings And Runtime
 
-9. Update [`src/widgets/core/app-component/AppComponentWidgetSettings.tsx`](../src/widgets/core/app-component/AppComponentWidgetSettings.tsx)
+9. Update [`src/widgets/core/app-component/AppComponentWidgetSettings.tsx`](../../src/widgets/core/app-component/AppComponentWidgetSettings.tsx)
    to compile and persist `bindingSpec` whenever the selected operation or request body content type
    changes.
-10. Update [`src/widgets/core/app-component/AppComponentWidget.tsx`](../src/widgets/core/app-component/AppComponentWidget.tsx)
+10. Update [`src/widgets/core/app-component/AppComponentWidget.tsx`](../../src/widgets/core/app-component/AppComponentWidget.tsx)
     to merge resolved bindings into effective request values before submit.
-11. Update [`src/widgets/core/app-component/AppComponentFormSections.tsx`](../src/widgets/core/app-component/AppComponentFormSections.tsx)
+11. Update [`src/widgets/core/app-component/AppComponentFormSections.tsx`](../../src/widgets/core/app-component/AppComponentFormSections.tsx)
     so bound fields render as sourced/read-only.
 12. Change `publishedOutputs` generation so it publishes `portId -> value` for the current
     operation only.
@@ -337,7 +337,7 @@ These decisions should be locked before coding starts:
 14. Verify the dependency graph renders dynamic `AppComponent` ports correctly in settings/studio
     contexts.
 15. Add docs updates to:
-    - [`docs/widgets/core-widgets.md`](../widgets/core-widgets.md)
+    - [`docs/widgets/core-widgets.md`](../../widgets/core-widgets.md)
     - `src/widgets/core/app-component/README.md`
     - `src/widgets/README.md`
 

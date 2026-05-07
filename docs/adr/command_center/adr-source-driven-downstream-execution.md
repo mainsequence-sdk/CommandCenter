@@ -15,9 +15,9 @@ valid upstream executable dependencies first.
 
 Today that runtime path is centered on:
 
-- [`src/dashboards/widget-graph-execution.ts`](../src/dashboards/widget-graph-execution.ts)
-- [`src/dashboards/DashboardWidgetExecution.tsx`](../src/dashboards/DashboardWidgetExecution.tsx)
-- [`src/widgets/core/app-component/AppComponentWidget.tsx`](../src/widgets/core/app-component/AppComponentWidget.tsx)
+- [`src/dashboards/widget-graph-execution.ts`](../../src/dashboards/widget-graph-execution.ts)
+- [`src/dashboards/DashboardWidgetExecution.tsx`](../../src/dashboards/DashboardWidgetExecution.tsx)
+- [`src/widgets/core/app-component/AppComponentWidget.tsx`](../../src/widgets/core/app-component/AppComponentWidget.tsx)
 
 That architecture is correct for:
 
@@ -153,7 +153,7 @@ This keeps passive consumers coherent after manual source execution.
 ### 1. Keep the current graph runner intact
 
 The existing runner in
-[`src/dashboards/widget-graph-execution.ts`](../src/dashboards/widget-graph-execution.ts)
+[`src/dashboards/widget-graph-execution.ts`](../../src/dashboards/widget-graph-execution.ts)
 remains the canonical implementation of:
 
 - cycle detection
@@ -217,7 +217,7 @@ This lets request tracing and execution diagnostics distinguish:
 ### 5. `AppComponent` card submit becomes a flow trigger
 
 The normal submit path in
-[`src/widgets/core/app-component/AppComponentWidget.tsx`](../src/widgets/core/app-component/AppComponentWidget.tsx)
+[`src/widgets/core/app-component/AppComponentWidget.tsx`](../../src/widgets/core/app-component/AppComponentWidget.tsx)
 will switch from:
 
 - `executeWidgetGraph(instanceId, { reason: "manual-submit" })`
@@ -227,7 +227,7 @@ to:
 - `executeWidgetFlow(instanceId, { reason: "manual-submit" })`
 
 The settings path in
-[`src/widgets/core/app-component/AppComponentWidgetSettings.tsx`](../src/widgets/core/app-component/AppComponentWidgetSettings.tsx)
+[`src/widgets/core/app-component/AppComponentWidgetSettings.tsx`](../../src/widgets/core/app-component/AppComponentWidgetSettings.tsx)
 must keep using isolated target execution.
 
 ## Why This Split

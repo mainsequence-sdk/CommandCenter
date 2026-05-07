@@ -14,6 +14,7 @@ export function useAssistantRuntimeAccess() {
     queryKey: [
       "main-sequence-ai",
       "assistant-runtime-access",
+      "command-center-base",
       configuredAssistantEndpoint,
       sessionToken,
       sessionTokenType,
@@ -22,7 +23,8 @@ export function useAssistantRuntimeAccess() {
     staleTime: 30_000,
     queryFn: () =>
       resolveMainSequenceAiAssistantAccess({
-        runtimeTarget: "agent-runtime",
+        assistantEndpoint: configuredAssistantEndpoint ?? undefined,
+        runtimeTarget: "command-center-base",
         sessionToken,
         sessionTokenType,
       }),

@@ -1,4 +1,7 @@
-import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
+import {
+  fetchMainSequenceAiAssistantResponse,
+  type MainSequenceAiAssistantRuntimeTarget,
+} from "./assistant-endpoint";
 
 export type ModelCatalogAuthKind = "api_key" | "oauth";
 export type ModelCatalogReasoningEffort =
@@ -221,11 +224,13 @@ function normalizeModelCatalogPayload(payload: unknown) {
 
 export async function fetchModelCatalog({
   assistantEndpoint,
+  runtimeTarget = "command-center-base",
   signal,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
@@ -235,6 +240,7 @@ export async function fetchModelCatalog({
     assistantEndpoint,
     requestPath: "/api/models/catalog",
     method: "GET",
+    runtimeTarget,
     signal,
     sessionToken: token,
     sessionTokenType: tokenType,

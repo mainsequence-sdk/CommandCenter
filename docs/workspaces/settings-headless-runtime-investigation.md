@@ -4,9 +4,9 @@
 - Date: 2026-04-03
 - Related:
   - [Workspace Runtime Performance Remediation](./runtime-performance-remediation.md)
-  - [ADR: First-Class Widget Bindings and Dependency Graph](../adr/adr-widget-bindings-and-dependency-graph.md)
-  - [ADR: Executable Widget Graph Runner and Refresh Coordination](../adr/adr-executable-widget-graph-runner.md)
-  - [ADR: Headless Workspace Widget Settings Runtime](../adr/adr-headless-workspace-settings-runtime.md)
+  - [ADR: First-Class Widget Bindings and Dependency Graph](../adr/command_center/adr-widget-bindings-and-dependency-graph.md)
+  - [ADR: Executable Widget Graph Runner and Refresh Coordination](../adr/command_center/adr-executable-widget-graph-runner.md)
+  - [ADR: Headless Workspace Widget Settings Runtime](../adr/command_center/adr-headless-workspace-settings-runtime.md)
 
 ## Goal
 

@@ -52,7 +52,7 @@ types.
   Connections app treats active backend connection types as the user-facing availability gate.
 - Publish requests are still deduplicated while the same checksum is already in flight, but identical manifests may be published again intentionally from the admin UI and should no-op server-side through checksum handling.
 - The admin manifest preview now shows validation issues plus a contract preview so registry publication can be reviewed before it is sent to the backend.
-- The standardized contract and remaining rollout checklist live in [docs/adr/adr-agent-ready-widget-type-registry-contract.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/docs/adr/adr-agent-ready-widget-type-registry-contract.md).
+- The standardized contract and remaining rollout checklist live in [docs/adr/command_center/adr-agent-ready-widget-type-registry-contract.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/docs/adr/command_center/adr-agent-ready-widget-type-registry-contract.md).
 
 ## Maintenance Notes
 

@@ -9,4 +9,5 @@ export {
   patchAgentSessionModelConfig,
   startNewAgentSessionRequest,
   type AgentSessionApiRecord,
+  type AgentSessionSerializedRecord,
 } from "../runtime/agent-sessions-api";

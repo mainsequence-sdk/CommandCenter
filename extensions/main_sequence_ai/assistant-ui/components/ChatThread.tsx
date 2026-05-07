@@ -439,11 +439,19 @@ function EmptyState({
   compact?: boolean;
   surface?: "overlay" | "page";
 }) {
+  const { railExperience } = useChatFeature();
+  const isProjectAgentRail = railExperience === "project-agent";
   const isPage = surface === "page";
-  const title = env.useMockData ? "Chat scaffold ready" : "Ask Main Sequence AI";
+  const title = env.useMockData
+    ? "Chat scaffold ready"
+    : isProjectAgentRail
+      ? "Ask Project Agent"
+      : "Ask Main Sequence AI";
   const description = env.useMockData
     ? "This shell is isolated inside `extensions/main_sequence_ai/assistant-ui/`. Mock mode keeps the local scaffold adapter active so the UI can be exercised without a backend."
-    : "The assistant receives the current surface context automatically. Start a conversation about what is visible here or what action to take next.";
+    : isProjectAgentRail
+      ? "This rail is attached to the project's execution agent. Use it to inspect, troubleshoot, and act on this project directly."
+      : "The assistant receives the current surface context automatically. Start a conversation about what is visible here or what action to take next.";
 
   return (
     <div
@@ -483,6 +491,8 @@ function SessionReadinessState({
   message: string;
   status: "loading" | "error" | "not_found";
 }) {
+  const { railExperience } = useChatFeature();
+  const isProjectAgentRail = railExperience === "project-agent";
   const failure = status === "error" || status === "not_found";
 
   return (
@@ -498,7 +508,13 @@ function SessionReadinessState({
         {failure ? <AlertTriangle className="h-5 w-5" /> : <Loader2 className="h-5 w-5 animate-spin" />}
       </div>
       <div className="mt-4 text-base font-semibold text-foreground">
-        {failure ? "AgentSession unavailable" : "Loading AgentSession"}
+        {failure
+          ? isProjectAgentRail
+            ? "Project agent session unavailable"
+            : "AgentSession unavailable"
+          : isProjectAgentRail
+            ? "Loading project agent session"
+            : "Loading AgentSession"}
       </div>
       <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{message}</p>
     </div>
@@ -526,14 +542,6 @@ function formatSessionNotice(value: string) {
     };
   }
 
-  if (normalized.startsWith("A new agent session was created by agent")) {
-    return {
-      detail: normalized,
-      tone: "warning" as const,
-      title: "New agent session available",
-    };
-  }
-
   return {
     detail: normalized,
     tone: "warning" as const,
@@ -542,7 +550,7 @@ function formatSessionNotice(value: string) {
 }
 
 function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }) {
-  const { activateSessionHandoff, pendingSessionHandoff, sessionNotice } = useChatFeature();
+  const { sessionNotice } = useChatFeature();
 
   if (!sessionNotice) {
     return null;
@@ -574,15 +582,6 @@ function SessionNotice({ surface = "overlay" }: { surface?: "overlay" | "page" }
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-foreground">{formatted.title}</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">{formatted.detail}</div>
-          {pendingSessionHandoff ? (
-            <button
-              type="button"
-              className="mt-3 inline-flex rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50"
-              onClick={activateSessionHandoff}
-            >
-              Open session {pendingSessionHandoff.sessionId}
-            </button>
-          ) : null}
         </div>
       </div>
     </div>
@@ -596,7 +595,7 @@ function Composer({
   busyPlaceholder = "Session is working...",
   compact = false,
   isLoadingAvailableModels,
-  isLoadingBaseSession,
+  isSessionIdle = false,
   isCancellingSession,
   isSessionReady = true,
   isSessionLoading = false,
@@ -621,7 +620,7 @@ function Composer({
   busyPlaceholder?: string;
   compact?: boolean;
   isLoadingAvailableModels: boolean;
-  isLoadingBaseSession?: boolean;
+  isSessionIdle?: boolean;
   isCancellingSession?: boolean;
   isSessionReady?: boolean;
   isSessionLoading?: boolean;
@@ -640,25 +639,33 @@ function Composer({
   sessionUnavailableMessage?: string | null;
   sessionLoadingMessage?: string | null;
 }) {
+  const { railExperience } = useChatFeature();
+  const isProjectAgentRail = railExperience === "project-agent";
   const isPage = surface === "page";
   const placeholder = env.useMockData
     ? "Ask about the visible view, action bridges, or backend event wiring..."
-    : "What should we investigate?";
+    : isProjectAgentRail
+      ? "What should the project agent help with?"
+      : "What should we investigate?";
   const hasModelOptions = modelOptions.length > 0;
   const hasProviderOptions = (providerOptions?.length ?? 0) > 0;
   const hasReasoningEffortOptions = reasoningEffortOptions.length > 0;
-  const modelsUnavailable = !env.useMockData && !isLoadingAvailableModels && !hasAvailableModels;
+  const modelsResolving = !env.useMockData && !isSessionIdle && isLoadingAvailableModels;
+  const modelsUnavailable =
+    !env.useMockData && !isSessionIdle && !isLoadingAvailableModels && !hasAvailableModels;
   const modelCatalogError = modelsUnavailable && Boolean(availableModelsError?.trim());
   const emptyModelCatalog = modelsUnavailable && !modelCatalogError;
   const showConfigRow =
+    !isSessionIdle &&
     hasAvailableModels && (hasProviderOptions || hasModelOptions || hasReasoningEffortOptions);
   const sessionUnavailable = !env.useMockData && Boolean(sessionUnavailableMessage);
   const sessionLoading = !env.useMockData && isSessionLoading && !sessionUnavailable;
   const blockTyping =
+    isSessionIdle ||
+    modelsResolving ||
     modelsUnavailable ||
     sessionUnavailable ||
     sessionLoading ||
-    isLoadingBaseSession ||
     !isSessionReady ||
     Boolean(isSessionBusy);
   const modelsUnavailableMessage = modelCatalogError
@@ -681,19 +688,21 @@ function Composer({
           minRows={1}
           maxRows={10}
           placeholder={
-            sessionUnavailable
+            isSessionIdle
+              ? "Select or start a session to continue."
+              : sessionUnavailable
               ? "Session unavailable."
               : sessionLoading
                 ? "Loading AgentSession..."
+              : modelsResolving
+                ? "Loading models..."
               : modelsUnavailable
                 ? "Models unavailable."
-                : isLoadingBaseSession
-                  ? "Connecting to Command Center..."
-                  : isCancellingSession
-                    ? "Stopping session..."
-                    : isSessionBusy
-                      ? busyPlaceholder
-                      : placeholder
+                : isCancellingSession
+                  ? "Stopping session..."
+                  : isSessionBusy
+                    ? busyPlaceholder
+                    : placeholder
           }
           className={cn(
             "w-full resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60",
@@ -715,10 +724,11 @@ function Composer({
             aria-label="Send message"
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
             disabled={
+              isSessionIdle ||
+              modelsResolving ||
               modelsUnavailable ||
               sessionUnavailable ||
               sessionLoading ||
-              isLoadingBaseSession ||
               !isSessionReady
             }
           >
@@ -960,15 +970,13 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
     availableModelsError,
     availableProviders,
     availableReasoningEfforts,
-    baseSessionError,
     cancelActiveSession,
-    currentSessionId,
     isCancellingSession,
     isActiveSessionReady,
     isActiveSessionLoading,
     isCreatingAgentSession,
     isLoadingAvailableModels,
-    isLoadingBaseSession,
+    railExperience,
     selectedModelValue,
     selectedProviderValue,
     selectedReasoningEffortValue,
@@ -982,6 +990,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const pageFooterRef = useRef<HTMLDivElement | null>(null);
   const overlayFooterRef = useRef<HTMLDivElement | null>(null);
+  const historyAutoScrollSessionIdRef = useRef<string | null>(null);
   const providerOptions = availableProviders.map((entry) => ({
     label: entry.label,
     value: entry.value,
@@ -1027,12 +1036,11 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
     (activeSessionReadiness.status === "error" || activeSessionReadiness.status === "not_found")
       ? activeSessionReadiness.error ?? "AgentSession failed to load."
       : null;
-  const sessionUnavailableMessage =
-    !currentSessionId && !env.useMockData
-      ? baseSessionError
-        ? `Unable to open the Command Center base session. ${baseSessionError}`
-        : null
-      : readinessUnavailableMessage;
+  const sessionUnavailableMessage = readinessUnavailableMessage;
+  const isSessionSelectionIdle =
+    !env.useMockData &&
+    activeSessionReadiness.status === "idle" &&
+    !activeSessionReadiness.sessionId;
   const showReadinessState =
     !env.useMockData &&
     (isActiveSessionLoading ||
@@ -1041,7 +1049,38 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
   const readinessStateMessage =
     sessionUnavailableMessage ??
     sessionLoadingMessage ??
-    "Loading AgentSession detail, insights, and history.";
+    (railExperience === "project-agent"
+      ? "Loading project-agent session detail, insights, and history."
+      : "Loading AgentSession detail, insights, and history.");
+  const activeSessionId = activeSessionSummary?.sessionId ?? null;
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionReadiness.status !== "ready" || !hasMessages) {
+      if (activeSessionReadiness.status !== "ready") {
+        historyAutoScrollSessionIdRef.current = null;
+      }
+      return;
+    }
+
+    if (historyAutoScrollSessionIdRef.current === activeSessionId) {
+      return;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      const viewport = viewportRef.current;
+
+      if (!viewport) {
+        return;
+      }
+
+      viewport.scrollTop = viewport.scrollHeight;
+      historyAutoScrollSessionIdRef.current = activeSessionId;
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [activeSessionId, activeSessionReadiness.status, hasMessages]);
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -1074,7 +1113,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   busyPlaceholder={busyPlaceholder}
                   compact={compact}
                   isLoadingAvailableModels={isLoadingAvailableModels}
-                  isLoadingBaseSession={isLoadingBaseSession}
+                  isSessionIdle={isSessionSelectionIdle}
                   isCancellingSession={isCancellingSession}
                   isSessionReady={isActiveSessionReady}
                   isSessionLoading={isActiveSessionLoading}
@@ -1160,7 +1199,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     busyPlaceholder={busyPlaceholder}
                     compact={compact}
                     isLoadingAvailableModels={isLoadingAvailableModels}
-                    isLoadingBaseSession={isLoadingBaseSession}
+                    isSessionIdle={isSessionSelectionIdle}
                     isCancellingSession={isCancellingSession}
                     isSessionReady={isActiveSessionReady}
                     isSessionLoading={isActiveSessionLoading}
@@ -1198,7 +1237,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     busyPlaceholder={busyPlaceholder}
                     compact={compact}
                     isLoadingAvailableModels={isLoadingAvailableModels}
-                    isLoadingBaseSession={isLoadingBaseSession}
+                    isSessionIdle={isSessionSelectionIdle}
                     isCancellingSession={isCancellingSession}
                     isSessionReady={isActiveSessionReady}
                     isSessionLoading={isActiveSessionLoading}

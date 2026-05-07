@@ -30,6 +30,13 @@ export interface CommandCenterBaseSessionHandle {
   };
 }
 
+function buildCommandCenterBaseSessionHandleUrl() {
+  return new URL(
+    "/orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/",
+    env.apiBaseUrl,
+  ).toString();
+}
+
 function asRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -75,10 +82,43 @@ function extractHandleCandidate(payload: unknown) {
   return candidate;
 }
 
-function normalizeCommandCenterBaseSessionHandle(payload: unknown): CommandCenterBaseSessionHandle {
-  const candidate = extractHandleCandidate(payload);
+function hasRuntimeAccessShape(value: Record<string, unknown>) {
+  return Boolean(
+    value.rpc_url ??
+      value.rpcUrl ??
+      value.token ??
+      value.coding_agent_id ??
+      value.codingAgentId ??
+      value.coding_agent_service_id ??
+      value.codingAgentServiceId,
+  );
+}
+
+function normalizeCommandCenterBaseSessionHandle(
+  payload: unknown,
+  options: {
+    fallbackSessionId?: string | number | null;
+    sourceLabel?: string;
+  } = {},
+): CommandCenterBaseSessionHandle {
+  const envelope = asRecord(payload);
+  const extractedCandidate = extractHandleCandidate(payload);
+  const candidate = {
+    ...envelope,
+    ...extractedCandidate,
+  };
   const agentCandidate = asRecord(candidate.agent);
-  const runtimeAccessCandidate = asRecord(candidate.runtime_access ?? candidate.runtimeAccess);
+  const runtimeAccessEnvelopeCandidate = asRecord(
+    candidate.runtime_access ?? candidate.runtimeAccess,
+  );
+  const runtimeAccessCandidate =
+    Object.keys(runtimeAccessEnvelopeCandidate).length > 0
+      ? runtimeAccessEnvelopeCandidate
+      : hasRuntimeAccessShape(candidate)
+        ? candidate
+        : hasRuntimeAccessShape(envelope)
+          ? envelope
+          : {};
   const boundHandle =
     Array.isArray(candidate.bound_handles) && candidate.bound_handles[0]
       ? asRecord(candidate.bound_handles[0])
@@ -91,11 +131,12 @@ function normalizeCommandCenterBaseSessionHandle(payload: unknown): CommandCente
     normalizeIdentifier(candidate.agent_session_id) ??
     normalizeIdentifier(candidate.agentSessionId) ??
     normalizeIdentifier(candidate.agent_session) ??
-    normalizeIdentifier(candidate.id);
+    normalizeIdentifier(candidate.id) ??
+    normalizeIdentifier(options.fallbackSessionId);
 
   if (!sessionId) {
     throw new Error(
-      "Command Center base session response did not include a valid session id.",
+      `${options.sourceLabel ?? "Runtime access"} response did not include a valid session id.`,
     );
   }
 
@@ -178,39 +219,24 @@ function normalizeCommandCenterBaseSessionHandle(payload: unknown): CommandCente
   };
 }
 
-function buildCommandCenterBaseSessionUrl() {
+function buildAgentSessionRuntimeAccessUrl(sessionId: string | number) {
   return new URL(
-    "/orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/",
+    `/orm/api/agents/v1/sessions/${sessionId}/resolve_runtime_access/`,
     env.apiBaseUrl,
   ).toString();
-}
-
-function normalizePayloadSessionId(value: string | number | null | undefined) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const normalized = String(value).trim();
-
-  if (!normalized) {
-    return null;
-  }
-
-  const numeric = Number(normalized);
-  return Number.isInteger(numeric) && numeric > 0 ? numeric : normalized;
 }
 
 function shouldSkipKnativeServiceCreation() {
   return Boolean(rawEnv.VITE_ASSISTANT_UI_PROXY_TARGET?.trim());
 }
 
-export async function fetchOrCreateCommandCenterBaseSession({
-  currentSessionId,
+export async function fetchAgentSessionRuntimeAccess({
+  sessionId,
   signal,
   token,
   tokenType = "Bearer",
 }: {
-  currentSessionId?: string | number | null;
+  sessionId: string | number;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
@@ -218,26 +244,21 @@ export async function fetchOrCreateCommandCenterBaseSession({
   const headers = new Headers({
     Accept: "application/json",
   });
-  const payloadSessionId = normalizePayloadSessionId(currentSessionId);
   const createKnativeService = !shouldSkipKnativeServiceCreation();
-  const requestBody = {
-    ...(payloadSessionId !== null ? { current_session: payloadSessionId } : {}),
-    ...(createKnativeService ? {} : { create_knative_service: false }),
-  };
-  const hasRequestBody = Object.keys(requestBody).length > 0;
+  const requestBody = createKnativeService ? null : { create_knative_service: false };
 
   if (token) {
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  if (hasRequestBody) {
+  if (requestBody) {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(buildCommandCenterBaseSessionUrl(), {
+  const response = await fetch(buildAgentSessionRuntimeAccessUrl(sessionId), {
     method: "POST",
     headers,
-    ...(hasRequestBody
+    ...(requestBody
       ? {
           body: JSON.stringify(requestBody),
         }
@@ -253,10 +274,59 @@ export async function fetchOrCreateCommandCenterBaseSession({
       payload?.message ||
         payload?.detail ||
         payload?.error ||
-        `Command Center base session failed with status ${response.status}.`,
+        `AgentSession runtime access failed with status ${response.status}.`,
     );
   }
 
   const payload = (await response.json()) as unknown;
-  return normalizeCommandCenterBaseSessionHandle(payload);
+  console.log("[main_sequence_ai] resolve_runtime_access response", {
+    payload,
+    sessionId: String(sessionId),
+    url: buildAgentSessionRuntimeAccessUrl(sessionId),
+  });
+  return normalizeCommandCenterBaseSessionHandle(payload, {
+    fallbackSessionId: sessionId,
+    sourceLabel: "AgentSession runtime access",
+  });
+}
+
+export async function fetchCommandCenterBaseSessionHandle({
+  signal,
+  token,
+  tokenType = "Bearer",
+}: {
+  signal?: AbortSignal;
+  token?: string | null;
+  tokenType?: string;
+}) {
+  const headers = new Headers({
+    Accept: "application/json",
+  });
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
+  const response = await fetch(buildCommandCenterBaseSessionHandleUrl(), {
+    method: "POST",
+    headers,
+    signal,
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as
+      | { error?: string; message?: string; detail?: string }
+      | null;
+    throw new Error(
+      payload?.message ||
+        payload?.detail ||
+        payload?.error ||
+        `Command Center base session handle failed with status ${response.status}.`,
+    );
+  }
+
+  const payload = (await response.json()) as unknown;
+  return normalizeCommandCenterBaseSessionHandle(payload, {
+    sourceLabel: "Command Center base session handle",
+  });
 }

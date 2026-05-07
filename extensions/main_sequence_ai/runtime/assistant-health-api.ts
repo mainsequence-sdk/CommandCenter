@@ -1,6 +1,7 @@
 import {
   buildMainSequenceAiAssistantUrl,
   fetchMainSequenceAiAssistantResponse,
+  type MainSequenceAiAssistantRuntimeTarget,
 } from "./assistant-endpoint";
 
 export interface AssistantHealthSnapshot {
@@ -40,16 +41,20 @@ async function readHealthBody(response: Response) {
 
 export async function fetchAssistantHealth({
   assistantEndpoint,
+  runtimeTarget = "command-center-base",
   signal,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
 }): Promise<AssistantHealthSnapshot> {
-  let url = buildMainSequenceAiAssistantUrl(assistantEndpoint, "/health");
+  let url = assistantEndpoint
+    ? buildMainSequenceAiAssistantUrl(assistantEndpoint, "/health")
+    : "/health";
   let response: Response;
 
   try {
@@ -58,6 +63,7 @@ export async function fetchAssistantHealth({
       assistantEndpoint,
       requestPath: "/health",
       method: "GET",
+      runtimeTarget,
       signal,
       sessionToken: token,
       sessionTokenType: tokenType,

@@ -38,15 +38,18 @@ import type {
   AvailableChatModelOption,
   AvailableChatProviderOption,
   AvailableChatReasoningEffortOption,
+  AvailableChatRunConfigOptions,
 } from "../runtime/available-models-api";
-import { fetchAvailableRunConfigOptions } from "../runtime/available-models-api";
+import {
+  buildAvailableRunConfigCacheKey,
+  fetchAvailableRunConfigOptions,
+  peekAvailableRunConfigOptionsCache,
+} from "../runtime/available-models-api";
 import {
   clearMainSequenceAiResolvedRuntimeAccess,
-  fetchMainSequenceAiCommandCenterRuntimeHandle,
   fetchMainSequenceAiAssistantResponse,
-  isMainSequenceAiAssistantProxyMode,
+  resolveMainSequenceAiAssistantEndpointForAgentRequestName,
 } from "../runtime/assistant-endpoint";
-import { fetchOrCreateCommandCenterBaseSession } from "../runtime/command-center-base-session-api";
 import {
   createErrorAgentSessionReadiness,
   createIdleAgentSessionReadiness,
@@ -54,11 +57,16 @@ import {
   createReadyAgentSessionReadiness,
   type AgentSessionInteractionReadiness,
 } from "../runtime/agent-session-readiness";
+import {
+  MainSequenceAiError,
+  withMainSequenceAiErrorSource,
+} from "../runtime/error-source";
 import { cancelChatSession } from "../runtime/session-cancel-api";
 import {
+  applyModelConfigToSerializedSession,
+  attachSerializedSessionToSession,
   attachAgentToSession,
   buildAgentSessionTitle,
-  createAgentSessionFromStreamHandoff,
   createDefaultAgentSessionAgent,
   createEmptyAgentSession,
   DEFAULT_AGENT_LABEL,
@@ -66,23 +74,20 @@ import {
   promoteAgentSessionFromStream,
   readAgentSessions,
   summarizeAgentSession,
-  switchAgentSessionFromStream,
-  toAgentSessionRecordFromBaseHandle,
   toAgentSessionRecordFromApi,
   updateAgentSessionSnapshot,
   writeAgentSessions,
   type AgentSessionRecord,
   type AgentSessionSummary,
   type StreamCreatedAgentSession,
-  type StreamSwitchedAgentSession,
 } from "./agent-sessions";
 import {
   deleteAgentSessionRequest,
-  fetchAgentSessionDetail,
   fetchLatestAgentSessions,
   patchAgentSessionModelConfig,
   startNewAgentSessionRequest,
   type AgentSessionApiRecord,
+  type AgentSessionSerializedRecord,
 } from "./agent-sessions-api";
 import {
   type ChatRunStatus,
@@ -92,6 +97,7 @@ import {
 import { useChatViewContext, type ChatViewContext } from "./chat-context";
 import {
   CHAT_PAGE_PATH,
+  getChatPagePath,
   resolvePreferredChatRailMode,
   useChatUiStore,
   type ChatRailMode,
@@ -101,11 +107,6 @@ import {
   useLatestMessageDataStreamRuntime,
   type LatestMessageDataStreamProtocol,
 } from "./useLatestMessageDataStreamRuntime";
-
-export interface PendingSessionHandoff {
-  agentId: string | null;
-  sessionId: string;
-}
 
 interface ChatFeatureContextValue {
   activeAgentLabel: string;
@@ -117,14 +118,12 @@ interface ChatFeatureContextValue {
   activeSessionDisplayId: string | null;
   activeSessionPreview: string | null;
   activeSessionUpdatedAt: string | null;
-  activateSessionHandoff: () => void;
   availableModels: AvailableChatModelOption[];
   availableModelsError: string | null;
   availableProviders: AvailableChatProviderOption[];
   availableReasoningEfforts: AvailableChatReasoningEffortOption[];
   agentId: string | null;
   agentSessions: AgentSessionSummary[];
-  baseSessionError: string | null;
   cancelActiveSession: () => Promise<void>;
   clearThread: () => void;
   closeRail: () => void;
@@ -137,7 +136,6 @@ interface ChatFeatureContextValue {
   hasActiveChatStream: boolean;
   isRailOpen: boolean;
   isLoadingAvailableModels: boolean;
-  isLoadingBaseSession: boolean;
   isActiveSessionReady: boolean;
   isActiveSessionLoading: boolean;
   isCreatingAgentSession: boolean;
@@ -145,7 +143,7 @@ interface ChatFeatureContextValue {
   isLoadingLatestSessions: boolean;
   latestSessionsError: string | null;
   minimizeToRail: () => void;
-  pendingSessionHandoff: PendingSessionHandoff | null;
+  railExperience: "command-center" | "project-agent";
   railMode: ChatRailMode;
   refreshSessionDetail: () => void;
   refreshSessionInsights: () => void;
@@ -160,6 +158,14 @@ interface ChatFeatureContextValue {
   setSelectedProviderValue: (value: string | null) => void;
   setSelectedReasoningEffortValue: (value: string | null) => void;
   startAgentSession: (agent: AgentSearchResult) => void;
+  openLatestOrStartAgentSessionById: (input: {
+    agentId: string | number;
+    label?: string | null;
+  }) => Promise<void>;
+  startAgentSessionById: (input: {
+    agentId: string | number;
+    label?: string | null;
+  }) => Promise<void>;
   thinkingSummary: string | null;
   toggleChat: () => void;
 }
@@ -241,81 +247,6 @@ function extractNewSessionChunk(data: Record<string, unknown>): StreamCreatedAge
   };
 }
 
-function extractSessionSwitchChunk(data: Record<string, unknown>): StreamSwitchedAgentSession | null {
-  if (data.type !== "session_switch") {
-    return null;
-  }
-
-  const payload = data.session_switch;
-
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return null;
-  }
-
-  const candidate = payload as Record<string, unknown>;
-  const rawAgentSessionId = candidate.agent_session_id;
-  const rawToAgentName = candidate.to_agent_name;
-
-  if (
-    (typeof rawAgentSessionId !== "string" &&
-      !(typeof rawAgentSessionId === "number" && Number.isFinite(rawAgentSessionId))) ||
-    typeof rawToAgentName !== "string" ||
-    !rawToAgentName.trim()
-  ) {
-    return null;
-  }
-
-  const rawAgentId = candidate.agent_id;
-  const parsedAgentId =
-    typeof rawAgentId === "number" && Number.isFinite(rawAgentId)
-      ? rawAgentId
-      : typeof rawAgentId === "string" && rawAgentId.trim()
-        ? Number(rawAgentId)
-        : null;
-
-  return {
-    fromAgentName:
-      typeof candidate.from_agent_name === "string" && candidate.from_agent_name.trim()
-        ? candidate.from_agent_name.trim()
-        : null,
-    toAgentName: rawToAgentName.trim(),
-    projectId:
-      typeof candidate.project_id === "string" && candidate.project_id.trim()
-        ? candidate.project_id.trim()
-        : null,
-    cwd:
-      typeof candidate.cwd === "string" && candidate.cwd.trim()
-        ? candidate.cwd.trim()
-        : null,
-    threadId:
-      typeof candidate.thread_id === "string" && candidate.thread_id.trim()
-        ? candidate.thread_id.trim()
-        : null,
-    agentId: parsedAgentId !== null && Number.isFinite(parsedAgentId) ? parsedAgentId : null,
-    agentUniqueId:
-      typeof candidate.agent_unique_id === "string" && candidate.agent_unique_id.trim()
-        ? candidate.agent_unique_id.trim()
-        : null,
-    agentSessionId: String(rawAgentSessionId),
-    sessionKey:
-      typeof candidate.session_key === "string" && candidate.session_key.trim()
-        ? candidate.session_key.trim()
-        : null,
-    runtimeSessionId:
-      typeof candidate.runtime_session_id === "string" && candidate.runtime_session_id.trim()
-        ? candidate.runtime_session_id.trim()
-        : null,
-    initialTask:
-      typeof candidate.initial_task === "string" && candidate.initial_task.trim()
-        ? candidate.initial_task.trim()
-        : null,
-    summary:
-      typeof candidate.summary === "string" && candidate.summary.trim()
-        ? candidate.summary.trim()
-        : null,
-  };
-}
-
 function createMessageId() {
   return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
@@ -343,6 +274,52 @@ function createStartedAgentSessionRecord({
     updatedAt: new Date().toISOString(),
     messages: [],
   } satisfies AgentSessionRecord;
+}
+
+function buildSyntheticModelCatalogFromSessionModel({
+  model,
+  provider,
+}: {
+  model: string | null | undefined;
+  provider: string | null | undefined;
+}): AvailableChatRunConfigOptions | null {
+  const normalizedProvider = provider?.trim() || null;
+  const normalizedModel = model?.trim() || null;
+
+  if (!normalizedModel) {
+    return null;
+  }
+
+  const providerLabel = normalizedProvider
+    ? normalizedProvider
+        .split(/[-_\s]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")
+    : "Session";
+  const synthesizedModel = {
+    auth: null,
+    id: [normalizedProvider ?? "", "session-default", normalizedModel].join("::"),
+    label: normalizedModel,
+    defaultReasoningEffort: null,
+    value: normalizedModel,
+    provider: normalizedProvider,
+    reasoningEfforts: [],
+    source: "session-default",
+  } satisfies AvailableChatModelOption;
+
+  return {
+    providers: normalizedProvider
+      ? [
+          {
+            label: providerLabel,
+            value: normalizedProvider,
+          },
+        ]
+      : [],
+    models: [synthesizedModel],
+    reasoningEfforts: [],
+  } satisfies AvailableChatRunConfigOptions;
 }
 
 function createTextMessage(
@@ -406,6 +383,19 @@ function sortAgentSessions<T extends { updatedAt: string }>(sessions: readonly T
 
 function normalizeCatalogKey(value: string | null | undefined) {
   return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : null;
+}
+
+function isAbortLikeError(error: unknown) {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return true;
+  }
+
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.trim().toLowerCase();
+  return message.includes("abort");
 }
 
 function findProviderValueBySessionProvider(
@@ -478,33 +468,17 @@ function buildModelCatalogSignature({
   ].join("::");
 }
 
-function resolveChatRequestModel({
-  availableModels,
-  availableProviders,
-  fallbackModelId,
-  session,
+function buildChatAvailableModelsCacheKey({
+  agentRequestName,
+  userId,
 }: {
-  availableModels: readonly AvailableChatModelOption[];
-  availableProviders: readonly AvailableChatProviderOption[];
-  fallbackModelId: string | null;
-  session: AgentSessionRecord | null;
+  agentRequestName: string | null | undefined;
+  userId?: string | null;
 }) {
-  const sessionModel = resolveSessionModelPreference(session);
-  const matchedProviderValue = findProviderValueBySessionProvider(
-    availableProviders,
-    sessionModel.provider,
-  );
-  const matchedModelId = findModelIdBySessionModel(availableModels, {
-    model: sessionModel.model,
-    provider: matchedProviderValue ?? sessionModel.provider,
+  return buildAvailableRunConfigCacheKey({
+    agentRequestName,
+    userId,
   });
-
-  return (
-    availableModels.find((entry) => entry.id === matchedModelId) ??
-    availableModels.find((entry) => entry.id === fallbackModelId) ??
-    availableModels[0] ??
-    null
-  );
 }
 
 function applyModelConfigToSession(
@@ -512,9 +486,11 @@ function applyModelConfigToSession(
   {
     model,
     provider,
+    thinking = "",
   }: {
     model: string;
     provider: string;
+    thinking?: string | null;
   },
 ) {
   if (!session.agent) {
@@ -523,6 +499,11 @@ function applyModelConfigToSession(
 
   return {
     ...session,
+    serializedSession: applyModelConfigToSerializedSession(session.serializedSession, {
+      provider,
+      model,
+      thinking,
+    }),
     agent: {
       ...session.agent,
       llmProvider: provider,
@@ -531,20 +512,95 @@ function applyModelConfigToSession(
   } satisfies AgentSessionRecord;
 }
 
-export function ChatProvider({ children }: { children: ReactNode }) {
+function createFallbackAgentSessionAgentFromId({
+  agentId,
+  label,
+}: {
+  agentId: string | number;
+  label?: string | null;
+}) {
+  const normalizedAgentId = String(agentId).trim();
+  const nextAgent = createDefaultAgentSessionAgent();
+
+  return {
+    ...nextAgent,
+    name: label?.trim() || normalizedAgentId || DEFAULT_AGENT_LABEL,
+    requestName: normalizedAgentId || DEFAULT_AGENT_NAME,
+    agentUniqueId: normalizedAgentId || DEFAULT_AGENT_NAME,
+  };
+}
+
+interface EmbeddedChatRailState {
+  closeRail: () => void;
+  isRailOpen: boolean;
+  openRail: (mode: ChatRailMode) => void;
+  pageOriginPath?: string;
+  railMode: ChatRailMode;
+  setPageOriginPath?: (value: string) => void;
+}
+
+interface ChatProviderProps {
+  children: ReactNode;
+  embeddedLaunchTarget?: {
+    agentId: string | number;
+    label?: string | null;
+    launchKey: number;
+  } | null;
+  embeddedRailState?: EmbeddedChatRailState | null;
+  variant?: "embedded-project-agent" | "global";
+}
+
+export function ChatProvider({
+  children,
+  embeddedLaunchTarget = null,
+  embeddedRailState = null,
+  variant = "global",
+}: ChatProviderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const chatContext = useChatViewContext();
+  const isEmbeddedProjectAgent = variant === "embedded-project-agent";
+  const requestedChatSessionId = useMemo(() => {
+    if (isEmbeddedProjectAgent || location.pathname !== CHAT_PAGE_PATH) {
+      return null;
+    }
+
+    const value = new URLSearchParams(location.search).get("session");
+    const trimmed = value?.trim();
+
+    return trimmed ? trimmed : null;
+  }, [isEmbeddedProjectAgent, location.pathname, location.search]);
+  const shouldAvoidImplicitSessionSelection =
+    isEmbeddedProjectAgent ||
+    (location.pathname === CHAT_PAGE_PATH && !requestedChatSessionId);
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
-  const isRailOpen = useChatUiStore((state) => state.railOpen);
-  const railMode = useChatUiStore((state) => state.railMode);
-  const openRail = useChatUiStore((state) => state.openRail);
-  const closeRail = useChatUiStore((state) => state.closeRail);
-  const pageOriginPath = useChatUiStore((state) => state.pageOriginPath);
-  const setPageOriginPath = useChatUiStore((state) => state.setPageOriginPath);
+  const globalRailOpen = useChatUiStore((state) => state.railOpen);
+  const globalRailMode = useChatUiStore((state) => state.railMode);
+  const globalOpenRail = useChatUiStore((state) => state.openRail);
+  const globalCloseRail = useChatUiStore((state) => state.closeRail);
+  const globalPageOriginPath = useChatUiStore((state) => state.pageOriginPath);
+  const globalSetPageOriginPath = useChatUiStore((state) => state.setPageOriginPath);
+  const isRailOpen = isEmbeddedProjectAgent
+    ? (embeddedRailState?.isRailOpen ?? false)
+    : globalRailOpen;
+  const railMode = isEmbeddedProjectAgent
+    ? (embeddedRailState?.railMode ?? resolvePreferredChatRailMode())
+    : globalRailMode;
+  const openRail = isEmbeddedProjectAgent
+    ? (embeddedRailState?.openRail ?? (() => undefined))
+    : globalOpenRail;
+  const closeRail = isEmbeddedProjectAgent
+    ? (embeddedRailState?.closeRail ?? (() => undefined))
+    : globalCloseRail;
+  const pageOriginPath = isEmbeddedProjectAgent
+    ? (embeddedRailState?.pageOriginPath ?? "/app")
+    : globalPageOriginPath;
+  const setPageOriginPath = isEmbeddedProjectAgent
+    ? (embeddedRailState?.setPageOriginPath ?? (() => undefined))
+    : globalSetPageOriginPath;
   const [messages, setMessages] = useState<readonly ThreadMessageLike[]>([]);
   const [agentSessions, setAgentSessions] = useState<AgentSessionRecord[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -563,15 +619,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [selectedReasoningEffortValue, setSelectedReasoningEffortValue] = useState<string | null>(
     null,
   );
+  const [directLaunchSessionId, setDirectLaunchSessionId] = useState<string | null>(null);
   const [agentId, setAgentId] = useState<string | null>(null);
   const [hasVisibleAssistantOutput, setHasVisibleAssistantOutput] = useState(false);
   const [hasActiveChatStream, setHasActiveChatStream] = useState(false);
   const [isLoadingAvailableModels, setIsLoadingAvailableModels] = useState(false);
   const [isLoadingLatestSessions, setIsLoadingLatestSessions] = useState(false);
-  const [isLoadingBaseSession, setIsLoadingBaseSession] = useState(false);
   const [isCancellingSession, setIsCancellingSession] = useState(false);
-  const [baseSessionError, setBaseSessionError] = useState<string | null>(null);
   const [latestSessionsError, setLatestSessionsError] = useState<string | null>(null);
+  const [hasAttemptedLatestSessionsBootstrap, setHasAttemptedLatestSessionsBootstrap] =
+    useState(false);
   const [latestSessionsAgentFilterId, setLatestSessionsAgentFilterId] = useState<number | null>(null);
   const [latestSessionsRefreshNonce, setLatestSessionsRefreshNonce] = useState(0);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
@@ -585,8 +642,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [isLoadingSessionHistoryBySessionId, setIsLoadingSessionHistoryBySessionId] = useState<
     Record<string, boolean>
   >({});
-  const [pendingSessionHandoff, setPendingSessionHandoff] =
-    useState<PendingSessionHandoff | null>(null);
   const [sessionSelectionMode, setSessionSelectionMode] = useState<"auto" | "explicit">("auto");
   const shouldSignalNewChatRef = useRef(true);
   const pendingNewChatRequestRef = useRef(false);
@@ -594,6 +649,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const runtimeRef = useRef<AssistantRuntime | null>(null);
   const selectedSessionRef = useRef<AgentSessionRecord | null>(null);
   const activeSessionRef = useRef<AgentSessionRecord | null>(null);
+  const activeSessionDetailRef = useRef<AgentSessionDetailSnapshot | null>(null);
   const activeSessionReadinessRef = useRef<AgentSessionInteractionReadiness>(
     createIdleAgentSessionReadiness(null),
   );
@@ -606,12 +662,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const activeChatStreamLookupSessionIdRef = useRef<string | null>(null);
   const sessionPickerSyncRef = useRef<string | null>(null);
   const unavailableSessionModelNoticeRef = useRef<string | null>(null);
-  const baseSessionRequestRef = useRef<AbortController | null>(null);
   const sessionHistoryRequestRef = useRef<AbortController | null>(null);
   const availableModelsRequestRef = useRef<AbortController | null>(null);
   const sessionModelPatchRequestRef = useRef<AbortController | null>(null);
+  const directLaunchSessionIdRef = useRef<string | null>(null);
+  const commandCenterSessionIdRef = useRef<string | null>(null);
+  const embeddedLaunchKeyRef = useRef<number | null>(null);
   const shouldHydrateChatRuntime =
     location.pathname === CHAT_PAGE_PATH || isRailOpen;
+  const isProjectAgentRail = Boolean(directLaunchSessionId);
   const openPreferredRail = useCallback(() => {
     openRail(resolvePreferredChatRailMode());
   }, [openRail]);
@@ -644,6 +703,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     activeChatStreamLookupSessionIdRef.current = null;
     setHasActiveChatStream(false);
   }, []);
+  const clearProjectAgentRailSelection = useCallback(() => {
+    directLaunchSessionIdRef.current = null;
+    setDirectLaunchSessionId(null);
+  }, []);
+  const preserveCommandCenterSelection = useCallback(() => {
+    if (directLaunchSessionIdRef.current === currentSessionIdRef.current) {
+      return;
+    }
+
+    commandCenterSessionIdRef.current = currentSessionIdRef.current;
+  }, []);
+  const restoreCommandCenterSelection = useCallback(() => {
+    clearProjectAgentRailSelection();
+
+    const nextSessionId = commandCenterSessionIdRef.current;
+    if (currentSessionIdRef.current !== nextSessionId) {
+      setCurrentSessionId(nextSessionId);
+    }
+  }, [clearProjectAgentRailSelection]);
   const isSessionHistoryBlockedByActiveStream = useCallback(
     ({
       lookupSessionId,
@@ -739,11 +817,55 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     () => resolveAgentSessionLabel(selectedSession),
     [selectedSession],
   );
+  const availableModelsSessionId = activeSession?.id ?? null;
+  const shouldDeferSessionBoundModelLoading =
+    shouldAvoidImplicitSessionSelection && !availableModelsSessionId;
+  const availableModelsAgentRequestName = useMemo(
+    () => resolveAgentSessionRequestName(activeSession ?? selectedSession),
+    [
+      activeSession?.agent?.requestName,
+      activeSession?.id,
+      selectedSession?.agent?.requestName,
+      selectedSession?.id,
+    ],
+  );
+  const availableModelsAssistantEndpoint = useMemo(
+    () =>
+      resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+        availableModelsAgentRequestName,
+      ),
+    [availableModelsAgentRequestName],
+  );
+  const hasAvailableModelsSessionId = Boolean(availableModelsSessionId);
+  const availableModelsCacheKey = useMemo(
+    () =>
+      buildChatAvailableModelsCacheKey({
+        agentRequestName: availableModelsAgentRequestName,
+        userId: sessionUserId,
+      }),
+    [
+      availableModelsAgentRequestName,
+      sessionUserId,
+    ],
+  );
+  const syntheticAvailableModelsFallback = useMemo(
+    () =>
+      buildSyntheticModelCatalogFromSessionModel({
+        model: selectedSession?.agent?.llmModel ?? null,
+        provider: selectedSession?.agent?.llmProvider ?? null,
+      }),
+    [selectedSession?.agent?.llmModel, selectedSession?.agent?.llmProvider],
+  );
+  const shouldSuppressDirectLaunchRuntimePrefetch =
+    shouldHydrateChatRuntime &&
+    sessionSelectionMode === "explicit" &&
+    isProjectAgentRail;
   const {
     activeDetail: activeSessionDetail,
     refreshSessionDetail,
     refreshSessionInsights,
   } = useAgentSessionDetail({
+    loadTools: !isProjectAgentRail,
     session: activeSession,
     enabled: shouldHydrateChatRuntime,
     token: sessionToken,
@@ -787,28 +909,36 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       return createIdleAgentSessionReadiness(activeSession?.id ?? currentSessionId);
     }
 
-    if (isLoadingBaseSession && !activeSession) {
-      return createLoadingAgentSessionReadiness({
-        sessionId: null,
-      });
-    }
-
-    if (baseSessionError && !activeSession) {
-      return createErrorAgentSessionReadiness({
-        error: baseSessionError,
-        sessionId: null,
-      });
-    }
-
     if (!currentSessionId) {
-      return createLoadingAgentSessionReadiness({
+      if (shouldAvoidImplicitSessionSelection) {
+        return createIdleAgentSessionReadiness(null);
+      }
+
+      if (
+        !hasAttemptedLatestSessionsBootstrap ||
+        isCreatingAgentSession ||
+        isLoadingLatestSessions
+      ) {
+        return createLoadingAgentSessionReadiness({
+          sessionId: null,
+        });
+      }
+
+      if (latestSessionsError) {
+        return createErrorAgentSessionReadiness({
+          error: latestSessionsError,
+          sessionId: null,
+        });
+      }
+
+      return createErrorAgentSessionReadiness({
+        error: "A backend AgentSession is required before chat can accept input.",
         sessionId: null,
       });
     }
 
     if (!activeSession) {
-      return createErrorAgentSessionReadiness({
-        error: "A backend AgentSession is required before chat can accept input.",
+      return createLoadingAgentSessionReadiness({
         sessionId: currentSessionId,
       });
     }
@@ -887,10 +1017,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [
     activeSession,
     activeSessionDetail,
-    baseSessionError,
     currentSessionId,
-    isLoadingBaseSession,
+    hasAttemptedLatestSessionsBootstrap,
+    isCreatingAgentSession,
+    isLoadingLatestSessions,
     isLoadingSessionHistoryBySessionId,
+    latestSessionsError,
     sessionHistoryErrorBySessionId,
     sessionHistoryReadyBySessionId,
     shouldHydrateChatRuntime,
@@ -907,7 +1039,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (location.pathname === CHAT_PAGE_PATH) {
+    if (!isEmbeddedProjectAgent && location.pathname === CHAT_PAGE_PATH) {
       closeRail();
       return;
     }
@@ -923,125 +1055,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const restoredSessions = sortAgentSessions(readAgentSessions(sessionUserId));
+
     setAgentSessions(restoredSessions);
-    setCurrentSessionId(restoredSessions[0]?.id ?? null);
-    setSessionSelectionMode("auto");
+    setCurrentSessionId(
+      requestedChatSessionId ??
+        (shouldAvoidImplicitSessionSelection ? null : restoredSessions[0]?.id ?? null),
+    );
+    setSessionSelectionMode(requestedChatSessionId ? "explicit" : "auto");
+    setHasAttemptedLatestSessionsBootstrap(false);
     loadedSessionIdRef.current = null;
-  }, [sessionUserId]);
+  }, [requestedChatSessionId, sessionUserId, shouldAvoidImplicitSessionSelection]);
 
   useEffect(() => {
-    baseSessionRequestRef.current?.abort();
-
     if (env.useMockData) {
       clearMainSequenceAiResolvedRuntimeAccess();
-      setIsLoadingBaseSession(false);
-      setBaseSessionError(null);
       return;
     }
 
-    if (!shouldHydrateChatRuntime || !sessionUserId || !sessionToken) {
-      if (!sessionToken) {
-        clearMainSequenceAiResolvedRuntimeAccess();
-      }
-      setIsLoadingBaseSession(false);
-      return;
+    if (!sessionToken) {
+      clearMainSequenceAiResolvedRuntimeAccess();
     }
-
-    const controller = new AbortController();
-    baseSessionRequestRef.current = controller;
-    setIsLoadingBaseSession(true);
-    setBaseSessionError(null);
-
-    void (async () => {
-      try {
-        const handle = isMainSequenceAiAssistantProxyMode()
-          ? await fetchOrCreateCommandCenterBaseSession({
-              signal: controller.signal,
-              token: sessionToken,
-              tokenType: sessionTokenType,
-            })
-          : (
-              await fetchMainSequenceAiCommandCenterRuntimeHandle({
-                signal: controller.signal,
-                sessionToken,
-                sessionTokenType,
-              })
-            ).handle;
-        const baseSessionDetail = await fetchAgentSessionDetail({
-          sessionId: handle.sessionId,
-          signal: controller.signal,
-          token: sessionToken,
-          tokenType: sessionTokenType,
-        });
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setAgentSessions((currentSessions) => {
-          const existing =
-            currentSessions.find((session) => session.id === handle.sessionId) ??
-            currentSessions.find((session) => session.origin === "astro_command_center_base") ??
-            undefined;
-          const baseSessionFromHandle = toAgentSessionRecordFromBaseHandle(handle, existing);
-          const baseSession = toAgentSessionRecordFromApi(
-            baseSessionDetail,
-            baseSessionFromHandle,
-          );
-
-          return sortAgentSessions([
-            baseSession,
-            ...currentSessions.filter(
-              (session) =>
-                session.id !== baseSession.id && session.origin !== "astro_command_center_base",
-            ),
-          ]);
-        });
-
-        if (sessionSelectionModeRef.current !== "explicit") {
-          loadedSessionIdRef.current = null;
-          setCurrentSessionId(handle.sessionId);
-        }
-
-        setBaseSessionError(null);
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        clearMainSequenceAiResolvedRuntimeAccess();
-
-        setBaseSessionError(
-          error instanceof Error
-            ? error.message
-            : "Unable to resolve the Command Center base session.",
-        );
-
-        if (sessionSelectionModeRef.current !== "explicit") {
-          loadedSessionIdRef.current = null;
-          currentSessionIdRef.current = null;
-          setCurrentSessionId(null);
-          runtimeRef.current?.thread.reset([]);
-          setAgentId(null);
-          clearThread();
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoadingBaseSession(false);
-        }
-      }
-    })();
-
-    return () => {
-      controller.abort();
-    };
-  }, [
-    clearThread,
-    shouldHydrateChatRuntime,
-    sessionToken,
-    sessionTokenType,
-    sessionUserId,
-  ]);
+  }, [sessionToken]);
 
   useEffect(() => {
     if (env.useMockData) {
@@ -1056,6 +1090,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     availableModelsRequestRef.current?.abort();
 
     if (!shouldHydrateChatRuntime) {
+      setAvailableModels([]);
+      setAvailableProviders([]);
+      setAvailableReasoningEfforts([]);
+      setAvailableModelsError(null);
+      setIsLoadingAvailableModels(false);
+      return;
+    }
+
+    if (shouldDeferSessionBoundModelLoading) {
+      setAvailableModels([]);
+      setAvailableProviders([]);
+      setAvailableReasoningEfforts([]);
+      setAvailableModelsError(null);
+      setIsLoadingAvailableModels(false);
+      return;
+    }
+
+    if (shouldSuppressDirectLaunchRuntimePrefetch) {
+      setAvailableProviders(syntheticAvailableModelsFallback?.providers ?? []);
+      setAvailableModels(syntheticAvailableModelsFallback?.models ?? []);
+      setAvailableReasoningEfforts(syntheticAvailableModelsFallback?.reasoningEfforts ?? []);
       setAvailableModelsError(null);
       setIsLoadingAvailableModels(false);
       return;
@@ -1070,14 +1125,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const cachedOptions = peekAvailableRunConfigOptionsCache(availableModelsCacheKey);
+
+    if (cachedOptions) {
+      setAvailableProviders(cachedOptions.providers);
+      setAvailableModels(cachedOptions.models);
+      setAvailableModelsError(null);
+      setIsLoadingAvailableModels(false);
+      return;
+    }
+
     const controller = new AbortController();
     availableModelsRequestRef.current = controller;
+    setAvailableProviders([]);
+    setAvailableModels([]);
+    setAvailableReasoningEfforts([]);
     setIsLoadingAvailableModels(true);
     setAvailableModelsError(null);
 
     void (async () => {
       try {
         const options = await fetchAvailableRunConfigOptions({
+          assistantEndpoint: availableModelsAssistantEndpoint,
+          cacheKey: availableModelsCacheKey,
+          sessionId: availableModelsSessionId,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
@@ -1091,7 +1162,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         setAvailableModels(options.models);
         setAvailableModelsError(null);
       } catch (error) {
-        if (controller.signal.aborted) {
+        if (controller.signal.aborted || isAbortLikeError(error)) {
           return;
         }
 
@@ -1112,13 +1183,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       controller.abort();
     };
   }, [
+    availableModelsAssistantEndpoint,
+    availableModelsCacheKey,
+    hasAvailableModelsSessionId,
     sessionToken,
     sessionTokenType,
+    shouldDeferSessionBoundModelLoading,
+    shouldSuppressDirectLaunchRuntimePrefetch,
     shouldHydrateChatRuntime,
+    syntheticAvailableModelsFallback,
   ]);
 
   useEffect(() => {
-    if (!shouldHydrateChatRuntime || !sessionToken) {
+    if (
+      !shouldHydrateChatRuntime ||
+      !sessionToken ||
+      shouldSuppressDirectLaunchRuntimePrefetch
+    ) {
+      setHasAttemptedLatestSessionsBootstrap(false);
       setIsLoadingLatestSessions(false);
       setLatestSessionsError(null);
       return;
@@ -1148,22 +1230,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           const remoteSessions = remoteRecords.map((record) =>
             toAgentSessionRecordFromApi(record, currentById.get(String(record.agent_session || record.id))),
           );
-          const baseSession =
-            currentSessions.find((session) => session.origin === "astro_command_center_base") ?? null;
           const currentSession = currentSessions.find(
             (session) => session.id === currentSessionIdRef.current,
           );
           const keepLocalDraft =
             currentSession &&
-            (!currentSession.runtimeSessionId || currentSession.isPlaceholder) &&
-            currentSession.origin !== "astro_command_center_base";
+            (!currentSession.runtimeSessionId || currentSession.isPlaceholder);
 
           const nextSessions = sortAgentSessions(
             [
-              ...(baseSession &&
-              !remoteSessions.some((session) => session.id === baseSession.id)
-                ? [baseSession]
-                : []),
               ...(keepLocalDraft
                 ? [
                     currentSession,
@@ -1172,8 +1247,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 : remoteSessions),
             ],
           );
+          const requestedSession = requestedChatSessionId
+            ? nextSessions.find((session) => session.id === requestedChatSessionId) ?? null
+            : null;
 
-          if (!currentSession && sessionSelectionModeRef.current !== "explicit") {
+          if (requestedSession) {
+            setSessionSelectionMode("explicit");
+            setCurrentSessionId(requestedSession.id);
+          } else if (requestedChatSessionId && !currentSession) {
+            setCurrentSessionId(nextSessions[0]?.id ?? null);
+          } else if (
+            !currentSession &&
+            sessionSelectionModeRef.current !== "explicit" &&
+            !shouldAvoidImplicitSessionSelection
+          ) {
             setCurrentSessionId(nextSessions[0]?.id ?? null);
           } else if (
             currentSession &&
@@ -1197,6 +1284,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         );
       } finally {
         if (!controller.signal.aborted) {
+          setHasAttemptedLatestSessionsBootstrap(true);
           setIsLoadingLatestSessions(false);
         }
       }
@@ -1212,11 +1300,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     sessionTokenType,
     sessionUserId,
     shouldHydrateChatRuntime,
+    shouldSuppressDirectLaunchRuntimePrefetch,
+    shouldAvoidImplicitSessionSelection,
+    requestedChatSessionId,
   ]);
 
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
+
+  useEffect(() => {
+    directLaunchSessionIdRef.current = directLaunchSessionId;
+
+    if (
+      directLaunchSessionId &&
+      (!currentSessionId || currentSessionId !== directLaunchSessionId)
+    ) {
+      directLaunchSessionIdRef.current = null;
+      setDirectLaunchSessionId(null);
+    }
+  }, [currentSessionId, directLaunchSessionId]);
+
+  useEffect(() => {
+    if (directLaunchSessionId) {
+      return;
+    }
+
+    commandCenterSessionIdRef.current = currentSessionId;
+  }, [currentSessionId, directLaunchSessionId]);
 
   useEffect(() => {
     selectedSessionRef.current = selectedSession;
@@ -1225,6 +1336,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     activeSessionRef.current = activeSession;
   }, [activeSession]);
+
+  useEffect(() => {
+    activeSessionDetailRef.current = activeSessionDetail;
+  }, [activeSessionDetail]);
 
   useEffect(() => {
     activeSessionReadinessRef.current = activeSessionReadiness;
@@ -1250,10 +1365,52 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     console.log("[main_sequence_ai] active session", activeSession);
   }, [activeSession]);
 
+  useEffect(() => {
+    const sessionId = activeSessionDetail?.sessionId ?? null;
+    const serializedRecord = activeSessionDetail?.serializedRecord ?? null;
+
+    if (!sessionId || !serializedRecord) {
+      return;
+    }
+
+    setAgentSessions((currentSessions) =>
+      currentSessions.map((session) =>
+        session.id === sessionId
+          ? attachSerializedSessionToSession(session, serializedRecord)
+          : session,
+      ),
+    );
+
+    if (activeSessionRef.current?.id === sessionId) {
+      activeSessionRef.current = attachSerializedSessionToSession(
+        activeSessionRef.current,
+        serializedRecord,
+      );
+    }
+
+    if (selectedSessionRef.current?.id === sessionId) {
+      selectedSessionRef.current = attachSerializedSessionToSession(
+        selectedSessionRef.current,
+        serializedRecord,
+      );
+    }
+  }, [activeSessionDetail?.serializedRecord, activeSessionDetail?.sessionId]);
+
   const persistSelectedSessionModelConfig = useCallback(
-    ({ model, provider }: { model: string | null; provider: string | null }) => {
+    ({
+      model,
+      persistToBackend = true,
+      provider,
+      thinking = "",
+    }: {
+      model: string | null;
+      persistToBackend?: boolean;
+      provider: string | null;
+      thinking?: string | null;
+    }) => {
       const normalizedProvider = provider?.trim();
       const normalizedModel = model?.trim();
+      const normalizedThinking = typeof thinking === "string" ? thinking : "";
       const activeSession = activeSessionRef.current;
       const sessionId = resolveAgentSessionLookupId(activeSession);
 
@@ -1264,7 +1421,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const normalizedConfig = {
         provider: normalizedProvider,
         model: normalizedModel,
+        thinking: normalizedThinking,
       };
+      const previousActiveSession = activeSession;
       const nextActiveSession = activeSession.agent
         ? applyModelConfigToSession(activeSession, normalizedConfig)
         : activeSession;
@@ -1286,6 +1445,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }),
       );
 
+      if (!persistToBackend) {
+        return;
+      }
+
       sessionModelPatchRequestRef.current?.abort();
       const controller = new AbortController();
       sessionModelPatchRequestRef.current = controller;
@@ -1295,20 +1458,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           await patchAgentSessionModelConfig({
             llmModel: normalizedModel,
             llmProvider: normalizedProvider,
+            llmThinking: normalizedThinking,
             sessionId,
             signal: controller.signal,
             token: sessionToken,
             tokenType: sessionTokenType,
           });
-
-          if (!controller.signal.aborted && currentSessionIdRef.current === activeSession.id) {
-            refreshSessionDetail();
-            refreshSessionInsights();
-          }
         } catch (error) {
           if (controller.signal.aborted) {
             return;
           }
+
+          if (activeSessionRef.current?.id === previousActiveSession.id) {
+            activeSessionRef.current = previousActiveSession;
+          }
+
+          if (selectedSessionRef.current?.id === previousActiveSession.id) {
+            selectedSessionRef.current = previousActiveSession;
+          }
+
+          setAgentSessions((currentSessions) =>
+            currentSessions.map((session) =>
+              session.id === previousActiveSession.id ? previousActiveSession : session,
+            ),
+          );
 
           setSessionNotice(
             error instanceof Error
@@ -1322,7 +1495,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
       })();
     },
-    [refreshSessionDetail, refreshSessionInsights, sessionToken, sessionTokenType],
+    [sessionToken, sessionTokenType],
   );
 
   const handleSelectedProviderChange = useCallback(
@@ -1354,6 +1527,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       persistSelectedSessionModelConfig({
         provider,
         model: nextModel?.value ?? currentModel?.value ?? null,
+        thinking: selectedReasoningEffortValueRef.current ?? "",
+        persistToBackend: false,
       });
     },
     [availableModels, persistSelectedSessionModelConfig, selectedModelValue],
@@ -1377,6 +1552,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       persistSelectedSessionModelConfig({
         provider: selectedModel?.provider ?? selectedProviderValue,
         model: selectedModel?.value ?? null,
+        thinking: selectedReasoningEffortValueRef.current ?? "",
       });
     },
     [availableModels, persistSelectedSessionModelConfig, selectedProviderValue],
@@ -1387,7 +1563,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
 
     setSelectedReasoningEffortValue(value);
-  }, []);
+    const selectedModel =
+      availableModels.find((model) => model.id === selectedModelValueRef.current) ?? null;
+
+    persistSelectedSessionModelConfig({
+      provider: selectedModel?.provider ?? selectedProviderValue,
+      model: selectedModel?.value ?? null,
+      thinking: value ?? "",
+    });
+  }, [availableModels, persistSelectedSessionModelConfig, selectedProviderValue]);
 
   useEffect(() => {
     writeAgentSessions(sessionUserId, agentSessions);
@@ -1709,91 +1893,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const switchCurrentSessionFromStream = useCallback((streamSession: StreamSwitchedAgentSession) => {
-    const currentId = currentSessionIdRef.current;
-
-    if (!currentId) {
-      return;
-    }
-
-    const sourceMessages =
-      ((runtimeRef.current?.thread.getState().messages as readonly ThreadMessageLike[] | undefined) ??
-        []);
-    const nextSessionId = streamSession.agentSessionId;
-
-    setAgentSessions((currentSessions) => {
-      const currentSession = currentSessions.find((session) => session.id === currentId);
-
-      if (!currentSession) {
-        return currentSessions;
-      }
-
-      const existingTarget =
-        nextSessionId === currentId
-          ? currentSession
-          : currentSessions.find((session) => session.id === nextSessionId) ?? null;
-      const switchedSession = switchAgentSessionFromStream({
-        session: existingTarget ?? currentSession,
-        stream: streamSession,
-        messages: sourceMessages.length > 0 ? sourceMessages : currentSession.messages,
-      });
-
-      return sortAgentSessions([
-        switchedSession,
-        ...currentSessions.filter(
-          (session) => session.id !== currentId && session.id !== nextSessionId,
-        ),
-      ]);
-    });
-
-    loadedSessionIdRef.current = nextSessionId;
-    currentSessionIdRef.current = nextSessionId;
-    setCurrentSessionId(nextSessionId);
-  }, []);
-
-  const stageCrossAgentSessionHandoff = useCallback(
-    (streamSession: StreamCreatedAgentSession, agentId: string | null) => {
-      const nextSessionId = streamSession.agentSessionId;
-
-      setAgentSessions((currentSessions) => {
-        const existingSession = currentSessions.find((session) => session.id === nextSessionId);
-        const handoffSession = createAgentSessionFromStreamHandoff(
-          streamSession,
-          existingSession,
-        );
-
-        return sortAgentSessions([
-          handoffSession,
-          ...currentSessions.filter((session) => session.id !== nextSessionId),
-        ]);
-      });
-      setPendingSessionHandoff({
-        agentId,
-        sessionId: nextSessionId,
-      });
-      setLatestSessionsAgentFilterId(null);
-      setLatestSessionsRefreshNonce((current) => current + 1);
-      setSessionNotice(
-        `A new agent session was created by agent ${agentId ?? "unknown"}: ${nextSessionId}.`,
-      );
-    },
-    [],
-  );
-
-  const activateSessionHandoff = useCallback(() => {
-    const handoff = pendingSessionHandoff;
-
-    if (!handoff) {
-      return;
-    }
-
-    persistSessionMessages();
-    setSessionSelectionMode("explicit");
-    setCurrentSessionId(handoff.sessionId);
-    setPendingSessionHandoff(null);
-    setSessionNotice(null);
-  }, [pendingSessionHandoff, persistSessionMessages]);
-
   const selectAgentSession = useCallback(
     (sessionId: string) => {
       if (currentSessionIdRef.current === sessionId) {
@@ -1801,13 +1900,40 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
 
       persistSessionMessages();
+      clearProjectAgentRailSelection();
       setSessionSelectionMode("explicit");
-      setPendingSessionHandoff(null);
       setSessionNotice(null);
       setCurrentSessionId(sessionId);
     },
-    [persistSessionMessages],
+    [clearProjectAgentRailSelection, persistSessionMessages],
   );
+
+  useEffect(() => {
+    if (location.pathname !== CHAT_PAGE_PATH || !requestedChatSessionId) {
+      return;
+    }
+
+    if (!agentSessions.some((session) => session.id === requestedChatSessionId)) {
+      return;
+    }
+
+    if (currentSessionIdRef.current === requestedChatSessionId) {
+      if (sessionSelectionModeRef.current !== "explicit") {
+        setSessionSelectionMode("explicit");
+      }
+      return;
+    }
+
+    persistSessionMessages();
+    setSessionSelectionMode("explicit");
+    setSessionNotice(null);
+    setCurrentSessionId(requestedChatSessionId);
+  }, [
+    agentSessions,
+    location.pathname,
+    persistSessionMessages,
+    requestedChatSessionId,
+  ]);
 
   const createAgentSession = useCallback(async () => {
     if (isCreatingAgentSession) {
@@ -1815,6 +1941,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
 
     persistSessionMessages();
+    clearProjectAgentRailSelection();
     setSessionSelectionMode("explicit");
 
     if (env.useMockData) {
@@ -1860,7 +1987,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
 
     setIsCreatingAgentSession(true);
-    setPendingSessionHandoff(null);
     setSessionNotice(null);
 
     try {
@@ -1896,6 +2022,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [
     agentSessions,
+    clearProjectAgentRailSelection,
     isCreatingAgentSession,
     persistSessionMessages,
     sessionToken,
@@ -1964,6 +2091,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
 
       persistSessionMessages();
+      clearProjectAgentRailSelection();
       setSessionSelectionMode("explicit");
       setLatestSessionsAgentFilterId(agent.id);
 
@@ -1987,7 +2115,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
 
       setIsCreatingAgentSession(true);
-      setPendingSessionHandoff(null);
       setSessionNotice(null);
 
       try {
@@ -2023,6 +2150,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
     },
     [
+      clearProjectAgentRailSelection,
       isCreatingAgentSession,
       persistSessionMessages,
       sessionToken,
@@ -2031,6 +2159,233 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       toast,
     ],
   );
+
+  const startAgentSessionById = useCallback(
+    async ({
+      agentId,
+      label,
+    }: {
+      agentId: string | number;
+      label?: string | null;
+    }) => {
+      if (isCreatingAgentSession) {
+        return;
+      }
+
+      const normalizedAgentId = `${agentId}`.trim();
+
+      if (!normalizedAgentId) {
+        toast({
+          title: "Agent session not created",
+          description: "The selected project agent does not expose a valid backend agent id.",
+          variant: "error",
+        });
+        return;
+      }
+
+      persistSessionMessages();
+      setSessionSelectionMode("explicit");
+      setLatestSessionsAgentFilterId(null);
+      setSessionNotice(null);
+      setIsCreatingAgentSession(true);
+      preserveCommandCenterSelection();
+
+      try {
+        const { record, sessionId } = await startNewAgentSessionRequest({
+          agentId: normalizedAgentId,
+          createdByUser: sessionUserId ?? "",
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+        const fallbackSession = createEmptyAgentSession(
+          createFallbackAgentSessionAgentFromId({
+            agentId: normalizedAgentId,
+            label,
+          }),
+        );
+        const nextSession = createStartedAgentSessionRecord({
+          fallbackSession,
+          record,
+          sessionId,
+        });
+
+        setAgentSessions((currentSessions) =>
+          sortAgentSessions([
+            nextSession,
+            ...currentSessions.filter((session) => session.id !== nextSession.id),
+          ]),
+        );
+        directLaunchSessionIdRef.current = nextSession.id;
+        setDirectLaunchSessionId(nextSession.id);
+        setCurrentSessionId(nextSession.id);
+        scheduleOpenPreferredRail();
+      } catch (error) {
+        toast({
+          title: "Agent session not created",
+          description:
+            error instanceof Error ? error.message : "Unable to create a new agent session.",
+          variant: "error",
+        });
+      } finally {
+        setIsCreatingAgentSession(false);
+      }
+    },
+    [
+      isCreatingAgentSession,
+      persistSessionMessages,
+      preserveCommandCenterSelection,
+      scheduleOpenPreferredRail,
+      sessionToken,
+      sessionTokenType,
+      sessionUserId,
+      toast,
+    ],
+  );
+
+  const openLatestOrStartAgentSessionById = useCallback(
+    async ({
+      agentId,
+      label,
+    }: {
+      agentId: string | number;
+      label?: string | null;
+    }) => {
+      if (isCreatingAgentSession) {
+        return;
+      }
+
+      const normalizedAgentId = `${agentId}`.trim();
+
+      if (!normalizedAgentId) {
+        toast({
+          title: "Agent session not opened",
+          description: "The selected project agent does not expose a valid backend agent id.",
+          variant: "error",
+        });
+        return;
+      }
+
+      persistSessionMessages();
+      setSessionSelectionMode("explicit");
+      setLatestSessionsAgentFilterId(null);
+      setSessionNotice(null);
+      setIsCreatingAgentSession(true);
+      preserveCommandCenterSelection();
+
+      try {
+        const latestAgentSessions = await fetchLatestAgentSessions({
+          agentId: normalizedAgentId,
+          createdByUser: sessionUserId ?? "",
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+        const latestSessionRecord = latestAgentSessions[0] ?? null;
+
+        if (latestSessionRecord) {
+          const fallbackSession = createEmptyAgentSession(
+            createFallbackAgentSessionAgentFromId({
+              agentId: normalizedAgentId,
+              label,
+            }),
+          );
+          const existingSession =
+            agentSessions.find(
+              (session) =>
+                session.id === String(latestSessionRecord.agent_session || latestSessionRecord.id),
+            ) ?? fallbackSession;
+          const nextSession = attachSerializedSessionToSession(
+            existingSession,
+            latestSessionRecord as AgentSessionSerializedRecord,
+          );
+
+          setAgentSessions((currentSessions) =>
+            sortAgentSessions([
+              nextSession,
+              ...currentSessions.filter((session) => session.id !== nextSession.id),
+            ]),
+          );
+          directLaunchSessionIdRef.current = nextSession.id;
+          setDirectLaunchSessionId(nextSession.id);
+          setCurrentSessionId(nextSession.id);
+          scheduleOpenPreferredRail();
+          return;
+        }
+
+        const { record, sessionId } = await startNewAgentSessionRequest({
+          agentId: normalizedAgentId,
+          createdByUser: sessionUserId ?? "",
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+        const fallbackSession = createEmptyAgentSession(
+          createFallbackAgentSessionAgentFromId({
+            agentId: normalizedAgentId,
+            label,
+          }),
+        );
+        const nextSession = createStartedAgentSessionRecord({
+          fallbackSession,
+          record,
+          sessionId,
+        });
+
+        setAgentSessions((currentSessions) =>
+          sortAgentSessions([
+            nextSession,
+            ...currentSessions.filter((session) => session.id !== nextSession.id),
+          ]),
+        );
+        directLaunchSessionIdRef.current = nextSession.id;
+        setDirectLaunchSessionId(nextSession.id);
+        setCurrentSessionId(nextSession.id);
+        scheduleOpenPreferredRail();
+      } catch (error) {
+        toast({
+          title: "Agent session not opened",
+          description:
+            error instanceof Error ? error.message : "Unable to open the project agent session.",
+          variant: "error",
+        });
+      } finally {
+        setIsCreatingAgentSession(false);
+      }
+    },
+    [
+      agentSessions,
+      isCreatingAgentSession,
+      persistSessionMessages,
+      preserveCommandCenterSelection,
+      scheduleOpenPreferredRail,
+      sessionToken,
+      sessionTokenType,
+      sessionUserId,
+      toast,
+    ],
+  );
+
+  useEffect(() => {
+    if (!isEmbeddedProjectAgent || !isRailOpen || !embeddedLaunchTarget?.agentId) {
+      return;
+    }
+
+    if (embeddedLaunchKeyRef.current === embeddedLaunchTarget.launchKey) {
+      return;
+    }
+
+    embeddedLaunchKeyRef.current = embeddedLaunchTarget.launchKey;
+
+    void openLatestOrStartAgentSessionById({
+      agentId: embeddedLaunchTarget.agentId,
+      label: embeddedLaunchTarget.label,
+    });
+  }, [
+    embeddedLaunchTarget?.agentId,
+    embeddedLaunchTarget?.label,
+    embeddedLaunchTarget?.launchKey,
+    isEmbeddedProjectAgent,
+    isRailOpen,
+    openLatestOrStartAgentSessionById,
+  ]);
 
   const loadCurrentSession = useCallback(
     (sessionId: string | null) => {
@@ -2108,6 +2463,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       void (async () => {
         try {
           const snapshot = await fetchSessionHistory({
+            assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+              resolveAgentSessionRequestName(session),
+            ),
             sessionId: lookupSessionId,
             signal: controller.signal,
             token: sessionToken,
@@ -2145,7 +2503,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           const latestSession =
             activeSessionRef.current?.id === sessionId ? activeSessionRef.current : session;
 
-          if (snapshot.session.status === "running" && latestSession.working) {
+          if (snapshot.messages.length === 0 && snapshot.session.status !== "running") {
+            setIsRunning(false);
+            setRunStatus("idle");
+            setRunStatusDetail(null);
+          } else if (snapshot.session.status === "running" && latestSession.working) {
             setIsRunning(true);
             setRunStatus("responding");
             setRunStatusDetail("Restored live session.");
@@ -2332,6 +2694,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const activeSession = activeSessionRef.current;
       const currentSessionId = resolveAgentSessionLookupId(activeSession);
       const { response } = await fetchMainSequenceAiAssistantResponse({
+        assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+          resolveAgentSessionRequestName(activeSession),
+        ),
         currentSessionId,
         requestPath: "/api/chat",
         runtimeTarget: "agent-runtime",
@@ -2354,25 +2719,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     body: async () => {
       const selectedSession = selectedSessionRef.current;
       const activeSession = activeSessionRef.current;
+      const activeSessionDetail = activeSessionDetailRef.current;
       const activeSessionReadiness = activeSessionReadinessRef.current;
 
       if (activeSessionReadiness.status !== "ready") {
-        throw new Error(
+        throw new MainSequenceAiError(
           activeSessionReadiness.error ??
             "AgentSession is still loading. Wait for session detail, insights, and history before sending.",
+          {
+            source: "frontend_runtime_guard",
+          },
         );
       }
 
       const selectedSessionId = resolveAgentSessionLookupId(activeSession);
       const isNewChatRequest = !activeSession || !selectedSessionId;
-      const selectedModel = resolveChatRequestModel({
-        availableModels,
-        availableProviders,
-        fallbackModelId: selectedModelValueRef.current,
-        session: activeSession,
-      });
+      const serializedSession =
+        activeSession?.serializedSession ?? activeSessionDetail?.serializedRecord ?? null;
       const selectedReasoningEffort =
         selectedReasoningEffortValueRef.current ?? availableReasoningEfforts[0]?.value ?? null;
+
+      if (!isNewChatRequest && !serializedSession) {
+        throw new MainSequenceAiError(
+          "AgentSession detail payload is unavailable. Wait for the session serializer to finish loading before sending.",
+          {
+            source: "frontend_runtime_guard",
+          },
+        );
+      }
 
       pendingNewChatRequestRef.current = isNewChatRequest;
       expectedNewSessionRef.current = isNewChatRequest;
@@ -2390,28 +2764,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ...buildAgentSessionRequestBodyFragment({
           agentName: resolveAgentSessionRequestName(selectedSession),
           context: chatContext,
-          model: selectedModel
+          newChat: isNewChatRequest,
+          runConfig: selectedReasoningEffort
             ? {
-                source: selectedModel.source,
-                model: selectedModel.value,
-                provider: selectedModel.provider,
-                ...(selectedReasoningEffort
-                  ? {
-                      runConfig: {
-                        reasoning_effort: selectedReasoningEffort,
-                      },
-                    }
-                  : {}),
+                reasoning_effort: selectedReasoningEffort,
               }
             : undefined,
-          newChat: isNewChatRequest,
+          session: !isNewChatRequest ? serializedSession : null,
           sessionId: !isNewChatRequest ? selectedSessionId : null,
           threadId:
             !isNewChatRequest ? activeSession?.threadId ?? currentSessionIdRef.current : null,
           userId: sessionUserId,
           workflowKey: activeAgentRequestName,
         }),
-        runConfig: undefined,
       };
     },
     onRequestStart: async () => {
@@ -2455,31 +2820,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           shouldSignalNewChatRef.current = false;
           pendingNewChatRequestRef.current = false;
           setSessionNotice(null);
-        } else {
-          stageCrossAgentSessionHandoff(streamSession, chunkAgentId);
-        }
-
-        return;
-      }
-
-      const switchedSession = extractSessionSwitchChunk(data);
-
-      if (switchedSession) {
-        switchCurrentSessionFromStream(switchedSession);
-        markActiveChatStream({
-          lookupSessionId: switchedSession.runtimeSessionId ?? switchedSession.agentSessionId,
-          sessionId: switchedSession.agentSessionId,
-        });
-        setAgentSessionWorkingState({
-          sessionId: switchedSession.agentSessionId,
-          working: true,
-        });
-        shouldSignalNewChatRef.current = false;
-        pendingNewChatRequestRef.current = false;
-        setSessionNotice(null);
-
-        if (switchedSession.agentId !== null) {
-          setAgentId(String(switchedSession.agentId));
         }
 
         return;
@@ -2487,13 +2827,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       if (type === "error") {
         const streamError =
-          typeof data.error === "string" && data.error.trim()
-            ? data.error.trim()
-            : typeof data.message === "string" && data.message.trim()
-              ? data.message.trim()
-              : typeof data.error_detail === "string" && data.error_detail.trim()
-                ? data.error_detail.trim()
-                : "The assistant runtime reported an error.";
+          withMainSequenceAiErrorSource({
+            message:
+              typeof data.error === "string" && data.error.trim()
+                ? data.error.trim()
+                : typeof data.message === "string" && data.message.trim()
+                  ? data.message.trim()
+                  : typeof data.error_detail === "string" && data.error_detail.trim()
+                    ? data.error_detail.trim()
+                    : "The assistant runtime reported an error.",
+            source:
+              typeof data.error_source === "string" && data.error_source.trim()
+                ? data.error_source.trim()
+                : typeof data.source === "string" && data.source.trim()
+                  ? data.source.trim()
+                  : "assistant_runtime_stream",
+          });
 
         setRunStatus("error");
         setRunStatusDetail(streamError);
@@ -2642,6 +2991,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     try {
       const cancelPromise = cancelChatSession({
+        assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+          resolveAgentSessionRequestName(activeSession),
+        ),
         body: {
           runtimeSessionId,
           threadId,
@@ -2649,6 +3001,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           reason: "user_requested",
           message: "User pressed stop.",
         },
+        runtimeTarget: "agent-runtime",
         token: sessionToken,
         tokenType: sessionTokenType,
       });
@@ -2740,7 +3093,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
 
     closeRail();
-    navigate(CHAT_PAGE_PATH);
+    navigate(getChatPagePath(currentSessionIdRef.current));
   }, [
     closeRail,
     location.hash,
@@ -2760,21 +3113,38 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     openPreferredRail();
   }, [location.pathname, navigate, openPreferredRail, pageOriginPath, scheduleOpenPreferredRail]);
 
+  const closeChatRail = useCallback(() => {
+    if (location.pathname !== CHAT_PAGE_PATH && directLaunchSessionIdRef.current) {
+      restoreCommandCenterSelection();
+    }
+
+    closeRail();
+  }, [closeRail, location.pathname, restoreCommandCenterSelection]);
+
   const toggleChat = useCallback(() => {
     if (location.pathname === CHAT_PAGE_PATH) {
+      if (directLaunchSessionIdRef.current) {
+        restoreCommandCenterSelection();
+      }
+
       navigate(pageOriginPath || "/app");
       scheduleOpenPreferredRail();
       return;
     }
 
     if (isRailOpen) {
-      closeRail();
+      closeChatRail();
       return;
+    }
+
+    if (directLaunchSessionIdRef.current) {
+      restoreCommandCenterSelection();
     }
 
     openPreferredRail();
   }, [
-    closeRail,
+    closeChatRail,
+    restoreCommandCenterSelection,
     isRailOpen,
     location.pathname,
     navigate,
@@ -2794,17 +3164,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeSessionDisplayId,
       activeSessionPreview,
       activeSessionUpdatedAt,
-      activateSessionHandoff,
       availableModels,
       availableModelsError,
       availableProviders,
       availableReasoningEfforts,
       agentId,
       agentSessions: sortedAgentSessions,
-      baseSessionError,
       cancelActiveSession,
       clearThread: clearRuntimeThread,
-      closeRail,
+      closeRail: closeChatRail,
       context: chatContext,
       createAgentSession,
       currentSessionId,
@@ -2814,7 +3182,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       hasVisibleAssistantOutput,
       isRailOpen,
       isLoadingAvailableModels,
-      isLoadingBaseSession,
       isActiveSessionReady,
       isActiveSessionLoading,
       isCreatingAgentSession,
@@ -2822,7 +3189,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       isLoadingLatestSessions,
       latestSessionsError,
       minimizeToRail,
-      pendingSessionHandoff,
+      railExperience: isProjectAgentRail ? "project-agent" : "command-center",
       railMode,
       refreshSessionDetail,
       refreshSessionInsights,
@@ -2834,9 +3201,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       selectedProviderValue,
       selectedReasoningEffortValue,
       setSelectedModelValue: handleSelectedModelChange,
+      openLatestOrStartAgentSessionById,
       setSelectedProviderValue: handleSelectedProviderChange,
       setSelectedReasoningEffortValue: handleSelectedReasoningEffortChange,
       startAgentSession,
+      startAgentSessionById,
       thinkingSummary,
       toggleChat,
     }),
@@ -2850,18 +3219,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       activeSessionDisplayId,
       activeSessionPreview,
       activeSessionUpdatedAt,
-      activateSessionHandoff,
       availableModels,
       availableModelsError,
       availableProviders,
       availableReasoningEfforts,
       agentId,
-      baseSessionError,
       cancelActiveSession,
       currentSessionId,
       chatContext,
       clearRuntimeThread,
-      closeRail,
+      closeChatRail,
       createAgentSession,
       deleteAgentSession,
       expandToPage,
@@ -2872,15 +3239,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       handleSelectedReasoningEffortChange,
       isRailOpen,
       isLoadingAvailableModels,
-      isLoadingBaseSession,
       isActiveSessionReady,
       isActiveSessionLoading,
       isCreatingAgentSession,
       isCancellingSession,
       isLoadingLatestSessions,
+      isProjectAgentRail,
       latestSessionsError,
       minimizeToRail,
-      pendingSessionHandoff,
       railMode,
       refreshSessionDetail,
       refreshSessionInsights,
@@ -2892,7 +3258,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       selectedProviderValue,
       selectedReasoningEffortValue,
       sortedAgentSessions,
+      openLatestOrStartAgentSessionById,
       startAgentSession,
+      startAgentSessionById,
       thinkingSummary,
       toggleChat,
     ],

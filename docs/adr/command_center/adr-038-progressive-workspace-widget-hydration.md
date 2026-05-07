@@ -7,7 +7,7 @@
   - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
   - [ADR: Single Runtime Owner for Workspace Widgets](./adr-single-runtime-owner-workspace-widgets.md)
   - [ADR: Managed Connection Query Sources for Consumer Widgets](./adr-managed-connection-query-widget-sources.md)
-  - [Workspace Runtime Performance Remediation](../workspaces/runtime-performance-remediation.md)
+  - [Workspace Runtime Performance Remediation](../../workspaces/runtime-performance-remediation.md)
 
 ## Context
 

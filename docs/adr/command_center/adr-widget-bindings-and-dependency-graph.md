@@ -10,29 +10,29 @@ composition.
 
 Today:
 
-- [`src/widgets/types.ts`](../src/widgets/types.ts) defines `WidgetDefinition`,
+- [`src/widgets/types.ts`](../../src/widgets/types.ts) defines `WidgetDefinition`,
   `WidgetControllerArgs`, and widget component/settings props, but there is no first-class widget
   IO metadata and no first-class resolved input contract.
-- [`src/dashboards/types.ts`](../src/dashboards/types.ts) defines `DashboardWidgetInstance` with
+- [`src/dashboards/types.ts`](../../src/dashboards/types.ts) defines `DashboardWidgetInstance` with
   `props`, `runtimeState`, and `presentation`, but no canonical binding field for graph edges.
-- [`src/widgets/shared/widget-settings.tsx`](../src/widgets/shared/widget-settings.tsx) edits
+- [`src/widgets/shared/widget-settings.tsx`](../../src/widgets/shared/widget-settings.tsx) edits
   widget `title`, `props`, and `presentation`; it has no notion of bindings.
-- [`src/widgets/shared/widget-schema.ts`](../src/widgets/shared/widget-schema.ts) resolves
+- [`src/widgets/shared/widget-schema.ts`](../../src/widgets/shared/widget-schema.ts) resolves
   controller context from local widget state only.
-- [`src/dashboards/DashboardWidgetRegistry.tsx`](../src/dashboards/DashboardWidgetRegistry.tsx) is
+- [`src/dashboards/DashboardWidgetRegistry.tsx`](../../src/dashboards/DashboardWidgetRegistry.tsx) is
   a flat runtime index of mounted widget instances, not a composition or dependency layer.
 
 Inter-widget dependencies already exist in extension code, but they are implicit and
 widget-specific. The clearest example is the Main Sequence Data Node family:
 
-- [`extensions/main_sequence/extensions/workbench/widgets/data-node-shared/dataNodeWidgetSource.tsx`](../extensions/main_sequence/extensions/workbench/widgets/data-node-shared/dataNodeWidgetSource.tsx)
+- [`extensions/main_sequence/extensions/workbench/widgets/data-node-shared/dataNodeWidgetSource.tsx`](../../extensions/main_sequence/extensions/workbench/widgets/data-node-shared/dataNodeWidgetSource.tsx)
   resolves dependencies from `sourceMode` and `sourceWidgetId`, excludes self-references, and
   restricts the producer type.
 - The same helper merges upstream source props into consumer-facing effective props.
 - Consumer widgets and controllers still import producer-family helpers and runtime normalizers,
   for example:
-  - [`extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/MainSequenceDataNodeVisualizerWidget.tsx`](../extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/MainSequenceDataNodeVisualizerWidget.tsx)
-  - [`extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/controller.ts`](../extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/controller.ts)
+  - [`extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/MainSequenceDataNodeVisualizerWidget.tsx`](../../extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/MainSequenceDataNodeVisualizerWidget.tsx)
+  - [`extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/controller.ts`](../../extensions/main_sequence/extensions/workbench/widgets/data-node-visualizer/controller.ts)
 
 This means a single dependency is currently spread across:
 
@@ -62,7 +62,7 @@ We will add a first-class widget dependency model in six parts.
 ### 1. Widget instances will carry canonical bindings
 
 `DashboardWidgetInstance` will gain an optional `bindings` field in
-[`src/dashboards/types.ts`](../src/dashboards/types.ts).
+[`src/dashboards/types.ts`](../../src/dashboards/types.ts).
 
 Bindings are the canonical storage for graph edges. They are not long-term widget props.
 
@@ -76,7 +76,7 @@ This keeps graph structure separate from widget-local configuration.
 
 ### 2. Widget definitions will declare static IO metadata
 
-`WidgetDefinition` in [`src/widgets/types.ts`](../src/widgets/types.ts) will gain optional `io`
+`WidgetDefinition` in [`src/widgets/types.ts`](../../src/widgets/types.ts) will gain optional `io`
 metadata:
 
 - input ports
@@ -104,7 +104,7 @@ the dependency graph answer the user-facing question: which input maps to which 
 
 ### 4. We will add a shared dependency layer, separate from the raw widget registry
 
-We will keep [`DashboardWidgetRegistryProvider`](../src/dashboards/DashboardWidgetRegistry.tsx) as
+We will keep [`DashboardWidgetRegistryProvider`](../../src/dashboards/DashboardWidgetRegistry.tsx) as
 the raw mounted-widget index.
 
 On top of it, we will add a dependency/composition layer under:
@@ -219,10 +219,10 @@ conservative.
 
 We will modify:
 
-- [`src/widgets/types.ts`](../src/widgets/types.ts)
-- [`src/dashboards/types.ts`](../src/dashboards/types.ts)
-- [`src/features/dashboards/custom-dashboard-storage.ts`](../src/features/dashboards/custom-dashboard-storage.ts)
-- [`src/features/dashboards/workspace-api.ts`](../src/features/dashboards/workspace-api.ts)
+- [`src/widgets/types.ts`](../../src/widgets/types.ts)
+- [`src/dashboards/types.ts`](../../src/dashboards/types.ts)
+- [`src/features/dashboards/custom-dashboard-storage.ts`](../../src/features/dashboards/custom-dashboard-storage.ts)
+- [`src/features/dashboards/workspace-api.ts`](../../src/features/dashboards/workspace-api.ts)
 
 That work includes:
 
@@ -255,16 +255,16 @@ This layer will:
 The provider must wrap all current widget host surfaces so settings-side and runtime-side behavior
 do not diverge:
 
-- [`src/features/dashboards/DashboardCanvas.tsx`](../src/features/dashboards/DashboardCanvas.tsx)
-- [`src/features/dashboards/CustomDashboardStudioPage.tsx`](../src/features/dashboards/CustomDashboardStudioPage.tsx)
-- [`src/features/dashboards/CustomWidgetSettingsPage.tsx`](../src/features/dashboards/CustomWidgetSettingsPage.tsx)
+- [`src/features/dashboards/DashboardCanvas.tsx`](../../src/features/dashboards/DashboardCanvas.tsx)
+- [`src/features/dashboards/CustomDashboardStudioPage.tsx`](../../src/features/dashboards/CustomDashboardStudioPage.tsx)
+- [`src/features/dashboards/CustomWidgetSettingsPage.tsx`](../../src/features/dashboards/CustomWidgetSettingsPage.tsx)
 
 ### Controller and widget plumbing
 
 We will extend controller plumbing first.
 
 `useResolvedWidgetControllerContext(...)` in
-[`src/widgets/shared/widget-schema.ts`](../src/widgets/shared/widget-schema.ts) will inject
+[`src/widgets/shared/widget-schema.ts`](../../src/widgets/shared/widget-schema.ts) will inject
 `resolvedInputs` when the dependency provider is present.
 
 We will then progressively extend widget component props so instance render paths can consume
@@ -282,7 +282,7 @@ New shared UI:
 
 Initial host:
 
-- [`src/features/dashboards/CustomWidgetSettingsPage.tsx`](../src/features/dashboards/CustomWidgetSettingsPage.tsx)
+- [`src/features/dashboards/CustomWidgetSettingsPage.tsx`](../../src/features/dashboards/CustomWidgetSettingsPage.tsx)
 
 The binding panel will:
 

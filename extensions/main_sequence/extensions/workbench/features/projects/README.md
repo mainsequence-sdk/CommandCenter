@@ -6,6 +6,7 @@ This feature owns the Main Sequence project registry and project detail experien
 
 - `MainSequenceProjectsPage.tsx`: project registry page and project detail shell.
 - `MainSequenceProjectCodeTab.tsx`: repository browser and code preview tab.
+- `MainSequenceProjectAgentTab.tsx`: temporary compatibility wrapper around the AI-owned project-agent configurator during the ownership refactor.
 - `MainSequenceProjectInfraGraphTab.tsx`: project-scoped infrastructure graph tab wrapper.
 - `MainSequenceCreateJobDialog.tsx`: dialog for creating a job from a repository file.
 - `MainSequenceProjectImagesTab.tsx`: project image listing and related image state.
@@ -31,9 +32,21 @@ This feature owns the Main Sequence project registry and project detail experien
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.
 - The infra graph tab is backed by the dedicated `widgets/project-infra-graph/` module. That module also powers the reusable workspace widget definition, so project-tab changes should keep the compact widget variant working too. It follows the backend link contract directly: click inspects via `summary_url`, and `Explore graph` drills down via `graph_url`. The graph presentation is intentionally project-centric, with the project node centered and the rest of the infrastructure arranged radially instead of in column lanes.
 - The resource releases tab supports project resource release creation flows for dashboard, agent, and fastapi release kinds.
-- The project detail summary header can expose project agent capability status. When a project is
-  agent-capable, the `Configure project agent` action routes into the resource releases dialog in a
-  dedicated project-agent mode instead of maintaining a second project-agent form.
+- The project detail summary header now owns the project-agent entrypoint again through a
+  `Configure project agent` button. That button only appears when the selected project advertises
+  agent capabilities.
+- When `by-project/<projectId>/` reports a ready project-agent service, the project header shows a
+  small robot action in the top-right corner with the hover text `Talk to project agent`. Clicking
+  it opens the dedicated project-agent rail and first tries to reuse the latest AgentSession for
+  that service and current user through the filtered sessions endpoint. If no prior session exists,
+  it falls back to `/orm/api/agents/v1/agents/{agent_id}/start_new_session/`. That rail is
+  separate from the normal Command Center `Cmd+J` rail, so both can stay open at the same time.
+  The button styling should stay neutral (`border-border` / `text-muted-foreground`) so it fits
+  every theme instead of carrying a project-specific accent color.
+- The full project-agent build/deploy/delete form is in the `Main Sequence AI` `Project Agents`
+  surface, not in the project-detail tabs anymore.
+- The workbench project page now deep-links to `/app/main_sequence_ai/project-agents?msProjectId=<id>`
+  for that form workflow.
 - Agent release creation now warns that project execution agents are unique per project and that
   republishing the agent with a different image overrides that project-agent functionality.
 - That project-agent mode is not the generic `Create Agent Release` flow: it opens with the title
@@ -45,6 +58,8 @@ This feature owns the Main Sequence project registry and project detail experien
   endpoint. It posts
   `{ project_id, project_related_image_id, cpu_request?, memory_request?, gpu_request?, gpu_type?, spot? }`
   to `/orm/api/agents/v1/project-executor-agent-services/get_or_create/`.
+- That legacy `get_or_create/` endpoint still exists for compatibility, but the dedicated
+  `Project Agent` tab now uses the explicit `build-image/` plus `deploy/` flow instead.
 - The project-agent toast path now uses the backend response `detail` when that endpoint returns a
   202-style “not ready yet” payload, and downgrades that case to an informational toast instead of
   always showing the same deterministic success copy.

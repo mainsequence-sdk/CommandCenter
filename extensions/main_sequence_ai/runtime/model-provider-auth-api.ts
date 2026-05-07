@@ -1,4 +1,7 @@
-import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
+import {
+  fetchMainSequenceAiAssistantResponse,
+  type MainSequenceAiAssistantRuntimeTarget,
+} from "./assistant-endpoint";
 
 export type ProviderAuthKind = "api_key" | "oauth";
 
@@ -266,11 +269,13 @@ async function throwProviderApiError(response: Response, fallback: string): Prom
 
 export async function fetchModelProviderAuthStates({
   assistantEndpoint,
+  runtimeTarget = "command-center-base",
   signal,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
@@ -280,6 +285,7 @@ export async function fetchModelProviderAuthStates({
     assistantEndpoint,
     requestPath: "/api/model-providers",
     method: "GET",
+    runtimeTarget,
     signal,
     sessionToken: token,
     sessionTokenType: tokenType,
@@ -294,11 +300,13 @@ export async function fetchModelProviderAuthStates({
 
 export async function startModelProviderSignIn({
   assistantEndpoint,
+  runtimeTarget = "command-center-base",
   provider,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   token?: string | null;
   tokenType?: string;
@@ -308,6 +316,7 @@ export async function startModelProviderSignIn({
     assistantEndpoint,
     requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin`,
     method: "POST",
+    runtimeTarget,
     sessionToken: token,
     sessionTokenType: tokenType,
   });
@@ -343,13 +352,15 @@ export async function startModelProviderSignIn({
 
 export async function fetchModelProviderSignInAttempt({
   assistantEndpoint,
+  runtimeTarget = "command-center-base",
   provider,
   attemptId,
   signal,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   attemptId: string;
   signal?: AbortSignal;
@@ -361,6 +372,7 @@ export async function fetchModelProviderSignInAttempt({
     assistantEndpoint,
     requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}`,
     method: "GET",
+    runtimeTarget,
     signal,
     sessionToken: token,
     sessionTokenType: tokenType,
@@ -390,13 +402,15 @@ export async function fetchModelProviderSignInAttempt({
 
 export async function submitModelProviderManualSignIn({
   assistantEndpoint,
+  runtimeTarget = "command-center-base",
   provider,
   attemptId,
   input,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   attemptId: string;
   input: string;
@@ -408,6 +422,7 @@ export async function submitModelProviderManualSignIn({
     assistantEndpoint,
     requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/manual`,
     method: "POST",
+    runtimeTarget,
     headers: {
       "Content-Type": "application/json",
     },
@@ -429,12 +444,14 @@ export async function submitModelProviderManualSignIn({
 
 export async function cancelModelProviderSignIn({
   assistantEndpoint,
+  runtimeTarget = "command-center-base",
   provider,
   attemptId,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   attemptId: string;
   token?: string | null;
@@ -445,6 +462,7 @@ export async function cancelModelProviderSignIn({
     assistantEndpoint,
     requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/cancel`,
     method: "POST",
+    runtimeTarget,
     sessionToken: token,
     sessionTokenType: tokenType,
   });
@@ -459,11 +477,13 @@ export async function cancelModelProviderSignIn({
 
 export async function signOffModelProvider({
   assistantEndpoint,
+  runtimeTarget = "command-center-base",
   provider,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint: string;
+  assistantEndpoint?: string;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   token?: string | null;
   tokenType?: string;
@@ -473,6 +493,7 @@ export async function signOffModelProvider({
     assistantEndpoint,
     requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signoff`,
     method: "POST",
+    runtimeTarget,
     sessionToken: token,
     sessionTokenType: tokenType,
   });

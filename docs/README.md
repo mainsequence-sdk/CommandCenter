@@ -20,7 +20,7 @@ the app fits together.
 - [Extensions](./extensions/README.md): how to add product surface area without polluting the shell.
 - [Access Control](./access-control/README.md): RBAC primitives and the dedicated access app.
 - [Operations](./operations/README.md): deployment and operational constraints.
-- [ADRs](./adr/README.md): accepted and proposed design decisions.
+- [ADRs](./adr/README.md): accepted and proposed design decisions, split by application.
 
 ## If You Are New Here
 
@@ -40,7 +40,8 @@ the app fits together.
   and the guardrails that keep it maintainable.
 - Widget-facing docs must point to the nearest widget implementation `README.md`.
 - Extension-facing docs must point to the owning extension `README.md`.
-- ADRs stay in `docs/adr/`. Do not scatter architectural decisions through feature folders.
+- ADRs stay in `docs/adr/<application>/`. Do not scatter architectural decisions through feature
+  folders.
 - New ADRs should use the next available sequential number in both the filename and title, for
   example `adr-038-short-name.md` and `# ADR 038: Title` when `038` is the next slot.
 

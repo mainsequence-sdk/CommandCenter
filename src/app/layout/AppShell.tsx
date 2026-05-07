@@ -15,12 +15,18 @@ import { useAuthStore } from "@/auth/auth-store";
 import { env } from "@/config/env";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
-import { ChatMount, ChatOverlay, ChatProvider } from "../../../extensions/main_sequence_ai/assistant-ui";
+import {
+  ChatMount,
+  ChatOverlay,
+  ChatProvider,
+  ProjectAgentChatMount,
+} from "../../../extensions/main_sequence_ai/assistant-ui";
 import {
   CHAT_PAGE_PATH,
   CHAT_RAIL_WIDTH,
   useChatUiStore,
 } from "../../../extensions/main_sequence_ai/assistant-ui/chat-ui-store";
+import { useProjectAgentRailStore } from "../../../extensions/main_sequence_ai/assistant-ui/project-agent-rail-store";
 
 const WORKSPACE_CANVAS_SURFACE_IDS = new Set(["workspaces", "slide-studio"]);
 const EMPTY_PERMISSIONS: string[] = [];
@@ -95,6 +101,8 @@ export function AppShell() {
   const toggleSurfaceFavorite = useShellStore((state) => state.toggleSurfaceFavorite);
   const chatRailOpen = useChatUiStore((state) => state.railOpen);
   const chatRailMode = useChatUiStore((state) => state.railMode);
+  const projectAgentRailOpen = useProjectAgentRailStore((state) => state.railOpen);
+  const projectAgentRailMode = useProjectAgentRailStore((state) => state.railMode);
   const accessibleApps = getAccessibleApps(permissions);
   const panelApp =
     appPanelAppId && accessibleApps.some((candidate) => candidate.id === appPanelAppId)
@@ -131,6 +139,15 @@ export function AppShell() {
     location.pathname !== CHAT_PAGE_PATH &&
     chatRailOpen &&
     chatRailMode === "docked";
+  const showDockedProjectAgentRail =
+    env.includeAui &&
+    !workspacePublicPreviewRoute &&
+    !workspacePrintRoute &&
+    location.pathname !== CHAT_PAGE_PATH &&
+    projectAgentRailOpen &&
+    projectAgentRailMode === "docked";
+  const dockedRailCount =
+    (showDockedChatRail ? 1 : 0) + (showDockedProjectAgentRail ? 1 : 0);
 
   useEffect(() => {
     if (!kioskMode) {
@@ -219,11 +236,11 @@ export function AppShell() {
         )}
         style={{
           gridTemplateColumns: shelllessRoute
-            ? showDockedChatRail
-              ? `minmax(0, 1fr) ${CHAT_RAIL_WIDTH}px`
+            ? dockedRailCount > 0
+              ? `minmax(0, 1fr)${showDockedChatRail ? ` ${CHAT_RAIL_WIDTH}px` : ""}${showDockedProjectAgentRail ? ` ${CHAT_RAIL_WIDTH}px` : ""}`
               : "minmax(0, 1fr)"
-            : showDockedChatRail
-              ? `${sidebarWidth}px minmax(0, 1fr) ${CHAT_RAIL_WIDTH}px`
+            : dockedRailCount > 0
+              ? `${sidebarWidth}px minmax(0, 1fr)${showDockedChatRail ? ` ${CHAT_RAIL_WIDTH}px` : ""}${showDockedProjectAgentRail ? ` ${CHAT_RAIL_WIDTH}px` : ""}`
               : `${sidebarWidth}px minmax(0, 1fr)`,
         }}
       >
@@ -267,6 +284,7 @@ export function AppShell() {
           </main>
         </div>
         {showDockedChatRail ? <ChatOverlay mode="docked" /> : null}
+        {showDockedProjectAgentRail ? <ProjectAgentChatMount mode="docked" /> : null}
       </div>
 
       {showAppPanel && panelApp ? (
@@ -285,6 +303,7 @@ export function AppShell() {
       ) : null}
 
       {env.includeAui ? <ChatMount /> : null}
+      {env.includeAui ? <ProjectAgentChatMount /> : null}
     </div>
   );
 

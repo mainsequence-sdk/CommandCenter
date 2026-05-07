@@ -97,7 +97,7 @@ through RBAC and show an explanatory backend-only message instead.
 For the recommended production backend model for shared workspaces, see:
 
 - `docs/workspace-backend-model.md`
-- `docs/adr/adr-shared-workspace-state.md`
+- `docs/adr/command_center/adr-shared-workspace-state.md`
 
 ## Workspace Model
 
@@ -233,7 +233,7 @@ the primary `Workspace` row itself.
 This JSON snapshot is intentionally separate from the live workspace agent snapshot archive. The
 JSON export remains the canonical workspace document export/import format, while the agent snapshot
 archive is a separate live-runtime zip artifact for automation and widget-output inspection. See
-[`docs/adr/adr-live-workspace-agent-snapshot-archive.md`](../adr/adr-live-workspace-agent-snapshot-archive.md).
+[`docs/adr/command_center/adr-live-workspace-agent-snapshot-archive.md`](../adr/command_center/adr-live-workspace-agent-snapshot-archive.md).
 
 ## Live Agent Snapshot Archive
 

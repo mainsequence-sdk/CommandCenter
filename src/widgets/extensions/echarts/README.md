@@ -51,7 +51,7 @@ This directory contains the ECharts-backed widget modules used by the live widge
 ## Maintenance notes
 
 - Keep organization capability enforcement aligned with
-  [ADR: Organization-Scoped Widget Type Configurations](../../../../docs/adr/adr-organization-widget-type-configurations.md).
+  [ADR: Organization-Scoped Widget Type Configurations](../../../../docs/adr/command_center/adr-organization-widget-type-configurations.md).
 - If new trusted snippets are added, document them here and keep the local allowlist behavior
   aligned with the effective organization configuration.
 - If the typed input contract changes, update both the widget README and the registry metadata in

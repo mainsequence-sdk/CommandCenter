@@ -1,6 +1,9 @@
 import type { SessionInsightsSnapshot } from "../assistant-ui/session-insights";
 import type { SessionToolDefinition, SessionToolsSnapshot } from "../assistant-ui/session-tools";
-import type { AgentSessionApiRecord } from "../runtime/agent-sessions-api";
+import type {
+  AgentSessionApiRecord,
+  AgentSessionSerializedRecord,
+} from "../runtime/agent-sessions-api";
 
 export type AgentSessionDetailStatus = "idle" | "loading" | "ready" | "not_found" | "error";
 
@@ -19,11 +22,14 @@ export interface AgentSessionContextInput {
   runtimeState?: string | null;
   working?: boolean;
   origin?: string | null;
+  serializedSession?: AgentSessionSerializedRecord | null;
   agent?: {
     id?: number | null;
     name?: string | null;
     requestName?: string | null;
     agentUniqueId?: string | null;
+    llmProvider?: string | null;
+    llmModel?: string | null;
   } | null;
 }
 
@@ -47,6 +53,7 @@ export interface AgentSessionCoreDetail {
   lastActivityAt: string | null;
   llmProvider: string | null;
   llmModel: string | null;
+  llmThinking: string | null;
   engineName: string | null;
   runtimeState: string | null;
   working: boolean;
@@ -91,6 +98,7 @@ export interface AgentSessionDetailSnapshot {
   detailError: string | null;
   context: AgentSessionDetailContext;
   core: AgentSessionCoreDetail | null;
+  serializedRecord: AgentSessionSerializedRecord | null;
   insights: SessionInsightsSnapshot | null;
   isLoadingInsights: boolean;
   insightsError: string | null;
@@ -104,6 +112,9 @@ export interface ActiveSessionSummary {
   requestName: string;
   displayName: string | null;
   agentUniqueId: string | null;
+  llmProvider: string | null;
+  llmModel: string | null;
+  llmThinking: string | null;
   handleUniqueId: string | null;
   isDefaultCommandCenterSession: boolean;
   sessionDisplayId: string | null;
@@ -141,6 +152,10 @@ function normalizeOptionalRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function normalizeThinkingValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 export function resolveAgentSessionRequestName(session: AgentSessionContextInput | null) {
@@ -233,6 +248,7 @@ export function normalizeAgentSessionCoreDetail(record: AgentSessionApiRecord): 
       normalizeOptionalString(record.started_at),
     llmProvider: normalizeOptionalString(record.llm_provider),
     llmModel: normalizeOptionalString(record.llm_model),
+    llmThinking: normalizeThinkingValue(record.llm_thinking),
     engineName: normalizeOptionalString(record.engine_name),
     runtimeState: normalizeOptionalString(record.runtime_state),
     working: record.working === true,
@@ -281,6 +297,7 @@ export function buildAgentSessionDetailSnapshot({
   detailError,
   detailStatus,
   core,
+  serializedRecord,
   fallbackAgentId,
   insights,
   insightsError,
@@ -293,6 +310,7 @@ export function buildAgentSessionDetailSnapshot({
   detailStatus: AgentSessionDetailStatus;
   detailError: string | null;
   core: AgentSessionCoreDetail | null;
+  serializedRecord: AgentSessionSerializedRecord | null;
   insights: SessionInsightsSnapshot | null;
   isLoadingInsights: boolean;
   insightsError: string | null;
@@ -307,6 +325,7 @@ export function buildAgentSessionDetailSnapshot({
     detailError,
     context: buildAgentSessionDetailContext(session, fallbackAgentId),
     core,
+    serializedRecord,
     insights,
     isLoadingInsights,
     insightsError,
@@ -327,11 +346,22 @@ export function buildActiveSessionSummary({
   fallbackAgentId?: string | null;
 }): ActiveSessionSummary {
   const context = detail?.context ?? buildAgentSessionDetailContext(session, fallbackAgentId);
+  const sessionThinking = normalizeThinkingValue(session.serializedSession?.llm_thinking);
+  const detailThinking = normalizeThinkingValue(detail?.serializedRecord?.llm_thinking);
 
   return {
     requestName: context.requestName,
     displayName: context.displayName,
     agentUniqueId: context.agentUniqueId,
+    llmProvider:
+      normalizeOptionalString(session.agent?.llmProvider) ?? detail?.core?.llmProvider ?? null,
+    llmModel:
+      normalizeOptionalString(session.agent?.llmModel) ?? detail?.core?.llmModel ?? null,
+    llmThinking:
+      sessionThinking ??
+      detailThinking ??
+      detail?.core?.llmThinking ??
+      null,
     handleUniqueId: context.handleUniqueId,
     isDefaultCommandCenterSession: context.isDefaultCommandCenterSession,
     sessionDisplayId: context.sessionDisplayId,

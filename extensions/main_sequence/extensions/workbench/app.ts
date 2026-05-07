@@ -15,6 +15,7 @@ import { MainSequenceJobsPage } from "./features/jobs/MainSequenceJobsPage";
 import { MainSequencePhysicalDataSourcesPage } from "./features/physical-data-sources/MainSequencePhysicalDataSourcesPage";
 import { MainSequenceProjectDataSourcesPage } from "./features/project-data-sources/MainSequenceProjectDataSourcesPage";
 import { MainSequenceProjectsPage } from "./features/projects/MainSequenceProjectsPage";
+import { MainSequenceScalableServicesPage } from "./features/scalable-services/MainSequenceScalableServicesPage";
 import { MainSequenceSecretsPage } from "./features/secrets/MainSequenceSecretsPage";
 import { MainSequenceSimpleTablesPage } from "./features/simple-tables/MainSequenceSimpleTablesPage";
 import { MainSequenceStreamlitPage } from "./features/streamlit/MainSequenceStreamlitPage";
@@ -140,6 +141,25 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceStreamlitPage,
+    },
+    {
+      id: "scalable-services",
+      title: "Scalable Services",
+      navLabel: "Scalable Services",
+      description: "Browse read-only deployment services backed by the pods scalable-service endpoints.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Scalable Services. This page shows deployment services backed by scalable-service endpoints.",
+        availableActions: [
+          "Browse services",
+          "Inspect service details",
+        ],
+      }),
+      navigationSection: deploymentServicesSection,
+      kind: "page",
+      hidden: true,
+      requiredPermissions: ["main_sequence_foundry:view"],
+      component: MainSequenceScalableServicesPage,
     },
     {
       id: "timescaledb-services",

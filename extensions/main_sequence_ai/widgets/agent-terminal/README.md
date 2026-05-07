@@ -46,8 +46,11 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 - Session history is always loaded during initial readiness. It is also loaded when a refresh
   without a prompt explicitly reloads history, or after a sent terminal message completes and the
   widget reconciles the transcript.
-- Live requests post to the same assistant endpoint as chat, but render the stream as terminal
-  output instead of chat bubbles.
+- Live requests post to the same assistant endpoint as chat, render the stream as terminal output
+  instead of chat bubbles, and inject the loaded backend AgentSession serializer as top-level
+  `session` for existing-session sends.
+- The terminal widget now assumes one bound AgentSession per widget run. It does not react to
+  runtime-driven cross-agent `session_switch` semantics.
 - Widget settings and Agents Monitor now both reuse the same agent-only picker instead of exposing
   session browsing or raw session-id input.
 - Widget settings expose `Recycle session` for the same agent. That creates a brand-new session and
@@ -107,7 +110,7 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 - The terminal now depends on the platform-generated `agent-context` binding output derived from
   `buildAgentSnapshot(...)` plus the extension-local workspace-reference contract published by the
   `WorkspaceReference` widget. If either contract changes, update this widget in the same change. See
-  [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../../../docs/adr/adr-widget-agent-context-bindings.md).
+  [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../../../docs/adr/command_center/adr-widget-agent-context-bindings.md).
 - If backend widget-prop validation is strict, this widget's persisted `agentId`, `agentName`,
   `agentSessionId`, `blockUserInput`, `loadInitialHistory`, `historyRefreshMode`,
   `historyRefreshIntervalSeconds`, and `promptOnRefresh` props must be allowed by the widget-type

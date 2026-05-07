@@ -123,7 +123,7 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
       {assistantRuntime.isLoading ? (
         <div className="flex items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Resolving assistant runtime session
+          Resolving Command Center runtime access
         </div>
       ) : null}
 
@@ -131,7 +131,7 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
         <div className="rounded-[calc(var(--radius)-4px)] border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
           {assistantRuntime.error instanceof Error
             ? assistantRuntime.error.message
-            : "Unable to resolve the assistant runtime session."}
+            : "Unable to resolve Command Center runtime access."}
         </div>
       ) : null}
 

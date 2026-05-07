@@ -3,15 +3,15 @@
 - Status: Accepted
 - Date: 2026-04-03
 - Related:
-  - [Workspace Settings Headless Runtime Investigation](../workspaces/settings-headless-runtime-investigation.md)
-  - [Workspace Runtime Performance Remediation](../workspaces/runtime-performance-remediation.md)
+  - [Workspace Settings Headless Runtime Investigation](../../workspaces/settings-headless-runtime-investigation.md)
+  - [Workspace Runtime Performance Remediation](../../workspaces/runtime-performance-remediation.md)
   - [ADR: Executable Widget Graph Runner and Refresh Coordination](./adr-executable-widget-graph-runner.md)
 
 ## Context
 
 The widget settings route used to keep the full workspace runtime alive by rendering every widget
 component into an invisible offscreen container inside
-[`src/features/dashboards/CustomWidgetSettingsPage.tsx`](../src/features/dashboards/CustomWidgetSettingsPage.tsx).
+[`src/features/dashboards/CustomWidgetSettingsPage.tsx`](../../src/features/dashboards/CustomWidgetSettingsPage.tsx).
 
 That workaround kept three things available while the user edited one widget:
 
@@ -39,7 +39,7 @@ widget components.
 To make that safe, `main-sequence-data-node` becomes a first-class executable widget:
 
 - the widget now owns `execution` through
-  [`extensions/main_sequence/extensions/workbench/widgets/data-node-filter/dataNodeFilterExecution.ts`](../extensions/main_sequence/extensions/workbench/widgets/data-node-filter/dataNodeFilterExecution.ts)
+  [`extensions/main_sequence/extensions/workbench/widgets/data-node-filter/dataNodeFilterExecution.ts`](../../extensions/main_sequence/extensions/workbench/widgets/data-node-filter/dataNodeFilterExecution.ts)
 - direct Data Node queries and bound-source transforms now materialize runtime state through the
   shared dashboard execution layer
 - execution contexts now carry dashboard time-range state so headless execution still respects the

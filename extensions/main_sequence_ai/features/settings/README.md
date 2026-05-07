@@ -18,8 +18,8 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
   loads the full model catalog from `/api/models/catalog`, groups models by provider, and drives a
   generic sign-in attempt modal from the backend attempt state machine.
 - `useAssistantRuntimeAccess.ts`
-  Shared settings hook that resolves backend assistant-runtime access before settings panels call
-  agent-runtime endpoints.
+  Shared settings hook that resolves backend Command Center operational runtime access before
+  settings panels call assistant-runtime endpoints.
 
 ## Dependencies
 
@@ -33,8 +33,8 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 - `extensions/main_sequence_ai/runtime/assistant-health-api.ts`
   Supplies the assistant-runtime health probe shown in the Agents settings section.
 - `extensions/main_sequence_ai/runtime/assistant-endpoint.ts`
-  Resolves the configured proxy endpoint or the backend astro Command Center session endpoint used
-  by settings requests.
+  Resolves the configured proxy endpoint or the backend Astro Command Center operational runtime
+  access used by settings requests.
 - `src/app/layout/SettingsDialog.tsx`
   Shared shell-owned settings dialog that renders contributed sections.
 
@@ -44,12 +44,16 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
   dialog chrome here.
 - The health panel intentionally shows the raw `/health` response so backend changes are visible
   without adding a frontend-specific status contract.
-- Settings sections must resolve the backend astro Command Center session before calling
-  assistant-runtime endpoints so they use `runtime_access.rpc_url`, not the static configured
-  endpoint or the Vite assistant proxy. Settings queries should remain disabled until that dynamic
-  runtime root exists.
+- Settings sections do not bind to a concrete `AgentSession` and do not call per-session
+  `resolve_runtime_access/` for normal settings reads.
+- In production they should resolve assistant-runtime access through the Astro Command Center
+  operational handle path instead of depending on `assistant_ui.endpoint` being populated.
+- `assistant_ui.endpoint` / `VITE_ASSISTANT_UI_ENDPOINT` remains a debug / proxy concern, not the
+  required production bootstrap for settings.
 - Provider auth state is the source of truth for sign-in/sign-off controls. Do not infer provider
   authentication only from model presence.
+- If the model catalog returns providers that are missing from `/api/model-providers`, surface that
+  mismatch as a warning. Do not synthesize auth-state cards only from catalog providers.
 - Provider cards should follow backend workflow flags directly: `authenticated` controls `Sign off`,
   `signInAvailable` controls `Sign in`, and `authSource` stays diagnostic only.
 - The model list in this section is informational. It should not mutate chat model selection.

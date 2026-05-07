@@ -22,10 +22,10 @@ That foundation is necessary, but it is not sufficient for executable graph runs
 
 Today:
 
-- `AppComponent` still executes inline from [`src/widgets/core/app-component/AppComponentWidget.tsx`](../src/widgets/core/app-component/AppComponentWidget.tsx)
-- settings `Test request` still executes inline from [`src/widgets/core/app-component/AppComponentWidgetSettings.tsx`](../src/widgets/core/app-component/AppComponentWidgetSettings.tsx)
-- the dependency model in [`src/dashboards/widget-dependencies.ts`](../src/dashboards/widget-dependencies.ts) resolves values but does not execute widgets
-- dashboard refresh in [`src/dashboards/DashboardControls.tsx`](../src/dashboards/DashboardControls.tsx) is centralized, but it currently coordinates query invalidation rather than executable widget graphs
+- `AppComponent` still executes inline from [`src/widgets/core/app-component/AppComponentWidget.tsx`](../../src/widgets/core/app-component/AppComponentWidget.tsx)
+- settings `Test request` still executes inline from [`src/widgets/core/app-component/AppComponentWidgetSettings.tsx`](../../src/widgets/core/app-component/AppComponentWidgetSettings.tsx)
+- the dependency model in [`src/dashboards/widget-dependencies.ts`](../../src/dashboards/widget-dependencies.ts) resolves values but does not execute widgets
+- dashboard refresh in [`src/dashboards/DashboardControls.tsx`](../../src/dashboards/DashboardControls.tsx) is centralized, but it currently coordinates query invalidation rather than executable widget graphs
 
 This creates three problems:
 
@@ -73,7 +73,7 @@ The dependency engine remains responsible for:
 
 It does not execute widgets.
 
-This keeps [`src/dashboards/widget-dependencies.ts`](../src/dashboards/widget-dependencies.ts) pure and reusable.
+This keeps [`src/dashboards/widget-dependencies.ts`](../../src/dashboards/widget-dependencies.ts) pure and reusable.
 
 ### 2. Add a first-class widget execution contract
 
@@ -272,7 +272,7 @@ This is especially important for settings test runs, where two requests against 
 
 ### 10. Refresh coordination stays centralized
 
-Dashboard refresh timing remains centralized in [`src/dashboards/DashboardControls.tsx`](../src/dashboards/DashboardControls.tsx).
+Dashboard refresh timing remains centralized in [`src/dashboards/DashboardControls.tsx`](../../src/dashboards/DashboardControls.tsx).
 
 The rule becomes:
 
@@ -288,7 +288,7 @@ React Query invalidation remains for passive/query-driven widgets. Executable gr
 
 The request-building and submit logic should move into a pure executor module, for example:
 
-- [`src/widgets/core/app-component/appComponentExecution.ts`](../src/widgets/core/app-component/)
+- [`src/widgets/core/app-component/appComponentExecution.ts`](../../src/widgets/core/app-component/)
 
 That executor should:
 
@@ -304,26 +304,26 @@ It should not directly mutate global graph state and it should not bypass the bi
 
 The first implementation should land in these areas:
 
-- [`src/widgets/types.ts`](../src/widgets/types.ts)
+- [`src/widgets/types.ts`](../../src/widgets/types.ts)
   - add `WidgetDefinition.execution`
   - add execution reason/context/result types
-- [`src/dashboards/widget-graph-execution.ts`](../src/dashboards/)
+- [`src/dashboards/widget-graph-execution.ts`](../../src/dashboards/)
   - traversal
   - cycle detection
   - topological ordering
   - execution snapshot building
   - in-flight dedupe
-- [`src/dashboards/DashboardWidgetExecution.tsx`](../src/dashboards/)
+- [`src/dashboards/DashboardWidgetExecution.tsx`](../../src/dashboards/)
   - provider
   - hooks
   - surface adapters for runtime-state writes
-- [`src/widgets/core/app-component/appComponentExecution.ts`](../src/widgets/core/app-component/)
+- [`src/widgets/core/app-component/appComponentExecution.ts`](../../src/widgets/core/app-component/)
   - pure `AppComponent` executor
-- [`src/features/dashboards/DashboardCanvas.tsx`](../src/features/dashboards/DashboardCanvas.tsx)
+- [`src/features/dashboards/DashboardCanvas.tsx`](../../src/features/dashboards/DashboardCanvas.tsx)
   - mount execution provider for normal view
-- [`src/features/dashboards/CustomWidgetSettingsPage.tsx`](../src/features/dashboards/CustomWidgetSettingsPage.tsx)
+- [`src/features/dashboards/CustomWidgetSettingsPage.tsx`](../../src/features/dashboards/CustomWidgetSettingsPage.tsx)
   - mount execution provider for settings flow
-- [`src/dashboards/DashboardControls.tsx`](../src/dashboards/DashboardControls.tsx)
+- [`src/dashboards/DashboardControls.tsx`](../../src/dashboards/DashboardControls.tsx)
   - hand off refresh cycle ids to the execution coordinator
 
 ## Scope
@@ -377,7 +377,7 @@ Rejected because outputs already have a canonical path through runtime state and
 
 ## Implementation Tasks
 
-1. Extend [`src/widgets/types.ts`](../src/widgets/types.ts) with:
+1. Extend [`src/widgets/types.ts`](../../src/widgets/types.ts) with:
    - `WidgetExecutionReason`
    - `WidgetExecutionTargetOverrides`
    - `WidgetExecutionContext`

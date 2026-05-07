@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-04-29
 - Related:
-  - [Workspaces](../workspaces/overview.md)
+  - [Workspaces](../../workspaces/overview.md)
   - [ADR: Live Workspace Agent Snapshot Archive](./adr-live-workspace-agent-snapshot-archive.md)
 
 ## Context

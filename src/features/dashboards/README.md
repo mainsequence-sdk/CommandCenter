@@ -232,7 +232,7 @@ These flows are all part of one app surface, with instance state selected throug
   the print projection in a new tab and uses the browser print dialog for PDF export.
 - That JSON workspace snapshot/export flow is document-oriented and intentionally separate from the
   live agent snapshot archive described in
-  `docs/adr/adr-live-workspace-agent-snapshot-archive.md`. Do not merge the import/export serializer
+  `docs/adr/command_center/adr-live-workspace-agent-snapshot-archive.md`. Do not merge the import/export serializer
   with the live runtime archive flow.
 - The live agent archive now runs through a dedicated snapshot runtime mode on the workspace route:
   `?workspace=<id>&snapshot=true`.
@@ -461,7 +461,7 @@ These flows are all part of one app surface, with instance state selected throug
   publication through
   `WidgetDefinition.execution`.
 - Workspace dataflow is moving to the connection-first shape described in
-  [ADR: Connection-First Workspace Dataflow](../../docs/adr/adr-connection-first-workspace-dataflow.md).
+  [ADR: Connection-First Workspace Dataflow](../../docs/adr/command_center/adr-connection-first-workspace-dataflow.md).
   Source widgets should use stable `ConnectionRef` values and publish canonical tabular frames,
   Tabular Transform widgets should own aggregate/pivot/unpivot/projection work, and table/chart/
   statistic widgets should stay passive consumers of upstream `core.tabular_frame@v1` outputs.
@@ -600,7 +600,7 @@ These flows are all part of one app surface, with instance state selected throug
   model into a new workspace instance and routes through the normal create flow. In backend mode,
   the list row is summary-only, so `Copy` first hydrates the source workspace detail on demand and
   then creates a brand-new backend workspace row rather than overwriting the source workspace.
-- For a shared production backend, keep shared workspace content separate from per-user view state. See `docs/workspace-backend-model.md` and `docs/adr/adr-shared-workspace-state.md`.
+- For a shared production backend, keep shared workspace content separate from per-user view state. See `docs/workspace-backend-model.md` and `docs/adr/command_center/adr-shared-workspace-state.md`.
 
 ## Important Dependencies
 

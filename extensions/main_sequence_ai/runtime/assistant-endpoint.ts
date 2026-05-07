@@ -1,10 +1,14 @@
 import { commandCenterConfig, type AssistantUiProtocol } from "@/config/command-center";
 import {
-  fetchOrCreateCommandCenterBaseSession,
+  fetchAgentSessionRuntimeAccess,
+  fetchCommandCenterBaseSessionHandle,
   type CommandCenterBaseSessionHandle,
 } from "./command-center-base-session-api";
+import { MainSequenceAiError } from "./error-source";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
+const projectExecutorRequestName = "mainsequence-project-executor";
+const assistantExecutorProxyPrefix = "/__assistant_executor__";
 
 export interface MainSequenceAiResolvedAssistantAccess {
   assistantEndpoint: string;
@@ -15,18 +19,26 @@ export interface MainSequenceAiResolvedAssistantAccess {
   token: string | null;
 }
 
-export type MainSequenceAiAssistantRuntimeTarget = "agent-runtime" | "configured";
+export type MainSequenceAiAssistantRuntimeTarget =
+  | "agent-runtime"
+  | "configured"
+  | "command-center-base";
 
 let cachedDynamicAssistantAccess: MainSequenceAiResolvedAssistantAccess | null = null;
 let cachedDynamicAssistantAccessSessionId: string | null = null;
 let inFlightDynamicAssistantAccessRefresh: Promise<MainSequenceAiResolvedAssistantAccess> | null = null;
 let inFlightDynamicAssistantAccessSessionId: string | null = null;
+let cachedCommandCenterBaseAssistantAccess: MainSequenceAiResolvedAssistantAccess | null = null;
+let inFlightCommandCenterBaseAssistantAccessRefresh: Promise<MainSequenceAiResolvedAssistantAccess> | null =
+  null;
 
 export function normalizeMainSequenceAiAssistantEndpoint(endpoint: string) {
   const trimmed = endpoint.trim();
 
   if (!trimmed) {
-    throw new Error("assistant_ui.endpoint is blank.");
+    throw new MainSequenceAiError("assistant_ui.endpoint is blank.", {
+      source: "frontend",
+    });
   }
 
   if (
@@ -50,6 +62,26 @@ export function isMainSequenceAiAssistantProxyMode() {
   return Boolean(rawEnv.VITE_ASSISTANT_UI_PROXY_TARGET?.trim());
 }
 
+export function isMainSequenceProjectExecutorAgentRequestName(
+  value: string | null | undefined,
+) {
+  return value?.trim().toLowerCase() === projectExecutorRequestName;
+}
+
+export function resolveMainSequenceAiAssistantEndpointForAgentRequestName(
+  agentRequestName: string | null | undefined,
+): string | undefined {
+  if (
+    isMainSequenceAiAssistantProxyMode() &&
+    isMainSequenceProjectExecutorAgentRequestName(agentRequestName) &&
+    rawEnv.VITE_ASSISTANT_UI_EXECUTOR_TARGET?.trim()
+  ) {
+    return normalizeMainSequenceAiAssistantEndpoint(assistantExecutorProxyPrefix);
+  }
+
+  return resolveMainSequenceAiConfiguredAssistantEndpoint() ?? undefined;
+}
+
 function toAssistantBaseUrl(endpoint: string) {
   const normalized = normalizeMainSequenceAiAssistantEndpoint(endpoint);
 
@@ -64,7 +96,9 @@ export function resolveMainSequenceAiAssistantEndpoint() {
   const configuredAssistantEndpoint = resolveMainSequenceAiConfiguredAssistantEndpoint();
 
   if (!configuredAssistantEndpoint) {
-    throw new Error("assistant_ui.endpoint is blank.");
+    throw new MainSequenceAiError("assistant_ui.endpoint is blank.", {
+      source: "frontend",
+    });
   }
 
   return configuredAssistantEndpoint;
@@ -130,15 +164,15 @@ function normalizeDynamicAssistantAccess(
   const runtimeToken = payload.runtimeAccess?.token?.trim();
 
   if (!rpcUrl) {
-    throw new Error(
-      "Command Center runtime access did not include rpc_url.",
-    );
+    throw new MainSequenceAiError("resolve_runtime_access response did not include rpc_url.", {
+      source: "frontend_runtime_parser",
+    });
   }
 
   if (!runtimeToken) {
-    throw new Error(
-      "Command Center runtime access did not include token.",
-    );
+    throw new MainSequenceAiError("resolve_runtime_access response did not include token.", {
+      source: "frontend_runtime_parser",
+    });
   }
 
   return {
@@ -169,6 +203,8 @@ export function clearMainSequenceAiResolvedRuntimeAccess() {
   cachedDynamicAssistantAccess = null;
   cachedDynamicAssistantAccessSessionId = null;
   inFlightDynamicAssistantAccessSessionId = null;
+  cachedCommandCenterBaseAssistantAccess = null;
+  inFlightCommandCenterBaseAssistantAccessRefresh = null;
 }
 
 function normalizeRuntimeSessionId(value: string | number | null | undefined) {
@@ -193,12 +229,23 @@ export async function fetchMainSequenceAiCommandCenterRuntimeHandle({
 }) {
   const normalizedCurrentSessionId = normalizeRuntimeSessionId(currentSessionId);
 
-  if (!sessionToken) {
-    throw new Error("No authenticated session token is available for dynamic assistant access.");
+  if (!normalizedCurrentSessionId) {
+    throw new MainSequenceAiError("AgentSession runtime access requires a concrete session id.", {
+      source: "frontend_runtime_guard",
+    });
   }
 
-  const handle = await fetchOrCreateCommandCenterBaseSession({
-    currentSessionId: normalizedCurrentSessionId,
+  if (!sessionToken) {
+    throw new MainSequenceAiError(
+      "No authenticated session token is available for dynamic assistant access.",
+      {
+        source: "frontend",
+      },
+    );
+  }
+
+  const handle = await fetchAgentSessionRuntimeAccess({
+    sessionId: normalizedCurrentSessionId,
     signal,
     token: sessionToken,
     tokenType: sessionTokenType,
@@ -228,7 +275,12 @@ async function refreshDynamicAssistantAccess({
   }
 
   if (!sessionToken) {
-    throw new Error("No authenticated session token is available for dynamic assistant access.");
+    throw new MainSequenceAiError(
+      "No authenticated session token is available for dynamic assistant access.",
+      {
+        source: "frontend",
+      },
+    );
   }
 
   const refreshPromise = (async () => {
@@ -257,6 +309,77 @@ async function refreshDynamicAssistantAccess({
   }
 }
 
+export async function fetchMainSequenceAiOperationalCommandCenterRuntimeHandle({
+  signal,
+  sessionToken,
+  sessionTokenType = "Bearer",
+}: {
+  signal?: AbortSignal;
+  sessionToken?: string | null;
+  sessionTokenType?: string;
+}) {
+  if (!sessionToken) {
+    throw new MainSequenceAiError(
+      "No authenticated session token is available for Command Center runtime access.",
+      {
+        source: "frontend",
+      },
+    );
+  }
+
+  const handle = await fetchCommandCenterBaseSessionHandle({
+    signal,
+    token: sessionToken,
+    tokenType: sessionTokenType,
+  });
+  const access = normalizeDynamicAssistantAccess(handle);
+  cachedCommandCenterBaseAssistantAccess = access;
+
+  return { access, handle };
+}
+
+async function refreshCommandCenterBaseAssistantAccess({
+  sessionToken,
+  sessionTokenType = "Bearer",
+}: {
+  sessionToken?: string | null;
+  sessionTokenType?: string;
+}) {
+  if (inFlightCommandCenterBaseAssistantAccessRefresh) {
+    return inFlightCommandCenterBaseAssistantAccessRefresh;
+  }
+
+  if (!sessionToken) {
+    throw new MainSequenceAiError(
+      "No authenticated session token is available for Command Center runtime access.",
+      {
+        source: "frontend",
+      },
+    );
+  }
+
+  const refreshPromise = (async () => {
+    const { access } = await fetchMainSequenceAiOperationalCommandCenterRuntimeHandle({
+      sessionToken,
+      sessionTokenType,
+    });
+    return access;
+  })();
+
+  inFlightCommandCenterBaseAssistantAccessRefresh = refreshPromise;
+
+  try {
+    return await refreshPromise;
+  } catch (error) {
+    cachedCommandCenterBaseAssistantAccess = null;
+    throw error;
+  } finally {
+    if (inFlightCommandCenterBaseAssistantAccessRefresh === refreshPromise) {
+      inFlightCommandCenterBaseAssistantAccessRefresh = null;
+    }
+  }
+}
+
 export async function resolveMainSequenceAiAssistantAccess({
   assistantEndpoint,
   currentSessionId,
@@ -279,7 +402,9 @@ export async function resolveMainSequenceAiAssistantAccess({
         : resolveMainSequenceAiConfiguredAssistantEndpoint();
 
     if (!configuredAssistantEndpoint) {
-      throw new Error("assistant_ui.endpoint is blank.");
+      throw new MainSequenceAiError("assistant_ui.endpoint is blank.", {
+        source: "frontend",
+      });
     }
 
     return {
@@ -292,13 +417,29 @@ export async function resolveMainSequenceAiAssistantAccess({
     };
   }
 
+  if (runtimeTarget === "command-center-base") {
+    if (!forceRefresh && cachedCommandCenterBaseAssistantAccess) {
+      return cachedCommandCenterBaseAssistantAccess;
+    }
+
+    return refreshCommandCenterBaseAssistantAccess({
+      sessionToken,
+      sessionTokenType,
+    });
+  }
+
   const normalizedCurrentSessionId = normalizeRuntimeSessionId(currentSessionId);
+
+  if (!normalizedCurrentSessionId) {
+    throw new MainSequenceAiError("AgentSession runtime access requires a concrete session id.", {
+      source: "frontend_runtime_guard",
+    });
+  }
 
   if (
     !forceRefresh &&
     cachedDynamicAssistantAccess &&
-    (!normalizedCurrentSessionId ||
-      cachedDynamicAssistantAccessSessionId === normalizedCurrentSessionId)
+    cachedDynamicAssistantAccessSessionId === normalizedCurrentSessionId
   ) {
     return cachedDynamicAssistantAccess;
   }

@@ -4,7 +4,7 @@
 - Date: 2026-04-24
 - Related:
   - [ADR: First-Class Widget Bindings and Dependency Graph](./adr-widget-bindings-and-dependency-graph.md)
-  - [ADR: Main Sequence AI Workspace Reference Widget](./adr-agent-monitor-workspace-reference-widget.md)
+  - [ADR: Main Sequence AI Workspace Reference Widget](../mainsequence_ai/adr-agent-monitor-workspace-reference-widget.md)
   - [ADR: Shared Workspace Content vs Per-User View State](./adr-shared-workspace-state.md)
 
 ## Context

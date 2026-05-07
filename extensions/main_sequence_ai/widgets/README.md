@@ -22,7 +22,7 @@ This folder owns widget modules shipped by the Main Sequence AI extension.
 - Agent-context bindings derived from widget live snapshots remain a primary composition path for
   this extension, and the `Workspace` widget adds an explicit workspace-id reference path.
   `Agent Terminal` consumes these bound upstream sources instead of a bindable prompt string. See
-  [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../../docs/adr/adr-widget-agent-context-bindings.md).
+  [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../../docs/adr/command_center/adr-widget-agent-context-bindings.md).
 - Every registered widget definition in this folder now publishes `widgetVersion` plus an explicit
   backend-facing `registryContract` so admin registry sync can describe configuration, runtime
   behavior, IO semantics, and agent authoring guidance consistently.

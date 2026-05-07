@@ -10,6 +10,7 @@ import { AgentSettingsSection } from "./features/settings/AgentSettingsSection";
 import { ModelProviderSettingsSection } from "./features/settings/ModelProviderSettingsSection";
 import { ChatPage } from "./surfaces/chat/ChatPage";
 import { AgentsMonitorPage } from "./surfaces/monitor/AgentsMonitorPage";
+import { ProjectAgentsPage } from "./surfaces/project-agents/ProjectAgentsPage";
 import { AgentSessionDetailPage } from "./surfaces/session/AgentSessionDetailPage";
 
 export const mainSequenceAiApp: AppDefinition = {
@@ -64,19 +65,40 @@ export const mainSequenceAiApp: AppDefinition = {
       title: "Agents",
       navLabel: "Agents",
       icon: Bot,
-      description: "AgentSession picker and launcher for session-specific monitor workspaces.",
+      description: "Registry-style agent list with direct chat-session launch actions.",
       ...defineSurfaceAssistantContext({
         summary:
-          "User is on the Agents surface inside Main Sequence AI. This page selects AgentSessions and launches agent-monitor workspaces.",
+          "User is on the Agents surface inside Main Sequence AI. This page lists backend agents and starts fresh chat sessions from a standard registry view.",
         availableActions: [
+          "Browse agents",
           "Search agents",
-          "Resume recent sessions",
-          "Open or create an Agents Monitor workspace",
+          "Open an agent detail",
+          "Start a fresh chat session for one agent",
+          "Open the shared Main Sequence AI chat surface",
         ],
       }),
       kind: "page",
-      fullBleed: true,
       component: AgentsPage,
+    },
+    {
+      id: "project-agents",
+      title: "Project Agents",
+      navLabel: "Project Agents",
+      icon: Bot,
+      description: "AI-owned build and deployment workflow for project execution agents.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the Project Agents surface inside Main Sequence AI. This page owns project-agent image build, deployment, and deletion workflows.",
+        availableActions: [
+          "Select a project",
+          "Check whether the selected project is agent-capable",
+          "Build a project-agent runtime image",
+          "Deploy a project-agent runtime",
+          "Delete an existing project agent",
+        ],
+      }),
+      kind: "page",
+      component: ProjectAgentsPage,
     },
     {
       id: "monitor",

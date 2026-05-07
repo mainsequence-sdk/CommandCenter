@@ -14,12 +14,14 @@ It owns:
 - the shell context bridge
 - the mock/live transport wiring
 - the overlay/page shared state
-- the canonical Command Center base-session bootstrap
+- session-bound assistant runtime resolution
 - the resolved assistant-runtime access state used by the chat/runtime fetch layer
 
 It currently powers two presentation modes that share one runtime:
 
 - a full-page chat route at `/app/main_sequence_ai/chat`
+- a session-pinned variant of that route at `/app/main_sequence_ai/chat?session=<AgentSession.id>`
+  when the user opens a recent session into its own browser tab
 - a full-height frosted shell rail that can either dock into `AppShell` and push content left or
   fall back to a fixed overlay on narrower layouts
 
@@ -33,9 +35,16 @@ remaining height. The two shells still differ intentionally:
   not consume the reply viewport
 - the full-page composer now includes provider, model, and reasoning-effort selectors
 - model options are fetched from the assistant backend at `/api/chat/get_available_models`
-- available-model fetching resolves the backend Command Center base session first, so it calls the
-  returned `runtime_access.rpc_url` instead of the static configured endpoint or Vite assistant
+- available-model fetching resolves the selected backend `AgentSession` first, so it calls that
+  session's `runtime_access.rpc_url` instead of the static configured endpoint or Vite assistant
   proxy
+- available-model fetching is cached per user + agent request name for 15 minutes, so switching
+  between sessions does not refetch the same runtime catalog repeatedly
+- the available-model loader is keyed by a stable runtime scope
+  (`user -> agent request name`), not by whole session object identity, so transcript or metadata
+  rewrites do not restart the same request
+- once that scope is established, switching between sessions for the same agent does not restart
+  model discovery just because the concrete `AgentSession.id` changed
 - the picker now understands the grouped provider response from that endpoint and renders the
   workflow as `Provider -> Model -> Thinking`
 - reasoning-effort options are derived from the currently selected model rather than a single
@@ -49,32 +58,54 @@ remaining height. The two shells still differ intentionally:
 - if the backend model catalog loads successfully but returns no available models, that catalog is
   authoritative: `ChatProvider` clears picker selection, the composer is disabled, the selector row
   stays hidden, and the only model-provider action shown is `Sign in to provider`
+- if model resolution is still loading for the current user/agent scope, the composer stays
+  disabled and Command Center does not start a send until the catalog resolves
 - the selected model and reasoning effort are owned by `ChatProvider`, not by assistant-ui composer
   `runConfig`
-- if the backend returns models, `ChatProvider` selects one and every live request carries the
-  currently selected model binding from the picker
+- if the backend returns models, `ChatProvider` selects one for UI state and persists provider/model
+  changes back to the selected backend session
 - when a backend-attached session is selected, `ChatProvider` best-effort initializes the provider
   and model pickers from that session’s `llm_provider` and `llm_model`; if there is no catalog
   match, the normal provider/model fallback selection stays in effect
-- the canonical Command Center base-session response also preserves `llm_provider` and `llm_model`,
-  and those values are authoritative for picker initialization when they exist in the runtime
-  model catalog
+- the selected session metadata also preserves `llm_provider` and `llm_model`, and those values
+  are authoritative for picker initialization when they exist in the runtime model catalog
 - if a selected session asks for a provider/model that is not available in
   `/api/chat/get_available_models`, the picker falls back to an available model and shows a toast
   explaining that the session model is unavailable
 - when the user changes the provider or model picker for a backend-attached session, `ChatProvider`
-  persists that selection to the ORM AgentSession using `llm_provider` and `llm_model`
+  persists model-bound selection to the ORM AgentSession using `llm_provider`, `llm_model`, and
+  `llm_thinking` from the third picker string value; provider-only changes stay local so the UI
+  does not send incomplete PATCH payloads. The locally persisted injected session serializer is
+  updated immediately so later `/api/chat` sends reflect the selected state
+- live `/api/chat` sends must prefer the locally updated injected session serializer over the last
+  fetched detail serializer, so picker changes are reflected in the next request immediately even
+  before Main Sequence detail is re-read
+- successful provider/model changes must not re-run the full AgentSession detail/insights readiness
+  cycle; the shell keeps the current session interactive and updates summary chrome from the local
+  session snapshot instead of forcing a visible rebuild
 - auth-backed models that are present in the catalog but not currently usable stay visible in the
   picker and are rendered disabled with a `Not authenticated` label
-- live `/api/chat` requests now carry the optional top-level backend model binding:
-  `model: { source: "<catalog-source>", model: "<catalog-model>", provider?: "<provider>", runConfig?: { reasoning_effort: "<selected-effort>" } }`
+- live `/api/chat` requests for existing sessions now carry the canonical loaded AgentSession
+  serializer as top-level `session`; they do not send a parallel top-level `model` object
+- model/provider remain session-owned Main Sequence data, while optional top-level
+  `runConfig.reasoning_effort` can still travel as a per-run override
 - live stream `type: "error"` frames preserve the backend `error` message and surface that message
   in the chat error state instead of falling back to assistant-ui's generic error text
+- chat-visible errors now preserve source provenance in the displayed message, so failures such as
+  missing request context can be attributed to Command Center, Main Sequence session APIs, or the
+  agent runtime instead of appearing as anonymous text
 - the overlay keeps a reduced chrome surface: no context disclosure, no run-status strip, and no
   in-message thinking/tool detail blocks. The user can expand into the full page for those details,
   but the overlay composer still exposes the model controls and compact context-window usage footer
-- the right-side rail now warns when it is attached to a non-default session instead of the
-  canonical Command Center base orchestrator session
+- the right-side rail has two presentation modes:
+  - the default Command Center rail only warns when it is attached to a real non-orchestrator
+    session; `astro-orchestrator` itself is treated as the normal Command Center rail case
+  - direct project-agent launches use a dedicated `Project Agent` rail variant with its own
+    provider instance, header, theme-derived accent styling, session chip, and copy, and it
+    intentionally suppresses the default-orchestrator warning
+  - the project-agent rail is additive, not a replacement for the normal Command Center rail:
+    Command Center `Cmd+J` and the project-agent launcher can both stay open at the same time
+    because they no longer share one rail-open flag or one selected session/runtime
 - thinking blocks on the full page start collapsed by default, with a trimmed one-line preview of
   the latest reasoning/tool activity in the collapsed header
 - the page and overlay composer footers now show a compact context-window usage bar when session
@@ -82,6 +113,17 @@ remaining height. The two shells still differ intentionally:
 - chat interaction is gated by AgentSession readiness: the selected backend session must complete
   detail, insights, and history loading before the composer, provider/model controls, and send path
   become interactive
+- the plain `/app/main_sequence_ai/chat` route does not auto-select a restored or latest backend
+  session on first landing; selection there is driven by `?session=`, direct-launch flows, or an
+  explicit user action
+- when that plain chat route has no selected session yet, the page stays in a neutral idle shell:
+  it does not show AgentSession readiness errors or loading states, and it also defers
+  session-bound model discovery until the user selects or starts a session
+- when the user clicks a recent session from that plain unbound chat page, the current tab becomes
+  the session-pinned chat route; cross-tab latest-session opens only apply once the current chat
+  tab is already bound to a concrete session
+- once a selected session finishes loading backend history, the transcript viewport auto-scrolls to
+  the latest message for that session instead of leaving the user at the first historical turn
 
 The app surface itself lives separately under `extensions/main_sequence_ai/surfaces/chat/`.
 The shared page explorer UI now lives separately under `extensions/main_sequence_ai/features/chat/`.
@@ -130,21 +172,21 @@ Responsibilities:
 
 - own message/thread state for the chat runtime
 - own the selected AgentSession and its cached local transcript
-- resolve the canonical Command Center base session from
-  `/orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`
-- bind dynamic assistant-runtime access from that same bootstrap for AgentSession runtime calls
+- require a concrete backend `AgentSession` before resolving dynamic assistant-runtime access
+- bind dynamic assistant-runtime access from the selected session's
+  `/orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/` contract
 - consume the shared `agent-session-detail/` controller instead of owning full AgentSession detail
   composition inline
 - treat `activeSession` as a real backend-attached session only; local drafts/placeholders are
   selected sessions, but not active backend sessions
-- fail fast when the backend cannot provide the canonical base session and there is no explicit
-  backend-attached session to continue
+- fail fast when a concrete selected backend `AgentSession` fails to hydrate, while still keeping
+  the plain unselected chat page in a neutral idle state
 - rely on the shared runtime endpoint helper for assistant-runtime requests so dynamic `rpc_url`
   and runtime-token refresh behavior stay centralized
 - expose a normalized active session summary for page shell UI
 - expose overlay/page navigation helpers
 - bridge app context into chat requests
-- own the selected backend model binding used for `/api/chat`
+- own the locally persisted injected AgentSession serializer used for `/api/chat`
 - expose and enforce the selected AgentSession interaction-readiness gate so UI components do not
   treat partial session identity or cached local transcript state as interactive readiness
 - translate backend events into runtime state
@@ -163,12 +205,8 @@ This boundary owns a feature-local session layer that:
 
 - bootstraps the visible session list from `/orm/api/agents/v1/sessions/`, filtered to
   `created_by_user=<signed-in user id>`, newest first, limited to 20
-- bootstraps the canonical Command Center base session from
-  `/orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`
 - persists local session snapshots in browser localStorage, scoped by signed-in user id
 - keeps the selected session shared between the page and overlay runtime
-- treats that canonical base session as the default assistant continuity session instead of
-  inferring continuity from the latest `astro-orchestrator` session by name
 - exposes the selected session summary to the page shell so static session metadata can live in a
   dedicated rail instead of above the transcript
 - exposes the active shared AgentSession detail snapshot so chat chrome can render core detail
@@ -181,10 +219,25 @@ This boundary owns a feature-local session layer that:
   selecting them, so a local placeholder id is never treated as an interactive session
 - treats backend detail, insights, and history as required readiness facets before enabling chat
   interaction for the selected AgentSession
-- stages cross-agent `new_session` stream events as pending handoffs: the target AgentSession is
-  added locally, latest sessions are refreshed, and the notice offers an immediate open-session
-  action
 - lets page surfaces search agents and start a new session attached to the selected agent
+- also exposes a direct session-launch path for page surfaces that already know a backend
+  `agent_id`, so they can open the left rail and start a session through
+  `/orm/api/agents/v1/agents/{agent_id}/start_new_session/` without going through agent search
+- also exposes a direct "open latest or start" path for page surfaces such as project detail:
+  it first checks the latest sessions endpoint for that `agent_id` and current user, reuses the
+  newest session when one exists, and only creates a fresh session when no prior session is found
+- keeps that direct project-agent launch on a dedicated rail path: it skips the generic latest
+  session refresh, skips assistant-runtime model/tool bootstrap on initial open, and hydrates the
+  rail from the created session record first so the canonical Astro orchestrator transport does not
+  mix into the first-open experience
+- direct-launched sessions no longer mark history as ready from local placeholder state;
+  they stay loading until a real `/api/chat/history?sessionId=<AgentSession.id>` read succeeds
+- session-bound runtime calls now resolve runtime access from
+  `/orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/` instead of routing
+  every selected session through a separate Astro Command Center bootstrap endpoint
+- a fresh backend `start_new_session` with no persisted transcript is treated as a valid empty
+  history state; a `404` history response is normalized to an empty thread instead of surfacing a
+  session error banner
 - applies `agent_id=<selected agent id>` to the latest-sessions query after the user picks an
   agent from the session search bar
 - uses backend `agent_name` from session API records to populate the session request-name when
@@ -195,6 +248,9 @@ This boundary owns a feature-local session layer that:
 - refreshes backend session insights from
   `/orm/api/agents/v1/sessions/{agent_session_id}/insights/` every time the effective backend
   session changes
+- treats an empty session-insights payload as a valid state: if the backend returns `200` with
+  `has_insights=false` and `insights={}`, the UI shows "no persisted insights yet" instead of an
+  error state
 - preserves backend `bound_handles` metadata in normalized session records so handles can be shown
   in the explorer, catalog picker, and session detail rail
 - preserves backend `runtime_state` and `working` on normalized session records. `working=true`
@@ -207,14 +263,18 @@ This is still intentionally hybrid for now. The visible explorer list comes from
 sessions endpoint, but cached frontend transcripts and newly-started local sessions are still kept
 feature-local until the backend exposes a fuller session-history contract.
 
-If the canonical base-session bootstrap fails, the assistant does not silently reinterpret another
+If no backend `AgentSession` is available, the assistant does not silently reinterpret another
 session as the default. The composer stays disabled until a real backend session is available or
 the user explicitly selects a valid backend-attached session.
 
 When `VITE_ASSISTANT_UI_PROXY_TARGET` is set, assistant-runtime calls use the configured Vite
-proxy endpoint and the base-session bootstrap sends `create_knative_service=false`. When that proxy
-target is unset, agent-runtime calls resolve through the base-session bootstrap and use the returned
+proxy endpoint and the per-session runtime-access request sends
+`create_knative_service=false`. When that proxy target is unset, agent-runtime calls resolve
+through the selected session's `resolve_runtime_access` contract and use the returned
 `runtime_access.rpc_url` plus runtime-scoped bearer token.
+When `VITE_ASSISTANT_UI_EXECUTOR_TARGET` is also set, session-bound proxy traffic branches by
+request name: `mainsequence-project-executor` sessions use the dedicated executor proxy route,
+while all other sessions stay on the standard assistant proxy route.
 
 ### Backend Adapter
 
@@ -258,7 +318,6 @@ Rules:
 - session changes include:
   - manual selection in the left explorer
   - streamed `new_session`
-  - streamed `session_switch`
   - initial load of a selected session that already has a backend `runtimeSessionId`
 - placeholder or local-only sessions without a backend `AgentSession.id` do not fetch tools
 - in-flight tool requests are aborted when the selected session changes
@@ -356,7 +415,7 @@ If you do those steps, the main project should return to its pre-chat shape beca
 ## Live Transport Notes
 
 - Live assistant-runtime requests resolve their root through `runtime/assistant-endpoint.ts`,
-  which exchanges the Command Center base session handle and uses `runtime_access.rpc_url`.
+  which resolves runtime access from the selected `AgentSession` and uses `runtime_access.rpc_url`.
   `assistant_ui.endpoint` is only for explicitly configured/static mode and is not a fallback for
   Main Sequence AI agent-runtime calls.
 - The live runtime keeps assistant-ui's standard stream decoding, but sends only the most recent
@@ -395,20 +454,9 @@ If you do those steps, the main project should return to its pre-chat shape beca
   - local `threadId` becomes `new_session.thread_id`
   - local `sessionKey` becomes `new_session.session_key`
   - local agent metadata adopts `new_session.agent_id` and `new_session.agent_unique_id`
-- If a `new_session` chunk arrives for a different streamed agent id, the UI currently does not
-  branch into a new session automatically. It instead shows an inline notice that a new agent
-  session was created by another agent.
-- If the backend emits a `session_switch` chunk, the active global `AgentSession` is rewritten in
-  place to the switched backend session while preserving the transcript already on screen:
-  - local session `id` becomes `session_switch.agent_session_id`
-  - local `runtimeSessionId` becomes `session_switch.runtime_session_id`
-  - local `threadId` becomes `session_switch.thread_id`
-  - local `sessionKey` becomes `session_switch.session_key`
-  - local agent metadata adopts `session_switch.to_agent_name`, `session_switch.agent_id`, and
-    `session_switch.agent_unique_id`
-  - local session metadata also stores `session_switch.project_id` and `session_switch.cwd`
-  - the switched session becomes the selected session in the left explorer immediately
-  - later requests continue with the switched `runtime_session_id`
+- `new_session` is only honored for the current chat's own backend session assignment path. The
+  frontend no longer stages or opens cross-agent handoffs, and it ignores runtime stream switching
+  semantics for other agents.
 - whenever the selected session has a backend `runtimeSessionId`, the provider fetches
   `/api/chat/session-tools?sessionId=<runtime_session_id>` from the assistant backend origin
 - the normalized tool payload is stored in a provider-owned map keyed by backend session id

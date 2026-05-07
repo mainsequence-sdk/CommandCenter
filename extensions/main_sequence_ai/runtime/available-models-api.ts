@@ -1,4 +1,8 @@
-import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
+import {
+  fetchMainSequenceAiAssistantResponse,
+  type MainSequenceAiAssistantRuntimeTarget,
+} from "./assistant-endpoint";
+import { MainSequenceAiError } from "./error-source";
 
 export interface AvailableChatModelOption {
   auth:
@@ -34,6 +38,69 @@ export interface AvailableChatRunConfigOptions {
   providers: AvailableChatProviderOption[];
   models: AvailableChatModelOption[];
   reasoningEfforts: AvailableChatReasoningEffortOption[];
+}
+
+const AVAILABLE_RUN_CONFIG_CACHE_TTL_MS = 900_000;
+
+interface AvailableRunConfigCacheEntry {
+  expiresAt: number;
+  value: AvailableChatRunConfigOptions | null;
+}
+
+const availableRunConfigOptionsCache = new Map<string, AvailableRunConfigCacheEntry>();
+
+function normalizeCacheKey(value: string | null | undefined) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+export function buildAvailableRunConfigCacheKey({
+  agentRequestName,
+  userId,
+}: {
+  agentRequestName?: string | null;
+  userId?: string | number | null;
+}) {
+  const normalizedUserId =
+    userId === null || userId === undefined ? "anonymous" : String(userId).trim() || "anonymous";
+  const normalizedAgentRequestName = normalizeCacheKey(agentRequestName) ?? "global";
+
+  return [normalizedUserId, normalizedAgentRequestName].join("::");
+}
+
+function getAvailableRunConfigCacheEntry(cacheKey: string | null) {
+  if (!cacheKey) {
+    return null;
+  }
+
+  const entry = availableRunConfigOptionsCache.get(cacheKey);
+
+  if (!entry) {
+    return null;
+  }
+
+  if (entry.value && entry.expiresAt > Date.now()) {
+    return entry;
+  }
+
+  availableRunConfigOptionsCache.delete(cacheKey);
+  return null;
+}
+
+export function peekAvailableRunConfigOptionsCache(cacheKey: string | null | undefined) {
+  const normalizedCacheKey = normalizeCacheKey(cacheKey);
+  const entry = getAvailableRunConfigCacheEntry(normalizedCacheKey);
+  return entry?.value ?? null;
+}
+
+export function clearAvailableRunConfigOptionsCache(cacheKey?: string | null) {
+  const normalizedCacheKey = normalizeCacheKey(cacheKey);
+
+  if (!normalizedCacheKey) {
+    availableRunConfigOptionsCache.clear();
+    return;
+  }
+
+  availableRunConfigOptionsCache.delete(normalizedCacheKey);
 }
 
 function formatModelLabel(value: string) {
@@ -424,18 +491,36 @@ function dedupeByKey<T>(entries: readonly T[], getKey: (entry: T) => string) {
 
 export async function fetchAvailableRunConfigOptions({
   assistantEndpoint,
+  cacheKey,
+  cacheTtlMs = AVAILABLE_RUN_CONFIG_CACHE_TTL_MS,
+  runtimeTarget,
+  sessionId,
   signal,
   token,
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
+  cacheKey?: string | null;
+  cacheTtlMs?: number;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
+  sessionId?: string | null;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
 }) {
+  const normalizedCacheKey = normalizeCacheKey(cacheKey);
+  const cachedEntry = getAvailableRunConfigCacheEntry(normalizedCacheKey);
+
+  if (cachedEntry?.value) {
+    return cachedEntry.value;
+  }
+
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
+    ...(sessionId
+      ? { currentSessionId: sessionId }
+      : { runtimeTarget: runtimeTarget ?? ("configured" as const) }),
     requestPath: "/api/chat/get_available_models",
     method: "GET",
     signal,
@@ -447,13 +532,26 @@ export async function fetchAvailableRunConfigOptions({
     const payload = (await response.json().catch(() => null)) as
       | { error?: string; message?: string }
       | null;
-    throw new Error(
+    throw new MainSequenceAiError(
       payload?.message ||
         payload?.error ||
         `Available models failed with status ${response.status}.`,
+      {
+        source: "assistant_available_models",
+        status: response.status,
+      },
     );
   }
 
   const payload = (await response.json()) as unknown;
-  return normalizeAvailableRunConfigOptions(payload);
+  const options = normalizeAvailableRunConfigOptions(payload);
+
+  if (normalizedCacheKey) {
+    availableRunConfigOptionsCache.set(normalizedCacheKey, {
+      expiresAt: Date.now() + cacheTtlMs,
+      value: options,
+    });
+  }
+
+  return options;
 }

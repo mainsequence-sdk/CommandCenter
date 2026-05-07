@@ -1,4 +1,7 @@
-import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
+import {
+  fetchMainSequenceAiAssistantResponse,
+  type MainSequenceAiAssistantRuntimeTarget,
+} from "./assistant-endpoint";
 
 export interface CancelChatSessionRequest {
   runtimeSessionId: string;
@@ -9,16 +12,21 @@ export interface CancelChatSessionRequest {
 }
 
 export async function cancelChatSession({
+  assistantEndpoint,
   body,
+  runtimeTarget,
   token,
   tokenType = "Bearer",
 }: {
+  assistantEndpoint?: string;
   body: CancelChatSessionRequest;
+  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   token?: string | null;
   tokenType?: string;
 }) {
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
+    assistantEndpoint,
     currentSessionId: body.runtimeSessionId,
     requestPath: "/api/chat/session/cancel",
     method: "POST",
@@ -32,6 +40,7 @@ export async function cancelChatSession({
       reason: body.reason ?? "user_requested",
       message: body.message ?? "User pressed stop.",
     }),
+    runtimeTarget,
     sessionToken: token,
     sessionTokenType: tokenType,
   });

@@ -1,7 +1,10 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 
 import type { AgentSearchResult } from "../agent-search";
-import type { AgentSessionApiRecord } from "../runtime/agent-sessions-api";
+import type {
+  AgentSessionApiRecord,
+  AgentSessionSerializedRecord,
+} from "../runtime/agent-sessions-api";
 import type { CommandCenterBaseSessionHandle } from "../runtime/command-center-base-session-api";
 
 export const DEFAULT_AGENT_NAME = "astro-orchestrator";
@@ -35,10 +38,11 @@ export interface AgentSessionRecord {
   agent: AgentSessionAgent | null;
   origin: "astro_command_center_base" | null;
   isPlaceholder: boolean;
+  serializedSession: AgentSessionSerializedRecord | null;
   messages: ThreadMessageLike[];
 }
 
-export type AgentSessionSummary = Omit<AgentSessionRecord, "messages">;
+export type AgentSessionSummary = Omit<AgentSessionRecord, "messages" | "serializedSession">;
 
 export interface StreamCreatedAgentSession {
   agentId: number | null;
@@ -46,21 +50,6 @@ export interface StreamCreatedAgentSession {
   agentUniqueId: string | null;
   sessionKey: string | null;
   threadId: string | null;
-}
-
-export interface StreamSwitchedAgentSession {
-  fromAgentName: string | null;
-  toAgentName: string;
-  projectId: string | null;
-  cwd: string | null;
-  threadId: string | null;
-  agentId: number | null;
-  agentUniqueId: string | null;
-  agentSessionId: string;
-  sessionKey: string | null;
-  runtimeSessionId: string | null;
-  initialTask: string | null;
-  summary: string | null;
 }
 
 function buildStorageKey(userId: string | null) {
@@ -73,6 +62,10 @@ function inferRuntimeSessionId(id: string) {
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function normalizeSerializedThinkingValue(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
 function extractTextContent(message: ThreadMessageLike) {
@@ -109,7 +102,7 @@ export function toAgentSessionAgent(agent: AgentSearchResult): AgentSessionAgent
     requestName: agent.name,
     agentUniqueId: agent.agent_unique_id,
     description: agent.description,
-    status: agent.status,
+    status: agent.status ?? "",
     llmProvider: agent.llm_provider,
     llmModel: agent.llm_model,
     engineName: agent.engine_name,
@@ -138,10 +131,21 @@ export function toAgentSessionRecordFromApi(
   const updatedAt = record.ended_at || record.started_at || new Date().toISOString();
   const title = record.title?.trim() || record.summary?.trim() || `Agent session ${sessionId}`;
   const preview = record.summary?.trim() || null;
+  const requestName = record.agent_name?.trim() || existing?.agent?.requestName || DEFAULT_AGENT_NAME;
   const handleUniqueId =
     (Array.isArray(record.bound_handles) ? record.bound_handles[0]?.handle_unique_id : null) ??
     existing?.handleUniqueId ??
     null;
+  const preservedAgentUniqueId =
+    existing?.agent &&
+    existing.agent.agentUniqueId &&
+    existing.agent.agentUniqueId !== DEFAULT_AGENT_NAME &&
+    (
+      existing.agent.requestName === requestName ||
+      (record.agent !== null && record.agent !== undefined && existing.agent.id === record.agent)
+    )
+      ? existing.agent.agentUniqueId
+      : null;
 
   return {
     id: sessionId,
@@ -158,15 +162,16 @@ export function toAgentSessionRecordFromApi(
     updatedAt,
     origin: existing?.origin ?? null,
     isPlaceholder: false,
+    serializedSession: existing?.serializedSession ?? null,
     agent: {
       id: record.agent ?? existing?.agent?.id ?? null,
       name:
         record.actor_name?.trim() ||
-        record.agent_name?.trim() ||
+        requestName ||
         existing?.agent?.name ||
         "Astro Orchestrator",
-      requestName: record.agent_name?.trim() || existing?.agent?.requestName || DEFAULT_AGENT_NAME,
-      agentUniqueId: handleUniqueId || existing?.agent?.agentUniqueId || "astro-orchestrator",
+      requestName,
+      agentUniqueId: preservedAgentUniqueId ?? "",
       description: existing?.agent?.description || "",
       status: record.status || existing?.agent?.status || "",
       llmProvider: record.llm_provider || existing?.agent?.llmProvider || "",
@@ -178,7 +183,7 @@ export function toAgentSessionRecordFromApi(
 }
 
 export function summarizeAgentSession(record: AgentSessionRecord): AgentSessionSummary {
-  const { messages: _messages, ...summary } = record;
+  const { messages: _messages, serializedSession: _serializedSession, ...summary } = record;
   return summary;
 }
 
@@ -240,8 +245,43 @@ export function createEmptyAgentSession(
     agent,
     origin: null,
     isPlaceholder: options.placeholder ?? false,
+    serializedSession: null,
     messages: [],
   };
+}
+
+export function attachSerializedSessionToSession(
+  session: AgentSessionRecord,
+  serializedSession: AgentSessionSerializedRecord,
+) {
+  return {
+    ...toAgentSessionRecordFromApi(serializedSession, session),
+    serializedSession: cloneJson(serializedSession),
+  } satisfies AgentSessionRecord;
+}
+
+export function applyModelConfigToSerializedSession(
+  serializedSession: AgentSessionSerializedRecord | null,
+  {
+    model,
+    provider,
+    thinking = "",
+  }: {
+    model: string;
+    provider: string;
+    thinking?: string | null;
+  },
+) {
+  if (!serializedSession) {
+    return null;
+  }
+
+  return {
+    ...cloneJson(serializedSession),
+    llm_model: model,
+    llm_provider: provider,
+    llm_thinking: normalizeSerializedThinkingValue(thinking),
+  } satisfies AgentSessionSerializedRecord;
 }
 
 export function updateAgentSessionSnapshot({
@@ -316,80 +356,6 @@ export function promoteAgentSessionFromStream({
   });
 }
 
-export function createAgentSessionFromStreamHandoff(
-  stream: StreamCreatedAgentSession,
-  existing?: AgentSessionRecord | null,
-): AgentSessionRecord {
-  const nextAgent = existing?.agent ?? createDefaultAgentSessionAgent();
-  const agentLabel =
-    stream.agentUniqueId?.trim() ||
-    (stream.agentId !== null ? `Agent ${stream.agentId}` : DEFAULT_AGENT_LABEL);
-
-  return {
-    id: stream.agentSessionId,
-    title: existing?.title || agentLabel,
-    preview: existing?.preview ?? null,
-    runtimeSessionId: stream.agentSessionId,
-    sessionKey: stream.sessionKey ?? existing?.sessionKey ?? null,
-    handleUniqueId: existing?.handleUniqueId ?? null,
-    threadId: stream.threadId ?? existing?.threadId ?? stream.agentSessionId,
-    projectId: existing?.projectId ?? null,
-    cwd: existing?.cwd ?? null,
-    runtimeState: existing?.runtimeState ?? null,
-    working: true,
-    updatedAt: new Date().toISOString(),
-    agent: {
-      ...nextAgent,
-      id: stream.agentId ?? nextAgent.id,
-      name: agentLabel,
-      requestName: stream.agentUniqueId?.trim() || agentLabel,
-      agentUniqueId: stream.agentUniqueId?.trim() || nextAgent.agentUniqueId,
-    },
-    origin: existing?.origin ?? null,
-    isPlaceholder: false,
-    messages: existing?.messages ?? [],
-  };
-}
-
-export function switchAgentSessionFromStream({
-  session,
-  stream,
-  messages,
-}: {
-  session: AgentSessionRecord;
-  stream: StreamSwitchedAgentSession;
-  messages: readonly ThreadMessageLike[];
-}) {
-  const nextAgent = session.agent || createDefaultAgentSessionAgent();
-  const nextAgentName = stream.toAgentName.trim() || nextAgent.name;
-
-  return updateAgentSessionSnapshot({
-    session: {
-      ...session,
-      id: stream.agentSessionId,
-      runtimeSessionId: stream.runtimeSessionId ?? stream.agentSessionId,
-      sessionKey: stream.sessionKey ?? session.sessionKey,
-      handleUniqueId: session.handleUniqueId,
-      threadId: stream.threadId ?? session.threadId,
-      projectId: stream.projectId ?? session.projectId,
-      cwd: stream.cwd ?? session.cwd,
-      runtimeState: session.runtimeState,
-      working: session.working,
-      origin: session.origin,
-      isPlaceholder: false,
-      updatedAt: new Date().toISOString(),
-      agent: {
-        ...nextAgent,
-        id: stream.agentId ?? nextAgent.id,
-        name: nextAgentName,
-        requestName: nextAgentName,
-        agentUniqueId: stream.agentUniqueId ?? nextAgent.agentUniqueId,
-      },
-    },
-    messages,
-  });
-}
-
 export function toAgentSessionRecordFromBaseHandle(
   handle: CommandCenterBaseSessionHandle,
   existing?: AgentSessionRecord,
@@ -429,6 +395,7 @@ export function toAgentSessionRecordFromBaseHandle(
     },
     origin: "astro_command_center_base",
     isPlaceholder: false,
+    serializedSession: existing?.serializedSession ?? null,
     messages: existing?.messages ?? [],
   };
 }
@@ -520,6 +487,12 @@ export function readAgentSessions(userId: string | null) {
                 } satisfies AgentSessionAgent)
               : null,
           isPlaceholder: Boolean(candidate.isPlaceholder),
+          serializedSession:
+            candidate.serializedSession &&
+            typeof candidate.serializedSession === "object" &&
+            !Array.isArray(candidate.serializedSession)
+              ? cloneJson(candidate.serializedSession as AgentSessionSerializedRecord)
+              : null,
           messages: Array.isArray(candidate.messages)
             ? cloneJson(candidate.messages as ThreadMessageLike[])
             : [],

@@ -12,16 +12,19 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 
 - `assistant-endpoint.ts`
   Resolves assistant-runtime access, including dynamic runtime `rpc_url` resolution, bearer-token
-  injection, selected-session binding, and shared `401` / `403` refresh-and-retry behavior.
+  injection, selected-session binding, the non-chat Astro operational runtime-access path, and
+  shared `401` / `403` refresh-and-retry behavior.
 - `assistant-health-api.ts`
   Fetches the assistant-runtime `GET /health` response and preserves the raw JSON or text payload
   for the Agents settings diagnostics panel.
 - `command-center-base-session-api.ts`
-  Shared transport for the canonical Command Center base session handle returned by
+  Shared transport for both per-session runtime access at
+  `POST /orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/` and the Astro
+  operational handle bootstrap at
   `POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`.
-  It can send `current_session` when a frontend request targets an existing backend AgentSession.
 - `agent-session-request.ts`
-  Builds the backend request-body fragments used for session-bound assistant runs.
+  Builds the backend request-body fragments used for session-bound assistant runs, including the
+  injected canonical AgentSession serializer payload.
 - `agent-session-readiness.ts`
   Shared readiness model for interaction surfaces that must wait for AgentSession detail,
   insights, and history before enabling chat or terminal input.
@@ -36,7 +39,10 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   `POST /orm/api/agents/v1/agents/{agent_id}/start_new_session/` plus the AgentSession
   model-binding PATCH for `llm_provider` / `llm_model`.
 - `available-models-api.ts`
-  Shared assistant-backend model catalog fetch helper used by the page chat composer.
+  Shared assistant-backend model catalog fetch helper used by the page chat composer. It also owns
+  the shared in-memory available-models cache used to avoid repeated
+  `/api/chat/get_available_models` requests for the same user + agent-request-name scope for
+  15 minutes after a successful load.
 - `model-catalog-api.ts`
   Shared global model-catalog fetch helper used by the provider settings screen.
 - `model-provider-auth-api.ts`
@@ -60,15 +66,34 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - Assistant-runtime calls use the configured assistant endpoint when `VITE_ASSISTANT_UI_PROXY_TARGET`
   is set. Otherwise agent-runtime calls use `runtime_access.rpc_url` plus
   `Authorization: Bearer <runtime_access.token>`.
+- When both `VITE_ASSISTANT_UI_PROXY_TARGET` and `VITE_ASSISTANT_UI_EXECUTOR_TARGET` are set,
+  proxy-mode session traffic can branch by agent request name: sessions for
+  `mainsequence-project-executor` use the dedicated executor proxy path, while other sessions keep
+  using the standard assistant proxy path.
 - `assistant_ui.endpoint` may be blank when Main Sequence AI should rely entirely on backend
   runtime access. Render paths must not call the configured/static endpoint as a hard requirement
   for agent-runtime calls.
-- When `VITE_ASSISTANT_UI_PROXY_TARGET` is set, the Command Center base-session request sends
+- When `VITE_ASSISTANT_UI_PROXY_TARGET` is set, the per-session runtime-access request sends
   `create_knative_service=false` so local proxied development does not ask the backend to create a
   dynamic runtime service.
 - Requests that target a specific existing AgentSession should pass the session id through
-  `currentSessionId` so the backend exchange can bind the astro command-center handle to
-  `current_session` before hitting runtime endpoints such as history, tools, or chat.
+  `currentSessionId`. Dynamic runtime resolution will then call
+  `POST /orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/` before hitting
+  runtime endpoints such as history, tools, or chat. Agent-runtime resolution no longer falls back
+  to the Astro Command Center base-session endpoint when no concrete `AgentSession` id is selected;
+  callers must provide a real backend session id.
+- Global, non-chat operational surfaces such as `Project Agents`, `Model Providers`, and
+  `Agents Settings` should use the dedicated `command-center-base` runtime target instead of
+  depending on chat-store side effects or a concrete `AgentSession`.
+- The `command-center-base` runtime target is allowed to resolve runtime access, call `/health`,
+  and fetch model/provider catalogs. It must not implicitly fetch transcript history, insights, or
+  other chat-hydration state.
+- The per-session `resolve_runtime_access` response may omit echoed session identity. The frontend
+  normalizer must fall back to the requested session id instead of treating that response as an
+  invalid base-session payload.
+- `session-history-api.ts` treats a `404` history read as a valid empty session transcript. Fresh
+  `start_new_session` records should not block chat readiness just because no runtime messages have
+  been persisted yet.
 - Interaction surfaces should use `agent-session-readiness.ts` semantics: a backend AgentSession
   is not ready for user input until detail, insights, and history have all loaded successfully for
   the same selected session id.
@@ -84,16 +109,24 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - If the backend assistant request shape changes, update `agent-session-request.ts` first so the
   page chat and terminal widget stay aligned.
 - Chat picker provider/model changes are persisted through
-  `PATCH /orm/api/agents/v1/sessions/{agent_session_id}/` with `llm_provider` and `llm_model`.
-  This is ORM session metadata, not an assistant-runtime request.
-- `agent-session-request.ts` now owns the top-level optional `model` request object for `/api/chat`,
-  including `source`, exact model id, optional provider, and optional
-  `runConfig.reasoning_effort`.
+  `PATCH /orm/api/agents/v1/sessions/{agent_session_id}/` with `llm_provider`, `llm_model`, and
+  `llm_thinking` as the third-picker string value. Provider-only picker changes stay local until a
+  concrete model or thinking selection is persisted. This is ORM session metadata, not an
+  assistant-runtime request.
+- `agent-session-request.ts` now injects the canonical
+  `GET /orm/api/agents/v1/sessions/{agent_session_id}/` serializer payload as top-level `session`
+  on live `/api/chat` requests for existing sessions.
+- Session-bound live requests no longer rely on a parallel top-level `model` object. Provider and
+  model live on the injected session serializer, while optional per-run overrides such as
+  `runConfig.reasoning_effort` stay top-level.
 - `available-models-api.ts` now also preserves per-model auth metadata so shell settings can show
   auth-backed models as visible but unusable when sign-in is required.
 - `available-models-api.ts` also normalizes the provider-grouped `/api/chat/get_available_models`
   response and preserves per-model reasoning-effort capabilities so the chat composer can render
   provider, model, and reasoning selectors in sequence.
+- `available-models-api.ts` caches normalized model catalogs in memory by caller-provided
+  user + agent-request-name cache key so chat session churn does not refetch the same runtime catalog
+  repeatedly after a successful load. The current TTL is 15 minutes.
 - reasoning options for the chat picker are derived from each model's
   `capabilities.runConfig.reasoning_effort` payload, with `defaults.runConfig.reasoning_effort`
   used as the selected default when present.
@@ -104,13 +137,12 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   should keep showing the sign-in link whenever the backend keeps providing it across attempt
   states.
 - `model-catalog-api.ts` is the only catalog source for the global provider settings screen.
-  `available-models-api.ts` remains the chat-runtime picker source.
+  `available-models-api.ts` remains the chat-runtime picker source for session-bound chat and also
+  powers non-chat project-agent deployment model selection when it is explicitly pointed at the
+  `command-center-base` runtime target.
 - `assistant-health-api.ts` intentionally does not impose a strict health response schema; the
   settings screen should render the backend answer as returned.
-- `command-center-base-session-api.ts` is the only canonical source for the default Command Center
-  assistant continuity session. Frontend code should not infer that default by picking the latest
-  `astro-orchestrator` session from the latest-session query.
-- The base-session normalizer preserves `llm_provider` and `llm_model` so the chat picker can
+- The runtime-access normalizer preserves `llm_provider` and `llm_model` so the chat picker can
   initialize from the actual session metadata instead of forcing the user to reselect the model.
 - AgentSession transports preserve `runtime_state` and `working`. UI surfaces must treat
   `working=true` as a backend-owned busy state and avoid sending another chat request for that
@@ -118,7 +150,12 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `session-insights-api.ts` reads
   `GET /orm/api/agents/v1/sessions/{agent_session_id}/insights/` and does not call the assistant
   runtime URL. It remains the canonical read contract for session config values and editable
-  constraints. `session-config-api.ts` is write-only and should only send changed writable fields
-  back to the backend.
+  constraints. The transport treats a `200` payload with `has_insights=false` and `insights={}` as
+  a valid empty snapshot, and it also downgrades a legacy `404` response into that same empty
+  snapshot shape for compatibility during backend rollout. `session-config-api.ts` is write-only
+  and should only send changed writable fields back to the backend.
 - The live stream helper currently assumes `assistant_ui.protocol=ui-message-stream`, which matches
   the current Command Center configuration.
+- Runtime helpers should throw source-tagged errors through `error-source.ts` so chat-visible
+  failures can identify whether they came from Command Center guards/parsing, Main Sequence
+  session APIs, or the agent runtime transport/stream.

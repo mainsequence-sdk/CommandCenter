@@ -6,8 +6,68 @@ import { getAgentSessionDetailPath } from "../../agent-session-detail/routes";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
 import { RepoDiffTool } from "./components/RepoDiffTool";
 
+function normalizeSessionSecondaryLabel({
+  agentUniqueId,
+  displayName,
+  requestName,
+}: {
+  agentUniqueId: string | null;
+  displayName: string | null;
+  requestName: string | null;
+}) {
+  const normalizedRequestName = requestName?.trim() || null;
+  const candidates = [displayName, agentUniqueId]
+    .map((value) => value?.trim() || null)
+    .filter((value): value is string => Boolean(value));
+
+  return (
+    candidates.find((value) => value !== normalizedRequestName) ??
+    null
+  );
+}
+
+function buildInsightsSummaryLabel(activeSessionSummary: NonNullable<ReturnType<typeof useChatFeature>["activeSessionSummary"]>) {
+  if (activeSessionSummary.llmModel) {
+    return activeSessionSummary.llmModel;
+  }
+
+  const sessionInsights = activeSessionSummary.sessionInsights;
+
+  if (activeSessionSummary.isLoadingInsights) {
+    return "Loading insights";
+  }
+
+  if (activeSessionSummary.insightsError) {
+    return "Insights unavailable";
+  }
+
+  if (sessionInsights?.hasInsights === false) {
+    return "No persisted insights yet";
+  }
+
+  if (sessionInsights?.model?.model) {
+    return sessionInsights.model.model;
+  }
+
+  switch (sessionInsights?.context?.status) {
+    case "known":
+      return "Context tracked";
+    case "unknown_after_compaction":
+      return "Context estimate recalculating";
+    default:
+      return "Open model, usage, and context details";
+  }
+}
+
+function buildThinkingSummaryLabel(
+  activeSessionSummary: NonNullable<ReturnType<typeof useChatFeature>["activeSessionSummary"]>,
+) {
+  return activeSessionSummary.llmThinking?.trim() || null;
+}
+
 export function SessionDetailRail() {
-  const { activeSessionSummary } = useChatFeature();
+  const { activeSessionSummary, railExperience } = useChatFeature();
+  const isProjectAgentRail = railExperience === "project-agent";
   const hasBackendSession = Boolean(
     activeSessionSummary?.sessionDisplayId || activeSessionSummary?.runtimeSessionId,
   );
@@ -16,13 +76,19 @@ export function SessionDetailRail() {
     return (
       <section className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent">
         <div className="border-b border-border/60 px-4 py-4">
-          <div className="text-sm font-semibold text-foreground">Session Details & Insights</div>
+          <div className="text-sm font-semibold text-foreground">
+            {isProjectAgentRail ? "Project Agent Session" : "Session Details & Insights"}
+          </div>
           <div className="text-xs text-muted-foreground">
-            Open the dedicated AgentSession detail screen and inspect runtime tools.
+            {isProjectAgentRail
+              ? "Open the dedicated AgentSession detail screen and inspect the project agent session."
+              : "Open the dedicated AgentSession detail screen and inspect runtime tools."}
           </div>
         </div>
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-6 text-sm text-muted-foreground">
-          No active session. The next conversation will start with the orchestrator.
+          {isProjectAgentRail
+            ? "No active project-agent session. Launch it from the project header robot."
+            : "No active session. The next conversation will start with the orchestrator."}
         </div>
       </section>
     );
@@ -32,26 +98,33 @@ export function SessionDetailRail() {
   const detailPath = activeSessionSummary.sessionId
     ? getAgentSessionDetailPath(activeSessionSummary.sessionId)
     : null;
-  const insightsSummary = activeSessionSummary.isLoadingInsights
-    ? "Loading insights"
-    : activeSessionSummary.insightsError
-      ? "Insights unavailable"
-      : sessionInsights?.model?.model || sessionInsights?.context?.status || "Open model, usage, and context details";
+  const insightsSummary = buildInsightsSummaryLabel(activeSessionSummary);
+  const thinkingSummary = buildThinkingSummaryLabel(activeSessionSummary);
+  const secondaryLabel = normalizeSessionSecondaryLabel({
+    agentUniqueId: activeSessionSummary.agentUniqueId,
+    displayName: activeSessionSummary.displayName,
+    requestName: activeSessionSummary.requestName,
+  });
   const summaryCard = (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0 space-y-1">
         <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Conversation With
+          {isProjectAgentRail ? "Project Agent Session" : "Conversation With"}
         </div>
         <div className="font-mono text-sm font-semibold text-primary">
           {activeSessionSummary.requestName}
         </div>
-        {activeSessionSummary.agentUniqueId ? (
+        {secondaryLabel ? (
           <div className="font-mono text-xs text-muted-foreground">
-            {activeSessionSummary.agentUniqueId}
+            {secondaryLabel}
           </div>
         ) : null}
         <div className="pt-1 text-sm text-foreground">{insightsSummary}</div>
+        {thinkingSummary ? (
+          <div className="font-mono text-xs text-muted-foreground">
+            Thinking · {thinkingSummary}
+          </div>
+        ) : null}
       </div>
       {detailPath ? (
         <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -62,9 +135,13 @@ export function SessionDetailRail() {
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent">
       <div className="border-b border-border/60 px-4 py-4">
-        <div className="text-sm font-semibold text-foreground">Session Details & Insights</div>
+        <div className="text-sm font-semibold text-foreground">
+          {isProjectAgentRail ? "Project Agent Session" : "Session Details & Insights"}
+        </div>
         <div className="text-xs text-muted-foreground">
-          Open the dedicated AgentSession detail screen and inspect runtime tools.
+          {isProjectAgentRail
+            ? "Open the dedicated AgentSession detail screen and inspect the project agent session."
+            : "Open the dedicated AgentSession detail screen and inspect runtime tools."}
         </div>
       </div>
 

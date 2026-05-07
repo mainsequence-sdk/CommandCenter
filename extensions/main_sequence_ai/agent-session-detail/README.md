@@ -47,6 +47,9 @@ transport boundaries into one fake endpoint.
 - The normalized detail snapshot includes both backend-owned ORM detail and frontend/runtime
   context derived from the current selected session, such as `runtimeSessionId`, `threadId`,
   `sessionKey`, `projectId`, and `cwd`.
+- The shared detail snapshot also preserves the raw backend session serializer payload so chat and
+  terminal surfaces can inject the canonical session object into live runtime requests without
+  reconstructing it client-side.
 - Provider-derived extras do not belong on the core AgentSession detail record. Fields like
   usage/context summaries come from `insights`, not from the ORM detail contract.
 - Interactive chat and terminal surfaces must not treat this detail snapshot alone as readiness.
