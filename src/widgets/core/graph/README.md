@@ -66,6 +66,17 @@ This folder owns the core `graph` widget. It renders canonical
 - Provider behavior differs for high-frequency datetime streams:
   - ECharts keeps full millisecond-resolution points.
   - TradingView collapses same-second datetime points to the latest point in that second.
+- Shared-axis grouped charts now expose a persisted `stackSeries` render option:
+  - ECharts uses native `series.stack` rendering for line, area, and bar charts.
+  - TradingView Lightweight Charts does not expose a stack flag, so the adapter projects the
+    visible shared-axis series into cumulative values and draws them back-to-front to preserve a
+    stacked presentation.
+- Graphs now expose persisted Y-axis display controls:
+  - `yAxisDecimals` forces displayed decimal places.
+  - `yAxisScaleZeros` divides displayed values by `10^N`.
+  - `yAxisSuffix` appends a display suffix such as `%`, `K`, `M`, or `B`.
+- ECharts shared and separate axes now round padded Y-axis bounds to readable intervals instead of
+  surfacing raw float padding or crossing zero only because of padding.
 - `markers` uses point-only rendering. ECharts maps that mode to scatter series, while
   TradingView uses a line series with the stroke hidden and point markers forced on.
 - Marker-only charts expose a widget-level `markerSizePx` setting so authors can tune point size
@@ -93,6 +104,11 @@ This folder owns the core `graph` widget. It renders canonical
 - Keep the graph-local point window and bounded runtime data view separate from upstream source
   retention. The graph should stay live from its own bounded queue even if the upstream source is
   still carrying compatibility retained state.
+- Keep stacked rendering shared-axis-only. Do not try to combine stacked mode with per-series
+  panes, and keep incremental chart updates on snapshot mode while stacking is enabled so the
+  TradingView cumulative projection stays correct.
+- Keep Y-axis display formatting renderer-agnostic. These controls are display-only and must not
+  mutate upstream rows, normalized series values, or published runtime data.
 - Avoid reintroducing graph-local time-series semantics or upstream metadata-driven auto-mapping.
 - Avoid adding connection-specific or Main Sequence-specific backend calls here.
 - Bump `widgetVersion` when props, accepted input behavior, registry metadata, or user-facing authoring semantics change.

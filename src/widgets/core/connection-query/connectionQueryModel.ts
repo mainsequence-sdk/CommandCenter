@@ -1152,6 +1152,7 @@ export async function executeConnectionQueryWidgetRequest(
       outputId: "dataset",
       store: options?.runtimeDataStore,
       refKey: `${options?.scopeId ?? options?.ownerId ?? "connection-query"}:dataset`,
+      includeRowsInShell: true,
     }) as ConnectionQueryRuntimeState;
   }
 
@@ -1297,6 +1298,7 @@ export async function executeConnectionQueryWidgetRequest(
       refKey: incrementalDecision.identityKey
         ? `${options?.ownerId ?? options?.scopeId ?? "connection-query"}:dataset:${incrementalDecision.identityKey}`
         : undefined,
+      includeRowsInShell: true,
     });
   }
 

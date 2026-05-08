@@ -42,7 +42,8 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   Shared assistant-backend model catalog fetch helper used by the page chat composer. It also owns
   the shared in-memory available-models cache used to avoid repeated
   `/api/chat/get_available_models` requests for the same user + agent-request-name scope for
-  15 minutes after a successful load.
+  15 minutes after a successful load. The cache also exposes expired snapshots so callers can keep
+  the last successful catalog rendered while refreshing the runtime in the background.
 - `model-catalog-api.ts`
   Shared global model-catalog fetch helper used by the provider settings screen.
 - `model-provider-auth-api.ts`
@@ -124,7 +125,8 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   provider, model, and reasoning selectors in sequence.
 - `available-models-api.ts` caches normalized model catalogs in memory by caller-provided
   user + agent-request-name cache key so chat session churn does not refetch the same runtime catalog
-  repeatedly after a successful load. The current TTL is 15 minutes.
+  repeatedly after a successful load. The current TTL is 15 minutes, and expired snapshots remain
+  readable for UI stability while a fresh request is in flight.
 - reasoning options for the chat picker are derived from each model's
   `capabilities.runConfig.reasoning_effort` payload, with `defaults.runConfig.reasoning_effort`
   used as the selected default when present.

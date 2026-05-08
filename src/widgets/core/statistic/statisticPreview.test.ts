@@ -6,6 +6,10 @@ import {
   resolveWidgetRuntimeUpdateParts,
 } from "@/widgets/shared/runtime-update";
 import {
+  createRuntimeDataStore,
+  storeTabularFrameRuntimeState,
+} from "@/widgets/shared/runtime-data-store";
+import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
@@ -20,6 +24,7 @@ import {
 } from "@/widgets/shared/tabular-widget-source";
 
 import {
+  resolveStatisticLinkedDataset,
   resolveStatisticSettingsDataset,
   resolveStatisticSourceDataset,
 } from "./statisticPreview";
@@ -106,5 +111,42 @@ describe("statistic preview dataset resolution", () => {
     expect(dataset?.rows).toEqual([
       { timestamp: "2026-04-30T00:00:00.000Z", value: 1 },
     ]);
+  });
+
+  it("ignores stale legacy source datasets when incremental bindings are active", () => {
+    const emptyLegacyDataset = frame([], 90);
+
+    const dataset = resolveStatisticLinkedDataset({
+      previewDataset: null,
+      incrementalActive: true,
+      incrementalDataset: null,
+      incrementalConsumerDataset: null,
+      sourceDataset: emptyLegacyDataset,
+      sourceConsumerDataset: emptyLegacyDataset,
+    });
+
+    expect(dataset).toBeNull();
+  });
+
+  it("prefers the materialized source dataset over an empty ref-backed preview shell", () => {
+    const store = createRuntimeDataStore("workspace-1");
+    const sourceDataset = frame([{ timestamp: "2026-04-30T00:00:00.000Z", value: 1 }], 100);
+    const previewShell = storeTabularFrameRuntimeState({
+      frame: sourceDataset,
+      ownerId: "source-1",
+      outputId: "dataset",
+      store,
+    });
+
+    const dataset = resolveStatisticLinkedDataset({
+      previewDataset: previewShell,
+      incrementalActive: false,
+      incrementalDataset: null,
+      incrementalConsumerDataset: null,
+      sourceDataset,
+      sourceConsumerDataset: sourceDataset,
+    });
+
+    expect(dataset).toEqual(sourceDataset);
   });
 });

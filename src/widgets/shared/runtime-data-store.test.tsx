@@ -45,6 +45,32 @@ describe("runtime data store", () => {
     expect(materializeRuntimeTabularFrame(shell, store)?.rows).toEqual(sourceFrame.rows);
   });
 
+  it("can preserve inline rows in ref-backed frame shells for cold reload consumers", () => {
+    const store = createRuntimeDataStore("workspace-inline-rows");
+    const sourceFrame = frame([
+      { id: "a", value: 1 },
+      { id: "b", value: 2 },
+    ]);
+    const shell = storeTabularFrameRuntimeState({
+      frame: sourceFrame,
+      ownerId: "source-1",
+      outputId: "dataset",
+      store,
+      includeRowsInShell: true,
+    });
+    const ref = getRuntimeDataRef(shell);
+
+    expect(shell.rows).toEqual(sourceFrame.rows);
+    expect(ref).toMatchObject({
+      contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      ownerId: "source-1",
+      outputId: "dataset",
+      rowCount: 2,
+      version: 1,
+    });
+    expect(materializeRuntimeTabularFrame(shell, store)?.rows).toEqual(sourceFrame.rows);
+  });
+
   it("applies deltas with merge-key replacement and retention", () => {
     const store = createRuntimeDataStore("workspace-1");
     const baseRef = store.putSnapshot({

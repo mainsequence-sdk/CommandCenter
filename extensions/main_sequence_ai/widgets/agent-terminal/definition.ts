@@ -19,7 +19,7 @@ import {
 
 export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
   id: "main-sequence-ai-agent-terminal",
-  widgetVersion: "3.2.0",
+  widgetVersion: "3.2.2",
   title: "Agent Terminal",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence AI",
@@ -90,7 +90,7 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-submit"],
       executionSummary:
-        "Owns terminal-style execution against one widget-managed AgentSession, requiring detail, insights, and history readiness before any assistant-runtime call, optionally blocking manual terminal typing while still allowing refresh-driven requests, composing saved refresh prompts with bound upstream widget context or workspace references during automated refresh, and publishing the latest assistant markdown output.",
+        "Owns terminal-style execution against one widget-managed AgentSession, requiring detail and history readiness before any assistant-runtime call, optionally blocking manual terminal typing while still allowing refresh-driven requests, composing saved refresh prompts with bound upstream widget context or workspace references during automated refresh, and publishing the latest assistant markdown output.",
     },
     io: {
       mode: "static",

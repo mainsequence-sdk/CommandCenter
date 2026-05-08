@@ -368,7 +368,20 @@ export function extractLatestAssistantMarkdown(
   return null;
 }
 
-export function buildAgentTerminalPrompt(sessionId: string) {
+export function buildAgentTerminalPrompt(sessionId: string, agentName?: string | null) {
+  const normalizedAgentName = normalizeOptionalTrimmedString(agentName)
+    ?.replace(/\s+/g, "-")
+    .toLowerCase();
+
+  if (normalizedAgentName) {
+    const agentPrompt =
+      normalizedAgentName.length <= 28
+        ? normalizedAgentName
+        : `${normalizedAgentName.slice(0, 18)}...${normalizedAgentName.slice(-7)}`;
+
+    return `you@${agentPrompt}>`;
+  }
+
   const trimmed = sessionId.trim();
 
   if (!trimmed) {

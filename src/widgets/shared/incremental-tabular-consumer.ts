@@ -449,6 +449,10 @@ function resolveRenderableFrameStatus(
     return "loading";
   }
 
+  if (frames.some((frame) => frame?.status === "idle")) {
+    return "idle";
+  }
+
   return "ready";
 }
 
@@ -671,6 +675,23 @@ function buildInputConsumerState(input: ResolvedWidgetInput | undefined) {
       sourceWidgetTitle: null,
       error: null,
       requiresUpstreamResolution: false,
+      hasCanonicalSourceBinding,
+      hasPublishedValue,
+      isEmpty: false,
+    } satisfies ResolvedUpstreamConsumerState<TabularFrameSourceV1>;
+  }
+
+  if (dataset.status === "idle") {
+    return {
+      kind: "awaiting-upstream",
+      dataset,
+      deltaDataset,
+      inputStatus: input.status,
+      sourceWidgetId: input.sourceWidgetId,
+      sourceOutputId: input.sourceOutputId,
+      sourceWidgetTitle: null,
+      error: null,
+      requiresUpstreamResolution: true,
       hasCanonicalSourceBinding,
       hasPublishedValue,
       isEmpty: false,
@@ -963,6 +984,26 @@ function buildDualConsumerState(input: {
       } satisfies ResolvedUpstreamConsumerState<TabularFrameSourceV1>;
     }
 
+    if (input.dataset.status === "idle") {
+      return {
+        kind: "awaiting-upstream",
+        dataset: input.dataset,
+        deltaDataset: input.deltaDataset,
+        inputStatus: undefined,
+        sourceWidgetId: primarySourceWidgetId,
+        sourceOutputId: primarySourceOutputId,
+        sourceWidgetTitle: primarySourceWidgetTitle,
+        error: null,
+        requiresUpstreamResolution:
+          input.seedState.requiresUpstreamResolution || input.liveState.requiresUpstreamResolution,
+        hasCanonicalSourceBinding:
+          input.seedState.hasCanonicalSourceBinding || input.liveState.hasCanonicalSourceBinding,
+        hasPublishedValue:
+          input.seedState.hasPublishedValue || input.liveState.hasPublishedValue,
+        isEmpty: false,
+      } satisfies ResolvedUpstreamConsumerState<TabularFrameSourceV1>;
+    }
+
     if (input.dataset.status === "loading") {
       return {
         kind: "loading",
@@ -1099,7 +1140,7 @@ export function resolveIncrementalTabularOutputFrame(input: {
   );
 
   if (runtimeFrame) {
-    return runtimeFrame;
+    return runtimeFrame.status === "idle" ? null : runtimeFrame;
   }
 
   const seedInput = normalizeResolvedWidgetInput(input.resolvedInputs?.[TABULAR_SEED_INPUT_ID]);
@@ -1145,11 +1186,13 @@ export function resolveIncrementalTabularOutputFrame(input: {
     return seedFrame?.status === "loading" ? seedFrame : null;
   }
 
-  return combineSeedAndLiveFrames({
+  const combinedFrame = combineSeedAndLiveFrames({
     seedFrame,
     liveFrame,
     mergeKeyFields: resolvePublicationMergeKeyFields(livePublication),
   });
+
+  return combinedFrame?.status === "idle" ? null : combinedFrame;
 }
 
 export function resolveIncrementalTabularBindingSnapshot(input: {

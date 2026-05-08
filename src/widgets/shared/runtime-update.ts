@@ -171,9 +171,11 @@ export function mapWidgetRuntimeUpdateEnvelope<TBase = unknown, TDelta = unknown
     upstreamBase: TBase;
     upstreamDelta?: TDelta;
     diagnostics?: Record<string, unknown>;
+    preserveOutputRefs?: boolean;
   },
 ): WidgetRuntimeUpdateEnvelope<TBase, TDelta> {
   const mode = output.mode ?? update.mode;
+  const preserveOutputRefs = output.preserveOutputRefs === true;
 
   return {
     ...update,
@@ -182,9 +184,9 @@ export function mapWidgetRuntimeUpdateEnvelope<TBase = unknown, TDelta = unknown
     retainedOutputLocation: "carrier",
     retainedOutput: undefined,
     deltaOutput: mode === "delta" ? output.upstreamDelta : undefined,
-    retainedOutputRef: update.retainedOutputRef ?? update.outputRef,
-    deltaOutputRef: update.deltaOutputRef,
-    outputRef: update.outputRef,
+    retainedOutputRef: preserveOutputRefs ? (update.retainedOutputRef ?? update.outputRef) : undefined,
+    deltaOutputRef: preserveOutputRefs ? update.deltaOutputRef : undefined,
+    outputRef: preserveOutputRefs ? update.outputRef : undefined,
     diagnostics: output.diagnostics
       ? {
           ...(update.diagnostics ?? {}),

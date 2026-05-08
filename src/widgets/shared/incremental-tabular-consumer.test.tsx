@@ -87,8 +87,12 @@ function buildSeedInput(
   inputId: string,
   rows: Array<Record<string, unknown>>,
   updatedAtMs: number,
+  status: TabularFrameSourceV1["status"] = "ready",
 ): ResolvedWidgetInput {
-  const value = frame(rows, updatedAtMs);
+  const value = {
+    ...frame(rows, updatedAtMs),
+    status,
+  } satisfies TabularFrameSourceV1;
 
   return {
     inputId,
@@ -740,6 +744,32 @@ describe("incremental tabular consumer", () => {
     });
 
     expect(frame).toBeNull();
+  });
+
+  it("treats idle seed datasets as awaiting upstream instead of empty ready output", () => {
+    const resolvedInputs = {
+      [TABULAR_SEED_INPUT_ID]: buildSeedInput(
+        TABULAR_SEED_INPUT_ID,
+        [],
+        100,
+        "idle",
+      ),
+    } satisfies ResolvedWidgetInputs;
+
+    expect(
+      resolveIncrementalTabularOutputFrame({
+        resolvedInputs,
+      }),
+    ).toBeNull();
+
+    const snapshot = resolveIncrementalTabularBindingSnapshot({
+      resolvedInputs,
+    });
+
+    expect(snapshot.active).toBe(true);
+    expect(snapshot.dataset).toBeNull();
+    expect(snapshot.consumerState.kind).toBe("awaiting-upstream");
+    expect(snapshot.consumerState.requiresUpstreamResolution).toBe(true);
   });
 
   it("combines seedData and liveUpdates frames in preview resolution", () => {

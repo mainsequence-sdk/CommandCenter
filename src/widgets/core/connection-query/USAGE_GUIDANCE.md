@@ -1,7 +1,7 @@
 ## buildPurpose
 
 Runs one explicit connection path and publishes the selected result frame as one canonical `core.tabular_frame@v1` dataset for downstream workspace widgets.
-When a workspace runtime data store is available, the retained frame is published through lightweight runtime data refs instead of being copied through every binding.
+When a workspace runtime data store is available, the retained frame is published through runtime data refs for downstream bindings while the source widget keeps enough inline row data for cold reload and settings preview fallback.
 
 ## whenToUse
 
@@ -54,7 +54,7 @@ When a workspace runtime data store is available, the retained frame is publishe
 - Variables are hidden and omitted from requests for query paths that do not advertise
   `supportsVariables: true`.
 - `timeRange` is always sent for query models that advertise `timeRangeAware: true`.
-- Incremental refresh is frontend-only and uses the same backend request shape. Follow-up refreshes narrow `timeRange.from`, merge rows into an in-memory retained frame, and publish the retained `core.tabular_frame@v1` dataset through a shared `widget-runtime-update@v1` envelope plus runtime data refs.
+- Incremental refresh is frontend-only and uses the same backend request shape. Follow-up refreshes narrow `timeRange.from`, merge rows into an in-memory retained frame, and publish the retained `core.tabular_frame@v1` dataset through a shared `widget-runtime-update@v1` envelope plus runtime data refs. Source runtime state also keeps inline rows so cold-loaded workspaces are not forced to wait for a fresh test run before downstream consumers can render.
 - Initial workspace execution, manual submit, and manual upstream recalculation rebuild the retained snapshot from the full workspace range. Later dashboard refreshes use the last successful request end plus overlap as the delta cursor.
 - The dedupe key is not inferred from time-series semantics. It is the saved `incrementalMergeKeyFields` column combination selected by the user.
 - Overlapping refreshes for the same widget/query/request identity are deduped while the request is in flight.

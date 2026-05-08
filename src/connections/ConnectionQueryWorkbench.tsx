@@ -90,6 +90,7 @@ export interface ConnectionQueryWorkbenchProps {
   resultDescription?: string;
   resultTitle?: string;
   publishPreviewRuntimeStateToInstanceId?: string;
+  onPreviewRuntimeStateChange?: (runtimeState: Record<string, unknown> | undefined) => void;
 }
 
 interface ConnectionPathOption {
@@ -611,6 +612,7 @@ export function ConnectionQueryWorkbench({
   showTestAction = true,
   titlePrefix = "",
   publishPreviewRuntimeStateToInstanceId,
+  onPreviewRuntimeStateChange,
   queryModelFilter,
   value,
 }: ConnectionQueryWorkbenchProps) {
@@ -862,6 +864,7 @@ export function ConnectionQueryWorkbench({
 
   function updateValue(nextValue: ConnectionQueryWidgetProps) {
     setPreviewState({ status: "idle" });
+    onPreviewRuntimeStateChange?.(undefined);
     onChange(nextValue);
   }
 
@@ -878,6 +881,7 @@ export function ConnectionQueryWorkbench({
         request,
         error: "Select a connection and query before testing.",
       });
+      onPreviewRuntimeStateChange?.(undefined);
       return;
     }
 
@@ -894,6 +898,7 @@ export function ConnectionQueryWorkbench({
         },
       );
       setPreviewState({ status: "success", request, frame });
+      onPreviewRuntimeStateChange?.(frame as unknown as Record<string, unknown>);
       if (publishedPreviewInstanceId) {
         widgetExecution?.publishRuntimeState(
           publishedPreviewInstanceId,
@@ -903,18 +908,20 @@ export function ConnectionQueryWorkbench({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Connection query failed.";
+      const errorFrame = buildConnectionQueryErrorFrame(
+        errorMessage,
+        effectiveProps,
+      ) as unknown as Record<string, unknown>;
       setPreviewState({
         status: "error",
         request,
         error: errorMessage,
       });
+      onPreviewRuntimeStateChange?.(errorFrame);
       if (publishedPreviewInstanceId) {
         widgetExecution?.publishRuntimeState(
           publishedPreviewInstanceId,
-          buildConnectionQueryErrorFrame(errorMessage, effectiveProps) as unknown as Record<
-            string,
-            unknown
-          >,
+          errorFrame,
         );
       }
     }

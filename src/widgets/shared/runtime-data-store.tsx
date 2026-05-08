@@ -695,6 +695,7 @@ export function storeTabularFrameRuntimeState(input: {
   outputId: string;
   store: RuntimeDataStore | null | undefined;
   refKey?: string;
+  includeRowsInShell?: boolean;
 }) {
   if (!input.store || input.frame.rows.length === 0) {
     return input.frame;
@@ -724,7 +725,9 @@ export function storeTabularFrameRuntimeState(input: {
         refKey: `${input.refKey ?? `${input.ownerId}:${input.outputId}`}:delta`,
       })
     : undefined;
-  const shell = attachRuntimeDataRefToFrame(frameWithoutUpdate, ref);
+  const shell = attachRuntimeDataRefToFrame(frameWithoutUpdate, ref, {
+    includeRows: input.includeRowsInShell,
+  });
 
   if (!update) {
     return shell;

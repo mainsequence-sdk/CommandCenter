@@ -89,33 +89,60 @@ function ToggleButtonField({
   onChange,
   onLabel = "On",
   offLabel = "Off",
+  trueFirst = true,
 }: {
   enabled: boolean;
   editable: boolean;
   onChange: (nextValue: boolean) => void;
   onLabel?: string;
   offLabel?: string;
+  trueFirst?: boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Button
-        type="button"
-        size="sm"
-        variant={enabled ? "default" : "outline"}
-        disabled={!editable}
-        onClick={() => onChange(true)}
-      >
-        {onLabel}
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant={!enabled ? "default" : "outline"}
-        disabled={!editable}
-        onClick={() => onChange(false)}
-      >
-        {offLabel}
-      </Button>
+      {trueFirst ? (
+        <>
+          <Button
+            type="button"
+            size="sm"
+            variant={enabled ? "default" : "outline"}
+            disabled={!editable}
+            onClick={() => onChange(true)}
+          >
+            {onLabel}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={!enabled ? "default" : "outline"}
+            disabled={!editable}
+            onClick={() => onChange(false)}
+          >
+            {offLabel}
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button
+            type="button"
+            size="sm"
+            variant={!enabled ? "default" : "outline"}
+            disabled={!editable}
+            onClick={() => onChange(false)}
+          >
+            {offLabel}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={enabled ? "default" : "outline"}
+            disabled={!editable}
+            onClick={() => onChange(true)}
+          >
+            {onLabel}
+          </Button>
+        </>
+      )}
     </div>
   );
 }
@@ -138,6 +165,11 @@ export const graphSettingsSchema: WidgetSettingsSchema<
       id: "field-mapping",
       title: "Field mapping",
       description: "Map tabular fields to the chart X axis, Y axis, and optional grouping field.",
+    },
+    {
+      id: "value-axis",
+      title: "Value axis",
+      description: "Control how Y-axis values are scaled and labeled.",
     },
     {
       id: "visualization",
@@ -231,6 +263,32 @@ export const graphSettingsSchema: WidgetSettingsSchema<
           options={axisModeOptions}
           placeholder="Select an axis layout"
           disabled={!editable}
+        />
+      ),
+    },
+    {
+      id: "stackSeries",
+      label: "Series layout",
+      description:
+        "Choose whether grouped series overlay each other or stack on one shared axis. Shared-axis only and hidden for Markers.",
+      settingsColumnSpan: 1,
+      sectionId: "visualization",
+      isVisible: ({ context }) =>
+        context.resolvedConfig.chartType !== "markers" &&
+        context.resolvedConfig.seriesAxisMode === "shared",
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <ToggleButtonField
+          enabled={context.resolvedConfig.stackSeries}
+          editable={editable}
+          onChange={(nextValue) => {
+            onDraftPropsChange({
+              ...draftProps,
+              stackSeries: nextValue,
+            });
+          }}
+          onLabel="Stacked"
+          offLabel="Overlay"
+          trueFirst={false}
         />
       ),
     },
@@ -432,6 +490,81 @@ export const graphSettingsSchema: WidgetSettingsSchema<
           placeholder="Select Y field"
           searchPlaceholder="Search Y-axis fields"
           disabled={!editable || context.resolvedConfig.availableFields.length === 0}
+        />
+      ),
+    },
+    {
+      id: "yAxisScaleZeros",
+      label: "Divide by 10^N",
+      description: "Display Y values after dividing by 10^N. Example: 6 with suffix M renders millions as 12.5M.",
+      settingsColumnSpan: 1,
+      sectionId: "value-axis",
+      isVisible: ({ context }) => !context.hasNoData,
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <Input
+          type="number"
+          min={0}
+          max={18}
+          step={1}
+          value={String(context.resolvedConfig.yAxisScaleZeros)}
+          disabled={!editable}
+          onChange={(event) => {
+            const rawValue = event.target.value.trim();
+
+            onDraftPropsChange({
+              ...draftProps,
+              yAxisScaleZeros:
+                rawValue === "" ? undefined : Number(rawValue),
+            });
+          }}
+        />
+      ),
+    },
+    {
+      id: "yAxisDecimals",
+      label: "Decimal places",
+      description: "Leave blank to let the chart choose a reasonable number of decimals.",
+      settingsColumnSpan: 1,
+      sectionId: "value-axis",
+      isVisible: ({ context }) => !context.hasNoData,
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <Input
+          type="number"
+          min={0}
+          max={12}
+          step={1}
+          value={context.resolvedConfig.yAxisDecimals ?? ""}
+          disabled={!editable}
+          onChange={(event) => {
+            const rawValue = event.target.value.trim();
+
+            onDraftPropsChange({
+              ...draftProps,
+              yAxisDecimals:
+                rawValue === "" ? undefined : Number(rawValue),
+            });
+          }}
+        />
+      ),
+    },
+    {
+      id: "yAxisSuffix",
+      label: "Suffix",
+      description: "Append a suffix to displayed Y-axis values, such as %, K, M, or B. This changes labels only.",
+      settingsColumnSpan: 1,
+      sectionId: "value-axis",
+      isVisible: ({ context }) => !context.hasNoData,
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <Input
+          type="text"
+          value={context.resolvedConfig.yAxisSuffix ?? ""}
+          disabled={!editable}
+          onChange={(event) => {
+            onDraftPropsChange({
+              ...draftProps,
+              yAxisSuffix: event.target.value,
+            });
+          }}
         />
       ),
     },

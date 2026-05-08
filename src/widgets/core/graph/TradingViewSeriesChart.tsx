@@ -16,7 +16,11 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetRuntimeUpdateMode } from "@/widgets/shared/runtime-update";
 
-import { normalizeGraphSeries } from "./graphModel";
+import {
+  buildStackedGraphSeriesProjection,
+  formatGraphAxisValue,
+  normalizeGraphSeries,
+} from "./graphModel";
 import type {
   GraphChartType,
   GraphLineStyle,
@@ -97,9 +101,13 @@ export function TradingViewSeriesChart({
   normalizationTimeMs,
   series,
   seriesAxisMode = "shared",
+  stackSeries = false,
   timeAxisMode = "datetime",
   transparentSurface = false,
   updateMode = "snapshot",
+  yAxisDecimals,
+  yAxisScaleZeros = 0,
+  yAxisSuffix,
 }: {
   chartType: GraphChartType;
   className?: string;
@@ -111,9 +119,13 @@ export function TradingViewSeriesChart({
   normalizationTimeMs?: GraphNormalizationAnchor;
   series: GraphSeries[];
   seriesAxisMode?: GraphSeriesAxisMode;
+  stackSeries?: boolean;
   timeAxisMode?: Exclude<GraphTimeAxisMode, "auto">;
   transparentSurface?: boolean;
   updateMode?: WidgetRuntimeUpdateMode;
+  yAxisDecimals?: number;
+  yAxisScaleZeros?: number;
+  yAxisSuffix?: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<TradingViewChartApi | null>(null);
@@ -129,6 +141,8 @@ export function TradingViewSeriesChart({
     [normalizationTimeMs, series],
   );
   const separateAxes = seriesAxisMode === "separate" && normalizedSeries.length > 1;
+  const stackingEnabled =
+    stackSeries && !separateAxes && chartType !== "markers" && normalizedSeries.length > 1;
 
   const themedSeries = useMemo(() => {
     const palette = [
@@ -155,11 +169,18 @@ export function TradingViewSeriesChart({
     resolvedTokens.success,
     resolvedTokens.warning,
   ]);
+  const renderedSeries = useMemo(
+    () =>
+      stackingEnabled
+        ? [...buildStackedGraphSeriesProjection(themedSeries)].reverse()
+        : themedSeries,
+    [stackingEnabled, themedSeries],
+  );
   const showPointMarkers = useMemo(
     () =>
       chartType === "markers" ||
-      (themedSeries.length > 0 && themedSeries.every((entry) => entry.points.length <= 1)),
-    [chartType, themedSeries],
+      (renderedSeries.length > 0 && renderedSeries.every((entry) => entry.points.length <= 1)),
+    [chartType, renderedSeries],
   );
   const resolveLineStyle = (lineStyle: GraphLineStyle | undefined) => {
     switch (lineStyle) {
@@ -175,11 +196,20 @@ export function TradingViewSeriesChart({
         return LineStyle.Solid;
     }
   };
+  const formatPriceValue = useMemo(
+    () => (value: number) =>
+      formatGraphAxisValue(value, {
+        yAxisDecimals,
+        yAxisScaleZeros,
+        yAxisSuffix,
+      }),
+    [yAxisDecimals, yAxisScaleZeros, yAxisSuffix],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
 
-    if (!container || themedSeries.length === 0) {
+    if (!container || renderedSeries.length === 0) {
       setChartError(null);
       return;
     }
@@ -215,6 +245,9 @@ export function TradingViewSeriesChart({
         localization: {
           timeFormatter: (time: Time) =>
             formatTradingViewTime(time, timeAxisMode, { includeSeconds: true }),
+          priceFormatter: formatPriceValue,
+          tickmarksPriceFormatter: (prices: number[]) =>
+            prices.map((price: number) => formatPriceValue(price)),
         },
         crosshair: {
           vertLine: {
@@ -276,12 +309,12 @@ export function TradingViewSeriesChart({
       chartRef.current = null;
       lastStructureKeyRef.current = null;
     };
-  }, [minBarSpacingPx, resolvedTokens, themedSeries.length, timeAxisMode]);
+  }, [formatPriceValue, minBarSpacingPx, renderedSeries.length, resolvedTokens, timeAxisMode]);
 
   useEffect(() => {
     const chart = chartRef.current;
 
-    if (!chart || themedSeries.length === 0) {
+    if (!chart || renderedSeries.length === 0) {
       return;
     }
 
@@ -301,6 +334,25 @@ export function TradingViewSeriesChart({
             lineStyle: resolveLineStyle(entry.lineStyle),
             topColor: withAlpha(seriesColor, 0.22),
             bottomColor: withAlpha(seriesColor, 0.03),
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            pointMarkersVisible: showPointMarkers,
+            pointMarkersRadius: showPointMarkers ? 5 : undefined,
+            title: entry.label,
+          },
+          paneIndex,
+        );
+      }
+
+      if (stackingEnabled && chartType === "line") {
+        return chart.addSeries(
+          AreaSeries,
+          {
+            lineColor: seriesColor,
+            lineStyle: resolveLineStyle(entry.lineStyle),
+            topColor: withAlpha(seriesColor, 0.24),
+            bottomColor: withAlpha(seriesColor, 0.05),
             lineWidth: 2,
             priceLineVisible: false,
             lastValueVisible: false,
@@ -349,13 +401,14 @@ export function TradingViewSeriesChart({
       chartType,
       dataShapeKey,
       separateAxes,
-      series: themedSeries.map((entry) => ({
+      series: renderedSeries.map((entry) => ({
         color: entry.color,
         id: entry.id,
         label: entry.label,
         lineStyle: entry.lineStyle,
       })),
       showPointMarkers,
+      stackSeries: stackingEnabled,
       timeAxisMode,
     });
     const forceSnapshot =
@@ -372,7 +425,7 @@ export function TradingViewSeriesChart({
       });
       seriesRefs.current.clear();
 
-      themedSeries.forEach((entry, index) => {
+      renderedSeries.forEach((entry, index) => {
         const seriesApi = addSeries(entry, index);
         seriesApi.setData(mapGraphSeriesPoints(entry, timeAxisMode));
         seriesRefs.current.set(entry.id, seriesApi);
@@ -385,7 +438,7 @@ export function TradingViewSeriesChart({
       }
 
       lastStructureKeyRef.current = structureKey;
-      lastPointCountRef.current = Math.max(0, ...themedSeries.map((entry) => entry.points.length));
+      lastPointCountRef.current = Math.max(0, ...renderedSeries.map((entry) => entry.points.length));
 
       if (!hasFittedRef.current || wasFollowingRightEdge || !visibleRange) {
         chart.timeScale().fitContent();
@@ -397,7 +450,7 @@ export function TradingViewSeriesChart({
       return;
     }
 
-    const fullSeriesById = new Map(themedSeries.map((entry, index) => [entry.id, { entry, index }]));
+    const fullSeriesById = new Map(renderedSeries.map((entry, index) => [entry.id, { entry, index }]));
 
     deltaSeries.forEach((entry) => {
       const fullSeries = fullSeriesById.get(entry.id);
@@ -425,7 +478,7 @@ export function TradingViewSeriesChart({
       });
     });
 
-    lastPointCountRef.current = Math.max(0, ...themedSeries.map((entry) => entry.points.length));
+    lastPointCountRef.current = Math.max(0, ...renderedSeries.map((entry) => entry.points.length));
 
     if (!wasFollowingRightEdge && visibleRange) {
       chart.timeScale().setVisibleLogicalRange(visibleRange);
@@ -435,14 +488,15 @@ export function TradingViewSeriesChart({
     dataShapeKey,
     deltaSeries,
     markerSizePx,
+    renderedSeries,
     separateAxes,
     showPointMarkers,
-    themedSeries,
+    stackingEnabled,
     timeAxisMode,
     updateMode,
   ]);
 
-  if (themedSeries.length === 0) {
+  if (renderedSeries.length === 0) {
     return (
       <div
         className={cn(

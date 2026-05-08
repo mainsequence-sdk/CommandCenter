@@ -22,7 +22,6 @@ import {
 } from "./agentTerminalAgents";
 import {
   DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS,
-  buildAgentTerminalPrompt,
   normalizeAgentTerminalWidgetProps,
   resolveAgentTerminalRefreshPrompt,
   resolveAgentTerminalUpstreamSources,

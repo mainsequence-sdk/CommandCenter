@@ -65,10 +65,14 @@ export interface GraphWidgetProps
   normalizeAtMs?: number;
   normalizeSeries?: boolean;
   provider?: GraphProvider;
+  stackSeries?: boolean;
   seriesAxisMode?: GraphSeriesAxisMode;
   seriesOverrides?: GraphSeriesOverrides;
   timeAxisMode?: GraphTimeAxisMode;
   xField?: string;
+  yAxisDecimals?: number;
+  yAxisScaleZeros?: number;
+  yAxisSuffix?: string;
   yField?: string;
 }
 
@@ -84,10 +88,14 @@ export interface ResolvedGraphConfig extends ResolvedTabularWidgetSourceConfig {
   normalizeAtMs?: number;
   normalizeSeries: boolean;
   provider: GraphProvider;
+  stackSeries: boolean;
   seriesAxisMode: GraphSeriesAxisMode;
   seriesOverrides?: GraphSeriesOverrides;
   timeAxisMode: GraphTimeAxisMode;
   xField?: string;
+  yAxisDecimals?: number;
+  yAxisScaleZeros: number;
+  yAxisSuffix?: string;
   yField?: string;
 }
 
@@ -177,6 +185,23 @@ function normalizeMarkerSizePx(value: unknown) {
   return parsed;
 }
 
+function normalizeOptionalInteger(
+  value: unknown,
+  options: { min: number; max: number },
+) {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return undefined;
+  }
+
+  return Math.min(options.max, Math.max(options.min, Math.trunc(parsed)));
+}
+
 function normalizeTimeAxisMode(value: unknown): GraphTimeAxisMode {
   return value === "date" || value === "datetime" ? value : "auto";
 }
@@ -191,6 +216,27 @@ function normalizeProvider(value: unknown): GraphProvider {
 
 function normalizeGraphChartType(value: unknown): GraphChartType {
   return value === "area" || value === "bar" || value === "markers" ? value : "line";
+}
+
+function normalizeStackSeries(value: unknown) {
+  return value === true;
+}
+
+function normalizeYAxisDecimals(value: unknown) {
+  return normalizeOptionalInteger(value, { min: 0, max: 12 });
+}
+
+function normalizeYAxisScaleZeros(value: unknown) {
+  return normalizeOptionalInteger(value, { min: 0, max: 18 }) ?? 0;
+}
+
+function normalizeYAxisSuffix(value: unknown) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 export function normalizeGraphLineStyle(value: unknown): GraphLineStyle {
@@ -301,8 +347,12 @@ export function resolveGraphConfig(
   const normalizeAtMs = normalizePositiveInteger(props.normalizeAtMs);
   const seriesAxisMode: GraphSeriesAxisMode =
     props.seriesAxisMode === "separate" ? "separate" : "shared";
+  const stackSeries = normalizeStackSeries(props.stackSeries);
   const seriesOverrides = normalizeSeriesOverrides(props.seriesOverrides);
   const timeAxisMode = normalizeTimeAxisMode(props.timeAxisMode);
+  const yAxisDecimals = normalizeYAxisDecimals(props.yAxisDecimals);
+  const yAxisScaleZeros = normalizeYAxisScaleZeros(props.yAxisScaleZeros);
+  const yAxisSuffix = normalizeYAxisSuffix(props.yAxisSuffix);
 
   const xField = getValidFieldKey(props.xField, availableFields);
   const groupField = getValidFieldKey(props.groupField, availableFields);
@@ -324,9 +374,13 @@ export function resolveGraphConfig(
     minBarSpacingPx,
     normalizeSeries,
     normalizeAtMs,
+    stackSeries,
     seriesAxisMode,
     seriesOverrides,
     availableFields,
+    yAxisDecimals,
+    yAxisScaleZeros,
+    yAxisSuffix,
   };
 }
 
@@ -368,9 +422,13 @@ export function normalizeGraphProps(
     minBarSpacingPx: resolved.minBarSpacingPx,
     normalizeSeries: resolved.normalizeSeries,
     normalizeAtMs: resolved.normalizeAtMs,
+    stackSeries: resolved.stackSeries,
     seriesAxisMode: resolved.seriesAxisMode,
     seriesOverrides: resolved.seriesOverrides,
     timeAxisMode: resolved.timeAxisMode,
+    yAxisDecimals: resolved.yAxisDecimals,
+    yAxisScaleZeros: resolved.yAxisScaleZeros,
+    yAxisSuffix: resolved.yAxisSuffix,
   } satisfies GraphWidgetProps;
 }
 
@@ -400,6 +458,40 @@ export function resolveGraphNormalizationTimeMs(
   }
 
   return "series-start";
+}
+
+export function resolveGraphStackingEnabled(
+  config: Pick<ResolvedGraphConfig, "chartType" | "seriesAxisMode" | "stackSeries">,
+) {
+  return config.stackSeries && config.seriesAxisMode === "shared" && config.chartType !== "markers";
+}
+
+export function formatGraphAxisValue(
+  value: string | number,
+  config: Pick<ResolvedGraphConfig, "yAxisDecimals" | "yAxisScaleZeros" | "yAxisSuffix">,
+) {
+  const numericValue =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+
+  if (!Number.isFinite(numericValue)) {
+    return String(value);
+  }
+
+  const scaledValue = numericValue / 10 ** config.yAxisScaleZeros;
+  const maximumFractionDigits =
+    config.yAxisDecimals ??
+    (Math.abs(scaledValue) < 1 ? 6 : 4);
+  const normalizedScaledValue =
+    Math.abs(scaledValue) < 10 ** (-(maximumFractionDigits + 1))
+      ? 0
+      : scaledValue;
+
+  const formattedValue = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: config.yAxisDecimals ?? 0,
+    maximumFractionDigits,
+  }).format(normalizedScaledValue);
+
+  return `${formattedValue}${config.yAxisSuffix ?? ""}`;
 }
 
 export function formatGraphValue(value: unknown) {
@@ -1139,6 +1231,40 @@ export function normalizeGraphSeries(
         time: point.time,
         value: (point.value / basePoint.value) * 100,
       })),
+    };
+  });
+}
+
+export function buildStackedGraphSeriesProjection(series: GraphSeries[]) {
+  if (series.length <= 1) {
+    return series;
+  }
+
+  const timeValues = [...new Set(series.flatMap((entry) => entry.points.map((point) => point.time)))]
+    .sort((left, right) => left - right);
+
+  if (timeValues.length === 0) {
+    return series;
+  }
+
+  const cumulativeByTime = new Map<number, number>();
+
+  return series.map((entry) => {
+    if (entry.points.length === 0) {
+      return entry;
+    }
+
+    const seriesValueByTime = new Map(entry.points.map((point) => [point.time, point.value]));
+    const points = timeValues.map((time) => {
+      const nextValue = (cumulativeByTime.get(time) ?? 0) + (seriesValueByTime.get(time) ?? 0);
+      cumulativeByTime.set(time, nextValue);
+      return { time, value: nextValue };
+    });
+
+    return {
+      ...entry,
+      pointCount: points.length,
+      points,
     };
   });
 }

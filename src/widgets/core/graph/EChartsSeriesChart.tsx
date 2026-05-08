@@ -13,7 +13,11 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetRuntimeUpdateMode } from "@/widgets/shared/runtime-update";
 
-import { normalizeGraphSeries } from "./graphModel";
+import {
+  buildStackedGraphSeriesProjection,
+  formatGraphAxisValue,
+  normalizeGraphSeries,
+} from "./graphModel";
 import type {
   GraphChartType,
   GraphLineStyle,
@@ -85,17 +89,160 @@ function formatEChartsValueAxisLabel(value: string | number) {
   }).format(numericValue);
 }
 
+function buildEChartsTooltipFormatter() {
+  return (params: unknown) => {
+    const entries = Array.isArray(params) ? params : [params];
+
+    return entries
+      .flatMap((entry) => {
+        if (!entry || typeof entry !== "object") {
+          return [];
+        }
+
+        const record = entry as {
+          color?: unknown;
+          seriesName?: unknown;
+        };
+        const color = typeof record.color === "string" ? record.color : "#94a3b8";
+        const seriesName =
+          typeof record.seriesName === "string" && record.seriesName.trim()
+            ? record.seriesName
+            : "Series";
+
+        return [
+          `<div style="line-height:1.4;color:${color};">` +
+            `${echarts.format.encodeHTML(seriesName)}` +
+          `</div>`,
+        ];
+      })
+      .join("");
+  };
+}
+
+function resolveSeriesValueExtent(series: readonly GraphSeries[]) {
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+
+  series.forEach((entry) => {
+    entry.points.forEach((point) => {
+      min = Math.min(min, point.value);
+      max = Math.max(max, point.value);
+    });
+  });
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return null;
+  }
+
+  return { min, max };
+}
+
+function buildPaddedValueAxisBounds(series: readonly GraphSeries[]) {
+  const extent = resolveSeriesValueExtent(series);
+
+  if (!extent) {
+    return {};
+  }
+
+  if (extent.min === 0 && extent.max === 0) {
+    return {};
+  }
+
+  const baseSpan = extent.max - extent.min;
+  const magnitude = Math.max(Math.abs(extent.max), Math.abs(extent.min), 1e-6);
+  const padding =
+    baseSpan > 0
+      ? baseSpan * 0.08
+      : magnitude * 0.08;
+  const paddedMin = extent.min - padding;
+  const paddedMax = extent.max + padding;
+  const roughStep = Math.max((paddedMax - paddedMin) / 5, magnitude / 5, 1e-6);
+  const stepMagnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalizedStep = roughStep / stepMagnitude;
+  const step =
+    normalizedStep <= 1
+      ? stepMagnitude
+      : normalizedStep <= 2
+        ? 2 * stepMagnitude
+        : normalizedStep <= 5
+          ? 5 * stepMagnitude
+          : 10 * stepMagnitude;
+  const min =
+    extent.min >= 0 && paddedMin < 0
+      ? 0
+      : Math.floor(paddedMin / step) * step;
+  const max =
+    extent.max <= 0 && paddedMax > 0
+      ? 0
+      : Math.ceil(paddedMax / step) * step;
+
+  return {
+    min,
+    max,
+  };
+}
+
+function buildStackAlignedSeries(series: readonly GraphSeries[]) {
+  if (series.length <= 1) {
+    return [...series];
+  }
+
+  const timeValues = [...new Set(series.flatMap((entry) => entry.points.map((point) => point.time)))]
+    .sort((left, right) => left - right);
+
+  if (timeValues.length === 0) {
+    return [...series];
+  }
+
+  return series.map((entry) => {
+    const pointMap = new Map(entry.points.map((point) => [point.time, point.value]));
+    const points = timeValues.map((time) => ({
+      time,
+      value: pointMap.get(time) ?? 0,
+    }));
+
+    return {
+      ...entry,
+      pointCount: points.length,
+      points,
+    };
+  });
+}
+
 function buildSharedChartOption(args: {
   chartType: GraphChartType;
   emptyMessage: string;
   markerSizePx: number;
   series: GraphSeries[];
+  stackSeries: boolean;
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">;
   tokens: Record<string, string>;
+  yAxisDecimals?: number;
+  yAxisScaleZeros: number;
+  yAxisSuffix?: string;
   xAxisType: "time" | "value";
 }): EChartsOption {
-  const { chartType, markerSizePx, series, timeAxisMode, tokens, xAxisType } = args;
-  const hasData = series.some((entry) => entry.points.length > 0);
+  const {
+    chartType,
+    markerSizePx,
+    series,
+    stackSeries,
+    timeAxisMode,
+    tokens,
+    xAxisType,
+    yAxisDecimals,
+    yAxisScaleZeros,
+    yAxisSuffix,
+  } = args;
+  const plottedSeries = stackSeries ? buildStackAlignedSeries(series) : [...series];
+  const axisSeries = stackSeries
+    ? buildStackedGraphSeriesProjection(plottedSeries)
+    : plottedSeries;
+  const hasData = plottedSeries.some((entry) => entry.points.length > 0);
+  const valueAxisBounds = buildPaddedValueAxisBounds(axisSeries);
+  const useScrollableLegend = plottedSeries.length > 8;
+  const legendBottom = 8;
+  const legendHeight = useScrollableLegend ? 30 : plottedSeries.length > 1 ? 56 : 22;
 
   return {
     animation: false,
@@ -104,20 +251,29 @@ function buildSharedChartOption(args: {
       color: tokens.foreground,
     },
     legend: {
-      show: series.length > 1,
-      bottom: 8,
+      type: useScrollableLegend ? "scroll" : "plain",
+      show: plottedSeries.length > 1,
+      bottom: legendBottom,
       left: 12,
       right: 12,
+      icon: "circle",
+      itemWidth: 10,
+      itemHeight: 10,
       textStyle: {
         color: tokens["muted-foreground"],
       },
-      data: buildSeriesLegendData(series),
+      pageIconColor: tokens.primary,
+      pageIconInactiveColor: withAlpha(tokens["muted-foreground"], 0.5),
+      pageTextStyle: {
+        color: tokens["muted-foreground"],
+      },
+      data: buildSeriesLegendData(plottedSeries),
     },
     grid: {
       top: 18,
       left: 16,
       right: 16,
-      bottom: series.length > 1 ? 56 : 22,
+      bottom: legendHeight + legendBottom,
       containLabel: true,
     },
     tooltip: {
@@ -125,6 +281,7 @@ function buildSharedChartOption(args: {
       axisPointer: {
         type: chartType === "bar" ? "shadow" : "line",
       },
+      formatter: buildEChartsTooltipFormatter(),
       backgroundColor: tokens.card,
       borderColor: withAlpha(tokens.border, 0.72),
       textStyle: {
@@ -154,11 +311,14 @@ function buildSharedChartOption(args: {
     yAxis: {
       type: "value",
       scale: true,
+      ...valueAxisBounds,
       axisLine: {
         show: false,
       },
       axisLabel: {
         color: tokens["muted-foreground"],
+        formatter: (value: string | number) =>
+          formatGraphAxisValue(value, { yAxisDecimals, yAxisScaleZeros, yAxisSuffix }),
       },
       splitLine: {
         lineStyle: {
@@ -167,7 +327,7 @@ function buildSharedChartOption(args: {
       },
     },
     series: hasData
-      ? series.map((entry) => {
+      ? plottedSeries.map((entry) => {
           const baseSeries = {
             name: entry.label,
             data: entry.points.map((point) => [point.time, point.value]),
@@ -181,6 +341,7 @@ function buildSharedChartOption(args: {
               ...baseSeries,
               type: "bar",
               barMaxWidth: 18,
+              stack: stackSeries ? "graph-stack" : undefined,
             } satisfies BarSeriesOption;
           }
 
@@ -195,17 +356,20 @@ function buildSharedChartOption(args: {
           return {
             ...baseSeries,
             type: "line",
+            stack: stackSeries ? "graph-stack" : undefined,
             smooth: false,
-            showSymbol: entry.points.length <= 1,
-            symbolSize: entry.points.length <= 1 ? 8 : 5,
+            showSymbol: false,
+            emphasis: {
+              disabled: true,
+            },
             lineStyle: {
               color: entry.color,
               type: resolveLineStyle(entry.lineStyle),
               width: 2,
             },
-            areaStyle: chartType === "area"
+            areaStyle: chartType === "area" || stackSeries
               ? {
-                  color: withAlpha(entry.color ?? tokens.primary, 0.2),
+                  color: withAlpha(entry.color ?? tokens.primary, stackSeries ? 0.26 : 0.2),
                 }
               : undefined,
           } satisfies LineSeriesOption;
@@ -218,12 +382,28 @@ function buildSeparateAxesChartOption(args: {
   chartType: GraphChartType;
   markerSizePx: number;
   series: GraphSeries[];
+  stackSeries?: boolean;
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">;
   tokens: Record<string, string>;
+  yAxisDecimals?: number;
+  yAxisScaleZeros: number;
+  yAxisSuffix?: string;
   xAxisType: "time" | "value";
 }): EChartsOption {
-  const { chartType, markerSizePx, series, timeAxisMode, tokens, xAxisType } = args;
-  const legendHeight = series.length > 1 ? 44 : 18;
+  const {
+    chartType,
+    markerSizePx,
+    series,
+    timeAxisMode,
+    tokens,
+    xAxisType,
+    yAxisDecimals,
+    yAxisScaleZeros,
+    yAxisSuffix,
+  } = args;
+  const useScrollableLegend = series.length > 8;
+  const legendBottom = 8;
+  const legendHeight = useScrollableLegend ? 30 : series.length > 1 ? 44 : 18;
   const availableHeight = 100 - legendHeight;
   const paneHeight = Math.max(14, availableHeight / Math.max(series.length, 1));
 
@@ -234,11 +414,20 @@ function buildSeparateAxesChartOption(args: {
       color: tokens.foreground,
     },
     legend: {
+      type: useScrollableLegend ? "scroll" : "plain",
       show: series.length > 1,
-      bottom: 8,
+      bottom: legendBottom,
       left: 12,
       right: 12,
+      icon: "circle",
+      itemWidth: 10,
+      itemHeight: 10,
       textStyle: {
+        color: tokens["muted-foreground"],
+      },
+      pageIconColor: tokens.primary,
+      pageIconInactiveColor: withAlpha(tokens["muted-foreground"], 0.5),
+      pageTextStyle: {
         color: tokens["muted-foreground"],
       },
       data: buildSeriesLegendData(series),
@@ -248,6 +437,7 @@ function buildSeparateAxesChartOption(args: {
       axisPointer: {
         type: chartType === "bar" ? "shadow" : "line",
       },
+      formatter: buildEChartsTooltipFormatter(),
       backgroundColor: tokens.card,
       borderColor: withAlpha(tokens.border, 0.72),
       textStyle: {
@@ -256,7 +446,7 @@ function buildSeparateAxesChartOption(args: {
     },
     grid: series.map((entry, index) => {
       const top = 12 + index * paneHeight;
-      const bottom = index === series.length - 1 ? legendHeight : undefined;
+      const bottom = index === series.length - 1 ? legendHeight + legendBottom : undefined;
       return {
         top: `${top}%`,
         left: 16,
@@ -297,6 +487,7 @@ function buildSeparateAxesChartOption(args: {
       type: "value",
       gridIndex: index,
       scale: true,
+      ...buildPaddedValueAxisBounds([entry]),
       name: entry.label,
       nameLocation: "start",
       nameGap: 8,
@@ -310,6 +501,8 @@ function buildSeparateAxesChartOption(args: {
       },
       axisLabel: {
         color: tokens["muted-foreground"],
+        formatter: (value: string | number) =>
+          formatGraphAxisValue(value, { yAxisDecimals, yAxisScaleZeros, yAxisSuffix }),
       },
       splitLine: {
         lineStyle: {
@@ -348,8 +541,10 @@ function buildSeparateAxesChartOption(args: {
         ...baseSeries,
         type: "line",
         smooth: false,
-        showSymbol: entry.points.length <= 1,
-        symbolSize: entry.points.length <= 1 ? 8 : 5,
+        showSymbol: false,
+        emphasis: {
+          disabled: true,
+        },
         lineStyle: {
           color: entry.color,
           type: resolveLineStyle(entry.lineStyle),
@@ -375,10 +570,14 @@ export function EChartsSeriesChart({
   normalizationTimeMs,
   series,
   seriesAxisMode = "shared",
+  stackSeries = false,
   timeAxisMode = "datetime",
   transparentSurface = false,
   updateMode = "snapshot",
   xAxisType = "time",
+  yAxisDecimals,
+  yAxisScaleZeros = 0,
+  yAxisSuffix,
 }: {
   chartType: GraphChartType;
   className?: string;
@@ -389,10 +588,14 @@ export function EChartsSeriesChart({
   normalizationTimeMs?: GraphNormalizationAnchor;
   series: GraphSeries[];
   seriesAxisMode?: GraphSeriesAxisMode;
+  stackSeries?: boolean;
   timeAxisMode?: Exclude<GraphTimeAxisMode, "auto">;
   transparentSurface?: boolean;
   updateMode?: WidgetRuntimeUpdateMode;
   xAxisType?: "time" | "value";
+  yAxisDecimals?: number;
+  yAxisScaleZeros?: number;
+  yAxisSuffix?: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
@@ -483,18 +686,26 @@ export function EChartsSeriesChart({
         chartType,
         markerSizePx,
         series: themedSeries,
+        stackSeries,
         timeAxisMode,
         tokens: resolvedTokens,
         xAxisType,
+        yAxisDecimals,
+        yAxisScaleZeros,
+        yAxisSuffix,
       })
       : buildSharedChartOption({
           chartType,
           emptyMessage,
           markerSizePx,
           series: themedSeries,
+          stackSeries,
           timeAxisMode,
           tokens: resolvedTokens,
           xAxisType,
+          yAxisDecimals,
+          yAxisScaleZeros,
+          yAxisSuffix,
         });
     const structureKey = JSON.stringify({
       chartType,
@@ -506,8 +717,12 @@ export function EChartsSeriesChart({
         label: entry.label,
         lineStyle: entry.lineStyle,
       })),
+      stackSeries,
       timeAxisMode,
       xAxisType,
+      yAxisDecimals,
+      yAxisScaleZeros,
+      yAxisSuffix,
     });
     const canMerge =
       updateMode === "delta" &&
@@ -528,10 +743,14 @@ export function EChartsSeriesChart({
     markerSizePx,
     resolvedTokens,
     separateAxes,
+    stackSeries,
     themedSeries,
     timeAxisMode,
     updateMode,
     xAxisType,
+    yAxisDecimals,
+    yAxisScaleZeros,
+    yAxisSuffix,
   ]);
 
   if (themedSeries.length === 0) {

@@ -25,7 +25,6 @@ import {
   isAgentSessionNotFoundError,
   type AgentSessionSerializedRecord,
 } from "../../runtime/agent-sessions-api";
-import { fetchSessionInsights } from "../../runtime/session-insights-api";
 import { fetchSessionHistory } from "../../runtime/session-history-api";
 import "./AgentTerminalWidget.css";
 import { AGENT_TERMINAL_HISTORY_REFRESH_RUNTIME_KEY } from "./agentTerminalExecution";
@@ -70,6 +69,7 @@ type HydrateSessionOptions = {
   showLoading: boolean;
   publishLatestAssistantOutput?: boolean;
   fallbackLatestAssistantMarkdown?: string | null;
+  renderHistory?: boolean;
 };
 
 type HydrateSessionFn = (
@@ -250,7 +250,6 @@ export function AgentTerminalWidget({
       ? runtimeState[AGENT_TERMINAL_HISTORY_REFRESH_RUNTIME_KEY]
       : null;
 
-  const prompt = useMemo(() => buildAgentTerminalPrompt(sessionId), [sessionId]);
   const configuredAgentName = useMemo(
     () =>
       normalizedProps.agentName?.trim() ||
@@ -259,6 +258,11 @@ export function AgentTerminalWidget({
         title: instanceTitle,
       }),
     [instanceTitle, normalizedProps.agentName, sessionId],
+  );
+  const terminalAgentLabel = sessionState?.agentName ?? configuredAgentName ?? null;
+  const prompt = useMemo(
+    () => buildAgentTerminalPrompt(sessionId, terminalAgentLabel),
+    [sessionId, terminalAgentLabel],
   );
   const loadInitialHistory = normalizedProps.loadInitialHistory === true;
   const blockUserInput = normalizedProps.blockUserInput === true;
@@ -292,7 +296,6 @@ export function AgentTerminalWidget({
       sessionId: sessionState?.sessionId ?? sessionId,
     });
   }, [instanceTitle, sessionId, sessionState?.agentName, sessionState?.sessionId]);
-  const terminalAgentLabel = sessionState?.agentName ?? configuredAgentName ?? null;
   const terminalModelLabel = useMemo(
     () =>
       formatAgentTerminalModelLabel({
@@ -489,6 +492,7 @@ export function AgentTerminalWidget({
       {
         fallbackLatestAssistantMarkdown,
         publishLatestAssistantOutput = false,
+        renderHistory = false,
         showLoading,
       }: HydrateSessionOptions,
     ) => {
@@ -544,15 +548,19 @@ export function AgentTerminalWidget({
 
         setSessionState(nextSessionState);
         sessionStateRef.current = nextSessionState;
-        setLines(
-          buildAgentTerminalSessionLines({
-            messages: history.messages,
-            prompt: buildAgentTerminalPrompt(targetSessionId),
-            session: nextSessionState,
-            sessionError: history.session.status === "error" ? history.session.error : null,
-            userInputBlocked: blockUserInput,
-          }),
-        );
+        if (loadInitialHistory || renderHistory || showLoading) {
+          const shouldRenderHistory = loadInitialHistory || renderHistory;
+
+          setLines(
+            buildAgentTerminalSessionLines({
+              messages: shouldRenderHistory ? history.messages : [],
+              prompt: buildAgentTerminalPrompt(targetSessionId, nextSessionState.agentName),
+              session: nextSessionState,
+              sessionError: history.session.status === "error" ? history.session.error : null,
+              userInputBlocked: blockUserInput,
+            }),
+          );
+        }
         await publishLatestAssistantMarkdown({
           markdown: extractLatestAssistantMarkdown(history.messages),
           triggerDownstream: publishLatestAssistantOutput,
@@ -579,7 +587,10 @@ export function AgentTerminalWidget({
       }
     },
     [
+      blockUserInput,
       configuredAgentName,
+      focusPromptInput,
+      loadInitialHistory,
       publishLatestAssistantMarkdown,
       sessionToken,
       sessionTokenType,
@@ -600,19 +611,16 @@ export function AgentTerminalWidget({
 
   useEffect(() => {
     const input = containerRef.current?.querySelector<HTMLInputElement>(".terminal-hidden-input");
+    const canAcceptManualInput = sessionReady && !isStreaming && !blockUserInput;
 
     if (!input) {
       return;
     }
 
-    input.disabled = isStreaming || !sessionReady || blockUserInput;
+    input.disabled = !canAcceptManualInput;
 
-    if (isStreaming) {
+    if (!canAcceptManualInput) {
       input.blur();
-      return;
-    }
-
-    if (!sessionReady || blockUserInput) {
       return;
     }
 
@@ -649,12 +657,6 @@ export function AgentTerminalWidget({
     void (async () => {
       try {
         const sessionDetail = await fetchAgentSessionDetail({
-          sessionId,
-          signal: controller.signal,
-          token: sessionToken,
-          tokenType: sessionTokenType,
-        });
-        await fetchSessionInsights({
           sessionId,
           signal: controller.signal,
           token: sessionToken,
@@ -704,7 +706,7 @@ export function AgentTerminalWidget({
         setLines(
           buildAgentTerminalSessionLines({
             messages: loadInitialHistory ? history.messages : [],
-            prompt,
+            prompt: buildAgentTerminalPrompt(sessionId, readySessionState.agentName),
             session: readySessionState,
             sessionError: history.session.status === "error" ? history.session.error : null,
             userInputBlocked: blockUserInput,
@@ -747,7 +749,6 @@ export function AgentTerminalWidget({
     blockUserInput,
     focusPromptInput,
     loadInitialHistory,
-    prompt,
     sessionId,
     sessionToken,
     sessionTokenType,
@@ -1105,6 +1106,7 @@ export function AgentTerminalWidget({
     },
     [sendTerminalInput],
   );
+  const canAcceptManualInput = sessionReady && !isStreaming && !blockUserInput;
 
   const renderedLines = useMemo(
     () =>
@@ -1123,7 +1125,11 @@ export function AgentTerminalWidget({
   );
 
   return (
-    <div ref={containerRef} className="ms-agent-terminal-widget">
+    <div
+      ref={containerRef}
+      className="ms-agent-terminal-widget"
+      data-prompt-visible={canAcceptManualInput ? "true" : "false"}
+    >
       <div className="ms-agent-terminal-window">
         {editable && (terminalAgentLabel || sessionId) ? (
           <div className="ms-agent-terminal-toolbar">
@@ -1152,7 +1158,7 @@ export function AgentTerminalWidget({
           colorMode={ColorMode.Dark}
           height="100%"
           prompt={prompt}
-          onInput={blockUserInput ? undefined : handleInput}
+          onInput={canAcceptManualInput ? handleInput : undefined}
           TopButtonsPanel={TerminalChromeHidden}
         >
           {renderedLines}

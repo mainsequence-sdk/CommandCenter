@@ -1,7 +1,7 @@
 ## buildPurpose
 
 Publishes canonical tabular incremental publications from a streamable connection query over a WebSocket, with a compatibility retained dataset output for legacy consumers.
-Large retained frames are stored in the workspace runtime data store and carried through bindings as lightweight refs.
+Large retained frames are stored in the workspace runtime data store and carried through bindings as runtime refs, while the source widget keeps inline rows for cold reload and preview fallback.
 
 ## whenToUse
 
@@ -32,7 +32,7 @@ Large retained frames are stored in the workspace runtime data store and carried
 ## commonPitfalls
 
 - The widget stores connection/query selection and stream merge settings only; credentials and provider URLs must stay on the backend connection instance.
-- Runtime state should carry stream lifecycle plus runtime data refs, not retained live row history.
+- Runtime state should carry stream lifecycle plus runtime data refs, but the source widget still retains inline rows for the current retained dataset so cold-loaded workspaces and settings previews can render without waiting for a new live message.
 - Delta frames must keep the same schema as the retained frame. A schema change is treated as a stream error so consumers do not render mixed columns.
 - Live-capable widgets should bind `liveUpdates` to this widget's `updates` output. `seedData` reacts only to seed publications, while `liveUpdates` continues applying seed/update publications from the stream.
 - Snapshot-origin stream messages republish as seed resets. Delta-origin messages remain incremental updates.

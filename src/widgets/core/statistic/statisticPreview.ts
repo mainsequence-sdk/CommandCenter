@@ -1,5 +1,7 @@
 import type { ResolvedWidgetInputs } from "@/widgets/types";
 import { resolveIncrementalTabularOutputFrame } from "@/widgets/shared/incremental-tabular-consumer";
+import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
+import { getRuntimeDataRef } from "@/widgets/shared/runtime-data-store";
 
 import {
   buildTabularSourceDescriptor,
@@ -124,4 +126,29 @@ export function resolveStatisticSettingsDataset(
   });
 
   return incrementalDataset ?? resolveStatisticSourceDataset(resolvedInputs);
+}
+
+export function resolveStatisticLinkedDataset(input: {
+  previewDataset: TabularFrameSourceV1 | null;
+  incrementalActive: boolean;
+  incrementalDataset: TabularFrameSourceV1 | null;
+  incrementalConsumerDataset: TabularFrameSourceV1 | null;
+  sourceDataset: TabularFrameSourceV1 | null;
+  sourceConsumerDataset: TabularFrameSourceV1 | null;
+}) {
+  const previewDataset = input.previewDataset;
+  const previewIsEmptyRefShell =
+    previewDataset != null &&
+    previewDataset.rows.length === 0 &&
+    Boolean(getRuntimeDataRef(previewDataset));
+
+  if (previewDataset && !previewIsEmptyRefShell) {
+    return previewDataset;
+  }
+
+  if (input.incrementalActive) {
+    return input.incrementalDataset ?? input.incrementalConsumerDataset ?? previewDataset ?? null;
+  }
+
+  return input.sourceDataset ?? input.sourceConsumerDataset ?? previewDataset ?? null;
 }

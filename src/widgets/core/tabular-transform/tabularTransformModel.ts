@@ -456,6 +456,14 @@ function resolveFieldType(
   return inferFieldType(rows.map((row) => row[field]));
 }
 
+function collectAvailableFields(source: TabularFrameSourceV1) {
+  return new Set<string>([
+    ...source.columns,
+    ...collectRowKeys(source.rows),
+    ...(source.fields ?? []).map((field) => field.key),
+  ]);
+}
+
 function normalizeConfiguredComparableValue(
   value: TabularFilterRuleValue,
   fieldType: TabularFrameFieldType,
@@ -673,6 +681,7 @@ function buildFilterPredicate(
     };
   }
 
+  const availableFields = collectAvailableFields(source);
   const compiledRules: Array<{ error: string } | CompiledTabularFilterRule> = rules.map((rule, index) => {
     const label = `Filter rule ${index + 1}`;
 
@@ -685,6 +694,12 @@ function buildFilterPredicate(
     if (!rule.operator) {
       return {
         error: `${label} is missing an operator.`,
+      };
+    }
+
+    if (!availableFields.has(rule.field)) {
+      return {
+        error: `${label} references "${rule.field}", but that field is not present in the source dataset.`,
       };
     }
 
@@ -1203,6 +1218,7 @@ export function resolveTabularTransformOutput(input: {
         outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
         upstreamBase: outputFrame,
         upstreamDelta: deltaFrame,
+        preserveOutputRefs: false,
         diagnostics: deltaFrame
           ? undefined
           : {

@@ -1214,6 +1214,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
       outputId: "dataset",
       store: runtimeDataStore,
       refKey: `${subscriptionKey}:dataset`,
+      includeRowsInShell: true,
     }) as ConnectionStreamQueryRuntimeState;
 
     retainedState = storedState;

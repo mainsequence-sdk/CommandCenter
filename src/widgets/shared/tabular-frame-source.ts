@@ -874,7 +874,9 @@ export function legacyTimeSeriesFrameToTabularFrameSource(
 }
 
 function resolveExplicitStatus(value: unknown): TabularFrameSourceStatus | undefined {
-  return value === "loading" || value === "ready" || value === "error" ? value : undefined;
+  return value === "idle" || value === "loading" || value === "ready" || value === "error"
+    ? value
+    : undefined;
 }
 
 function normalizeStatus(

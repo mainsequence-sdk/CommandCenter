@@ -6,7 +6,7 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
 
 - Use when a tabular dataset should be rendered as a line, area, bar, or markers-only chart.
 - Use when rows can be mapped to an X field, a numeric Y field, and an optional grouping field.
-- Use when the chart needs local provider choice, chart type, marker size, max grouped-series count, max plotted points per series, series normalization, axis mode, or per-series color and line-style overrides.
+- Use when the chart needs local provider choice, chart type, stacked-vs-overlay rendering, marker size, max grouped-series count, max plotted points per series, series normalization, axis mode, Y-axis scaling/decimals/suffix, or per-series color and line-style overrides.
 - Use the managed connection flow when one chart should own its own query or stream without adding a visible standalone source widget to the rail.
 
 ## whenNotToUse
@@ -27,7 +27,7 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
   - HTTP managed source -> `dataset` to `seedData`
   - WS managed source -> `updates` to `liveUpdates`
 - Choose X and Y fields that match the intended chart.
-- Optionally choose a grouping field, provider, chart type, `Max points per series`, `Max series`, normalization, and series-axis mode. Leave `Normalize at` blank to rebase each series from its first visible usable point.
+- Optionally choose a grouping field, provider, chart type, shared-axis stacked mode, `Max points per series`, `Max series`, normalization, series-axis mode, and Y-axis display formatting. Leave `Normalize at` blank to rebase each series from its first visible usable point.
 - Inspect the resolved source schema before finalizing field mappings. Field pickers and chart rendering resolve from the effective seed/live state, including when those bindings point at a hidden managed source widget.
 - Settings previews, field selectors, and the mounted widget all read the same graph-normalized
   dataset frame, so chartability checks should stay consistent between authoring and runtime.
@@ -55,11 +55,18 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
 - Provider matters for high-frequency datetime data:
   - ECharts keeps full millisecond points.
   - TradingView collapses same-second datetime points to the latest point in that second.
+- Stacked mode only applies on a shared axis and is hidden for `Markers`.
+- ECharts uses native stacked series rendering. TradingView renders the same stacked result by
+  projecting cumulative shared-axis values because Lightweight Charts does not expose a stack flag.
+- Y-axis decimals, divide-by-10^N scaling, and suffix only change displayed labels. They do not
+  rescale the underlying source data or published row values.
 - When grouping is enabled, `Max series` limits how many groups render at once. Remaining groups
   are dropped by descending point count.
 - Live stream graphs now stay responsive from the graph-local bounded queue and bounded runtime
   data view, but the upstream source still needs source-side retention when its retained
   compatibility dataset should stay bounded too.
+- While stacked mode is enabled, the widget redraws live updates through the full snapshot path so
+  the stacked projection stays correct across all visible series.
 - `Markers` suppresses connecting lines; line-style overrides do not visibly change that mode.
 - `Markers` uses the chart's `Marker size` setting, so point size can differ from the default line/area single-point markers.
 - If this graph is backed by a hidden managed connection source, fix any source runtime error in the `Connection` tab before debugging chart field mappings.

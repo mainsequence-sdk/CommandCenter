@@ -19,6 +19,7 @@ import {
   resolveGraphDatasetFrame,
   resolveGraphEffectiveTimeAxisMode,
   resolveGraphNormalizationTimeMs,
+  resolveGraphStackingEnabled,
   resolveGraphConfig,
   type GraphSeriesResult,
   type GraphWidgetProps,
@@ -339,14 +340,21 @@ export function GraphWidget({
         : buildGraphSeries(sourceDeltaRows, resolvedConfig),
     [incrementalBinding.active, incrementalRenderState?.deltaResult, resolvedConfig, seriesResult, sourceDeltaRows],
   );
+  const stackingEnabled = useMemo(
+    () => resolveGraphStackingEnabled(resolvedConfig),
+    [resolvedConfig],
+  );
   const canUseDeltaUpdate =
     !incrementalBinding.active &&
     sourceUpdate?.mode === "delta" &&
     sourceDeltaRows.length > 0 &&
+    !stackingEnabled &&
     !resolvedConfig.normalizeSeries &&
     (sourceUpdate.operations?.pruned ?? 0) === 0;
   const chartUpdateMode: WidgetRuntimeUpdateMode = incrementalBinding.active
-    ? (incrementalRenderState?.updateMode ?? "snapshot")
+    ? stackingEnabled
+      ? "snapshot"
+      : (incrementalRenderState?.updateMode ?? "snapshot")
     : canUseDeltaUpdate
       ? "delta"
       : "snapshot";
@@ -375,8 +383,12 @@ export function GraphWidget({
         normalizeSeries: resolvedConfig.normalizeSeries,
         provider: resolvedConfig.provider,
         seriesAxisMode: resolvedConfig.seriesAxisMode,
+        stackSeries: stackingEnabled,
         timeAxisMode: effectiveTimeAxisMode,
         xField: resolvedConfig.xField,
+        yAxisDecimals: resolvedConfig.yAxisDecimals,
+        yAxisScaleZeros: resolvedConfig.yAxisScaleZeros,
+        yAxisSuffix: resolvedConfig.yAxisSuffix,
         yField: resolvedConfig.yField,
       }),
     [
@@ -387,8 +399,12 @@ export function GraphWidget({
       resolvedConfig.normalizeSeries,
       resolvedConfig.provider,
       resolvedConfig.seriesAxisMode,
+      stackingEnabled,
       resolvedConfig.timeAxisMode,
       resolvedConfig.xField,
+      resolvedConfig.yAxisDecimals,
+      resolvedConfig.yAxisScaleZeros,
+      resolvedConfig.yAxisSuffix,
       resolvedConfig.yField,
     ],
   );
@@ -621,9 +637,13 @@ export function GraphWidget({
                   series={chartSeriesResult.series}
                   deltaSeries={chartUpdateMode === "delta" ? deltaChartSeriesResult.series : []}
                   seriesAxisMode={resolvedConfig.seriesAxisMode}
+                  stackSeries={stackingEnabled}
                   timeAxisMode={effectiveTimeAxisMode}
                   transparentSurface={transparentSurface}
                   updateMode={chartUpdateMode}
+                  yAxisDecimals={resolvedConfig.yAxisDecimals}
+                  yAxisScaleZeros={resolvedConfig.yAxisScaleZeros}
+                  yAxisSuffix={resolvedConfig.yAxisSuffix}
                 />
               ) : (
                 <TradingViewSeriesChart
@@ -636,9 +656,13 @@ export function GraphWidget({
                   series={chartSeriesResult.series}
                   deltaSeries={chartUpdateMode === "delta" ? deltaChartSeriesResult.series : []}
                   seriesAxisMode={resolvedConfig.seriesAxisMode}
+                  stackSeries={stackingEnabled}
                   timeAxisMode={effectiveTimeAxisMode}
                   transparentSurface={transparentSurface}
                   updateMode={chartUpdateMode}
+                  yAxisDecimals={resolvedConfig.yAxisDecimals}
+                  yAxisScaleZeros={resolvedConfig.yAxisScaleZeros}
+                  yAxisSuffix={resolvedConfig.yAxisSuffix}
                 />
               )}
             </GraphChartErrorBoundary>

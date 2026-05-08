@@ -342,6 +342,29 @@ export function CustomWorkspaceSettingsPage() {
     </Card>
   );
 
+  const workspaceActionsCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Workspace actions</CardTitle>
+        <CardDescription>
+          Destructive actions for the selected workspace.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button
+          variant="danger"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            setDeleteDialogOpen(true);
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete workspace
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
   const publicPublishingCard = (
     <Card>
       <CardHeader>
@@ -1137,32 +1160,15 @@ export function CustomWorkspaceSettingsPage() {
                 </CardContent>
               </Card>
 
-              {modelDetailsCard}
+              <div className="space-y-6">
+                {modelDetailsCard}
+                {workspaceActionsCard}
+              </div>
               </div>
             </div>
             ) : activeTab === "publishing" ? (
             <div className="max-w-5xl space-y-6">
               {publicPublishingCard}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Workspace actions</CardTitle>
-                  <CardDescription>
-                    Destructive actions for the selected workspace.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    variant="danger"
-                    className="w-full sm:w-auto"
-                    onClick={() => {
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete workspace
-                  </Button>
-                </CardContent>
-              </Card>
             </div>
             ) : (
             <div className="w-full">

@@ -49,9 +49,10 @@ for connection query models that advertise a WebSocket stream contract.
   - `dataset`: compatibility retained dataset for legacy consumers
   - `updates`: explicit incremental publication output for `seedData` / `liveUpdates` consumers
 - The current runtime writes retained compatibility frames and delta frames into the workspace
-  runtime data store, then publishes small ref-backed runtime-state shells. Legacy dataset
-  consumers keep working through compatibility materialization while migrated widgets bind the
-  `updates` output directly.
+  runtime data store, then publishes ref-backed runtime-state shells that also retain inline rows
+  on the source widget for cold reload and settings-preview fallback. Legacy dataset consumers keep
+  working through compatibility materialization while migrated widgets bind the `updates` output
+  directly.
 - Explore and widget settings previews still keep their own bounded stream-history buffer for
   graphing. Canonical widget runtime is separate from that preview buffer, but it can now also
   retain live rows for downstream consumers when the stream contract publishes row identity keys.

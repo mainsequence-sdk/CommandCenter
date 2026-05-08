@@ -36,12 +36,6 @@ function resolveStatisticSnapshotSourceDataset(input: {
   runtimeDataStore?: RuntimeDataStore | null;
   resolveWidgetRuntimeState?: (instanceId: string | undefined) => Record<string, unknown> | undefined;
 }) {
-  const legacyDataset = resolveStatisticSourceDataset(input.resolvedInputs);
-
-  if (legacyDataset) {
-    return legacyDataset;
-  }
-
   const incrementalDataset = resolveIncrementalTabularOutputFrame({
     resolvedInputs: input.resolvedInputs,
     runtimeState: input.runtimeState,
@@ -50,6 +44,12 @@ function resolveStatisticSnapshotSourceDataset(input: {
 
   if (incrementalDataset) {
     return incrementalDataset;
+  }
+
+  const legacyDataset = resolveStatisticSourceDataset(input.resolvedInputs);
+
+  if (legacyDataset) {
+    return legacyDataset;
   }
 
   const normalizeResolvedInput = (value: unknown) =>
@@ -89,7 +89,7 @@ function resolveStatisticSnapshotSourceDataset(input: {
 
 export const statisticWidget = defineWidget<StatisticWidgetProps>({
   id: "statistic",
-  widgetVersion: "3.0.1",
+  widgetVersion: "3.0.2",
   title: "Statistic",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",

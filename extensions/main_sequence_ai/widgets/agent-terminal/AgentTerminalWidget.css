@@ -119,6 +119,10 @@
   min-height: 1.65em;
 }
 
+.ms-agent-terminal-widget[data-prompt-visible="false"] .react-terminal-active-input {
+  display: none;
+}
+
 .ms-agent-terminal-widget .ms-agent-terminal-output-default {
   color: var(--ms-agent-terminal-output-color);
 }

@@ -150,6 +150,7 @@ function resolveTransformedRuntimeUpdate(input: {
     outputContractId: input.transformedBase.contractId,
     upstreamBase: input.transformedBase.value,
     upstreamDelta,
+    preserveOutputRefs: !hasTransforms,
     diagnostics:
       sourceUpdate.mode === "delta" && updateMode === "snapshot"
         ? {
@@ -160,10 +161,11 @@ function resolveTransformedRuntimeUpdate(input: {
 
   return {
     upstreamBase: input.transformedBase.value,
-    upstreamBaseRef:
-      sourceUpdate.outputRef ??
-      sourceUpdate.retainedOutputRef ??
-      input.transformedBase.valueRef,
+    upstreamBaseRef: hasTransforms
+      ? input.transformedBase.valueRef
+      : sourceUpdate.outputRef ??
+        sourceUpdate.retainedOutputRef ??
+        input.transformedBase.valueRef,
     upstreamDelta,
     upstreamDeltaRef,
     upstreamUpdate,

@@ -40,6 +40,9 @@ remaining height. The two shells still differ intentionally:
   proxy
 - available-model fetching is cached per user + agent request name for 15 minutes, so switching
   between sessions does not refetch the same runtime catalog repeatedly
+- when that 15-minute cache expires, the last applied catalog remains visible and usable while the
+  refresh runs in the background; model discovery must not blank the picker or rebuild the chat
+  shell once a catalog has already been applied for the same user + agent scope
 - the available-model loader is keyed by a stable runtime scope
   (`user -> agent request name`), not by whole session object identity, so transcript or metadata
   rewrites do not restart the same request

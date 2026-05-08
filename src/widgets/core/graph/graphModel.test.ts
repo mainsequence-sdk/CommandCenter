@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildStackedGraphSeriesProjection,
   buildGraphChartSeries,
   buildGraphSeriesConfigKey,
   buildGraphSeries,
+  formatGraphAxisValue,
   reduceIncrementalGraphSeries,
   type ResolvedGraphConfig,
 } from "./graphModel";
@@ -110,6 +112,22 @@ describe("graph incremental series projection", () => {
     );
   });
 
+  it("formats axis labels with scale, decimals, and suffix", () => {
+    expect(formatGraphAxisValue(12_500_000, {
+      yAxisDecimals: 1,
+      yAxisScaleZeros: 6,
+      yAxisSuffix: "M",
+    })).toBe("12.5M");
+  });
+
+  it("normalizes negative zero axis labels back to zero", () => {
+    expect(formatGraphAxisValue(-0.00000001, {
+      yAxisDecimals: 2,
+      yAxisScaleZeros: 0,
+      yAxisSuffix: "%",
+    })).toBe("0.00%");
+  });
+
   it("keeps the latest points as a bounded queue for incremental updates", () => {
     const seeded = buildGraphSeries(
       [
@@ -200,6 +218,32 @@ describe("graph incremental series projection", () => {
     expect(chartSeries.series[0]?.points).toEqual([
       { time: Date.parse("2026-04-25T00:01:00.100Z"), value: 10 },
       { time: Date.parse("2026-04-25T00:01:00.900Z"), value: 11 },
+    ]);
+  });
+
+  it("projects stacked series against the union of visible timestamps", () => {
+    const result = buildGraphSeries(
+      [
+        { time: "2026-04-25T00:01:00.000Z", symbol: "AAPL", value: 10 },
+        { time: "2026-04-25T00:02:00.000Z", symbol: "AAPL", value: 11 },
+        { time: "2026-04-25T00:02:00.000Z", symbol: "MSFT", value: 20 },
+        { time: "2026-04-25T00:03:00.000Z", symbol: "MSFT", value: 21 },
+      ],
+      config,
+    );
+
+    const stacked = buildStackedGraphSeriesProjection(result.series);
+
+    expect(stacked.map((series) => series.id)).toEqual(["AAPL", "MSFT"]);
+    expect(stacked[0]?.points).toEqual([
+      { time: Date.parse("2026-04-25T00:01:00.000Z"), value: 10 },
+      { time: Date.parse("2026-04-25T00:02:00.000Z"), value: 11 },
+      { time: Date.parse("2026-04-25T00:03:00.000Z"), value: 0 },
+    ]);
+    expect(stacked[1]?.points).toEqual([
+      { time: Date.parse("2026-04-25T00:01:00.000Z"), value: 10 },
+      { time: Date.parse("2026-04-25T00:02:00.000Z"), value: 31 },
+      { time: Date.parse("2026-04-25T00:03:00.000Z"), value: 21 },
     ]);
   });
 });

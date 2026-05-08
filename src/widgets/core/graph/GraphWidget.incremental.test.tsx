@@ -4,6 +4,7 @@ import { act, useState, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WidgetDefinition } from "@/widgets/types";
+import type { GraphWidgetProps } from "./graphModel";
 
 vi.mock("./TradingViewSeriesChart", () => ({
   TradingViewSeriesChart: (props: Record<string, unknown>) => {
@@ -171,16 +172,24 @@ function buildLiveInput(input: {
 function Harness({
   resolvedInputs,
   onRuntimeStateEvent,
+  props,
 }: {
   resolvedInputs?: ResolvedWidgetInputs;
   onRuntimeStateEvent: (runtimeState: Record<string, unknown> | undefined) => void;
+  props?: GraphWidgetProps;
 }) {
   const [runtimeState, setRuntimeState] = useState<Record<string, unknown> | undefined>(undefined);
 
   return (
     <GraphWidget
       widget={graphWidgetStub}
-      props={{ provider: "tradingview", chartType: "line", xField: "time", yField: "value" }}
+      props={{
+        provider: "tradingview",
+        chartType: "line",
+        xField: "time",
+        yField: "value",
+        ...props,
+      }}
       presentation={undefined}
       instanceId="graph-1"
       editable={false}
@@ -202,7 +211,7 @@ async function flushEffects() {
 }
 
 interface HarnessDriver {
-  render: (resolvedInputs?: ResolvedWidgetInputs) => Promise<void>;
+  render: (resolvedInputs?: ResolvedWidgetInputs, props?: GraphWidgetProps) => Promise<void>;
   getRuntimeEventCount: () => number;
   cleanup: () => void;
 }
@@ -214,11 +223,12 @@ function createHarness(): HarnessDriver {
   let runtimeEventCount = 0;
 
   return {
-    async render(resolvedInputs) {
+    async render(resolvedInputs, props) {
       await act(async () => {
         root.render(
           <Harness
             resolvedInputs={resolvedInputs}
+            props={props}
             onRuntimeStateEvent={() => {
               runtimeEventCount += 1;
             }}
@@ -342,5 +352,52 @@ describe("GraphWidget incremental bindings", () => {
       { time: Date.parse("2026-04-29T00:10:00.000Z"), value: 10 },
       { time: Date.parse("2026-04-29T00:11:00.000Z"), value: 11 },
     ]);
+  });
+
+  it("forces stacked TradingView charts onto snapshot updates", async () => {
+    const harness = createHarness();
+    harnesses.push(harness);
+
+    await harness.render(
+      {
+        [TABULAR_SEED_INPUT_ID]: buildSeedInput(
+          [{ time: "2026-04-29T00:00:00.000Z", value: 1, symbol: "AAPL" }],
+          100,
+        ),
+      },
+      {
+        groupField: "symbol",
+        stackSeries: true,
+      },
+    );
+
+    await harness.render(
+      {
+        [TABULAR_SEED_INPUT_ID]: buildSeedInput(
+          [{ time: "2026-04-29T00:00:00.000Z", value: 1, symbol: "AAPL" }],
+          100,
+        ),
+        liveUpdates: buildLiveInput({
+          baseRows: [
+            { time: "2026-04-29T00:00:00.000Z", value: 1, symbol: "AAPL" },
+            { time: "2026-04-29T00:01:00.000Z", value: 2, symbol: "AAPL" },
+          ],
+          deltaRows: [{ time: "2026-04-29T00:01:00.000Z", value: 2, symbol: "AAPL" }],
+          sourceRunId: "ws-run-stacked",
+          updatedAtMs: 250,
+        }),
+      },
+      {
+        groupField: "symbol",
+        stackSeries: true,
+      },
+    );
+
+    const chartProps = (globalThis as typeof globalThis & {
+      __graphLastTradingViewProps?: Record<string, unknown>;
+    }).__graphLastTradingViewProps;
+
+    expect(chartProps?.stackSeries).toBe(true);
+    expect(chartProps?.updateMode).toBe("snapshot");
   });
 });

@@ -25,6 +25,9 @@ into one or more KPI-style cards.
 - The widget reads the resolved input's generic `upstreamBase` frame when an incremental upstream
   source publishes retained base plus delta metadata. It recomputes cards from the retained
   snapshot rather than applying row deltas directly.
+- When a bound source publishes a ref-backed frame shell, the widget prefers the materialized
+  runtime dataset over the raw preview shell so connection-backed statistics do not collapse into
+  false `No rows available` states.
 - Supported reductions are `last`, `first`, `max`, `min`, `sum`, `mean`, and `count`.
 - Optional grouping renders one card per group value.
 - Numeric cards can render a compact sparkline from the same incoming value field, including multi-card grouped layouts.

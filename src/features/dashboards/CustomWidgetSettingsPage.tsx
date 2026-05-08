@@ -21,7 +21,11 @@ import {
   resolveManagedConnectionConsumerDetachedSourceMode,
 } from "@/widgets/shared/managed-connection-consumer";
 import { getManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer-registry";
-import { resolveManagedConnectionConsumerInputId } from "@/widgets/shared/managed-connection-consumer";
+import {
+  resolveManagedConnectionConsumerInputId,
+  resolveManagedConnectionConsumerOutputId,
+  resolveManagedConnectionConsumerSourceWidgetId,
+} from "@/widgets/shared/managed-connection-consumer";
 import { fetchAppComponentOpenApiDocument } from "@/widgets/core/app-component/appComponentApi";
 import {
   buildAppComponentBindingSpec,
@@ -44,6 +48,8 @@ import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { WorkspaceSavingStatus } from "./WorkspaceChrome";
 import { ManagedConnectionConsumerPanel } from "@/widgets/shared/ManagedConnectionConsumerPanel";
+import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
+import type { ResolvedWidgetInputs } from "@/widgets/types";
 
 type WidgetSettingsTabId = "settings" | "bindings" | "connection";
 
@@ -330,6 +336,68 @@ export function CustomWidgetSettingsPage({
         : resolvedDashboard.widgets,
     [bindingPreviewInstance, instance, resolvedDashboard.widgets],
   );
+  const currentManagedConnectionSignature = buildManagedConnectionConsumerDraftSignature(
+    managedConnectionAdapter,
+    (instance?.props ?? {}) as Record<string, unknown>,
+  );
+  const draftManagedConnectionSignature = buildManagedConnectionConsumerDraftSignature(
+    managedConnectionAdapter,
+    managedConnectionDraftProps,
+  );
+  const [managedConnectionPreviewRuntimeState, setManagedConnectionPreviewRuntimeState] = useState<
+    Record<string, unknown> | undefined
+  >(undefined);
+  const managedConnectionPreviewResolvedInputs = useMemo<ResolvedWidgetInputs | undefined>(() => {
+    if (
+      !instance ||
+      !managedConnectionAdapter ||
+      !managedConnectionMode ||
+      !managedConnectionPreviewRuntimeState
+    ) {
+      return undefined;
+    }
+
+    const sourceInputId = resolveManagedConnectionConsumerInputId(
+      managedConnectionAdapter,
+      managedConnectionDraftProps,
+    );
+    const sourceOutputId = resolveManagedConnectionConsumerOutputId(
+      managedConnectionAdapter,
+      managedConnectionDraftProps,
+    );
+    const sourceWidgetId = resolveManagedConnectionConsumerSourceWidgetId(
+      managedConnectionAdapter,
+      managedConnectionDraftProps,
+    );
+    const previewSourceInstanceId =
+      managedConnectionSource?.widgetId === sourceWidgetId
+        ? managedConnectionSource.id
+        : `${instance.id}:managed-source-preview`;
+
+    return {
+      [sourceInputId]: {
+        inputId: sourceInputId,
+        label: "Source data",
+        status: "valid",
+        sourceWidgetId: previewSourceInstanceId,
+        sourceOutputId,
+        contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        value: managedConnectionPreviewRuntimeState,
+        upstreamBase: managedConnectionPreviewRuntimeState,
+      },
+    } satisfies ResolvedWidgetInputs;
+  }, [
+    instance,
+    managedConnectionAdapter,
+    managedConnectionDraftProps,
+    managedConnectionMode,
+    managedConnectionPreviewRuntimeState,
+    managedConnectionSource,
+  ]);
+
+  useEffect(() => {
+    setManagedConnectionPreviewRuntimeState(undefined);
+  }, [draftManagedConnectionSignature, instance?.id]);
 
   if (!instance || !widget || !effectiveDraftState) {
     return (
@@ -348,15 +416,6 @@ export function CustomWidgetSettingsPage({
       </div>
     );
   }
-
-  const currentManagedConnectionSignature = buildManagedConnectionConsumerDraftSignature(
-    managedConnectionAdapter,
-    (instance.props ?? {}) as Record<string, unknown>,
-  );
-  const draftManagedConnectionSignature = buildManagedConnectionConsumerDraftSignature(
-    managedConnectionAdapter,
-    managedConnectionDraftProps,
-  );
   const managedConnectionDirty =
     Boolean(managedConnectionAdapter) &&
     draftManagedConnectionSignature !== currentManagedConnectionSignature;
@@ -638,6 +697,7 @@ export function CustomWidgetSettingsPage({
                           ? "Adjust the display title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
                           : "Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
                       }
+                      previewResolvedInputsOverride={managedConnectionPreviewResolvedInputs}
                       persistenceNote={
                         backendMode
                           ? "Edits update the current workspace draft immediately. They are not saved until you click Save workspace."
@@ -673,6 +733,7 @@ export function CustomWidgetSettingsPage({
                         ? "Adjust the display title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
                         : "Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
                     }
+                    previewResolvedInputsOverride={managedConnectionPreviewResolvedInputs}
                     persistenceNote={
                       backendMode
                         ? "Edits update the current workspace draft immediately. They are not saved until you click Save workspace."
@@ -822,6 +883,8 @@ export function CustomWidgetSettingsPage({
                         editable
                         instanceId={instance.id}
                         instanceTitle={effectiveDraftState.title || instance.title || widget.title}
+                        onPreviewRuntimeStateChange={setManagedConnectionPreviewRuntimeState}
+                        previewRuntimeState={managedConnectionPreviewRuntimeState}
                         widgetTitle={widget.title}
                         onDraftPropsChange={(nextManagedConnectionProps) => {
                           updateManagedConnectionDraft(() => nextManagedConnectionProps);

@@ -151,6 +151,64 @@ describe("tabular transform filter mode", () => {
     ]);
   });
 
+  it("does not preserve upstream refs when the filtered carrier no longer matches the source frame", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "filter",
+        filterRules: [{ field: "__name__", operator: "equals", value: "failed" }],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame([
+          { __name__: "sent", queue_name: "celery", value: 1, time: "2026-04-28T10:00:00.000Z" },
+        ]),
+        {
+          upstreamBase: frame([
+            { __name__: "sent", queue_name: "celery", value: 1, time: "2026-04-28T10:00:00.000Z" },
+          ]),
+          upstreamUpdate: {
+            contractVersion: "widget-runtime-update@v1",
+            mode: "snapshot",
+            sourceWidgetId: "source-widget",
+            sourceOutputId: "dataset",
+            outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+            retainedOutputLocation: "carrier",
+            retainedOutputRef: {
+              kind: "runtime-data-ref",
+              refId: "source-widget:dataset",
+              workspaceRuntimeId: "workspace-1",
+              ownerId: "source-widget",
+              outputId: "dataset",
+              contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+              version: 1,
+              rowCount: 1,
+              schemaSignature: "sig-1",
+              updatedAtMs: 123,
+            },
+            outputRef: {
+              kind: "runtime-data-ref",
+              refId: "source-widget:dataset",
+              workspaceRuntimeId: "workspace-1",
+              ownerId: "source-widget",
+              outputId: "dataset",
+              contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+              version: 1,
+              rowCount: 1,
+              schemaSignature: "sig-1",
+              updatedAtMs: 123,
+            },
+          },
+        },
+      ),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.rows).toEqual([]);
+
+    const update = readWidgetRuntimeUpdateContext(output);
+    expect(update?.outputRef).toBeUndefined();
+    expect(update?.retainedOutputRef).toBeUndefined();
+  });
+
   it("returns a configuration error when filter mode has no valid rules", () => {
     const output = resolveTabularTransformOutput({
       props: {
@@ -165,6 +223,28 @@ describe("tabular transform filter mode", () => {
 
     expect(output.status).toBe("error");
     expect(output.error).toContain("Add at least one filter rule");
+  });
+
+  it("returns a configuration error when a filter field is not present in the source dataset", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "filter",
+        filterRules: [{ field: "__name__", operator: "equals", value: "sent" }],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame(
+          [{ queue_name: "celery", value: 1, time: "2026-04-28T10:00:00.000Z" }],
+          [
+            { key: "queue_name", type: "string", provenance: "manual" },
+            { key: "value", type: "number", provenance: "manual" },
+            { key: "time", type: "datetime", provenance: "manual" },
+          ],
+        ),
+      ),
+    });
+
+    expect(output.status).toBe("error");
+    expect(output.error).toContain('references "__name__"');
   });
 
   it("returns a configuration error when a typed comparison value is invalid", () => {

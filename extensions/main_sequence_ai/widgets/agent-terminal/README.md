@@ -35,20 +35,25 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   name lets the terminal send live chat requests without first loading history just to recover
   metadata.
 - On mount or session-id change, the widget validates interaction readiness before exposing the
-  prompt. Readiness requires the normal Command Center backend detail endpoint, session insights,
-  and session history for the same `AgentSession` id. If any required request fails, the terminal
-  stays non-interactive and shows the failure instead of rendering a usable empty terminal.
+  prompt. Readiness requires the normal Command Center backend detail endpoint and session history
+  for the same `AgentSession` id. If any required request fails, the terminal stays non-interactive
+  and shows the failure instead of rendering a usable empty terminal. The terminal widget does not
+  call session insights; those are reserved for chat and AgentSession detail surfaces.
 - Initial transcript rendering is optional and disabled by default through the `loadInitialHistory`
   prop. The widget still requests history before becoming ready; with the default settings it uses
   that response for readiness and thread metadata but renders an empty terminal transcript.
 - The terminal widget does not call `/api/chat/session-tools`; tool availability remains a chat UI
   concern and is intentionally not loaded by this widget.
-- Session history is always loaded during initial readiness. It is also loaded when a refresh
-  without a prompt explicitly reloads history, or after a sent terminal message completes and the
-  widget reconciles the transcript.
+- Session history is loaded during initial readiness. It is also loaded when a refresh without a
+  prompt explicitly reconciles the session, or after a sent terminal message completes. Unless
+  `loadInitialHistory` is enabled, those reconciliation loads keep the existing terminal transcript
+  instead of replacing it with the backend history payload.
 - Live requests post to the same assistant endpoint as chat, render the stream as terminal output
   instead of chat bubbles, and inject the loaded backend AgentSession serializer as top-level
   `session` for existing-session sends.
+- The active prompt is hidden until the terminal can accept manual input. Once visible, the prompt
+  includes the target agent name, for example `you@astro-orchestrator>`, so user-entered blocks are
+  clearly addressed to an agent instead of appearing as anonymous terminal input.
 - The terminal widget now assumes one bound AgentSession per widget run. It does not react to
   runtime-driven cross-agent `session_switch` semantics.
 - Widget settings and Agents Monitor now both reuse the same agent-only picker instead of exposing

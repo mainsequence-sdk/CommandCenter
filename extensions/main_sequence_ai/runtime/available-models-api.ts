@@ -47,6 +47,12 @@ interface AvailableRunConfigCacheEntry {
   value: AvailableChatRunConfigOptions | null;
 }
 
+export interface AvailableRunConfigCacheSnapshot {
+  expiresAt: number;
+  fresh: boolean;
+  value: AvailableChatRunConfigOptions;
+}
+
 const availableRunConfigOptionsCache = new Map<string, AvailableRunConfigCacheEntry>();
 
 function normalizeCacheKey(value: string | null | undefined) {
@@ -82,7 +88,6 @@ function getAvailableRunConfigCacheEntry(cacheKey: string | null) {
     return entry;
   }
 
-  availableRunConfigOptionsCache.delete(cacheKey);
   return null;
 }
 
@@ -90,6 +95,28 @@ export function peekAvailableRunConfigOptionsCache(cacheKey: string | null | und
   const normalizedCacheKey = normalizeCacheKey(cacheKey);
   const entry = getAvailableRunConfigCacheEntry(normalizedCacheKey);
   return entry?.value ?? null;
+}
+
+export function peekAvailableRunConfigOptionsCacheSnapshot(
+  cacheKey: string | null | undefined,
+): AvailableRunConfigCacheSnapshot | null {
+  const normalizedCacheKey = normalizeCacheKey(cacheKey);
+
+  if (!normalizedCacheKey) {
+    return null;
+  }
+
+  const entry = availableRunConfigOptionsCache.get(normalizedCacheKey);
+
+  if (!entry?.value) {
+    return null;
+  }
+
+  return {
+    expiresAt: entry.expiresAt,
+    fresh: entry.expiresAt > Date.now(),
+    value: entry.value,
+  };
 }
 
 export function clearAvailableRunConfigOptionsCache(cacheKey?: string | null) {

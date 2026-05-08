@@ -158,6 +158,8 @@ interface WidgetSettingsPanelProps<
   }) => void;
   panelDescription?: string;
   panelTitle?: string;
+  previewResolvedInputsOverride?: ResolvedWidgetInputs;
+  previewRuntimeStateOverride?: Record<string, unknown>;
   persistenceNote?: string;
   secondaryActionLabel?: string;
   showPlacementField?: boolean;
@@ -465,6 +467,8 @@ export function WidgetSettingsPanel<
   onSave,
   panelDescription = "Adjust the display title and widget props for this instance.",
   panelTitle,
+  previewResolvedInputsOverride,
+  previewRuntimeStateOverride,
   secondaryActionLabel,
   showPlacementField = true,
   widget,
@@ -569,8 +573,12 @@ export function WidgetSettingsPanel<
         placementMode: fixedPlacementMode,
       }
     : activeDraftPresentation;
-  const activeResolvedInputs = demoModeActive ? mockResolvedInputs : liveResolvedInputs;
-  const activePreviewRuntimeState = demoModeActive ? demoDraftRuntimeState : instance.runtimeState;
+  const activeResolvedInputs = demoModeActive
+    ? mockResolvedInputs
+    : (previewResolvedInputsOverride ?? liveResolvedInputs);
+  const activePreviewRuntimeState = demoModeActive
+    ? demoDraftRuntimeState
+    : (previewRuntimeStateOverride ?? instance.runtimeState);
   const [rawPropsValue, setRawPropsValue] = useState(() => serializeWidgetProps(activeDraftProps));
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [rawPropsEditorOpen, setRawPropsEditorOpen] = useState(false);

@@ -34,7 +34,10 @@ import {
   type StatisticTone,
   type StatisticWidgetProps,
 } from "./statisticModel";
-import { resolveStatisticSettingsDataset } from "./statisticPreview";
+import {
+  resolveStatisticLinkedDataset,
+  resolveStatisticSettingsDataset,
+} from "./statisticPreview";
 import { TabularFieldSchemaInspector } from "@/widgets/shared/tabular-field-schema-inspector";
 import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-widget-source";
 
@@ -164,7 +167,22 @@ export function StatisticWidgetSettings({
     props: draftProps,
     currentWidgetInstanceId: instanceId,
   });
-  const linkedDataset = previewDataset ?? sourceBinding.resolvedSourceDataset;
+  const linkedDataset = useMemo(
+    () =>
+      resolveStatisticLinkedDataset({
+        previewDataset,
+        incrementalActive: false,
+        incrementalDataset: null,
+        incrementalConsumerDataset: null,
+        sourceDataset: sourceBinding.resolvedSourceDataset,
+        sourceConsumerDataset: sourceBinding.consumerState.dataset,
+      }),
+    [
+      previewDataset,
+      sourceBinding.consumerState.dataset,
+      sourceBinding.resolvedSourceDataset,
+    ],
+  );
   const availableFields = useMemo(
     () =>
       buildStatisticFieldOptions({

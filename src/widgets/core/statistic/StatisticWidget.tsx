@@ -14,7 +14,10 @@ import {
   resolveStatisticConfig,
   type StatisticWidgetProps,
 } from "./statisticModel";
-import { resolveStatisticSettingsDataset } from "./statisticPreview";
+import {
+  resolveStatisticLinkedDataset,
+  resolveStatisticSettingsDataset,
+} from "./statisticPreview";
 import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-widget-source";
 
 type Props = WidgetComponentProps<StatisticWidgetProps>;
@@ -50,11 +53,25 @@ export function StatisticWidget({
         ? incrementalBinding.requiresUpstreamResolution
         : sourceBinding.requiresUpstreamResolution),
   });
-  const linkedDataset =
-    previewDataset ??
-    incrementalBinding.dataset ??
-    sourceBinding.resolvedSourceDataset ??
-    sourceConsumerState.dataset;
+  const linkedDataset = useMemo(
+    () =>
+      resolveStatisticLinkedDataset({
+        previewDataset,
+        incrementalActive: incrementalBinding.active,
+        incrementalDataset: incrementalBinding.dataset,
+        incrementalConsumerDataset: incrementalBinding.consumerState.dataset,
+        sourceDataset: sourceBinding.resolvedSourceDataset,
+        sourceConsumerDataset: sourceBinding.consumerState.dataset,
+      }),
+    [
+      incrementalBinding.active,
+      incrementalBinding.consumerState.dataset,
+      incrementalBinding.dataset,
+      previewDataset,
+      sourceBinding.consumerState.dataset,
+      sourceBinding.resolvedSourceDataset,
+    ],
+  );
   const availableFields = useMemo(
     () =>
       buildStatisticFieldOptions({

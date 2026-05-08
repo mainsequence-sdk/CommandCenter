@@ -42,8 +42,10 @@ backend-owned connection instances.
   dedupe/identity keys switch to the public execution URL rather than the private connection id.
 - Runtime publication writes HTTP snapshots and incremental batches into the workspace runtime data
   store when one is available. The saved widget runtime state carries a ref-backed shell plus
-  small update metadata, while legacy consumers can still materialize the retained tabular frame
-  through the shared compatibility path.
+  small update metadata, and source-widget runtime shells now also retain inline rows so cold
+  reloads and settings previews can still render when the in-memory runtime store has not been
+  rehydrated yet. Legacy consumers can still materialize the retained tabular frame through the
+  shared compatibility path.
 - The settings test action uses the same request builder as runtime execution. Workspace dates are
   read from dashboard controls; custom fixed dates are stored in props. Returned frames render
   through `src/connections/ConnectionQueryResponsePreview.tsx`, matching Data Sources Explore

@@ -76,6 +76,30 @@ describe("runtime update helpers", () => {
         publicationRole: "seed",
         sourceRunId: "ws-run-2",
         sequence: 3,
+        retainedOutputRef: {
+          kind: "runtime-data-ref",
+          refId: "source:dataset",
+          workspaceRuntimeId: "workspace-1",
+          ownerId: "source",
+          outputId: "dataset",
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          version: 1,
+          rowCount: 1,
+          schemaSignature: "sig-1",
+          updatedAtMs: 123,
+        },
+        outputRef: {
+          kind: "runtime-data-ref",
+          refId: "source:dataset",
+          workspaceRuntimeId: "workspace-1",
+          ownerId: "source",
+          outputId: "dataset",
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          version: 1,
+          rowCount: 1,
+          schemaSignature: "sig-1",
+          updatedAtMs: 123,
+        },
         diagnostics: {
           original: true,
         },
@@ -85,6 +109,7 @@ describe("runtime update helpers", () => {
         outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
         upstreamBase: retained,
         upstreamDelta: delta,
+        preserveOutputRefs: false,
         diagnostics: {
           transformed: true,
         },
@@ -104,5 +129,8 @@ describe("runtime update helpers", () => {
         transformed: true,
       },
     });
+    expect(mapped.outputRef).toBeUndefined();
+    expect(mapped.retainedOutputRef).toBeUndefined();
+    expect(mapped.deltaOutputRef).toBeUndefined();
   });
 });

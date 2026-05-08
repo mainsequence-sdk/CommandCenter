@@ -43,7 +43,7 @@ import type {
 import {
   buildAvailableRunConfigCacheKey,
   fetchAvailableRunConfigOptions,
-  peekAvailableRunConfigOptionsCache,
+  peekAvailableRunConfigOptionsCacheSnapshot,
 } from "../runtime/available-models-api";
 import {
   clearMainSequenceAiResolvedRuntimeAccess,
@@ -664,6 +664,8 @@ export function ChatProvider({
   const unavailableSessionModelNoticeRef = useRef<string | null>(null);
   const sessionHistoryRequestRef = useRef<AbortController | null>(null);
   const availableModelsRequestRef = useRef<AbortController | null>(null);
+  const appliedAvailableModelsCacheKeyRef = useRef<string | null>(null);
+  const hasAppliedAvailableModelsRef = useRef(false);
   const sessionModelPatchRequestRef = useRef<AbortController | null>(null);
   const directLaunchSessionIdRef = useRef<string | null>(null);
   const commandCenterSessionIdRef = useRef<string | null>(null);
@@ -1077,70 +1079,98 @@ export function ChatProvider({
   }, [sessionToken]);
 
   useEffect(() => {
-    if (env.useMockData) {
+    const markAvailableModelsStateCleared = () => {
+      appliedAvailableModelsCacheKeyRef.current = null;
+      hasAppliedAvailableModelsRef.current = false;
+    };
+    const clearAvailableModelsState = () => {
+      markAvailableModelsStateCleared();
       setAvailableModels([]);
       setAvailableProviders([]);
       setAvailableReasoningEfforts([]);
       setAvailableModelsError(null);
       setIsLoadingAvailableModels(false);
-      return;
-    }
+    };
+    const applyAvailableModelsState = (
+      options: AvailableChatRunConfigOptions,
+      cacheKey: string | null,
+    ) => {
+      appliedAvailableModelsCacheKeyRef.current = cacheKey;
+      hasAppliedAvailableModelsRef.current = options.models.length > 0;
+      setAvailableProviders(options.providers);
+      setAvailableModels(options.models);
+      setAvailableModelsError(null);
+      setIsLoadingAvailableModels(false);
+    };
 
     availableModelsRequestRef.current?.abort();
 
+    if (env.useMockData) {
+      clearAvailableModelsState();
+      return;
+    }
+
     if (!shouldHydrateChatRuntime) {
-      setAvailableModels([]);
-      setAvailableProviders([]);
-      setAvailableReasoningEfforts([]);
-      setAvailableModelsError(null);
-      setIsLoadingAvailableModels(false);
+      clearAvailableModelsState();
       return;
     }
 
     if (shouldDeferSessionBoundModelLoading) {
-      setAvailableModels([]);
-      setAvailableProviders([]);
-      setAvailableReasoningEfforts([]);
-      setAvailableModelsError(null);
-      setIsLoadingAvailableModels(false);
+      clearAvailableModelsState();
       return;
     }
 
     if (shouldSuppressDirectLaunchRuntimePrefetch) {
-      setAvailableProviders(syntheticAvailableModelsFallback?.providers ?? []);
-      setAvailableModels(syntheticAvailableModelsFallback?.models ?? []);
-      setAvailableReasoningEfforts(syntheticAvailableModelsFallback?.reasoningEfforts ?? []);
+      const syntheticOptions = syntheticAvailableModelsFallback ?? {
+        providers: [],
+        models: [],
+        reasoningEfforts: [],
+      };
+
+      appliedAvailableModelsCacheKeyRef.current = availableModelsCacheKey;
+      hasAppliedAvailableModelsRef.current = syntheticOptions.models.length > 0;
+      setAvailableProviders(syntheticOptions.providers);
+      setAvailableModels(syntheticOptions.models);
+      setAvailableReasoningEfforts(syntheticOptions.reasoningEfforts);
       setAvailableModelsError(null);
       setIsLoadingAvailableModels(false);
       return;
     }
 
     if (!sessionToken) {
-      setAvailableModels([]);
-      setAvailableProviders([]);
-      setAvailableReasoningEfforts([]);
-      setAvailableModelsError(null);
-      setIsLoadingAvailableModels(false);
+      clearAvailableModelsState();
       return;
     }
 
-    const cachedOptions = peekAvailableRunConfigOptionsCache(availableModelsCacheKey);
+    const cachedOptions = peekAvailableRunConfigOptionsCacheSnapshot(availableModelsCacheKey);
 
-    if (cachedOptions) {
-      setAvailableProviders(cachedOptions.providers);
-      setAvailableModels(cachedOptions.models);
-      setAvailableModelsError(null);
-      setIsLoadingAvailableModels(false);
+    if (cachedOptions?.fresh) {
+      applyAvailableModelsState(cachedOptions.value, availableModelsCacheKey);
       return;
+    }
+
+    const hasCurrentCatalog =
+      appliedAvailableModelsCacheKeyRef.current === availableModelsCacheKey &&
+      hasAppliedAvailableModelsRef.current;
+    const shouldKeepCurrentCatalog = Boolean(cachedOptions?.value || hasCurrentCatalog);
+
+    if (cachedOptions?.value) {
+      applyAvailableModelsState(cachedOptions.value, availableModelsCacheKey);
     }
 
     const controller = new AbortController();
     availableModelsRequestRef.current = controller;
-    setAvailableProviders([]);
-    setAvailableModels([]);
-    setAvailableReasoningEfforts([]);
-    setIsLoadingAvailableModels(true);
     setAvailableModelsError(null);
+
+    if (!shouldKeepCurrentCatalog) {
+      markAvailableModelsStateCleared();
+      setAvailableProviders([]);
+      setAvailableModels([]);
+      setAvailableReasoningEfforts([]);
+      setIsLoadingAvailableModels(true);
+    } else {
+      setIsLoadingAvailableModels(false);
+    }
 
     void (async () => {
       try {
@@ -1157,20 +1187,21 @@ export function ChatProvider({
           return;
         }
 
-        setAvailableProviders(options.providers);
-        setAvailableModels(options.models);
-        setAvailableModelsError(null);
+        applyAvailableModelsState(options, availableModelsCacheKey);
       } catch (error) {
         if (controller.signal.aborted || isAbortLikeError(error)) {
           return;
         }
 
-        setAvailableProviders([]);
-        setAvailableModels([]);
-        setAvailableReasoningEfforts([]);
-        setAvailableModelsError(
-          error instanceof Error ? error.message : "Available models request failed.",
-        );
+        if (!shouldKeepCurrentCatalog) {
+          markAvailableModelsStateCleared();
+          setAvailableProviders([]);
+          setAvailableModels([]);
+          setAvailableReasoningEfforts([]);
+          setAvailableModelsError(
+            error instanceof Error ? error.message : "Available models request failed.",
+          );
+        }
       } finally {
         if (!controller.signal.aborted) {
           setIsLoadingAvailableModels(false);

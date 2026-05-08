@@ -30,16 +30,20 @@ export function ManagedConnectionConsumerPanel({
   editable,
   instanceId,
   instanceTitle,
+  onPreviewRuntimeStateChange,
   widgetTitle,
   onDraftPropsChange,
+  previewRuntimeState,
 }: {
   adapter: AnyManagedConnectionConsumerAdapter;
   draftProps: Record<string, unknown>;
   editable: boolean;
   instanceId: string;
   instanceTitle?: string;
+  onPreviewRuntimeStateChange?: (runtimeState: Record<string, unknown> | undefined) => void;
   widgetTitle: string;
   onDraftPropsChange: (nextProps: Record<string, unknown>) => void;
+  previewRuntimeState?: Record<string, unknown>;
 }) {
   const widgetRegistry = useDashboardWidgetRegistry();
   const sourceMode = adapter.getSourceMode(draftProps);
@@ -218,7 +222,11 @@ export function ManagedConnectionConsumerPanel({
         }}
         editable={editable}
         publishPreviewRuntimeStateToInstanceId={matchingManagedConnectionSource?.id}
-        runtimeState={matchingManagedConnectionSource?.runtimeState ?? undefined}
+        runtimeState={
+          matchingManagedConnectionSource?.runtimeState ??
+          previewRuntimeState ??
+          undefined
+        }
         runtimeStatusTitle="Managed source runtime"
         runtimeStatusDescription={`This ${consumerLabel} still renders from resolved ${sourceInputId}. Applying connection changes creates or updates the hidden connection source and keeps ${sourceInputId} bound to its ${sourceOutputId} output.`}
         runtimeStatusEmptyMessage={
@@ -226,6 +234,7 @@ export function ManagedConnectionConsumerPanel({
             ? "The managed source exists, but it has not published a live dataset yet."
             : "Apply connection changes to create the hidden source widget, then test or run the query."
         }
+        onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
         sourceTitle={
           matchingManagedConnectionSource?.title ??
           adapter.buildManagedSourceTitle({
