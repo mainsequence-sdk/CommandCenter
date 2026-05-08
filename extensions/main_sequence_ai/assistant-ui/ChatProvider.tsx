@@ -34,6 +34,7 @@ import {
 } from "../agent-session-detail/model";
 import type { AgentSearchResult } from "../agent-search";
 import { buildAgentSessionRequestBodyFragment } from "../runtime/agent-session-request";
+import { fetchCommandCenterBaseSessionHandle } from "../runtime/command-center-base-session-api";
 import type {
   AvailableChatModelOption,
   AvailableChatProviderOption,
@@ -75,6 +76,7 @@ import {
   readAgentSessions,
   summarizeAgentSession,
   toAgentSessionRecordFromApi,
+  toAgentSessionRecordFromBaseHandle,
   updateAgentSessionSnapshot,
   writeAgentSessions,
   type AgentSessionRecord,
@@ -653,6 +655,7 @@ export function ChatProvider({
   const activeSessionReadinessRef = useRef<AgentSessionInteractionReadiness>(
     createIdleAgentSessionReadiness(null),
   );
+  const agentSessionsRef = useRef<AgentSessionRecord[]>([]);
   const sessionSelectionModeRef = useRef<"auto" | "explicit">("auto");
   const selectedModelValueRef = useRef<string | null>(null);
   const selectedReasoningEffortValueRef = useRef<string | null>(null);
@@ -666,6 +669,8 @@ export function ChatProvider({
   const availableModelsRequestRef = useRef<AbortController | null>(null);
   const appliedAvailableModelsCacheKeyRef = useRef<string | null>(null);
   const hasAppliedAvailableModelsRef = useRef(false);
+  const commandCenterBootstrapRequestRef = useRef<AbortController | null>(null);
+  const commandCenterBootstrapAttemptKeyRef = useRef<string | null>(null);
   const sessionModelPatchRequestRef = useRef<AbortController | null>(null);
   const directLaunchSessionIdRef = useRef<string | null>(null);
   const commandCenterSessionIdRef = useRef<string | null>(null);
@@ -911,7 +916,7 @@ export function ChatProvider({
     }
 
     if (!currentSessionId) {
-      if (shouldAvoidImplicitSessionSelection) {
+      if (shouldAvoidImplicitSessionSelection && !isCreatingAgentSession) {
         return createIdleAgentSessionReadiness(null);
       }
 
@@ -1065,6 +1070,8 @@ export function ChatProvider({
     setSessionSelectionMode(requestedChatSessionId ? "explicit" : "auto");
     setHasAttemptedLatestSessionsBootstrap(false);
     loadedSessionIdRef.current = null;
+    commandCenterBootstrapRequestRef.current?.abort();
+    commandCenterBootstrapAttemptKeyRef.current = null;
   }, [requestedChatSessionId, sessionUserId, shouldAvoidImplicitSessionSelection]);
 
   useEffect(() => {
@@ -1336,8 +1343,116 @@ export function ChatProvider({
   ]);
 
   useEffect(() => {
+    if (!shouldHydrateChatRuntime || isEmbeddedProjectAgent) {
+      return;
+    }
+
+    if (
+      env.useMockData ||
+      !sessionToken ||
+      latestSessionsAgentFilterId !== null ||
+      shouldSuppressDirectLaunchRuntimePrefetch ||
+      !hasAttemptedLatestSessionsBootstrap ||
+      isLoadingLatestSessions ||
+      latestSessionsError ||
+      isCreatingAgentSession
+    ) {
+      return;
+    }
+
+    if (agentSessions.length !== 0) {
+      return;
+    }
+
+    const bootstrapAttemptKey = `${sessionUserId ?? "anonymous"}:command-center-zero-sessions`;
+
+    if (commandCenterBootstrapAttemptKeyRef.current === bootstrapAttemptKey) {
+      return;
+    }
+
+    commandCenterBootstrapAttemptKeyRef.current = bootstrapAttemptKey;
+    commandCenterBootstrapRequestRef.current?.abort();
+
+    const controller = new AbortController();
+    commandCenterBootstrapRequestRef.current = controller;
+    setIsCreatingAgentSession(true);
+    setLatestSessionsError(null);
+    setSessionNotice(null);
+
+    void (async () => {
+      try {
+        const handle = await fetchCommandCenterBaseSessionHandle({
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (agentSessionsRef.current.length !== 0) {
+          return;
+        }
+
+        const nextSession = toAgentSessionRecordFromBaseHandle(handle);
+        const nextSessions = sortAgentSessions([nextSession]);
+
+        agentSessionsRef.current = nextSessions;
+        setAgentSessions(nextSessions);
+        setSessionSelectionMode("auto");
+        setCurrentSessionId(nextSession.id);
+        setSessionNotice(null);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const detail =
+          error instanceof Error
+            ? error.message
+            : "Command Center could not start the orchestrator session.";
+
+        setLatestSessionsError(`Command Center could not start the orchestrator session. ${detail}`);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsCreatingAgentSession(false);
+        }
+
+        if (commandCenterBootstrapRequestRef.current === controller) {
+          commandCenterBootstrapRequestRef.current = null;
+        }
+      }
+    })();
+  }, [
+    agentSessions,
+    hasAttemptedLatestSessionsBootstrap,
+    isCreatingAgentSession,
+    isEmbeddedProjectAgent,
+    isLoadingLatestSessions,
+    latestSessionsAgentFilterId,
+    latestSessionsError,
+    sessionToken,
+    sessionTokenType,
+    sessionUserId,
+    shouldHydrateChatRuntime,
+    shouldSuppressDirectLaunchRuntimePrefetch,
+  ]);
+
+  useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
+
+  useEffect(() => {
+    agentSessionsRef.current = agentSessions;
+  }, [agentSessions]);
+
+  useEffect(
+    () => () => {
+      commandCenterBootstrapRequestRef.current?.abort();
+    },
+    [],
+  );
 
   useEffect(() => {
     directLaunchSessionIdRef.current = directLaunchSessionId;

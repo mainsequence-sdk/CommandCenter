@@ -38,6 +38,12 @@ remaining height. The two shells still differ intentionally:
 - available-model fetching resolves the selected backend `AgentSession` first, so it calls that
   session's `runtime_access.rpc_url` instead of the static configured endpoint or Vite assistant
   proxy
+- when the full chat page or right rail has finished loading latest sessions and the merged
+  session list has no backend `AgentSession` at all, `ChatProvider` initializes the Command Center
+  orchestrator through the get-or-create base-session endpoint, inserts that returned session, and
+  then lets the normal AgentSession detail, insights, and history readiness gate run
+- that zero-session initialization is independent of `?session=<id>`; any existing backend session
+  suppresses automatic orchestrator creation, and project-agent rails are excluded
 - available-model fetching is cached per user + agent request name for 15 minutes, so switching
   between sessions does not refetch the same runtime catalog repeatedly
 - when that 15-minute cache expires, the last applied catalog remains visible and usable while the

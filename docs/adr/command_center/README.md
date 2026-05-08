@@ -15,6 +15,7 @@ one file or one feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 058: Cross-Widget References And Variables](./adr-058-cross-widget-references-and-variables.md)
 - [ADR 057: Slide Studio Printable PDF Projection](./adr-057-slide-studio-printable-pdf-projection.md)
 - [ADR 056: Slide Structural Containment in Workspace Graph](./adr-056-slide-structural-containment-in-workspace-graph.md)
 - [ADR 055: Simplify Slide To Body-Only Widget Hosting](./adr-055-simplify-slide-to-body-only-widget-hosting.md)
@@ -47,6 +48,7 @@ one file or one feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 058: Cross-Widget References And Variables](./adr-058-cross-widget-references-and-variables.md)
 - [ADR 056: Slide Structural Containment in Workspace Graph](./adr-056-slide-structural-containment-in-workspace-graph.md)
 - [ADR 051: Consistent Widget Chrome Between Edit And View Modes](./adr-051-consistent-widget-chrome-between-edit-and-view-modes.md)
 - [ADR 049: Publication-Driven Seed/Live Runtime Reduction](./adr-049-publication-driven-seed-live-runtime-reduction.md)
