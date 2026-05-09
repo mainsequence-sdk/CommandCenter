@@ -9,7 +9,7 @@ This directory contains reusable widget presentation primitives that are shared 
   treatment derived from shared execution state plus widget runtime state.
 - `chrome.ts`: shared helpers for widget chrome options such as per-instance header visibility, plus shared widget-shell markers used by themes to style widget containers consistently.
 - `widget-settings.tsx`: shared settings trigger plus the reusable full-page settings panel used to edit widget instances outside the old modal flow. It also exports the shared duplicate trigger used by workspace widget chrome.
-- `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, preview, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors. Binding panels should only pass live source widgets that expose at least one output compatible with the target input directly or through a supported structured-output transform.
+- `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, preview, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors. Binding panels can use it for both widget-authored outputs and platform-synthesized existing-state outputs such as widget title, props, and runtime state.
 - `picker-field.tsx`: shared picker/listbox field used by widget settings that need searchable
   option sets without depending on an extension-specific component.
 - `tabular-frame-source.ts`: shared generic tabular-frame contract, value descriptor, and
@@ -92,6 +92,9 @@ This directory contains reusable widget presentation primitives that are shared 
   fake those previews with widget-local empty-state bypasses when the real issue is missing
   contract-shaped demo input.
 - Structured output exploration belongs in the shared source explorer contract, not in widget-specific binding hacks. Widgets should expose `valueDescriptor` metadata on outputs, and shared binding surfaces should consume that metadata to render whole-output binding, array-item selection, and nested-field extraction consistently. When a descriptor is generic but a runtime value is already available, the explorer may infer temporary nested paths from that value so API-driven JSON outputs remain bindable.
+- Shared binding surfaces now also support platform-owned setting targets. A widget instance can
+  bind upstream values into its existing display title or discovered saved prop paths without the
+  widget definition declaring one bespoke input per setting field.
 - Array outputs are not flattened into pseudo-ports by the shared binding layer. The explorer keeps the graph edge anchored to the source output port, then optionally applies ordered binding transforms such as `select-array-item` followed by `extract-path`.
 - Generic table-like widget bindings should use `tabular-frame-source.ts` instead of inventing extension-specific row contracts. Keep source-specific metadata nested under `source` and keep field schemas limited to generic metadata like `key`, `label`, `type`, `description`, and `nullable`.
 - Large runtime datasets should move through `runtime-data-store.tsx` references instead of being

@@ -1,5 +1,6 @@
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { buildWidgetBindingTransformSignature } from "@/dashboards/widget-binding-transforms";
+import { resolveReferenceBackedWidgetState } from "@/dashboards/widget-instance-references";
 import {
   collectDashboardWidgetEntries,
   createDashboardWidgetDependencyModel,
@@ -750,6 +751,12 @@ export async function executeDashboardWidgetGraph(
       args.reason,
       instanceId === args.targetInstanceId,
     );
+    const resolvedInputs = snapshot.dependencies.resolveInputs(instanceId);
+    const effectiveState = resolveReferenceBackedWidgetState({
+      instanceTitle: instance.title,
+      props: (instance.props ?? {}) as Record<string, unknown>,
+      resolvedInputs,
+    });
     const executionContext = {
       scopeId: args.scopeId,
       executionSurface: args.executionSurface,
@@ -757,10 +764,10 @@ export async function executeDashboardWidgetGraph(
       widgetId: instance.widgetId,
       instanceId,
       reason: nodeReason,
-      props: (instance.props ?? {}) as Record<string, unknown>,
+      props: effectiveState.props,
       runtimeState: instance.runtimeState,
       publicExecution: instance.publicExecution,
-      resolvedInputs: snapshot.dependencies.resolveInputs(instanceId),
+      resolvedInputs,
       dashboardState: args.dashboardState,
       runtimeDataStore: args.runtimeDataStore,
       targetOverrides:

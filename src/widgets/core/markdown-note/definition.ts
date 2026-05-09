@@ -1,5 +1,7 @@
 import { BookOpenText } from "lucide-react";
 
+import { CORE_WIDGET_AGENT_CONTEXT_CONTRACT } from "@/widgets/shared/agent-context";
+import { CORE_VALUE_STRING_CONTRACT } from "@/widgets/shared/value-contracts";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 
@@ -23,9 +25,11 @@ const exampleContent = `# Daily Brief
 > Keep this panel for text that needs structure, not just a one-line title.
 `;
 
+const MARKDOWN_NOTE_CONTENT_OUTPUT_ID = "markdown-content";
+
 export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
   id: "markdown-note",
-  widgetVersion: "1.2.0",
+  widgetVersion: "1.4.0",
   title: "Markdown",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -46,6 +50,22 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
     openLinksInNewTab: true,
   },
   settingsComponent: MarkdownNoteWidgetSettings,
+  io: {
+    outputs: [{
+      id: MARKDOWN_NOTE_CONTENT_OUTPUT_ID,
+      label: "Markdown content",
+      contract: CORE_VALUE_STRING_CONTRACT,
+      description:
+        "Authored markdown source text for downstream prompt-driven widgets such as Agent Terminal.",
+      valueDescriptor: {
+        kind: "primitive",
+        contract: CORE_VALUE_STRING_CONTRACT,
+        primitive: "string",
+        description: "Raw markdown source stored in this widget.",
+      },
+      resolveValue: ({ props }) => (typeof props.content === "string" ? props.content : ""),
+    }],
+  },
   registryContract: {
     configuration: {
       mode: "custom-settings",
@@ -80,8 +100,15 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
       requiredSetupSteps: ["Write or paste the Markdown content to render."],
     },
     io: {
-      mode: "none",
-      summary: "This widget renders local authored content and does not participate in typed widget IO.",
+      mode: "static",
+      summary:
+        "Publishes the authored markdown source as a string output and also exposes the platform-generated agent-context output derived from the widget snapshot.",
+    },
+    capabilities: {
+      publishedContracts: [
+        CORE_VALUE_STRING_CONTRACT,
+        CORE_WIDGET_AGENT_CONTEXT_CONTRACT,
+      ],
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
     examples: [

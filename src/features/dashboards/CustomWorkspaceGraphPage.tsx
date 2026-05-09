@@ -43,6 +43,7 @@ import {
   resolveWidgetGraphConnection,
   type DashboardWidgetDependencyGraph,
 } from "@/dashboards/widget-dependencies";
+import { isWidgetReferenceSourceOutputId } from "@/dashboards/widget-instance-references";
 import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
 import type { ResolvedWidgetInputs } from "@/widgets/types";
 import { WIDGET_AGENT_CONTEXT_OUTPUT_ID } from "@/widgets/shared/agent-context";
@@ -51,6 +52,7 @@ import {
   appendCatalogWidget,
   updateDashboardControlsState,
   updateDashboardWidgetBindings,
+  updateDashboardWidgetSettings,
   updateDashboardWidgetRuntimeState,
 } from "./custom-dashboard-storage";
 import { WorkspaceComponentBrowser } from "./WorkspaceComponentBrowser";
@@ -328,6 +330,7 @@ function WorkspaceGraphCanvas({
   includeManagedHiddenNodes,
   onBindingsChange,
   onOpenWidgetSettings,
+  onWidgetPropsChange,
   onShowManagedWidgets,
   userId,
   workspaceListPath,
@@ -339,12 +342,18 @@ function WorkspaceGraphCanvas({
     bindings: DashboardWidgetInstance["bindings"],
   ) => void;
   onOpenWidgetSettings: (instanceId: string) => void;
+  onWidgetPropsChange: (instanceId: string, props: Record<string, unknown>) => void;
   onShowManagedWidgets: () => void;
   userId: string;
   workspaceListPath: string;
 }) {
   const dependencyModel = useDashboardWidgetDependencies();
   const widgetExecution = useDashboardWidgetExecution();
+  const [attachedEditorState, setAttachedEditorState] = useState<{
+    draft: string;
+    editMode: boolean;
+    nodeId: string;
+  } | null>(null);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [activeEdgeId, setActiveEdgeId] = useState<string | null>(null);
   const [dependencyFocusNodeId, setDependencyFocusNodeId] = useState<string | null>(null);
@@ -488,6 +497,16 @@ function WorkspaceGraphCanvas({
       setActiveEdgeId(null);
     }
   }, [activeEdgeId, visibleGraph.edges]);
+
+  useEffect(() => {
+    if (!attachedEditorState) {
+      return;
+    }
+
+    if (!visibleGraph.nodes.some((node) => node.id === attachedEditorState.nodeId)) {
+      setAttachedEditorState(null);
+    }
+  }, [attachedEditorState, visibleGraph.nodes]);
 
   useEffect(() => {
     if (!dependencyModel) {
@@ -735,10 +754,19 @@ function WorkspaceGraphCanvas({
         dependencyHighlighted:
           dependencyHighlight.highlightedOutputIdsByNodeId.get(node.id)?.has(output.id) ?? false,
       }));
+      const nonAgentContextOutputs = outputs.filter(
+        (output) => output.id !== WIDGET_AGENT_CONTEXT_OUTPUT_ID,
+      );
+      const defaultVisibleOutputIds = new Set<string>(
+        nonAgentContextOutputs
+          .filter((output) => !isWidgetReferenceSourceOutputId(output.id))
+          .map((output) => output.id),
+      );
       const locallyVisibleOutputIds = new Set(visibleOutputIdsByNodeId[node.id] ?? []);
       const visibleOutputs = outputs.filter(
         (output) =>
           outputs.length === 1 ||
+          defaultVisibleOutputIds.has(output.id) ||
           output.connectionCount > 0 ||
           locallyVisibleOutputIds.has(output.id) ||
           output.id === WIDGET_AGENT_CONTEXT_OUTPUT_ID,
@@ -752,6 +780,7 @@ function WorkspaceGraphCanvas({
       const availableOutputs = outputs.filter(
         (output) =>
           outputs.length !== 1 &&
+          !defaultVisibleOutputIds.has(output.id) &&
           output.connectionCount === 0 &&
           !locallyVisibleOutputIds.has(output.id) &&
           output.id !== WIDGET_AGENT_CONTEXT_OUTPUT_ID,
@@ -762,8 +791,9 @@ function WorkspaceGraphCanvas({
       const referenceLoadState = referenceTarget
         ? referencedWorkspaceLoadStateById[referenceTarget.workspaceId]
         : undefined;
+      const editorOpen = attachedEditorState?.nodeId === node.id;
 
-      return {
+      return ({
         id: node.id,
         type: "workspaceWidget",
         position: layoutedPositions.get(node.id) ?? { x: 0, y: 0 },
@@ -854,6 +884,56 @@ function WorkspaceGraphCanvas({
           onOpenSettings: () => {
             onOpenWidgetSettings(node.id);
           },
+          onUpdateWidgetProps: (props) => {
+            onWidgetPropsChange(node.id, props);
+          },
+          attachedEditorState:
+            widgetPropsByNodeId.has(node.id)
+              ? {
+                  close: () => {
+                    setAttachedEditorState((current) =>
+                      current?.nodeId === node.id ? null : current,
+                    );
+                  },
+                  draft: editorOpen ? attachedEditorState?.draft ?? "" : "",
+                  editMode: editorOpen ? attachedEditorState?.editMode ?? false : false,
+                  open: editorOpen,
+                  setDraft: (draft) => {
+                    setAttachedEditorState((current) =>
+                      current?.nodeId === node.id ? { ...current, draft } : current,
+                    );
+                  },
+                  startEditing: (draft) => {
+                    setAttachedEditorState({
+                      nodeId: node.id,
+                      editMode: true,
+                      draft,
+                    });
+                  },
+                  stopEditing: (draft) => {
+                    setAttachedEditorState((current) =>
+                      current?.nodeId === node.id
+                        ? {
+                            ...current,
+                            draft,
+                            editMode: false,
+                          }
+                        : current,
+                    );
+                  },
+                  toggle: (draft) => {
+                    setAttachedEditorState((current) =>
+                      current?.nodeId === node.id
+                        ? null
+                        : {
+                            nodeId: node.id,
+                            editMode: false,
+                            draft,
+                          },
+                    );
+                  },
+                }
+              : undefined,
           onRevealManagedSources:
             (node.ownedManagedConnectionSourceCount ?? 0) > 0 && !includeManagedHiddenNodes
               ? () => {
@@ -896,7 +976,7 @@ function WorkspaceGraphCanvas({
             );
           },
         } satisfies WorkspaceGraphNodeData,
-      } satisfies WorkspaceGraphFlowNode;
+      } satisfies WorkspaceGraphFlowNode);
     });
   }, [
     dependencyFocusNodeId,
@@ -905,8 +985,10 @@ function WorkspaceGraphCanvas({
     executionStateByNodeId,
     expandedNodeIds,
     expandedReferenceNodeIds,
+    attachedEditorState,
     layoutedPositions,
     onOpenWidgetSettings,
+    onWidgetPropsChange,
     referencedWorkspaceLoadStateById,
     visibleGraph.edges,
     visibleGraph.nodes,
@@ -1574,14 +1656,16 @@ function WorkspaceGraphCanvas({
         }}
         isValidConnection={isValidConnection}
         connectionMode={ConnectionMode.Loose}
+        connectOnClick={false}
         elementsSelectable={false}
         selectNodesOnDrag={false}
         nodesDraggable
         nodesConnectable
         edgesReconnectable={false}
+        connectionDragThreshold={0}
         nodeDragThreshold={4}
         nodeClickDistance={2}
-        connectionRadius={28}
+        connectionRadius={42}
         panOnDrag={false}
         panActivationKeyCode={["Meta", "Control"]}
         className="workspace-graph-flow bg-transparent"
@@ -1825,6 +1909,11 @@ export function CustomWorkspaceGraphPage({
             }}
             onOpenWidgetSettings={(instanceId) => {
               openWidgetSettings(instanceId);
+            }}
+            onWidgetPropsChange={(instanceId, props) => {
+              updateSelectedWorkspace((dashboard) =>
+                updateDashboardWidgetSettings(dashboard, instanceId, { props }),
+              );
             }}
           />
         </div>

@@ -166,6 +166,20 @@ function resolveMappedValue(path: string, sources: Record<string, unknown>[]) {
   return undefined;
 }
 
+function resolveOptionalUrl(value: unknown) {
+  const raw = readString(value);
+
+  if (!raw) {
+    return undefined;
+  }
+
+  try {
+    return new URL(raw, env.apiBaseUrl).toString();
+  } catch {
+    return raw;
+  }
+}
+
 function normalizeStringList(value: unknown) {
   if (Array.isArray(value)) {
     return value
@@ -938,6 +952,17 @@ function buildUserProfile(
       resolveMappedValue(claimMapping.name, tokenSources),
     fullName || deriveName(email, role),
   );
+  const avatarUrl = resolveOptionalUrl(
+    (userDetails &&
+      (resolveMappedValue("avatarUrl", [userDetails]) ??
+        resolveMappedValue("avatar_url", [userDetails]) ??
+        resolveMappedValue("profilePicture", [userDetails]) ??
+        resolveMappedValue("profile_picture", [userDetails]))) ??
+      resolveMappedValue("avatarUrl", tokenSources) ??
+      resolveMappedValue("avatar_url", tokenSources) ??
+      resolveMappedValue("profilePicture", tokenSources) ??
+      resolveMappedValue("profile_picture", tokenSources),
+  );
   const team = readString(
     (userDetails && resolveMappedValue(userDetailsMapping.team, [userDetails])) ??
       resolveMappedValue(claimMapping.team, tokenSources),
@@ -954,6 +979,7 @@ function buildUserProfile(
     id,
     name,
     email,
+    avatarUrl,
     first_name: firstName || undefined,
     last_name: lastName || undefined,
     plan: plan || undefined,

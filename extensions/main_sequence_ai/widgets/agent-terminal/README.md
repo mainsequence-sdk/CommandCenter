@@ -9,8 +9,8 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   behavior, and an edit-mode-only chat link in widget chrome.
 - `AgentTerminalWidget.css`: theme-aware overrides for the `react-terminal-ui` shell.
 - `AgentTerminalWidgetSettings.tsx`: widget settings UI with supported-agent selection, managed
-  session creation/recycle actions, durable history-refresh configuration, and Markdown refresh
-  prompts.
+  session creation/recycle actions, durable history-refresh configuration, and the shared schema
+  form entrypoint for the refresh-prompt companion card.
 - `AgentTerminalWorkspaceLauncher.tsx`: reusable workspace action that selects a supported agent,
   creates a fresh session, and inserts or creates Agent Terminal widgets directly from the canvas
   flow.
@@ -21,6 +21,8 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 - `agentTerminalWorkspace.ts`: workspace mutation helpers for finding and upserting
   `main-sequence-ai-agent-terminal` instances by `agentSessionId`.
 - `agentTerminalModel.ts`: widget prop normalization and terminal line/session helpers.
+- `AgentTerminalWidgetSchema.tsx`: shared schema/controller companion-card wiring for the exposed
+  refresh prompt card.
 - `agentTerminalAgents.ts`: shared frontend allowlist policy for agents that may create managed
   Agent Terminal sessions.
 
@@ -72,13 +74,27 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   silently reload the session transcript when the workspace explicitly refreshes after mount.
 - The widget can also store a Markdown `promptOnRefresh`. When present, each refresh sends that
   prompt into the bound session instead of only reloading transcript history.
-- `Prompt on refresh` is now settings-only. It is no longer a bindable widget input.
+- The saved refresh prompt now participates in the shared exposed-field companion-card system. New
+  Agent Terminal instances expose `Prompt on refresh` as a floating card above the widget by
+  default, and settings can show or hide that card through the standard canvas-companion toggle.
+- That floating prompt card now renders Markdown directly. While editing, it temporarily switches
+  to a textarea; when editing ends, the same card returns to rendered Markdown automatically
+  without showing a separate preview panel.
+- In workspace graph mode, Agent Terminal nodes expose a dedicated prompt button in the graph node
+  header. Clicking it opens an attached prompt card above the node, connected back to the node
+  chrome, so authors can inspect or edit the saved prompt directly from the graph view.
+- The widget now also exposes one dedicated bindable prompt input. `Prompt markdown` accepts
+  `core.value.string@v1`; when bound, that string overrides the saved `promptOnRefresh` setting
+  during automated refresh.
+- The floating companion card always shows the effective automated refresh prompt. When
+  `Prompt markdown` is bound, the card switches to a read-only rendered view of that bound value while
+  settings continue to edit the saved fallback prompt.
 - The widget now exposes one bindable `Upstream agent input` with `cardinality: "many"`. Each
   bound value may use either the shared `core.widget-agent-context@v1` contract derived from
   another widget's `buildAgentSnapshot(...)` or the new
   `main-sequence-ai.workspace-reference@v1` contract published by the `WorkspaceReference` widget.
-- During automated refresh, the terminal composes `saved prompt + bound upstream sources` into one
-  request body before sending it to the selected AgentSession.
+- During automated refresh, the terminal composes `bound prompt or saved prompt + bound upstream
+  sources` into one request body before sending it to the selected AgentSession.
 - Manual terminal typing stays direct. Bound widget context or workspace references are not
   prepended to live user-entered terminal input.
 - The widget now also publishes `Latest assistant markdown` as a bindable string output sourced
@@ -103,6 +119,10 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   `blockUserInput`, optional initial-history loading, the history-refresh configuration, and the
   optional refresh prompt. The published latest-assistant output lives in widget runtime state, not
   durable props.
+- The exposed prompt card uses existing workspace `presentation.exposedFields` state only. It does
+  not add any new widget-specific persisted prop or backend payload shape.
+- The graph-mode prompt card also writes through the normal workspace widget settings mutation path
+  and edits the same durable `promptOnRefresh` prop as settings and the canvas companion card.
 
 ## Maintenance Notes
 
@@ -113,8 +133,9 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 - Cross-screen navigation from this widget should link directly to the shared Main Sequence AI chat
   page instead of introducing widget-local detail routing.
 - The terminal now depends on the platform-generated `agent-context` binding output derived from
-  `buildAgentSnapshot(...)` plus the extension-local workspace-reference contract published by the
-  `WorkspaceReference` widget. If either contract changes, update this widget in the same change. See
+  `buildAgentSnapshot(...)`, the shared `core.value.string@v1` prompt contract, plus the
+  extension-local workspace-reference contract published by the `WorkspaceReference` widget. If
+  any of those contracts change, update this widget in the same change. See
   [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../../../docs/adr/command_center/adr-widget-agent-context-bindings.md).
 - If backend widget-prop validation is strict, this widget's persisted `agentId`, `agentName`,
   `agentSessionId`, `blockUserInput`, `loadInitialHistory`, `historyRefreshMode`,

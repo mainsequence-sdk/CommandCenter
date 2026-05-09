@@ -302,6 +302,64 @@ html[data-theme="sapphire"] {
   fill: currentColor;
 }
 
+.workspace-graph-flow .workspace-graph-port-row {
+  cursor: crosshair !important;
+}
+
+.workspace-graph-flow .workspace-graph-port-row:hover {
+  border-color: color-mix(in srgb, var(--primary) 46%, transparent);
+  background: color-mix(in srgb, var(--primary) 9%, var(--background) 24%);
+}
+
+.workspace-graph-flow .workspace-graph-port-row:hover .workspace-graph-port-row-handle::before {
+  opacity: 1;
+}
+
+.workspace-graph-flow .react-flow__handle.workspace-graph-port-row-handle {
+  top: 0 !important;
+  right: 0 !important;
+  bottom: auto !important;
+  left: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  transform: none !important;
+  pointer-events: all !important;
+  cursor: crosshair !important;
+}
+
+.workspace-graph-flow .react-flow__handle.workspace-graph-port-row-handle,
+.workspace-graph-flow .react-flow__handle.workspace-graph-port-row-handle * {
+  cursor: crosshair !important;
+}
+
+.workspace-graph-flow .react-flow__handle.workspace-graph-port-handle.connectionindicator,
+.workspace-graph-flow .react-flow__handle.workspace-graph-port-row-handle:hover {
+  cursor: crosshair !important;
+}
+
+.workspace-graph-flow .react-flow__handle.workspace-graph-port-row-handle::before {
+  pointer-events: none !important;
+}
+
+.workspace-graph-flow .react-flow__handle.workspace-graph-port-row-handle::after {
+  top: 50% !important;
+  pointer-events: none !important;
+}
+
+.workspace-graph-flow .react-flow__handle-left.workspace-graph-port-row-handle::after {
+  right: auto !important;
+  left: 0 !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.workspace-graph-flow .react-flow__handle-right.workspace-graph-port-row-handle::after {
+  right: 0 !important;
+  left: auto !important;
+  transform: translate(50%, -50%) !important;
+}
+
 html[data-theme="quartz-light"] {
   --workspace-canvas-base-color: #eef4fb;
   --workspace-canvas-background:

@@ -2131,6 +2131,13 @@ export function CustomDashboardStudioPage({
     },
     [updateSelectedWorkspaceUserState],
   );
+  const slideRegionBrowserWidgetFilter = useCallback(
+    (widget: WidgetDefinition) =>
+      widget.id !== WORKSPACE_ROW_WIDGET_ID &&
+      widget.id !== WORKSPACE_SLIDE_WIDGET_ID &&
+      widget.fixedPlacementMode !== "sidebar",
+    [],
+  );
 
   function handleAutoGridDragStart(
     instanceId: string,
@@ -3523,11 +3530,7 @@ export function CustomDashboardStudioPage({
           permissions={effectivePermissions}
           userId={catalogPreferencesUserId}
           topOffsetClassName={dashboardMenuHidden ? "top-4" : "top-12"}
-          widgetFilter={(widget) =>
-            widget.id !== WORKSPACE_ROW_WIDGET_ID &&
-            widget.id !== WORKSPACE_SLIDE_WIDGET_ID &&
-            widget.fixedPlacementMode !== "sidebar"
-          }
+          widgetFilter={slideRegionBrowserWidgetFilter}
           onOpenChange={(open) => {
             if (!open) {
               setSlideRegionComposer(null);

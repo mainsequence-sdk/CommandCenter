@@ -17,6 +17,7 @@ export const DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_MODE = "workspace";
 export const DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS = 30;
 export const MIN_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS = 5;
 export const MAX_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS = 3_600;
+export const AGENT_TERMINAL_PROMPT_INPUT_ID = "prompt-markdown";
 export const AGENT_TERMINAL_UPSTREAM_CONTEXT_INPUT_ID = "upstream-context";
 export const AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_OUTPUT_ID = "latest-assistant-markdown";
 export const AGENT_TERMINAL_LATEST_ASSISTANT_MARKDOWN_RUNTIME_KEY = "latestAssistantMarkdown";
@@ -51,6 +52,15 @@ export interface AgentTerminalSessionState {
   serializedSession: AgentSessionSerializedRecord | null;
   sessionId: string;
   threadId: string | null;
+}
+
+export type AgentTerminalRefreshPromptSource = "none" | "saved" | "bound";
+
+export interface AgentTerminalResolvedRefreshPrompt {
+  source: AgentTerminalRefreshPromptSource;
+  savedPrompt: string | null;
+  boundPrompt: string | null;
+  effectivePrompt: string | null;
 }
 
 export type AgentTerminalUpstreamSource =
@@ -234,6 +244,54 @@ export function resolveAgentTerminalRefreshPrompt(
   props: AgentTerminalWidgetProps,
 ) {
   return normalizeOptionalMarkdownString(props.promptOnRefresh) ?? null;
+}
+
+export function resolveAgentTerminalBoundPrompt(
+  resolvedInputs?: ResolvedWidgetInputs,
+) {
+  const [entry] = resolveValidResolvedInputs(resolvedInputs?.[AGENT_TERMINAL_PROMPT_INPUT_ID]);
+
+  if (!entry) {
+    return null;
+  }
+
+  return normalizeOptionalMarkdownString(entry.value) ?? null;
+}
+
+export function resolveAgentTerminalEffectiveRefreshPrompt({
+  props,
+  resolvedInputs,
+}: {
+  props: AgentTerminalWidgetProps;
+  resolvedInputs?: ResolvedWidgetInputs;
+}): AgentTerminalResolvedRefreshPrompt {
+  const savedPrompt = resolveAgentTerminalRefreshPrompt(props);
+  const boundPrompt = resolveAgentTerminalBoundPrompt(resolvedInputs);
+
+  if (boundPrompt) {
+    return {
+      source: "bound",
+      savedPrompt,
+      boundPrompt,
+      effectivePrompt: boundPrompt,
+    };
+  }
+
+  if (savedPrompt) {
+    return {
+      source: "saved",
+      savedPrompt,
+      boundPrompt: null,
+      effectivePrompt: savedPrompt,
+    };
+  }
+
+  return {
+    source: "none",
+    savedPrompt: null,
+    boundPrompt: null,
+    effectivePrompt: null,
+  };
 }
 
 export function resolveAgentTerminalUpstreamSources(

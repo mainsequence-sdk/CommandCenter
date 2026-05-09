@@ -45,8 +45,8 @@ import {
   createAgentTerminalOutputLine,
   formatAgentTerminalModelLabel,
   normalizeAgentTerminalWidgetProps,
+  resolveAgentTerminalEffectiveRefreshPrompt,
   resolveAgentTerminalLatestAssistantMarkdown,
-  resolveAgentTerminalRefreshPrompt,
   resolveAgentTerminalUpstreamSources,
   type AgentTerminalLine,
   type AgentTerminalLineTone,
@@ -270,10 +270,15 @@ export function AgentTerminalWidget({
   const historyRefreshIntervalSeconds =
     normalizedProps.historyRefreshIntervalSeconds ??
     DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS;
-  const promptOnRefresh = useMemo(
-    () => resolveAgentTerminalRefreshPrompt(normalizedProps),
-    [normalizedProps],
+  const resolvedRefreshPrompt = useMemo(
+    () => resolveAgentTerminalEffectiveRefreshPrompt({
+      props: normalizedProps,
+      resolvedInputs,
+    }),
+    [normalizedProps, resolvedInputs],
   );
+  const promptOnRefresh = resolvedRefreshPrompt.savedPrompt;
+  const boundPrompt = resolvedRefreshPrompt.boundPrompt;
   const upstreamSources = useMemo(
     () => resolveAgentTerminalUpstreamSources(resolvedInputs),
     [resolvedInputs],
@@ -281,10 +286,10 @@ export function AgentTerminalWidget({
   const automatedRefreshInput = useMemo(
     () =>
       buildAgentTerminalRefreshRequest({
-        prompt: promptOnRefresh,
+        prompt: boundPrompt ?? promptOnRefresh,
         upstreamSources,
       }),
-    [promptOnRefresh, upstreamSources],
+    [boundPrompt, promptOnRefresh, upstreamSources],
   );
   const terminalTitle = useMemo(() => {
     if (instanceTitle?.trim()) {

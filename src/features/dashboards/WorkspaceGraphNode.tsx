@@ -4,18 +4,28 @@ import { createPortal } from "react-dom";
 import { getWidgetById } from "@/app/registry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MarkdownContent } from "@/components/ui/markdown-content";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   buildWidgetGraphHandleId,
   type WidgetGraphPortKind,
 } from "@/dashboards/widget-dependencies";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import {
+  Handle,
+  Position,
+  useUpdateNodeInternals,
+  type Node,
+  type NodeProps,
+} from "@xyflow/react";
 import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  FileText,
   Loader2,
   Network,
+  PencilLine,
   Plus,
   SlidersHorizontal,
   X,
@@ -47,6 +57,8 @@ export interface WorkspaceGraphOutputPortData {
 
 export const WORKSPACE_GRAPH_REFERENCE_FRAME_OUTPUT_ID = "__workspace-reference-frame__";
 export const WORKSPACE_GRAPH_REFERENCE_SOURCE_INPUT_ID = "__workspace-reference-source__";
+const MARKDOWN_NOTE_WIDGET_ID = "markdown-note";
+const AGENT_TERMINAL_WIDGET_ID = "main-sequence-ai-agent-terminal";
 
 export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   title: string;
@@ -93,6 +105,17 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   onHideOutput?: (outputId: string) => void;
   onRevealManagedSources?: () => void;
   onOpenSettings?: () => void;
+  onUpdateWidgetProps?: (props: Record<string, unknown>) => void;
+  attachedEditorState?: {
+    close: () => void;
+    draft: string;
+    editMode: boolean;
+    open: boolean;
+    setDraft: (draft: string) => void;
+    startEditing: (draft: string) => void;
+    stopEditing: (draft: string) => void;
+    toggle: (draft: string) => void;
+  };
 }
 
 export type WorkspaceGraphFlowNode = Node<WorkspaceGraphNodeData, "workspaceWidget">;
@@ -108,6 +131,52 @@ function getPortStatusClassName(status: WorkspaceGraphPortStatus) {
   }
 }
 
+function describeGraphEventElement(element: Element | null) {
+  if (!(element instanceof HTMLElement)) {
+    return null;
+  }
+
+  return {
+    className: element.className,
+    dataset: { ...element.dataset },
+    id: element.id || null,
+    tagName: element.tagName.toLowerCase(),
+    text: element.textContent?.trim().slice(0, 80) ?? "",
+  };
+}
+
+function logGraphPortEvent(
+  eventName: string,
+  event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>,
+  details: {
+    interactionMode?: "compact" | "rail" | "row";
+    kind: WidgetGraphPortKind;
+    label?: string;
+    nodeId?: string;
+    portId: string;
+    readOnly?: boolean;
+  },
+) {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
+  console.log("[workspace-graph-port]", eventName, {
+    ...details,
+    button: "button" in event ? event.button : undefined,
+    buttons: "buttons" in event ? event.buttons : undefined,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    currentTarget: describeGraphEventElement(event.currentTarget),
+    elementFromPoint:
+      typeof document === "undefined"
+        ? null
+        : describeGraphEventElement(document.elementFromPoint(event.clientX, event.clientY)),
+    eventType: event.type,
+    target: describeGraphEventElement(event.target instanceof Element ? event.target : null),
+  });
+}
+
 function GraphPortHandle({
   connectable = true,
   kind,
@@ -116,6 +185,9 @@ function GraphPortHandle({
   className,
   style,
   highlighted = false,
+  interactionMode = "compact",
+  label,
+  nodeId,
 }: {
   connectable?: boolean;
   kind: WidgetGraphPortKind;
@@ -124,22 +196,74 @@ function GraphPortHandle({
   className?: string;
   style?: React.CSSProperties;
   highlighted?: boolean;
+  interactionMode?: "compact" | "rail" | "row";
+  label?: string;
+  nodeId?: string;
 }) {
+  const handleId = buildWidgetGraphHandleId(kind, portId);
+
   return (
     <Handle
-      id={buildWidgetGraphHandleId(kind, portId)}
+      id={handleId}
+      data-graph-port-handle={handleId}
       type={kind === "output" ? "source" : "target"}
       position={position}
       isConnectable={connectable}
       isConnectableStart={connectable}
       isConnectableEnd={connectable}
       style={style}
+      onMouseEnter={(event) => {
+        logGraphPortEvent("handle mouseenter", event, {
+          interactionMode,
+          kind,
+          label,
+          nodeId,
+          portId,
+        });
+      }}
+      onMouseDown={(event) => {
+        logGraphPortEvent("handle mousedown", event, {
+          interactionMode,
+          kind,
+          label,
+          nodeId,
+          portId,
+        });
+      }}
+      onMouseUp={(event) => {
+        logGraphPortEvent("handle mouseup", event, {
+          interactionMode,
+          kind,
+          label,
+          nodeId,
+          portId,
+        });
+      }}
       className={cn(
-        "!z-20 !h-3 !w-3 !border-2 !border-background !bg-primary shadow-sm",
-        connectable ? "!pointer-events-auto" : "!pointer-events-none !bg-muted-foreground",
+        "workspace-graph-port-handle",
+        interactionMode === "row" ? "workspace-graph-port-row-handle" : undefined,
+        "!border-transparent !bg-transparent !shadow-none before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-primary/10 before:opacity-0 before:transition-opacity after:pointer-events-none after:absolute after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-background after:bg-primary after:shadow-sm after:transition-transform",
+        interactionMode === "rail"
+          ? cn(
+              "!z-20 !top-1 !h-[calc(100%-8px)] !w-8 !-translate-y-0 !rounded-[12px]",
+              kind === "input"
+                ? "after:!left-0 after:!-translate-x-1/2"
+                : "after:!left-auto after:!right-0 after:translate-x-1/2",
+            )
+          : interactionMode === "row"
+            ? cn(
+                "!z-10 !left-0 !right-0 !top-0 !h-full !w-full !translate-x-0 !translate-y-0 !rounded-[12px]",
+                kind === "input"
+                  ? "after:!left-0 after:!-translate-x-1/2"
+                  : "after:!left-auto after:!right-0 after:translate-x-1/2",
+              )
+            : "!z-20 !h-6 !w-6 !rounded-full after:!left-1/2 after:!-translate-x-1/2",
+        connectable
+          ? "!pointer-events-auto !cursor-crosshair hover:before:opacity-100 hover:after:scale-110 active:after:scale-125"
+          : "!pointer-events-none after:!bg-muted-foreground/80",
         highlighted &&
-          "!bg-primary !ring-4 !ring-primary/25 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_35%,transparent),0_0_16px_-4px_color-mix(in_srgb,var(--primary)_65%,transparent)]",
-        kind === "input" ? "!-left-1.5" : "!-right-1.5",
+          "!ring-4 !ring-primary/25 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_35%,transparent),0_0_16px_-4px_color-mix(in_srgb,var(--primary)_65%,transparent)] after:!bg-primary",
+        interactionMode === "row" ? undefined : kind === "input" ? "!-left-4" : "!-right-4",
         className,
       )}
     />
@@ -161,11 +285,26 @@ const ADD_OUTPUT_PANEL_MAX_HEIGHT_PX = 440;
 const ADD_OUTPUT_PANEL_GAP_PX = 12;
 const ADD_OUTPUT_PANEL_VIEWPORT_PADDING_PX = 12;
 
+interface GraphAttachedEditorConfig {
+  actionAriaLabel: string;
+  anchor: "right" | "top";
+  buttonIcon: "markdown" | "prompt";
+  description: string;
+  editable: boolean;
+  emptyState: string;
+  openLinksInNewTab: boolean;
+  placeholder: string;
+  title: string;
+  value: string;
+  buildNextProps: (draft: string) => Record<string, unknown>;
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
 export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
+  id,
   data,
   selected,
 }: NodeProps<WorkspaceGraphFlowNode>) {
@@ -182,6 +321,10 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
   const widgetDefinition = getWidgetById(data.widgetId);
   const expanded = Boolean(data.expanded);
   const readOnly = Boolean(data.readOnly);
+  const updateNodeInternals = useUpdateNodeInternals();
+  const inputHandleSignature = data.inputs.map((input) => input.id).join("\u001f");
+  const outputHandleSignature = data.outputs.map((output) => output.id).join("\u001f");
+  const referenceHandleSignature = data.referenceExpansion?.expanded ? "reference-expanded" : "reference-collapsed";
   const WidgetIcon = resolveWorkspaceWidgetIcon({
     ...(widgetDefinition ?? {
       id: data.widgetId,
@@ -197,6 +340,72 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
       null,
     [data.availableOutputs, selectedHiddenOutputId],
   );
+  const attachedEditorConfig = useMemo<GraphAttachedEditorConfig | null>(() => {
+    if (data.widgetId === MARKDOWN_NOTE_WIDGET_ID) {
+      const content = typeof data.widgetProps?.content === "string" ? data.widgetProps.content : "";
+
+      return {
+        actionAriaLabel: `Open markdown note for ${data.title}`,
+        anchor: "right",
+        buttonIcon: "markdown",
+        description: "Rendered Markdown note content for this widget.",
+        editable: true,
+        emptyState: "Markdown note is empty.",
+        openLinksInNewTab: data.widgetProps?.openLinksInNewTab !== false,
+        placeholder: "# Note\n\nWrite Markdown here.",
+        title: "Markdown note",
+        value: content,
+        buildNextProps: (draft) => ({
+          ...(data.widgetProps ?? {}),
+          content: draft,
+        }),
+      };
+    }
+
+    if (data.widgetId === AGENT_TERMINAL_WIDGET_ID) {
+      const promptOnRefresh =
+        typeof data.widgetProps?.promptOnRefresh === "string"
+          ? data.widgetProps.promptOnRefresh
+          : "";
+
+      return {
+        actionAriaLabel: `Open prompt editor for ${data.title}`,
+        anchor: "top",
+        buttonIcon: "prompt",
+        description: "Saved Prompt on refresh Markdown for this Agent Terminal widget.",
+        editable: false,
+        emptyState: "No Prompt on refresh is configured for this Agent Terminal widget.",
+        openLinksInNewTab: true,
+        placeholder: "## Refresh instruction\n\nSummarize what changed since the last refresh.",
+        title: "Prompt on refresh",
+        value: promptOnRefresh,
+        buildNextProps: (draft) => {
+          const nextProps = {
+            ...(data.widgetProps ?? {}),
+          };
+
+          if (draft.trim()) {
+            nextProps.promptOnRefresh = draft;
+          } else {
+            delete nextProps.promptOnRefresh;
+          }
+
+          return nextProps;
+        },
+      };
+    }
+
+    return null;
+  }, [data.title, data.widgetId, data.widgetProps]);
+  const attachedEditorValue = attachedEditorConfig?.value ?? "";
+  const attachedEditorOpen = Boolean(data.attachedEditorState?.open);
+  const attachedEditorEditMode = Boolean(data.attachedEditorState?.editMode);
+  const attachedEditorDraft = data.attachedEditorState?.draft ?? attachedEditorValue;
+  const canEditAttachedCard =
+    !readOnly &&
+    Boolean(data.onUpdateWidgetProps) &&
+    Boolean(attachedEditorConfig?.editable);
+  const attachedEditorVisible = Boolean(attachedEditorConfig && attachedEditorOpen);
 
   useEffect(() => {
     if (data.availableOutputs.length === 0) {
@@ -220,6 +429,25 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
       setAddOutputOpen(false);
     }
   }, [expanded]);
+
+  useLayoutEffect(() => {
+    updateNodeInternals(id);
+    const frame = window.requestAnimationFrame(() => {
+      updateNodeInternals(id);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [
+    expanded,
+    id,
+    inputHandleSignature,
+    outputHandleSignature,
+    readOnly,
+    referenceHandleSignature,
+    updateNodeInternals,
+  ]);
 
   useLayoutEffect(() => {
     const container = nodeContainerRef.current;
@@ -350,6 +578,25 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
     };
   }, [addOutputOpen]);
 
+  useEffect(() => {
+    if (!attachedEditorVisible) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        data.attachedEditorState?.stopEditing(attachedEditorValue);
+        data.attachedEditorState?.close();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [attachedEditorValue, attachedEditorVisible, data.attachedEditorState]);
+
   if (data.referenceFrame) {
     return (
       <div
@@ -430,6 +677,7 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
         ref={nodeContainerRef}
         className={cn(
           "relative min-w-[250px] max-w-[300px] rounded-[18px] border bg-card/96 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl",
+            attachedEditorVisible ? "z-50" : undefined,
           data.executionStatus === "running"
             ? "border-primary/80 ring-2 ring-primary/20 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent),0_18px_34px_-24px_color-mix(in_srgb,var(--primary)_55%,transparent)]"
             : undefined,
@@ -505,6 +753,8 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
               key={`collapsed-input-${input.id}`}
               connectable={!readOnly}
               kind="input"
+              label={input.label}
+              nodeId={id}
               portId={input.id}
               position={Position.Left}
               className="!opacity-100"
@@ -517,6 +767,8 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
               key={`collapsed-output-${output.id}`}
               connectable={!readOnly}
               kind="output"
+              label={output.label}
+              nodeId={id}
               portId={output.id}
               position={Position.Right}
               className="!opacity-100"
@@ -635,6 +887,27 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
               Source
             </Button>
           ) : null}
+          {attachedEditorConfig ? (
+            <div className="shrink-0">
+              <Button
+                variant={attachedEditorVisible ? "outline" : "ghost"}
+                size="sm"
+                className="nodrag nopan h-7 w-7 shrink-0 rounded-[10px] px-0 text-muted-foreground hover:text-foreground"
+                aria-label={attachedEditorConfig.actionAriaLabel}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  data.attachedEditorState?.toggle(attachedEditorValue);
+                }}
+              >
+                {attachedEditorConfig.buttonIcon === "markdown" ? (
+                  <FileText className="h-4 w-4" />
+                ) : (
+                  <PencilLine className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          ) : null}
           <Button
             variant="ghost"
             size="sm"
@@ -695,20 +968,51 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                   <div
                     key={input.id}
                     className={cn(
-                      "nodrag nopan relative rounded-[12px] border px-3 py-2",
+                      "workspace-graph-port-row nodrag nopan group/port relative rounded-[12px] border px-3 py-2",
+                      !readOnly ? "cursor-crosshair" : undefined,
                       input.dependencyHighlighted
                         ? "border-primary/45 bg-primary/8 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_16%,transparent)]"
                         : "border-border/70 bg-background/28",
                     )}
+                    onClickCapture={(event) => {
+                      logGraphPortEvent("row click", event, {
+                        kind: "input",
+                        label: input.label,
+                        nodeId: id,
+                        portId: input.id,
+                        readOnly,
+                      });
+                    }}
+                    onMouseEnter={(event) => {
+                      logGraphPortEvent("row mouseenter", event, {
+                        kind: "input",
+                        label: input.label,
+                        nodeId: id,
+                        portId: input.id,
+                        readOnly,
+                      });
+                    }}
+                    onPointerDownCapture={(event) => {
+                      logGraphPortEvent("row pointerdown", event, {
+                        kind: "input",
+                        label: input.label,
+                        nodeId: id,
+                        portId: input.id,
+                        readOnly,
+                      });
+                    }}
                   >
                     <GraphPortHandle
                       connectable={!readOnly}
                       kind="input"
+                      label={input.label}
+                      nodeId={id}
                       portId={input.id}
                       position={Position.Left}
+                      interactionMode="row"
                       highlighted={input.dependencyHighlighted}
                     />
-                    <div className="flex items-start justify-between gap-2.5">
+                    <div className="pointer-events-none relative z-20 flex items-start justify-between gap-2.5">
                       <div className="min-w-0">
                         <div className="truncate text-[12px] font-medium leading-4 text-foreground">
                           {input.label}
@@ -744,13 +1048,30 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
 
             <section className="space-y-2">
               <div className="flex items-center justify-between gap-2 px-1">
-                <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="min-w-0 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                   Outputs
                 </div>
                 {data.availableOutputs.length > 0 ? (
-                  <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-                    +{data.availableOutputs.length} hidden
-                  </span>
+                  !readOnly ? (
+                    <div ref={addOutputTriggerRef} className="shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="nodrag nopan h-6 min-w-0 shrink-0 rounded-full px-1.5 text-[9px] uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setAddOutputOpen((current) => !current);
+                        }}
+                        aria-label={`Reveal ${data.availableOutputs.length} hidden output${data.availableOutputs.length === 1 ? "" : "s"}`}
+                      >
+                        <Plus className="h-3 w-3" />
+                        {data.availableOutputs.length}
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                      +{data.availableOutputs.length} hidden
+                    </span>
+                  )
                 ) : null}
               </div>
               {data.outputs.length > 0 ? (
@@ -758,20 +1079,51 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                   <div
                     key={output.id}
                     className={cn(
-                      "nodrag nopan relative rounded-[12px] border px-3 py-2",
+                      "workspace-graph-port-row nodrag nopan group/port relative rounded-[12px] border px-3 py-2",
+                      !readOnly ? "cursor-crosshair" : undefined,
                       output.dependencyHighlighted
                         ? "border-primary/45 bg-primary/8 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_16%,transparent)]"
                         : "border-border/70 bg-background/28",
                     )}
+                    onClickCapture={(event) => {
+                      logGraphPortEvent("row click", event, {
+                        kind: "output",
+                        label: output.label,
+                        nodeId: id,
+                        portId: output.id,
+                        readOnly,
+                      });
+                    }}
+                    onMouseEnter={(event) => {
+                      logGraphPortEvent("row mouseenter", event, {
+                        kind: "output",
+                        label: output.label,
+                        nodeId: id,
+                        portId: output.id,
+                        readOnly,
+                      });
+                    }}
+                    onPointerDownCapture={(event) => {
+                      logGraphPortEvent("row pointerdown", event, {
+                        kind: "output",
+                        label: output.label,
+                        nodeId: id,
+                        portId: output.id,
+                        readOnly,
+                      });
+                    }}
                   >
                     <GraphPortHandle
                       connectable={!readOnly}
                       kind="output"
+                      label={output.label}
+                      nodeId={id}
                       portId={output.id}
                       position={Position.Right}
+                      interactionMode="row"
                       highlighted={output.dependencyHighlighted}
                     />
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="pointer-events-none relative z-20 flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="truncate text-[12px] font-medium leading-4 text-foreground">
                           {output.label}
@@ -792,9 +1144,13 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="nodrag nopan h-6 w-6 shrink-0 px-0 text-muted-foreground hover:text-foreground"
+                          className="pointer-events-auto nodrag nopan relative z-30 h-6 w-6 shrink-0 px-0 text-muted-foreground hover:text-foreground"
+                          data-graph-port-control="true"
                           onClick={() => {
                             data.onHideOutput?.(output.id);
+                          }}
+                          onPointerDown={(event) => {
+                            event.stopPropagation();
                           }}
                           aria-label={`Hide ${output.label}`}
                         >
@@ -806,31 +1162,134 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                 ))
               ) : data.availableOutputs.length > 0 ? (
                 <div className="rounded-[14px] border border-dashed border-border/70 bg-background/25 px-3 py-3 text-[11px] text-muted-foreground">
-                  No outputs shown yet. Add one below to start a connection.
+                  No outputs shown yet. Use the + control above to reveal one and start a connection.
                 </div>
               ) : (
                 <div className="rounded-[14px] border border-dashed border-border/70 bg-background/25 px-3 py-3 text-[11px] text-muted-foreground">
                   No output ports
                 </div>
               )}
-              {data.availableOutputs.length > 0 && !readOnly ? (
-                <div ref={addOutputTriggerRef}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="nodrag nopan w-full justify-center"
-                    onClick={() => {
-                      setAddOutputOpen((current) => !current);
-                    }}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add output
-                  </Button>
-                </div>
-              ) : null}
             </section>
           </div>
         )}
+        {attachedEditorConfig && attachedEditorVisible ? (
+          <div
+            className={cn(
+              "nodrag nopan absolute z-40 flex flex-col overflow-hidden rounded-[18px] border border-border/80 bg-background/96 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl",
+              attachedEditorConfig.anchor === "top" ? "h-[420px] w-[560px]" : "min-h-[280px] w-[560px]",
+              attachedEditorConfig.anchor === "top"
+                ? "bottom-[calc(100%+72px)] left-1/2 -translate-x-1/2 before:absolute before:left-1/2 before:top-full before:h-[72px] before:w-px before:-translate-x-1/2 before:bg-border/70"
+                : "top-14 left-[calc(100%+12px)] before:absolute before:top-9 before:right-full before:h-px before:w-[12px] before:bg-border/70",
+            )}
+            onPointerDownCapture={(event) => {
+              event.stopPropagation();
+            }}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <div className="border-b border-border/70 px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    {attachedEditorConfig.title}
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-foreground">
+                    {data.title}
+                  </div>
+                  <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                    {attachedEditorConfig.description}
+                  </div>
+                </div>
+                {canEditAttachedCard ? (
+                  <Button
+                    variant={attachedEditorEditMode ? "outline" : "ghost"}
+                    size="sm"
+                    className="nodrag nopan shrink-0"
+                    onPointerDownCapture={(event) => {
+                      event.stopPropagation();
+                    }}
+                    onClick={() => {
+                      if (attachedEditorEditMode) {
+                        data.onUpdateWidgetProps?.(attachedEditorConfig.buildNextProps(attachedEditorDraft));
+                        data.attachedEditorState?.stopEditing(attachedEditorDraft);
+                        return;
+                      }
+
+                      data.attachedEditorState?.startEditing(attachedEditorValue);
+                    }}
+                  >
+                    <PencilLine className="h-3.5 w-3.5" />
+                    {attachedEditorEditMode ? "Apply" : "Edit"}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto px-4 py-4">
+              {attachedEditorEditMode && canEditAttachedCard ? (
+                <Textarea
+                  value={attachedEditorDraft}
+                  spellCheck={false}
+                  placeholder={attachedEditorConfig.placeholder}
+                  className={cn(
+                    "font-mono text-xs leading-6",
+                    attachedEditorConfig.anchor === "top"
+                      ? "h-full min-h-0 resize-none overflow-auto"
+                      : "min-h-[360px]",
+                  )}
+                  onPointerDownCapture={(event) => {
+                    event.stopPropagation();
+                  }}
+                  onChange={(event) => {
+                    data.attachedEditorState?.setDraft(event.target.value);
+                  }}
+                />
+              ) : attachedEditorValue.trim() ? (
+                <MarkdownContent
+                  content={attachedEditorValue}
+                  openLinksInNewTab={attachedEditorConfig.openLinksInNewTab}
+                />
+              ) : (
+                <div className="rounded-[14px] border border-dashed border-border/70 bg-background/25 px-4 py-5 text-sm text-muted-foreground">
+                  {attachedEditorConfig.emptyState}
+                </div>
+              )}
+            </div>
+            <div className="border-t border-border/70 px-4 py-3">
+              <div className="flex items-center justify-end gap-2">
+                {attachedEditorEditMode && canEditAttachedCard ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="nodrag nopan"
+                  onPointerDownCapture={(event) => {
+                    event.stopPropagation();
+                  }}
+                  onClick={() => {
+                    data.attachedEditorState?.stopEditing(attachedEditorValue);
+                  }}
+                >
+                  Cancel
+                  </Button>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="nodrag nopan"
+                  onPointerDownCapture={(event) => {
+                    event.stopPropagation();
+                  }}
+                  onClick={() => {
+                    data.attachedEditorState?.stopEditing(attachedEditorValue);
+                    data.attachedEditorState?.close();
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
       {addOutputOpen && addOutputPanelPosition && typeof document !== "undefined"
         ? createPortal(

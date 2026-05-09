@@ -24,7 +24,11 @@ import {
   Waypoints,
 } from "lucide-react";
 
-import { useResolvedWidgetInputs } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  useResolvedWidgetInputs,
+  useResolvedWidgetIo,
+} from "@/dashboards/DashboardWidgetDependencies";
+import { resolveReferenceBackedWidgetState } from "@/dashboards/widget-instance-references";
 import {
   workspaceGridDraggableCancelClassName,
   workspaceGridDraggableHandleClassName,
@@ -431,29 +435,32 @@ export function WorkspaceCanvasWidgetCard({
   const Component =
     widget.component as ComponentType<WidgetComponentProps<Record<string, unknown>>>;
   const resolvedInputs = useResolvedWidgetInputs(instanceId);
-
-  const title = instanceTitle ?? widget.title;
-  const headerVisible = resolveWidgetHeaderVisibility(widgetProps);
+  const resolvedWidgetIo = useResolvedWidgetIo(instanceId);
+  const effectiveState = useMemo(
+    () =>
+      resolveReferenceBackedWidgetState({
+        instanceTitle,
+        props: widgetProps,
+        resolvedInputs,
+      }),
+    [instanceTitle, resolvedInputs, widgetProps],
+  );
+  const title = effectiveState.title ?? widget.title;
+  const headerVisible = resolveWidgetHeaderVisibility(effectiveState.props);
   const rowWidget = isWorkspaceRowWidgetId(widget.id);
   const inlineCanvasEditable = editable && widget.canvasEditing?.mode === "inline";
-  const minimalChrome = !rowWidget && resolveWidgetMinimalChrome(widgetProps);
+  const minimalChrome = !rowWidget && resolveWidgetMinimalChrome(effectiveState.props);
   const transparentSurface = resolveWidgetTransparentSurface(widgetPresentation);
   const transparentShell = shellVariant === "transparent";
   const floatingChromeWidget = rowWidget || minimalChrome;
-  const structuralVisible = widgetProps.visible === true;
+  const structuralVisible = effectiveState.props.visible === true;
   const widgetRenderProps =
     rowWidget && editable && !structuralVisible
       ? {
-          ...widgetProps,
+          ...effectiveState.props,
           visible: true,
         }
-      : widgetProps;
-  const resolvedWidgetIo = widget.resolveIo?.({
-    widgetId: widget.id,
-    instanceId,
-    props: widgetRenderProps,
-    runtimeState: widgetRuntimeState,
-  }) ?? widget.io;
+      : effectiveState.props;
   const hasBindingsAction = Boolean(
     resolvedWidgetIo?.inputs?.length ||
     widget.io?.inputs?.length ||
@@ -492,7 +499,7 @@ export function WorkspaceCanvasWidgetCard({
           />
         ) : null}
         <WorkspaceRowCanvasCard
-          accentColor={typeof widgetProps.color === "string" ? widgetProps.color : undefined}
+          accentColor={typeof widgetRenderProps.color === "string" ? widgetRenderProps.color : undefined}
           title={title}
           selected={selected}
           editable={editable}
@@ -549,8 +556,8 @@ export function WorkspaceCanvasWidgetCard({
         <WidgetCanvasControls
           widget={widget}
           instanceId={instanceId}
-          instanceTitle={instanceTitle}
-          props={widgetProps}
+          instanceTitle={effectiveState.title}
+          props={widgetRenderProps}
           presentation={widgetPresentation}
           runtimeState={widgetRuntimeState}
           onPropsChange={(props) => {
@@ -684,7 +691,7 @@ export function WorkspaceCanvasWidgetCard({
               <Component
                 widget={widget}
                 instanceId={instanceId}
-                instanceTitle={instanceTitle}
+                instanceTitle={effectiveState.title}
                 props={widgetRenderProps}
                 editable={inlineCanvasEditable}
                 presentation={widgetPresentation}

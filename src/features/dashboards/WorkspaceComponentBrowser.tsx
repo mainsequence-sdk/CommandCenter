@@ -29,6 +29,24 @@ interface CatalogSection {
   widgets: WidgetDefinition[];
 }
 
+function sameStringArray(left: string[], right: string[]) {
+  if (left === right) {
+    return true;
+  }
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function getWidgetCatalogSearchScore(widget: WidgetDefinition, rawQuery: string) {
   const query = rawQuery.trim().toLowerCase();
 
@@ -490,8 +508,8 @@ export function WorkspaceComponentBrowser({
 
   useEffect(() => {
     if (!userId) {
-      setFavoriteWidgetIds([]);
-      setRecentWidgetIds([]);
+      setFavoriteWidgetIds((current) => (current.length === 0 ? current : []));
+      setRecentWidgetIds((current) => (current.length === 0 ? current : []));
       return;
     }
 
@@ -500,8 +518,12 @@ export function WorkspaceComponentBrowser({
       allowedWidgets.map((widget) => widget.id),
     );
 
-    setFavoriteWidgetIds(preferences.favoriteWidgetIds);
-    setRecentWidgetIds(preferences.recentWidgetIds);
+    setFavoriteWidgetIds((current) =>
+      sameStringArray(current, preferences.favoriteWidgetIds) ? current : preferences.favoriteWidgetIds,
+    );
+    setRecentWidgetIds((current) =>
+      sameStringArray(current, preferences.recentWidgetIds) ? current : preferences.recentWidgetIds,
+    );
   }, [allowedWidgets, userId]);
 
   useEffect(() => {

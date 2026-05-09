@@ -25,6 +25,10 @@ surfaces and the editable workspace studio.
 - `widget-dependencies.ts`: shared binding normalization, resolved-input resolution, and static
   dependency-graph extraction. It also owns graph-connection parsing, validation, and canonical
   binding add/remove helpers so visual graph editors do not duplicate semantics.
+- `widget-instance-references.ts`: platform-level automatic reference wiring for existing widget
+  instance state. It appends synthetic source outputs for widget title/props/runtime state,
+  appends generic title and prop-path binding targets, and resolves effective reference-backed
+  widget title/props without changing the persisted binding payload shape.
 - `DashboardWidgetDependencies.tsx`: React provider/hooks layer that exposes resolved widget
   inputs and dependency diagnostics on top of the raw widget registry.
 - `widget-graph-execution.ts`: shared executable-widget graph runner. It builds dependency-backed
@@ -92,6 +96,9 @@ surfaces and the editable workspace studio.
 - Dashboard widget instances can now also carry canonical `bindings` separately from widget props.
   This is the first-class graph-edge model for widget composition and should remain distinct from
   widget-local configuration.
+- The same binding payload model now also drives cross-widget references for existing widget title
+  and saved prop paths. The dashboard layer appends those platform-owned targets and sources
+  automatically; widget authors do not redeclare them per widget type.
 - Dashboard widget instances can now also carry optional `managedBy` ownership metadata, and
   widget presentation can carry optional `railVisibility`. Managed widgets must stay in the saved
   widget graph, dependency extraction, and execution planning even when normal workspace rail

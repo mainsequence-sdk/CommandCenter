@@ -260,40 +260,24 @@ This ADR covers one platform slice only.
 
 ### Implementation Tasks
 
-- [ ] Wire binding discovery directly to existing widget instance state such as `instance.title`,
-      `props`, and `runtimeState`
-- [ ] Define the canonical discovery namespaces and path semantics used by bindings when they point
-      into existing widget instance state
+- [ ] Wire binding discovery directly to existing widget instance state such as `instance.title`, `props`, and `runtimeState`
+- [ ] Define the canonical discovery namespaces and path semantics used by bindings when they point into existing widget instance state
 - [ ] Define the safe default discovery boundaries and exclusion rules
-- [ ] Define how non-serializable values, empty values, and missing paths are represented during
-      discovery and resolution
-- [ ] Extend binding source metadata so a binding can target either a declared output id or a
-      discovered instance-state path
-- [ ] Extend binding validation so discovered-path bindings still participate in contract checks,
-      cycle detection, self-reference blocking, and dependency ordering
-- [ ] Define the scalar and structured value coercion rules when a discovered path is consumed by a
-      configurable setting field
+- [ ] Define how non-serializable values, empty values, and missing paths are represented during discovery and resolution
+- [ ] Extend binding source metadata so a binding can target either a declared output id or a discovered instance-state path
+- [ ] Extend binding validation so discovered-path bindings still participate in contract checks, cycle detection, self-reference blocking, and dependency ordering
+- [ ] Define the scalar and structured value coercion rules when a discovered path is consumed by a configurable setting field
 - [ ] Make existing setting/configuration fields resolve from either literal values or bindings
-- [ ] Define how shell-owned existing fields such as widget title participate in the same generic
-      resolution path
-- [ ] Route widget settings reads through a shared resolution layer instead of per-widget ad hoc
-      upstream parsing
-- [ ] Update the binding authoring UI so source-widget exploration can browse discovered existing
-      instance state without requiring widget-authored exports
-- [ ] Update the binding authoring UI so target-field selection works for generic configurable
-      fields instead of only declared bespoke inputs
-- [ ] Define how the UI distinguishes authored literal values from binding-backed values on the same
-      configuration field
-- [ ] Define how unresolved references, invalid paths, and contract mismatches are surfaced to the
-      user at authoring time and at runtime
-- [ ] Preserve existing widget binding transforms such as `extract-path` and `select-array-item`
-      for discovered-path bindings
-- [ ] Define whether discovered-path references are persisted as path arrays, strings, or another
-      stable serialized form
-- [ ] Assess whether the persisted binding/storage model changes the backend contract and notify the
-      backend side if serialization semantics change
-- [ ] Document the maintenance boundary clearly: widget authors should not need to redeclare fields
-      already present in instance state, while explicit outputs remain optional ergonomic shortcuts
+- [ ] Define how shell-owned existing fields such as widget title participate in the same generic resolution path
+- [ ] Route widget settings reads through a shared resolution layer instead of per-widget ad hoc upstream parsing
+- [ ] Update the binding authoring UI so source-widget exploration can browse discovered existing instance state without requiring widget-authored exports
+- [ ] Update the binding authoring UI so target-field selection works for generic configurable fields instead of only declared bespoke inputs
+- [ ] Define how the UI distinguishes authored literal values from binding-backed values on the same configuration field
+- [ ] Define how unresolved references, invalid paths, and contract mismatches are surfaced to the user at authoring time and at runtime
+- [ ] Preserve existing widget binding transforms such as `extract-path` and `select-array-item` for discovered-path bindings
+- [ ] Define whether discovered-path references are persisted as path arrays, strings, or another stable serialized form
+- [ ] Assess whether the persisted binding/storage model changes the backend contract and notify the backend side if serialization semantics change
+- [ ] Document the maintenance boundary clearly: widget authors should not need to redeclare fields already present in instance state, while explicit outputs remain optional ergonomic shortcuts
 4. wire existing shell-owned fields such as widget title through the same generic resolution path
 5. keep binding transforms and graph topology unchanged
 6. keep dependency resolution explicit and typed

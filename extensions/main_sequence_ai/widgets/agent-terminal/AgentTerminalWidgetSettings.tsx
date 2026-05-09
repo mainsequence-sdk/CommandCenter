@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toaster";
 import { useAuthStore } from "@/auth/auth-store";
+import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
@@ -23,10 +23,10 @@ import {
 import {
   DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS,
   normalizeAgentTerminalWidgetProps,
-  resolveAgentTerminalRefreshPrompt,
   resolveAgentTerminalUpstreamSources,
   type AgentTerminalWidgetProps,
 } from "./agentTerminalModel";
+import type { AgentTerminalControllerContext } from "./AgentTerminalWidgetSchema";
 import {
   buildAgentTerminalSessionWidgetTitle,
   buildAgentTerminalWidgetTitle,
@@ -36,10 +36,13 @@ export function AgentTerminalWidgetSettings({
   widget,
   instanceTitle,
   draftProps,
+  draftPresentation,
   editable,
   onDraftPropsChange,
+  onDraftPresentationChange,
   onInstanceTitleChange,
   resolvedInputs,
+  controllerContext,
 }: WidgetSettingsComponentProps<AgentTerminalWidgetProps>) {
   const { toast } = useToast();
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
@@ -55,8 +58,6 @@ export function AgentTerminalWidgetSettings({
   const historyRefreshIntervalSeconds =
     normalizedProps.historyRefreshIntervalSeconds ??
     DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS;
-  const promptOnRefresh = normalizedProps.promptOnRefresh ?? "";
-  const effectivePromptOnRefresh = resolveAgentTerminalRefreshPrompt(normalizedProps);
   const upstreamSourceCount = resolveAgentTerminalUpstreamSources(resolvedInputs).length;
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
@@ -393,30 +394,24 @@ export function AgentTerminalWidgetSettings({
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <div className="text-sm font-medium text-topbar-foreground">Prompt on refresh</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            When set, every refresh sends this Markdown prompt to the session instead of only
-            reloading history. Bound upstream widget context or workspace references from the
-            Bindings tab are appended to this saved prompt during automated refresh.
-          </p>
-        </div>
-
-        <Textarea
-          value={promptOnRefresh}
-          readOnly={!editable}
-          spellCheck={false}
-          placeholder={"## Refresh instruction\n\nSummarize what changed since the last refresh."}
-          className="min-h-[220px] font-mono text-xs leading-6"
-          onChange={(event) => {
-            onDraftPropsChange({
-              ...normalizedProps,
-              promptOnRefresh: event.target.value,
-            });
-          }}
+      {widget.schema ? (
+        <WidgetSchemaForm
+          widget={widget}
+          draftProps={normalizedProps}
+          onDraftPropsChange={onDraftPropsChange}
+          draftPresentation={draftPresentation}
+          onDraftPresentationChange={onDraftPresentationChange}
+          editable={editable}
+          context={(controllerContext ?? {
+            resolvedRefreshPrompt: {
+              source: "none",
+              savedPrompt: null,
+              boundPrompt: null,
+              effectivePrompt: null,
+            },
+          }) as AgentTerminalControllerContext}
         />
-      </section>
+      ) : null}
 
     </div>
   );

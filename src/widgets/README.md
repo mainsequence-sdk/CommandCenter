@@ -107,6 +107,9 @@ Use these local docs before reading the implementation in code:
 - Widget instances can also carry optional `runtimeState` when the widget needs to persist view-level state separately from props.
 - Widget instances may also carry canonical `bindings` separately from props. These are graph edges,
   not local widget configuration.
+- The shared binding model now also covers platform-owned reference targets for existing widget
+  title and saved prop paths. The platform appends those generic targets automatically, so widgets
+  do not need to redeclare each reusable setting field as a bespoke input port.
 - Widget settings are instance-scoped, not global to the widget definition. Two surfaces can use the same widget definition with different props.
 - App-owned surfaces can use preconfigured widget instances so users consume the widget without needing to configure it.
 - Custom dashboard and workspace flows are the place where instance settings are intended to be user-editable.
@@ -120,6 +123,8 @@ Use these local docs before reading the implementation in code:
 - Workspace widget settings now also expose a dedicated `Bindings` tab for widgets that declare
   inputs, including inputs resolved dynamically from saved widget instance configuration. Do not
   stuff inter-widget graph edges into raw props editors.
+- The shared bindings tab can now also target existing widget title and discovered prop paths even
+  when a widget definition does not declare custom input ports for those settings.
 - The widget-settings route may also add widget-specific tabs when one input owns a richer managed
   authoring surface than the generic binding picker. Graph-managed connections use this to start
   source ownership from `Bindings` and edit the full hidden `connection-query` configuration from a

@@ -20,6 +20,11 @@ import {
   normalizeWidgetBindingTransformSteps,
   resolveWidgetBindingTransformSteps,
 } from "@/dashboards/widget-binding-transforms";
+import {
+  appendWidgetInstanceReferenceIo,
+  resolveReferenceBackedWidgetState,
+  resolveWidgetReferenceBaseProps,
+} from "@/dashboards/widget-instance-references";
 import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
 import {
   getRuntimeDataRef,
@@ -444,15 +449,26 @@ function resolveWidgetIoForInstance(
     return undefined;
   }
 
-  return appendWidgetAgentContextOutput(
+  const baseIo = appendWidgetAgentContextOutput(
     definition,
     definition.resolveIo?.({
       widgetId: instance.widgetId,
       instanceId: instance.id,
-      props: (instance.props ?? {}) as Record<string, unknown>,
+      props: resolveWidgetReferenceBaseProps(
+        instance,
+        definition.exampleProps as Record<string, unknown> | undefined,
+      ),
       runtimeState: instance.runtimeState,
     }) ?? definition.io,
   );
+
+  return appendWidgetInstanceReferenceIo(baseIo, {
+    bindings: instance.bindings,
+    props: resolveWidgetReferenceBaseProps(
+      instance,
+      definition.exampleProps as Record<string, unknown> | undefined,
+    ),
+  });
 }
 
 export function resolveWidgetGraphConnection(
@@ -600,11 +616,16 @@ function resolveSingleOutput(
   resolvedInputs: ResolvedWidgetInputs | undefined,
   runtimeDataStore?: RuntimeDataStore | null,
 ): ResolvedWidgetOutput {
+  const effectiveState = resolveReferenceBackedWidgetState({
+    instanceTitle: instance.title,
+    props: (instance.props ?? {}) as Record<string, unknown>,
+    resolvedInputs,
+  });
   const value = output.resolveValue?.({
     widgetId: instance.widgetId,
     instanceId: instance.id,
-    instanceTitle: instance.title,
-    props: (instance.props ?? {}) as Record<string, unknown>,
+    instanceTitle: effectiveState.title,
+    props: effectiveState.props,
     presentation: instance.presentation,
     runtimeState: instance.runtimeState,
     resolvedInputs,

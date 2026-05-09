@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -32,6 +32,7 @@ import {
   requestPasswordChangeEmail,
   revokeCurrentUserSession,
   revokeOtherCurrentUserSessions,
+  uploadCurrentUserProfilePicture,
   verifyCurrentUserMfaSetup,
   type CurrentUserMfaSetupResponse,
 } from "@/auth/api";
@@ -128,6 +129,36 @@ function syncSessionMfaEnabled(mfaEnabled: boolean) {
     user: {
       ...currentSession.user,
       mfaEnabled,
+    },
+  };
+
+  useAuthStore.setState({
+    session: nextSession,
+  });
+  persistJwtSession({
+    session: nextSession,
+    tokens: {
+      accessToken: nextSession.token,
+      refreshToken: authState.refreshToken,
+      tokenType: nextSession.tokenType ?? "Bearer",
+      expiresAt: nextSession.expiresAt,
+    },
+  });
+}
+
+function syncSessionAvatarUrl(avatarUrl: string) {
+  const authState = useAuthStore.getState();
+  const currentSession = authState.session;
+
+  if (!currentSession) {
+    return;
+  }
+
+  const nextSession = {
+    ...currentSession,
+    user: {
+      ...currentSession.user,
+      avatarUrl,
     },
   };
 
@@ -1183,6 +1214,7 @@ export function SettingsDialog({
   const [authenticatedMfaSetup, setAuthenticatedMfaSetup] =
     useState<CurrentUserMfaSetupResponse | null>(null);
   const [authenticatedMfaCode, setAuthenticatedMfaCode] = useState("");
+  const profilePictureInputRef = useRef<HTMLInputElement | null>(null);
   const requestPasswordChangeMutation = useMutation({
     mutationFn: requestPasswordChangeEmail,
     onSuccess: (result) => {
@@ -1197,6 +1229,24 @@ export function SettingsDialog({
         variant: "error",
         title: "Unable to send password change email",
         description: error instanceof Error ? error.message : "The request failed.",
+      });
+    },
+  });
+  const uploadProfilePictureMutation = useMutation({
+    mutationFn: uploadCurrentUserProfilePicture,
+    onSuccess: (response) => {
+      syncSessionAvatarUrl(response.profile_picture);
+      toast({
+        variant: "success",
+        title: "Profile picture updated",
+        description: "Your new profile picture is now active in Command Center.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Unable to update profile picture",
+        description: error instanceof Error ? error.message : "The upload request failed.",
       });
     },
   });
@@ -1316,10 +1366,6 @@ export function SettingsDialog({
     organizationTeamNames.length > 0
       ? organizationTeamNames.join(", ")
       : legacyTeam ?? t("common.unavailable");
-  const groupsValue =
-    user?.groups && user.groups.length > 0
-      ? user.groups.join(", ")
-      : t("common.unavailable");
   const sessions = userSessionsQuery.data ?? [];
   const currentMfaEnabled = mfaStatusQuery.data?.mfa_enabled ?? user?.mfaEnabled;
   const activeSessionCount = sessions.filter((session) => session.is_active).length;
@@ -1408,6 +1454,17 @@ export function SettingsDialog({
       setAuthenticatedMfaCode("");
     }
   }, [mfaStatusQuery.data?.mfa_enabled]);
+
+  function handleProfilePictureChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    uploadProfilePictureMutation.mutate(file);
+  }
 
   useEffect(() => {
     if (!open || !requestedSectionId) {
@@ -1509,12 +1566,38 @@ export function SettingsDialog({
               description={t("settingsDialog.accountDescription")}
             >
               <div className="flex items-center gap-4 py-4">
-                <Avatar
-                  name={user?.name ?? t("common.unknownUser")}
-                  src={user?.avatarUrl}
-                  className="h-14 w-14 border border-white/10 bg-white/[0.03]"
-                  iconClassName="h-5 w-5"
-                />
+                <div className="flex shrink-0 flex-col items-center gap-2">
+                  <Avatar
+                    name={user?.name ?? t("common.unknownUser")}
+                    src={user?.avatarUrl}
+                    className="h-14 w-14 border border-white/10 bg-white/[0.03]"
+                    iconClassName="h-5 w-5"
+                  />
+                  <input
+                    ref={profilePictureInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="hidden"
+                    onChange={handleProfilePictureChange}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploadProfilePictureMutation.isPending}
+                    onClick={() => {
+                      profilePictureInputRef.current?.click();
+                    }}
+                  >
+                    {uploadProfilePictureMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : null}
+                    {uploadProfilePictureMutation.isPending ? "Uploading..." : "Change picture"}
+                  </Button>
+                  <div className="text-center text-[11px] leading-4 text-muted-foreground">
+                    JPEG or PNG, max 5 MB.
+                  </div>
+                </div>
                 <div className="min-w-0">
                   <div className="truncate text-base font-semibold text-topbar-foreground">
                     {user?.name ?? t("common.unknownUser")}
@@ -1539,10 +1622,6 @@ export function SettingsDialog({
               <SettingsRow
                 label={t("settingsDialog.role")}
                 value={<Badge variant={mode === "platform" ? "primary" : "neutral"}>{roleLabel}</Badge>}
-              />
-              <SettingsRow
-                label={t("settingsDialog.groups")}
-                value={groupsValue}
               />
               {!env.bypassAuth && user?.email ? (
                 <SettingsRow

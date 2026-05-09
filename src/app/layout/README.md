@@ -12,6 +12,9 @@ Shared shell navigation and chrome for the Command Center application.
 - `SettingsDialog.tsx`: shell-level settings and diagnostics.
   It now also merges registry-backed extension-contributed settings sections for `user` and
   `admin` audiences into the shared left-nav dialog shell.
+  The shared account section also owns the authenticated profile-picture upload action and updates
+  the in-memory shell session avatar immediately after the dedicated `/user/api/user/profile-picture/`
+  upload succeeds.
   The user audience now includes a built-in `Security` section that lists tracked sessions for the
   current user, reads MFA status from the authenticated MFA status endpoint, supports authenticated
   MFA setup and verification, and supports revoking one session or revoking all other sessions.

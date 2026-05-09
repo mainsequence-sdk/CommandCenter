@@ -94,6 +94,11 @@ export interface WebSocketTicketResponse {
   expiresAt: string;
 }
 
+export interface CurrentUserProfilePictureResponse {
+  id: number;
+  profile_picture: string;
+}
+
 export const DEFAULT_WEBSOCKET_TICKET_AUDIENCE = "command_center_ws";
 
 async function readResponsePayload(response: Response) {
@@ -123,6 +128,26 @@ function readErrorMessage(payload: unknown) {
   const detail = "detail" in payload ? payload.detail : undefined;
   if (typeof detail === "string" && detail.trim()) {
     return detail.trim();
+  }
+
+  for (const [field, value] of Object.entries(payload)) {
+    if (field === "detail") {
+      continue;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      return `${field}: ${value.trim()}`;
+    }
+
+    if (Array.isArray(value)) {
+      const messages = value.filter(
+        (item): item is string => typeof item === "string" && item.trim().length > 0,
+      );
+
+      if (messages.length > 0) {
+        return `${field}: ${messages.join(" ")}`;
+      }
+    }
   }
 
   return "";
@@ -172,7 +197,7 @@ async function requestAuthJson<T>(
       headers.set("Accept", "application/json");
     }
 
-    if (init?.body && !headers.has("Content-Type")) {
+    if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
 
@@ -239,6 +264,32 @@ export function requestPasswordChangeEmail() {
   }, {
     requiresAuth: true,
   });
+}
+
+export function uploadCurrentUserProfilePicture(file: File) {
+  if (env.useMockData) {
+    const session = useAuthStore.getState().session;
+    const numericId = Number(session?.user.id ?? 0);
+
+    return Promise.resolve({
+      id: Number.isFinite(numericId) ? numericId : 0,
+      profile_picture: URL.createObjectURL(file),
+    } satisfies CurrentUserProfilePictureResponse);
+  }
+
+  const formData = new FormData();
+  formData.set("profile_picture", file);
+
+  return requestAuthJson<CurrentUserProfilePictureResponse>(
+    "/user/api/user/profile-picture/",
+    {
+      method: "POST",
+      body: formData,
+    },
+    {
+      requiresAuth: true,
+    },
+  );
 }
 
 export function listCurrentUserSessions() {
