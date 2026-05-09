@@ -14,7 +14,7 @@ Feature folders group screens and supporting components by domain instead of by 
 - `projects/`: project registry, repository browsing, images, jobs, and related tabs.
 - `secrets/`: secret-management surfaces.
 - `simple-tables/`: `ts_manager/simple_table` registry, detail routing, and SimpleTableUpdate workflows.
-- `scalable-services/`: read-only scalable deployment service registry and summary-backed detail view.
+- `scalable-services/`: scalable-service deep-link detail shell and nested pod-runtime detail.
 - `streamlit/`: gallery view for published Streamlit resource releases.
 - `timescaledb-services/`: read-only deployment service registry and summary-backed detail view.
 

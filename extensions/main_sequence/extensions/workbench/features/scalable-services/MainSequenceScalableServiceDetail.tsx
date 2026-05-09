@@ -11,7 +11,9 @@ import {
   fetchScalableServiceSummary,
   formatMainSequenceError,
   listScalableServicePods,
+  listScalableServiceRevisions,
   type ScalableServicePodRow,
+  type ScalableServiceRevisionRecord,
   type ScalableServiceRecord,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
@@ -21,7 +23,7 @@ import {
   type KnativePodRuntimeDetailTabId,
 } from "./MainSequenceKnativePodRuntimeDetail";
 
-export type ScalableServiceDetailTabId = "pods";
+export type ScalableServiceDetailTabId = "pods" | "revisions";
 
 function getScalableServiceTitle(
   serviceId: number,
@@ -81,6 +83,50 @@ function formatPodTimestamp(value: string | null | undefined) {
 function getKnativeServiceLabel(row: ScalableServicePodRow) {
   const value = row.pod_events?.labels?.["serving.knative.dev/service"];
   return value?.trim() || null;
+}
+
+function getFirstPopulatedString(
+  row: Record<string, unknown>,
+  keys: readonly string[],
+): string | null {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function getRevisionLabel(row: ScalableServiceRevisionRecord) {
+  return (
+    getFirstPopulatedString(row, [
+      "revision_name",
+      "name",
+      "display_name",
+      "gke_revision_name",
+      "knative_revision_name",
+      "latest_ready_revision",
+      "latest_created_revision",
+    ]) || "Unnamed revision"
+  );
+}
+
+function getRevisionUid(row: ScalableServiceRevisionRecord) {
+  return getFirstPopulatedString(row, ["uid"]);
+}
+
+function getRevisionReadyValue(row: ScalableServiceRevisionRecord) {
+  if (typeof row.ready === "boolean") {
+    return row.ready ? "true" : "false";
+  }
+
+  return getFirstPopulatedString(row, ["ready"]) || null;
+}
+
+function getRevisionTimestamp(row: ScalableServiceRevisionRecord, keys: readonly string[]) {
+  return formatPodTimestamp(getFirstPopulatedString(row, keys));
 }
 
 function renderTabButton({
@@ -170,6 +216,77 @@ function ScalableServicePodsTableWithSelection({
   );
 }
 
+function ScalableServiceRevisionsTable({ rows }: { rows: ScalableServiceRevisionRecord[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[1120px] border-separate border-spacing-y-2 text-sm">
+        <thead>
+          <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <th className="px-4 pb-2">Revision</th>
+            <th className="px-4 pb-2">First Seen</th>
+            <th className="px-4 pb-2">Ready At</th>
+            <th className="px-4 pb-2">Last Seen</th>
+            <th className="px-4 pb-2">Retired At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr
+              key={
+                (typeof row.id === "number" || typeof row.id === "string"
+                  ? String(row.id)
+                  : null) ?? `${getRevisionLabel(row)}-${index}`
+              }
+              className="rounded-[var(--table-row-radius)]"
+            >
+              <td className={getRegistryTableCellClassName(false, "left")}>
+                <div className="space-y-1">
+                  <div className="font-medium text-foreground">{getRevisionLabel(row)}</div>
+                  {getRevisionUid(row) ? (
+                    <div className="font-mono text-xs text-muted-foreground">
+                      UID: {getRevisionUid(row)}
+                    </div>
+                  ) : null}
+                  {getRevisionReadyValue(row) ? (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">Ready:</span>{" "}
+                      {getRevisionReadyValue(row)}
+                    </div>
+                  ) : null}
+                  {typeof row.ready_reason === "string" && row.ready_reason.trim() ? (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">Reason:</span>{" "}
+                      {row.ready_reason.trim()}
+                    </div>
+                  ) : null}
+                  {typeof row.ready_message === "string" && row.ready_message.trim() ? (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">Message:</span>{" "}
+                      {row.ready_message.trim()}
+                    </div>
+                  ) : null}
+                </div>
+              </td>
+              <td className={getRegistryTableCellClassName(false)}>
+                {getRevisionTimestamp(row, ["first_seen_at"])}
+              </td>
+              <td className={getRegistryTableCellClassName(false)}>
+                {getRevisionTimestamp(row, ["ready_at"])}
+              </td>
+              <td className={getRegistryTableCellClassName(false)}>
+                {getRevisionTimestamp(row, ["last_seen_at"])}
+              </td>
+              <td className={getRegistryTableCellClassName(false, "right")}>
+                {getRevisionTimestamp(row, ["retired_at"])}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function MainSequenceScalableServiceDetail({
   activeTabId,
   activePodRuntimeId,
@@ -203,9 +320,15 @@ export function MainSequenceScalableServiceDetail({
     queryFn: () => listScalableServicePods(serviceId),
     enabled: serviceId > 0 && (activeTabId === "pods" || Boolean(activePodRuntimeId)),
   });
+  const revisionsQuery = useQuery({
+    queryKey: ["main_sequence", "scalable_services", "revisions", serviceId],
+    queryFn: () => listScalableServiceRevisions(serviceId),
+    enabled: serviceId > 0 && activeTabId === "revisions" && !activePodRuntimeId,
+  });
 
   const summary = summaryQuery.data ?? null;
   const pods = useMemo(() => podsQuery.data ?? [], [podsQuery.data]);
+  const revisions = useMemo(() => revisionsQuery.data ?? [], [revisionsQuery.data]);
   const selectedPodRuntime = useMemo(
     () => pods.find((row) => row.id === activePodRuntimeId) ?? null,
     [activePodRuntimeId, pods],
@@ -246,7 +369,7 @@ export function MainSequenceScalableServiceDetail({
         actions={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
-            Back to scalable services
+            Back
           </Button>
         }
       />
@@ -281,6 +404,11 @@ export function MainSequenceScalableServiceDetail({
               active: activeTabId === "pods",
               label: "Pods",
               onClick: () => onSelectTab("pods"),
+            })}
+            {renderTabButton({
+              active: activeTabId === "revisions",
+              label: "Revisions",
+              onClick: () => onSelectTab("revisions"),
             })}
           </div>
         </CardHeader>
@@ -330,6 +458,43 @@ export function MainSequenceScalableServiceDetail({
                 rows={pods}
                 onOpenPodRuntimeDetail={onOpenPodRuntimeDetail}
               />
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeTabId === "revisions" && !selectedPodRuntime ? (
+        <Card>
+          <CardHeader className="border-b border-border/70">
+            <CardTitle>Revisions</CardTitle>
+            <CardDescription>
+              Revisions currently returned by the scalable service revisions endpoint.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-5">
+            {revisionsQuery.isLoading ? (
+              <div className="flex min-h-56 items-center justify-center">
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading scalable service revisions
+                </div>
+              </div>
+            ) : null}
+
+            {revisionsQuery.isError ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                {formatMainSequenceError(revisionsQuery.error)}
+              </div>
+            ) : null}
+
+            {!revisionsQuery.isLoading && !revisionsQuery.isError && revisions.length === 0 ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/12 px-4 py-4 text-sm text-muted-foreground">
+                No revisions were returned for this scalable service.
+              </div>
+            ) : null}
+
+            {!revisionsQuery.isLoading && !revisionsQuery.isError && revisions.length > 0 ? (
+              <ScalableServiceRevisionsTable rows={revisions} />
             ) : null}
           </CardContent>
         </Card>

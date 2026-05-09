@@ -1,10 +1,11 @@
 import { type CSSProperties, type ReactNode, useLayoutEffect, useRef, useState } from "react";
 
-import { ChevronLeft, LogOut, Palette, Users2 } from "lucide-react";
+import { Bot, ChevronLeft, LogOut, Palette, Users2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 
+import type { AppDefinition } from "@/apps/types";
 import { getAccessiblePrimaryApps } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import { getAccessProfileLabel, hasAnyPermission } from "@/auth/permissions";
@@ -25,6 +26,7 @@ const baseItemClass =
 
 const tileClass =
   "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors";
+const documentationAppId = "command-center-docs";
 
 function HoverTooltip({
   children,
@@ -126,12 +128,23 @@ function AssistantSidebarTrigger({
     >
       <span
         className={cn(
-          "inline-flex items-center justify-center rounded-md border border-border/70 bg-background/55 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground shadow-sm",
+          collapsed
+            ? "inline-flex h-8 w-8 flex-col items-center justify-center gap-0.5 rounded-md border border-border/70 bg-background/55 px-0 text-muted-foreground shadow-sm"
+            : "inline-flex items-center justify-center rounded-md border border-border/70 bg-background/55 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground shadow-sm",
           collapsed ? "min-w-[34px]" : "min-w-[52px]",
           active && "border-primary/30 bg-primary/10 text-topbar-foreground",
         )}
       >
-        {shortcutVisual}
+        {collapsed ? (
+          <>
+            <Bot className="h-3.5 w-3.5" />
+            <span className="text-[8px] font-medium uppercase tracking-[0.12em]">
+              {shortcutVisual}
+            </span>
+          </>
+        ) : (
+          shortcutVisual
+        )}
       </span>
       {!collapsed ? (
         <span className="min-w-0">
@@ -151,6 +164,71 @@ function AssistantSidebarTrigger({
   }
 
   return trigger;
+}
+
+function SidebarAppNavigationButton({
+  activeAppId,
+  appItem,
+  appPanelAppId,
+  collapsed,
+  onOpenAppPanel,
+  onToggleAppPanel,
+}: {
+  activeAppId?: string;
+  appItem: AppDefinition;
+  appPanelAppId?: string | null;
+  collapsed: boolean;
+  onOpenAppPanel: (appId: string) => void;
+  onToggleAppPanel: (appId: string) => void;
+}) {
+  const Icon = appItem.icon;
+  const isCurrentApp = activeAppId === appItem.id;
+  const isExplorerApp = appPanelAppId === appItem.id;
+  const isActive = appPanelAppId ? isExplorerApp : isCurrentApp;
+
+  return (
+    <button
+      type="button"
+      title={collapsed ? appItem.title : undefined}
+      aria-pressed={isActive}
+      onClick={() => {
+        if (isCurrentApp) {
+          onToggleAppPanel(appItem.id);
+          return;
+        }
+
+        onOpenAppPanel(appItem.id);
+      }}
+      className={cn(
+        baseItemClass,
+        collapsed
+          ? "justify-center"
+          : "justify-start gap-2.5 rounded-[calc(var(--radius)-6px)] pl-3 pr-4",
+        isActive &&
+          "text-topbar-foreground before:absolute before:-left-2 before:top-0 before:bottom-0 before:w-[2px] before:bg-topbar-foreground",
+      )}
+    >
+      <span
+        className={cn(
+          tileClass,
+          isActive
+            ? "text-topbar-foreground"
+            : "group-hover:text-topbar-foreground",
+        )}
+      >
+        {collapsed ? (
+          <HoverTooltip label={appItem.title}>
+            <Icon className="h-[18px] w-[18px]" />
+          </HoverTooltip>
+        ) : (
+          <Icon className="h-[18px] w-[18px]" />
+        )}
+      </span>
+      {!collapsed ? (
+        <span className="truncate text-sm font-medium">{appItem.title}</span>
+      ) : null}
+    </button>
+  );
 }
 
 export function Sidebar() {
@@ -187,6 +265,8 @@ export function Sidebar() {
   const themeStudioAllowed = hasAnyPermission(permissions, ["theme:manage"]);
 
   const accessibleApps = getAccessiblePrimaryApps(permissions);
+  const documentationApp = accessibleApps.find((appItem) => appItem.id === documentationAppId);
+  const primaryApps = accessibleApps.filter((appItem) => appItem.id !== documentationAppId);
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const activeAppId = pathSegments[1];
   const assistantActive = Boolean(chatFeature?.isRailOpen) || location.pathname === CHAT_PAGE_PATH;
@@ -249,7 +329,7 @@ export function Sidebar() {
       </div>
 
       <nav className="mt-2 flex min-h-0 flex-1 flex-col overflow-x-visible overflow-y-auto px-2">
-        {accessibleApps.length ? (
+        {primaryApps.length ? (
           <div className="mb-2">
             {!sidebarCollapsed ? (
               <div className="px-2 pb-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -257,57 +337,17 @@ export function Sidebar() {
               </div>
             ) : null}
             <div className="flex flex-col gap-0.5">
-              {accessibleApps.map((appItem) => {
-                const Icon = appItem.icon;
-                const isCurrentApp = activeAppId === appItem.id;
-                const isExplorerApp = appPanelAppId === appItem.id;
-                const isActive = appPanelAppId ? isExplorerApp : isCurrentApp;
-
-                return (
-                  <button
-                    key={appItem.id}
-                    type="button"
-                    title={sidebarCollapsed ? appItem.title : undefined}
-                    aria-pressed={isActive}
-                    onClick={() => {
-                      if (isCurrentApp) {
-                        toggleAppPanel(appItem.id);
-                        return;
-                      }
-
-                      openAppPanel(appItem.id);
-                    }}
-                    className={cn(
-                      baseItemClass,
-                      sidebarCollapsed
-                        ? "justify-center"
-                        : "justify-start gap-2.5 rounded-[calc(var(--radius)-6px)] pl-3 pr-4",
-                      isActive &&
-                        "text-topbar-foreground before:absolute before:-left-2 before:top-0 before:bottom-0 before:w-[2px] before:bg-topbar-foreground",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        tileClass,
-                        isActive
-                          ? "text-topbar-foreground"
-                          : "group-hover:text-topbar-foreground",
-                      )}
-                    >
-                      {sidebarCollapsed ? (
-                        <HoverTooltip label={appItem.title}>
-                          <Icon className="h-[18px] w-[18px]" />
-                        </HoverTooltip>
-                      ) : (
-                        <Icon className="h-[18px] w-[18px]" />
-                      )}
-                    </span>
-                    {!sidebarCollapsed ? (
-                      <span className="truncate text-sm font-medium">{appItem.title}</span>
-                    ) : null}
-                  </button>
-                );
-              })}
+              {primaryApps.map((appItem) => (
+                <SidebarAppNavigationButton
+                  key={appItem.id}
+                  activeAppId={activeAppId}
+                  appItem={appItem}
+                  appPanelAppId={appPanelAppId}
+                  collapsed={sidebarCollapsed}
+                  onOpenAppPanel={openAppPanel}
+                  onToggleAppPanel={toggleAppPanel}
+                />
+              ))}
             </div>
           </div>
         ) : null}
@@ -317,6 +357,16 @@ export function Sidebar() {
       <div className="mt-auto shrink-0 px-2 pb-3 pt-2">
         {sidebarCollapsed ? (
           <div className="flex w-full flex-col items-center gap-2">
+            {documentationApp ? (
+              <SidebarAppNavigationButton
+                activeAppId={activeAppId}
+                appItem={documentationApp}
+                appPanelAppId={appPanelAppId}
+                collapsed
+                onOpenAppPanel={openAppPanel}
+                onToggleAppPanel={toggleAppPanel}
+              />
+            ) : null}
             {env.includeAui && chatFeature ? (
               <AssistantSidebarTrigger
                 active={assistantActive}
@@ -367,6 +417,18 @@ export function Sidebar() {
           </div>
         ) : (
           <>
+            {documentationApp ? (
+              <div className="mb-2 border-b border-border/60 px-2 pb-2">
+                <SidebarAppNavigationButton
+                  activeAppId={activeAppId}
+                  appItem={documentationApp}
+                  appPanelAppId={appPanelAppId}
+                  collapsed={false}
+                  onOpenAppPanel={openAppPanel}
+                  onToggleAppPanel={toggleAppPanel}
+                />
+              </div>
+            ) : null}
             {env.includeAui && chatFeature ? (
               <div className="mb-2 px-2">
                 <AssistantSidebarTrigger

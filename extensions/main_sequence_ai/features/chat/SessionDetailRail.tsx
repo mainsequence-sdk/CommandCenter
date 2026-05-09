@@ -32,7 +32,7 @@ function buildInsightsSummaryLabel(activeSessionSummary: NonNullable<ReturnType<
 
   const sessionInsights = activeSessionSummary.sessionInsights;
 
-  if (activeSessionSummary.isLoadingInsights) {
+  if (activeSessionSummary.isLoadingInsights && !sessionInsights) {
     return "Loading insights";
   }
 

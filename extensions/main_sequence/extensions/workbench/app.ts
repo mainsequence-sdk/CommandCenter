@@ -144,15 +144,15 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
     },
     {
       id: "scalable-services",
-      title: "Scalable Services",
-      navLabel: "Scalable Services",
-      description: "Browse read-only deployment services backed by the pods scalable-service endpoints.",
+      title: "Scalable Service",
+      navLabel: "Scalable Service",
+      description: "Internal deep-link detail surface for scalable-service runtimes.",
       ...defineSurfaceAssistantContext({
         summary:
-          "User is on Scalable Services. This page shows deployment services backed by scalable-service endpoints.",
+          "User is on a Scalable Service detail surface. This page is opened from runtime-linked flows and shows the selected scalable-service runtime.",
         availableActions: [
-          "Browse services",
           "Inspect service details",
+          "Review runtime pods",
         ],
       }),
       navigationSection: deploymentServicesSection,

@@ -7,6 +7,11 @@ These docs are written for developers. Start here if you need to understand the 
 find the extension seam for a new feature, or change a subsystem without guessing how the rest of
 the app fits together.
 
+User-facing Command Center usage documentation lives in the in-app Documentation extension at
+`extensions/command_center_docs/`. Keep product usage guides there unless they are specific to one
+product extension. Keep architecture, implementation contracts, ADRs, backend notes, and module
+ownership documentation in this developer docs tree or the nearest module `README.md`.
+
 ## Pick Your Starting Point
 
 - [Platform](./platform/README.md): shell architecture, configuration, theming, internationalization,
@@ -73,6 +78,7 @@ The current repository ships with these extensions:
 - `ag-grid`: optional data-grid widget integration
 - `echarts`: optional spec-driven chart integration with organization-scoped widget configuration support
 - `lightweight-charts`: optional market chart integration
+- `command_center_docs`: in-app user-facing Command Center documentation
 - `main_sequence`: repo-root product namespace with separate Workbench and Markets extensions
 
 ## Local Development

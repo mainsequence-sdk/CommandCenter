@@ -843,7 +843,6 @@ function ComposerFooter({ surface = "page" }: { surface?: "overlay" | "page" }) 
   const { activeSessionSummary } = useChatFeature();
   const insights =
     activeSessionSummary &&
-    !activeSessionSummary.isLoadingInsights &&
     !activeSessionSummary.insightsError
       ? activeSessionSummary.sessionInsights ?? null
       : null;

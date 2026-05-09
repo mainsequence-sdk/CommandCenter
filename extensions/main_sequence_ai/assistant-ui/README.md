@@ -259,6 +259,8 @@ This boundary owns a feature-local session layer that:
 - refreshes backend session insights from
   `/orm/api/agents/v1/sessions/{agent_session_id}/insights/` every time the effective backend
   session changes
+- once a session already has an insights snapshot, later background insights refreshes must patch
+  that snapshot in place instead of reverting the rail/footer UI to loading placeholders
 - treats an empty session-insights payload as a valid state: if the backend returns `200` with
   `has_insights=false` and `insights={}`, the UI shows "no persisted insights yet" instead of an
   error state

@@ -368,6 +368,21 @@ export interface ScalableServiceRecord extends Record<string, unknown> {
   creation_date?: string | null;
 }
 
+export interface ScalableServiceRevisionRecord extends Record<string, unknown> {
+  id?: number | string | null;
+  name?: string | null;
+  revision_name?: string | null;
+  display_name?: string | null;
+  uid?: string | null;
+  ready?: string | boolean | null;
+  ready_reason?: string | null;
+  ready_message?: string | null;
+  first_seen_at?: string | null;
+  ready_at?: string | null;
+  last_seen_at?: string | null;
+  retired_at?: string | null;
+}
+
 export interface AssetListRow {
   id: number;
   unique_identifier: string | null;
@@ -4234,6 +4249,17 @@ export async function listScalableServicePods(scalableServiceId: number) {
   >(
     commandCenterConfig.mainSequence.endpoint,
     `scalable-service/${scalableServiceId}/pods/`,
+  );
+
+  return normalizeListResponse(payload);
+}
+
+export async function listScalableServiceRevisions(scalableServiceId: number) {
+  const payload = await requestJson<
+    PaginatedResponse<ScalableServiceRevisionRecord> | ScalableServiceRevisionRecord[]
+  >(
+    commandCenterConfig.mainSequence.endpoint,
+    `scalable-service/${scalableServiceId}/revisions/`,
   );
 
   return normalizeListResponse(payload);
