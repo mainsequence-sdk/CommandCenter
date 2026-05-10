@@ -1,4 +1,5 @@
 import type { SessionInsightsSnapshot } from "../assistant-ui/session-insights";
+import type { AgentImageDriftRecord } from "../agent-search";
 import type {
   AgentSessionApiRecord,
   AgentSessionSerializedRecord,
@@ -107,6 +108,7 @@ export interface ActiveSessionSummary {
   requestName: string;
   displayName: string | null;
   agentUniqueId: string | null;
+  imageDrift: AgentImageDriftRecord | null;
   llmProvider: string | null;
   llmModel: string | null;
   llmThinking: string | null;
@@ -319,10 +321,12 @@ export function buildAgentSessionDetailSnapshot({
 }
 
 export function buildActiveSessionSummary({
+  imageDrift,
   session,
   detail,
   fallbackAgentId,
 }: {
+  imageDrift?: AgentImageDriftRecord | null;
   session: AgentSessionContextInput;
   detail: AgentSessionDetailSnapshot | null;
   fallbackAgentId?: string | null;
@@ -335,6 +339,7 @@ export function buildActiveSessionSummary({
     requestName: context.requestName,
     displayName: context.displayName,
     agentUniqueId: context.agentUniqueId,
+    imageDrift: imageDrift ?? null,
     llmProvider:
       normalizeOptionalString(session.agent?.llmProvider) ?? detail?.core?.llmProvider ?? null,
     llmModel:

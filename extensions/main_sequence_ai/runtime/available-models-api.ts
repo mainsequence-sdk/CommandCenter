@@ -1,5 +1,6 @@
 import {
   fetchMainSequenceAiAssistantResponse,
+  type MainSequenceAiResolvedAssistantAccess,
   type MainSequenceAiAssistantRuntimeTarget,
 } from "./assistant-endpoint";
 import { MainSequenceAiError } from "./error-source";
@@ -525,10 +526,12 @@ export async function fetchAvailableRunConfigOptions({
   signal,
   token,
   tokenType = "Bearer",
+  onResolvedAccess,
 }: {
   assistantEndpoint?: string;
   cacheKey?: string | null;
   cacheTtlMs?: number;
+  onResolvedAccess?: ((access: MainSequenceAiResolvedAssistantAccess) => void) | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   sessionId?: string | null;
   signal?: AbortSignal;
@@ -542,7 +545,7 @@ export async function fetchAvailableRunConfigOptions({
     return cachedEntry.value;
   }
 
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const { resolvedAccess, response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     ...(sessionId
@@ -554,6 +557,7 @@ export async function fetchAvailableRunConfigOptions({
     sessionToken: token,
     sessionTokenType: tokenType,
   });
+  onResolvedAccess?.(resolvedAccess);
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as

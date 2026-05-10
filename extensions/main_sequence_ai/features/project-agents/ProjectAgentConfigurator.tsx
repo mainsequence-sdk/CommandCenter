@@ -19,10 +19,13 @@ import {
   fetchProjectExecutorAgentServiceByProject,
   fetchProjectImages,
   formatMainSequenceError,
+  maintainProjectExecutorAgentService,
   type ProjectExecutorAgentServiceRecord,
+  type ProjectExecutorAgentServiceMaintenanceResult,
   type ProjectImageOption,
 } from "../../../main_sequence/common/api";
 import { PickerField, type PickerOption } from "../../../main_sequence/common/components/PickerField";
+import { toProjectImageTitlePickerOption } from "../../../main_sequence/common/components/projectImagePickerOptions";
 import { fetchAgentDetail } from "../../agent-search";
 import {
   buildAvailableRunConfigCacheKey,
@@ -57,54 +60,11 @@ function formatProjectAgentImageLabel(image: ProjectImageOption) {
   return image.title?.trim() || `Image ${image.id}`;
 }
 
-function formatProjectAgentImageCommitLabel(image: ProjectImageOption) {
-  const createdDisplay =
-    image.creation_date_display?.trim() ||
-    (() => {
-      if (!image.creation_date) {
-        return "";
-      }
-
-      const parsed = Date.parse(image.creation_date);
-
-      if (Number.isNaN(parsed)) {
-        return image.creation_date;
-      }
-
-      return new Intl.DateTimeFormat("en-US", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date(parsed));
-    })();
-
-  if (!image.project_repo_hash?.trim()) {
-    return createdDisplay ? `Latest -- ${createdDisplay}` : "Latest";
-  }
-
-  const shortHash = image.project_repo_hash.slice(0, 7);
-  return createdDisplay ? `${shortHash} -- ${createdDisplay}` : shortHash;
-}
-
 function toProjectAgentImageOption(image: ProjectImageOption): PickerOption {
-  return {
-    value: String(image.id),
-    label: formatProjectAgentImageLabel(image),
-    description: [
-      formatProjectAgentImageCommitLabel(image),
-      image.base_image?.title?.trim() || "Default base image",
-      formatProjectAgentImageStatus(image),
-    ].join(" · "),
-    keywords: [
-      String(image.id),
-      image.title ?? "",
-      image.project_repo_hash ?? "",
-      image.base_image?.title ?? "",
-      image.base_image?.description ?? "",
-      image.creation_date ?? "",
-      image.creation_date_display ?? "",
-      formatProjectAgentImageStatus(image),
-    ],
-  };
+  return toProjectImageTitlePickerOption(image, {
+    fallbackLabel: `Image ${image.id}`,
+    status: formatProjectAgentImageStatus(image),
+  });
 }
 
 function isProjectAgentImagePending(result: ProjectExecutorAgentServiceRecord | null) {
@@ -142,6 +102,56 @@ function getProjectAgentImageStateBadgeVariant(result: ProjectExecutorAgentServi
   }
 
   return "secondary" as const;
+}
+
+function getProjectAgentMaintenanceFeedback(result: ProjectExecutorAgentServiceMaintenanceResult) {
+  switch (result.maintenance_state) {
+    case "no_action":
+      return {
+        title: "Already up to date",
+        variant: "info" as const,
+        description:
+          result.detail?.trim() ||
+          "The project agent runtime is already using the latest compatible executor image.",
+      };
+    case "repaired_runtime":
+      return {
+        title: "Runtime repaired",
+        variant: "success" as const,
+        description:
+          result.detail?.trim() || "The project agent runtime was repaired successfully.",
+      };
+    case "switched_existing_image":
+      return {
+        title: "Updated to latest compatible executor image",
+        variant: "success" as const,
+        description:
+          result.detail?.trim() ||
+          "The project agent runtime switched to the replacement image successfully.",
+      };
+    case "building_replacement_image":
+      return {
+        title: "Building replacement image",
+        variant: "info" as const,
+        description:
+          result.detail?.trim() ||
+          "A replacement image build is in progress for this project agent runtime.",
+      };
+    case "blocked":
+      return {
+        title: "Unable to fix drift",
+        variant: "info" as const,
+        description:
+          result.detail?.trim() ||
+          "Project-agent auto-maintenance is currently blocked for this runtime.",
+      };
+    default:
+      return {
+        title: "Project agent maintenance updated",
+        variant: "info" as const,
+        description: result.detail?.trim() || "The project agent maintenance request completed.",
+      };
+  }
 }
 
 export function ProjectAgentConfigurator({
@@ -396,6 +406,41 @@ export function ProjectAgentConfigurator({
     },
   });
 
+  const maintainProjectAgentMutation = useMutation({
+    mutationFn: async (serviceId: number) => maintainProjectExecutorAgentService(serviceId),
+    onSuccess: async (result) => {
+      if (result.runtime_image_id !== null && result.runtime_image_id !== undefined) {
+        setSelectedDeploymentImageId(String(result.runtime_image_id));
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "projects", "summary", projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "projects", "project-agent", "service", projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "projects", "project-agent", "deployment-images", projectId],
+        }),
+      ]);
+
+      const feedback = getProjectAgentMaintenanceFeedback(result);
+      toast({
+        variant: feedback.variant,
+        title: feedback.title,
+        description: feedback.description,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Fix drift failed",
+        description: formatMainSequenceError(error),
+      });
+    },
+  });
+
   useEffect(() => {
     if (!hasAgentCapabilities) {
       setSelectedBuildSourceImageId("");
@@ -566,6 +611,12 @@ export function ProjectAgentConfigurator({
         </p>
       </div>
 
+      <div className="rounded-[calc(var(--radius)-6px)] border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+        Project Agents are intended to be unique per project. This means that project agents
+        should always have an image updated to the latest Main Sequence SDK to guarantee proper
+        performance.
+      </div>
+
       <div className="space-y-2">
         <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
           Image
@@ -671,12 +722,40 @@ export function ProjectAgentConfigurator({
 
           {executorBundleImageHasDrift ? (
             <div className="rounded-[calc(var(--radius)-8px)] border border-warning/40 bg-warning/10 px-3 py-3 text-sm text-warning">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <div>
-                  Runtime image drift detected with the latest Astro update. The system will
-                  redeploy tonight, or you can deploy now to update immediately.
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-1 items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    Runtime image drift detected with the latest Astro update. The system will
+                    redeploy tonight, or you can fix the drift now.
+                  </div>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="border-warning/35 bg-background/35 text-warning hover:bg-background/50"
+                  disabled={
+                    maintainProjectAgentMutation.isPending ||
+                    !currentProjectAgentServiceQuery.data?.id
+                  }
+                  onClick={() => {
+                    if (!currentProjectAgentServiceQuery.data?.id) {
+                      return;
+                    }
+
+                    void maintainProjectAgentMutation.mutateAsync(currentProjectAgentServiceQuery.data.id);
+                  }}
+                >
+                  {maintainProjectAgentMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Fixing drift
+                    </>
+                  ) : (
+                    "Fix drift"
+                  )}
+                </Button>
               </div>
             </div>
           ) : null}

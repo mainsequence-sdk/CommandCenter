@@ -3272,14 +3272,17 @@ export function removeDashboardWidget(dashboard: DashboardDefinition, instanceId
   });
 }
 
-export function duplicateDashboardWidget(
+export function duplicateDashboardWidgetWithResult(
   dashboard: DashboardDefinition,
   instanceId: string,
 ) {
   const current = dashboard.widgets.find((widget) => widget.id === instanceId);
 
   if (!current) {
-    return dashboard;
+    return {
+      dashboard,
+      duplicatedInstanceId: null,
+    };
   }
 
   const cols = getLayoutCols(current.layout, current.widgetId);
@@ -3328,7 +3331,17 @@ export function duplicateDashboardWidget(
 
   nextDashboard = duplicateManagedWidgetsForOwnerRemap(nextDashboard, ownerIdMap);
 
-  return nextDashboard;
+  return {
+    dashboard: nextDashboard,
+    duplicatedInstanceId: duplicatedWidget.id,
+  };
+}
+
+export function duplicateDashboardWidget(
+  dashboard: DashboardDefinition,
+  instanceId: string,
+) {
+  return duplicateDashboardWidgetWithResult(dashboard, instanceId).dashboard;
 }
 
 export function findManagedDashboardWidgets(

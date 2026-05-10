@@ -53,6 +53,7 @@ import {
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
+import { toProjectImagePickerOption } from "../../../../common/components/projectImagePickerOptions";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
@@ -169,34 +170,6 @@ function getReleaseKindBadgeVariant(releaseKind: string) {
   return "neutral" as const;
 }
 
-function formatProjectImageLabel(image: ProjectImageOption) {
-  const createdDisplay =
-    image.creation_date_display?.trim() ||
-    (() => {
-      if (!image.creation_date) {
-        return "";
-      }
-
-      const parsed = Date.parse(image.creation_date);
-
-      if (Number.isNaN(parsed)) {
-        return image.creation_date;
-      }
-
-      return new Intl.DateTimeFormat("en-US", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date(parsed));
-    })();
-
-  if (!image.project_repo_hash?.trim()) {
-    return createdDisplay ? `Latest -- ${createdDisplay}` : "Latest";
-  }
-
-  const shortHash = image.project_repo_hash.slice(0, 7);
-  return createdDisplay ? `${shortHash} -- ${createdDisplay}` : shortHash;
-}
-
 function formatReadmeFilesize(filesize?: number | null) {
   if (!filesize || filesize <= 0) {
     return null;
@@ -219,20 +192,6 @@ function toProjectResourceOption(resource: ProjectResourceRecord) {
     label: resource.name,
     description: resource.path,
     keywords: [resource.path, resource.repo_commit_sha ?? "", resource.resource_type],
-  };
-}
-
-function toProjectImageOption(image: ProjectImageOption) {
-  return {
-    value: String(image.id),
-    label: formatProjectImageLabel(image),
-    description: `Base image - ${image.base_image?.title ?? "Default base image"}`,
-    keywords: [
-      image.project_repo_hash ?? "",
-      image.base_image?.title ?? "",
-      image.creation_date ?? "",
-      image.creation_date_display ?? "",
-    ],
   };
 }
 
@@ -759,7 +718,7 @@ export function MainSequenceProjectResourceReleasesTab({
     [releaseResourcesQuery.data?.results],
   );
   const projectImageOptions = useMemo(
-    () => readyProjectImages.map(toProjectImageOption),
+    () => readyProjectImages.map(toProjectImagePickerOption),
     [readyProjectImages],
   );
   const gpuTypeOptions = useMemo<PickerOption[]>(

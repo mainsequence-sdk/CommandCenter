@@ -16,6 +16,10 @@ import {
   formatMainSequenceError,
 } from "../../../../common/api";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
+import {
+  createDynamicProjectImagePickerOption,
+  toProjectImagePickerOption,
+} from "../../../../common/components/projectImagePickerOptions";
 
 function getDefaultJobName(filePath: string) {
   const fileName = filePath.split("/").filter(Boolean).at(-1) ?? "job";
@@ -70,14 +74,6 @@ const gpuCountOptions: PickerOption[] = [
   { value: "7", label: "7 GPUs" },
   { value: "8", label: "8 GPUs" },
 ];
-
-function shortenCommit(value: string | null | undefined) {
-  if (!value) {
-    return "Image";
-  }
-
-  return value.slice(0, 12);
-}
 
 export function MainSequenceCreateJobDialog({
   filePath,
@@ -147,22 +143,7 @@ export function MainSequenceCreateJobDialog({
   const projectImageOptions = useMemo<PickerOption[]>(() => {
     const readyImages = (projectImagesQuery.data ?? []).filter((image) => image.is_ready);
 
-    return [
-      {
-        value: "",
-        label: "Latest commit (dynamic)",
-      },
-      ...readyImages.map((image) => ({
-        value: String(image.id),
-        label: shortenCommit(image.project_repo_hash),
-        description: image.base_image?.title ?? "Ready image",
-        keywords: [
-          image.project_repo_hash ?? "",
-          image.base_image?.title ?? "",
-          image.base_image?.description ?? "",
-        ],
-      })),
-    ];
+    return [createDynamicProjectImagePickerOption(), ...readyImages.map(toProjectImagePickerOption)];
   }, [projectImagesQuery.data]);
   const gpuTypeOptions = useMemo<PickerOption[]>(
     () =>
@@ -283,7 +264,7 @@ export function MainSequenceCreateJobDialog({
                     }));
                   }}
                   options={projectImageOptions}
-                  placeholder="Latest commit (dynamic)"
+                  placeholder="Select an image"
                   searchPlaceholder="Search images"
                   emptyMessage="No ready images available."
                   loading={projectImagesQuery.isLoading}

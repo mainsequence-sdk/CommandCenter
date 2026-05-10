@@ -1,4 +1,6 @@
 import { env } from "@/config/env";
+import type { AgentImageDriftRecord } from "../agent-search";
+import { normalizeAgentImageDriftRecord } from "../image-drift";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
 
@@ -14,6 +16,9 @@ export interface CommandCenterBaseSessionHandle {
     mode: string | null;
     rpcUrl: string | null;
     token: string | null;
+    isReady: boolean | null;
+    knativeServiceRuntimeId: string | null;
+    imageDrift: AgentImageDriftRecord | null;
   } | null;
   projectId: string | null;
   cwd: string | null;
@@ -171,6 +176,20 @@ function normalizeCommandCenterBaseSessionHandle(
               normalizeString(runtimeAccessCandidate.rpc_url) ??
               normalizeString(runtimeAccessCandidate.rpcUrl),
             token: normalizeString(runtimeAccessCandidate.token),
+            isReady:
+              typeof runtimeAccessCandidate.is_ready === "boolean"
+                ? runtimeAccessCandidate.is_ready
+                : typeof runtimeAccessCandidate.isReady === "boolean"
+                  ? runtimeAccessCandidate.isReady
+                  : null,
+            knativeServiceRuntimeId:
+              normalizeIdentifier(
+                runtimeAccessCandidate.knative_service_runtime ??
+                  runtimeAccessCandidate.knativeServiceRuntime,
+              ),
+            imageDrift: normalizeAgentImageDriftRecord(
+              runtimeAccessCandidate.image_drift ?? runtimeAccessCandidate.imageDrift,
+            ),
           }
         : null,
     projectId: normalizeIdentifier(candidate.project_id) ?? normalizeIdentifier(candidate.projectId),

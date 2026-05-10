@@ -26,7 +26,8 @@ explorer without moving presentational shell chrome into the runtime boundary.
   default-orchestrator wording. The summary card also suppresses stale duplicate identifiers, maps
   raw insights status enums to human-facing copy, and prefers the current session model from local
   session state so provider/model changes update the card immediately without forcing a
-  detail/insights reload.
+  detail/insights reload. It also surfaces the generic backend-owned runtime-image warning when
+  per-session `resolve_runtime_access` reports `image_drift`.
 
 ## Dependencies
 

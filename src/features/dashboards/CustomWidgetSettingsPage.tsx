@@ -37,6 +37,7 @@ import {
   type AppComponentWidgetProps,
 } from "@/widgets/core/app-component/appComponentModel";
 import {
+  duplicateDashboardWidgetWithResult,
   removeDashboardWidget,
   updateDashboardControlsState,
   updateDashboardWidgetBindings,
@@ -109,6 +110,7 @@ export function CustomWidgetSettingsPage({
     resolvedDashboard,
     saveWorkspaceDraft,
     openDashboardView,
+    openWidgetSettings,
     updateSelectedWorkspace,
     updateSelectedWorkspaceUserState,
     commitSelectedWorkspaceControlsState,
@@ -541,6 +543,21 @@ export function CustomWidgetSettingsPage({
     setActiveTab("bindings");
   }
 
+  function duplicateCurrentWidget() {
+    if (!selectedDashboard || !instance) {
+      return;
+    }
+
+    const duplication = duplicateDashboardWidgetWithResult(selectedDashboard, instance.id);
+
+    if (!duplication.duplicatedInstanceId) {
+      return;
+    }
+
+    updateSelectedWorkspace(() => duplication.dashboard);
+    openWidgetSettings(duplication.duplicatedInstanceId, activeTab === "bindings" ? "bindings" : "settings");
+  }
+
   const pageContent = (
     <div className="relative h-full overflow-hidden">
       <div className="h-full overflow-y-auto px-4 py-4 pb-10 md:px-6 md:py-6">
@@ -706,6 +723,7 @@ export function CustomWidgetSettingsPage({
                       showPlacementField={!instance.slidePlacement}
                       secondaryActionLabel="Return to dashboard"
                       onClose={openDashboardView}
+                      onDuplicate={duplicateCurrentWidget}
                       onRemove={() => {
                         updateSelectedWorkspace((dashboard) =>
                           removeDashboardWidget(dashboard, instance.id),
@@ -742,6 +760,7 @@ export function CustomWidgetSettingsPage({
                     showPlacementField={!instance.slidePlacement}
                     secondaryActionLabel="Return to dashboard"
                     onClose={openDashboardView}
+                    onDuplicate={duplicateCurrentWidget}
                     onRemove={() => {
                       updateSelectedWorkspace((dashboard) =>
                         removeDashboardWidget(dashboard, instance.id),

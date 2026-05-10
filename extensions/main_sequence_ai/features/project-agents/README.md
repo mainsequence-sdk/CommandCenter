@@ -28,9 +28,12 @@ It is the AI-owned implementation of the project-agent workflow:
 - The build-source image picker is intentionally scoped to the Main Sequence `base_pod_images`
   slice by requesting `fetchProjectImages(projectId, { catalogImagePrefixStartswith:
   "base_pod_images" })`.
-- Project-agent image pickers should expose the project repo hash in the visible option copy, not
-  only in search keywords, so they stay aligned with the other project-image pickers in Main
-  Sequence.
+- Project-agent image pickers now reuse the shared Main Sequence project-image picker metadata
+  builder from `main_sequence/common/components/projectImagePickerOptions.ts`. They keep the image
+  title on the first line, but the second line is shared with the other project-image pickers and
+  prioritizes backend-provided tags, especially `ms-sdk...` tags, before the commit/date copy.
+- The screen keeps a persistent warning that project agents are one-per-project runtimes and
+  should be rebuilt from images updated to the latest Main Sequence SDK before deployment.
 - LLM selection for project-agent deployment is sourced from the Command Center
   `astro-orchestrator` model catalog only.
 - The configurator loads that catalog through the shared Astro operational runtime-access path.
@@ -41,7 +44,9 @@ It is the AI-owned implementation of the project-agent workflow:
   even if the runtime catalog is temporarily unavailable.
 - When `GET /orm/api/agents/v1/project-executor-agent-services/by-project/<project_id>/` reports
   `executor_bundle_image_has_drift=true`, the deployment section shows a warning that the deployed
-  runtime image has drifted from the latest Astro update and can either wait for the nightly
-  redeploy or be redeployed immediately from the UI.
+  runtime image has drifted from the latest Astro update and offers a service-owned `Fix drift`
+  action. That action posts to
+  `/orm/api/agents/v1/project-executor-agent-services/<service_id>/maintain-runtime/`, then
+  refreshes the service summary and deployment-image list in place.
 - GPU controls are intentionally omitted from this screen. Project-agent deployment here only edits
   CPU, memory, spot/standard capacity, and LLM settings.

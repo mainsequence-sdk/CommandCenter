@@ -150,6 +150,7 @@ interface WidgetSettingsPanelProps<
   onDraftPresentationChange?: (presentation: WidgetInstancePresentation) => void;
   onDraftPropsChange?: (props: TProps) => void;
   onDraftTitleChange?: (title: string) => void;
+  onDuplicate?: (() => void) | undefined;
   onRemove?: (() => void) | undefined;
   onSave?: (next: {
     title?: string;
@@ -463,6 +464,7 @@ export function WidgetSettingsPanel<
   onDraftPresentationChange,
   onDraftPropsChange,
   onDraftTitleChange,
+  onDuplicate,
   onRemove,
   onSave,
   panelDescription = "Adjust the display title and widget props for this instance.",
@@ -1029,6 +1031,12 @@ export function WidgetSettingsPanel<
             >
               Reset to defaults
             </Button>
+            {editable && onDuplicate ? (
+              <Button variant="outline" onClick={onDuplicate}>
+                <Copy className="h-3.5 w-3.5" />
+                Duplicate widget
+              </Button>
+            ) : null}
             {editable && onRemove ? (
               <Button variant="danger" onClick={handleRemove}>
                 <Trash2 className="h-3.5 w-3.5" />

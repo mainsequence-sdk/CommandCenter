@@ -1,4 +1,5 @@
 import { commandCenterConfig, type AssistantUiProtocol } from "@/config/command-center";
+import type { AgentImageDriftRecord } from "../agent-search";
 import {
   fetchAgentSessionRuntimeAccess,
   fetchCommandCenterBaseSessionHandle,
@@ -14,6 +15,9 @@ export interface MainSequenceAiResolvedAssistantAccess {
   assistantEndpoint: string;
   codingAgentId: string | null;
   codingAgentServiceId: string | null;
+  imageDrift: AgentImageDriftRecord | null;
+  isReady: boolean | null;
+  knativeServiceRuntimeId: string | null;
   mode: "configured" | "dynamic";
   runtimeAccessMode: string | null;
   token: string | null;
@@ -71,12 +75,14 @@ export function isMainSequenceProjectExecutorAgentRequestName(
 export function resolveMainSequenceAiAssistantEndpointForAgentRequestName(
   agentRequestName: string | null | undefined,
 ): string | undefined {
-  if (
-    isMainSequenceAiAssistantProxyMode() &&
-    isMainSequenceProjectExecutorAgentRequestName(agentRequestName) &&
-    rawEnv.VITE_ASSISTANT_UI_EXECUTOR_TARGET?.trim()
-  ) {
-    return normalizeMainSequenceAiAssistantEndpoint(assistantExecutorProxyPrefix);
+  if (isMainSequenceAiAssistantProxyMode()) {
+    if (isMainSequenceProjectExecutorAgentRequestName(agentRequestName)) {
+      if (rawEnv.VITE_ASSISTANT_UI_EXECUTOR_TARGET?.trim()) {
+        return normalizeMainSequenceAiAssistantEndpoint(assistantExecutorProxyPrefix);
+      }
+
+      return undefined;
+    }
   }
 
   return resolveMainSequenceAiConfiguredAssistantEndpoint() ?? undefined;
@@ -179,6 +185,9 @@ function normalizeDynamicAssistantAccess(
     assistantEndpoint: normalizeMainSequenceAiAssistantEndpoint(rpcUrl),
     codingAgentId: payload.runtimeAccess?.codingAgentId ?? null,
     codingAgentServiceId: payload.runtimeAccess?.codingAgentServiceId ?? null,
+    imageDrift: payload.runtimeAccess?.imageDrift ?? null,
+    isReady: payload.runtimeAccess?.isReady ?? null,
+    knativeServiceRuntimeId: payload.runtimeAccess?.knativeServiceRuntimeId ?? null,
     mode: "dynamic",
     runtimeAccessMode: payload.runtimeAccess?.mode ?? null,
     token: runtimeToken,
@@ -395,7 +404,10 @@ export async function resolveMainSequenceAiAssistantAccess({
   sessionToken?: string | null;
   sessionTokenType?: string;
 }): Promise<MainSequenceAiResolvedAssistantAccess> {
-  if (isMainSequenceAiAssistantProxyMode() || runtimeTarget === "configured") {
+  if (
+    runtimeTarget === "configured" ||
+    (isMainSequenceAiAssistantProxyMode() && Boolean(assistantEndpoint?.trim()))
+  ) {
     const configuredAssistantEndpoint =
       assistantEndpoint?.trim()
         ? normalizeMainSequenceAiAssistantEndpoint(assistantEndpoint)
@@ -411,6 +423,9 @@ export async function resolveMainSequenceAiAssistantAccess({
       assistantEndpoint: configuredAssistantEndpoint,
       codingAgentId: null,
       codingAgentServiceId: null,
+      imageDrift: null,
+      isReady: null,
+      knativeServiceRuntimeId: null,
       mode: "configured",
       runtimeAccessMode: null,
       token: sessionToken ?? null,

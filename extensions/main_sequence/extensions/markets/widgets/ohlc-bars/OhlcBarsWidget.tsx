@@ -6,6 +6,7 @@ import {
   ColorType,
   HistogramSeries,
   LineSeries,
+  TickMarkType,
   createChart,
   type Time,
   type UTCTimestamp,
@@ -28,6 +29,11 @@ import {
   type OhlcBarsStudyConfig,
 } from "./ohlcBarsModel";
 import { shouldForceOhlcSnapshot } from "./ohlcBarsRender";
+import {
+  formatOhlcAxisTickLabel,
+  formatOhlcCrosshairTimeLabel,
+  type OhlcTimeAxisMode,
+} from "./ohlcBarsTime";
 
 type Props = WidgetComponentProps<MainSequenceOhlcBarsWidgetProps>;
 type OhlcChartApi = ReturnType<typeof createChart>;
@@ -47,52 +53,12 @@ type OhlcLinePoint = {
 type OhlcVolumePoint = OhlcLinePoint & {
   color: string;
 };
-type OhlcTimeAxisMode = "date" | "datetime";
 
 function getChartSize(container: HTMLDivElement) {
   return {
     width: Math.max(container.clientWidth, 1),
     height: Math.max(container.clientHeight, 1),
   };
-}
-
-function resolveChartTimeMs(time: Time) {
-  if (typeof time === "number") {
-    return time * 1000;
-  }
-
-  if (typeof time === "string") {
-    const parsed = Date.parse(time);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  return Date.UTC(time.year, time.month - 1, time.day);
-}
-
-function formatOhlcUtcDateKey(timestampMs: number) {
-  return new Date(timestampMs).toISOString().slice(0, 10);
-}
-
-function formatOhlcChartTime(
-  time: Time,
-  timeAxisMode: OhlcTimeAxisMode,
-  options?: { includeSeconds?: boolean },
-) {
-  const timestampMs = resolveChartTimeMs(time);
-
-  if (timestampMs === null) {
-    return String(time);
-  }
-
-  if (timeAxisMode === "date") {
-    return formatOhlcUtcDateKey(timestampMs);
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: options?.includeSeconds ? "2-digit" : undefined,
-  }).format(new Date(timestampMs));
 }
 
 function formatOhlcDate(timestampMs: number, timeAxisMode: OhlcTimeAxisMode) {
@@ -448,11 +414,21 @@ export function OhlcBarsWidget({
         timeVisible: timeAxisMode === "datetime",
         secondsVisible: false,
         rightOffset: 2,
-        tickMarkFormatter: (time: Time) => formatOhlcChartTime(time, timeAxisMode),
+        tickMarkFormatter: (time: Time, tickMarkType: TickMarkType, locale: string) =>
+          formatOhlcAxisTickLabel({
+            locale,
+            tickMarkType,
+            time,
+            timeAxisMode,
+          }),
       },
       localization: {
         timeFormatter: (time: Time) =>
-          formatOhlcChartTime(time, timeAxisMode, { includeSeconds: true }),
+          formatOhlcCrosshairTimeLabel({
+            includeSeconds: true,
+            time,
+            timeAxisMode,
+          }),
       },
       crosshair: {
         vertLine: {

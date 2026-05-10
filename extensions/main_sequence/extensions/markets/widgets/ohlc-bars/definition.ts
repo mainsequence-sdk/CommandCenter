@@ -23,7 +23,7 @@ import { ohlcBarsSettingsSchema } from "./schema";
 
 export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidgetProps>({
   id: "main-sequence-ohlc-bars",
-  widgetVersion: "1.1.2",
+  widgetVersion: "1.1.3",
   title: "OHLC Bars",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",

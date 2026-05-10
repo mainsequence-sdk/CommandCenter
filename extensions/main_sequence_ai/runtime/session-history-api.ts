@@ -3,10 +3,7 @@ import type {
   SessionHistorySnapshot,
 } from "../assistant-ui/session-history";
 import { normalizeSessionHistorySnapshot } from "../assistant-ui/session-history";
-import {
-  fetchMainSequenceAiAssistantResponse,
-  type MainSequenceAiAssistantRuntimeTarget,
-} from "./assistant-endpoint";
+import { env } from "@/config/env";
 import { MainSequenceAiError } from "./error-source";
 
 function createEmptySessionHistorySnapshot(sessionId: string): SessionHistorySnapshot {
@@ -30,45 +27,63 @@ function createEmptySessionHistorySnapshot(sessionId: string): SessionHistorySna
   };
 }
 
+function buildSessionHistoryUrl(sessionId: string | number) {
+  return new URL(
+    `/orm/api/agents/v1/sessions/${encodeURIComponent(String(sessionId))}/history/`,
+    env.apiBaseUrl,
+  ).toString();
+}
+
 export async function fetchSessionHistory({
-  assistantEndpoint,
-  runtimeTarget,
   sessionId,
   signal,
   token,
   tokenType = "Bearer",
 }: {
-  assistantEndpoint?: string;
-  runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
-  sessionId: string;
+  sessionId: string | number;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
 }) {
-  const { response } = await fetchMainSequenceAiAssistantResponse({
-    accept: "application/json",
-    assistantEndpoint,
-    currentSessionId: sessionId,
-    requestPath: `/api/chat/history?sessionId=${encodeURIComponent(sessionId)}`,
-    method: "GET",
-    runtimeTarget,
-    signal,
-    sessionToken: token,
-    sessionTokenType: tokenType,
+  const requestUrl = buildSessionHistoryUrl(sessionId);
+  const headers = new Headers({
+    Accept: "application/json",
   });
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(requestUrl, {
+      method: "GET",
+      headers,
+      signal,
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown fetch error.";
+    throw new MainSequenceAiError(
+      `Failed to load session history for session ${sessionId} from ${requestUrl}. ${detail}`,
+      {
+        source: "agent_session_history",
+      },
+    );
+  }
 
   if (!response.ok) {
     if (response.status === 404) {
-      return createEmptySessionHistorySnapshot(sessionId);
+      return createEmptySessionHistorySnapshot(String(sessionId));
     }
 
     const payload = (await response.json().catch(() => null)) as
-      | { error?: string; message?: string }
+      | { detail?: string; error?: string; message?: string }
       | null;
     throw new MainSequenceAiError(
-      payload?.message ||
-        payload?.error ||
-        `Session history failed with status ${response.status}.`,
+      `Failed to load session history for session ${sessionId} from ${requestUrl} (${response.status}). ${
+        payload?.message || payload?.detail || payload?.error || response.statusText || "Unknown backend error."
+      }`,
       {
         source: "agent_session_history",
         status: response.status,

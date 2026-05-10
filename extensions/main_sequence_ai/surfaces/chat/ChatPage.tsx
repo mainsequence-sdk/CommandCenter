@@ -21,6 +21,10 @@ import { AgentSessionRail } from "../../assistant-ui/components/AgentSessionRail
 import { ChatThread } from "../../assistant-ui/components/ChatThread";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
 import { SessionDetailRail } from "../../features/chat/SessionDetailRail";
+import {
+  AGENT_RUNTIME_IMAGE_DRIFT_NOTICE,
+  shouldShowAgentRuntimeImageDriftWarning,
+} from "../../image-drift";
 
 function getRunStatusLabel(status: "idle" | "queued" | "thinking" | "responding" | "complete" | "error") {
   switch (status) {
@@ -77,6 +81,9 @@ export function ChatPage() {
     (runStatus === "idle" || runStatus === "complete")
       ? "thinking"
       : runStatus;
+  const showImageDriftWarning = shouldShowAgentRuntimeImageDriftWarning(
+    activeSessionSummary?.imageDrift,
+  );
 
   return (
     <div
@@ -194,6 +201,13 @@ export function ChatPage() {
       ) : null}
 
       <section className="relative flex h-full min-h-0 flex-col overflow-hidden px-4">
+        {showImageDriftWarning ? (
+          <div className="shrink-0 py-4">
+            <div className="rounded-[16px] border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              {AGENT_RUNTIME_IMAGE_DRIFT_NOTICE}
+            </div>
+          </div>
+        ) : null}
         <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
           <ChatThread surface="page" />
         </div>

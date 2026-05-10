@@ -366,7 +366,7 @@ These flows are all part of one app surface, with instance state selected throug
   sibling widgets until the next row, and when collapsed those child widgets are serialized into
   the row instance itself.
 - Widget definitions can set shared presentation defaults. `Data Node` now uses this to default new and existing instances into sidebar placement unless that instance explicitly saved a different placement.
-- The workspace settings dialog now also includes a remove action, so sidebar-only widgets remain deletable even when they do not render a normal on-canvas card with header chrome.
+- The dedicated workspace widget settings view now also includes duplicate and remove actions, so sidebar-only widgets remain copyable and deletable even when they do not render a normal on-canvas card with header chrome.
 - Widget settings in Workspaces no longer open in a modal. They now use the dedicated
   `view=widget-settings` route state with a shared full-width settings panel and an explicit
   `Return to dashboard` action.

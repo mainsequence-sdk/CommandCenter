@@ -13,7 +13,18 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import { useAuiState } from "@assistant-ui/store";
-import { AlertTriangle, ArrowUp, ChevronDown, Loader2, Sparkles, Square, Wrench, Zap } from "lucide-react";
+import type { MessageState } from "@assistant-ui/core";
+import {
+  AlertTriangle,
+  ArrowUp,
+  Bot,
+  ChevronDown,
+  Loader2,
+  Sparkles,
+  Square,
+  Wrench,
+  Zap,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -22,6 +33,10 @@ import { env } from "@/config/env";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import { useChatFeature } from "../ChatProvider";
+import {
+  getMessageProvenanceFromMetadata,
+  hasAgentOriginProvenancePart,
+} from "../message-provenance";
 
 interface ChatThreadProps {
   compact?: boolean;
@@ -346,11 +361,31 @@ function ChainOfThoughtBlock() {
   );
 }
 
-function UserMessage() {
+function UserMessageBubble({
+  isAgentOrigin = false,
+  preview = false,
+}: {
+  isAgentOrigin?: boolean;
+  preview?: boolean;
+}) {
   return (
     <MessagePrimitive.Root className="flex justify-end">
-      <div className="max-w-[88%] rounded-[22px] bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm">
-        <MessagePrimitive.Parts components={{ Text: TextPart }} />
+      <div className="flex max-w-[92%] items-end gap-2">
+        {isAgentOrigin ? (
+          <div className="mb-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent/25 bg-accent/12 text-foreground shadow-sm">
+            <Bot className="h-4 w-4" />
+          </div>
+        ) : null}
+        <div
+          className={cn(
+            "max-w-[88%] rounded-[22px] px-4 py-3 text-sm shadow-sm",
+            isAgentOrigin
+              ? "border border-accent/25 bg-accent/12 text-foreground"
+              : "bg-primary text-primary-foreground",
+          )}
+        >
+          <MessagePrimitive.Parts components={{ Text: preview ? PageUserTextPart : TextPart }} />
+        </div>
       </div>
     </MessagePrimitive.Root>
   );
@@ -366,13 +401,10 @@ function PageUserTextPart() {
   );
 }
 
-function PageUserMessage() {
+function hasAgentOriginMessage(message: MessageState) {
   return (
-    <MessagePrimitive.Root className="flex justify-end">
-      <div className="max-w-[88%] rounded-[22px] bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm">
-        <MessagePrimitive.Parts components={{ Text: PageUserTextPart }} />
-      </div>
-    </MessagePrimitive.Root>
+    hasAgentOriginProvenancePart(message.content) ||
+    getMessageProvenanceFromMetadata(message.metadata)?.origin === "agent"
   );
 }
 
@@ -1005,7 +1037,6 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
     value: entry.id,
   }));
   const reasoningEffortOptions = availableReasoningEfforts;
-  const UserMessageComponent = isPage ? PageUserMessage : UserMessage;
   const selectedModel = selectedModelValue ?? modelOptions[0]?.value ?? "";
   const selectedProvider = selectedProviderValue ?? providerOptions[0]?.value ?? "";
   const selectedReasoningEffort =
@@ -1171,12 +1202,24 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                         <EmptyState compact={compact} surface={surface} />
                       </ThreadPrimitive.Empty>
                     ) : null}
-                    <ThreadPrimitive.Messages
-                      components={{
-                        AssistantMessage: () => <AssistantMessage surface={surface} />,
-                        UserMessage: UserMessageComponent,
+                    <ThreadPrimitive.Messages>
+                      {({ message }) => {
+                        if (message.role === "assistant") {
+                          return <AssistantMessage surface={surface} />;
+                        }
+
+                        if (message.role === "user") {
+                          return (
+                            <UserMessageBubble
+                              isAgentOrigin={hasAgentOriginMessage(message)}
+                              preview={isPage}
+                            />
+                          );
+                        }
+
+                        return null;
                       }}
-                    />
+                    </ThreadPrimitive.Messages>
                   </>
                 )}
                 <SessionNotice surface={surface} />

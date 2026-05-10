@@ -2370,6 +2370,7 @@ export interface ProjectImageOption {
   build_error?: boolean | null;
   creation_date?: string | null;
   creation_date_display?: string | null;
+  tags?: string[] | null;
 }
 
 export interface CreateProjectImageInput {
@@ -2543,6 +2544,21 @@ export interface ProjectExecutorAgentServiceSummary {
   project: number;
   related_job: number | null;
   subdomain: string | null;
+}
+
+export interface ProjectExecutorAgentServiceMaintenanceResult {
+  service_id: number;
+  project_id: number;
+  task_performed: boolean;
+  maintenance_state: string;
+  runtime_image_id: number | null;
+  previous_runtime_image_id: number | null;
+  replacement_runtime_image_id: number | null;
+  image_building: boolean;
+  image_status: string | null;
+  build_status: string | null;
+  detail: string | null;
+  runtime_access?: ProjectExecutorRuntimeAccess | null;
 }
 
 export interface AvailableGpuTypeOption {
@@ -5567,6 +5583,16 @@ export async function fetchProjectExecutorAgentServiceByProject(projectId: numbe
 
     throw error;
   }
+}
+
+export function maintainProjectExecutorAgentService(serviceId: number) {
+  return requestJson<ProjectExecutorAgentServiceMaintenanceResult>(
+    `/orm/api/agents/v1/project-executor-agent-services/${serviceId}/maintain-runtime/`,
+    "",
+    {
+      method: "POST",
+    },
+  );
 }
 
 export async function fetchAvailableProjectExecutorAgentImages(projectId: number) {

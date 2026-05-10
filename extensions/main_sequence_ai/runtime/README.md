@@ -50,7 +50,7 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   Shared assistant-backend global provider transport used by the Main Sequence AI user settings
   section for provider sign-in/sign-off and generic sign-in attempt polling.
 - `session-history-api.ts`
-  Shared session history fetch helper for an existing AgentSession id.
+  Shared backend session-history fetch helper for an existing AgentSession id.
 - `session-insights-api.ts`
   Shared ORM session insights fetch helper for an existing AgentSession id.
 - `session-config-api.ts`
@@ -69,6 +69,12 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   proxy-mode session traffic can branch by agent request name: sessions for
   `mainsequence-project-executor` use the dedicated executor proxy path, while other sessions keep
   using the standard assistant proxy path.
+- When `VITE_ASSISTANT_UI_PROXY_TARGET` is set but `VITE_ASSISTANT_UI_EXECUTOR_TARGET` is not,
+  `mainsequence-project-executor` session-bound requests must fall back to per-session
+  `resolve_runtime_access/` instead of being forced onto the standard `/__assistant__` proxy.
+- The Vite dev server must only mount `/__assistant_executor__` when
+  `VITE_ASSISTANT_UI_EXECUTOR_TARGET` is explicitly configured. It must not silently fall back to
+  the standard assistant proxy target for that route.
 - `assistant_ui.endpoint` may be blank when Main Sequence AI should rely entirely on backend
   runtime access. Render paths must not call the configured/static endpoint as a hard requirement
   for agent-runtime calls.
@@ -81,6 +87,9 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   runtime endpoints such as history, tools, or chat. Agent-runtime resolution no longer falls back
   to the Astro Command Center base-session endpoint when no concrete `AgentSession` id is selected;
   callers must provide a real backend session id.
+- The frontend treats `image_drift` from that per-session `resolve_runtime_access` response as
+  backend-owned status. It only normalizes the payload shape enough to surface a generic warning
+  in chat when the backend says that the selected runtime needs an update.
 - Global, non-chat operational surfaces such as `Project Agents`, `Model Providers`, and
   `Agents Settings` should use the dedicated `command-center-base` runtime target instead of
   depending on chat-store side effects or a concrete `AgentSession`.
@@ -90,9 +99,10 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - The per-session `resolve_runtime_access` response may omit echoed session identity. The frontend
   normalizer must fall back to the requested session id instead of treating that response as an
   invalid base-session payload.
-- `session-history-api.ts` treats a `404` history read as a valid empty session transcript. Fresh
-  `start_new_session` records should not block chat readiness just because no runtime messages have
-  been persisted yet.
+- `session-history-api.ts` reads
+  `GET /orm/api/agents/v1/sessions/{agent_session_id}/history/` directly and treats a `404`
+  history read as a valid empty session transcript. Fresh `start_new_session` records should not
+  block chat readiness just because no runtime messages have been persisted yet.
 - Interaction surfaces should use `agent-session-readiness.ts` semantics: a backend AgentSession
   is not ready for user input until detail, insights, and history have all loaded successfully for
   the same selected session id.

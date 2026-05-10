@@ -23,6 +23,7 @@ import { useToast } from "@/components/ui/toaster";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import { useAgentSessionDetail } from "../agent-session-detail/useAgentSessionDetail";
+import type { AgentImageDriftRecord, AgentSearchResult } from "../agent-search";
 import {
   buildActiveSessionSummary,
   resolveAgentSessionDisplayId,
@@ -32,9 +33,11 @@ import {
   type ActiveSessionSummary,
   type AgentSessionDetailSnapshot,
 } from "../agent-session-detail/model";
-import type { AgentSearchResult } from "../agent-search";
 import { buildAgentSessionRequestBodyFragment } from "../runtime/agent-session-request";
-import { fetchCommandCenterBaseSessionHandle } from "../runtime/command-center-base-session-api";
+import {
+  fetchAgentSessionRuntimeAccess,
+  fetchCommandCenterBaseSessionHandle,
+} from "../runtime/command-center-base-session-api";
 import type {
   AvailableChatModelOption,
   AvailableChatProviderOption,
@@ -170,6 +173,10 @@ interface ChatFeatureContextValue {
   }) => Promise<void>;
   thinkingSummary: string | null;
   toggleChat: () => void;
+}
+
+interface SessionRuntimeAccessUiMeta {
+  imageDrift: AgentImageDriftRecord | null;
 }
 
 const ChatFeatureContext = createContext<ChatFeatureContextValue | null>(null);
@@ -644,6 +651,9 @@ export function ChatProvider({
   const [isLoadingSessionHistoryBySessionId, setIsLoadingSessionHistoryBySessionId] = useState<
     Record<string, boolean>
   >({});
+  const [sessionRuntimeAccessMetaBySessionId, setSessionRuntimeAccessMetaBySessionId] = useState<
+    Record<string, SessionRuntimeAccessUiMeta>
+  >({});
   const [sessionSelectionMode, setSessionSelectionMode] = useState<"auto" | "explicit">("auto");
   const shouldSignalNewChatRef = useRef(true);
   const pendingNewChatRequestRef = useRef(false);
@@ -667,6 +677,7 @@ export function ChatProvider({
   const unavailableSessionModelNoticeRef = useRef<string | null>(null);
   const sessionHistoryRequestRef = useRef<AbortController | null>(null);
   const availableModelsRequestRef = useRef<AbortController | null>(null);
+  const sessionRuntimeAccessMetaRequestRef = useRef<AbortController | null>(null);
   const appliedAvailableModelsCacheKeyRef = useRef<string | null>(null);
   const hasAppliedAvailableModelsRef = useRef(false);
   const commandCenterBootstrapRequestRef = useRef<AbortController | null>(null);
@@ -748,6 +759,37 @@ export function ChatProvider({
             lookupSessionId === activeStreamLookupSessionId,
         )
       );
+    },
+    [],
+  );
+  const updateSessionRuntimeAccessMeta = useCallback(
+    ({
+      imageDrift,
+      sessionId,
+    }: {
+      imageDrift: AgentImageDriftRecord | null;
+      sessionId: string | null;
+    }) => {
+      const normalizedSessionId = sessionId?.trim() || null;
+
+      if (!normalizedSessionId) {
+        return;
+      }
+
+      setSessionRuntimeAccessMetaBySessionId((current) => {
+        const existing = current[normalizedSessionId];
+
+        if (existing?.imageDrift === imageDrift) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [normalizedSessionId]: {
+            imageDrift,
+          },
+        };
+      });
     },
     [],
   );
@@ -898,11 +940,13 @@ export function ChatProvider({
       session: activeSession,
       detail: activeSessionDetail,
       fallbackAgentId: agentId,
+      imageDrift: sessionRuntimeAccessMetaBySessionId[activeSession.id]?.imageDrift ?? null,
     });
   }, [
     activeSession,
     activeSessionDetail,
     agentId,
+    sessionRuntimeAccessMetaBySessionId,
   ]);
   const activeSessionReadiness = useMemo<AgentSessionInteractionReadiness>(() => {
     if (env.useMockData) {
@@ -1069,6 +1113,7 @@ export function ChatProvider({
     );
     setSessionSelectionMode(requestedChatSessionId ? "explicit" : "auto");
     setHasAttemptedLatestSessionsBootstrap(false);
+    setSessionRuntimeAccessMetaBySessionId({});
     loadedSessionIdRef.current = null;
     commandCenterBootstrapRequestRef.current?.abort();
     commandCenterBootstrapAttemptKeyRef.current = null;
@@ -1184,6 +1229,12 @@ export function ChatProvider({
         const options = await fetchAvailableRunConfigOptions({
           assistantEndpoint: availableModelsAssistantEndpoint,
           cacheKey: availableModelsCacheKey,
+          onResolvedAccess: (resolvedAccess) => {
+            updateSessionRuntimeAccessMeta({
+              imageDrift: resolvedAccess.imageDrift,
+              sessionId: availableModelsSessionId,
+            });
+          },
           sessionId: availableModelsSessionId,
           signal: controller.signal,
           token: sessionToken,
@@ -1223,12 +1274,73 @@ export function ChatProvider({
     availableModelsAssistantEndpoint,
     availableModelsCacheKey,
     hasAvailableModelsSessionId,
+    availableModelsSessionId,
     sessionToken,
     sessionTokenType,
     shouldDeferSessionBoundModelLoading,
     shouldSuppressDirectLaunchRuntimePrefetch,
     shouldHydrateChatRuntime,
     syntheticAvailableModelsFallback,
+    updateSessionRuntimeAccessMeta,
+  ]);
+
+  useEffect(() => {
+    sessionRuntimeAccessMetaRequestRef.current?.abort();
+
+    if (
+      env.useMockData ||
+      !shouldHydrateChatRuntime ||
+      !sessionToken ||
+      !activeSession?.id
+    ) {
+      return;
+    }
+
+    if (sessionRuntimeAccessMetaBySessionId[activeSession.id]) {
+      return;
+    }
+
+    const controller = new AbortController();
+    sessionRuntimeAccessMetaRequestRef.current = controller;
+
+    void (async () => {
+      try {
+        const handle = await fetchAgentSessionRuntimeAccess({
+          sessionId: activeSession.id,
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        updateSessionRuntimeAccessMeta({
+          imageDrift: handle.runtimeAccess?.imageDrift ?? null,
+          sessionId: activeSession.id,
+        });
+      } catch {
+        if (controller.signal.aborted) {
+          return;
+        }
+      } finally {
+        if (sessionRuntimeAccessMetaRequestRef.current === controller) {
+          sessionRuntimeAccessMetaRequestRef.current = null;
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    activeSession?.id,
+    sessionRuntimeAccessMetaBySessionId,
+    sessionToken,
+    sessionTokenType,
+    shouldHydrateChatRuntime,
+    updateSessionRuntimeAccessMeta,
   ]);
 
   useEffect(() => {
@@ -2608,10 +2720,7 @@ export function ChatProvider({
       void (async () => {
         try {
           const snapshot = await fetchSessionHistory({
-            assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-              resolveAgentSessionRequestName(session),
-            ),
-            sessionId: lookupSessionId,
+            sessionId,
             signal: controller.signal,
             token: sessionToken,
             tokenType: sessionTokenType,
@@ -2838,9 +2947,10 @@ export function ChatProvider({
     fetch: async (_input, init) => {
       const activeSession = activeSessionRef.current;
       const currentSessionId = resolveAgentSessionLookupId(activeSession);
-      const { response } = await fetchMainSequenceAiAssistantResponse({
+      const requestName = resolveAgentSessionRequestName(activeSession);
+      const { resolvedAccess, response, url } = await fetchMainSequenceAiAssistantResponse({
         assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-          resolveAgentSessionRequestName(activeSession),
+          requestName,
         ),
         currentSessionId,
         requestPath: "/api/chat",
@@ -2848,6 +2958,20 @@ export function ChatProvider({
         ...init,
         sessionToken,
         sessionTokenType,
+      });
+      if (env.debugChat) {
+        console.info("[main_sequence_ai] /api/chat resolved endpoint", {
+          assistantEndpoint: resolvedAccess.assistantEndpoint,
+          mode: resolvedAccess.mode,
+          requestName,
+          runtimeTarget: "agent-runtime",
+          sessionId: currentSessionId,
+          url,
+        });
+      }
+      updateSessionRuntimeAccessMeta({
+        imageDrift: resolvedAccess.imageDrift,
+        sessionId: currentSessionId,
       });
       return response;
     },

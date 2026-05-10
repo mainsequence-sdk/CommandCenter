@@ -83,4 +83,6 @@ This feature owns the Main Sequence project registry and project detail experien
   entries.
 - The project registry polls every 60 seconds only while the current page still contains an uninitialized project, and those rows render a spinner instead of a warning pill.
 - The project images tab polls every 60 seconds only while the current page still contains a building image, and those rows render a spinner instead of a warning pill.
+- The project images tab displays backend-provided image `tags` in the list view and includes those tags in the local filter.
+- Job creation and resource release creation share the same project-image picker formatting, including backend-provided image tags in picker descriptions and search keywords.
 - The create-project dialog auto-selects the first available data source and default base image once form options load.

@@ -1,4 +1,9 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
+import {
+  buildMessageProvenanceDataPart,
+  buildMessageProvenanceMetadata,
+  normalizeMessageProvenance,
+} from "./message-provenance";
 
 type HistoryMessageStatus = "running" | "completed" | "error";
 
@@ -222,13 +227,17 @@ function normalizeHistoryMessage(
 
   const id =
     typeof candidate.id === "string" && candidate.id.trim() ? candidate.id.trim() : undefined;
+  const createdAt = normalizeDate(candidate.createdAt);
+  const provenance = normalizeMessageProvenance(candidate.provenance);
+  const metadata = provenance ? buildMessageProvenanceMetadata(provenance) : undefined;
 
   return {
     role,
     ...(id ? { id } : {}),
-    ...(normalizeDate(candidate.createdAt) ? { createdAt: normalizeDate(candidate.createdAt) } : {}),
+    ...(createdAt ? { createdAt } : {}),
     ...(role === "assistant" ? { status: normalizeAssistantStatus(mode, session) } : {}),
-    content,
+    ...(metadata ? { metadata } : {}),
+    content: provenance ? [buildMessageProvenanceDataPart(provenance), ...content] : content,
   } satisfies ThreadMessageLike;
 }
 

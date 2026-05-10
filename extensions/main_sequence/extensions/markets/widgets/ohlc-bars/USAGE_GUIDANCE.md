@@ -76,7 +76,8 @@ and one filter value so the chart renders a single OHLC series.
 
 - Time values must parse as ISO date strings, ISO datetime strings, Unix seconds, Unix
   milliseconds, Unix microseconds, or Unix nanoseconds.
-- Date-only time fields render date labels. Datetime fields render locale-aware intraday labels.
+- Date-only time fields render date labels. Datetime fields render adaptive labels based on the
+  visible tick granularity, for example dates for daily bars and intraday times for minute bars.
 - Price values may be numbers or numeric strings, but empty strings, null values, and non-numeric
   strings are skipped.
 - Volume values may be numbers or numeric strings. Invalid volume values are ignored without

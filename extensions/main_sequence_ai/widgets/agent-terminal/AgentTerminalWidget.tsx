@@ -512,14 +512,7 @@ export function AgentTerminalWidget({
       }
 
       try {
-        const proxyAgentRequestName =
-          sessionStateRef.current?.requestAgentName ||
-          configuredAgentName ||
-          null;
         const history = await fetchSessionHistory({
-          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-            proxyAgentRequestName,
-          ),
           sessionId: targetSessionId,
           signal: controller.signal,
           token: sessionToken,
@@ -673,9 +666,6 @@ export function AgentTerminalWidget({
           sessionId,
         });
         const history = await fetchSessionHistory({
-          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-            validatedSessionState.requestAgentName,
-          ),
           sessionId,
           signal: controller.signal,
           token: sessionToken,

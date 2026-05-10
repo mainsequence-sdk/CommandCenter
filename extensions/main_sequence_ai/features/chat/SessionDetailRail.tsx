@@ -4,6 +4,10 @@ import { ArrowUpRight } from "lucide-react";
 
 import { getAgentSessionDetailPath } from "../../agent-session-detail/routes";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
+import {
+  AGENT_RUNTIME_IMAGE_DRIFT_NOTICE,
+  shouldShowAgentRuntimeImageDriftWarning,
+} from "../../image-drift";
 
 function normalizeSessionSecondaryLabel({
   agentUniqueId,
@@ -130,6 +134,9 @@ export function SessionDetailRail() {
       ) : null}
     </div>
   );
+  const showImageDriftWarning = shouldShowAgentRuntimeImageDriftWarning(
+    activeSessionSummary.imageDrift,
+  );
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent">
@@ -158,6 +165,11 @@ export function SessionDetailRail() {
               {summaryCard}
             </div>
           )}
+          {showImageDriftWarning ? (
+            <div className="rounded-[16px] border border-amber-500/35 bg-amber-500/10 px-3 py-3 text-sm text-amber-100">
+              {AGENT_RUNTIME_IMAGE_DRIFT_NOTICE}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

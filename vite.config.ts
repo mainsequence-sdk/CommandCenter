@@ -214,9 +214,24 @@ export default defineConfig(async ({ mode }) => {
     env.VITE_ASSISTANT_UI_PROXY_TARGET ||
     env.VITE_ASSISTANT_UI_ENDPOINT ||
     "http://192.168.1.253:8787";
-  const assistantExecutorProxyTarget =
-    env.VITE_ASSISTANT_UI_EXECUTOR_TARGET ||
-    assistantProxyTarget;
+  const assistantExecutorProxyTarget = env.VITE_ASSISTANT_UI_EXECUTOR_TARGET?.trim() || null;
+  const createProxyEntry = (target: string, prefix: string) => ({
+    target,
+    changeOrigin: true,
+    secure: false,
+    rewrite: (requestPath: string) => requestPath.replace(new RegExp(`^${prefix}`), ""),
+  });
+  const proxy = {
+    [devAuthProxyPrefix]: createProxyEntry(loopbackAuthProxyTarget, devAuthProxyPrefix),
+    [assistantProxyPrefix]: createProxyEntry(assistantProxyTarget, assistantProxyPrefix),
+  } as Record<string, ReturnType<typeof createProxyEntry>>;
+
+  if (assistantExecutorProxyTarget) {
+    proxy[assistantExecutorProxyPrefix] = createProxyEntry(
+      assistantExecutorProxyTarget,
+      assistantExecutorProxyPrefix,
+    );
+  }
 
   return {
     plugins: [
@@ -234,28 +249,7 @@ export default defineConfig(async ({ mode }) => {
     server: {
       port: 5173,
       hmr: manualReload ? false : undefined,
-      proxy: {
-        [devAuthProxyPrefix]: {
-          target: loopbackAuthProxyTarget,
-          changeOrigin: true,
-          secure: false,
-          rewrite: (requestPath: string) => requestPath.replace(new RegExp(`^${devAuthProxyPrefix}`), ""),
-        },
-        [assistantProxyPrefix]: {
-          target: assistantProxyTarget,
-          changeOrigin: true,
-          secure: false,
-          rewrite: (requestPath: string) =>
-            requestPath.replace(new RegExp(`^${assistantProxyPrefix}`), ""),
-        },
-        [assistantExecutorProxyPrefix]: {
-          target: assistantExecutorProxyTarget,
-          changeOrigin: true,
-          secure: false,
-          rewrite: (requestPath: string) =>
-            requestPath.replace(new RegExp(`^${assistantExecutorProxyPrefix}`), ""),
-        },
-      },
+      proxy,
     },
   };
 });

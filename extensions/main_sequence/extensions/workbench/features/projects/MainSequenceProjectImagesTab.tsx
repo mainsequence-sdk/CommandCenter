@@ -56,6 +56,14 @@ function formatProjectImageStatus(image: ProjectImageOption) {
   return image.is_ready ? "Ready" : "Building";
 }
 
+function getProjectImageTags(image: ProjectImageOption) {
+  return Array.isArray(image.tags)
+    ? image.tags
+        .filter((tag): tag is string => typeof tag === "string" && tag.trim().length > 0)
+        .map((tag) => tag.trim())
+    : [];
+}
+
 function hasBuildingImages(images: ProjectImageOption[] | undefined) {
   return (images ?? []).some((image) => !image.is_ready && !projectImageHasBuildError(image));
 }
@@ -136,6 +144,7 @@ export function MainSequenceProjectImagesTab({
         image.base_image?.title ?? "",
         image.base_image?.description ?? "",
         image.base_image?.latest_digest ?? "",
+        ...getProjectImageTags(image),
         formatProjectImageStatus(image),
       ]
         .join(" ")
@@ -297,7 +306,7 @@ export function MainSequenceProjectImagesTab({
           renderSelectionSummary={(selectionCount) => `${selectionCount} images selected`}
           value={filterValue}
           onChange={(event) => setFilterValue(event.target.value)}
-          placeholder="Filter by id, repo hash, base image, digest, or status"
+          placeholder="Filter by id, repo hash, base image, tag, digest, or status"
           searchClassName="max-w-lg"
           selectionCount={imageSelection.selectedCount}
         />
@@ -332,7 +341,7 @@ export function MainSequenceProjectImagesTab({
 
       {!imagesQuery.isLoading && !imagesQuery.isError && filteredImages.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-separate border-spacing-y-2 text-sm">
+          <table className="w-full min-w-[1120px] border-separate border-spacing-y-2 text-sm">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                 <th className="w-12 px-3 pb-2">
@@ -346,12 +355,14 @@ export function MainSequenceProjectImagesTab({
                 <th className="px-4 pb-2">Title</th>
                 <th className="px-4 pb-2">Repo hash</th>
                 <th className="px-4 pb-2">Base image</th>
+                <th className="px-4 pb-2">Tags</th>
                 <th className="px-4 pb-2">Status</th>
               </tr>
             </thead>
             <tbody>
               {filteredImages.map((image) => {
                 const selected = imageSelection.isSelected(image.id);
+                const tags = getProjectImageTags(image);
 
                 return (
                   <tr key={image.id}>
@@ -402,6 +413,24 @@ export function MainSequenceProjectImagesTab({
                       >
                         {image.base_image?.latest_digest ?? "Digest unavailable"}
                       </div>
+                    </td>
+                    <td className={getRegistryTableCellClassName(selected)}>
+                      {tags.length > 0 ? (
+                        <div className="flex max-w-xs flex-wrap gap-1.5">
+                          {tags.map((tag) => (
+                            <Badge
+                              key={`${image.id}-${tag}`}
+                              variant="neutral"
+                              className="max-w-full normal-case tracking-normal"
+                              title={tag}
+                            >
+                              {truncateMiddle(tag, 32)}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No tags</span>
+                      )}
                     </td>
                     <td className={getRegistryTableCellClassName(selected, "right")}>
                       {projectImageHasBuildError(image) ? (

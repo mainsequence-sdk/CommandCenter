@@ -38,10 +38,19 @@ remaining height. The two shells still differ intentionally:
 - available-model fetching resolves the selected backend `AgentSession` first, so it calls that
   session's `runtime_access.rpc_url` instead of the static configured endpoint or Vite assistant
   proxy
+- when that per-session runtime-access response includes backend `image_drift`, chat stores only
+  the warning metadata needed for UI and surfaces a generic "needs an update" warning in the full
+  page and session-detail rail
+- that warning metadata is now resolved directly for the selected backend session as part of chat
+  hydration, so it still appears when assistant-runtime model catalogs come from cache or when
+  local proxy mode bypasses runtime `rpc_url` resolution for the actual chat transport
 - when the full chat page or right rail has finished loading latest sessions and the merged
   session list has no backend `AgentSession` at all, `ChatProvider` initializes the Command Center
   orchestrator through the get-or-create base-session endpoint, inserts that returned session, and
   then lets the normal AgentSession detail, insights, and history readiness gate run
+- history user turns that arrive with `provenance.origin = "agent"` stay in the user lane, but the
+  bubble now uses a robot badge plus a separate agent-origin tint so A2A-origin prompts are visually
+  distinct from direct human user prompts
 - that zero-session initialization is independent of `?session=<id>`; any existing backend session
   suppresses automatic orchestrator creation, and project-agent rails are excluded
 - available-model fetching is cached per user + agent request name for 15 minutes, so switching
@@ -224,9 +233,12 @@ This boundary owns a feature-local session layer that:
 - exposes the active shared AgentSession detail snapshot so chat chrome can render core detail
   without duplicating fetch state
 - restores cached messages when the user switches sessions through the shared page explorer
-- rehydrates the selected session from `/api/chat/history?sessionId=<AgentSession.id>` when the
+- rehydrates the selected session from `/orm/api/agents/v1/sessions/<AgentSession.id>/history/` when the
   user selects a backend session, then replaces the local cached transcript with the backend
   history payload
+- preserves backend message `provenance` from that history payload in assistant-ui message
+  metadata and in a hidden per-message provenance data part so agent-origin user turns can render
+  with a robot badge in the transcript without changing their underlying `role: "user"` semantics
 - creates user-initiated fresh chat sessions through the backend `start_new_session` action before
   selecting them, so a local placeholder id is never treated as an interactive session
 - treats backend detail, insights, and history as required readiness facets before enabling chat
@@ -243,7 +255,8 @@ This boundary owns a feature-local session layer that:
   rail from the created session record first so the canonical Astro orchestrator transport does not
   mix into the first-open experience
 - direct-launched sessions no longer mark history as ready from local placeholder state;
-  they stay loading until a real `/api/chat/history?sessionId=<AgentSession.id>` read succeeds
+  they stay loading until a real `/orm/api/agents/v1/sessions/<AgentSession.id>/history/` read
+  succeeds
 - session-bound runtime calls now resolve runtime access from
   `/orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/` instead of routing
   every selected session through a separate Astro Command Center bootstrap endpoint

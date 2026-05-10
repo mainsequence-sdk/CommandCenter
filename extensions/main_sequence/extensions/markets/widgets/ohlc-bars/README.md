@@ -44,8 +44,9 @@ typically a Connection Query or WebSocket connection stream output.
   close prices.
 - Time values may be ISO date strings, ISO datetime strings, Unix seconds, Unix milliseconds, Unix
   microseconds, or Unix nanoseconds.
-- Date-only time fields render date ticks, while datetime fields render locale-aware intraday ticks
-  and crosshair time labels consistent with the core Graph widget.
+- Date-only time fields render date ticks. Datetime fields render adaptive time-scale labels based
+  on the chart tick granularity, for example dates for daily bars and intraday times for minute or
+  second bars. Crosshair time labels keep the full localized datetime.
 - Price values may be numbers or numeric strings. Invalid rows are skipped and surfaced as a warning
   in the widget body.
 - Lightweight Charts requires strictly increasing rendered timestamps. When multiple source rows
